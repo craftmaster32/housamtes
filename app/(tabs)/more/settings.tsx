@@ -1,0 +1,426 @@
+import { useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Alert, Switch } from 'react-native';
+import { Text } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { useHousematesStore } from '@stores/housematesStore';
+import { useAuthStore } from '@stores/authStore';
+import { useNotificationStore, BillDueDays } from '@stores/notificationStore';
+import { useLanguageStore } from '@stores/languageStore';
+import type { AppLanguage } from '@lib/i18n';
+import { colors } from '@constants/colors';
+import { sizes } from '@constants/sizes';
+import { font } from '@constants/typography';
+
+function MenuItem({
+  icon,
+  label,
+  sub,
+  onPress,
+  rightText,
+  disabled,
+}: {
+  icon: string;
+  label: string;
+  sub?: string;
+  onPress: () => void;
+  rightText?: string;
+  disabled?: boolean;
+}): React.JSX.Element {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.menuItem, pressed && !disabled && styles.menuItemPressed]}
+      onPress={onPress}
+      disabled={disabled}
+      accessible
+      accessibilityRole="button"
+    >
+      <View style={[styles.menuIcon, disabled && styles.menuIconDisabled]}>
+        <Text style={styles.menuIconText}>{icon}</Text>
+      </View>
+      <View style={styles.menuText}>
+        <Text style={[styles.menuLabel, disabled && styles.menuLabelDisabled]}>{label}</Text>
+        {sub ? <Text style={styles.menuSub}>{sub}</Text> : null}
+      </View>
+      {rightText ? (
+        <Text style={styles.menuRightText}>{rightText}</Text>
+      ) : (
+        <Text style={[styles.menuChevron, disabled && styles.menuChevronDisabled]}>›</Text>
+      )}
+    </Pressable>
+  );
+}
+
+function ToggleRow({
+  icon,
+  label,
+  sub,
+  value,
+  onToggle,
+}: {
+  icon: string;
+  label: string;
+  sub?: string;
+  value: boolean;
+  onToggle: (v: boolean) => void;
+}): React.JSX.Element {
+  return (
+    <View style={styles.menuItem}>
+      <View style={styles.menuIcon}>
+        <Text style={styles.menuIconText}>{icon}</Text>
+      </View>
+      <View style={styles.menuText}>
+        <Text style={styles.menuLabel}>{label}</Text>
+        {sub ? <Text style={styles.menuSub}>{sub}</Text> : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.white}
+      />
+    </View>
+  );
+}
+
+function RowDivider(): React.JSX.Element {
+  return <View style={styles.rowDivider} />;
+}
+
+function SectionDivider({ label }: { label: string }): React.JSX.Element {
+  return <Text style={styles.sectionLabel}>{label}</Text>;
+}
+
+const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
+
+export default function SettingsScreen(): React.JSX.Element {
+  const { t } = useTranslation();
+  const houseName = useHousematesStore((s) => s.houseName);
+  const inviteCode = useHousematesStore((s) => s.inviteCode);
+  const housemates = useHousematesStore((s) => s.housemates);
+
+  const user = useAuthStore((s) => s.user);
+  const houseId = useAuthStore((s) => s.houseId);
+
+  const prefs = useNotificationStore((s) => s.prefs);
+  const updatePrefs = useNotificationStore((s) => s.update);
+
+  const currentLanguage = useLanguageStore((s) => s.language);
+  const setLanguage = useLanguageStore((s) => s.setLanguage);
+
+  const toggle = useCallback(
+    (key: keyof typeof prefs, value: boolean) => {
+      if (!user?.id || !houseId) return;
+      updatePrefs(user.id, houseId, { [key]: value });
+    },
+    [user?.id, houseId, updatePrefs, prefs]
+  );
+
+  const setDaysBefore = useCallback(
+    (days: BillDueDays) => {
+      if (!user?.id || !houseId) return;
+      updatePrefs(user.id, houseId, { billDueDaysBefore: days });
+    },
+    [user?.id, houseId, updatePrefs]
+  );
+
+  const handleCopyInviteCode = useCallback(() => {
+    Alert.alert(
+      t('settings.invite_code'),
+      `${t('profile.share_code')}\n\n${inviteCode}`,
+      [{ text: t('common.ok') }]
+    );
+  }, [inviteCode, t]);
+
+  const LANGUAGE_OPTIONS: { code: AppLanguage; label: string; flag: string }[] = [
+    { code: 'en', label: t('settings.language_en'), flag: '🇬🇧' },
+    { code: 'he', label: t('settings.language_he'), flag: '🇮🇱' },
+    { code: 'es', label: t('settings.language_es'), flag: '🇪🇸' },
+  ];
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <Pressable
+        style={styles.backBtn}
+        onPress={() => router.back()}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={t('common.back')}
+      >
+        <Text style={styles.backBtnText}>{t('settings.back')}</Text>
+      </Pressable>
+
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Text style={styles.heading}>{t('settings.title')}</Text>
+
+        {/* House */}
+        <SectionDivider label={t('settings.house_section')} />
+        <View style={styles.menuGroup}>
+          <MenuItem
+            icon="🏠"
+            label={t('settings.house_name')}
+            rightText={houseName || '—'}
+            onPress={() => {}}
+            disabled
+          />
+          {!!inviteCode && (
+            <>
+              <RowDivider />
+              <MenuItem
+                icon="🎟️"
+                label={t('settings.invite_code')}
+                sub={t('settings.invite_code_sub')}
+                onPress={handleCopyInviteCode}
+              />
+            </>
+          )}
+          <RowDivider />
+          <MenuItem
+            icon="👥"
+            label={t('settings.housemates')}
+            sub={t('common.person', { count: housemates.length })}
+            onPress={() => router.push('/(tabs)/bills/setup')}
+          />
+        </View>
+
+        {/* Notifications */}
+        <SectionDivider label={t('settings.notifications_section')} />
+        <View style={styles.menuGroup}>
+          <ToggleRow
+            icon="💰"
+            label={t('settings.notify_bill_added')}
+            sub={t('settings.notify_bill_added_sub')}
+            value={prefs.notifyBillAdded}
+            onToggle={(v) => toggle('notifyBillAdded', v)}
+          />
+          <RowDivider />
+          <ToggleRow
+            icon="✅"
+            label={t('settings.notify_bill_settled')}
+            sub={t('settings.notify_bill_settled_sub')}
+            value={prefs.notifyBillSettled}
+            onToggle={(v) => toggle('notifyBillSettled', v)}
+          />
+          <RowDivider />
+          <ToggleRow
+            icon="⏰"
+            label={t('settings.notify_bill_due')}
+            sub={t('settings.notify_bill_due_sub')}
+            value={prefs.notifyBillDue}
+            onToggle={(v) => toggle('notifyBillDue', v)}
+          />
+          {prefs.notifyBillDue && (
+            <View style={styles.daysPickerRow}>
+              <Text style={styles.daysPickerLabel}>{t('settings.remind_me')}</Text>
+              <View style={styles.daysChips}>
+                {DAYS_OPTIONS.map((d) => (
+                  <Pressable
+                    key={d}
+                    style={[styles.dayChip, prefs.billDueDaysBefore === d && styles.dayChipActive]}
+                    onPress={() => setDaysBefore(d)}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.day', { count: d })}
+                    accessibilityState={{ selected: prefs.billDueDaysBefore === d }}
+                  >
+                    <Text style={[styles.dayChipText, prefs.billDueDaysBefore === d && styles.dayChipTextActive]}>
+                      {d}d
+                    </Text>
+                  </Pressable>
+                ))}
+                <Text style={styles.daysPickerSuffix}>{t('settings.before_due')}</Text>
+              </View>
+            </View>
+          )}
+          <RowDivider />
+          <ToggleRow
+            icon="🚗"
+            label={t('settings.notify_parking_claimed')}
+            sub={t('settings.notify_parking_claimed_sub')}
+            value={prefs.notifyParkingClaimed}
+            onToggle={(v) => toggle('notifyParkingClaimed', v)}
+          />
+          <RowDivider />
+          <ToggleRow
+            icon="📅"
+            label={t('settings.notify_parking_reservation')}
+            sub={t('settings.notify_parking_reservation_sub')}
+            value={prefs.notifyParkingReservation}
+            onToggle={(v) => toggle('notifyParkingReservation', v)}
+          />
+          <RowDivider />
+          <ToggleRow
+            icon="🧹"
+            label={t('settings.notify_chore')}
+            sub={t('settings.notify_chore_sub')}
+            value={prefs.notifyChoreOverdue}
+            onToggle={(v) => toggle('notifyChoreOverdue', v)}
+          />
+          <RowDivider />
+          <ToggleRow
+            icon="💬"
+            label={t('settings.notify_chat')}
+            sub={t('settings.notify_chat_sub')}
+            value={prefs.notifyChatMessage}
+            onToggle={(v) => toggle('notifyChatMessage', v)}
+          />
+        </View>
+
+        {/* Language */}
+        <SectionDivider label={t('settings.language_section')} />
+        <View style={styles.menuGroup}>
+          {LANGUAGE_OPTIONS.map((opt, idx) => (
+            <View key={opt.code}>
+              {idx > 0 && <RowDivider />}
+              <Pressable
+                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                onPress={() => setLanguage(opt.code)}
+                accessible
+                accessibilityRole="radio"
+                accessibilityState={{ checked: currentLanguage === opt.code }}
+              >
+                <View style={styles.menuIcon}>
+                  <Text style={styles.menuIconText}>{opt.flag}</Text>
+                </View>
+                <View style={styles.menuText}>
+                  <Text style={styles.menuLabel}>{opt.label}</Text>
+                </View>
+                {currentLanguage === opt.code && (
+                  <Text style={[styles.menuChevron, { color: colors.primary, fontSize: 18 }]}>✓</Text>
+                )}
+              </Pressable>
+            </View>
+          ))}
+        </View>
+
+        {/* About */}
+        <SectionDivider label={t('settings.about_section')} />
+        <View style={styles.menuGroup}>
+          <MenuItem
+            icon="📋"
+            label={t('settings.version')}
+            sub="Nestiq"
+            onPress={() => {}}
+            disabled
+            rightText="1.0.0"
+          />
+          <RowDivider />
+          <MenuItem
+            icon="📄"
+            label={t('settings.terms')}
+            sub={t('settings.terms_sub')}
+            onPress={() => router.push('/(tabs)/settings/terms')}
+          />
+          <RowDivider />
+          <MenuItem
+            icon="🔒"
+            label={t('settings.privacy')}
+            sub={t('settings.privacy_sub')}
+            onPress={() => router.push('/(tabs)/settings/privacy-policy')}
+          />
+        </View>
+
+        <Text style={styles.footer}>{t('settings.footer')}</Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  backBtn: {
+    paddingHorizontal: sizes.lg,
+    paddingVertical: sizes.sm,
+    alignSelf: 'flex-start',
+  },
+  backBtnText: { fontSize: 16, ...font.semibold, color: colors.primary },
+  scroll: { paddingHorizontal: sizes.lg, paddingBottom: 60 },
+  heading: {
+    fontSize: 28,
+    ...font.extrabold,
+    color: colors.textPrimary,
+    letterSpacing: -0.5,
+    marginBottom: sizes.lg,
+    marginTop: sizes.xs,
+  },
+  sectionLabel: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    ...font.bold,
+    letterSpacing: 1.2,
+    marginBottom: sizes.sm,
+    marginTop: sizes.xs,
+    marginLeft: 4,
+  },
+  menuGroup: {
+    backgroundColor: colors.white,
+    borderRadius: sizes.borderRadiusLg,
+    marginBottom: sizes.lg,
+    overflow: 'hidden',
+  },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
+  menuItemPressed: { backgroundColor: colors.background },
+  menuIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: sizes.borderRadiusSm,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuIconDisabled: { opacity: 0.4 },
+  menuIconText: { fontSize: 18 },
+  menuText: { flex: 1 },
+  menuLabel: { color: colors.textPrimary, ...font.semibold, fontSize: 15 },
+  menuLabelDisabled: { color: colors.textSecondary },
+  menuSub: { color: colors.textSecondary, fontSize: 13, ...font.regular, marginTop: 1 },
+  menuChevron: { color: colors.textDisabled, fontSize: 22 },
+  menuChevronDisabled: { opacity: 0 },
+  menuRightText: { color: colors.textSecondary, ...font.regular, fontSize: 14 },
+  rowDivider: { height: 1, backgroundColor: colors.border, marginLeft: sizes.md + 36 + sizes.sm },
+  footer: { color: colors.textDisabled, fontSize: 13, ...font.regular, textAlign: 'center', marginTop: sizes.md },
+  daysPickerRow: {
+    paddingHorizontal: sizes.md,
+    paddingBottom: sizes.md,
+    gap: sizes.xs,
+  },
+  daysPickerLabel: {
+    fontSize: 13,
+    ...font.semibold,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  daysChips: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sizes.xs,
+    flexWrap: 'wrap',
+  },
+  dayChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dayChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  dayChipText: {
+    fontSize: 13,
+    ...font.semibold,
+    color: colors.textSecondary,
+  },
+  dayChipTextActive: {
+    color: colors.white,
+  },
+  daysPickerSuffix: {
+    fontSize: 13,
+    ...font.regular,
+    color: colors.textSecondary,
+    marginLeft: 4,
+  },
+});

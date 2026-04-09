@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx skills:*)",
+      "Bash(npx expo:*)",
+      "Bash(ls c:/homeapp/node_modules/@expo-google-fonts/inter/*.ttf)",
+      "Bash(find /c/homeapp -type f \\\\\\(-name *.env* -o -name *secret* -o -name *credential* -o -name *key* \\\\\\) ! -path */node_modules/*)",
+      "Bash(grep -r \"api_key\\\\|API_KEY\\\\|secret\\\\|SECRET\\\\|password\\\\|PASSWORD\" /c/homeapp --include=*.json --include=*.ts --include=*.tsx --exclude-dir=node_modules --exclude-dir=.expo)",
+      "Bash(ls /c/homeapp/stores/*.ts)",
+      "Bash(npm list:*)",
+      "WebFetch(domain:diko-dev99.medium.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:expo.dev)",
+      "WebFetch(domain:docs.expo.dev)",
+      "WebFetch(domain:iifx.dev)",
+      "Bash(ls -la \"c:\\\\homeapp\\\\app\\\\\\(tabs\\)\\\\more\"\")",
+      "Bash(find \"c:/homeapp/app/\\(tabs\\)\" -name \"index.tsx\")",
+      "Bash(wc -l \"c:/homeapp/app/\\(tabs\\)/dashboard/index.tsx\")",
+      "Bash(head -n 450 \"c:/homeapp/app/\\(tabs\\)/dashboard/index.tsx\")",
+      "Bash(grep -l \"useTranslation\" c:/homeapp/app/\\\\\\(tabs\\\\\\)/**/*.tsx)",
+      "Bash(grep -rL \"useTranslation\" c:/homeapp/app/\\\\\\(auth\\\\\\)/**/*.tsx c:/homeapp/app/\\\\\\(onboarding\\\\\\)/**/*.tsx)",
+      "Bash(xargs grep:*)",
+      "Bash(find /c/homeapp/stores -name *photo* -type f)",
+      "WebFetch(domain:www.figma.com)"
+    ]
+  }
+}
