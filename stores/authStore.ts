@@ -1,10 +1,63 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { supabase } from '@lib/supabase';
 import { identifyUser, clearUser, captureError } from '@lib/errorTracking';
 import { registerPushToken, unregisterPushToken } from '@lib/notifications';
 import type { User, Session } from '@supabase/supabase-js';
+
+// ── Persistent house cache ────────────────────────────────────────────────────
+// Stores houseId keyed by userId so the app never forgets which house
+// a user belongs to, even across refreshes or platform switches.
+// Mobile: expo-secure-store (iOS Keychain / Android Keystore — survives reinstalls
+//         and is never cleared by the OS under memory pressure).
+// Web:    localStorage (best available, cleared only on explicit user action).
+const HOUSE_CACHE_PREFIX = 'housemates_house_v1_';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSecureStore(): any {
+  // expo-secure-store is native-only — never import it at the top level
+  // or the web build will crash. Lazy require is safe because this code
+  // path is only reached when Platform.OS !== 'web'.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('expo-secure-store');
+}
+
+async function cacheHouseId(userId: string, houseId: string): Promise<void> {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(HOUSE_CACHE_PREFIX + userId, houseId);
+      }
+    } else {
+      await getSecureStore().setItemAsync(HOUSE_CACHE_PREFIX + userId, houseId);
+    }
+  } catch { /* non-fatal */ }
+}
+
+async function getCachedHouseId(userId: string): Promise<string | null> {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        return window.localStorage.getItem(HOUSE_CACHE_PREFIX + userId);
+      }
+      return null;
+    }
+    return await getSecureStore().getItemAsync(HOUSE_CACHE_PREFIX + userId);
+  } catch { return null; }
+}
+
+async function clearCachedHouseId(userId: string): Promise<void> {
+  try {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(HOUSE_CACHE_PREFIX + userId);
+      }
+    } else {
+      await getSecureStore().deleteItemAsync(HOUSE_CACHE_PREFIX + userId);
+    }
+  } catch { /* non-fatal */ }
+}
 
 // Map raw Supabase error messages to user-friendly text so internal
 // server details are never shown on screen.
@@ -72,6 +125,7 @@ interface AuthStore {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   setHouseId: (houseId: string) => void;
+  leaveHouse: () => Promise<void>;
   clearError: () => void;
   clearPasswordRecovery: () => void;
 }
@@ -94,7 +148,10 @@ export const useAuthStore = create<AuthStore>()(
         // Refresh tokens when the app comes back to the foreground
         AppState.addEventListener('change', (state) => {
           if (state === 'active') {
-            supabase.auth.startAutoRefresh();
+            supabase.auth.startAutoRefresh().catch(() => {
+              // Stale token — sign out silently so the user lands on the login screen
+              supabase.auth.signOut().catch(() => {});
+            });
           } else {
             supabase.auth.stopAutoRefresh();
           }
@@ -121,7 +178,7 @@ export const useAuthStore = create<AuthStore>()(
 
           if (session?.user) {
             const [profile, memberData] = await Promise.all([
-              fetchProfile(session.user.id),
+              fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
               fetchMemberData(session.user.id),
             ]);
             identifyUser(session.user.id);
@@ -140,10 +197,16 @@ export const useAuthStore = create<AuthStore>()(
         });
 
         try {
-          const { data: { session } } = await supabase.auth.getSession();
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          // Invalid / expired refresh token — clear it so the user is redirected to login
+          if (sessionError) {
+            await supabase.auth.signOut().catch(() => {});
+            set({ isLoading: false });
+            return;
+          }
           if (session?.user) {
             const [profile, memberData] = await Promise.all([
-              fetchProfile(session.user.id),
+              fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
               fetchMemberData(session.user.id),
             ]);
             identifyUser(session.user.id);
@@ -170,21 +233,13 @@ export const useAuthStore = create<AuthStore>()(
           });
           if (error) throw error;
           if (data.user) {
-            // Create profile row regardless of verification status
-            const existingProfile = await fetchProfile(data.user.id);
-            if (!existingProfile) {
-              await supabase.from('profiles').insert({
-                id: data.user.id,
-                name,
-                avatar_color: avatarColor,
-              });
-            }
-            // If session is null, email confirmation is required
+            // If session is null, email confirmation is required.
+            // The handle_new_user trigger already created the profile row — no insert needed here.
             if (!data.session) {
               set({ pendingEmail: email, isLoading: false });
               return { needsVerification: true };
             }
-            const profile = existingProfile ?? { id: data.user.id, name, avatarColor };
+            const profile = await fetchProfile(data.user.id, data.user.user_metadata as Record<string, unknown>);
             set({ user: data.user, session: data.session, profile, isLoading: false });
           }
           return { needsVerification: false };
@@ -207,7 +262,7 @@ export const useAuthStore = create<AuthStore>()(
           if (error) throw error;
           if (data.user) {
             const [profile, memberData] = await Promise.all([
-              fetchProfile(data.user.id),
+              fetchProfile(data.user.id, data.user.user_metadata as Record<string, unknown>),
               fetchMemberData(data.user.id),
             ]);
             set({ user: data.user, session: data.session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, isLoading: false });
@@ -221,11 +276,27 @@ export const useAuthStore = create<AuthStore>()(
 
       signOut: async (): Promise<void> => {
         await supabase.auth.signOut();
-        set({ user: null, session: null, profile: null, houseId: null });
+        set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
       },
 
       setHouseId: (houseId): void => {
         set({ houseId });
+        const userId = useAuthStore.getState().user?.id;
+        if (userId) cacheHouseId(userId, houseId).catch(() => {});
+      },
+
+      leaveHouse: async (): Promise<void> => {
+        const { user, houseId } = useAuthStore.getState();
+        if (!user || !houseId) return;
+        try {
+          await supabase
+            .from('house_members')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('house_id', houseId);
+          await clearCachedHouseId(user.id);
+        } catch { /* non-fatal — still clear locally */ }
+        set({ houseId: null, role: null });
       },
 
       clearError: (): void => {
@@ -239,36 +310,63 @@ export const useAuthStore = create<AuthStore>()(
   )
 );
 
-async function fetchProfile(userId: string): Promise<Profile | null> {
+async function fetchProfile(
+  userId: string,
+  userMeta?: Record<string, unknown>
+): Promise<Profile | null> {
   const { data } = await supabase
     .from('profiles')
     .select('id, name, avatar_color')
     .eq('id', userId)
     .maybeSingle();
-  if (!data) return null;
-  return { id: data.id, name: data.name, avatarColor: data.avatar_color };
+
+  if (data) return { id: data.id, name: data.name, avatarColor: data.avatar_color };
+
+  // Profile row missing — create it from auth metadata so the app works immediately
+  if (!userMeta) return null;
+  const name = (userMeta.name as string) || (userMeta.full_name as string) || 'You';
+  const avatarColor = (userMeta.avatar_color as string) || '#6366f1';
+
+  await supabase.from('profiles').upsert({ id: userId, name, avatar_color: avatarColor });
+  return { id: userId, name, avatarColor };
 }
 
 async function fetchMemberData(userId: string): Promise<{ houseId: string | null; role: MemberRole | null; permissions: MemberPermissions }> {
+  // Use array + limit(1) — never maybeSingle() since multiple rows can exist.
+  // No ordering by created_at — that column may not exist in all environments.
   const { data, error } = await supabase
     .from('house_members')
     .select('house_id, role, permissions')
     .eq('user_id', userId)
-    .maybeSingle();
+    .limit(1);
 
-  if (error || !data) {
-    // role/permissions columns may not exist yet — fall back to just house_id
-    const { data: fb } = await supabase
-      .from('house_members')
-      .select('house_id')
-      .eq('user_id', userId)
-      .maybeSingle();
-    return { houseId: fb?.house_id ?? null, role: null, permissions: DEFAULT_PERMISSIONS };
+  const row = data?.[0];
+
+  if (!error && row?.house_id) {
+    // Cache the found house ID so future cold-starts never forget it
+    await cacheHouseId(userId, row.house_id);
+    return {
+      houseId: row.house_id,
+      role: (row.role as MemberRole) ?? 'member',
+      permissions: { ...DEFAULT_PERMISSIONS, ...(row.permissions as Partial<MemberPermissions>) },
+    };
   }
 
-  return {
-    houseId: data.house_id,
-    role: (data.role as MemberRole) ?? 'member',
-    permissions: { ...DEFAULT_PERMISSIONS, ...(data.permissions as Partial<MemberPermissions>) },
-  };
+  // DB query failed or returned nothing — try the local cache first
+  const cached = await getCachedHouseId(userId);
+  if (cached) {
+    return { houseId: cached, role: null, permissions: DEFAULT_PERMISSIONS };
+  }
+
+  // role/permissions columns may not exist yet — fall back to house_id only
+  const { data: fb } = await supabase
+    .from('house_members')
+    .select('house_id')
+    .eq('user_id', userId)
+    .limit(1);
+
+  const fbHouseId = fb?.[0]?.house_id ?? null;
+  if (fbHouseId) await cacheHouseId(userId, fbHouseId);
+
+  return { houseId: fbHouseId, role: null, permissions: DEFAULT_PERMISSIONS };
 }

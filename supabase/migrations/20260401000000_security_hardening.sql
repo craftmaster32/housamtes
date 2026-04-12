@@ -1,5 +1,5 @@
 -- ============================================================
--- Nestiq — Security Hardening
+-- HouseMates — Security Hardening
 -- Fixes missing RLS policies and tightens existing ones
 -- ============================================================
 

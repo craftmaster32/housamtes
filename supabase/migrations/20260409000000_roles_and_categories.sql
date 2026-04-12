@@ -1,5 +1,5 @@
 -- ============================================================
--- Nestiq — Roles, permissions & custom expense categories
+-- HouseMates — Roles, permissions & custom expense categories
 -- ============================================================
 
 -- ── 1. Add role column to house_members ─────────────────────

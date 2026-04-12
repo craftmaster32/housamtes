@@ -1,5 +1,5 @@
 -- ============================================================
--- Nestiq — Add settle fields to bills + photos table
+-- HouseMates — Add settle fields to bills + photos table
 -- ============================================================
 
 -- Add settle tracking columns to bills

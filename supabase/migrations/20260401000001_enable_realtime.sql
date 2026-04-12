@@ -1,5 +1,5 @@
 -- ============================================================
--- Nestiq — Enable Realtime on all collaborative tables
+-- HouseMates — Enable Realtime on all collaborative tables
 -- Without this, Supabase won't broadcast changes even if the
 -- app subscribes to them.
 -- ============================================================

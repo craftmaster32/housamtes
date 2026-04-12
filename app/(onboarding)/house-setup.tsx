@@ -39,7 +39,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
 
       const { error: memberErr } = await supabase
         .from('house_members')
-        .insert({ house_id: house.id, user_id: user.id });
+        .insert({ house_id: house.id, user_id: user.id, role: 'owner' });
       if (memberErr) throw memberErr;
 
       setHouseId(house.id);

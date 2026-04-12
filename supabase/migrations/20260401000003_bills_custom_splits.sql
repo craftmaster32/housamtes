@@ -1,5 +1,5 @@
 -- ============================================================
--- Nestiq — Add custom split amounts to bills
+-- HouseMates — Add custom split amounts to bills
 -- ============================================================
 
 -- split_amounts stores per-person amounts when using custom split.

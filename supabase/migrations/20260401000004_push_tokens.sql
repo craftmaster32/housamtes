@@ -1,5 +1,5 @@
 -- ============================================================
--- Nestiq — Push notification tokens
+-- HouseMates — Push notification tokens
 -- Stores each user's Expo push token so Edge Functions
 -- can send notifications to the right device.
 -- ============================================================
