@@ -74,11 +74,8 @@ if (!ioniconsAsset) {
 }
 
 // 3. Write vercel.json into dist so routing works correctly
-//    cleanUrls: serves path/index.html for /path requests
-//    headers:   proper cache + CORS for font files
+//    SPA mode: every URL must fall through to index.html
 const vercelConfig = {
-  cleanUrls: true,
-  trailingSlash: false,
   headers: [
     {
       source: '/fonts/(.*)',
@@ -95,7 +92,7 @@ const vercelConfig = {
       ],
     },
   ],
-  rewrites: [{ source: '/:path*', destination: '/index.html' }],
+  rewrites: [{ source: '/(.*)', destination: '/index.html' }],
 };
 fs.writeFileSync(
   path.join(distDir, 'vercel.json'),
