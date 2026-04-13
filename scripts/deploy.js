@@ -7,7 +7,9 @@ const distDir = path.join(root, 'dist');
 const distVercel = path.join(distDir, '.vercel');
 const rootVercel = path.join(root, '.vercel');
 
-// 1. Build the web app
+// 1. Clean dist so no stale static files remain, then build
+console.log('\n▶ Cleaning dist...');
+if (fs.existsSync(distDir)) fs.rmSync(distDir, { recursive: true, force: true });
 console.log('\n▶ Building web app...');
 execSync('npx expo export --platform web', { cwd: root, stdio: 'inherit' });
 
@@ -93,7 +95,7 @@ const vercelConfig = {
       ],
     },
   ],
-  rewrites: [{ source: '/(.*)', destination: '/index.html' }],
+  rewrites: [{ source: '/:path*', destination: '/index.html' }],
 };
 fs.writeFileSync(
   path.join(distDir, 'vercel.json'),
