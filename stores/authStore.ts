@@ -294,8 +294,9 @@ export const useAuthStore = create<AuthStore>()(
             .delete()
             .eq('user_id', user.id)
             .eq('house_id', houseId);
-          await clearCachedHouseId(user.id);
-        } catch { /* non-fatal — still clear locally */ }
+        } catch { /* non-fatal */ }
+        // Always clear cache regardless of whether the DB delete succeeded
+        await clearCachedHouseId(user.id).catch(() => {});
         set({ houseId: null, role: null });
       },
 
@@ -332,18 +333,18 @@ async function fetchProfile(
 }
 
 async function fetchMemberData(userId: string): Promise<{ houseId: string | null; role: MemberRole | null; permissions: MemberPermissions }> {
-  // Use array + limit(1) — never maybeSingle() since multiple rows can exist.
-  // No ordering by created_at — that column may not exist in all environments.
+  // Order by joined_at DESC so the most recently joined house wins when a user
+  // belongs to multiple houses (e.g. left one and joined another).
   const { data, error } = await supabase
     .from('house_members')
     .select('house_id, role, permissions')
     .eq('user_id', userId)
+    .order('joined_at', { ascending: false })
     .limit(1);
 
   const row = data?.[0];
 
   if (!error && row?.house_id) {
-    // Cache the found house ID so future cold-starts never forget it
     await cacheHouseId(userId, row.house_id);
     return {
       houseId: row.house_id,
@@ -363,6 +364,7 @@ async function fetchMemberData(userId: string): Promise<{ houseId: string | null
     .from('house_members')
     .select('house_id')
     .eq('user_id', userId)
+    .order('joined_at', { ascending: false })
     .limit(1);
 
   const fbHouseId = fb?.[0]?.house_id ?? null;

@@ -1,8 +1,8 @@
-# Nestiq
+# HouseMates
 
 **Smart shared living for housemates.**
 
-Nestiq replaces the messy combination of WhatsApp groups, spreadsheets, and Splitwise
+HouseMates replaces the messy combination of WhatsApp groups, spreadsheets, and Splitwise
 with one clean app built specifically for people sharing a home.
 
 ---

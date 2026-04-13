@@ -6,13 +6,7 @@ import { Stack, router, useSegments } from 'expo-router';
 import { supabase } from '@lib/supabase';
 import { PaperProvider, MD3LightTheme, configureFonts } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
-import { useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  Inter_800ExtraBold,
-} from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useBillsStore } from '@stores/billsStore';
@@ -32,6 +26,7 @@ import { ErrorBoundary } from '@components/shared/ErrorBoundary';
 import { colors } from '@constants/colors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
+import { useBadgeStore } from '@stores/badgeStore';
 
 const fontConfig = { fontFamily: 'Inter_400Regular' };
 
@@ -64,11 +59,18 @@ export default function RootLayout(): React.JSX.Element | null {
   }, [setLanguage]);
 
   const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-    Inter_800ExtraBold,
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Inter_400Regular: require('../assets/fonts/Inter_400Regular.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Inter_500Medium: require('../assets/fonts/Inter_500Medium.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Inter_600SemiBold: require('../assets/fonts/Inter_600SemiBold.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Inter_700Bold: require('../assets/fonts/Inter_700Bold.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    ionicons: require('../assets/fonts/Ionicons.ttf'),
   });
 
   const initialize = useAuthStore((s) => s.initialize);
@@ -76,6 +78,12 @@ export default function RootLayout(): React.JSX.Element | null {
   const houseId = useAuthStore((s) => s.houseId);
   const isLoading = useAuthStore((s) => s.isLoading);
   const isPasswordRecovery = useAuthStore((s) => s.isPasswordRecovery);
+  // Guard: track whether auth has been stable (not loading) for at least one render
+  // so we never redirect mid-initialization when houseId hasn't loaded yet
+  const [authStable, setAuthStable] = useState(false);
+  useEffect(() => {
+    if (!isLoading && fontsLoaded) setAuthStable(true);
+  }, [isLoading, fontsLoaded]);
   const segments = useSegments();
   const segmentsKey = segments[0] ?? '';
   const currentScreen = segments[1] ?? '';
@@ -92,10 +100,12 @@ export default function RootLayout(): React.JSX.Element | null {
   const loadVoting = useVotingStore((s) => s.load);
   const loadCondition = useConditionStore((s) => s.load);
   const loadNotificationPrefs = useNotificationStore((s) => s.load);
+  const loadBadges = useBadgeStore((s) => s.load);
 
   useEffect(() => {
     initialize();
-  }, [initialize]);
+    loadBadges();
+  }, [initialize, loadBadges]);
 
   // Handle deep link auth callbacks (password reset, email confirmation)
   useEffect(() => {
@@ -131,9 +141,9 @@ export default function RootLayout(): React.JSX.Element | null {
     return () => sub.remove();
   }, []);
 
-  // Navigate based on auth state — only when loading is done and fonts are ready
+  // Navigate based on auth state — only once auth is fully stable
   useEffect(() => {
-    if (isLoading || !fontsLoaded) return;
+    if (!authStable) return;
 
     // Never redirect away from the reset-password screen — it handles itself
     if (currentScreen === 'reset-password') return;
@@ -150,11 +160,13 @@ export default function RootLayout(): React.JSX.Element | null {
     if (!user && !inAuth) {
       router.replace('/(auth)/welcome');
     } else if (user && !houseId && !inOnboarding) {
+      // Only redirect to house-setup if user genuinely has no house
+      // (authStable ensures initialize() has already fetched from Supabase)
       router.replace('/(onboarding)/house-setup');
     } else if (user && houseId && !inTabs) {
       router.replace('/(tabs)/dashboard');
     }
-  }, [user, houseId, isLoading, fontsLoaded, segmentsKey, currentScreen, isPasswordRecovery]);
+  }, [user, houseId, authStable, segmentsKey, currentScreen, isPasswordRecovery]);
 
   useEffect(() => {
     if (!houseId) return;

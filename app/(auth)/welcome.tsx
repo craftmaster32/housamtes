@@ -19,11 +19,11 @@ export default function WelcomeScreen(): React.JSX.Element {
           {/* Logo */}
           <View style={styles.logoWrap}>
             <View style={styles.logo}>
-              <Text style={styles.logoText}>N</Text>
+              <Text style={styles.logoText}>H</Text>
             </View>
           </View>
 
-          <Text style={styles.appName}>Nestiq</Text>
+          <Text style={styles.appName}>HouseMates</Text>
           <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
 
           {/* Feature pills */}

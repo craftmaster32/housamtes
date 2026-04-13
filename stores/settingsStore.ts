@@ -107,7 +107,7 @@ export const useSettingsStore = create<SettingsStore>()(
         },
       }),
       {
-        name: 'nestiq-settings',
+        name: 'housemates-settings',
         storage: createJSONStorage(() => AsyncStorage),
       }
     ),

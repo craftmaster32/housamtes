@@ -5,7 +5,9 @@ import { supabase } from '@lib/supabase';
 export interface HouseEvent {
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD
+  date: string;       // YYYY-MM-DD
+  startTime?: string; // HH:MM
+  endTime?: string;   // HH:MM
   createdBy: string;
   createdAt: string;
 }
@@ -15,7 +17,14 @@ interface EventsStore {
   isLoading: boolean;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addEvent: (title: string, date: string, createdBy: string, houseId: string) => Promise<void>;
+  addEvent: (
+    title: string,
+    date: string,
+    createdBy: string,
+    houseId: string,
+    startTime?: string,
+    endTime?: string
+  ) => Promise<void>;
   removeEvent: (id: string) => Promise<void>;
 }
 
@@ -38,6 +47,8 @@ export const useEventsStore = create<EventsStore>()(
             id: r.id,
             title: r.title,
             date: r.date,
+            startTime: r.start_time ?? undefined,
+            endTime: r.end_time ?? undefined,
             createdBy: r.created_by,
             createdAt: r.created_at,
           }));
@@ -56,10 +67,17 @@ export const useEventsStore = create<EventsStore>()(
       unsubscribe: (): void => {
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
-      addEvent: async (title, date, createdBy, houseId): Promise<void> => {
+      addEvent: async (title, date, createdBy, houseId, startTime, endTime): Promise<void> => {
         const { data, error } = await supabase
           .from('events')
-          .insert({ house_id: houseId, title, date, created_by: createdBy })
+          .insert({
+            house_id: houseId,
+            title,
+            date,
+            created_by: createdBy,
+            start_time: startTime ?? null,
+            end_time: endTime ?? null,
+          })
           .select()
           .single();
         if (error) throw new Error(`Failed to add event: ${error.message}`);
@@ -67,6 +85,8 @@ export const useEventsStore = create<EventsStore>()(
           id: data.id,
           title: data.title,
           date: data.date,
+          startTime: data.start_time ?? undefined,
+          endTime: data.end_time ?? undefined,
           createdBy: data.created_by,
           createdAt: data.created_at,
         };

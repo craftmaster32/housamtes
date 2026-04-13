@@ -53,7 +53,7 @@ export default function LoginScreen(): React.JSX.Element {
 
         <View style={styles.header}>
           <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to Nestiq</Text>
+          <Text style={styles.subtitle}>Sign in to HouseMates</Text>
         </View>
 
         <TextInput

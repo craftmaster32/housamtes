@@ -1,9 +1,10 @@
-import { useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, Switch } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Alert, Switch, Modal } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useNotificationStore, BillDueDays } from '@stores/notificationStore';
@@ -102,6 +103,23 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const user = useAuthStore((s) => s.user);
   const houseId = useAuthStore((s) => s.houseId);
+  const leaveHouse = useAuthStore((s) => s.leaveHouse);
+
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+
+  const handleLeaveHouse = useCallback(async (): Promise<void> => {
+    setLeaving(true);
+    try {
+      await leaveHouse();
+      setShowLeaveConfirm(false);
+      router.replace('/(onboarding)/house-setup');
+    } catch {
+      Alert.alert('Error', 'Could not leave the house. Please try again.');
+    } finally {
+      setLeaving(false);
+    }
+  }, [leaveHouse]);
 
   const prefs = useNotificationStore((s) => s.prefs);
   const updatePrefs = useNotificationStore((s) => s.update);
@@ -182,7 +200,60 @@ export default function SettingsScreen(): React.JSX.Element {
             sub={t('common.person', { count: housemates.length })}
             onPress={() => router.push('/(tabs)/bills/setup')}
           />
+          <RowDivider />
+          <Pressable
+            style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            onPress={() => setShowLeaveConfirm(true)}
+            accessible
+            accessibilityRole="button"
+          >
+            <View style={[styles.menuIcon, { backgroundColor: colors.negative + '15' }]}>
+              <Ionicons name="exit-outline" size={18} color={colors.negative} />
+            </View>
+            <View style={styles.menuText}>
+              <Text style={[styles.menuLabel, { color: colors.negative }]}>Leave House</Text>
+              <Text style={styles.menuSub}>
+                {houseName ? `Leave "${houseName}" and join or create a new house` : 'Leave this house and start fresh'}
+              </Text>
+            </View>
+            <Text style={[styles.menuChevron, { color: colors.negative }]}>›</Text>
+          </Pressable>
         </View>
+
+        {/* Leave house confirmation modal */}
+        <Modal
+          visible={showLeaveConfirm}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowLeaveConfirm(false)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowLeaveConfirm(false)}>
+            <Pressable style={styles.modalBox} onPress={() => {}}>
+              <View style={styles.modalIconWrap}>
+                <Ionicons name="exit-outline" size={28} color={colors.negative} />
+              </View>
+              <Text style={styles.modalTitle}>Leave House?</Text>
+              <Text style={styles.modalBody}>
+                You will be removed from{houseName ? ` "${houseName}"` : ' the current house'}. Your data will stay but you{`'`}ll need to join or create a new house.
+              </Text>
+              <Pressable
+                style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
+                onPress={handleLeaveHouse}
+                disabled={leaving}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnDangerText}>{leaving ? 'Leaving…' : 'Yes, Leave House'}</Text>
+              </Pressable>
+              <Pressable
+                style={styles.modalBtnCancel}
+                onPress={() => setShowLeaveConfirm(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         {/* Notifications */}
         <SectionDivider label={t('settings.notifications_section')} />
@@ -300,7 +371,7 @@ export default function SettingsScreen(): React.JSX.Element {
           <MenuItem
             icon="📋"
             label={t('settings.version')}
-            sub="Nestiq"
+            sub="HouseMates"
             onPress={() => {}}
             disabled
             rightText="1.0.0"
@@ -423,4 +494,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginLeft: 4,
   },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalBox: { backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360, gap: 12, alignItems: 'center' },
+  modalIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.negative + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  modalTitle: { fontSize: 18, ...font.extrabold, color: colors.textPrimary, textAlign: 'center' },
+  modalBody: { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  modalBtnDanger: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.negative, alignItems: 'center', marginTop: 4 },
+  modalBtnDangerText: { fontSize: 15, ...font.semibold, color: '#fff' },
+  modalBtnCancel: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  modalBtnCancelText: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
 });

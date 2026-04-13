@@ -11,7 +11,7 @@ import { font } from '@constants/typography';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const ONBOARDING_KEY = 'nestiq_onboarding_seen';
+const ONBOARDING_KEY = 'housemates_onboarding_seen';
 
 export async function markOnboardingSeen(): Promise<void> {
   await AsyncStorage.setItem(ONBOARDING_KEY, '1');

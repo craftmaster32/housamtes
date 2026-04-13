@@ -30,22 +30,22 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
           {`We collect the information you provide when creating an account (name, email address, avatar colour) and information generated through using the app (bills, chores, parking sessions, messages and photos you upload).`}
         </Section>
         <Section title="2. How We Use Your Information">
-          {`Your information is used solely to provide the Nestiq service to you and your housemates. We do not sell your personal data to third parties. Aggregated, anonymised analytics may be used to improve the app.`}
+          {`Your information is used solely to provide the HouseMates service to you and your housemates. We do not sell your personal data to third parties. Aggregated, anonymised analytics may be used to improve the app.`}
         </Section>
         <Section title="3. Data Storage">
           {`Your data is stored securely on Supabase infrastructure (hosted on AWS). All data is encrypted in transit (TLS) and at rest. You can delete your account at any time, which permanently removes your personal data.`}
         </Section>
         <Section title="4. Data Sharing">
-          {`Your information is shared only with the other members of your household on Nestiq. We do not share your data with advertisers. Error reports sent to Sentry contain only a user ID — never your name, email, or household content.`}
+          {`Your information is shared only with the other members of your household on HouseMates. We do not share your data with advertisers. Error reports sent to Sentry contain only a user ID — never your name, email, or household content.`}
         </Section>
         <Section title="5. Your Rights">
-          {`You have the right to access, correct, or delete your personal data at any time. To delete your account and all associated data, go to Profile → Delete Account. To request a data export, contact us at privacy@nestiq.app.`}
+          {`You have the right to access, correct, or delete your personal data at any time. To delete your account and all associated data, go to Profile → Delete Account. To request a data export, contact us at privacy@housemates.app.`}
         </Section>
         <Section title="6. Changes to This Policy">
           {`We may update this policy from time to time. We will notify you through the app when significant changes are made.`}
         </Section>
         <Section title="7. Contact">
-          {`Questions about this policy? Email us at privacy@nestiq.app.`}
+          {`Questions about this policy? Email us at privacy@housemates.app.`}
         </Section>
       </ScrollView>
     </SafeAreaView>

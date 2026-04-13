@@ -1,4 +1,4 @@
-// Nestiq — bill-due-reminder Edge Function
+// HouseMates — bill-due-reminder Edge Function
 // Runs daily at 08:00 via Supabase cron (set up in dashboard).
 // Finds unsettled bills due in 1–7 days, then for each house member
 // checks their personal preference (notify_bill_due + bill_due_days_before)

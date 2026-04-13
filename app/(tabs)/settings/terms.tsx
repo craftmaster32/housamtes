@@ -27,22 +27,22 @@ export default function TermsScreen(): React.JSX.Element {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Section title="1. Acceptance of Terms">
-          {`By creating an account and using Nestiq, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.`}
+          {`By creating an account and using HouseMates, you agree to be bound by these Terms of Service. If you do not agree, please do not use the app.`}
         </Section>
         <Section title="2. Use of the Service">
-          {`Nestiq is provided for personal household management use only. You must not use the app for any unlawful purpose, to harm other users, or to misrepresent yourself or your household.`}
+          {`HouseMates is provided for personal household management use only. You must not use the app for any unlawful purpose, to harm other users, or to misrepresent yourself or your household.`}
         </Section>
         <Section title="3. Your Account">
           {`You are responsible for maintaining the security of your account credentials. You must not share your login with people outside your household. You must be at least 18 years old to create an account.`}
         </Section>
         <Section title="4. User Content">
-          {`You retain ownership of content you create in Nestiq (bills, messages, photos, etc.). By uploading content, you grant Nestiq a limited licence to store and display it to your housemates. You must not upload illegal, harmful, or infringing content.`}
+          {`You retain ownership of content you create in HouseMates (bills, messages, photos, etc.). By uploading content, you grant HouseMates a limited licence to store and display it to your housemates. You must not upload illegal, harmful, or infringing content.`}
         </Section>
         <Section title="5. Free and Premium Tiers">
           {`The free tier includes all core features with a 50-photo limit per household. Premium features, if purchased, are non-refundable except where required by law. Subscription billing is managed through the App Store and is subject to Apple's terms.`}
         </Section>
         <Section title="6. Limitation of Liability">
-          {`Nestiq is provided "as is". We are not liable for any loss of data, financial disagreements between housemates, or indirect damages arising from use of the app. Financial calculations are for reference only — always verify amounts independently.`}
+          {`HouseMates is provided "as is". We are not liable for any loss of data, financial disagreements between housemates, or indirect damages arising from use of the app. Financial calculations are for reference only — always verify amounts independently.`}
         </Section>
         <Section title="7. Termination">
           {`We reserve the right to suspend or terminate accounts that violate these terms. You may delete your account at any time.`}
@@ -51,7 +51,7 @@ export default function TermsScreen(): React.JSX.Element {
           {`We may update these terms from time to time. Continued use of the app after changes are posted constitutes acceptance.`}
         </Section>
         <Section title="9. Contact">
-          {`Questions? Email us at support@nestiq.app.`}
+          {`Questions? Email us at support@housemates.app.`}
         </Section>
       </ScrollView>
     </SafeAreaView>

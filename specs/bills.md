@@ -9,7 +9,7 @@
 ## Context
 
 Housemates currently use Splitwise to track shared bills. The goal is to replace it
-with something built into Nestiq. Key difference from Splitwise: calculations must be
+with something built into HouseMates. Key difference from Splitwise: calculations must be
 permanently visible (not hidden behind "simplify debts"). Each person takes responsibility
 for specific recurring bills and updates them monthly.
 

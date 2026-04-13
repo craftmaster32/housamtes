@@ -10,7 +10,7 @@ import es from '@locales/es.json';
 
 export type AppLanguage = 'en' | 'he' | 'es';
 export const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'he', 'es'];
-const LANGUAGE_STORAGE_KEY = 'nestiq_language';
+const LANGUAGE_STORAGE_KEY = 'housemates_language';
 
 /** Reads the persisted language choice; falls back to device locale then 'en'. */
 export async function getInitialLanguage(): Promise<AppLanguage> {

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+    <title>HouseMates</title>
+    <meta name="description" content="Shared household management" />
+
+    <style>
+      html, body, #root {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      /* Prevent flash of unstyled content */
+      body {
+        background-color: #F8F6F3;
+      }
+    </style>
+
+    <%- helmet.title %>
+    <%- helmet.meta %>
+    <%- helmet.link %>
+    <%- helmet.style %>
+    <%- helmet.script %>
+  </head>
+  <body>
+    <div id="root"><%- appHtml %></div>
+    <%- helmet.bodyAttributes %>
+    <%- scripts %>
+  </body>
+</html>

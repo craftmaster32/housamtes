@@ -1,15 +1,16 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useChoresStore, type Chore, type Recurrence } from '@stores/choresStore';
 import { useAuthStore } from '@stores/authStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { colors } from '@constants/colors';
-import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+const SURFACE_BG = 'rgba(251,248,245,0.96)';
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 
@@ -29,18 +30,10 @@ function localizedWeekDay(englishDay: string, language: string): string {
 function freqLabel(chore: Chore, t: (key: string, opts?: Record<string, unknown>) => string, language: string): string | null {
   if (chore.recurrence === 'once') return null;
   if (chore.recurrence === 'weekly')
-    return chore.recurrenceDay ? `${t('chores.every')} ${localizedWeekDay(chore.recurrenceDay, language)}` : t('chores.weekly');
+    return chore.recurrenceDay ? `Every ${localizedWeekDay(chore.recurrenceDay, language)}` : t('chores.weekly');
   if (chore.recurrence === 'monthly')
     return chore.recurrenceDay ? `${ordinal(chore.recurrenceDay)} ${t('chores.of_month')}` : t('chores.monthly');
   return null;
-}
-
-function formatAddedDate(iso: string): string {
-  const d = new Date(iso);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
 }
 
 function ChoreRow({
@@ -58,50 +51,57 @@ function ChoreRow({
   const freq = freqLabel(chore, t, language);
 
   return (
-    <View style={styles.choreRow}>
+    <View style={[styles.choreRow, chore.isComplete && styles.choreRowDone]}>
       <Pressable
-        style={[styles.checkbox, chore.isComplete && styles.checkboxDone]}
+        style={styles.checkBtn}
         onPress={() => onToggle(chore.id)}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: chore.isComplete }}
       >
-        {chore.isComplete && <Text style={styles.checkmark}>✓</Text>}
+        <Ionicons
+          name={chore.isComplete ? 'checkmark-circle' : 'ellipse-outline'}
+          size={26}
+          color={chore.isComplete ? colors.positive : colors.border}
+        />
       </Pressable>
 
       <View style={styles.choreInfo}>
-        <Text style={[styles.choreName, chore.isComplete && styles.choreNameDone]}>
+        <Text style={[styles.choreName, chore.isComplete && styles.choreNameDone]} numberOfLines={1}>
           {chore.name}
         </Text>
 
-        <Text style={styles.choreAdded}>{t('chores.added')} {formatAddedDate(chore.createdAt)}</Text>
+        {freq && (
+          <View style={styles.freqRow}>
+            <Ionicons name="repeat-outline" size={12} color={colors.primary} />
+            <Text style={styles.freqText}>{freq}</Text>
+          </View>
+        )}
 
         {chore.claimedBy ? (
           <View style={styles.claimedRow}>
             <View style={styles.claimedBadge}>
+              <Ionicons name="person-outline" size={11} color={colors.primary} />
               <Text style={styles.claimedText}>
-                {isMineClaimed ? t('chores.you') : `✋ ${chore.claimedBy}`}
+                {isMineClaimed ? 'You' : chore.claimedBy}
               </Text>
             </View>
             {isMineClaimed && (
-              <Pressable onPress={() => onUnclaim(chore.id)}>
+              <Pressable onPress={() => onUnclaim(chore.id)} accessibilityRole="button">
                 <Text style={styles.unclaimText}>{t('chores.drop')}</Text>
               </Pressable>
             )}
           </View>
         ) : (
-          <Pressable onPress={() => onClaim(chore.id)} style={styles.claimBtn}>
-            <Text style={styles.claimBtnText}>{t('chores.take')}</Text>
-          </Pressable>
+          !chore.isComplete && (
+            <Pressable onPress={() => onClaim(chore.id)} accessibilityRole="button">
+              <Text style={styles.claimBtnText}>{t('chores.take')}</Text>
+            </Pressable>
+          )
         )}
       </View>
 
-      {freq !== null && (
-        <View style={styles.freqBadge}>
-          <Text style={styles.freqBadgeText}>🔁</Text>
-          <Text style={styles.freqBadgeLabel}>{freq}</Text>
-        </View>
-      )}
-
-      <Pressable onPress={() => onDelete(chore.id)} style={styles.deleteBtn}>
-        <Text style={styles.deleteBtnText}>✕</Text>
+      <Pressable onPress={() => onDelete(chore.id)} style={styles.deleteBtn} accessibilityRole="button" hitSlop={8}>
+        <Ionicons name="close" size={16} color={colors.textSecondary} />
       </Pressable>
     </View>
   );
@@ -118,6 +118,7 @@ export default function ChoresScreen(): React.JSX.Element {
   const resetAll = useChoresStore((state) => state.resetAll);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
+  const language = useLanguageStore((s) => s.language);
 
   const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
     { value: 'once', label: t('chores.once') },
@@ -125,7 +126,6 @@ export default function ChoresScreen(): React.JSX.Element {
     { value: 'monthly', label: t('chores.monthly') },
   ];
 
-  const language = useLanguageStore((s) => s.language);
   const weekDayLabels = useMemo(
     () => WEEK_DAYS.map((_, i) =>
       new Intl.DateTimeFormat(language, { weekday: 'short' }).format(new Date(2024, 0, 7 + i))
@@ -143,8 +143,9 @@ export default function ChoresScreen(): React.JSX.Element {
   const pending = chores.filter((c) => !c.isComplete);
   const done = chores.filter((c) => c.isComplete);
   const listData = [...pending, ...done];
+  const progress = chores.length > 0 ? done.length / chores.length : 0;
 
-  const handleRecurrenceChange = useCallback((r: Recurrence) => {
+  const handleRecurrenceChange = useCallback((r: Recurrence): void => {
     setRecurrence(r);
     if (r === 'weekly') {
       setRecurrenceDay(WEEK_DAYS[new Date().getDay()]);
@@ -155,7 +156,7 @@ export default function ChoresScreen(): React.JSX.Element {
     }
   }, []);
 
-  const handleAdd = useCallback(async () => {
+  const handleAdd = useCallback(async (): Promise<void> => {
     if (!choreName.trim() || isAdding) return;
     setIsAdding(true);
     setAddError('');
@@ -171,13 +172,13 @@ export default function ChoresScreen(): React.JSX.Element {
     }
   }, [choreName, recurrence, recurrenceDay, addChore, houseId, isAdding, t]);
 
-  const handleToggle = useCallback((id: string) => { toggleChore(id); }, [toggleChore]);
-  const handleClaim = useCallback((id: string) => { claimChore(id, myName); }, [claimChore, myName]);
-  const handleUnclaim = useCallback((id: string) => { unclaimChore(id); }, [unclaimChore]);
-  const handleDelete = useCallback((id: string) => { deleteChore(id); }, [deleteChore]);
+  const handleToggle = useCallback((id: string): void => { toggleChore(id); }, [toggleChore]);
+  const handleClaim = useCallback((id: string): void => { claimChore(id, myName); }, [claimChore, myName]);
+  const handleUnclaim = useCallback((id: string): void => { unclaimChore(id); }, [unclaimChore]);
+  const handleDelete = useCallback((id: string): void => { deleteChore(id); }, [deleteChore]);
 
   const renderChore = useCallback(
-    ({ item }: { item: Chore }) => (
+    ({ item }: { item: Chore }): React.JSX.Element => (
       <ChoreRow
         chore={item} myName={myName}
         onToggle={handleToggle} onClaim={handleClaim}
@@ -188,131 +189,162 @@ export default function ChoresScreen(): React.JSX.Element {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
         data={listData}
         keyExtractor={(item) => item.id}
         renderItem={renderChore}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+
         ListHeaderComponent={
           <View>
-            <View style={styles.headerRow}>
-              <Text style={styles.heading}>{t('chores.title')}</Text>
-              {done.length > 0 && (
-                <Pressable onPress={() => resetAll(houseId ?? '')} style={styles.resetBtn}>
-                  <Text style={styles.resetBtnText}>{t('chores.reset_all')}</Text>
-                </Pressable>
-              )}
-            </View>
-
-            {chores.length > 0 && (
-              <View style={styles.progressSection}>
-                <Text style={styles.progressLabel}>{t('chores.done_other', { count: done.length })}/{chores.length}</Text>
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${(done.length / chores.length) * 100}%` as unknown as number }]} />
-                </View>
+            {/* ── Hero card ──────────────────────────────────────── */}
+            <View style={styles.heroCard}>
+              <View style={styles.heroCopy}>
+                <Text style={styles.titleHero}>{t('chores.title')}</Text>
+                <Text style={styles.textBase}>
+                  Assign tasks, claim what you'll do, and check them off together.
+                </Text>
               </View>
-            )}
 
-            {/* Chore name */}
-            <View style={styles.addRow}>
+              {/* Progress bar */}
+              {chores.length > 0 && (
+                <View style={styles.progressSection}>
+                  <View style={styles.progressLabelRow}>
+                    <Text style={styles.progressLabel}>{done.length} of {chores.length} done</Text>
+                    {done.length > 0 && (
+                      <Pressable onPress={() => resetAll(houseId ?? '')} style={styles.resetBtn} accessibilityRole="button">
+                        <Text style={styles.resetBtnText}>{t('chores.reset_all')}</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${progress * 100}%` as unknown as number }]} />
+                  </View>
+                </View>
+              )}
+
+              {/* Add form */}
               <TextInput
-                label={t('chores.new_chore')}
                 value={choreName}
                 onChangeText={setChoreName}
-                mode="outlined"
-                style={styles.nameInput}
                 placeholder={t('chores.chore_placeholder')}
-                autoCorrect={true}
+                placeholderTextColor={colors.textSecondary}
+                style={styles.formInput}
+                returnKeyType="done"
+                onSubmitEditing={handleAdd}
               />
-            </View>
 
-            {/* Recurrence type */}
-            <Text style={styles.pickerLabel}>{t('chores.repeat')}</Text>
-            <View style={styles.recurrenceRow}>
-              {RECURRENCE_OPTIONS.map((opt) => (
-                <Pressable
-                  key={opt.value}
-                  style={[styles.recurrenceChip, recurrence === opt.value && styles.recurrenceChipActive]}
-                  onPress={() => handleRecurrenceChange(opt.value)}
-                >
-                  <Text style={[styles.recurrenceChipText, recurrence === opt.value && styles.recurrenceChipTextActive]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+              {/* Recurrence */}
+              <Text style={styles.pickerLabel}>{t('chores.repeat')}</Text>
+              <View style={styles.chipRow}>
+                {RECURRENCE_OPTIONS.map((opt) => (
+                  <Pressable
+                    key={opt.value}
+                    style={[styles.chip, recurrence === opt.value && styles.chipActive]}
+                    onPress={() => handleRecurrenceChange(opt.value)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.chipText, recurrence === opt.value && styles.chipTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
 
-            {/* Weekly: pick day of week */}
-            {recurrence === 'weekly' && (
-              <View style={styles.dayPickerSection}>
-                <Text style={styles.pickerLabel}>{t('chores.which_day')}</Text>
-                <View style={styles.weekDayRow}>
-                  {WEEK_DAYS.map((day, i) => (
-                    <Pressable
-                      key={day}
-                      style={[styles.weekDayChip, recurrenceDay === day && styles.weekDayChipActive]}
-                      onPress={() => setRecurrenceDay(day)}
-                    >
-                      <Text style={[styles.weekDayText, recurrenceDay === day && styles.weekDayTextActive]}>
-                        {weekDayLabels[i].slice(0, 2)}
-                      </Text>
-                    </Pressable>
-                  ))}
+              {recurrence === 'weekly' && (
+                <View style={styles.daySection}>
+                  <Text style={styles.pickerLabel}>{t('chores.which_day')}</Text>
+                  <View style={styles.weekDayRow}>
+                    {WEEK_DAYS.map((day, i) => (
+                      <Pressable
+                        key={day}
+                        style={[styles.weekDayChip, recurrenceDay === day && styles.weekDayChipActive]}
+                        onPress={() => setRecurrenceDay(day)}
+                        accessibilityRole="button"
+                      >
+                        <Text style={[styles.weekDayText, recurrenceDay === day && styles.weekDayTextActive]}>
+                          {weekDayLabels[i].slice(0, 2)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
 
-            {/* Monthly: pick day of month */}
-            {recurrence === 'monthly' && (
-              <View style={styles.dayPickerSection}>
-                <Text style={styles.pickerLabel}>{t('chores.which_day_of_month')}</Text>
-                <View style={styles.monthDayGrid}>
-                  {MONTH_DAYS.map((d) => (
-                    <Pressable
-                      key={d}
-                      style={[styles.monthDayChip, recurrenceDay === d && styles.monthDayChipActive]}
-                      onPress={() => setRecurrenceDay(d)}
-                    >
-                      <Text style={[styles.monthDayText, recurrenceDay === d && styles.monthDayTextActive]}>
-                        {d}
-                      </Text>
-                    </Pressable>
-                  ))}
+              {recurrence === 'monthly' && (
+                <View style={styles.daySection}>
+                  <Text style={styles.pickerLabel}>{t('chores.which_day_of_month')}</Text>
+                  <View style={styles.monthDayGrid}>
+                    {MONTH_DAYS.map((d) => (
+                      <Pressable
+                        key={d}
+                        style={[styles.monthDayChip, recurrenceDay === d && styles.monthDayChipActive]}
+                        onPress={() => setRecurrenceDay(d)}
+                        accessibilityRole="button"
+                      >
+                        <Text style={[styles.monthDayText, recurrenceDay === d && styles.monthDayTextActive]}>
+                          {d}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
 
-            {!!addError && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{addError}</Text>
-              </View>
-            )}
+              {!!addError && (
+                <View style={styles.errorBox}>
+                  <Ionicons name="warning-outline" size={14} color={colors.danger} />
+                  <Text style={styles.errorText}>{addError}</Text>
+                </View>
+              )}
 
-            {/* Add button */}
-            <Pressable
-              style={[styles.addBtn, (!choreName.trim() || isAdding) && styles.addBtnDisabled]}
-              onPress={handleAdd}
-              disabled={isAdding}
-            >
-              <Text style={styles.addBtnText}>{isAdding ? t('chores.adding') : t('chores.add_chore')}</Text>
-            </Pressable>
+              <Pressable
+                style={[styles.btnPrimary, (!choreName.trim() || isAdding) && styles.btnOff]}
+                onPress={handleAdd}
+                disabled={isAdding}
+                accessibilityRole="button"
+              >
+                <Ionicons name="add" size={16} color="#fff" style={styles.btnIcon} />
+                <Text style={styles.btnPrimaryText}>
+                  {isAdding ? t('chores.adding') : t('chores.add_chore')}
+                </Text>
+              </Pressable>
+            </View>
 
             {pending.length > 0 && (
-              <Text style={[styles.sectionLabel, { marginTop: sizes.lg }]}>{t('chores.todo')} ({pending.length})</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.eyebrow}>{t('chores.todo')}</Text>
+                <View style={styles.countPill}>
+                  <Text style={styles.countPillText}>{pending.length}</Text>
+                </View>
+              </View>
             )}
           </View>
         }
-        ListFooterComponent={done.length > 0 ? (
-          <Text style={[styles.sectionLabel, { marginTop: sizes.md }]}>{t('chores.done_section')} ({done.length})</Text>
-        ) : null}
+
+        ListFooterComponent={
+          done.length > 0 ? (
+            <View style={[styles.sectionHeader, { marginTop: 16 }]}>
+              <Text style={styles.eyebrow}>{t('chores.done_section')}</Text>
+              <View style={[styles.countPill, styles.countPillDone]}>
+                <Text style={styles.countPillText}>{done.length}</Text>
+              </View>
+            </View>
+          ) : null
+        }
+
         ListEmptyComponent={
-          <View style={styles.empty}>
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="checkmark-done-outline" size={36} color={colors.textSecondary} />
+            </View>
             <Text style={styles.emptyTitle}>{t('chores.no_chores')}</Text>
             <Text style={styles.emptyText}>{t('chores.no_chores_hint')}</Text>
           </View>
         }
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        contentContainerStyle={styles.list}
       />
     </SafeAreaView>
   );
@@ -320,77 +352,134 @@ export default function ChoresScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  list: { padding: sizes.lg, paddingBottom: 40 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: sizes.sm },
-  heading: { color: colors.textPrimary, ...font.extrabold, fontSize: 26, letterSpacing: -0.5 },
-  resetBtn: { backgroundColor: colors.border, paddingVertical: 4, paddingHorizontal: sizes.sm, borderRadius: sizes.borderRadiusFull },
-  resetBtnText: { color: colors.textSecondary, fontSize: 15, ...font.semibold },
-  progressSection: { marginBottom: sizes.md },
-  progressLabel: { color: colors.textSecondary, fontSize: 15, ...font.regular, marginBottom: sizes.xs },
-  progressTrack: { height: 6, backgroundColor: colors.border, borderRadius: sizes.borderRadiusFull, overflow: 'hidden' },
-  progressFill: { height: 6, backgroundColor: colors.positive, borderRadius: sizes.borderRadiusFull },
-  addRow: { marginBottom: sizes.sm },
-  nameInput: { backgroundColor: colors.white },
-  pickerLabel: { color: colors.textSecondary, fontSize: 12, ...font.semibold, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: sizes.xs, marginTop: sizes.sm },
-  recurrenceRow: { flexDirection: 'row', gap: sizes.sm, marginBottom: sizes.xs },
-  recurrenceChip: { paddingHorizontal: sizes.md, paddingVertical: 7, borderRadius: sizes.borderRadiusFull, backgroundColor: colors.border },
-  recurrenceChipActive: { backgroundColor: colors.primary },
-  recurrenceChipText: { color: colors.textSecondary, fontSize: 15, ...font.semibold },
-  recurrenceChipTextActive: { color: colors.white },
-  dayPickerSection: { marginTop: sizes.xs, marginBottom: sizes.xs },
-  weekDayRow: { flexDirection: 'row', gap: sizes.xs },
-  weekDayChip: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' },
-  weekDayChipActive: { backgroundColor: colors.primary },
-  weekDayText: { color: colors.textSecondary, fontSize: 15, ...font.bold },
-  weekDayTextActive: { color: colors.white },
-  monthDayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  monthDayChip: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.border, justifyContent: 'center', alignItems: 'center' },
-  monthDayChipActive: { backgroundColor: colors.primary },
-  monthDayText: { color: colors.textSecondary, fontSize: 12, ...font.bold },
-  monthDayTextActive: { color: colors.white },
-  addBtn: {
+  list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
+  sep: { height: 8 },
+
+  // ── Hero card
+  heroCard: {
+    backgroundColor: SURFACE_BG,
+    borderRadius: 20, borderWidth: 1, borderColor: colors.border,
+    padding: 20, gap: 14, marginBottom: 24,
+    boxShadow: '0 8px 24px rgba(44,51,61,0.05)',
+  } as never,
+  heroCopy: { gap: 6 },
+  titleHero: { fontSize: 26, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.78 },
+  textBase: { fontSize: 15, ...font.regular, color: colors.textSecondary, lineHeight: 22 },
+
+  // Progress
+  progressSection: { gap: 8 },
+  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  progressLabel: { fontSize: 13, ...font.semibold, color: colors.textSecondary },
+  resetBtn: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 9999, backgroundColor: colors.surfaceSecondary },
+  resetBtnText: { fontSize: 12, ...font.semibold, color: colors.textSecondary },
+  progressTrack: { height: 6, backgroundColor: colors.surfaceSecondary, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: 6, backgroundColor: colors.positive, borderRadius: 3 },
+
+  // Add form
+  formInput: {
+    height: 46, backgroundColor: colors.white, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 13,
+    fontSize: 15, ...font.regular, color: colors.textPrimary,
+  },
+
+  // Recurrence
+  pickerLabel: {
+    fontSize: 11, ...font.bold, color: colors.textSecondary,
+    letterSpacing: 0.72, textTransform: 'uppercase',
+  },
+  chipRow: { flexDirection: 'row', gap: 8 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 9999,
+    borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary,
+  },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 13, ...font.semibold, color: colors.textSecondary },
+  chipTextActive: { color: '#fff' },
+
+  daySection: { gap: 8 },
+  weekDayRow: { flexDirection: 'row', gap: 6 },
+  weekDayChip: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  weekDayChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  weekDayText: { fontSize: 12, ...font.bold, color: colors.textSecondary },
+  weekDayTextActive: { color: '#fff' },
+  monthDayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  monthDayChip: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  monthDayChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  monthDayText: { fontSize: 12, ...font.bold, color: colors.textSecondary },
+  monthDayTextActive: { color: '#fff' },
+
+  // Buttons
+  btnPrimary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    minHeight: 48, paddingHorizontal: 18, borderRadius: 10,
     backgroundColor: colors.primary,
-    height: 52,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: sizes.md,
-    borderCurve: 'continuous',
+    boxShadow: '0 8px 16px rgba(79,120,182,0.18)',
   } as never,
-  addBtnDisabled: { backgroundColor: colors.textDisabled },
-  addBtnText: { color: colors.white, ...font.bold, fontSize: 15 },
-  errorBox: { backgroundColor: colors.danger + '15', borderRadius: 10, padding: sizes.sm },
-  errorText: { color: colors.danger, fontSize: 13, ...font.regular },
-  sectionLabel: { color: colors.textSecondary, fontSize: 12, ...font.semibold, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: sizes.sm },
+  btnOff: { backgroundColor: colors.textDisabled, boxShadow: 'none' } as never,
+  btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+  btnIcon: { marginRight: 6 },
+
+  // Section header
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 4, marginBottom: 10,
+  },
+  eyebrow: { fontSize: 12, ...font.bold, color: colors.textSecondary, letterSpacing: 0.72, textTransform: 'uppercase' },
+  countPill: {
+    minHeight: 22, paddingHorizontal: 8, borderRadius: 9999,
+    backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center',
+  },
+  countPillDone: { backgroundColor: colors.positive + '20' },
+  countPillText: { fontSize: 11, ...font.bold, color: colors.secondaryForeground },
+
+  // Chore row
   choreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: sizes.md,
-    gap: sizes.sm,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderRadius: 14, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    boxShadow: '0 4px 16px rgba(44,51,61,0.02)',
   } as never,
-  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  checkboxDone: { backgroundColor: colors.positive, borderColor: colors.positive },
-  checkmark: { color: colors.white, fontSize: 13, ...font.bold },
-  choreInfo: { flex: 1, gap: 3 },
-  choreName: { color: colors.textPrimary, fontSize: 15, ...font.medium },
-  choreNameDone: { textDecorationLine: 'line-through', color: colors.textDisabled },
-  choreAdded: { fontSize: 12, color: colors.textSecondary, ...font.regular, marginTop: 1 },
-  claimedRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs },
-  claimedBadge: { backgroundColor: colors.primary + '18', paddingHorizontal: sizes.xs, paddingVertical: 2, borderRadius: sizes.borderRadiusFull },
-  claimedText: { color: colors.primary, fontSize: 12, ...font.bold },
-  unclaimText: { color: colors.textSecondary, fontSize: 12, ...font.regular },
-  claimBtn: { alignSelf: 'flex-start' },
-  claimBtnText: { color: colors.primary, fontSize: 15, ...font.semibold },
-  freqBadge: { backgroundColor: colors.primary + '15', borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
-  freqBadgeText: { fontSize: 13 },
-  freqBadgeLabel: { fontSize: 15, color: colors.primary, ...font.bold },
-  deleteBtn: { padding: 4 },
-  deleteBtnText: { color: colors.textSecondary, fontSize: 15, ...font.regular },
-  separator: { height: sizes.xs },
-  empty: { alignItems: 'center', paddingTop: sizes.xxl },
-  emptyTitle: { color: colors.textPrimary, ...font.bold, fontSize: 15, marginBottom: sizes.xs },
-  emptyText: { color: colors.textSecondary, ...font.regular, fontSize: 15, textAlign: 'center' },
+  choreRowDone: { backgroundColor: 'rgba(251,248,245,0.4)', borderColor: 'transparent', boxShadow: 'none' } as never,
+  checkBtn: { flexShrink: 0 },
+  choreInfo: { flex: 1, gap: 4 },
+  choreName: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
+  choreNameDone: { textDecorationLine: 'line-through', color: colors.textSecondary },
+  freqRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  freqText: { fontSize: 12, ...font.medium, color: colors.primary },
+  claimedRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  claimedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.primary + '18', paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 9999,
+  },
+  claimedText: { fontSize: 12, ...font.bold, color: colors.primary },
+  unclaimText: { fontSize: 12, ...font.regular, color: colors.textSecondary },
+  claimBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
+  deleteBtn: { padding: 4, flexShrink: 0 },
+
+  // Empty
+  emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
+  emptyIconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: colors.surfaceSecondary,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  emptyTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary },
+  emptyText: { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+
+  // Error
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.danger + '15', borderRadius: 10, padding: 10,
+  },
+  errorText: { fontSize: 13, ...font.regular, color: colors.danger, flex: 1 },
 });

@@ -1,10 +1,13 @@
-import { useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Switch, Pressable } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, StyleSheet, ScrollView, Switch, Pressable, Alert, Modal } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore } from '@stores/settingsStore';
+import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -13,6 +16,10 @@ export default function SettingsScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const features = useSettingsStore((s) => s.features);
   const toggleFeature = useSettingsStore((s) => s.toggleFeature);
+  const leaveHouse = useAuthStore((s) => s.leaveHouse);
+  const houseName = useHousematesStore((s) => s.houseName);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const handleToggle = useCallback(
     (key: string) => {
@@ -20,6 +27,19 @@ export default function SettingsScreen(): React.JSX.Element {
     },
     [toggleFeature]
   );
+
+  const handleLeaveHouse = useCallback(async (): Promise<void> => {
+    setLeaving(true);
+    try {
+      await leaveHouse();
+      setShowLeaveConfirm(false);
+      router.replace('/(onboarding)/house-setup');
+    } catch {
+      Alert.alert('Error', 'Could not leave the house. Please try again.');
+    } finally {
+      setLeaving(false);
+    }
+  }, [leaveHouse]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -56,6 +76,60 @@ export default function SettingsScreen(): React.JSX.Element {
         </View>
 
         <Text style={styles.note}>{t('settings.features_note')}</Text>
+
+        {/* ── House ── */}
+        <Text style={styles.sectionLabel}>YOUR HOUSE</Text>
+        <View style={styles.card}>
+          <Pressable
+            style={styles.row}
+            onPress={() => setShowLeaveConfirm(true)}
+            accessibilityRole="button"
+          >
+            <Ionicons name="exit-outline" size={22} color={colors.negative} style={styles.iconNative} />
+            <View style={styles.info}>
+              <Text style={[styles.label, { color: colors.negative }]}>Leave House</Text>
+              <Text style={styles.description}>
+                {houseName ? `Leave "${houseName}" and join or create a new house` : 'Leave this house and start fresh'}
+              </Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        </View>
+
+        {/* ── Confirm leave modal ── */}
+        <Modal
+          visible={showLeaveConfirm}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowLeaveConfirm(false)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowLeaveConfirm(false)}>
+            <Pressable style={styles.modalBox} onPress={() => {}}>
+              <View style={styles.modalIconWrap}>
+                <Ionicons name="exit-outline" size={28} color={colors.negative} />
+              </View>
+              <Text style={styles.modalTitle}>Leave House?</Text>
+              <Text style={styles.modalBody}>
+                You will be removed from{houseName ? ` "${houseName}"` : ' the current house'}. Your data will stay but you{`'`}ll need to join or create a new house.
+              </Text>
+              <Pressable
+                style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
+                onPress={handleLeaveHouse}
+                disabled={leaving}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnDangerText}>{leaving ? 'Leaving…' : 'Yes, Leave House'}</Text>
+              </Pressable>
+              <Pressable
+                style={styles.modalBtnCancel}
+                onPress={() => setShowLeaveConfirm(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         <Text style={styles.sectionLabel}>LEGAL</Text>
         <View style={styles.card}>
@@ -129,4 +203,16 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   chevron: { color: colors.textSecondary, fontSize: 20 },
+  iconNative: { width: 32, textAlign: 'center' },
+
+  // Leave house modal
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalBox: { backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360, gap: 12, alignItems: 'center' },
+  modalIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.negative + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  modalTitle: { fontSize: 18, ...font.extrabold, color: colors.textPrimary, textAlign: 'center' },
+  modalBody: { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  modalBtnDanger: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.negative, alignItems: 'center', marginTop: 4 },
+  modalBtnDangerText: { fontSize: 15, ...font.semibold, color: '#fff' },
+  modalBtnCancel: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  modalBtnCancelText: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
 });

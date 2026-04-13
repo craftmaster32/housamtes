@@ -13,6 +13,8 @@ export interface ParkingReservation {
   id: string;
   requestedBy: string;
   date: string;
+  startTime?: string; // HH:MM
+  endTime?: string;   // HH:MM
   note: string;
   status: 'pending' | 'approved';
   createdAt: string;
@@ -26,9 +28,12 @@ interface ParkingStore {
   unsubscribe: () => void;
   claim: (name: string, houseId: string) => Promise<void>;
   release: (houseId: string) => Promise<void>;
-  addReservation: (r: Omit<ParkingReservation, 'id' | 'createdAt' | 'status'>, houseId: string) => Promise<void>;
+  addReservation: (
+    r: Omit<ParkingReservation, 'id' | 'createdAt' | 'status'>,
+    houseId: string
+  ) => Promise<void>;
   cancelReservation: (id: string) => Promise<void>;
-  approveReservation: (id: string) => Promise<void>;
+  approveReservation: (id: string, houseId: string) => Promise<void>;
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
@@ -73,6 +78,8 @@ export const useParkingStore = create<ParkingStore>()(
             id: r.id,
             requestedBy: r.requested_by,
             date: r.date,
+            startTime: r.start_time ?? undefined,
+            endTime: r.end_time ?? undefined,
             note: r.note ?? '',
             status: r.status as 'pending' | 'approved',
             createdAt: r.created_at,
@@ -135,7 +142,6 @@ export const useParkingStore = create<ParkingStore>()(
         });
       },
       addReservation: async (data, houseId): Promise<void> => {
-        // Check for conflicts with existing approved or pending reservations on the same date
         const conflict = get().reservations.find(
           (r) => r.date === data.date && (r.status === 'approved' || r.status === 'pending')
         );
@@ -148,7 +154,14 @@ export const useParkingStore = create<ParkingStore>()(
         }
         const { data: inserted, error } = await supabase
           .from('parking_reservations')
-          .insert({ house_id: houseId, requested_by: data.requestedBy, date: data.date, note: data.note })
+          .insert({
+            house_id: houseId,
+            requested_by: data.requestedBy,
+            date: data.date,
+            start_time: data.startTime ?? null,
+            end_time: data.endTime ?? null,
+            note: data.note,
+          })
           .select()
           .single();
         if (error) throw new Error(`Failed to add reservation: ${error.message}`);
@@ -156,6 +169,8 @@ export const useParkingStore = create<ParkingStore>()(
           id: inserted.id,
           requestedBy: inserted.requested_by,
           date: inserted.date,
+          startTime: inserted.start_time ?? undefined,
+          endTime: inserted.end_time ?? undefined,
           note: inserted.note ?? '',
           status: 'pending',
           createdAt: inserted.created_at,
@@ -163,11 +178,12 @@ export const useParkingStore = create<ParkingStore>()(
         set({ reservations: [r, ...get().reservations] });
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData.session?.user.id ?? '';
+        const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
         notifyHousemates({
           houseId,
           excludeUserId: userId,
           title: '🚗 Parking request',
-          body: `${data.requestedBy} wants the spot on ${data.date}${data.note ? ` — ${data.note}` : ''}`,
+          body: `${data.requestedBy} wants the spot on ${data.date}${timeStr}${data.note ? ` — ${data.note}` : ''}`,
           data: { screen: 'parking' },
           notificationType: 'parking_reservation',
         });
@@ -176,7 +192,7 @@ export const useParkingStore = create<ParkingStore>()(
         await supabase.from('parking_reservations').delete().eq('id', id);
         set({ reservations: get().reservations.filter((r) => r.id !== id) });
       },
-      approveReservation: async (id): Promise<void> => {
+      approveReservation: async (id, houseId): Promise<void> => {
         await supabase.from('parking_reservations').update({ status: 'approved' }).eq('id', id);
         const reservation = get().reservations.find((r) => r.id === id);
         set({
@@ -184,18 +200,33 @@ export const useParkingStore = create<ParkingStore>()(
             r.id === id ? { ...r, status: 'approved' as const } : r
           ),
         });
-        // Notify the person who made the request (not everyone)
+
+        // Auto-add to house calendar
+        if (reservation) {
+          const timeLabel = reservation.startTime
+            ? ` ${reservation.startTime}${reservation.endTime ? `–${reservation.endTime}` : ''}`
+            : '';
+          const title = `🚗 ${reservation.requestedBy} parking${timeLabel}`;
+          Promise.resolve(supabase.from('events').insert({
+            house_id: houseId,
+            title,
+            date: reservation.date,
+            created_by: reservation.requestedBy,
+            start_time: reservation.startTime ?? null,
+            end_time: reservation.endTime ?? null,
+          })).catch(() => {/* non-fatal */});
+        }
+
+        // Notify requester
         if (reservation) {
           const { data: sessionData } = await supabase.auth.getSession();
           const approverId = sessionData.session?.user.id ?? '';
-          // Find the requester's push token by name match — best effort
           const { data: tokenRes } = await supabase
             .from('push_tokens')
             .select('token, user_id')
             .neq('user_id', approverId);
           if (tokenRes && tokenRes.length > 0) {
             const tokens = tokenRes.map((t: { token: string }) => t.token);
-            // Send directly to all non-approver tokens (the requester is among them)
             const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
             await fetch(EXPO_PUSH_URL, {
               method: 'POST',
@@ -203,7 +234,7 @@ export const useParkingStore = create<ParkingStore>()(
               body: JSON.stringify(tokens.map((to: string) => ({
                 to,
                 title: '✅ Parking approved',
-                body: `Your spot for ${reservation.date} is confirmed`,
+                body: `Your spot for ${reservation.date} is confirmed${reservation.startTime ? ` at ${reservation.startTime}` : ''}`,
                 sound: 'default',
               }))),
             }).catch(() => {});

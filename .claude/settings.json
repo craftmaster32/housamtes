@@ -21,7 +21,11 @@
       "Bash(grep -rL \"useTranslation\" c:/homeapp/app/\\\\\\(auth\\\\\\)/**/*.tsx c:/homeapp/app/\\\\\\(onboarding\\\\\\)/**/*.tsx)",
       "Bash(xargs grep:*)",
       "Bash(find /c/homeapp/stores -name *photo* -type f)",
-      "WebFetch(domain:www.figma.com)"
+      "WebFetch(domain:www.figma.com)",
+      "Bash(npm run:*)",
+      "Bash(grep -v \"^\\\\s*$\")",
+      "Bash(node scripts/deploy.js)",
+      "Bash(ls c:/homeapp/node_modules/@expo/vector-icons/*.js)"
     ]
   }
 }

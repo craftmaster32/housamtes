@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimens
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useDrawerStore } from '@stores/drawerStore';
 import { useAuthStore } from '@stores/authStore';
@@ -10,6 +11,13 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useChatStore } from '@stores/chatStore';
 import { useLanguageStore } from '@stores/languageStore';
+import { useBadgeStore, countNew, countNewSimple, type BadgeFeature } from '@stores/badgeStore';
+import { useParkingStore } from '@stores/parkingStore';
+import { useGroceryStore } from '@stores/groceryStore';
+import { useChoresStore } from '@stores/choresStore';
+import { useVotingStore } from '@stores/votingStore';
+import { useMaintenanceStore } from '@stores/maintenanceStore';
+import { useBillsStore } from '@stores/billsStore';
 import { isRTL } from '@lib/i18n';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -17,34 +25,34 @@ import { font } from '@constants/typography';
 
 const DRAWER_WIDTH = 280;
 
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
 interface NavItem {
-  icon: string;
+  icon: IoniconName;
+  iconActive: IoniconName;
   labelKey: string;
   route: string;
   featureKey?: string;
 }
 
 const MAIN_NAV: NavItem[] = [
-  { icon: '🏠', labelKey: 'nav.dashboard', route: '/(tabs)/dashboard' },
-  { icon: '💰', labelKey: 'nav.bills', route: '/(tabs)/bills' },
-  { icon: '🚗', labelKey: 'nav.parking', route: '/(tabs)/parking', featureKey: 'parking' },
-  { icon: '🛒', labelKey: 'nav.grocery', route: '/(tabs)/grocery', featureKey: 'grocery' },
-  { icon: '🧹', labelKey: 'nav.chores', route: '/(tabs)/chores', featureKey: 'chores' },
+  { icon: 'home-outline', iconActive: 'home', labelKey: 'nav.dashboard', route: '/(tabs)/dashboard' },
+  { icon: 'card-outline', iconActive: 'card', labelKey: 'nav.bills', route: '/(tabs)/bills', featureKey: 'bills' },
+  { icon: 'car-outline', iconActive: 'car', labelKey: 'nav.parking', route: '/(tabs)/parking', featureKey: 'parking' },
+  { icon: 'cart-outline', iconActive: 'cart', labelKey: 'nav.grocery', route: '/(tabs)/grocery', featureKey: 'grocery' },
+  { icon: 'checkmark-done-outline', iconActive: 'checkmark-done', labelKey: 'nav.chores', route: '/(tabs)/chores', featureKey: 'chores' },
 ];
 
 const MORE_NAV: NavItem[] = [
-  { icon: '💬', labelKey: 'nav.chat', route: '/(tabs)/more/chat', featureKey: 'chat' },
-  { icon: '📷', labelKey: 'nav.photos', route: '/(tabs)/photos' },
-  { icon: '👥', labelKey: 'nav.housemates', route: '/(tabs)/bills/setup' },
-  { icon: '🗳️', labelKey: 'nav.votes', route: '/(tabs)/voting', featureKey: 'voting' },
-  { icon: '🔧', labelKey: 'nav.maintenance', route: '/(tabs)/maintenance', featureKey: 'maintenance' },
-  { icon: '📋', labelKey: 'nav.condition', route: '/(tabs)/condition', featureKey: 'condition' },
+  { icon: 'calendar-outline', iconActive: 'calendar', labelKey: 'nav.calendar', route: '/(tabs)/calendar' },
+  { icon: 'chatbubbles-outline', iconActive: 'chatbubbles', labelKey: 'nav.chat', route: '/(tabs)/more/chat', featureKey: 'chat' },
+  { icon: 'images-outline', iconActive: 'images', labelKey: 'nav.photos', route: '/(tabs)/photos' },
+  { icon: 'people-outline', iconActive: 'people', labelKey: 'nav.housemates', route: '/(tabs)/bills/setup' },
+  { icon: 'hand-left-outline', iconActive: 'hand-left', labelKey: 'nav.votes', route: '/(tabs)/voting', featureKey: 'voting' },
+  { icon: 'build-outline', iconActive: 'build', labelKey: 'nav.maintenance', route: '/(tabs)/maintenance', featureKey: 'maintenance' },
+  { icon: 'document-text-outline', iconActive: 'document-text', labelKey: 'nav.condition', route: '/(tabs)/condition', featureKey: 'condition' },
 ];
 
-const PROFILE_NAV: NavItem[] = [
-  { icon: '📊', labelKey: 'nav.profile', route: '/(tabs)/profile' },
-  { icon: '⚙️', labelKey: 'nav.settings', route: '/(tabs)/settings' },
-];
 
 export function DrawerMenu(): React.JSX.Element {
   const { t } = useTranslation();
@@ -52,12 +60,35 @@ export function DrawerMenu(): React.JSX.Element {
   const close = useDrawerStore((s) => s.close);
   const open = useDrawerStore((s) => s.open);
   const user = useAuthStore((s) => s.user);
+  const profile = useAuthStore((s) => s.profile);
   const signOut = useAuthStore((s) => s.signOut);
   const housemates = useHousematesStore((s) => s.housemates);
+  const houseName = useHousematesStore((s) => s.houseName);
   const settingsFeatures = useSettingsStore((s) => s.features);
   const permissions = useAuthStore((s) => s.permissions);
   const unreadCount = useChatStore((s) => s.unreadCount);
   const pathname = usePathname();
+
+  // Badge counts from badge store
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
+  const markSeen = useBadgeStore((s) => s.markSeen);
+  const myName = profile?.name ?? '';
+  const parkingReservations = useParkingStore((s) => s.reservations);
+  const groceryItems = useGroceryStore((s) => s.items);
+  const chores = useChoresStore((s) => s.chores);
+  const proposals = useVotingStore((s) => s.proposals);
+  const maintenanceItems = useMaintenanceStore((s) => s.requests);
+  const bills = useBillsStore((s) => s.bills);
+
+  type GenericItem = { createdAt: string; [k: string]: unknown };
+  const badgeCounts: Record<string, number> = {
+    parking: countNew(parkingReservations as unknown as GenericItem[], lastSeen.parking, myName, 'occupant'),
+    grocery: countNew(groceryItems.filter((i) => !i.isChecked) as unknown as GenericItem[], lastSeen.grocery, myName, 'addedBy'),
+    chores: countNewSimple(chores.filter((c) => !c.isComplete), lastSeen.chores),
+    bills: countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills),
+    voting: countNew(proposals.filter((p) => p.isOpen) as unknown as GenericItem[], lastSeen.voting, myName, 'createdBy'),
+    maintenance: countNewSimple(maintenanceItems.filter((m) => m.status === 'open'), lastSeen.maintenance),
+  };
 
   const filterNav = useCallback(
     (items: NavItem[]): NavItem[] =>
@@ -128,11 +159,12 @@ export function DrawerMenu(): React.JSX.Element {
     return pathname.includes(segment) && segment !== '';
   }, [pathname]);
 
-  const navigate = useCallback((route: string) => {
+  const navigate = useCallback((route: string, badgeFeature?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     close();
+    if (badgeFeature) markSeen(badgeFeature as BadgeFeature).catch(() => {});
     router.push(route as Parameters<typeof router.push>[0]);
-  }, [close]);
+  }, [close, markSeen]);
 
   const handleLogout = useCallback(async () => {
     close();
@@ -140,7 +172,7 @@ export function DrawerMenu(): React.JSX.Element {
     router.replace('/(auth)/welcome');
   }, [close, signOut]);
 
-  const initial = (user?.name ?? '?')[0].toUpperCase();
+  const initial = (profile?.name ?? user?.email ?? '?')[0].toUpperCase();
 
   return (
     <>
@@ -161,50 +193,70 @@ export function DrawerMenu(): React.JSX.Element {
 
           {/* Profile header — tappable to go to profile */}
           <Pressable style={styles.profileSection} onPress={() => navigate('/(tabs)/profile')}>
-            <View style={[styles.avatar, { backgroundColor: user?.avatarColor ?? colors.primary }]}>
+            <View style={[styles.avatar, { backgroundColor: profile?.avatarColor ?? colors.primary }]}>
               <Text style={styles.avatarText}>{initial}</Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{user?.name ?? 'You'}</Text>
+              <Text style={styles.profileName}>{profile?.name ?? user?.email ?? 'You'}</Text>
               <Text style={styles.profileSub}>
-                {housemates.length > 0 ? t('common.person', { count: housemates.length }) : 'Nestiq'}
+                {houseName || (housemates.length > 0 ? t('common.person', { count: housemates.length }) : 'HouseMates')}
               </Text>
             </View>
-            <Text style={styles.profileArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
           </Pressable>
 
           <View style={styles.divider} />
 
           {/* Main navigation */}
-          {filterNav(MAIN_NAV).map((item) => (
-            <Pressable
-              key={item.route}
-              style={[styles.navItem, isActive(item.route) && styles.navItemActive]}
-              onPress={() => navigate(item.route)}
-            >
-              <Text style={styles.navIcon}>{item.icon}</Text>
-              <Text style={[styles.navLabel, isActive(item.route) && styles.navLabelActive]}>
-                {t(item.labelKey)}
-              </Text>
-              {isActive(item.route) && <View style={[styles.activeIndicator, isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR]} />}
-            </Pressable>
-          ))}
+          {filterNav(MAIN_NAV).map((item) => {
+            const active = isActive(item.route);
+            const count = item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0;
+            return (
+              <Pressable
+                key={item.route}
+                style={[styles.navItem, active && styles.navItemActive]}
+                onPress={() => navigate(item.route, item.featureKey)}
+              >
+                <Ionicons
+                  name={active ? item.iconActive : item.icon}
+                  size={20}
+                  color={active ? colors.primary : colors.textSecondary}
+                  style={styles.navIconEl}
+                />
+                <Text style={[styles.navLabel, active && styles.navLabelActive]}>
+                  {t(item.labelKey)}
+                </Text>
+                {count > 0 && !active && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
+                  </View>
+                )}
+                {active && <View style={[styles.activeIndicator, isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR]} />}
+              </Pressable>
+            );
+          })}
 
           <View style={styles.divider} />
 
           {/* More section */}
           <Text style={styles.sectionLabel}>{t('nav.house_section')}</Text>
           {filterNav(MORE_NAV).map((item) => {
+            const active = isActive(item.route);
             const isChatItem = item.route === '/(tabs)/more/chat';
             const showBadge = isChatItem && unreadCount > 0;
             return (
               <Pressable
                 key={item.route}
-                style={[styles.navItem, isActive(item.route) && styles.navItemActive]}
+                style={[styles.navItem, active && styles.navItemActive]}
                 onPress={() => navigate(item.route)}
               >
-                <Text style={styles.navIcon}>{item.icon}</Text>
-                <Text style={[styles.navLabel, isActive(item.route) && styles.navLabelActive]}>
+                <Ionicons
+                  name={active ? item.iconActive : item.icon}
+                  size={20}
+                  color={active ? colors.primary : colors.textSecondary}
+                  style={styles.navIconEl}
+                />
+                <Text style={[styles.navLabel, active && styles.navLabelActive]}>
                   {t(item.labelKey)}
                 </Text>
                 {showBadge && (
@@ -212,34 +264,16 @@ export function DrawerMenu(): React.JSX.Element {
                     <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
                   </View>
                 )}
-                {isActive(item.route) && <View style={[styles.activeIndicator, isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR]} />}
+                {active && <View style={[styles.activeIndicator, isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR]} />}
               </Pressable>
             );
           })}
 
           <View style={styles.divider} />
 
-          {/* Profile & tools */}
-          <Text style={styles.sectionLabel}>{t('nav.me_section')}</Text>
-          {PROFILE_NAV.map((item) => (
-            <Pressable
-              key={item.route}
-              style={[styles.navItem, isActive(item.route) && styles.navItemActive]}
-              onPress={() => navigate(item.route)}
-            >
-              <Text style={styles.navIcon}>{item.icon}</Text>
-              <Text style={[styles.navLabel, isActive(item.route) && styles.navLabelActive]}>
-                {t(item.labelKey)}
-              </Text>
-              {isActive(item.route) && <View style={styles.activeIndicator} />}
-            </Pressable>
-          ))}
-
-          <View style={styles.divider} />
-
           {/* Sign out */}
           <Pressable style={styles.navItem} onPress={handleLogout}>
-            <Text style={styles.navIcon}>🚪</Text>
+            <Ionicons name="log-out-outline" size={20} color={colors.negative} style={styles.navIconEl} />
             <Text style={[styles.navLabel, styles.signOutText]}>{t('profile.sign_out')}</Text>
           </Pressable>
 
@@ -308,10 +342,6 @@ const styles = StyleSheet.create({
     ...font.medium,
     marginTop: 2,
   },
-  profileArrow: {
-    color: colors.textSecondary,
-    fontSize: sizes.fontLg,
-  },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
@@ -339,7 +369,7 @@ const styles = StyleSheet.create({
     marginVertical: 1,
   } as never,
   navItemActive: { backgroundColor: colors.primary + '14' },
-  navIcon: { fontSize: 20, width: 28, textAlign: 'center' },
+  navIconEl: { width: 28, textAlign: 'center' },
   navLabel: {
     fontSize: 15,
     ...font.medium,

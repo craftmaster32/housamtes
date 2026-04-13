@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import {
   useRecurringBillsStore,
   calculateFairness,
@@ -121,8 +122,8 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             <Text style={styles.typicalAmount}>~₪{bill.typicalAmount}</Text>
           </View>
         </View>
-        <Pressable onPress={() => deleteBill(bill.id)} style={styles.deleteBtn}>
-          <Text style={styles.deleteBtnText}>✕</Text>
+        <Pressable onPress={() => deleteBill(bill.id)} style={styles.deleteBtn} accessibilityRole="button" hitSlop={8}>
+          <Ionicons name="close" size={16} color={colors.textSecondary} />
         </Pressable>
       </View>
 
@@ -187,8 +188,8 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
               <Text style={styles.historyDate}>{formatDate(p.paidAt)}</Text>
               <Text style={styles.historyAmount}>₪{p.amount.toFixed(0)}</Text>
               {p.note ? <Text style={styles.historyNote}>{p.note}</Text> : null}
-              <Pressable onPress={() => deletePayment(p.id)}>
-                <Text style={styles.historyDelete}>✕</Text>
+              <Pressable onPress={() => deletePayment(p.id)} hitSlop={8}>
+                <Ionicons name="close" size={14} color={colors.textSecondary} />
               </Pressable>
             </View>
           ))}
@@ -306,11 +307,11 @@ function AddBillForm({ allPeople, onClose }: { allPeople: string[]; onClose: () 
 export function HouseholdTab(): React.JSX.Element {
   const { t } = useTranslation();
   const bills = useRecurringBillsStore((s) => s.bills);
-  const user = useAuthStore((s) => s.user);
+  const profile = useAuthStore((s) => s.profile);
   const housemates = useHousematesStore((s) => s.housemates);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const allPeople = [user?.name ?? '', ...housemates.map((h) => h.name)].filter(Boolean);
+  const allPeople = [profile?.name ?? '', ...housemates.map((h) => h.name)].filter(Boolean);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

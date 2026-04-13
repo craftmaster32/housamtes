@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
-import { useSpendingStore, type MonthSpend } from '@stores/spendingStore';
+import { useSpendingStore } from '@stores/spendingStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -11,15 +11,23 @@ interface Props {
   userName: string;
 }
 
-function fmt(amount: number): string {
-  if (amount >= 1000) return `$${(amount / 1000).toFixed(1)}k`;
-  return `$${amount.toFixed(0)}`;
+type Period = 3 | 6 | 12;
+
+const PERIODS: { label: string; months: Period }[] = [
+  { label: '3M', months: 3 },
+  { label: '6M', months: 6 },
+  { label: '12M', months: 12 },
+];
+
+const BAR_MAX_H = 64;
+
+function fmtShort(n: number): string {
+  if (n >= 1000) return `£${(n / 1000).toFixed(1)}k`;
+  return `£${n.toFixed(0)}`;
 }
 
-function deltaLabel(current: number, prev: number): { text: string; up: boolean } | null {
-  if (prev === 0) return null;
-  const pct = Math.round(((current - prev) / prev) * 100);
-  return { text: `${pct > 0 ? '+' : ''}${pct}% vs last month`, up: pct > 0 };
+function fmtFull(n: number): string {
+  return `£${n.toFixed(2)}`;
 }
 
 export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Element {
@@ -27,185 +35,223 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
   const isLoading = useSpendingStore((s) => s.isLoading);
   const load      = useSpendingStore((s) => s.load);
 
-  const [selectedIdx, setSelectedIdx] = useState(0); // 0 = most recent
+  const [period, setPeriod] = useState<Period>(6);
+  const selectPeriod = useCallback((p: Period) => setPeriod(p), []);
 
   useEffect(() => {
     if (houseId && userName) load(houseId, userName);
   }, [houseId, userName, load]);
 
-  const current: MonthSpend | undefined = months[selectedIdx];
-  const prev: MonthSpend | undefined    = months[selectedIdx + 1];
-  const delta = current && prev ? deltaLabel(current.total, prev.total) : null;
-  const maxBar = Math.max(...(current?.categories.map((c) => c.amount) ?? [1]));
-  const maxMonthTotal = Math.max(...months.map((m) => m.total), 1);
+  const current  = months[0];
+  const previous = months[1];
 
-  const selectMonth = useCallback((i: number) => setSelectedIdx(i), []);
+  // Slice to period length then reverse for chronological (oldest → newest)
+  const chartData = months.slice(0, period).reverse();
+  const maxTotal  = Math.max(...chartData.map((m) => m.total), 1);
+
+  const diff    = current && previous ? previous.total - current.total : null; // positive = spending down
+  const isDown  = diff !== null && diff > 0;
+  const diffAmt = diff !== null ? Math.abs(diff).toFixed(0) : null;
+  const pct     = current && previous && previous.total > 0
+    ? Math.round(Math.abs((current.total - previous.total) / previous.total) * 100)
+    : null;
+
+  const highest = chartData.length > 0
+    ? chartData.reduce((a, b) => (b.total > a.total ? b : a))
+    : null;
+  const lowest = chartData.length > 0
+    ? chartData.reduce((a, b) => (b.total < a.total ? b : a))
+    : null;
 
   if (isLoading) {
     return (
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>💸 My Spending</Text>
-        <Text style={styles.empty}>Loading…</Text>
+        <View style={styles.decoCircle} />
+        <View style={styles.pad}>
+          <Text style={styles.labelText}>MY SPENDING</Text>
+          <Text style={styles.loadingText}>Loading…</Text>
+        </View>
       </View>
     );
   }
 
-  if (months.length === 0 || (current && current.categories.length === 0 && months.every((m) => m.total === 0))) {
+  if (!months.length || months.every((m) => m.total === 0)) {
     return (
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>💸 My Spending</Text>
-        <Text style={styles.empty}>No expenses recorded yet. Add bills to see your spending breakdown.</Text>
+        <View style={styles.decoCircle} />
+        <View style={styles.pad}>
+          <Text style={styles.labelText}>MY SPENDING</Text>
+          <Text style={styles.amountText}>£0.00</Text>
+          <Text style={styles.emptyNote}>No expenses recorded yet.</Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.card}>
-      <Text style={styles.sectionTitle}>💸 My Spending</Text>
+      <View style={styles.decoCircle} />
+      <View style={styles.decoCircleSm} />
 
-      {/* ── Month selector ─────────────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.monthRow}
-      >
-        {months.map((m, i) => (
-          <Pressable
-            key={m.month}
-            onPress={() => selectMonth(i)}
-            style={[styles.monthPill, i === selectedIdx && styles.monthPillActive]}
-          >
-            <Text style={[styles.monthPillText, i === selectedIdx && styles.monthPillTextActive]}>
-              {m.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <View style={styles.pad}>
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <Text style={styles.labelText}>
+            {current ? `${current.label.split(' ')[0].toUpperCase()} SPENDING` : 'MY SPENDING'}
+          </Text>
+          <View style={styles.pills}>
+            {PERIODS.map((p) => (
+              <Pressable
+                key={p.label}
+                style={[styles.pill, period === p.months && styles.pillActive]}
+                onPress={() => selectPeriod(p.months)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: period === p.months }}
+              >
+                <Text style={[styles.pillText, period === p.months && styles.pillTextActive]}>
+                  {p.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
 
-      {/* ── Hero total ─────────────────────────────────────────────── */}
-      {current && (
-        <View style={styles.heroWrap}>
-          <Text style={styles.heroAmount}>{fmt(current.total)}</Text>
-          <Text style={styles.heroLabel}>{current.label}</Text>
-          {delta && (
-            <View style={[styles.deltaPill, delta.up ? styles.deltaPillUp : styles.deltaPillDown]}>
-              <Text style={[styles.deltaText, delta.up ? styles.deltaTextUp : styles.deltaTextDown]}>
-                {delta.up ? '↑' : '↓'} {delta.text}
+        {/* Amount + diff badge */}
+        <View style={styles.amountRow}>
+          <Text style={styles.amountText}>{current ? fmtFull(current.total) : '£0.00'}</Text>
+          {diffAmt !== null && (
+            <View style={styles.diffBadge}>
+              <Text style={styles.diffBadgeText}>
+                {isDown ? '↓' : '↑'} {isDown ? 'Down' : 'Up'} £{diffAmt}
               </Text>
             </View>
           )}
         </View>
-      )}
 
-      {/* ── Category bars ──────────────────────────────────────────── */}
-      {current && current.categories.length > 0 && (
-        <View style={styles.barsWrap}>
-          {current.categories.map((cat) => (
-            <View key={cat.name} style={styles.barRow}>
-              <View style={styles.barMeta}>
-                <Text style={styles.barIcon}>{cat.icon}</Text>
-                <Text style={styles.barName} numberOfLines={1}>{cat.name}</Text>
-              </View>
-              <View style={styles.barTrack}>
-                <View
-                  style={[
-                    styles.barFill,
-                    { width: `${(cat.amount / maxBar) * 100}%` as `${number}%`, backgroundColor: cat.color },
-                  ]}
-                />
-              </View>
-              <Text style={styles.barAmount}>{fmt(cat.amount)}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {current && current.categories.length === 0 && (
-        <Text style={styles.empty}>No spending in {current.label}.</Text>
-      )}
-
-      {/* ── 6-month mini trend ─────────────────────────────────────── */}
-      {months.some((m) => m.total > 0) && (
-        <View style={styles.trendWrap}>
-          <Text style={styles.trendLabel}>6-Month Trend</Text>
-          <View style={styles.trendBars}>
-            {[...months].reverse().map((m, i) => {
-              const reverseIdx = months.length - 1 - i;
-              const isActive = reverseIdx === selectedIdx;
-              const barH = Math.max((m.total / maxMonthTotal) * 44, m.total > 0 ? 4 : 2);
+        {/* Bar chart */}
+        <View style={styles.chartWrap}>
+          <Text style={styles.chartLabel}>Past {period} months</Text>
+          <View style={styles.barsRow}>
+            {chartData.map((m) => {
+              const isLatest = m.month === current?.month;
+              const barH = Math.max((m.total / maxTotal) * BAR_MAX_H, m.total > 0 ? 4 : 2);
               return (
-                <Pressable key={m.month} style={styles.trendBarCol} onPress={() => selectMonth(reverseIdx)}>
-                  <View style={[styles.trendBarFill, { height: barH, backgroundColor: isActive ? colors.primary : colors.surfaceSecondary }]} />
-                  <Text style={[styles.trendBarLabel, isActive && styles.trendBarLabelActive]}>
-                    {m.label.slice(0, 3)}
-                  </Text>
-                </Pressable>
+                <View key={m.month} style={styles.barCol}>
+                  <Text style={styles.barAmt}>{m.total > 0 ? fmtShort(m.total) : ''}</Text>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { height: barH }, isLatest && styles.barFillLatest]} />
+                  </View>
+                  <Text style={styles.barLbl}>{m.label.split(' ')[0].slice(0, 3)}</Text>
+                </View>
               );
             })}
           </View>
+          {highest && lowest && chartData.length > 1 && (
+            <Text style={styles.chartNote}>
+              Highest: {highest.label.split(' ')[0]} • Lowest: {lowest.label.split(' ')[0]}
+            </Text>
+          )}
         </View>
-      )}
+
+        {/* Month-over-month comparison */}
+        {diff !== null && previous && (
+          <View style={styles.compareRow}>
+            <Text style={styles.compareAmt}>
+              {isDown ? '↓' : '↑'} {fmtFull(Math.abs(diff))} {isDown ? 'less' : 'more'}
+            </Text>
+            <Text style={styles.compareSub}>Compared to {previous.label.split(' ')[0]}</Text>
+            {pct !== null && (
+              <Text style={styles.comparePct}>{pct}% {isDown ? 'lower' : 'higher'} this month</Text>
+            )}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.primary,
     borderRadius: sizes.borderRadiusLg,
-    padding: sizes.lg,
-    gap: sizes.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    boxShadow: '0 4px 16px rgba(44,51,61,0.04)',
-  } as never,
-  sectionTitle: {
-    fontSize: 17,
-    ...font.bold,
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
+    overflow: 'hidden',
   },
-
-  // Month selector
-  monthRow: { gap: 8, paddingVertical: 2 },
-  monthPill: {
-    paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: 9999, borderWidth: 1, borderColor: colors.border,
-    backgroundColor: colors.surfaceSecondary,
+  decoCircle: {
+    position: 'absolute',
+    top: -36,
+    right: -18,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
-  monthPillActive:     { backgroundColor: colors.primary, borderColor: colors.primary },
-  monthPillText:       { fontSize: 13, ...font.semibold, color: colors.textSecondary },
-  monthPillTextActive: { color: '#FFFFFF' },
+  decoCircleSm: {
+    position: 'absolute',
+    bottom: -54,
+    right: 22,
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  pad: { padding: 22, gap: 20 },
 
-  // Hero
-  heroWrap:   { alignItems: 'center', gap: 4, paddingVertical: 8 },
-  heroAmount: { fontSize: 40, ...font.extrabold, color: colors.textPrimary, letterSpacing: -1.5 },
-  heroLabel:  { fontSize: 14, ...font.regular, color: colors.textSecondary },
-  deltaPill:  { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999, marginTop: 2 },
-  deltaPillUp:   { backgroundColor: colors.negative + '15' },
-  deltaPillDown: { backgroundColor: colors.positive + '15' },
-  deltaText:     { fontSize: 12, ...font.semibold },
-  deltaTextUp:   { color: colors.negative },
-  deltaTextDown: { color: colors.positive },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  labelText: {
+    fontSize: 12,
+    ...font.extrabold,
+    color: colors.white,
+    letterSpacing: 0.96,
+    textTransform: 'uppercase',
+    opacity: 0.92,
+  },
+  pills: { flexDirection: 'row', gap: 8 },
+  pill: {
+    height: 30,
+    minWidth: 44,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  pillActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
+  pillText: { fontSize: 12, ...font.extrabold, color: 'rgba(255,255,255,0.88)', textAlign: 'center' },
+  pillTextActive: { color: colors.white },
 
-  // Category bars
-  barsWrap: { gap: 10 },
-  barRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  barMeta:  { flexDirection: 'row', alignItems: 'center', gap: 6, width: 110 },
-  barIcon:  { fontSize: 14 },
-  barName:  { fontSize: 13, ...font.medium, color: colors.textPrimary, flex: 1 },
-  barTrack: { flex: 1, height: 10, backgroundColor: colors.surfaceSecondary, borderRadius: 5, overflow: 'hidden' },
-  barFill:  { height: '100%', borderRadius: 5 },
-  barAmount:{ fontSize: 13, ...font.bold, color: colors.textPrimary, width: 48, textAlign: 'right' },
+  amountRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  amountText: { fontSize: 42, ...font.extrabold, color: colors.white, letterSpacing: -1.26, lineHeight: 42 },
+  diffBadge: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  diffBadgeText: { fontSize: 12, ...font.extrabold, color: colors.white },
 
-  // 6-month trend
-  trendWrap:        { gap: 8, paddingTop: 4 },
-  trendLabel:       { fontSize: 11, ...font.bold, color: colors.textSecondary, letterSpacing: 0.8, textTransform: 'uppercase' },
-  trendBars:        { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 60 },
-  trendBarCol:      { flex: 1, alignItems: 'center', gap: 4, justifyContent: 'flex-end' },
-  trendBarFill:     { width: '100%', borderRadius: 4, minHeight: 2 },
-  trendBarLabel:    { fontSize: 10, ...font.regular, color: colors.textSecondary },
-  trendBarLabelActive: { ...font.bold, color: colors.primary },
+  chartWrap: { gap: 10 },
+  chartLabel: { fontSize: 12, ...font.regular, color: 'rgba(255,255,255,0.84)' },
+  barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, height: 96 },
+  barCol: { flex: 1, alignItems: 'center', gap: 8, justifyContent: 'flex-end' },
+  barAmt: { fontSize: 11, ...font.bold, color: 'rgba(255,255,255,0.92)', textAlign: 'center' },
+  barTrack: {
+    width: 20,
+    height: BAR_MAX_H,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFill: { width: 20, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.32)' },
+  barFillLatest: { backgroundColor: colors.white },
+  barLbl: { fontSize: 11, ...font.regular, color: 'rgba(255,255,255,0.84)' },
+  chartNote: { fontSize: 12, ...font.regular, color: colors.white, opacity: 0.84, textAlign: 'right' },
 
-  empty: { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center', paddingVertical: 8 },
+  compareRow: { alignItems: 'flex-start', gap: 2 },
+  compareAmt: { fontSize: 16, ...font.extrabold, color: colors.white },
+  compareSub: { fontSize: 12, ...font.regular, color: 'rgba(255,255,255,0.84)' },
+  comparePct: { fontSize: 11, ...font.regular, color: 'rgba(255,255,255,0.80)' },
+
+  loadingText: { fontSize: 14, ...font.regular, color: 'rgba(255,255,255,0.70)', marginTop: 8 },
+  emptyNote:   { fontSize: 13, ...font.regular, color: 'rgba(255,255,255,0.60)', marginTop: 4 },
 });

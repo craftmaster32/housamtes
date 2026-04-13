@@ -12,7 +12,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,json}\"",
     "type-check": "tsc --noEmit",
     "test": "jest --watchAll=false",
-    "test:coverage": "jest --coverage --watchAll=false"
+    "test:coverage": "jest --coverage --watchAll=false",
+    "deploy": "node scripts/deploy.js"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

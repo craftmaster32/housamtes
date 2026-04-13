@@ -1,4 +1,4 @@
-// Nestiq — send-push Edge Function
+// HouseMates — send-push Edge Function
 // Called by the app after key events (new bill, parking claim, etc.)
 // Fetches push tokens for all house members (except the sender),
 // respects each user's notification preferences, then sends via the Expo Push API.
@@ -41,7 +41,7 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Verify the caller is an authenticated Nestiq user
+  // Verify the caller is an authenticated HouseMates user
   const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: authHeader } },
   });

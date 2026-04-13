@@ -1,5 +1,5 @@
 
-# SKILLS.md — Installed Agent Skills for Nestiq
+# SKILLS.md — Installed Agent Skills for HouseMates
 
 Skills are expert knowledge packs loaded automatically by Claude Code.
 They give the AI agent specialized rules and patterns from official sources.
@@ -18,7 +18,7 @@ To reinstall all skills (e.g. after a fresh clone): run the commands in the Inst
 **Installs:** 71,600/week — most popular React Native skill
 **Security:** Safe — passes all audits (Gen Agent Trust Hub, Socket, Snyk)
 
-**What it does for Nestiq:**
+**What it does for HouseMates:**
 Adds rules for building performant React Native apps across 8 priority categories.
 This is the core performance rulebook for all screens and components we build.
 
@@ -39,7 +39,7 @@ This is the core performance rulebook for all screens and components we build.
 **Installs:** 50,900/week — second most popular overall
 **Security:** Safe — passes all audits
 
-**What it does for Nestiq:**
+**What it does for HouseMates:**
 Adds Postgres and Supabase-specific rules. Critical for our database work —
 every bill, parking record, and house member record goes through these patterns.
 
@@ -60,7 +60,7 @@ every bill, parking record, and house member record goes through these patterns.
 **Installs:** 21,800/week
 **Security:** Safe — passes all audits
 
-**What it does for Nestiq:**
+**What it does for HouseMates:**
 Adds rules for building iOS-quality UI using Expo. Makes sure our app looks and feels
 like a real Apple-quality app, not a generic mobile website.
 
@@ -82,7 +82,7 @@ like a real Apple-quality app, not a generic mobile website.
 **Installs:** 16,200/week
 **Security:** Safe — passes all audits (all platforms)
 
-**What it does for Nestiq:**
+**What it does for HouseMates:**
 Adds networking and data fetching rules specific to Expo. This covers how we
 load bills, parking data, and messages from Supabase — and how we handle errors,
 loading states, and offline scenarios.
@@ -105,7 +105,7 @@ loading states, and offline scenarios.
 **Installs:** 18,100/week
 **Security:** Safe — passes all audits
 
-**What it does for Nestiq:**
+**What it does for HouseMates:**
 Adds advanced TypeScript rules that prevent entire categories of bugs before they happen.
 Since the owner is non-technical, we need the code to catch its own mistakes — TypeScript
 strict mode with these patterns is the best tool for that.
@@ -127,7 +127,7 @@ strict mode with these patterns is the best tool for that.
 **Installs:** 12,900/week
 **Security:** Safe (Gen Agent Trust Hub + Socket pass; Snyk shows Medium — due to shell commands used in deployment, not a security issue for the app itself)
 
-**What it does for Nestiq:**
+**What it does for HouseMates:**
 Adds rules for deploying the app to the App Store. Not needed until Phase 8,
 but having it installed means the rules are ready when we get there.
 
@@ -148,7 +148,7 @@ but having it installed means the rules are ready when we get there.
 **Installs:** 8,400/week
 **Security:** Safe — passes all audits
 
-**What it does for Nestiq:**
+**What it does for HouseMates:**
 Adds a structured performance reference covering 27 guides across 3 categories.
 Complements the Vercel skill with deeper focus on native-level optimization.
 

@@ -59,13 +59,15 @@ export default function HouseSetupScreen(): React.JSX.Element {
         .from('houses')
         .select('id')
         .eq('invite_code', inviteCode.trim().toUpperCase())
-        .single();
-      if (houseErr || !house) throw new Error(t('house_setup.code_not_found'));
+        .maybeSingle();
+      if (houseErr) throw new Error(t('house_setup.failed_join'));
+      if (!house) throw new Error(t('house_setup.code_not_found'));
 
       const { error: memberErr } = await supabase
         .from('house_members')
         .insert({ house_id: house.id, user_id: user.id });
-      if (memberErr) throw memberErr;
+      // 23505 = duplicate key: user is already a member — treat as success
+      if (memberErr && memberErr.code !== '23505') throw memberErr;
 
       setHouseId(house.id);
     } catch (err) {

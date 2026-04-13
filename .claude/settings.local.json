@@ -14,7 +14,16 @@
       "WebFetch(domain:kimola.com)",
       "WebFetch(domain:www.trustpilot.com)",
       "Bash(find \"/c/homeapp/app/\\(tabs\\)\" -maxdepth 1 -name \"_layout.tsx\")",
-      "Bash(ls c:/homeapp/app/\\\\\\(auth\\\\\\)/)"
+      "Bash(ls c:/homeapp/app/\\\\\\(auth\\\\\\)/)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('scripts', {}\\)\\)\")",
+      "Bash(node -e \"const f = require\\('c:/homeapp/node_modules/@expo-google-fonts/inter'\\); console.log\\(Object.keys\\(f\\).slice\\(0,3\\)\\); console.log\\(typeof f.Inter_400Regular, String\\(f.Inter_400Regular\\).slice\\(0,80\\)\\);\")",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('expo:', p.dependencies.expo, 'expo-font:', p.dependencies['expo-font']\\)\")",
+      "Bash(curl -s http://localhost:8081/status)",
+      "Bash(curl -s http://localhost:19006)",
+      "Bash(curl -s http://localhost:8082/status)",
+      "Bash(curl -s \"http://localhost:8081/\")",
+      "Bash(ipconfig)",
+      "Bash(npx supabase:*)"
     ]
   }
 }

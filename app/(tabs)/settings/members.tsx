@@ -141,7 +141,7 @@ export default function MembersScreen(): React.JSX.Element {
           <View>
             <Text style={styles.screenTitle}>Member Permissions</Text>
             <Text style={styles.screenSub}>
-              Control what each housemate can access in Nestiq. Owners and admins always have full access.
+              Control what each housemate can access in HouseMates. Owners and admins always have full access.
             </Text>
           </View>
         }

@@ -1,79 +1,43 @@
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import {
+  View, StyleSheet, ScrollView, Pressable, TextInput,
+  useWindowDimensions,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useBillsStore, calculateBalances } from '@stores/billsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useGroceryStore } from '@stores/groceryStore';
 import { useChoresStore } from '@stores/choresStore';
-import { useMaintenanceStore } from '@stores/maintenanceStore';
 import { useVotingStore } from '@stores/votingStore';
-import { useConditionStore } from '@stores/conditionStore';
-import { useSettingsStore } from '@stores/settingsStore';
-import { useEventsStore, type HouseEvent } from '@stores/eventsStore';
+import { useEventsStore } from '@stores/eventsStore';
 import { useAnnouncementsStore, type Announcement } from '@stores/announcementsStore';
-import { MiniCalendar, type CalendarEvent } from '@components/shared/MiniCalendar';
-import { DateInput } from '@components/shared/DateInput';
+import { useHousematesStore } from '@stores/housematesStore';
 import { colors } from '@constants/colors';
-import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
-// ── Feature color palette — each feature has its own identity ─────────────────
-const FEATURE_COLORS = {
-  bills:       { bg: '#FFF0F0', accent: '#FF4757', dark: '#CC1C2D' },
-  parking:     { bg: '#F0F7FF', accent: '#1E90FF', dark: '#0060CC' },
-  grocery:     { bg: '#F0FFF4', accent: '#2ED573', dark: '#18A84A' },
-  chores:      { bg: '#FFF8F0', accent: '#FF8C00', dark: '#CC6E00' },
-  maintenance: { bg: '#FFF0FA', accent: '#FF6B9D', dark: '#CC3A6B' },
-  voting:      { bg: '#F3F0FF', accent: '#7C4DFF', dark: '#5225CC' },
-  condition:   { bg: '#F0FFFD', accent: '#00BCD4', dark: '#008BA3' },
-} as const;
-
-type FeatureKey = keyof typeof FEATURE_COLORS;
+// ── Design tokens ─────────────────────────────────────────────────────────────
+const SURFACE = 'rgba(251,248,245,0.98)';
+const CARD_SHADOW = '0 4px 20px rgba(44,51,61,0.06)';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function greetingText(name: string, t: (k: string) => string): string {
+function greetingText(name: string): string {
   const h = new Date().getHours();
-  const salute = h < 12 ? t('dashboard.greeting_morning') : h < 18 ? t('dashboard.greeting_afternoon') : t('dashboard.greeting_evening');
-  return `${salute}, ${name} 👋`;
+  if (h < 12) return `Good morning, ${name}`;
+  if (h < 18) return `Good afternoon, ${name}`;
+  return `Good evening, ${name}`;
 }
 
-function formatSubtitleDate(): string {
-  return new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
-function formatSelectedDay(dateStr: string, t: (k: string) => string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  if (date.getTime() === today.getTime()) return t('common.today');
-  if (date.getTime() === tomorrow.getTime()) return t('common.tomorrow');
-  return date.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
-function formatEventBadge(dateStr: string, t: (k: string) => string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  if (date.getTime() === today.getTime()) return t('common.today');
-  if (date.getTime() === tomorrow.getTime()) return t('common.tomorrow');
-  const dd = String(date.getDate()).padStart(2, '0');
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const yyyy = date.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-}
-
-function timeAgo(iso: string, t: (k: string, opts?: Record<string, unknown>) => string): string {
+function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return t('common.just_now');
-  if (mins < 60) return t('common.minutes_ago', { n: mins });
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return t('common.hours_ago', { n: hours });
+  if (hours < 24) return `${hours}h ago`;
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
@@ -81,831 +45,826 @@ function parkingAge(startTime: string): string {
   const diff = Date.now() - new Date(startTime).getTime();
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
-  if (h > 0) return `For ${h}h ${m > 0 ? `${m}m` : ''}`.trimEnd();
-  if (m > 0) return `For ${m} min`;
-  return 'Just claimed';
+  if (h > 0) return `${h}h ${m > 0 ? `${m}m` : ''}`.trimEnd();
+  if (m > 0) return `${m} min`;
+  return 'Just now';
 }
 
-// ── FeatureCard — the new card design ────────────────────────────────────────
-
-interface FeatureCardProps {
-  featureKey: FeatureKey;
-  icon: string;
-  label: string;
-  value: string;
-  sub: string;
-  badge?: string;
-  onPress: () => void;
-}
-
-function FeatureCard({ featureKey, icon, label, value, sub, badge, onPress }: FeatureCardProps): React.JSX.Element {
-  const theme = FEATURE_COLORS[featureKey];
-  return (
-    <Pressable
-      style={styles.featureCard}
-      onPress={onPress}
-      accessible={true}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}: ${value}`}
-    >
-      {/* Colored top band */}
-      <View style={[styles.featureBand, { backgroundColor: theme.bg }]}>
-        {/* Icon circle */}
-        <View style={[styles.featureIconCircle, { backgroundColor: theme.accent }]}>
-          <Text style={styles.featureIconEmoji}>{icon}</Text>
-        </View>
-        {/* Action badge — only renders when there's something to act on */}
-        {badge != null && badge.length > 0 ? (
-          <View style={[styles.featureBadge, { backgroundColor: theme.accent + '22' }]}>
-            <Text style={[styles.featureBadgeText, { color: theme.dark }]}>{badge}</Text>
-          </View>
-        ) : null}
-      </View>
-
-      {/* Content below the band */}
-      <View style={styles.featureBody}>
-        <Text style={styles.featureLabel}>{label}</Text>
-        <Text style={[styles.featureValue, { color: theme.dark }]}>{value}</Text>
-        <Text style={styles.featureSub} numberOfLines={1}>{sub}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-// ── EventRow ─────────────────────────────────────────────────────────────────
-
-function EventRow({ event, onRemove }: { event: HouseEvent; onRemove: (id: string) => void }): React.JSX.Element {
-  const { t } = useTranslation();
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const isPast = new Date(event.date + 'T00:00:00') < today;
-  return (
-    <View style={[styles.eventRow, isPast && styles.eventRowPast]}>
-      <View style={[styles.eventDateBadge, isPast && styles.eventDateBadgePast]}>
-        <Text style={[styles.eventDateText, isPast && styles.eventDateTextPast]}>
-          {formatEventBadge(event.date, t)}
-        </Text>
-      </View>
-      <View style={styles.eventInfo}>
-        <Text style={[styles.eventTitle, isPast && styles.eventTitlePast]}>{event.title}</Text>
-        <Text style={styles.eventBy}>{t('common.by')} {event.createdBy}</Text>
-      </View>
-      <Pressable onPress={() => onRemove(event.id)} style={styles.removeBtn}>
-        <Text style={styles.removeBtnText}>✕</Text>
+// ── Widget Card wrapper ───────────────────────────────────────────────────────
+function WidgetCard({ children, style, onPress }: {
+  children: React.ReactNode;
+  style?: object;
+  onPress?: () => void;
+}): React.JSX.Element {
+  if (onPress) {
+    return (
+      <Pressable style={[styles.card, style]} onPress={onPress} accessibilityRole="button">
+        {children}
       </Pressable>
-    </View>
+    );
+  }
+  return <View style={[styles.card, style]}>{children}</View>;
+}
+
+// ── Balance Card ──────────────────────────────────────────────────────────────
+function BalanceCard(): React.JSX.Element {
+  const bills = useBillsStore((s) => s.bills);
+  const profile = useAuthStore((s) => s.profile);
+  const myName = profile?.name ?? '';
+  const balances = calculateBalances(bills.filter((b) => !b.settled), myName);
+  const totalOwed = balances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
+  const totalOwe  = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
+  const netAmount = totalOwed - totalOwe;
+
+  return (
+    <WidgetCard onPress={() => router.push('/(tabs)/bills')}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.cardIconWrap, { backgroundColor: '#FFF0F0' }]}>
+          <Ionicons name="card-outline" size={18} color="#FF4757" />
+        </View>
+        <Text style={styles.cardTitle}>Balances</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+      </View>
+      <Text style={[styles.bigNumber, { color: netAmount >= 0 ? colors.positive : colors.negative }]}>
+        {netAmount >= 0 ? '+' : ''}₪{Math.abs(netAmount).toFixed(2)}
+      </Text>
+      {netAmount > 0 && (
+        <View style={styles.statusPill}>
+          <Text style={styles.statusPillText}>You are owed</Text>
+        </View>
+      )}
+      {netAmount < 0 && (
+        <View style={[styles.statusPill, { backgroundColor: colors.negative + '20' }]}>
+          <Text style={[styles.statusPillText, { color: colors.negative }]}>You owe</Text>
+        </View>
+      )}
+      {balances.slice(0, 2).map((b) => (
+        <View key={b.person} style={styles.balanceRow}>
+          <View style={[styles.personDot, { backgroundColor: b.amount > 0 ? colors.positive : colors.negative }]} />
+          <Text style={styles.balancePerson} numberOfLines={1}>{b.person}</Text>
+          <Text style={[styles.balanceAmt, { color: b.amount > 0 ? colors.positive : colors.negative }]}>
+            {b.amount > 0 ? '+' : ''}₪{b.amount.toFixed(2)}
+          </Text>
+        </View>
+      ))}
+      {balances.length === 0 && (
+        <Text style={styles.cardMuted}>All settled up</Text>
+      )}
+    </WidgetCard>
   );
 }
 
-// ── NoteBubble ────────────────────────────────────────────────────────────────
+// ── Chore Card ────────────────────────────────────────────────────────────────
+function ChoreCard(): React.JSX.Element {
+  const chores = useChoresStore((s) => s.chores);
+  const toggleChore = useChoresStore((s) => s.toggleChore);
+  const profile = useAuthStore((s) => s.profile);
+  const myName = profile?.name ?? '';
+  const myChore = chores.find((c) => !c.isComplete && c.claimedBy === myName);
+  const pending = chores.filter((c) => !c.isComplete);
+  const done = chores.filter((c) => c.isComplete);
 
-function NoteBubble({ item, myName, onDelete }: { item: Announcement; myName: string; onDelete: (id: string) => void }): React.JSX.Element {
-  const { t } = useTranslation();
-  const isMine = item.author === myName;
   return (
-    <View style={[styles.noteBubble, isMine && styles.noteBubbleMine]}>
-      {!isMine && <Text style={styles.noteAuthor}>{item.author}</Text>}
-      <Text style={styles.noteText}>{item.text}</Text>
-      <View style={styles.noteMeta}>
-        <Text style={styles.noteTime}>{timeAgo(item.createdAt, t)}</Text>
-        {isMine && (
-          <Pressable onPress={() => onDelete(item.id)}>
-            <Text style={styles.noteDelete}>{t('dashboard.delete')}</Text>
-          </Pressable>
+    <WidgetCard onPress={() => router.push('/(tabs)/chores')}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.cardIconWrap, { backgroundColor: '#FFF8F0' }]}>
+          <Ionicons name="checkmark-done-outline" size={18} color="#FF8C00" />
+        </View>
+        <Text style={styles.cardTitle}>Your Chore</Text>
+        {chores.length > 0 && (
+          <View style={styles.badgePill}>
+            <Text style={styles.badgePillText}>
+              {done.length}/{chores.length} done
+            </Text>
+          </View>
         )}
       </View>
+      {myChore ? (
+        <>
+          <View style={styles.choreBox}>
+            <Ionicons name="brush-outline" size={22} color="#FF8C00" />
+            <Text style={styles.choreName} numberOfLines={2}>{myChore.name}</Text>
+          </View>
+          <Pressable
+            style={styles.doneBtn}
+            onPress={(e) => { e.stopPropagation?.(); toggleChore(myChore.id); }}
+            accessibilityRole="button"
+          >
+            <Ionicons name="checkmark" size={14} color={colors.positive} />
+            <Text style={styles.doneBtnText}>Mark as Done</Text>
+          </Pressable>
+        </>
+      ) : pending.length > 0 ? (
+        <>
+          <Text style={styles.bigNumber} numberOfLines={1}>
+            {pending[0].name}
+          </Text>
+          <Text style={styles.cardMuted}>Not yet claimed</Text>
+        </>
+      ) : (
+        <>
+          <View style={styles.doneAllWrap}>
+            <Ionicons name="checkmark-circle" size={32} color={colors.positive} />
+          </View>
+          <Text style={styles.cardMuted}>All chores done!</Text>
+        </>
+      )}
+    </WidgetCard>
+  );
+}
+
+// ── Parking Card ──────────────────────────────────────────────────────────────
+function ParkingCard(): React.JSX.Element {
+  const current = useParkingStore((s) => s.current);
+  const claim = useParkingStore((s) => s.claim);
+  const release = useParkingStore((s) => s.release);
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
+  const myName = profile?.name ?? '';
+  const isFree = !current;
+  const isMine = current?.occupant === myName;
+
+  const handleClaim = useCallback(async (): Promise<void> => {
+    await claim(myName, houseId ?? '').catch(() => {});
+  }, [claim, myName, houseId]);
+
+  const handleRelease = useCallback(async (): Promise<void> => {
+    await release(houseId ?? '').catch(() => {});
+  }, [release, houseId]);
+
+  return (
+    <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.cardIconWrap, { backgroundColor: isFree ? '#F0FFF4' : '#FFF0F0' }]}>
+          <Ionicons name={isFree ? 'car-outline' : 'car'} size={18} color={isFree ? colors.positive : colors.negative} />
+        </View>
+        <Text style={styles.cardTitle}>Parking Spot</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+      </View>
+      <View style={[styles.parkingStatus, { backgroundColor: isFree ? colors.positive + '14' : colors.negative + '14' }]}>
+        <Text style={[styles.parkingStatusText, { color: isFree ? colors.positive : colors.negative }]}>
+          {isFree ? 'Available now' : isMine ? 'Your car' : `${current?.occupant}`}
+        </Text>
+        {current && !isFree && (
+          <Text style={styles.parkingAge}>{parkingAge(current.startTime)}</Text>
+        )}
+      </View>
+      <Text style={styles.cardMuted}>
+        {isFree
+          ? 'No one is using the spot'
+          : isMine
+          ? `In use for ${parkingAge(current!.startTime)}`
+          : `Used by ${current?.occupant} · ${parkingAge(current!.startTime)}`}
+      </Text>
+      {isFree && (
+        <Pressable
+          style={styles.claimBtn}
+          onPress={(e) => { e.stopPropagation?.(); handleClaim(); }}
+          accessibilityRole="button"
+          accessibilityLabel="Claim parking spot"
+        >
+          <Ionicons name="car" size={14} color="#fff" />
+          <Text style={styles.claimBtnText}>Claim Spot</Text>
+        </Pressable>
+      )}
+      {isMine && (
+        <Pressable
+          style={styles.releaseBtn}
+          onPress={(e) => { e.stopPropagation?.(); handleRelease(); }}
+          accessibilityRole="button"
+          accessibilityLabel="Release parking spot"
+        >
+          <Ionicons name="exit-outline" size={14} color={colors.negative} />
+          <Text style={styles.releaseBtnText}>Release Spot</Text>
+        </Pressable>
+      )}
+    </WidgetCard>
+  );
+}
+
+// ── Grocery Widget ────────────────────────────────────────────────────────────
+function GroceryWidget(): React.JSX.Element {
+  const items = useGroceryStore((s) => s.items);
+  const addItem = useGroceryStore((s) => s.addItem);
+  const toggleItem = useGroceryStore((s) => s.toggleItem);
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
+  const [input, setInput] = useState('');
+  const pending = items.filter((i) => !i.isChecked).slice(0, 5);
+
+  const handleAdd = useCallback(async (): Promise<void> => {
+    const n = input.trim();
+    if (!n) return;
+    await addItem(n, '', profile?.name ?? 'Someone', houseId ?? '').catch(() => {});
+    setInput('');
+  }, [input, addItem, profile, houseId]);
+
+  return (
+    <WidgetCard>
+      <View style={styles.cardHeader}>
+        <View style={[styles.cardIconWrap, { backgroundColor: '#F0FFF4' }]}>
+          <Ionicons name="cart-outline" size={18} color="#2ED573" />
+        </View>
+        <Text style={styles.cardTitle}>Shared Groceries</Text>
+        <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button">
+          <Text style={styles.viewAll}>View all</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.groceryInputRow}>
+        <Ionicons name="add" size={16} color={colors.textSecondary} />
+        <TextInput
+          style={styles.groceryInput}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Add an item to the list..."
+          placeholderTextColor={colors.textSecondary}
+          returnKeyType="done"
+          onSubmitEditing={handleAdd}
+        />
+      </View>
+
+      {pending.length === 0 ? (
+        <Text style={styles.cardMuted}>List is empty — add something above</Text>
+      ) : (
+        pending.map((item) => (
+          <Pressable
+            key={item.id}
+            style={styles.groceryRow}
+            onPress={() => toggleItem(item.id)}
+            accessibilityRole="checkbox"
+          >
+            <Ionicons
+              name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+              size={18}
+              color={item.isChecked ? colors.positive : colors.border}
+            />
+            <Text style={[styles.groceryItemText, item.isChecked && styles.groceryItemDone]}>
+              {item.name}
+            </Text>
+            {item.quantity && item.quantity !== '1' && (
+              <Text style={styles.groceryQty}>×{item.quantity}</Text>
+            )}
+          </Pressable>
+        ))
+      )}
+
+      {items.filter((i) => !i.isChecked).length > 5 && (
+        <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button">
+          <Text style={styles.viewAll}>
+            +{items.filter((i) => !i.isChecked).length - 5} more items
+          </Text>
+        </Pressable>
+      )}
+    </WidgetCard>
+  );
+}
+
+// ── Votes Widget ──────────────────────────────────────────────────────────────
+function VotesWidget(): React.JSX.Element {
+  const proposals = useVotingStore((s) => s.proposals);
+  const active = proposals.filter((p) => p.isOpen);
+
+  if (active.length === 0) {
+    return (
+      <WidgetCard onPress={() => router.push('/(tabs)/voting')}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.cardIconWrap, { backgroundColor: '#F3F0FF' }]}>
+            <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
+          </View>
+          <Text style={styles.cardTitle}>Active Votes</Text>
+        </View>
+        <Text style={styles.cardMuted}>No open votes right now</Text>
+      </WidgetCard>
+    );
+  }
+
+  const top = active[0];
+  const yesCount = top.votes.filter((v) => v.choice === 'yes').length;
+  const noCount  = top.votes.filter((v) => v.choice === 'no').length;
+  const totalVotes = yesCount + noCount;
+  const yesWidth = totalVotes > 0 ? (yesCount / totalVotes) * 100 : 0;
+
+  return (
+    <WidgetCard onPress={() => router.push('/(tabs)/voting')}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.cardIconWrap, { backgroundColor: '#F3F0FF' }]}>
+          <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
+        </View>
+        <Text style={styles.cardTitle}>Active Votes</Text>
+        <View style={[styles.badgePill, { backgroundColor: '#7C4DFF20' }]}>
+          <Text style={[styles.badgePillText, { color: '#7C4DFF' }]}>Action needed</Text>
+        </View>
+      </View>
+      <Text style={styles.voteQuestion} numberOfLines={2}>{top.title}</Text>
+      <View style={styles.voteBarRow}>
+        <Text style={styles.voteBarLabel}>Yes</Text>
+        <View style={styles.voteTrack}>
+          <View style={[styles.voteBar, { width: `${yesWidth}%` as `${number}%`, backgroundColor: '#7C4DFF' }]} />
+        </View>
+        <Text style={styles.voteCount}>{yesCount}</Text>
+      </View>
+      <View style={styles.voteBarRow}>
+        <Text style={styles.voteBarLabel}>No</Text>
+        <View style={styles.voteTrack}>
+          <View style={[styles.voteBar, { width: `${100 - yesWidth}%` as `${number}%`, backgroundColor: colors.border }]} />
+        </View>
+        <Text style={styles.voteCount}>{noCount}</Text>
+      </View>
+    </WidgetCard>
+  );
+}
+
+// ── Mini Calendar Widget ──────────────────────────────────────────────────────
+const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const CAL_DAYS   = ['S','M','T','W','T','F','S'];
+
+function toYMD(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function MiniCalendarWidget(): React.JSX.Element {
+  const events        = useEventsStore((s) => s.events);
+  const reservations  = useParkingStore((s) => s.reservations);
+  const bills         = useBillsStore((s) => s.bills);
+  const chores        = useChoresStore((s) => s.chores);
+
+  const today = new Date();
+  const [viewYear, setViewYear]   = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  // Map date → [{title, color}] for event chip labels
+  const eventMap = useMemo((): Record<string, Array<{ title: string; color: string }>> => {
+    const map: Record<string, Array<{ title: string; color: string }>> = {};
+    const push = (date: string, title: string, color: string): void => {
+      if (!date) return;
+      if (!map[date]) map[date] = [];
+      map[date].push({ title, color });
+    };
+    events.forEach((e) => push(e.date, e.title, '#6366f1'));
+    reservations.forEach((r) => push(r.date, `Parking`, '#f59e0b'));
+    bills.forEach((b) => push(b.date, b.title, '#ef4444'));
+    chores.forEach((c) => { if (c.recurrence === 'once' && c.recurrenceDay) push(c.recurrenceDay, c.name, '#22c55e'); });
+    return map;
+  }, [events, reservations, bills, chores]);
+
+  const grid = useMemo((): Date[] => {
+    const first = new Date(viewYear, viewMonth, 1);
+    const start = new Date(first);
+    start.setDate(1 - first.getDay());
+    const days: Date[] = [];
+    for (let i = 0; i < 35; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  }, [viewYear, viewMonth]);
+
+  const prevMonth = useCallback((): void => {
+    if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
+    else setViewMonth((m) => m - 1);
+  }, [viewMonth]);
+
+  const nextMonth = useCallback((): void => {
+    if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
+    else setViewMonth((m) => m + 1);
+  }, [viewMonth]);
+
+  const todayStr = toYMD(today);
+
+  return (
+    <WidgetCard>
+      {/* Header — title navigates to calendar page */}
+      <View style={styles.calHeader}>
+        <Pressable
+          style={styles.calTitleRow}
+          onPress={() => router.push('/(tabs)/calendar')}
+          accessibilityRole="button"
+          accessibilityLabel="Open calendar"
+        >
+          <View style={[styles.cardIconWrap, { backgroundColor: '#F3F0FF' }]}>
+            <Ionicons name="calendar-outline" size={18} color="#6366f1" />
+          </View>
+          <Text style={styles.cardTitle}>Calendar</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        </Pressable>
+        <View style={styles.calNavRow}>
+          <Pressable onPress={prevMonth} style={styles.calNavBtn} accessibilityRole="button">
+            <Ionicons name="chevron-back" size={15} color={colors.textSecondary} />
+          </Pressable>
+          <Text style={styles.calMonthLabel}>
+            {CAL_MONTHS[viewMonth].slice(0, 3)} {viewYear}
+          </Text>
+          <Pressable onPress={nextMonth} style={styles.calNavBtn} accessibilityRole="button">
+            <Ionicons name="chevron-forward" size={15} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Weekday row */}
+      <View style={styles.calWeekRow}>
+        {CAL_DAYS.map((d, i) => (
+          <Text key={i} style={styles.calWeekDay}>{d}</Text>
+        ))}
+      </View>
+
+      {/* Day grid — 5 explicit rows, each cell shows event chips */}
+      <View style={styles.calGrid}>
+        {[0, 1, 2, 3, 4].map((row) => (
+          <View key={row} style={styles.calRow}>
+            {grid.slice(row * 7, row * 7 + 7).map((day, idx) => {
+              const ymd = toYMD(day);
+              const isToday = ymd === todayStr;
+              const isCurrentMonth = day.getMonth() === viewMonth;
+              const dayEvents = eventMap[ymd] ?? [];
+              return (
+                <Pressable
+                  key={idx}
+                  style={styles.calDayCell}
+                  onPress={() => router.push('/(tabs)/calendar')}
+                  accessibilityRole="button"
+                >
+                  <View style={[styles.calDayInner, isToday && styles.calDayToday]}>
+                    <Text style={[
+                      styles.calDayNum,
+                      !isCurrentMonth && styles.calDayFaint,
+                      isToday && styles.calDayTodayNum,
+                    ]}>
+                      {day.getDate()}
+                    </Text>
+                  </View>
+                  {/* Event chip — show first event as colored label */}
+                  {dayEvents[0] && (
+                    <View style={[styles.calEventChip, { backgroundColor: dayEvents[0].color }]}>
+                      <Text style={styles.calEventChipText} numberOfLines={1}>
+                        {dayEvents[0].title}
+                      </Text>
+                    </View>
+                  )}
+                  {dayEvents.length > 1 && (
+                    <Text style={styles.calMoreText}>+{dayEvents.length - 1}</Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+
+      {/* Legend */}
+      <View style={styles.calLegend}>
+        {([['#6366f1','Events'],['#ef4444','Bills'],['#22c55e','Chores'],['#f59e0b','Parking']] as [string,string][]).map(([c, label]) => (
+          <View key={label} style={styles.calLegendItem}>
+            <View style={[styles.calLegendDot, { backgroundColor: c }]} />
+            <Text style={styles.calLegendLabel}>{label}</Text>
+          </View>
+        ))}
+      </View>
+    </WidgetCard>
+  );
+}
+
+// ── Activity feed ─────────────────────────────────────────────────────────────
+
+function ActivityFeedItem({ item, myName, onDelete }: {
+  item: Announcement;
+  myName: string;
+  onDelete: (id: string) => void;
+}): React.JSX.Element {
+  const isMine = item.author === myName;
+  const initial = item.author[0]?.toUpperCase() ?? '?';
+  return (
+    <View style={styles.activityRow}>
+      <View style={styles.activityAvatar}>
+        <Text style={styles.activityAvatarText}>{initial}</Text>
+      </View>
+      <View style={styles.activityContent}>
+        <Text style={styles.activityAuthor}>{isMine ? 'You' : item.author}</Text>
+        <Text style={styles.activityText}>{item.text}</Text>
+        <Text style={styles.activityTime}>{timeAgo(item.createdAt)}</Text>
+      </View>
+      {isMine && (
+        <Pressable onPress={() => onDelete(item.id)} hitSlop={8} accessibilityRole="button">
+          <Ionicons name="close" size={14} color={colors.textSecondary} />
+        </Pressable>
+      )}
     </View>
+  );
+}
+
+function ActivityFeed(): React.JSX.Element {
+  const notes = useAnnouncementsStore((s) => s.items);
+  const postNote = useAnnouncementsStore((s) => s.post);
+  const removeNote = useAnnouncementsStore((s) => s.remove);
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
+  const myName = profile?.name ?? '';
+  const [input, setInput] = useState('');
+
+  const handlePost = useCallback(async (): Promise<void> => {
+    if (!input.trim()) return;
+    await postNote(input.trim(), myName || 'Someone', houseId ?? '').catch(() => {});
+    setInput('');
+  }, [input, myName, houseId, postNote]);
+
+  const handleDelete = useCallback((id: string): void => { removeNote(id); }, [removeNote]);
+
+  return (
+    <WidgetCard>
+      <View style={styles.cardHeader}>
+        <View style={[styles.cardIconWrap, { backgroundColor: '#F0F7FF' }]}>
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
+        </View>
+        <Text style={styles.cardTitle}>Recent Activity</Text>
+      </View>
+
+      <View style={styles.activityInput}>
+        <TextInput
+          style={styles.noteInput}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Leave a note for your housemates..."
+          placeholderTextColor={colors.textSecondary}
+          returnKeyType="send"
+          onSubmitEditing={handlePost}
+        />
+        <Pressable
+          style={[styles.sendBtn, !input.trim() && styles.sendBtnOff]}
+          onPress={handlePost}
+          disabled={!input.trim()}
+          accessibilityRole="button"
+        >
+          <Ionicons name="send" size={14} color={input.trim() ? '#fff' : colors.textSecondary} />
+        </Pressable>
+      </View>
+
+      {notes.slice(0, 6).map((item) => (
+        <ActivityFeedItem key={item.id} item={item} myName={myName} onDelete={handleDelete} />
+      ))}
+      {notes.length === 0 && (
+        <Text style={styles.cardMuted}>No activity yet — be the first to post!</Text>
+      )}
+    </WidgetCard>
   );
 }
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function DashboardScreen(): React.JSX.Element {
-  const { t } = useTranslation();
   const profile = useAuthStore((s) => s.profile);
-  const houseId = useAuthStore((s) => s.houseId);
-  const bills = useBillsStore((state) => state.bills);
-  const current = useParkingStore((state) => state.current);
-  const reservations = useParkingStore((state) => state.reservations);
-  const groceryItems = useGroceryStore((state) => state.items);
-  const chores = useChoresStore((state) => state.chores);
-  const requests = useMaintenanceStore((state) => state.requests);
-  const proposals = useVotingStore((state) => state.proposals);
-  const conditionEntries = useConditionStore((state) => state.entries);
-  const features = useSettingsStore((s) => s.features);
-  const dashboardWidgets = useSettingsStore((s) => s.dashboardWidgets);
-  const toggleDashboardWidget = useSettingsStore((s) => s.toggleDashboardWidget);
+  const houseName = useHousematesStore((s) => s.houseName);
+  const { width } = useWindowDimensions();
 
-  const isDashboardWidget = useCallback(
-    (key: string): boolean => {
-      const enabled = features.find((f) => f.key === key)?.enabled ?? false;
-      return enabled && dashboardWidgets.includes(key);
-    },
-    [features, dashboardWidgets]
-  );
-
-  const events = useEventsStore((state) => state.events);
-  const addEvent = useEventsStore((state) => state.addEvent);
-  const removeEvent = useEventsStore((state) => state.removeEvent);
-  const notes = useAnnouncementsStore((state) => state.items);
-  const postNote = useAnnouncementsStore((state) => state.post);
-  const removeNote = useAnnouncementsStore((state) => state.remove);
-
-  const [editingDashboard, setEditingDashboard] = useState(false);
-  const [eventError, setEventError] = useState('');
-
-  const myName = profile?.name ?? '';
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-
-  const [selectedDate, setSelectedDate] = useState(todayStr);
-  const [eventTitle, setEventTitle] = useState('');
-  const [note, setNote] = useState('');
-
-  // ── Bills ──────────────────────────────────────────────────────────────────
-  const balances = calculateBalances(bills.filter((b) => !b.settled), myName);
-  const totalOwed = balances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
-  const totalOwe = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
-  const billValue = totalOwed > 0 ? `+₪${totalOwed.toFixed(0)}` : totalOwe > 0 ? `-₪${totalOwe.toFixed(0)}` : '₪0';
-  const topBalance = [...balances].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))[0];
-  const billSub = topBalance
-    ? topBalance.amount > 0
-      ? `${topBalance.person} owes ₪${topBalance.amount.toFixed(0)}`
-      : `Owe ${topBalance.person} ₪${Math.abs(topBalance.amount).toFixed(0)}`
-    : t('dashboard.all_settled');
-  const billBadge = totalOwe > 0 ? `Owe ₪${totalOwe.toFixed(0)}` : totalOwed > 0 ? `Owed ₪${totalOwed.toFixed(0)}` : '';
-
-  // ── Parking ────────────────────────────────────────────────────────────────
-  const isFree = !current;
-  const parkingValue = isFree ? t('parking.spot_free') : t('parking.taken_by', { name: current.occupant });
-  const parkingSub = isFree ? t('dashboard.spot_available') : `${current.occupant} · ${parkingAge(current.startTime)}`;
-  const pendingRes = reservations.filter((r) => r.status === 'pending').length;
-  const parkingBadge = pendingRes > 0 ? `${pendingRes} pending` : '';
-
-  // ── Grocery ────────────────────────────────────────────────────────────────
-  const pendingGrocery = groceryItems.filter((i) => !i.isChecked).length;
-  const checkedGrocery = groceryItems.filter((i) => i.isChecked).length;
-  const groceryValue = pendingGrocery > 0 ? t('dashboard.grocery_pending', { n: pendingGrocery }) : t('chores.done_section');
-  const grocerySub = groceryItems.length > 0 ? t('dashboard.grocery_checked', { n: checkedGrocery }) : t('grocery.empty');
-  const groceryBadge = pendingGrocery > 0 ? t('dashboard.grocery_pending', { n: pendingGrocery }) : '';
-
-  // ── Chores ─────────────────────────────────────────────────────────────────
-  const pending = chores.filter((c) => !c.isComplete);
-  const done = chores.filter((c) => c.isComplete);
-  const myClaimedCount = chores.filter((c) => !c.isComplete && c.claimedBy === myName).length;
-  const choreValue = chores.length > 0 ? `${done.length}/${chores.length}` : '—';
-  const choreSub = pending.length > 0 ? t('dashboard.chores_still_todo', { n: pending.length }) : chores.length > 0 ? t('dashboard.chores_all_done_emoji') : t('chores.no_chores');
-  const choreBadge = myClaimedCount > 0 ? `You: ${myClaimedCount}` : pending.length > 0 ? t('dashboard.chores_left', { n: pending.length }) : '';
-
-  // ── Maintenance ────────────────────────────────────────────────────────────
-  const openRequests = requests.filter((r) => r.status === 'open').length;
-  const inProgressRequests = requests.filter((r) => r.status === 'in_progress').length;
-  const maintenanceValue = openRequests > 0 ? t('dashboard.maintenance_open', { n: openRequests }) : inProgressRequests > 0 ? t('dashboard.maintenance_in_progress') : t('dashboard.maintenance_none');
-  const maintenanceSub = inProgressRequests > 0 ? t('dashboard.maintenance_in_progress') : openRequests === 0 ? t('dashboard.maintenance_none') : t('dashboard.maintenance_attention');
-  const maintenanceBadge = openRequests > 0 ? t('dashboard.maintenance_open', { n: openRequests }) : '';
-
-  // ── Voting ──────────────────────────────────────────────────────────────────
-  const activeVotes = proposals.filter((p) => p.isOpen).length;
-  const closedVotes = proposals.filter((p) => !p.isOpen).length;
-  const votingValue = activeVotes > 0 ? `${activeVotes} active` : t('dashboard.votes_none');
-  const votingSub = activeVotes > 0 ? t('dashboard.votes_waiting') : closedVotes > 0 ? t('dashboard.votes_closed_other', { count: closedVotes }) : t('dashboard.votes_none');
-  const votingBadge = activeVotes > 0 ? `${activeVotes} active` : '';
-
-  // ── Condition ───────────────────────────────────────────────────────────────
-  const damageCount = conditionEntries.filter((e) => e.type === 'damage').length;
-  const poorAreas = new Set(conditionEntries.filter((e) => e.condition === 'poor').map((e) => e.area)).size;
-  const totalAreas = new Set(conditionEntries.map((e) => e.area)).size;
-  const hasConditionIssues = damageCount > 0 || poorAreas > 0;
-  const conditionValue = totalAreas === 0 ? t('dashboard.condition_no_records') : hasConditionIssues ? (damageCount > 0 ? t('dashboard.condition_issues_other', { count: damageCount }) : t('dashboard.condition_issues_other', { count: poorAreas })) : t('dashboard.condition_all_good');
-  const conditionSub = totalAreas > 0 ? t('dashboard.condition_areas_other', { count: totalAreas }) : t('condition.no_records_hint').split('.')[0];
-  const conditionBadge = damageCount > 0 ? `${damageCount} damage` : poorAreas > 0 ? `${poorAreas} poor` : '';
-
-  // ── Calendar & Events ──────────────────────────────────────────────────────
-  const calendarEvents: CalendarEvent[] = events.map((e) => ({ date: e.date, title: e.title }));
-  const selectedDayEvents = events.filter((e) => e.date === selectedDate);
-  const upcomingOtherEvents = events
-    .filter((e) => new Date(e.date + 'T00:00:00') >= today && e.date !== selectedDate)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const pastEvents = events
-    .filter((e) => new Date(e.date + 'T00:00:00') < today)
-    .sort((a, b) => b.date.localeCompare(a.date));
-
-  const handleAddEvent = useCallback(async () => {
-    if (!eventTitle.trim()) return;
-    try {
-      setEventError('');
-      await addEvent(eventTitle.trim(), selectedDate || todayStr, myName || 'Someone', houseId ?? '');
-      setEventTitle('');
-    } catch {
-      setEventError(t('dashboard.event_save_failed'));
-    }
-  }, [eventTitle, selectedDate, todayStr, myName, houseId, addEvent]);
-
-  const handleRemoveEvent = useCallback((id: string) => { removeEvent(id); }, [removeEvent]);
-
-  const handlePostNote = useCallback(async () => {
-    if (!note.trim()) return;
-    await postNote(note.trim(), myName || 'Someone', houseId ?? '');
-    setNote('');
-  }, [note, myName, houseId, postNote]);
-
-  const handleDeleteNote = useCallback((id: string) => { removeNote(id); }, [removeNote]);
+  const isWide = width >= 680;
+  const myName = profile?.name ?? 'there';
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-
-        {/* ── Hero greeting — no card, just text on grey ── */}
-        <View style={styles.heroRow}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, isWide && styles.scrollWide]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* ── Hero greeting ─────────────────────────────────────────── */}
+        <View style={styles.hero}>
           <View style={styles.heroText}>
-            <Text style={styles.greeting}>{greetingText(myName || 'there', t)}</Text>
-            <Text style={styles.greetingDate}>{formatSubtitleDate()}</Text>
-          </View>
-          <Pressable
-            style={[styles.editBtn, editingDashboard && styles.editBtnActive]}
-            onPress={() => setEditingDashboard((v) => !v)}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={editingDashboard ? 'Done editing dashboard' : 'Edit dashboard'}
-          >
-            <Text style={[styles.editBtnText, editingDashboard && styles.editBtnTextActive]}>
-              {editingDashboard ? t('dashboard.done') : `✏️ ${t('dashboard.edit')}`}
+            <Text style={styles.greeting}>{greetingText(myName)}</Text>
+            <Text style={styles.greetingSub}>
+              Here&apos;s what&apos;s happening
+              {houseName ? ` in ${houseName}` : ''} today.
             </Text>
-          </Pressable>
-        </View>
-
-        {/* ── Edit dashboard panel ── */}
-        {editingDashboard && (
-          <View style={styles.editPanel}>
-            <Text style={styles.editPanelTitle}>{t('dashboard.customise_title')}</Text>
-            <View style={styles.editChips}>
-              {features.filter((f) => f.enabled).map((f) => {
-                const on = isDashboardWidget(f.key);
-                return (
-                  <Pressable
-                    key={f.key}
-                    style={[styles.editChip, on && styles.editChipOn]}
-                    onPress={() => toggleDashboardWidget(f.key)}
-                    accessible={true}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${on ? 'Remove' : 'Add'} ${f.label} widget`}
-                    accessibilityState={{ selected: on }}
-                  >
-                    <Text style={styles.editChipIcon}>{f.icon}</Text>
-                    <Text style={[styles.editChipLabel, on && styles.editChipLabelOn]}>{f.label}</Text>
-                    <Text style={[styles.editChipCheck, on && styles.editChipCheckOn]}>{on ? '✓' : '+'}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
           </View>
-        )}
-
-        {/* ── Feature cards grid ── */}
-        <View style={styles.grid}>
-          {/* Bills — always shown */}
-          <FeatureCard
-            featureKey="bills"
-            icon="💰"
-            label={t('nav.bills')}
-            value={billValue}
-            sub={billSub}
-            badge={billBadge}
-            onPress={() => router.push('/(tabs)/bills')}
-          />
-          {isDashboardWidget('parking') && (
-            <FeatureCard
-              featureKey="parking"
-              icon="🚗"
-              label={t('nav.parking')}
-              value={parkingValue}
-              sub={parkingSub}
-              badge={parkingBadge}
-              onPress={() => router.push('/(tabs)/parking')}
-            />
-          )}
-          {isDashboardWidget('grocery') && (
-            <FeatureCard
-              featureKey="grocery"
-              icon="🛒"
-              label={t('nav.grocery')}
-              value={groceryValue}
-              sub={grocerySub}
-              badge={groceryBadge}
-              onPress={() => router.push('/(tabs)/grocery')}
-            />
-          )}
-          {isDashboardWidget('chores') && (
-            <FeatureCard
-              featureKey="chores"
-              icon="🧹"
-              label={t('nav.chores')}
-              value={choreValue}
-              sub={choreSub}
-              badge={choreBadge}
-              onPress={() => router.push('/(tabs)/chores')}
-            />
-          )}
-          {isDashboardWidget('maintenance') && (
-            <FeatureCard
-              featureKey="maintenance"
-              icon="🔧"
-              label={t('nav.maintenance')}
-              value={maintenanceValue}
-              sub={maintenanceSub}
-              badge={maintenanceBadge}
-              onPress={() => router.push('/(tabs)/maintenance')}
-            />
-          )}
-          {isDashboardWidget('voting') && (
-            <FeatureCard
-              featureKey="voting"
-              icon="🗳️"
-              label={t('nav.votes')}
-              value={votingValue}
-              sub={votingSub}
-              badge={votingBadge}
-              onPress={() => router.push('/(tabs)/voting')}
-            />
-          )}
-          {isDashboardWidget('condition') && (
-            <FeatureCard
-              featureKey="condition"
-              icon="🏠"
-              label={t('nav.condition')}
-              value={conditionValue}
-              sub={conditionSub}
-              badge={conditionBadge}
-              onPress={() => router.push('/(tabs)/condition')}
-            />
-          )}
-        </View>
-
-        {/* ── Calendar ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('dashboard.calendar_widget')}</Text>
-        </View>
-
-        <MiniCalendar
-          events={calendarEvents}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-        />
-
-        {/* ── Events for selected day ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{formatSelectedDay(selectedDate, t)}</Text>
-        </View>
-
-        {/* Add event form */}
-        <View style={styles.addEventForm}>
-          <TextInput
-            style={styles.eventTitleInput}
-            placeholder={t('dashboard.add_event_placeholder')}
-            placeholderTextColor={colors.textDisabled}
-            value={eventTitle}
-            onChangeText={setEventTitle}
-            returnKeyType="done"
-            onSubmitEditing={handleAddEvent}
-          />
-          <View style={styles.addEventRow}>
-            <DateInput
-              value={selectedDate}
-              onChange={setSelectedDate}
-              style={styles.addEventDateInput}
-            />
-            <Pressable
-              style={[styles.addEventBtn, !eventTitle.trim() && styles.addEventBtnDisabled]}
-              onPress={handleAddEvent}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel="Add event"
-              accessibilityState={{ disabled: !eventTitle.trim() }}
-            >
-              <Text style={styles.addEventBtnText}>{t('common.add')}</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {!!eventError && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{eventError}</Text>
-          </View>
-        )}
-
-        {selectedDayEvents.length > 0 ? (
-          <View style={styles.eventList}>
-            {selectedDayEvents.map((e) => (
-              <EventRow key={e.id} event={e} onRemove={handleRemoveEvent} />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptySection}>
-            <Text style={styles.emptyText}>{t('dashboard.no_events')}</Text>
-          </View>
-        )}
-
-        {/* Upcoming on other days */}
-        {upcomingOtherEvents.length > 0 && (
-          <>
-            <Text style={styles.subSectionLabel}>Other upcoming</Text>
-            <View style={styles.eventList}>
-              {upcomingOtherEvents.map((e) => (
-                <EventRow key={e.id} event={e} onRemove={handleRemoveEvent} />
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* Past events */}
-        {pastEvents.length > 0 && (
-          <>
-            <Text style={styles.subSectionLabel}>Past</Text>
-            <View style={styles.eventList}>
-              {pastEvents.map((e) => (
-                <EventRow key={e.id} event={e} onRemove={handleRemoveEvent} />
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* ── House notes ── */}
-        <View style={[styles.sectionHeader, { marginTop: sizes.lg }]}>
-          <Text style={styles.sectionTitle}>{t('dashboard.announcements_title')}</Text>
-          <Pressable onPress={() => router.push('/(tabs)/more/chat')}>
-            <Text style={styles.chatLink}>Open chat ›</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.noteInputRow}>
-          <TextInput
-            style={styles.noteInput}
-            placeholder={t('dashboard.announce_placeholder')}
-            placeholderTextColor={colors.textDisabled}
-            value={note}
-            onChangeText={setNote}
-            returnKeyType="send"
-            onSubmitEditing={handlePostNote}
-          />
           <Pressable
-            style={[styles.postBtn, !note.trim() && styles.postBtnDisabled]}
-            onPress={handlePostNote}
-            accessible={true}
+            style={styles.newExpenseBtn}
+            onPress={() => router.push('/(tabs)/bills/add')}
             accessibilityRole="button"
-            accessibilityLabel="Post note"
-            accessibilityState={{ disabled: !note.trim() }}
           >
-            <Text style={styles.postBtnText}>{t('common.send')}</Text>
+            <Ionicons name="add" size={16} color="#fff" />
+            <Text style={styles.newExpenseBtnText}>New Expense</Text>
           </Pressable>
         </View>
 
-        {notes.length === 0 ? (
-          <View style={styles.emptySection}>
-            <Text style={styles.emptyText}>{t('dashboard.no_announcements')}</Text>
+        {/* ── Top row: Balances · Chore · Parking ──────────────────── */}
+        <View style={[styles.row, isWide && styles.rowWide]}>
+          <View style={isWide ? styles.colThird : styles.colFull}>
+            <BalanceCard />
           </View>
-        ) : (
-          <View style={styles.notesFeed}>
-            {notes.slice(0, 8).map((item) => (
-              <NoteBubble key={item.id} item={item} myName={myName} onDelete={handleDeleteNote} />
-            ))}
+          <View style={isWide ? styles.colThird : styles.colFull}>
+            <ChoreCard />
           </View>
-        )}
+          <View style={isWide ? styles.colThird : styles.colFull}>
+            <ParkingCard />
+          </View>
+        </View>
+
+        {/* ── Middle row: Grocery · Votes ───────────────────────────── */}
+        <View style={[styles.row, isWide && styles.rowWide]}>
+          <View style={isWide ? styles.colHalf : styles.colFull}>
+            <GroceryWidget />
+          </View>
+          <View style={isWide ? styles.colHalf : styles.colFull}>
+            <VotesWidget />
+          </View>
+        </View>
+
+        {/* ── Calendar ──────────────────────────────────────────────── */}
+        <View style={styles.row}>
+          <View style={styles.colFull}>
+            <MiniCalendarWidget />
+          </View>
+        </View>
+
+        {/* ── Activity feed ─────────────────────────────────────────── */}
+        <View style={styles.row}>
+          <View style={styles.colFull}>
+            <ActivityFeed />
+          </View>
+        </View>
+
+        <View style={styles.bottomPad} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  scroll: { padding: sizes.lg, paddingBottom: 60 },
+  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
+  scrollWide: { paddingHorizontal: 24 },
 
-  // Hero greeting
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: sizes.lg,
+  // ── Hero
+  hero: {
+    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
+    paddingVertical: 16, gap: 12,
   },
-  heroText: { flex: 1, paddingRight: sizes.sm },
-  greeting: {
-    fontSize: 26,
-    ...font.extrabold,
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  greetingDate: {
-    fontSize: 14,
-    ...font.medium,
-    color: colors.textSecondary,
-    marginTop: 3,
-  },
-
-  // Edit button
-  editBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    marginTop: 4,
-  },
-  editBtnActive: { borderColor: colors.primary, backgroundColor: colors.primary + '12' },
-  editBtnText: {
-    fontSize: 11,
-    ...font.semibold,
-    color: colors.textSecondary,
-  },
-  editBtnTextActive: { color: colors.primary },
-
-  // Edit panel
-  editPanel: {
-    backgroundColor: colors.white,
-    borderRadius: sizes.borderRadius,
-    padding: sizes.md,
-    marginBottom: sizes.lg,
-    gap: sizes.sm,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+  heroText: { flex: 1, gap: 4 },
+  greeting: { fontSize: 24, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.6 },
+  greetingSub: { fontSize: 14, ...font.regular, color: colors.textSecondary, lineHeight: 20 },
+  newExpenseBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 10, flexShrink: 0,
+    boxShadow: '0 4px 12px rgba(79,120,182,0.22)',
   } as never,
-  editPanelTitle: {
-    fontSize: sizes.fontSm,
-    ...font.medium,
-    color: colors.textSecondary,
-  },
-  editChips: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  editChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: sizes.sm,
-    paddingVertical: 7,
-    borderRadius: sizes.borderRadiusFull,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
+  newExpenseBtnText: { fontSize: 13, ...font.semibold, color: '#fff' },
+
+  // ── Grid
+  row: { flexDirection: 'column', gap: 12, marginBottom: 12 },
+  rowWide: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  colFull: {},
+  colHalf: { flex: 1 },
+  colThird: { flex: 1 },
+
+  // ── Card
+  card: {
+    backgroundColor: SURFACE,
+    borderRadius: 18, borderWidth: 1, borderColor: colors.border,
+    padding: 16, gap: 10,
+    boxShadow: CARD_SHADOW,
   } as never,
-  editChipOn: { borderColor: colors.primary, backgroundColor: colors.primary },
-  editChipIcon: { fontSize: 14 },
-  editChipLabel: {
-    fontSize: sizes.fontSm,
-    ...font.semibold,
-    color: colors.textSecondary,
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardIconWrap: {
+    width: 32, height: 32, borderRadius: 9,
+    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
-  editChipLabelOn: { color: colors.white },
-  editChipCheck: {
-    fontSize: 12,
-    ...font.bold,
-    color: colors.textDisabled,
-  },
-  editChipCheckOn: { color: colors.white },
+  cardTitle: { fontSize: 15, ...font.semibold, color: colors.textPrimary, flex: 1 },
+  cardMuted: { fontSize: 13, ...font.regular, color: colors.textSecondary, lineHeight: 18 },
+  bigNumber: { fontSize: 30, ...font.extrabold, color: colors.textPrimary, letterSpacing: -1 },
+  viewAll: { fontSize: 13, ...font.semibold, color: colors.primary },
 
-  // Feature card grid
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: sizes.sm,
-    marginBottom: sizes.lg,
+  // Status / badges
+  statusPill: {
+    alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 9999, backgroundColor: colors.positive + '20',
   },
+  statusPillText: { fontSize: 12, ...font.semibold, color: colors.positive },
+  badgePill: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999,
+    backgroundColor: colors.secondary,
+  },
+  badgePillText: { fontSize: 11, ...font.bold, color: colors.secondaryForeground },
 
-  // Individual feature card
-  featureCard: {
-    width: '47.5%',
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+  // ── Balance card
+  balanceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  personDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  balancePerson: { flex: 1, fontSize: 14, ...font.medium, color: colors.textPrimary },
+  balanceAmt: { fontSize: 14, ...font.bold },
+
+  // ── Chore card
+  choreBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#FFF8F0', borderRadius: 10, padding: 12,
+  },
+  choreName: { flex: 1, fontSize: 15, ...font.semibold, color: colors.textPrimary },
+  doneBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.positive + '18',
+    paddingVertical: 8, paddingHorizontal: 12, borderRadius: 9,
+  },
+  doneBtnText: { fontSize: 13, ...font.semibold, color: colors.positive },
+  doneAllWrap: { alignItems: 'center', paddingVertical: 8 },
+
+  // ── Parking card
+  parkingStatus: {
+    borderRadius: 10, padding: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  parkingStatusText: { fontSize: 15, ...font.bold },
+  parkingAge: { fontSize: 12, ...font.regular, color: colors.textSecondary },
+  claimBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.positive, borderRadius: 9,
+    paddingVertical: 10, paddingHorizontal: 14,
+    boxShadow: '0 4px 12px rgba(34,197,94,0.22)',
   } as never,
+  claimBtnText: { fontSize: 13, ...font.semibold, color: '#fff' },
+  releaseBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.negative + '12',
+    borderWidth: 1, borderColor: colors.negative + '40',
+    borderRadius: 9,
+    paddingVertical: 10, paddingHorizontal: 14,
+  },
+  releaseBtnText: { fontSize: 13, ...font.semibold, color: colors.negative },
 
-  // Top colored band (56px tall)
-  featureBand: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
+  // ── Grocery widget
+  groceryInputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.surfaceSecondary, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderWidth: 1, borderColor: colors.border,
   },
+  groceryInput: {
+    flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary,
+  },
+  groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  groceryItemText: { flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary },
+  groceryItemDone: { textDecorationLine: 'line-through', color: colors.textSecondary },
+  groceryQty: { fontSize: 12, ...font.regular, color: colors.textSecondary },
 
-  // Icon circle inside band
-  featureIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureIconEmoji: {
-    fontSize: 18,
-    color: colors.white,
-    lineHeight: 22,
-  },
+  // ── Votes widget
+  voteQuestion: { fontSize: 14, ...font.semibold, color: colors.textPrimary, lineHeight: 20 },
+  voteBarRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  voteBarLabel: { width: 28, fontSize: 12, ...font.medium, color: colors.textSecondary },
+  voteTrack: { flex: 1, height: 8, backgroundColor: colors.surfaceSecondary, borderRadius: 4, overflow: 'hidden' },
+  voteBar: { height: 8, borderRadius: 4 },
+  voteCount: { width: 20, fontSize: 12, ...font.bold, color: colors.textPrimary, textAlign: 'right' },
 
-  // Badge inside band (top right)
-  featureBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: sizes.borderRadiusFull,
+  // ── Activity feed
+  activityInput: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.surfaceSecondary, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: 1, borderColor: colors.border,
   },
-  featureBadgeText: {
-    fontSize: 10,
-    ...font.bold,
-    letterSpacing: 0.2,
-  },
-
-  // Content area below band
-  featureBody: {
-    padding: 12,
-    paddingTop: 10,
-    gap: 2,
-  },
-  featureLabel: {
-    fontSize: 11,
-    ...font.semibold,
-    color: colors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 1,
-  },
-  featureValue: {
-    fontSize: 22,
-    ...font.bold,
-    fontVariant: ['tabular-nums'],
-  } as never,
-  featureSub: {
-    fontSize: 13,
-    ...font.regular,
-    color: colors.textSecondary,
-  },
-
-  // Section headers
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: sizes.sm,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    ...font.bold,
-    color: colors.textPrimary,
-  },
-  subSectionLabel: {
-    fontSize: sizes.fontXs,
-    ...font.semibold,
-    color: colors.textSecondary,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginTop: sizes.md,
-    marginBottom: sizes.sm,
-  },
-  chatLink: {
-    color: colors.primary,
-    fontSize: sizes.fontSm,
-    ...font.semibold,
-  },
-
-  // Add event form
-  addEventForm: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: sizes.md,
-    marginBottom: sizes.sm,
-    gap: sizes.sm,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  } as never,
-  eventTitleInput: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 12,
-    fontSize: sizes.fontSm,
-    ...font.regular,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  addEventRow: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center' },
-  addEventDateInput: { flex: 1 },
-  addEventBtn: {
+  noteInput: { flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary },
+  sendBtn: {
+    width: 30, height: 30, borderRadius: 15,
     backgroundColor: colors.primary,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 11,
-    borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
   },
-  addEventBtnDisabled: { backgroundColor: colors.border },
-  addEventBtnText: {
-    color: colors.white,
-    ...font.semibold,
-    fontSize: sizes.fontSm,
+  sendBtnOff: { backgroundColor: colors.surfaceSecondary },
+  activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  activityAvatar: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.primary + '22',
+    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
+  activityAvatarText: { fontSize: 13, ...font.bold, color: colors.primary },
+  activityContent: { flex: 1, gap: 2 },
+  activityAuthor: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
+  activityText: { fontSize: 13, ...font.regular, color: colors.textPrimary, lineHeight: 18 },
+  activityTime: { fontSize: 11, ...font.regular, color: colors.textSecondary },
 
-  // Events list
-  eventList: { gap: sizes.xs, marginBottom: sizes.sm },
-  eventRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: sizes.sm,
-    gap: sizes.sm,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-  } as never,
-  eventRowPast: { opacity: 0.45 },
-  eventDateBadge: {
-    backgroundColor: colors.primary + '18',
-    paddingHorizontal: sizes.sm,
-    paddingVertical: 4,
-    borderRadius: sizes.borderRadiusSm,
-    minWidth: 76,
-    alignItems: 'center',
-  },
-  eventDateBadgePast: { backgroundColor: colors.border },
-  eventDateText: {
-    color: colors.primary,
-    fontSize: sizes.fontXs,
-    ...font.bold,
-  },
-  eventDateTextPast: { color: colors.textSecondary },
-  eventInfo: { flex: 1 },
-  eventTitle: {
-    color: colors.textPrimary,
-    ...font.semibold,
-    fontSize: sizes.fontSm,
-  },
-  eventTitlePast: { textDecorationLine: 'line-through', color: colors.textSecondary },
-  eventBy: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    ...font.regular,
-  },
-  removeBtn: { padding: 4 },
-  removeBtnText: { color: colors.textSecondary, fontSize: sizes.fontSm },
+  bottomPad: { height: 40 },
 
-  // House notes
-  noteInputRow: { flexDirection: 'row', gap: sizes.sm, marginBottom: sizes.sm },
-  noteInput: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: sizes.borderRadius,
-    paddingHorizontal: sizes.md,
-    paddingVertical: sizes.sm,
-    fontSize: sizes.fontSm,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
+  // ── Mini Calendar
+  calHeader: { gap: 6 },
+  calTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  calNavRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  calNavBtn: { width: 26, height: 26, justifyContent: 'center', alignItems: 'center', borderRadius: 13, backgroundColor: colors.surfaceSecondary },
+  calMonthLabel: { flex: 1, fontSize: 12, ...font.semibold, color: colors.textPrimary, textAlign: 'center' },
+  calWeekRow: { flexDirection: 'row', marginTop: 4, marginBottom: 2 },
+  calWeekDay: {
+    flex: 1, textAlign: 'center', fontSize: 9, ...font.bold,
+    color: colors.textSecondary, letterSpacing: 0.3, paddingVertical: 2,
   },
-  postBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: sizes.md,
-    borderRadius: sizes.borderRadius,
-    justifyContent: 'center',
-  },
-  postBtnDisabled: { backgroundColor: colors.textDisabled },
-  postBtnText: {
-    color: colors.white,
-    ...font.bold,
-    fontSize: sizes.fontSm,
-  },
-  notesFeed: { gap: sizes.xs },
-  noteBubble: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.border,
-  },
-  noteBubbleMine: { borderLeftColor: colors.primary },
-  noteAuthor: {
-    color: colors.primary,
-    fontSize: 12,
-    ...font.semibold,
-    marginBottom: 2,
-  },
-  noteText: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    ...font.regular,
-  },
-  noteMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  noteTime: {
-    color: colors.textTertiary,
-    fontSize: 11,
-    ...font.regular,
-  },
-  noteDelete: {
-    color: colors.danger,
-    fontSize: 11,
-    ...font.regular,
-  },
-
-  // Empty states
-  emptySection: { alignItems: 'center', paddingVertical: sizes.sm, marginBottom: sizes.sm },
-  emptyText: { color: colors.textDisabled, fontSize: sizes.fontSm },
-
-  // Error
-  errorBox: { backgroundColor: colors.danger + '12', borderRadius: 10, padding: sizes.sm, marginBottom: sizes.sm },
-  errorText: { color: colors.danger, fontSize: sizes.fontSm, ...font.regular },
+  calGrid: { gap: 0 },
+  calRow: { flexDirection: 'row' },
+  calDayCell: { flex: 1, alignItems: 'stretch', paddingVertical: 1, paddingHorizontal: 1, minHeight: 40 },
+  calDayInner: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 1 },
+  calDayToday: { backgroundColor: colors.primary },
+  calDayNum: { fontSize: 11, ...font.medium, color: colors.textPrimary },
+  calDayFaint: { color: colors.textDisabled },
+  calDayTodayNum: { color: colors.white, ...font.bold },
+  // Event chip labels on day cells
+  calEventChip: { borderRadius: 2, paddingHorizontal: 2, paddingVertical: 1, marginTop: 0 },
+  calEventChipText: { fontSize: 7, ...font.semibold, color: '#fff', lineHeight: 10 },
+  calMoreText: { fontSize: 7, ...font.regular, color: colors.textSecondary, paddingHorizontal: 2 },
+  calLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  calLegendDot: { width: 6, height: 6, borderRadius: 3 },
+  calLegendLabel: { fontSize: 10, ...font.regular, color: colors.textSecondary },
 });
