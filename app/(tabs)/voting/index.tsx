@@ -31,6 +31,7 @@ function ProposalCard({
   const castVote = useVotingStore((s) => s.castVote);
   const closeProposal = useVotingStore((s) => s.closeProposal);
   const remove = useVotingStore((s) => s.remove);
+  const [voteError, setVoteError] = useState<string | null>(null);
 
   const yesVotes = proposal.votes.filter((v) => v.choice === 'yes').length;
   const noVotes = proposal.votes.filter((v) => v.choice === 'no').length;
@@ -39,7 +40,12 @@ function ProposalCard({
   const allVoted = totalVoted >= totalPeople;
 
   const handleVote = useCallback(
-    (choice: 'yes' | 'no') => castVote(proposal.id, myName, choice),
+    (choice: 'yes' | 'no') => {
+      setVoteError(null);
+      castVote(proposal.id, myName, choice).catch(() => {
+        setVoteError('Could not save your vote. Try again.');
+      });
+    },
     [proposal.id, myName, castVote]
   );
 
@@ -73,9 +79,11 @@ function ProposalCard({
             </Text>
           </View>
         )}
-        <Pressable onPress={() => remove(proposal.id)} style={styles.removeBtn}>
-          <Text style={styles.removeBtnText}>✕</Text>
-        </Pressable>
+        {myName === proposal.createdBy && (
+          <Pressable onPress={() => remove(proposal.id)} style={styles.removeBtn}>
+            <Text style={styles.removeBtnText}>✕</Text>
+          </Pressable>
+        )}
       </View>
 
       {proposal.description ? (
@@ -107,29 +115,32 @@ function ProposalCard({
 
       {/* Voting buttons — only if open */}
       {proposal.isOpen && (
-        <View style={styles.voteRow}>
-          <Pressable
-            style={[styles.voteBtn, styles.voteBtnYes, myVote === 'yes' && styles.voteBtnYesActive]}
-            onPress={() => handleVote('yes')}
-          >
-            <Text style={[styles.voteBtnText, myVote === 'yes' && styles.voteBtnTextActive]}>
-              👍 Yes
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.voteBtn, styles.voteBtnNo, myVote === 'no' && styles.voteBtnNoActive]}
-            onPress={() => handleVote('no')}
-          >
-            <Text style={[styles.voteBtnText, myVote === 'no' && styles.voteBtnTextActive]}>
-              👎 No
-            </Text>
-          </Pressable>
-          {(myName === proposal.createdBy || allVoted) && (
-            <Pressable style={styles.closeBtn} onPress={() => closeProposal(proposal.id)}>
-              <Text style={styles.closeBtnText}>{t('voting.close_vote')}</Text>
+        <>
+          <View style={styles.voteRow}>
+            <Pressable
+              style={[styles.voteBtn, styles.voteBtnYes, myVote === 'yes' && styles.voteBtnYesActive]}
+              onPress={() => handleVote('yes')}
+            >
+              <Text style={[styles.voteBtnText, myVote === 'yes' && styles.voteBtnTextActive]}>
+                👍 Yes
+              </Text>
             </Pressable>
-          )}
-        </View>
+            <Pressable
+              style={[styles.voteBtn, styles.voteBtnNo, myVote === 'no' && styles.voteBtnNoActive]}
+              onPress={() => handleVote('no')}
+            >
+              <Text style={[styles.voteBtnText, myVote === 'no' && styles.voteBtnTextActive]}>
+                👎 No
+              </Text>
+            </Pressable>
+            {(myName === proposal.createdBy || allVoted) && (
+              <Pressable style={styles.closeBtn} onPress={() => closeProposal(proposal.id)}>
+                <Text style={styles.closeBtnText}>{t('voting.close_vote')}</Text>
+              </Pressable>
+            )}
+          </View>
+          {!!voteError && <Text style={styles.voteErrorText}>{voteError}</Text>}
+        </>
       )}
     </View>
   );
@@ -208,7 +219,7 @@ export default function VotingScreen(): React.JSX.Element {
   const [showClosed, setShowClosed] = useState(false);
 
   const myName = profile?.name ?? '';
-  const totalPeople = Math.max(1, 1 + housemates.length);
+  const totalPeople = Math.max(1, housemates.length);
 
   const open = proposals.filter((p) => p.isOpen);
   const closed = proposals.filter((p) => !p.isOpen);
@@ -303,6 +314,7 @@ const styles = StyleSheet.create({
   voteBtnTextActive: { color: colors.white },
   closeBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: colors.border },
   closeBtnText: { color: colors.textSecondary, fontSize: sizes.fontSm, ...font.regular },
+  voteErrorText: { color: colors.danger, fontSize: sizes.fontXs, ...font.regular },
 
   form: { backgroundColor: colors.white, borderRadius: 16, padding: sizes.md, gap: sizes.sm, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' } as never,
   formTitle: { fontSize: 17, ...font.bold, color: colors.textPrimary, marginBottom: sizes.xs },
