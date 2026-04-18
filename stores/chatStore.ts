@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { notifyHousemates } from '@lib/notifyHousemates';
 
 export interface ChatMessage {
   id: string;
@@ -87,6 +88,18 @@ export const useChatStore = create<ChatStore>()(
         if (error) throw new Error(`Failed to send message: ${error.message}`);
         const msg = mapRow(data as Record<string, unknown>);
         set({ messages: [...get().messages, msg].slice(-200) });
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData.session?.user.id ?? '';
+        if (userId) {
+          notifyHousemates({
+            houseId,
+            excludeUserId: userId,
+            title: author,
+            body: text.trim().slice(0, 100),
+            data: { screen: 'chat' },
+            notificationType: 'chat_message',
+          });
+        }
       },
       remove: async (id): Promise<void> => {
         await supabase.from('chat_messages').delete().eq('id', id);

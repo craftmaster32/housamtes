@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
-import { notifyHousemates } from '@lib/notifyHousemates';
 
 export type Recurrence = 'once' | 'weekly' | 'monthly';
 
@@ -87,16 +86,6 @@ export const useChoresStore = create<ChoresStore>()(
           createdAt: data.created_at,
         };
         set({ chores: [...get().chores, chore] });
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user.id ?? '';
-        notifyHousemates({
-          houseId,
-          excludeUserId: userId,
-          title: '🧹 New chore added',
-          body: name,
-          data: { screen: 'chores' },
-          notificationType: 'chore_overdue',
-        });
       },
       toggleChore: async (id): Promise<void> => {
         const chore = get().chores.find((c) => c.id === id);

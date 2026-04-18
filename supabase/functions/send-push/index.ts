@@ -1,13 +1,12 @@
-// HouseMates — send-push Edge Function
-// Called by the app after key events (new bill, parking claim, etc.)
-// Fetches push tokens for all house members (except the sender),
-// respects each user's notification preferences, then sends via the Expo Push API.
+// Housemates — send-push Edge Function
+// Called by the app after key events (new bill, parking claim, chat message, etc.)
+// Sends to both Expo push tokens (native) and web push subscriptions (browser).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import webpush from 'npm:web-push';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
-// Maps notification_type string → notification_preferences column name
 const PREF_COLUMN: Record<string, string> = {
   bill_added:           'notify_bill_added',
   bill_settled:         'notify_bill_settled',
@@ -41,7 +40,6 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Verify the caller is an authenticated HouseMates user
   const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: authHeader } },
   });
@@ -59,7 +57,6 @@ Deno.serve(async (req: Request) => {
 
   const { house_id, exclude_user_id, title, body, data, notification_type } = payload;
 
-  // Verify the caller is a member of this house
   const { data: membership } = await supabase
     .from('house_members')
     .select('id')
@@ -71,70 +68,89 @@ Deno.serve(async (req: Request) => {
     return new Response('Forbidden', { status: 403 });
   }
 
-  // Fetch push tokens for all house members except the sender
-  const { data: tokenRows } = await supabase
-    .from('push_tokens')
-    .select('token, user_id')
-    .eq('house_id', house_id)
-    .neq('user_id', exclude_user_id);
+  // ── Fetch tokens + subscriptions for this house (excluding sender) ──────────
+  const [tokenResult, webSubResult] = await Promise.all([
+    supabase.from('push_tokens').select('token, user_id').eq('house_id', house_id).neq('user_id', exclude_user_id),
+    supabase.from('web_push_subscriptions').select('endpoint, p256dh, auth, user_id').eq('house_id', house_id).neq('user_id', exclude_user_id),
+  ]);
 
-  if (!tokenRows || tokenRows.length === 0) {
-    return new Response(JSON.stringify({ sent: 0 }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  const tokenRows = tokenResult.data ?? [];
+  const webSubRows = webSubResult.data ?? [];
 
-  // Fetch notification preferences for all relevant users in this house
-  const userIds = tokenRows.map((r: { user_id: string }) => r.user_id);
-  const { data: prefRows } = await supabase
-    .from('notification_preferences')
-    .select('user_id, notify_bill_added, notify_bill_settled, notify_bill_due, notify_parking_claimed, notify_parking_reservation, notify_chore_overdue, notify_chat_message')
-    .eq('house_id', house_id)
-    .in('user_id', userIds);
+  // ── Fetch notification preferences for all relevant users ───────────────────
+  const allUserIds = [...new Set([
+    ...tokenRows.map((r: { user_id: string }) => r.user_id),
+    ...webSubRows.map((r: { user_id: string }) => r.user_id),
+  ])];
 
-  // Build user_id → prefs map
+  const { data: prefRows } = allUserIds.length > 0
+    ? await supabase
+        .from('notification_preferences')
+        .select('user_id, notify_bill_added, notify_bill_settled, notify_bill_due, notify_parking_claimed, notify_parking_reservation, notify_chore_overdue, notify_chat_message')
+        .eq('house_id', house_id)
+        .in('user_id', allUserIds)
+    : { data: [] };
+
   const prefMap = new Map<string, Record<string, boolean>>();
   for (const row of (prefRows ?? [])) {
     prefMap.set(row.user_id, row as Record<string, boolean>);
   }
 
-  // Filter: only send to users who have this notification enabled (default: true if no prefs row)
   const prefColumn = notification_type ? PREF_COLUMN[notification_type] : null;
-  const filteredTokens = tokenRows
-    .filter((r: { user_id: string; token: string }) => {
-      if (!prefColumn) return true; // unknown type → send to all
-      const prefs = prefMap.get(r.user_id);
-      if (!prefs) return true; // no prefs row = use defaults (all enabled)
-      return prefs[prefColumn] !== false;
-    })
+
+  function isEnabled(userId: string): boolean {
+    if (!prefColumn) return true;
+    const prefs = prefMap.get(userId);
+    if (!prefs) return true; // no prefs row = all enabled by default
+    return prefs[prefColumn] !== false;
+  }
+
+  // ── Send Expo push (native) ─────────────────────────────────────────────────
+  const expoTokens = tokenRows
+    .filter((r: { user_id: string; token: string }) => isEnabled(r.user_id))
     .map((r: { token: string }) => r.token)
     .filter(Boolean) as string[];
 
-  if (filteredTokens.length === 0) {
-    return new Response(JSON.stringify({ sent: 0 }), {
-      headers: { 'Content-Type': 'application/json' },
+  let expoSent = 0;
+  if (expoTokens.length > 0) {
+    const messages = expoTokens.map((to) => ({
+      to, title, body, data: data ?? {}, sound: 'default', priority: 'high',
+    }));
+    await fetch(EXPO_PUSH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(messages),
     });
+    expoSent = expoTokens.length;
   }
 
-  // Send via Expo Push API
-  const messages = filteredTokens.map((to) => ({
-    to,
-    title,
-    body,
-    data: data ?? {},
-    sound: 'default',
-    priority: 'high',
-  }));
+  // ── Send Web push (browser) ─────────────────────────────────────────────────
+  const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
+  const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
+  let webSent = 0;
 
-  const expoRes = await fetch(EXPO_PUSH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(messages),
-  });
+  if (vapidPublicKey && vapidPrivateKey && webSubRows.length > 0) {
+    webpush.setVapidDetails(
+      'mailto:liorhalivner@gmail.com',
+      vapidPublicKey,
+      vapidPrivateKey
+    );
 
-  const result = await expoRes.json();
+    const eligibleSubs = webSubRows.filter((r: { user_id: string }) => isEnabled(r.user_id));
+    const webPayload = JSON.stringify({ title, body, data: data ?? {} });
 
-  return new Response(JSON.stringify({ sent: filteredTokens.length, result }), {
+    await Promise.allSettled(
+      eligibleSubs.map((sub: { endpoint: string; p256dh: string; auth: string }) =>
+        webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          webPayload
+        )
+      )
+    );
+    webSent = eligibleSubs.length;
+  }
+
+  return new Response(JSON.stringify({ expo: expoSent, web: webSent }), {
     headers: { 'Content-Type': 'application/json' },
   });
 });

@@ -4,6 +4,7 @@ import { AppState, Platform } from 'react-native';
 import { supabase } from '@lib/supabase';
 import { identifyUser, clearUser, captureError } from '@lib/errorTracking';
 import { registerPushToken, unregisterPushToken } from '@lib/notifications';
+import { registerWebPush, unregisterWebPush } from '@lib/webPush';
 import type { User, Session } from '@supabase/supabase-js';
 
 // ── Persistent house cache ────────────────────────────────────────────────────
@@ -194,11 +195,13 @@ export const useAuthStore = create<AuthStore>()(
             set({ user: session.user, session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions });
             if (memberData.houseId) {
               registerPushToken(session.user.id, memberData.houseId);
+              registerWebPush(session.user.id, memberData.houseId);
             }
           } else {
             const prev = useAuthStore.getState();
             if (prev.user && prev.houseId) {
               unregisterPushToken(prev.user.id, prev.houseId);
+              unregisterWebPush(prev.user.id, prev.houseId);
             }
             clearUser();
             set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
@@ -220,7 +223,10 @@ export const useAuthStore = create<AuthStore>()(
             ]);
             identifyUser(session.user.id);
             set({ user: session.user, session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, isLoading: false });
-            if (memberData.houseId) registerPushToken(session.user.id, memberData.houseId);
+            if (memberData.houseId) {
+              registerPushToken(session.user.id, memberData.houseId);
+              registerWebPush(session.user.id, memberData.houseId);
+            }
           } else {
             set({ isLoading: false });
           }
