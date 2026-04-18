@@ -362,6 +362,11 @@ export default function ProfileScreen(): React.JSX.Element {
   }, [pickImage, removeAvatar, profile?.avatarUrl]);
 
   const handleLogout = useCallback(() => {
+    if (Platform.OS === 'web') {
+      if (!window.confirm(t('profile.sign_out_confirm'))) return;
+      signOut().then(() => router.replace('/(auth)/welcome'));
+      return;
+    }
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('profile.sign_out'), style: 'destructive', onPress: async () => {

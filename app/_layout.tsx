@@ -27,6 +27,7 @@ import { colors } from '@constants/colors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
+import { registerWebPush } from '@lib/webPush';
 
 const fontConfig = { fontFamily: 'Inter_400Regular' };
 
@@ -170,7 +171,10 @@ export default function RootLayout(): React.JSX.Element | null {
 
   useEffect(() => {
     if (!houseId) return;
-    if (user?.id) loadNotificationPrefs(user.id, houseId);
+    if (user?.id) {
+      loadNotificationPrefs(user.id, houseId);
+      registerWebPush(user.id, houseId);
+    }
     loadHousemates(houseId);
     loadBills(houseId);
     loadRecurringBills(houseId);

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -76,6 +76,11 @@ export default function ProfileScreen(): React.JSX.Element {
   const email = user?.email ?? '';
 
   const handleLogout = useCallback(() => {
+    if (Platform.OS === 'web') {
+      if (!window.confirm(t('profile.sign_out_confirm'))) return;
+      signOut().then(() => router.replace('/(auth)/welcome'));
+      return;
+    }
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
