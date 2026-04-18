@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { notifyHousemates } from '@lib/notifyHousemates';
+import { useSettingsStore } from '@stores/settingsStore';
 
 export const CATEGORIES = ['Rent', 'Electricity', 'Water', 'Internet', 'Groceries', 'Other'];
 
@@ -124,7 +125,7 @@ export const useBillsStore = create<BillsStore>()(
           houseId,
           excludeUserId: userId,
           title: '💰 New bill added',
-          body: `${data.title} — ₪${data.amount.toFixed(2)}`,
+          body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}`,
           data: { screen: 'bills' },
           notificationType: 'bill_added',
         });

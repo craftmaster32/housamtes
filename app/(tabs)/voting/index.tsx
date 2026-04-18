@@ -133,12 +133,23 @@ function ProposalCard({
                 👎 No
               </Text>
             </Pressable>
-            {(myName === proposal.createdBy || allVoted) && (
-              <Pressable style={styles.closeBtn} onPress={() => closeProposal(proposal.id)}>
-                <Text style={styles.closeBtnText}>{t('voting.close_vote')}</Text>
-              </Pressable>
-            )}
           </View>
+          {allVoted && (
+            <Pressable
+              style={[styles.closeResultBtn, { backgroundColor: yesVotes > noVotes ? colors.positive : colors.negative }]}
+              onPress={() => closeProposal(proposal.id)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.closeResultBtnText}>
+                {yesVotes > noVotes ? '✓ Close — Passed' : '✗ Close — Rejected'}
+              </Text>
+            </Pressable>
+          )}
+          {!allVoted && myName === proposal.createdBy && (
+            <Pressable style={styles.closeBtn} onPress={() => closeProposal(proposal.id)}>
+              <Text style={styles.closeBtnText}>{t('voting.close_vote')}</Text>
+            </Pressable>
+          )}
           {!!voteError && <Text style={styles.voteErrorText}>{voteError}</Text>}
         </>
       )}
@@ -314,6 +325,8 @@ const styles = StyleSheet.create({
   voteBtnTextActive: { color: colors.white },
   closeBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: colors.border },
   closeBtnText: { color: colors.textSecondary, fontSize: sizes.fontSm, ...font.regular },
+  closeResultBtn: { borderRadius: 12, paddingVertical: sizes.sm, paddingHorizontal: sizes.md, alignItems: 'center' },
+  closeResultBtnText: { color: colors.white, fontSize: sizes.fontSm, ...font.bold },
   voteErrorText: { color: colors.danger, fontSize: sizes.fontXs, ...font.regular },
 
   form: { backgroundColor: colors.white, borderRadius: 16, padding: sizes.md, gap: sizes.sm, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' } as never,

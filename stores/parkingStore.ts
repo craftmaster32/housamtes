@@ -31,7 +31,7 @@ interface ParkingStore {
   addReservation: (
     r: Omit<ParkingReservation, 'id' | 'createdAt' | 'status'>,
     houseId: string
-  ) => Promise<void>;
+  ) => Promise<string>; // returns new reservation ID
   cancelReservation: (id: string) => Promise<void>;
   approveReservation: (id: string, houseId: string) => Promise<void>;
 }
@@ -141,7 +141,7 @@ export const useParkingStore = create<ParkingStore>()(
           notificationType: 'parking_claimed',
         });
       },
-      addReservation: async (data, houseId): Promise<void> => {
+      addReservation: async (data, houseId): Promise<string> => {
         const conflict = get().reservations.find(
           (r) => r.date === data.date && (r.status === 'approved' || r.status === 'pending')
         );
@@ -176,6 +176,7 @@ export const useParkingStore = create<ParkingStore>()(
           createdAt: inserted.created_at,
         };
         set({ reservations: [r, ...get().reservations] });
+        const reservationId = r.id;
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData.session?.user.id ?? '';
         const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
@@ -187,6 +188,7 @@ export const useParkingStore = create<ParkingStore>()(
           data: { screen: 'parking' },
           notificationType: 'parking_reservation',
         });
+        return reservationId;
       },
       cancelReservation: async (id): Promise<void> => {
         await supabase.from('parking_reservations').delete().eq('id', id);
@@ -200,22 +202,6 @@ export const useParkingStore = create<ParkingStore>()(
             r.id === id ? { ...r, status: 'approved' as const } : r
           ),
         });
-
-        // Auto-add to house calendar
-        if (reservation) {
-          const timeLabel = reservation.startTime
-            ? ` ${reservation.startTime}${reservation.endTime ? `–${reservation.endTime}` : ''}`
-            : '';
-          const title = `🚗 ${reservation.requestedBy} parking${timeLabel}`;
-          Promise.resolve(supabase.from('events').insert({
-            house_id: houseId,
-            title,
-            date: reservation.date,
-            created_by: reservation.requestedBy,
-            start_time: reservation.startTime ?? null,
-            end_time: reservation.endTime ?? null,
-          })).catch(() => {/* non-fatal */});
-        }
 
         // Notify requester
         if (reservation) {

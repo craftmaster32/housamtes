@@ -82,7 +82,7 @@ export function DrawerMenu(): React.JSX.Element {
 
   type GenericItem = { createdAt: string; [k: string]: unknown };
   const badgeCounts: Record<string, number> = {
-    parking: countNew(parkingReservations as unknown as GenericItem[], lastSeen.parking, myName, 'occupant'),
+    parking: parkingReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myName).length,
     grocery: countNew(groceryItems.filter((i) => !i.isChecked) as unknown as GenericItem[], lastSeen.grocery, myName, 'addedBy'),
     chores: countNewSimple(chores.filter((c) => !c.isComplete), lastSeen.chores),
     bills: countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills),
@@ -243,12 +243,14 @@ export function DrawerMenu(): React.JSX.Element {
           {filterNav(MORE_NAV).map((item) => {
             const active = isActive(item.route);
             const isChatItem = item.route === '/(tabs)/more/chat';
-            const showBadge = isChatItem && unreadCount > 0;
+            const count = isChatItem
+              ? unreadCount
+              : (item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0);
             return (
               <Pressable
                 key={item.route}
                 style={[styles.navItem, active && styles.navItemActive]}
-                onPress={() => navigate(item.route)}
+                onPress={() => navigate(item.route, item.featureKey)}
               >
                 <Ionicons
                   name={active ? item.iconActive : item.icon}
@@ -259,9 +261,9 @@ export function DrawerMenu(): React.JSX.Element {
                 <Text style={[styles.navLabel, active && styles.navLabelActive]}>
                   {t(item.labelKey)}
                 </Text>
-                {showBadge && (
+                {count > 0 && !active && (
                   <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                    <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
                   </View>
                 )}
                 {active && <View style={[styles.activeIndicator, isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR]} />}

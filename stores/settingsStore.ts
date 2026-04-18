@@ -10,6 +10,22 @@ export interface FeatureConfig {
   enabled: boolean;
 }
 
+export interface CurrencyOption {
+  symbol: string;
+  label: string;
+}
+
+export const CURRENCIES: CurrencyOption[] = [
+  { symbol: '₪', label: 'Israeli Shekel (₪)' },
+  { symbol: '$', label: 'US Dollar ($)' },
+  { symbol: '€', label: 'Euro (€)' },
+  { symbol: '£', label: 'British Pound (£)' },
+  { symbol: 'A$', label: 'Australian Dollar (A$)' },
+  { symbol: 'C$', label: 'Canadian Dollar (C$)' },
+  { symbol: 'Fr', label: 'Swiss Franc (Fr)' },
+  { symbol: '¥', label: 'Japanese Yen (¥)' },
+];
+
 export const DEFAULT_FEATURES: FeatureConfig[] = [
   {
     key: 'parking',
@@ -67,8 +83,10 @@ const ALL_FEATURE_KEYS = DEFAULT_FEATURES.map((f) => f.key);
 interface SettingsStore {
   features: FeatureConfig[];
   dashboardWidgets: string[];
+  currency: string;
   toggleFeature: (key: string) => void;
   toggleDashboardWidget: (key: string) => void;
+  setCurrency: (currency: string) => void;
   isEnabled: (key: string) => boolean;
   isDashboardWidget: (key: string) => boolean;
 }
@@ -79,6 +97,7 @@ export const useSettingsStore = create<SettingsStore>()(
       (set, get) => ({
         features: DEFAULT_FEATURES,
         dashboardWidgets: ALL_FEATURE_KEYS,
+        currency: '₪',
 
         toggleFeature: (key: string): void => {
           set((s) => ({
@@ -86,6 +105,10 @@ export const useSettingsStore = create<SettingsStore>()(
               f.key === key ? { ...f, enabled: !f.enabled } : f
             ),
           }));
+        },
+
+        setCurrency: (currency: string): void => {
+          set({ currency });
         },
 
         toggleDashboardWidget: (key: string): void => {

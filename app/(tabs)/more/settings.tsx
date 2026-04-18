@@ -7,7 +7,9 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
+import { useSettingsStore, CURRENCIES } from '@stores/settingsStore';
 import { useNotificationStore, BillDueDays } from '@stores/notificationStore';
+import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useLanguageStore } from '@stores/languageStore';
 import type { AppLanguage } from '@lib/i18n';
 import { colors } from '@constants/colors';
@@ -105,8 +107,18 @@ export default function SettingsScreen(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId);
   const leaveHouse = useAuthStore((s) => s.leaveHouse);
 
+  const currency = useSettingsStore((s) => s.currency);
+  const setCurrency = useSettingsStore((s) => s.setCurrency);
+
+  const calConnected   = useCalendarSyncStore((s) => s.connected);
+  const calAutoSync    = useCalendarSyncStore((s) => s.autoSync);
+  const calConnect     = useCalendarSyncStore((s) => s.connect);
+  const calDisconnect  = useCalendarSyncStore((s) => s.disconnect);
+  const calSetAutoSync = useCalendarSyncStore((s) => s.setAutoSync);
+
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [calLoading, setCalLoading] = useState(false);
 
   const handleLeaveHouse = useCallback(async (): Promise<void> => {
     setLeaving(true);
@@ -126,6 +138,15 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const currentLanguage = useLanguageStore((s) => s.language);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
+
+  const handleCalendarToggle = useCallback(async (): Promise<void> => {
+    setCalLoading(true);
+    try {
+      if (calConnected) { await calDisconnect(); } else { await calConnect(); }
+    } finally {
+      setCalLoading(false);
+    }
+  }, [calConnected, calConnect, calDisconnect]);
 
   const toggle = useCallback(
     (key: keyof typeof prefs, value: boolean) => {
@@ -171,6 +192,27 @@ export default function SettingsScreen(): React.JSX.Element {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.heading}>{t('settings.title')}</Text>
+
+        {/* Currency */}
+        <SectionDivider label="CURRENCY" />
+        <View style={[styles.menuGroup, styles.currencyGroup]}>
+          {CURRENCIES.map((c) => (
+            <Pressable
+              key={c.symbol}
+              style={[styles.currencyChip, currency === c.symbol && styles.currencyChipActive]}
+              onPress={() => setCurrency(c.symbol)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: currency === c.symbol }}
+            >
+              <Text style={[styles.currencySymbol, currency === c.symbol && styles.currencySymbolActive]}>
+                {c.symbol}
+              </Text>
+              <Text style={[styles.currencyLabel, currency === c.symbol && styles.currencyLabelActive]}>
+                {c.label.split('(')[0].trim()}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         {/* House */}
         <SectionDivider label={t('settings.house_section')} />
@@ -254,6 +296,59 @@ export default function SettingsScreen(): React.JSX.Element {
             </Pressable>
           </Pressable>
         </Modal>
+
+        {/* Calendar */}
+        <SectionDivider label="CALENDAR" />
+        <View style={styles.menuGroup}>
+          <View style={styles.menuItem}>
+            <View style={styles.menuIcon}><Text style={styles.menuIconText}>📅</Text></View>
+            <View style={styles.menuText}>
+              <Text style={styles.menuLabel}>Connect my calendar</Text>
+              <Text style={styles.menuSub}>
+                {calConnected ? 'Syncing with your device calendar' : 'See personal events in-app and auto-add house events'}
+              </Text>
+            </View>
+            <Switch
+              value={calConnected}
+              onValueChange={handleCalendarToggle}
+              disabled={calLoading}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={colors.white}
+            />
+          </View>
+          {calConnected && (
+            <>
+              <RowDivider />
+              <View style={styles.menuItem}>
+                <View style={styles.menuIcon}><Text style={styles.menuIconText}>📋</Text></View>
+                <View style={styles.menuText}>
+                  <Text style={styles.menuLabel}>Auto-add house events</Text>
+                  <Text style={styles.menuSub}>New house events go straight to your calendar</Text>
+                </View>
+                <Switch
+                  value={calAutoSync.events}
+                  onValueChange={(v) => calSetAutoSync('events', v)}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              </View>
+              <RowDivider />
+              <View style={styles.menuItem}>
+                <View style={styles.menuIcon}><Text style={styles.menuIconText}>🚗</Text></View>
+                <View style={styles.menuText}>
+                  <Text style={styles.menuLabel}>Auto-add parking</Text>
+                  <Text style={styles.menuSub}>Pending when requested, confirmed when approved</Text>
+                </View>
+                <Switch
+                  value={calAutoSync.parking}
+                  onValueChange={(v) => calSetAutoSync('parking', v)}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              </View>
+            </>
+          )}
+        </View>
 
         {/* Notifications */}
         <SectionDivider label={t('settings.notifications_section')} />
@@ -494,6 +589,31 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginLeft: 4,
   },
+  currencyGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    padding: sizes.md,
+  },
+  currencyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  currencyChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '12',
+  },
+  currencySymbol: { fontSize: 16, ...font.bold, color: colors.textSecondary },
+  currencySymbolActive: { color: colors.primary },
+  currencyLabel: { fontSize: 12, ...font.regular, color: colors.textSecondary },
+  currencyLabelActive: { color: colors.primary },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalBox: { backgroundColor: colors.white, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360, gap: 12, alignItems: 'center' },
   modalIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.negative + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },

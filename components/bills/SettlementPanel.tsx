@@ -4,6 +4,7 @@ import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useBillsStore, calculateAllNetBalances, settleDebts } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
@@ -13,6 +14,7 @@ export function SettlementPanel(): React.JSX.Element {
   const sharedBills = useBillsStore((s) => s.bills);
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
+  const currency = useSettingsStore((s) => s.currency);
 
   const sharedNet = calculateAllNetBalances(sharedBills);
   const householdFairness = calculateFairness(householdBills, payments);
@@ -71,13 +73,13 @@ export function SettlementPanel(): React.JSX.Element {
                   <View key={row.person} style={styles.tableRow}>
                     <Text style={styles.nameCell}>{row.person}</Text>
                     <Text style={[styles.amtCell, { color: row.household >= 0 ? colors.positive : colors.negative }]}>
-                      {row.household >= 0 ? '+' : ''}₪{Math.abs(row.household).toFixed(0)}
+                      {`${row.household >= 0 ? '+' : ''}${currency}${Math.abs(row.household).toFixed(0)}`}
                     </Text>
                     <Text style={[styles.amtCell, { color: row.shared >= 0 ? colors.positive : colors.negative }]}>
-                      {row.shared === 0 ? '—' : `${row.shared >= 0 ? '+' : ''}₪${Math.abs(row.shared).toFixed(0)}`}
+                      {row.shared === 0 ? '—' : `${row.shared >= 0 ? '+' : ''}${currency}${Math.abs(row.shared).toFixed(0)}`}
                     </Text>
                     <Text style={[styles.amtCell, styles.totalCell, { color: row.total >= 0 ? colors.positive : colors.negative }]}>
-                      {row.total >= 0 ? '+' : ''}₪{Math.abs(row.total).toFixed(0)}
+                      {`${row.total >= 0 ? '+' : ''}${currency}${Math.abs(row.total).toFixed(0)}`}
                     </Text>
                   </View>
                 ))}
@@ -100,7 +102,7 @@ export function SettlementPanel(): React.JSX.Element {
                         <Text style={styles.settlementName}>{s.to}</Text>
                         <Text style={styles.settlementRole}>{t('bills.settlement_receives')}</Text>
                       </View>
-                      <Text style={styles.settlementAmount}>₪{s.amount.toFixed(2)}</Text>
+                      <Text style={styles.settlementAmount}>{currency}{s.amount.toFixed(2)}</Text>
                     </View>
                   ))}
                 </View>

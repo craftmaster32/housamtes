@@ -13,6 +13,7 @@ import {
 } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -58,6 +59,7 @@ function formatDateLabel(dateStr: string): string {
 interface HousemateBalance { name: string; amount: number; color: string }
 
 function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element {
+  const currency = useSettingsStore((s) => s.currency);
   const owesMe = item.amount > 0;
   const initial = item.name[0]?.toUpperCase() ?? '?';
   return (
@@ -70,7 +72,7 @@ function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element 
         {owesMe ? 'Owes you' : 'You owe'}
       </Text>
       <Text style={[styles.hmAmount, { color: owesMe ? colors.positive : colors.negative }]}>
-        ₪{Math.abs(item.amount).toFixed(2)}
+        {currency}{Math.abs(item.amount).toFixed(2)}
       </Text>
       <Pressable
         style={[styles.hmBtn, { backgroundColor: owesMe ? colors.positive + '18' : colors.primary + '18' }]}
@@ -87,6 +89,7 @@ function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element 
 
 // ── Bill row card ─────────────────────────────────────────────────────────────
 function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
+  const currency = useSettingsStore((s) => s.currency);
   const share = bill.amount / Math.max(bill.splitBetween.length, 1);
   const icon = getCategoryIcon(bill.category ?? '');
   return (
@@ -111,7 +114,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
           {bill.title}
         </Text>
         <Text style={styles.billMeta} numberOfLines={1}>
-          Paid by {bill.paidBy} · ₪{share.toFixed(2)} each
+          Paid by {bill.paidBy} · {currency}{share.toFixed(2)} each
         </Text>
       </View>
       <View style={styles.billRight}>
@@ -121,7 +124,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
           </View>
         )}
         <Text style={[styles.billAmount, bill.settled && { color: colors.textSecondary }]}>
-          ₪{bill.amount.toFixed(2)}
+          {currency}{bill.amount.toFixed(2)}
         </Text>
         <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
       </View>
@@ -131,6 +134,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
 
 // ── Settle Up content (used inside collapsible card) ──────────────────────────
 function SettleUpPanel(): React.JSX.Element {
+  const currency = useSettingsStore((s) => s.currency);
   const bills = useBillsStore((s) => s.bills);
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
@@ -166,7 +170,7 @@ function SettleUpPanel(): React.JSX.Element {
             <Text style={styles.settleAvatarText}>{s.to[0]?.toUpperCase()}</Text>
           </View>
           <Text style={styles.settleName}>{s.to}</Text>
-          <Text style={styles.settleAmt}>₪{s.amount.toFixed(2)}</Text>
+          <Text style={styles.settleAmt}>{currency}{s.amount.toFixed(2)}</Text>
         </View>
       ))}
     </View>
@@ -182,6 +186,7 @@ export default function BillsScreen(): React.JSX.Element {
   const bills = useBillsStore((s) => s.bills);
   const isLoading = useBillsStore((s) => s.isLoading);
   const profile = useAuthStore((s) => s.profile);
+  const currency = useSettingsStore((s) => s.currency);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
   const [showSettle, setShowSettle] = useState(false);
@@ -257,14 +262,14 @@ export default function BillsScreen(): React.JSX.Element {
         <View style={styles.balanceStat}>
           <Text style={styles.balanceStatLabel}>Owed to you</Text>
           <Text style={[styles.balanceStatNum, { color: totalOwed > 0 ? colors.positive : colors.textPrimary }]}>
-            ₪{totalOwed.toFixed(2)}
+            {currency}{totalOwed.toFixed(2)}
           </Text>
         </View>
         <View style={styles.balanceDivider} />
         <View style={styles.balanceStat}>
           <Text style={styles.balanceStatLabel}>Net balance</Text>
           <Text style={[styles.balanceStatNum, { color: netBalance > 0 ? colors.positive : netBalance < 0 ? colors.negative : colors.textPrimary }]}>
-            {netBalance > 0 ? '+' : ''}₪{Math.abs(netBalance).toFixed(2)}
+            {netBalance > 0 ? '+' : ''}{currency}{Math.abs(netBalance).toFixed(2)}
           </Text>
           <Text style={[styles.balanceStatTag, {
             color: netBalance > 0 ? colors.positive : netBalance < 0 ? colors.negative : colors.textSecondary,
@@ -276,7 +281,7 @@ export default function BillsScreen(): React.JSX.Element {
         <View style={styles.balanceStat}>
           <Text style={styles.balanceStatLabel}>You owe</Text>
           <Text style={[styles.balanceStatNum, { color: totalOwe > 0 ? colors.negative : colors.textPrimary }]}>
-            ₪{totalOwe.toFixed(2)}
+            {currency}{totalOwe.toFixed(2)}
           </Text>
         </View>
       </View>

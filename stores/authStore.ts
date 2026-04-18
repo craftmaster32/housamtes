@@ -105,6 +105,8 @@ export interface Profile {
   id: string;
   name: string;
   avatarColor: string;
+  avatarUrl?: string;
+  coverUrl?: string;
 }
 
 interface AuthStore {
@@ -124,7 +126,14 @@ interface AuthStore {
   resendVerification: (email: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateProfile: (name: string) => Promise<void>;
+  updateEmail: (email: string) => Promise<void>;
+  uploadAvatar: (uri: string, mimeType?: string, base64?: string) => Promise<void>;
+  removeAvatar: () => Promise<void>;
+  uploadCover: (uri: string, mimeType?: string, base64?: string) => Promise<void>;
+  removeCover: () => Promise<void>;
   setHouseId: (houseId: string) => void;
+  reloadMembership: () => Promise<void>;
   leaveHouse: () => Promise<void>;
   clearError: () => void;
   clearPasswordRecovery: () => void;
@@ -275,14 +284,93 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       signOut: async (): Promise<void> => {
-        await supabase.auth.signOut();
+        // Clear local state regardless of whether the Supabase call succeeds
+        // (e.g. expired token will cause signOut to fail but user should still be logged out locally)
+        await supabase.auth.signOut().catch(() => {});
         set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
+      },
+
+      updateProfile: async (name: string): Promise<void> => {
+        const { user } = useAuthStore.getState();
+        if (!user) return;
+        const { error } = await supabase
+          .from('profiles')
+          .update({ name })
+          .eq('id', user.id);
+        if (error) throw new Error('Could not update name. Please try again.');
+        set((s) => ({ profile: s.profile ? { ...s.profile, name } : s.profile }));
+      },
+
+      updateEmail: async (email: string): Promise<void> => {
+        const { error } = await supabase.auth.updateUser({ email });
+        if (error) throw new Error('Could not update email. Please try again.');
+      },
+
+      uploadAvatar: async (uri: string, mimeType = 'image/jpeg', base64?: string): Promise<void> => {
+        const { user } = useAuthStore.getState();
+        if (!user) return;
+        const path = `${user.id}/avatar`;
+        const { buffer, contentType } = await resolveUploadData(uri, mimeType, base64);
+        const { error: uploadError } = await supabase.storage
+          .from('profiles')
+          .upload(path, buffer, { contentType, upsert: true });
+        if (uploadError) throw new Error(uploadError.message);
+        const { data: { publicUrl } } = supabase.storage.from('profiles').getPublicUrl(path);
+        const urlWithBust = `${publicUrl}?t=${Date.now()}`;
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ avatar_url: urlWithBust })
+          .eq('id', user.id);
+        if (updateError) throw new Error(updateError.message);
+        set((s) => ({ profile: s.profile ? { ...s.profile, avatarUrl: urlWithBust } : s.profile }));
+      },
+
+      removeAvatar: async (): Promise<void> => {
+        const { user } = useAuthStore.getState();
+        if (!user) return;
+        await supabase.storage.from('profiles').remove([`${user.id}/avatar`]);
+        await supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id);
+        set((s) => ({ profile: s.profile ? { ...s.profile, avatarUrl: undefined } : s.profile }));
+      },
+
+      uploadCover: async (uri: string, mimeType = 'image/jpeg', base64?: string): Promise<void> => {
+        const { user } = useAuthStore.getState();
+        if (!user) return;
+        const path = `${user.id}/cover`;
+        const { buffer, contentType } = await resolveUploadData(uri, mimeType, base64);
+        const { error: uploadError } = await supabase.storage
+          .from('profiles')
+          .upload(path, buffer, { contentType, upsert: true });
+        if (uploadError) throw new Error(uploadError.message);
+        const { data: { publicUrl } } = supabase.storage.from('profiles').getPublicUrl(path);
+        const urlWithBust = `${publicUrl}?t=${Date.now()}`;
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ cover_url: urlWithBust })
+          .eq('id', user.id);
+        if (updateError) throw new Error(updateError.message);
+        set((s) => ({ profile: s.profile ? { ...s.profile, coverUrl: urlWithBust } : s.profile }));
+      },
+
+      removeCover: async (): Promise<void> => {
+        const { user } = useAuthStore.getState();
+        if (!user) return;
+        await supabase.storage.from('profiles').remove([`${user.id}/cover`]);
+        await supabase.from('profiles').update({ cover_url: null }).eq('id', user.id);
+        set((s) => ({ profile: s.profile ? { ...s.profile, coverUrl: undefined } : s.profile }));
       },
 
       setHouseId: (houseId): void => {
         set({ houseId });
         const userId = useAuthStore.getState().user?.id;
         if (userId) cacheHouseId(userId, houseId).catch(() => {});
+      },
+
+      reloadMembership: async (): Promise<void> => {
+        const { user } = useAuthStore.getState();
+        if (!user) return;
+        const memberData = await fetchMemberData(user.id);
+        set({ houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions });
       },
 
       leaveHouse: async (): Promise<void> => {
@@ -297,7 +385,7 @@ export const useAuthStore = create<AuthStore>()(
         } catch { /* non-fatal */ }
         // Always clear cache regardless of whether the DB delete succeeded
         await clearCachedHouseId(user.id).catch(() => {});
-        set({ houseId: null, role: null });
+        set({ houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
       },
 
       clearError: (): void => {
@@ -311,17 +399,42 @@ export const useAuthStore = create<AuthStore>()(
   )
 );
 
+// Supabase Storage recommended pattern for Expo/React Native:
+// upload as ArrayBuffer with explicit contentType.
+// base64 string from expo-image-picker may include a data URL prefix on web
+// (e.g. "data:image/jpeg;base64,....") — strip it before decoding.
+async function resolveUploadData(
+  uri: string,
+  mimeType: string,
+  base64?: string | null
+): Promise<{ buffer: ArrayBuffer; contentType: string }> {
+  if (base64) {
+    const raw = base64.includes(',') ? base64.split(',')[1] : base64;
+    const binary = atob(raw);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return { buffer: bytes.buffer, contentType: mimeType };
+  }
+  // Fallback for native (uri is a stable file:// path there)
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const buffer = await blob.arrayBuffer();
+  return { buffer, contentType: blob.type || mimeType };
+}
+
 async function fetchProfile(
   userId: string,
   userMeta?: Record<string, unknown>
 ): Promise<Profile | null> {
   const { data } = await supabase
     .from('profiles')
-    .select('id, name, avatar_color')
+    .select('id, name, avatar_color, avatar_url, cover_url')
     .eq('id', userId)
     .maybeSingle();
 
-  if (data) return { id: data.id, name: data.name, avatarColor: data.avatar_color };
+  if (data) return { id: data.id, name: data.name, avatarColor: data.avatar_color, avatarUrl: data.avatar_url ?? undefined, coverUrl: data.cover_url ?? undefined };
 
   // Profile row missing — create it from auth metadata so the app works immediately
   if (!userMeta) return null;
@@ -345,6 +458,26 @@ async function fetchMemberData(userId: string): Promise<{ houseId: string | null
   const row = data?.[0];
 
   if (!error && row?.house_id) {
+    // Verify the house still exists — a stale house_members row (e.g. from a
+    // deleted test house) would otherwise put the user into a nameless ghost house.
+    const { data: houseCheck } = await supabase
+      .from('houses')
+      .select('id')
+      .eq('id', row.house_id)
+      .maybeSingle();
+
+    if (!houseCheck) {
+      // Ghost house — delete the stale membership and clear cache so the user
+      // lands on house-setup instead of a broken dashboard.
+      await supabase
+        .from('house_members')
+        .delete()
+        .eq('user_id', userId)
+        .eq('house_id', row.house_id);
+      await clearCachedHouseId(userId);
+      return { houseId: null, role: null, permissions: DEFAULT_PERMISSIONS };
+    }
+
     await cacheHouseId(userId, row.house_id);
     return {
       houseId: row.house_id,

@@ -24,7 +24,7 @@ interface EventsStore {
     houseId: string,
     startTime?: string,
     endTime?: string
-  ) => Promise<void>;
+  ) => Promise<string>; // returns new event ID
   removeEvent: (id: string) => Promise<void>;
 }
 
@@ -67,7 +67,7 @@ export const useEventsStore = create<EventsStore>()(
       unsubscribe: (): void => {
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
-      addEvent: async (title, date, createdBy, houseId, startTime, endTime): Promise<void> => {
+      addEvent: async (title, date, createdBy, houseId, startTime, endTime): Promise<string> => {
         const { data, error } = await supabase
           .from('events')
           .insert({
@@ -92,6 +92,7 @@ export const useEventsStore = create<EventsStore>()(
         };
         const events = [...get().events, event].sort((a, b) => a.date.localeCompare(b.date));
         set({ events });
+        return event.id;
       },
       removeEvent: async (id): Promise<void> => {
         await supabase.from('events').delete().eq('id', id);

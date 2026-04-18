@@ -1,13 +1,14 @@
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, ScrollView, Switch, Pressable, Alert, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, Switch, Pressable, Alert, Modal, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { useSettingsStore } from '@stores/settingsStore';
+import { useSettingsStore, CURRENCIES } from '@stores/settingsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -16,10 +17,32 @@ export default function SettingsScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const features = useSettingsStore((s) => s.features);
   const toggleFeature = useSettingsStore((s) => s.toggleFeature);
+  const currency = useSettingsStore((s) => s.currency);
+  const setCurrency = useSettingsStore((s) => s.setCurrency);
   const leaveHouse = useAuthStore((s) => s.leaveHouse);
   const houseName = useHousematesStore((s) => s.houseName);
+  const calConnected    = useCalendarSyncStore((s) => s.connected);
+  const calAutoSync     = useCalendarSyncStore((s) => s.autoSync);
+  const calConnect      = useCalendarSyncStore((s) => s.connect);
+  const calDisconnect   = useCalendarSyncStore((s) => s.disconnect);
+  const calSetAutoSync  = useCalendarSyncStore((s) => s.setAutoSync);
+
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [calLoading, setCalLoading] = useState(false);
+
+  const handleCalendarToggle = useCallback(async (): Promise<void> => {
+    setCalLoading(true);
+    try {
+      if (calConnected) {
+        await calDisconnect();
+      } else {
+        await calConnect();
+      }
+    } finally {
+      setCalLoading(false);
+    }
+  }, [calConnected, calConnect, calDisconnect]);
 
   const handleToggle = useCallback(
     (key: string) => {
@@ -45,6 +68,29 @@ export default function SettingsScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.intro}>{t('settings.features_intro')}</Text>
+
+        {/* ── Currency ── */}
+        <Text style={styles.sectionLabel}>CURRENCY</Text>
+        <View style={styles.card}>
+          <View style={[styles.row, { flexWrap: 'wrap', gap: 8 }]}>
+            {CURRENCIES.map((c) => (
+              <Pressable
+                key={c.symbol}
+                style={[styles.currencyChip, currency === c.symbol && styles.currencyChipActive]}
+                onPress={() => setCurrency(c.symbol)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: currency === c.symbol }}
+              >
+                <Text style={[styles.currencyChipText, currency === c.symbol && styles.currencyChipTextActive]}>
+                  {c.symbol}
+                </Text>
+                <Text style={[styles.currencyChipLabel, currency === c.symbol && styles.currencyChipLabelActive]}>
+                  {c.label.split('(')[0].trim()}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
 
         <Text style={styles.sectionLabel}>{t('settings.features_section')}</Text>
 
@@ -76,6 +122,67 @@ export default function SettingsScreen(): React.JSX.Element {
         </View>
 
         <Text style={styles.note}>{t('settings.features_note')}</Text>
+
+        {/* ── Calendar Integration ── */}
+        <Text style={styles.sectionLabel}>CALENDAR</Text>
+        <View style={styles.card}>
+          <View style={[styles.row, calConnected && styles.rowBorder]}>
+            <Text style={styles.icon}>📅</Text>
+            <View style={styles.info}>
+              <Text style={styles.label}>Connect my calendar</Text>
+              <Text style={styles.description}>
+                {Platform.OS === 'web'
+                  ? 'Open any event in the Calendar tab to export to Google Calendar or download an .ics file'
+                  : calConnected
+                    ? 'Syncing with your device calendar'
+                    : 'See your personal events in-app and auto-add house events'}
+              </Text>
+            </View>
+            <Switch
+              value={calConnected}
+              onValueChange={handleCalendarToggle}
+              disabled={calLoading || Platform.OS === 'web'}
+              trackColor={{ false: colors.border, true: colors.primary + '66' }}
+              thumbColor={calConnected ? colors.primary : colors.textSecondary}
+              accessible
+              accessibilityLabel="Connect my calendar"
+            />
+          </View>
+          {calConnected && (
+            <>
+              <View style={[styles.row, styles.rowBorder]}>
+                <Text style={styles.icon}>📋</Text>
+                <View style={styles.info}>
+                  <Text style={styles.label}>Auto-add house events</Text>
+                  <Text style={styles.description}>New house events go straight to your calendar</Text>
+                </View>
+                <Switch
+                  value={calAutoSync.events}
+                  onValueChange={(v) => calSetAutoSync('events', v)}
+                  trackColor={{ false: colors.border, true: colors.primary + '66' }}
+                  thumbColor={calAutoSync.events ? colors.primary : colors.textSecondary}
+                  accessible
+                  accessibilityLabel="Auto-add house events"
+                />
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.icon}>🚗</Text>
+                <View style={styles.info}>
+                  <Text style={styles.label}>Auto-add parking</Text>
+                  <Text style={styles.description}>Reservations added as pending, updated when approved</Text>
+                </View>
+                <Switch
+                  value={calAutoSync.parking}
+                  onValueChange={(v) => calSetAutoSync('parking', v)}
+                  trackColor={{ false: colors.border, true: colors.primary + '66' }}
+                  thumbColor={calAutoSync.parking ? colors.primary : colors.textSecondary}
+                  accessible
+                  accessibilityLabel="Auto-add parking"
+                />
+              </View>
+            </>
+          )}
+        </View>
 
         {/* ── House ── */}
         <Text style={styles.sectionLabel}>YOUR HOUSE</Text>
@@ -204,6 +311,20 @@ const styles = StyleSheet.create({
   },
   chevron: { color: colors.textSecondary, fontSize: 20 },
   iconNative: { width: 32, textAlign: 'center' },
+
+  currencyChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  currencyChipActive: {
+    borderColor: colors.primary, backgroundColor: colors.primary + '12',
+  },
+  currencyChipText: { fontSize: 16, ...font.bold, color: colors.textSecondary },
+  currencyChipTextActive: { color: colors.primary },
+  currencyChipLabel: { fontSize: 12, ...font.regular, color: colors.textSecondary },
+  currencyChipLabelActive: { color: colors.primary },
 
   // Leave house modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },

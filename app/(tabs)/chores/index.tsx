@@ -100,9 +100,11 @@ function ChoreRow({
         )}
       </View>
 
-      <Pressable onPress={() => onDelete(chore.id)} style={styles.deleteBtn} accessibilityRole="button" hitSlop={8}>
-        <Ionicons name="close" size={16} color={colors.textSecondary} />
-      </Pressable>
+      {(!chore.claimedBy || chore.claimedBy === myName) && (
+        <Pressable onPress={() => onDelete(chore.id)} style={styles.deleteBtn} accessibilityRole="button" hitSlop={8}>
+          <Ionicons name="close" size={16} color={colors.textSecondary} />
+        </Pressable>
+      )}
     </View>
   );
 }

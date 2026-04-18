@@ -76,16 +76,18 @@ function UserAvatar({ name, size = 24 }: { name: string; size?: number }): React
 // ── Item row ───────────────────────────────────────────────────────────────────
 interface ItemRowProps {
   item: GroceryItem;
+  myName: string;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
 }
 
-function ItemRow({ item, onToggle, onDelete, onIncrement, onDecrement }: ItemRowProps): React.JSX.Element {
+function ItemRow({ item, myName, onToggle, onDelete, onIncrement, onDecrement }: ItemRowProps): React.JSX.Element {
   const qtyNum   = parseInt(item.quantity, 10);
   const hasCount = !isNaN(qtyNum) && qtyNum > 1;
   const bought   = item.boughtCount ?? 0;
+  const canDelete = item.addedBy === myName;
 
   const tap = useCallback((): void => {
     if (!hasCount) {
@@ -95,9 +97,10 @@ function ItemRow({ item, onToggle, onDelete, onIncrement, onDecrement }: ItemRow
   }, [hasCount, item.id, onToggle]);
 
   const longTap = useCallback((): void => {
+    if (!canDelete) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     onDelete(item.id);
-  }, [item.id, onDelete]);
+  }, [item.id, onDelete, canDelete]);
 
   return (
     <Pressable
@@ -160,6 +163,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const endRun       = useGroceryStore((s) => s.endRun);
   const profile      = useAuthStore((s) => s.profile);
   const houseId      = useAuthStore((s) => s.houseId);
+  const myName       = profile?.name ?? '';
 
   const [itemName, setItemName]           = useState('');
   const [qty, setQty]                     = useState('1');
@@ -236,9 +240,9 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const renderItem = useCallback(
     ({ item }: { item: GroceryItem }): React.JSX.Element => (
-      <ItemRow item={item} onToggle={onToggle} onDelete={onDelete} onIncrement={onInc} onDecrement={onDec} />
+      <ItemRow item={item} myName={myName} onToggle={onToggle} onDelete={onDelete} onIncrement={onInc} onDecrement={onDec} />
     ),
-    [onToggle, onDelete, onInc, onDec]
+    [myName, onToggle, onDelete, onInc, onDec]
   );
 
   const renderSectionHeader = useCallback(

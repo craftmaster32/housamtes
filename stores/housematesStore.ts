@@ -44,7 +44,7 @@ export const useHousematesStore = create<HousematesStore>()(
           const [membersRes, houseRes] = await Promise.all([
             supabase
               .from('house_members')
-              .select('id, role, permissions, profiles(id, name, avatar_color)')
+              .select('id, user_id, role, permissions')
               .eq('house_id', houseId),
             supabase
               .from('houses')
@@ -58,9 +58,23 @@ export const useHousematesStore = create<HousematesStore>()(
             chat: true, photos: true, voting: true, maintenance: true, condition: true,
           };
 
-          const housemates: Housemate[] = (membersRes.data ?? [])
+          const memberRows = membersRes.data ?? [];
+          const userIds = memberRows.map((m) => m.user_id as string);
+
+          // Fetch profiles separately to avoid relying on an indirect FK join
+          // (house_members.user_id → auth.users ← profiles.id) that PostgREST
+          // may not resolve, causing all profiles to silently return null.
+          const profilesRes = userIds.length > 0
+            ? await supabase.from('profiles').select('id, name, avatar_color').in('id', userIds)
+            : { data: [] as { id: string; name: string; avatar_color: string }[] };
+
+          const profileMap = new Map<string, { id: string; name: string; avatar_color: string }>(
+            (profilesRes.data ?? []).map((p) => [p.id, p])
+          );
+
+          const housemates: Housemate[] = memberRows
             .map((m) => {
-              const p = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as { id: string; name: string; avatar_color: string } | null;
+              const p = profileMap.get(m.user_id as string);
               if (!p) return null;
               return {
                 id: p.id,

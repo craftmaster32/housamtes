@@ -1,9 +1,10 @@
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useDrawerStore } from '@stores/drawerStore';
 import { useAuthStore } from '@stores/authStore';
 import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
@@ -22,6 +23,8 @@ export function TopBar(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const toggle = useDrawerStore((s) => s.toggle);
   const profile = useAuthStore((s) => s.profile);
+  const pathname = usePathname();
+  const isDashboard = pathname.includes('/dashboard');
 
   // Badge counts — same logic as DrawerMenu
   const lastSeen          = useBadgeStore((s) => s.lastSeen);
@@ -53,6 +56,15 @@ export function TopBar(): React.JSX.Element {
     router.push('/(tabs)/profile');
   };
 
+  const handleBack = (): void => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push('/(tabs)/dashboard');
+    }
+  };
+
   const initial = profile?.name ? profile.name[0].toUpperCase() : '?';
 
   return (
@@ -75,6 +87,18 @@ export function TopBar(): React.JSX.Element {
           </View>
         )}
       </Pressable>
+
+      {!isDashboard && (
+        <Pressable
+          style={styles.backBtn}
+          onPress={handleBack}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessible={true}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.primary} />
+        </Pressable>
+      )}
 
       <Text style={styles.appName}>HouseMates</Text>
 
@@ -116,6 +140,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+  },
+  backBtn: {
+    width: 36,
+    height: sizes.touchTarget,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   hamburger: { gap: 5, alignItems: 'flex-start' },
   line: { height: 2, backgroundColor: colors.primary, borderRadius: 2 },

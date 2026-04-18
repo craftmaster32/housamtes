@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useBillsStore, CATEGORIES } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -20,6 +21,7 @@ export default function AddBillScreen(): React.JSX.Element {
   const addBill = useBillsStore((state) => state.addBill);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
+  const currency = useSettingsStore((s) => s.currency);
 
   const allNames = housemates.map((h) => h.name);
   const myName = profile?.name ?? '';
@@ -230,7 +232,7 @@ export default function AddBillScreen(): React.JSX.Element {
             {splitType === 'equal' && totalAmount > 0 && (
               <View style={styles.previewBox}>
                 <Text style={styles.previewText}>
-                  ₪{(totalAmount / selectedPeople.length).toFixed(2)} {t('bills.per_person')}
+                  {currency}{(totalAmount / selectedPeople.length).toFixed(2)} {t('bills.per_person')}
                 </Text>
               </View>
             )}
@@ -260,7 +262,7 @@ export default function AddBillScreen(): React.JSX.Element {
                     styles.customTotalValue,
                     { color: Math.abs(getCustomTotal() - totalAmount) < 0.01 ? colors.positive : colors.danger },
                   ]}>
-                    ₪{getCustomTotal().toFixed(2)} / ₪{totalAmount.toFixed(2)}
+                    {currency}{getCustomTotal().toFixed(2)} / {currency}{totalAmount.toFixed(2)}
                   </Text>
                 </View>
               </View>

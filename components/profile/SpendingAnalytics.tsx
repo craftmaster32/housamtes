@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useSpendingStore } from '@stores/spendingStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -21,19 +22,20 @@ const PERIODS: { label: string; months: Period }[] = [
 
 const BAR_MAX_H = 64;
 
-function fmtShort(n: number): string {
-  if (n >= 1000) return `£${(n / 1000).toFixed(1)}k`;
-  return `£${n.toFixed(0)}`;
+function fmtShort(n: number, currency: string): string {
+  if (n >= 1000) return `${currency}${(n / 1000).toFixed(1)}k`;
+  return `${currency}${n.toFixed(0)}`;
 }
 
-function fmtFull(n: number): string {
-  return `£${n.toFixed(2)}`;
+function fmtFull(n: number, currency: string): string {
+  return `${currency}${n.toFixed(2)}`;
 }
 
 export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Element {
   const months    = useSpendingStore((s) => s.months);
   const isLoading = useSpendingStore((s) => s.isLoading);
   const load      = useSpendingStore((s) => s.load);
+  const currency  = useSettingsStore((s) => s.currency);
 
   const [period, setPeriod] = useState<Period>(6);
   const selectPeriod = useCallback((p: Period) => setPeriod(p), []);
@@ -81,7 +83,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         <View style={styles.decoCircle} />
         <View style={styles.pad}>
           <Text style={styles.labelText}>MY SPENDING</Text>
-          <Text style={styles.amountText}>£0.00</Text>
+          <Text style={styles.amountText}>{currency}0.00</Text>
           <Text style={styles.emptyNote}>No expenses recorded yet.</Text>
         </View>
       </View>
@@ -118,11 +120,11 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
 
         {/* Amount + diff badge */}
         <View style={styles.amountRow}>
-          <Text style={styles.amountText}>{current ? fmtFull(current.total) : '£0.00'}</Text>
+          <Text style={styles.amountText}>{current ? fmtFull(current.total, currency) : `${currency}0.00`}</Text>
           {diffAmt !== null && (
             <View style={styles.diffBadge}>
               <Text style={styles.diffBadgeText}>
-                {isDown ? '↓' : '↑'} {isDown ? 'Down' : 'Up'} £{diffAmt}
+                {isDown ? '↓' : '↑'} {isDown ? 'Down' : 'Up'} {currency}{diffAmt}
               </Text>
             </View>
           )}
@@ -137,7 +139,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
               const barH = Math.max((m.total / maxTotal) * BAR_MAX_H, m.total > 0 ? 4 : 2);
               return (
                 <View key={m.month} style={styles.barCol}>
-                  <Text style={styles.barAmt}>{m.total > 0 ? fmtShort(m.total) : ''}</Text>
+                  <Text style={styles.barAmt}>{m.total > 0 ? fmtShort(m.total, currency) : ''}</Text>
                   <View style={styles.barTrack}>
                     <View style={[styles.barFill, { height: barH }, isLatest && styles.barFillLatest]} />
                   </View>
@@ -157,7 +159,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         {diff !== null && previous && (
           <View style={styles.compareRow}>
             <Text style={styles.compareAmt}>
-              {isDown ? '↓' : '↑'} {fmtFull(Math.abs(diff))} {isDown ? 'less' : 'more'}
+              {isDown ? '↓' : '↑'} {fmtFull(Math.abs(diff), currency)} {isDown ? 'less' : 'more'}
             </Text>
             <Text style={styles.compareSub}>Compared to {previous.label.split(' ')[0]}</Text>
             {pct !== null && (

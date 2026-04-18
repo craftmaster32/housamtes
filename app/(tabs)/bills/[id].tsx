@@ -6,6 +6,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useBillsStore, getPersonShare } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -18,6 +19,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const settleBill = useBillsStore((s) => s.settleBill);
   const deleteBill = useBillsStore((s) => s.deleteBill);
   const profile = useAuthStore((s) => s.profile);
+  const currency = useSettingsStore((s) => s.currency);
 
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(bill?.title ?? '');
@@ -151,7 +153,7 @@ export default function BillDetailScreen(): React.JSX.Element {
         ) : (
           <View style={styles.card}>
             <Text style={styles.billTitle}>{bill.title}</Text>
-            <Text style={styles.billAmount}>₪{bill.amount.toFixed(2)}</Text>
+            <Text style={styles.billAmount}>{currency}{bill.amount.toFixed(2)}</Text>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.category')}</Text>
               <Text style={styles.metaValue}>{bill.category}</Text>
@@ -178,13 +180,13 @@ export default function BillDetailScreen(): React.JSX.Element {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>{t('bills.split_breakdown')}</Text>
             <Text style={styles.splitTotal}>
-              {t('bills.total')} ₪{bill.amount.toFixed(2)} · {isCustomSplit ? t('bills.custom_split') : `${t('bills.equal_split')} ${bill.splitBetween.length}`}
+              {t('bills.total')} {currency}{bill.amount.toFixed(2)} · {isCustomSplit ? t('bills.custom_split') : `${t('bills.equal_split')} ${bill.splitBetween.length}`}
             </Text>
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>
                 <View style={styles.splitDot} />
                 <Text style={styles.splitPerson}>{person}</Text>
-                <Text style={styles.splitAmount}>₪{getPersonShare(bill, person).toFixed(2)}</Text>
+                <Text style={styles.splitAmount}>{currency}{getPersonShare(bill, person).toFixed(2)}</Text>
               </View>
             ))}
           </View>

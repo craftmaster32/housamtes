@@ -21,6 +21,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
   const [error, setError] = useState('');
   const user = useAuthStore((s) => s.user);
   const setHouseId = useAuthStore((s) => s.setHouseId);
+  const reloadMembership = useAuthStore((s) => s.reloadMembership);
   const signOut = useAuthStore((s) => s.signOut);
 
   const handleCreate = useCallback(async () => {
@@ -47,7 +48,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setError(err instanceof Error ? err.message : t('house_setup.failed_create'));
       setIsLoading(false);
     }
-  }, [houseName, user, setHouseId]);
+  }, [houseName, user, setHouseId, t]);
 
   const handleJoin = useCallback(async () => {
     if (!inviteCode.trim()) { setError(t('house_setup.enter_invite_code')); return; }
@@ -69,12 +70,13 @@ export default function HouseSetupScreen(): React.JSX.Element {
       // 23505 = duplicate key: user is already a member — treat as success
       if (memberErr && memberErr.code !== '23505') throw memberErr;
 
-      setHouseId(house.id);
+      // Reload membership so role & permissions reflect the new house
+      await reloadMembership();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('house_setup.failed_join'));
       setIsLoading(false);
     }
-  }, [inviteCode, user, setHouseId]);
+  }, [inviteCode, user, reloadMembership, t]);
 
   return (
     <SafeAreaView style={styles.container}>

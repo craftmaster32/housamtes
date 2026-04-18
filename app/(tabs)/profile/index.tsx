@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, Image, ActivityIndicator, Platform } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -9,7 +10,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useSpendingStore, CATEGORY_META } from '@stores/spendingStore';
-import { supabase } from '@lib/supabase';
+import { useSettingsStore } from '@stores/settingsStore';
 import { SpendingAnalytics } from '@components/profile/SpendingAnalytics';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -96,6 +97,7 @@ function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): Rea
   const share  = bill.splitAmounts ? (bill.splitAmounts[userName] ?? bill.amount / splits) : bill.amount / splits;
   const isPayer = bill.paidBy === userName;
   const meta = CATEGORY_META[bill.category?.toLowerCase() ?? ''] ?? CATEGORY_META['other'];
+  const currency = useSettingsStore((s) => s.currency);
   return (
     <View style={styles.activityItem}>
       <View style={[styles.activityIcon, { backgroundColor: meta.color + '20' }]}>
@@ -106,51 +108,97 @@ function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): Rea
         <Text style={styles.activitySub}>{isPayer ? 'Paid by you' : `Paid by ${bill.paidBy}`}</Text>
       </View>
       <View style={styles.activityAmt}>
-        <Text style={styles.activityAmtText}>-£{share.toFixed(2)}</Text>
+        <Text style={styles.activityAmtText}>-{currency}{share.toFixed(2)}</Text>
         <Text style={styles.activityAmtSub}>Your share</Text>
       </View>
     </View>
   );
 }
 
-// ── Password form ──────────────────────────────────────────────────────────────
-function PasswordForm({ onDone }: { onDone: () => void }): React.JSX.Element {
-  const { t } = useTranslation();
-  const [newPw, setNewPw]     = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [error, setError]     = useState('');
+// ── Personal details form ──────────────────────────────────────────────────────
+function PersonalDetailsForm({
+  currentName, currentEmail, onDone,
+}: {
+  currentName: string; currentEmail: string; onDone: () => void;
+}): React.JSX.Element {
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const updateEmail   = useAuthStore((s) => s.updateEmail);
+  const [name, setName]       = useState(currentName);
+  const [email, setEmail]     = useState(currentEmail);
   const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState('');
+  const [success, setSuccess] = useState('');
 
-  const save = useCallback(async (): Promise<void> => {
-    if (!newPw) { setError(t('profile.enter_new_password')); return; }
-    if (newPw.length < 6) { setError(t('profile.password_min')); return; }
-    if (newPw !== confirm) { setError(t('profile.passwords_no_match')); return; }
+  const handleSave = useCallback(async (): Promise<void> => {
+    const trimName  = name.trim();
+    const trimEmail = email.trim();
+    if (!trimName) { setError('Name cannot be empty.'); return; }
+    if (!trimEmail) { setError('Email cannot be empty.'); return; }
     setSaving(true);
     setError('');
+    setSuccess('');
     try {
-      const { error: e } = await supabase.auth.updateUser({ password: newPw });
-      if (e) throw e;
-      onDone();
-      Alert.alert(t('common.done'), t('profile.password_updated'));
-    } catch { setError(t('profile.could_not_update')); }
-    finally { setSaving(false); }
-  }, [newPw, confirm, t, onDone]);
+      const nameChanged  = trimName !== currentName;
+      const emailChanged = trimEmail !== currentEmail;
+      if (nameChanged)  await updateProfile(trimName);
+      if (emailChanged) await updateEmail(trimEmail);
+      if (nameChanged && emailChanged) {
+        setSuccess('Name updated. A confirmation link has been sent to your new email address.');
+      } else if (nameChanged) {
+        setSuccess('Name updated.');
+      } else if (emailChanged) {
+        setSuccess('A confirmation link has been sent to your new email address.');
+      } else {
+        onDone();
+        return;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [name, email, currentName, currentEmail, updateProfile, updateEmail]);
 
   return (
     <View style={styles.pwForm}>
-      <TextInput style={styles.textInput} value={newPw} onChangeText={(v) => { setNewPw(v); setError(''); }}
-        placeholder={t('profile.password_hint')} placeholderTextColor={colors.textDisabled}
-        secureTextEntry autoCapitalize="none" />
-      <TextInput style={styles.textInput} value={confirm} onChangeText={(v) => { setConfirm(v); setError(''); }}
-        placeholder={t('profile.repeat_password')} placeholderTextColor={colors.textDisabled}
-        secureTextEntry autoCapitalize="none" />
-      {!!error && <Text style={styles.fieldError}>{error}</Text>}
+      <View>
+        <Text style={styles.detailsLabel}>Display name</Text>
+        <TextInput
+          style={styles.textInput}
+          value={name}
+          onChangeText={(v) => { setName(v); setError(''); setSuccess(''); }}
+          placeholder="Your name"
+          placeholderTextColor={colors.textDisabled}
+          autoCapitalize="words"
+        />
+      </View>
+      <View>
+        <Text style={styles.detailsLabel}>Email address</Text>
+        <TextInput
+          style={styles.textInput}
+          value={email}
+          onChangeText={(v) => { setEmail(v); setError(''); setSuccess(''); }}
+          placeholder="your@email.com"
+          placeholderTextColor={colors.textDisabled}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoComplete="email"
+        />
+        <Text style={styles.detailsHint}>Changing email sends a confirmation link to the new address.</Text>
+      </View>
+      {!!error   && <Text style={styles.fieldError}>{error}</Text>}
+      {!!success && <Text style={styles.detailsSuccess}>{success}</Text>}
       <View style={styles.pwBtns}>
-        <Pressable style={[styles.saveBtn, saving && styles.saveBtnOff]} onPress={save} disabled={saving} accessibilityRole="button">
-          <Text style={styles.saveBtnText}>{saving ? t('profile.saving') : t('profile.save_password')}</Text>
+        <Pressable
+          style={[styles.saveBtn, saving && styles.saveBtnOff]}
+          onPress={handleSave}
+          disabled={saving}
+          accessibilityRole="button"
+        >
+          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save changes'}</Text>
         </Pressable>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+          <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </View>
     </View>
@@ -160,18 +208,25 @@ function PasswordForm({ onDone }: { onDone: () => void }): React.JSX.Element {
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function ProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const profile    = useAuthStore((s) => s.profile);
-  const user       = useAuthStore((s) => s.user);
-  const role       = useAuthStore((s) => s.role);
-  const signOut    = useAuthStore((s) => s.signOut);
-  const houseId    = useAuthStore((s) => s.houseId);
+  const profile       = useAuthStore((s) => s.profile);
+  const user          = useAuthStore((s) => s.user);
+  const role          = useAuthStore((s) => s.role);
+  const signOut       = useAuthStore((s) => s.signOut);
+  const houseId       = useAuthStore((s) => s.houseId);
+  const uploadAvatar  = useAuthStore((s) => s.uploadAvatar);
+  const removeAvatar  = useAuthStore((s) => s.removeAvatar);
+  const uploadCover   = useAuthStore((s) => s.uploadCover);
+  const removeCover   = useAuthStore((s) => s.removeCover);
+  const currency   = useSettingsStore((s) => s.currency);
   const housemates = useHousematesStore((s) => s.housemates);
   const houseName  = useHousematesStore((s) => s.houseName);
   const bills      = useBillsStore((s) => s.bills);
   const loadBills  = useBillsStore((s) => s.load);
   const months     = useSpendingStore((s) => s.months);
 
-  const [showPwForm, setShowPwForm] = useState(false);
+  const [showDetailsForm, setShowDetailsForm] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // Load bills for recent activity if not already loaded
   useEffect(() => {
@@ -191,6 +246,121 @@ export default function ProfileScreen(): React.JSX.Element {
   const todayBills     = recentBills.filter((b) => billDayLabel(b.date) === 'today');
   const yesterdayBills = recentBills.filter((b) => billDayLabel(b.date) === 'yesterday');
 
+  const pickImage = useCallback(async (source: 'camera' | 'library'): Promise<void> => {
+    let result: ImagePicker.ImagePickerResult;
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Camera access is required to take a photo.');
+        return;
+      }
+      result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Photo library access is required to choose a photo.');
+        return;
+      }
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+    }
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setUploading(true);
+    try {
+      await uploadAvatar(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
+    } catch (err) {
+      Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload photo.');
+    } finally {
+      setUploading(false);
+    }
+  }, [uploadAvatar]);
+
+  const pickCover = useCallback(async (): Promise<void> => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Photo library access is required to choose a cover photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+      base64: true,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setUploadingCover(true);
+    try {
+      await uploadCover(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
+    } catch (err) {
+      Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload cover photo.');
+    } finally {
+      setUploadingCover(false);
+    }
+  }, [uploadCover]);
+
+  const handleCoverPress = useCallback((): void => {
+    const options: Parameters<typeof Alert.alert>[2] = [
+      { text: 'Choose cover photo', onPress: pickCover },
+    ];
+    if (profile?.coverUrl) {
+      options.push({
+        text: 'Remove cover photo',
+        style: 'destructive',
+        onPress: async () => {
+          setUploadingCover(true);
+          await removeCover().catch((err: unknown) => {
+            Alert.alert('Error', err instanceof Error ? err.message : 'Could not remove cover photo.');
+          });
+          setUploadingCover(false);
+        },
+      });
+    }
+    options.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Cover photo', 'Choose an option', options);
+  }, [pickCover, removeCover, profile?.coverUrl]);
+
+  const handleAvatarPress = useCallback((): void => {
+    // On web, file pickers must be opened synchronously from a user gesture —
+    // calling them inside an Alert callback breaks the browser security model.
+    if (Platform.OS === 'web') {
+      pickImage('library');
+      return;
+    }
+    const options: Parameters<typeof Alert.alert>[2] = [
+      { text: 'Take photo', onPress: () => { pickImage('camera'); } },
+      { text: 'Choose from library', onPress: () => { pickImage('library'); } },
+    ];
+    if (profile?.avatarUrl) {
+      options.push({
+        text: 'Remove photo',
+        style: 'destructive',
+        onPress: async () => {
+          setUploading(true);
+          await removeAvatar().catch((err: unknown) => {
+            Alert.alert('Error', err instanceof Error ? err.message : 'Could not remove photo.');
+          });
+          setUploading(false);
+        },
+      });
+    }
+    options.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Profile photo', 'Choose an option', options);
+  }, [pickImage, removeAvatar, profile?.avatarUrl]);
+
   const handleLogout = useCallback(() => {
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -207,17 +377,61 @@ export default function ProfileScreen(): React.JSX.Element {
 
         {/* ── Profile header ──────────────────────────────────────────── */}
         <View style={styles.profileHeader}>
-          <View style={styles.decoCircleTL} />
-          <View style={styles.decoCircleTR} />
-          <View style={styles.avatarWrap}>
+          {/* Cover photo */}
+          <Pressable
+            style={styles.coverWrap}
+            onPress={handleCoverPress}
+            disabled={uploadingCover}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Change cover photo"
+          >
+            {profile?.coverUrl
+              ? <Image source={{ uri: profile.coverUrl }} style={styles.coverImage} />
+              : (
+                <>
+                  <View style={styles.decoCircleTL} />
+                  <View style={styles.decoCircleTR} />
+                </>
+              )
+            }
+            {uploadingCover && (
+              <View style={styles.coverOverlay}>
+                <ActivityIndicator color={colors.white} size="small" />
+              </View>
+            )}
+            <View style={styles.coverBadge}>
+              <Ionicons name="image-outline" size={12} color={colors.primary} />
+            </View>
+          </Pressable>
+
+          {/* Avatar */}
+          <Pressable
+            style={styles.avatarWrap}
+            onPress={handleAvatarPress}
+            disabled={uploading}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Change profile photo"
+          >
             <View style={[styles.avatarRing, { backgroundColor: profile?.avatarColor ?? colors.primary }]}>
-              <Text style={styles.avatarInitial}>{initial}</Text>
+              {profile?.avatarUrl
+                ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} />
+                : <Text style={styles.avatarInitial}>{initial}</Text>
+              }
+              {uploading && (
+                <View style={styles.avatarOverlay}>
+                  <ActivityIndicator color={colors.white} size="small" />
+                </View>
+              )}
             </View>
             <View style={styles.avatarBadge}>
-              <Ionicons name="pencil" size={12} color={colors.primary} />
+              <Ionicons name="camera" size={12} color={colors.primary} />
             </View>
-          </View>
+          </Pressable>
+
           <Text style={styles.profileName}>{profile?.name ?? 'You'}</Text>
+          {!!user?.email && <Text style={styles.profileEmail}>{user.email}</Text>}
           <Text style={styles.profileSub}>{houseName || 'Your House'}</Text>
         </View>
 
@@ -251,7 +465,7 @@ export default function ProfileScreen(): React.JSX.Element {
                       <Text style={styles.expenseIcon}>{cat.icon}</Text>
                     </View>
                     <Text style={styles.expenseName}>{cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}</Text>
-                    <Text style={styles.expenseAmt}>£{cat.amount.toFixed(2)}</Text>
+                    <Text style={styles.expenseAmt}>{currency}{cat.amount.toFixed(2)}</Text>
                   </View>
                 ))}
               </View>
@@ -284,13 +498,17 @@ export default function ProfileScreen(): React.JSX.Element {
               <ProfileRow
                 iconName="person-outline"
                 title="Personal details"
-                sub="Name, email and room info"
-                onPress={() => setShowPwForm((v) => !v)}
+                sub={showDetailsForm ? 'Tap to close' : `${profile?.name ?? ''}  ·  ${user?.email ?? ''}`}
+                onPress={() => setShowDetailsForm((v) => !v)}
               />
-              {showPwForm && (
+              {showDetailsForm && (
                 <>
                   <View style={styles.rowDivider} />
-                  <PasswordForm onDone={() => setShowPwForm(false)} />
+                  <PersonalDetailsForm
+                    currentName={profile?.name ?? ''}
+                    currentEmail={user?.email ?? ''}
+                    onDone={() => setShowDetailsForm(false)}
+                  />
                 </>
               )}
               <View style={styles.rowDivider} />
@@ -399,33 +617,63 @@ const styles = StyleSheet.create({
   // Profile header
   profileHeader: {
     alignItems: 'center',
-    paddingTop: sizes.xl,
     paddingBottom: sizes.lg,
     gap: sizes.xs,
     position: 'relative',
+  },
+  // Cover photo
+  coverWrap: {
+    width: '100%',
+    height: 140,
+    backgroundColor: colors.secondary,
+    marginBottom: 52,
+    position: 'relative',
     overflow: 'hidden',
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  coverOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  coverBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   decoCircleTL: {
     position: 'absolute',
-    top: 45,
-    left: -39,
+    top: 30,
+    left: -20,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.secondary,
-    opacity: 0.9,
+    backgroundColor: colors.primary,
+    opacity: 0.15,
   },
   decoCircleTR: {
     position: 'absolute',
-    top: 108,
-    right: 78,
+    top: 60,
+    right: 40,
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.secondary,
-    opacity: 0.9,
+    backgroundColor: colors.primary,
+    opacity: 0.15,
   },
-  avatarWrap: { position: 'relative' },
+  avatarWrap: { position: 'absolute', top: 90, alignSelf: 'center' },
   avatarRing: {
     width: 102,
     height: 102,
@@ -434,6 +682,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: 'rgba(255,255,255,0.75)',
+    overflow: 'hidden',
+  },
+  avatarImage: { width: 96, height: 96, borderRadius: 48 },
+  avatarOverlay: {
+    position: 'absolute',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarInitial: { color: colors.white, fontSize: 40, ...font.bold },
   avatarBadge: {
@@ -449,8 +708,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  profileName: { fontSize: 28, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.56, marginTop: 4 },
-  profileSub:  { fontSize: 15, ...font.regular, color: colors.textSecondary },
+  profileName:  { fontSize: 28, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.56, marginTop: 4 },
+  profileEmail: { fontSize: 13, ...font.regular, color: colors.textSecondary },
+  profileSub:   { fontSize: 15, ...font.regular, color: colors.textSecondary },
 
   // Quick actions
   quickRow: { flexDirection: 'row', gap: sizes.sm },
@@ -617,7 +877,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  fieldError: { color: colors.danger, fontSize: 13, ...font.regular },
+  fieldError:     { color: colors.danger, fontSize: 13, ...font.regular },
+  detailsLabel:   { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginBottom: 4 },
+  detailsHint:    { fontSize: 11, ...font.regular, color: colors.textDisabled, marginTop: 4 },
+  detailsSuccess: { fontSize: 13, ...font.regular, color: colors.positive ?? '#16a34a' },
   pwBtns:     { flexDirection: 'row', alignItems: 'center', gap: sizes.md, marginTop: sizes.xs },
   saveBtn:    { backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: sizes.lg, borderRadius: 10 },
   saveBtnOff: { opacity: 0.6 },

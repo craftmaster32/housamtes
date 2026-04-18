@@ -16,6 +16,8 @@ import { useVotingStore } from '@stores/votingStore';
 import { useEventsStore } from '@stores/eventsStore';
 import { useAnnouncementsStore, type Announcement } from '@stores/announcementsStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -68,13 +70,16 @@ function WidgetCard({ children, style, onPress }: {
 
 // ── Balance Card ──────────────────────────────────────────────────────────────
 function BalanceCard(): React.JSX.Element {
+  const currency = useSettingsStore((s) => s.currency);
   const bills = useBillsStore((s) => s.bills);
   const profile = useAuthStore((s) => s.profile);
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
   const myName = profile?.name ?? '';
   const balances = calculateBalances(bills.filter((b) => !b.settled), myName);
   const totalOwed = balances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
   const totalOwe  = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
   const netAmount = totalOwed - totalOwe;
+  const newBills = countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/bills')}>
@@ -83,10 +88,13 @@ function BalanceCard(): React.JSX.Element {
           <Ionicons name="card-outline" size={18} color="#FF4757" />
         </View>
         <Text style={styles.cardTitle}>Balances</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        {newBills > 0
+          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newBills}</Text></View>
+          : <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        }
       </View>
       <Text style={[styles.bigNumber, { color: netAmount >= 0 ? colors.positive : colors.negative }]}>
-        {netAmount >= 0 ? '+' : ''}₪{Math.abs(netAmount).toFixed(2)}
+        {netAmount >= 0 ? '+' : ''}{currency}{Math.abs(netAmount).toFixed(2)}
       </Text>
       {netAmount > 0 && (
         <View style={styles.statusPill}>
@@ -103,7 +111,7 @@ function BalanceCard(): React.JSX.Element {
           <View style={[styles.personDot, { backgroundColor: b.amount > 0 ? colors.positive : colors.negative }]} />
           <Text style={styles.balancePerson} numberOfLines={1}>{b.person}</Text>
           <Text style={[styles.balanceAmt, { color: b.amount > 0 ? colors.positive : colors.negative }]}>
-            {b.amount > 0 ? '+' : ''}₪{b.amount.toFixed(2)}
+            {b.amount > 0 ? '+' : ''}{currency}{b.amount.toFixed(2)}
           </Text>
         </View>
       ))}
@@ -119,10 +127,12 @@ function ChoreCard(): React.JSX.Element {
   const chores = useChoresStore((s) => s.chores);
   const toggleChore = useChoresStore((s) => s.toggleChore);
   const profile = useAuthStore((s) => s.profile);
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
   const myName = profile?.name ?? '';
   const myChore = chores.find((c) => !c.isComplete && c.claimedBy === myName);
   const pending = chores.filter((c) => !c.isComplete);
   const done = chores.filter((c) => c.isComplete);
+  const newChores = countNewSimple(pending, lastSeen.chores);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/chores')}>
@@ -131,13 +141,12 @@ function ChoreCard(): React.JSX.Element {
           <Ionicons name="checkmark-done-outline" size={18} color="#FF8C00" />
         </View>
         <Text style={styles.cardTitle}>Your Chore</Text>
-        {chores.length > 0 && (
-          <View style={styles.badgePill}>
-            <Text style={styles.badgePillText}>
-              {done.length}/{chores.length} done
-            </Text>
-          </View>
-        )}
+        {newChores > 0
+          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newChores}</Text></View>
+          : chores.length > 0
+          ? <View style={styles.badgePill}><Text style={styles.badgePillText}>{done.length}/{chores.length} done</Text></View>
+          : null
+        }
       </View>
       {myChore ? (
         <>
@@ -176,6 +185,8 @@ function ChoreCard(): React.JSX.Element {
 // ── Parking Card ──────────────────────────────────────────────────────────────
 function ParkingCard(): React.JSX.Element {
   const current = useParkingStore((s) => s.current);
+  const reservations = useParkingStore((s) => s.reservations);
+  const approveReservation = useParkingStore((s) => s.approveReservation);
   const claim = useParkingStore((s) => s.claim);
   const release = useParkingStore((s) => s.release);
   const profile = useAuthStore((s) => s.profile);
@@ -183,6 +194,15 @@ function ParkingCard(): React.JSX.Element {
   const myName = profile?.name ?? '';
   const isFree = !current;
   const isMine = current?.occupant === myName;
+
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
+  const sortedReservations = [...reservations].sort((a, b) => a.date.localeCompare(b.date));
+  // Pending requests from others — these need approval
+  const pendingFromOthers = sortedReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myName);
+  // My own reservations (any status)
+  const myReservation = sortedReservations.find((r) => r.requestedBy === myName) ?? null;
+  const pendingCount = reservations.filter((r) => r.status === 'pending').length;
+  const newReservations = countNew(reservations as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.parking, myName, 'requestedBy');
 
   const handleClaim = useCallback(async (): Promise<void> => {
     await claim(myName, houseId ?? '').catch(() => {});
@@ -192,6 +212,10 @@ function ParkingCard(): React.JSX.Element {
     await release(houseId ?? '').catch(() => {});
   }, [release, houseId]);
 
+  const handleApprove = useCallback(async (id: string): Promise<void> => {
+    await approveReservation(id, houseId ?? '').catch(() => {});
+  }, [approveReservation, houseId]);
+
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
       <View style={styles.cardHeader}>
@@ -199,7 +223,12 @@ function ParkingCard(): React.JSX.Element {
           <Ionicons name={isFree ? 'car-outline' : 'car'} size={18} color={isFree ? colors.positive : colors.negative} />
         </View>
         <Text style={styles.cardTitle}>Parking Spot</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        {newReservations > 0
+          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newReservations}</Text></View>
+          : pendingCount > 0
+          ? <View style={[styles.badgePill, { backgroundColor: '#FFF3CD' }]}><Text style={[styles.badgePillText, { color: '#856404' }]}>{pendingCount} pending</Text></View>
+          : <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        }
       </View>
       <View style={[styles.parkingStatus, { backgroundColor: isFree ? colors.positive + '14' : colors.negative + '14' }]}>
         <Text style={[styles.parkingStatusText, { color: isFree ? colors.positive : colors.negative }]}>
@@ -216,6 +245,39 @@ function ParkingCard(): React.JSX.Element {
           ? `In use for ${parkingAge(current!.startTime)}`
           : `Used by ${current?.occupant} · ${parkingAge(current!.startTime)}`}
       </Text>
+      {/* Pending requests from others — show approve button */}
+      {pendingFromOthers.map((r) => (
+        <View key={r.id} style={styles.parkingPendingRow}>
+          <View style={styles.parkingPendingInfo}>
+            <Ionicons name="time-outline" size={14} color="#856404" />
+            <Text style={styles.parkingPendingText}>
+              {r.requestedBy} wants {r.date}{r.startTime ? ` at ${r.startTime}` : ''}
+            </Text>
+          </View>
+          <Pressable
+            style={styles.approveBtn}
+            onPress={(e) => { e.stopPropagation?.(); handleApprove(r.id); }}
+            accessibilityRole="button"
+            accessibilityLabel={`Approve parking request from ${r.requestedBy}`}
+          >
+            <Text style={styles.approveBtnText}>Approve</Text>
+          </Pressable>
+        </View>
+      ))}
+      {/* My own reservation status */}
+      {myReservation && pendingFromOthers.length === 0 && (
+        <View style={[styles.parkingReservationRow, { backgroundColor: myReservation.status === 'approved' ? colors.positive + '14' : '#FFF3CD' }]}>
+          <Ionicons
+            name={myReservation.status === 'approved' ? 'checkmark-circle-outline' : 'time-outline'}
+            size={14}
+            color={myReservation.status === 'approved' ? colors.positive : '#856404'}
+          />
+          <Text style={[styles.parkingReservationText, { color: myReservation.status === 'approved' ? colors.positive : '#856404' }]}>
+            {myReservation.status === 'approved' ? 'Your spot confirmed' : 'Your request pending'}
+            {' · '}{myReservation.date}{myReservation.startTime ? ` at ${myReservation.startTime}` : ''}
+          </Text>
+        </View>
+      )}
       {isFree && (
         <Pressable
           style={styles.claimBtn}
@@ -249,15 +311,23 @@ function GroceryWidget(): React.JSX.Element {
   const toggleItem = useGroceryStore((s) => s.toggleItem);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
+  const myName = profile?.name ?? '';
   const [input, setInput] = useState('');
   const pending = items.filter((i) => !i.isChecked).slice(0, 5);
+  const newGrocery = countNew(
+    items.filter((i) => !i.isChecked) as unknown as Array<{ createdAt: string; [k: string]: unknown }>,
+    lastSeen.grocery,
+    myName,
+    'addedBy'
+  );
 
   const handleAdd = useCallback(async (): Promise<void> => {
     const n = input.trim();
     if (!n) return;
-    await addItem(n, '', profile?.name ?? 'Someone', houseId ?? '').catch(() => {});
+    await addItem(n, '', myName || 'Someone', houseId ?? '').catch(() => {});
     setInput('');
-  }, [input, addItem, profile, houseId]);
+  }, [input, addItem, myName, houseId]);
 
   return (
     <WidgetCard>
@@ -266,9 +336,10 @@ function GroceryWidget(): React.JSX.Element {
           <Ionicons name="cart-outline" size={18} color="#2ED573" />
         </View>
         <Text style={styles.cardTitle}>Shared Groceries</Text>
-        <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button">
-          <Text style={styles.viewAll}>View all</Text>
-        </Pressable>
+        {newGrocery > 0
+          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newGrocery}</Text></View>
+          : <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button"><Text style={styles.viewAll}>View all</Text></Pressable>
+        }
       </View>
 
       <View style={styles.groceryInputRow}>
@@ -323,7 +394,18 @@ function GroceryWidget(): React.JSX.Element {
 // ── Votes Widget ──────────────────────────────────────────────────────────────
 function VotesWidget(): React.JSX.Element {
   const proposals = useVotingStore((s) => s.proposals);
+  const profile = useAuthStore((s) => s.profile);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
+  const myName = profile?.name ?? '';
+  const totalPeople = Math.max(1, housemates.length);
   const active = proposals.filter((p) => p.isOpen);
+  const newVotes = countNew(
+    active as unknown as Array<{ createdAt: string; [k: string]: unknown }>,
+    lastSeen.voting,
+    myName,
+    'createdBy'
+  );
 
   if (active.length === 0) {
     return (
@@ -344,6 +426,16 @@ function VotesWidget(): React.JSX.Element {
   const noCount  = top.votes.filter((v) => v.choice === 'no').length;
   const totalVotes = yesCount + noCount;
   const yesWidth = totalVotes > 0 ? (yesCount / totalVotes) * 100 : 0;
+  const myVote = top.votes.find((v) => v.person === myName)?.choice ?? null;
+  const allVoted = totalVotes >= totalPeople;
+
+  type BadgeState = { label: string; bg: string; color: string };
+  const badge: BadgeState = (() => {
+    if (!myVote) return { label: 'Vote now', bg: colors.danger + '20', color: colors.danger };
+    if (!allVoted) return { label: `Waiting (${totalVotes}/${totalPeople})`, bg: colors.textSecondary + '18', color: colors.textSecondary };
+    if (yesCount > noCount) return { label: 'Passed', bg: colors.positive + '20', color: colors.positive };
+    return { label: 'Rejected', bg: colors.negative + '20', color: colors.negative };
+  })();
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/voting')}>
@@ -352,9 +444,12 @@ function VotesWidget(): React.JSX.Element {
           <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
         </View>
         <Text style={styles.cardTitle}>Active Votes</Text>
-        <View style={[styles.badgePill, { backgroundColor: '#7C4DFF20' }]}>
-          <Text style={[styles.badgePillText, { color: '#7C4DFF' }]}>Action needed</Text>
-        </View>
+        {newVotes > 0
+          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newVotes}</Text></View>
+          : <View style={[styles.badgePill, { backgroundColor: badge.bg }]}>
+              <Text style={[styles.badgePillText, { color: badge.color }]}>{badge.label}</Text>
+            </View>
+        }
       </View>
       <Text style={styles.voteQuestion} numberOfLines={2}>{top.title}</Text>
       <View style={styles.voteBarRow}>
@@ -730,6 +825,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 15, ...font.semibold, color: colors.textPrimary, flex: 1 },
   cardMuted: { fontSize: 13, ...font.regular, color: colors.textSecondary, lineHeight: 18 },
+  cardBadge: {
+    minWidth: 20, height: 20, borderRadius: 10,
+    backgroundColor: colors.danger,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5,
+  },
+  cardBadgeText: { color: colors.white, fontSize: 11, ...font.bold },
   bigNumber: { fontSize: 30, ...font.extrabold, color: colors.textPrimary, letterSpacing: -1 },
   viewAll: { fontSize: 13, ...font.semibold, color: colors.primary },
 
@@ -773,6 +874,23 @@ const styles = StyleSheet.create({
   },
   parkingStatusText: { fontSize: 15, ...font.bold },
   parkingAge: { fontSize: 12, ...font.regular, color: colors.textSecondary },
+  parkingReservationRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, marginTop: 8,
+  },
+  parkingReservationText: { fontSize: 13, ...font.semibold, flex: 1 },
+  parkingPendingRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#FFF3CD', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 8, marginTop: 8, gap: 8,
+  },
+  parkingPendingInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  parkingPendingText: { fontSize: 13, ...font.medium, color: '#856404', flex: 1 },
+  approveBtn: {
+    backgroundColor: colors.positive, borderRadius: 7,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  approveBtnText: { fontSize: 12, ...font.bold, color: '#fff' },
   claimBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: colors.positive, borderRadius: 9,

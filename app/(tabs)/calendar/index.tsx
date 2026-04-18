@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,10 @@ import { useParkingStore } from '@stores/parkingStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useChoresStore } from '@stores/choresStore';
 import { useAuthStore } from '@stores/authStore';
+import { useSettingsStore } from '@stores/settingsStore';
+import { useCalendarSyncStore } from '@stores/calendarSyncStore';
+import { usePersonalCalendar } from '@hooks/usePersonalCalendar';
+import { openGoogleCalendar, downloadIcs } from '@utils/calendarWeb';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { colors } from '@constants/colors';
@@ -19,17 +23,20 @@ interface CalendarEvent {
   id: string;
   date: string;
   title: string;
-  type: 'event' | 'parking' | 'bill' | 'chore';
+  type: 'event' | 'parking' | 'parking-pending' | 'bill' | 'chore' | 'personal';
   detail?: string;
   startTime?: string;
   endTime?: string;
+  person?: string; // for parking: requestedBy
 }
 
 const TYPE_META: Record<CalendarEvent['type'], { icon: string; color: string }> = {
-  event:   { icon: '📅', color: '#6366f1' },
-  parking: { icon: '🚗', color: '#f59e0b' },
-  bill:    { icon: '💰', color: '#ef4444' },
-  chore:   { icon: '🧹', color: '#22c55e' },
+  event:           { icon: '📅', color: '#6366f1' },
+  parking:         { icon: '🚗', color: '#f59e0b' },
+  'parking-pending': { icon: '🅿️', color: '#94a3b8' },
+  bill:            { icon: '💰', color: '#ef4444' },
+  chore:           { icon: '🧹', color: '#22c55e' },
+  personal:        { icon: '👤', color: '#8b5cf6' },
 };
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -47,9 +54,10 @@ function AddEventModal({
   initialDate: string;
   onClose: () => void;
 }): React.JSX.Element {
-  const addEvent = useEventsStore((s) => s.addEvent);
-  const profile  = useAuthStore((s) => s.profile);
-  const houseId  = useAuthStore((s) => s.houseId);
+  const addEvent       = useEventsStore((s) => s.addEvent);
+  const profile        = useAuthStore((s) => s.profile);
+  const houseId        = useAuthStore((s) => s.houseId);
+  const syncHouseEvent = useCalendarSyncStore((s) => s.syncHouseEvent);
 
   const [title, setTitle]         = useState('');
   const [date, setDate]           = useState(initialDate);
@@ -71,7 +79,7 @@ function AddEventModal({
     if (!date) { setError('Pick a date'); return; }
     setSaving(true);
     try {
-      await addEvent(
+      const eventId = await addEvent(
         title.trim(),
         date,
         profile?.name ?? 'Someone',
@@ -79,6 +87,14 @@ function AddEventModal({
         startTime || undefined,
         endTime || undefined,
       );
+      syncHouseEvent({
+        id: eventId,
+        title: title.trim(),
+        date,
+        startTime: startTime || undefined,
+        endTime: endTime || undefined,
+        createdBy: profile?.name,
+      }).catch(() => {});
       setTitle('');
       setError('');
       onClose();
@@ -87,7 +103,7 @@ function AddEventModal({
     } finally {
       setSaving(false);
     }
-  }, [title, date, startTime, endTime, profile, houseId, addEvent, onClose]);
+  }, [title, date, startTime, endTime, profile, houseId, addEvent, syncHouseEvent, onClose]);
 
   return (
     <Modal
@@ -146,7 +162,7 @@ function AddEventModal({
   );
 }
 
-// ── Day Cell (with event labels) ──────────────────────────────────────────────
+// ── Day Cell ──────────────────────────────────────────────────────────────────
 function DayCell({
   day, isToday, isSelected, isCurrentMonth, events, onPress,
 }: {
@@ -192,13 +208,34 @@ export default function CalendarScreen(): React.JSX.Element {
   const reservations = useParkingStore((s) => s.reservations);
   const bills        = useBillsStore((s) => s.bills);
   const chores       = useChoresStore((s) => s.chores);
-  const profile      = useAuthStore((s) => s.profile);
+  const currency     = useSettingsStore((s) => s.currency);
+
+  const connected           = useCalendarSyncStore((s) => s.connected);
+  const autoSync            = useCalendarSyncStore((s) => s.autoSync);
+  const eventMap            = useCalendarSyncStore((s) => s.eventMap);
+  const syncHouseEvent      = useCalendarSyncStore((s) => s.syncHouseEvent);
+  const syncParkingApproved = useCalendarSyncStore((s) => s.syncParkingApproved);
+  const syncParkingPending  = useCalendarSyncStore((s) => s.syncParkingPending);
+  const connect             = useCalendarSyncStore((s) => s.connect);
 
   const today = new Date();
   const [viewYear, setViewYear]   = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(toYMD(today));
   const [showAdd, setShowAdd] = useState(false);
+
+  // Date range for personal calendar — covers the full 6-week grid
+  const [gridStart, gridEnd] = useMemo(() => {
+    const first = new Date(viewYear, viewMonth, 1);
+    const start = new Date(first);
+    start.setDate(1 - first.getDay());
+    const end = new Date(start);
+    end.setDate(start.getDate() + 41);
+    end.setHours(23, 59, 59);
+    return [start, end];
+  }, [viewYear, viewMonth]);
+
+  const personalEvents = usePersonalCalendar(gridStart, gridEnd);
 
   const allEvents = useMemo((): CalendarEvent[] => {
     const list: CalendarEvent[] = [];
@@ -207,21 +244,26 @@ export default function CalendarScreen(): React.JSX.Element {
     }
     for (const r of reservations) {
       if (r.status === 'approved') {
-        list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${r.requestedBy}`, type: 'parking', detail: r.note, startTime: r.startTime, endTime: r.endTime });
+        list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${r.requestedBy}`, type: 'parking', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
+      } else if (r.status === 'pending') {
+        list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${r.requestedBy} (pending)`, type: 'parking-pending', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
       }
     }
     for (const b of bills) {
-      list.push({ id: `bl-${b.id}`, date: b.date, title: b.title, type: 'bill', detail: `₪${b.amount.toFixed(2)}` });
+      list.push({ id: `bl-${b.id}`, date: b.date, title: b.title, type: 'bill', detail: `${currency}${b.amount.toFixed(2)}` });
     }
     for (const c of chores) {
       if (c.recurrence === 'once' && c.recurrenceDay) {
         list.push({ id: `ch-${c.id}`, date: c.recurrenceDay, title: c.name, type: 'chore', detail: c.claimedBy ?? undefined });
       }
     }
+    for (const p of personalEvents) {
+      list.push({ id: p.id, date: p.date, title: p.title, type: 'personal', startTime: p.startTime, endTime: p.endTime });
+    }
     return list;
-  }, [events, reservations, bills, chores]);
+  }, [events, reservations, bills, chores, currency, personalEvents]);
 
-  const eventMap = useMemo((): Record<string, Array<{ title: string; color: string }>> => {
+  const eventMap2 = useMemo((): Record<string, Array<{ title: string; color: string }>> => {
     const map: Record<string, Array<{ title: string; color: string }>> = {};
     for (const e of allEvents) {
       if (!map[e.date]) map[e.date] = [];
@@ -259,7 +301,21 @@ export default function CalendarScreen(): React.JSX.Element {
   );
 
   const todayStr = toYMD(today);
-  const myName   = profile?.name ?? '';
+
+  // ── Manual "add to my calendar" ───────────────────────────────────────────
+  const handleManualSync = useCallback(async (item: CalendarEvent): Promise<void> => {
+    if (!connected) {
+      const ok = await connect();
+      if (!ok) return;
+    }
+    if (item.type === 'event') {
+      await syncHouseEvent({ id: item.id.replace('ev-', ''), title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime, createdBy: item.detail });
+    } else if (item.type === 'parking') {
+      await syncParkingApproved({ id: item.id.replace('pk-', ''), requestedBy: item.person ?? '', date: item.date, startTime: item.startTime, endTime: item.endTime });
+    } else if (item.type === 'parking-pending') {
+      await syncParkingPending({ id: item.id.replace('pk-', ''), requestedBy: item.person ?? '', date: item.date, startTime: item.startTime, endTime: item.endTime });
+    }
+  }, [connected, connect, syncHouseEvent, syncParkingApproved, syncParkingPending]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -269,7 +325,9 @@ export default function CalendarScreen(): React.JSX.Element {
         <View style={styles.pageHeader}>
           <View>
             <Text style={styles.pageTitle}>Calendar</Text>
-            <Text style={styles.pageSubtitle}>House schedule</Text>
+            <Text style={styles.pageSubtitle}>
+              {connected ? 'Synced with your calendar' : 'House schedule'}
+            </Text>
           </View>
           <Pressable style={styles.addBtn} onPress={() => setShowAdd(true)} accessibilityRole="button">
             <Ionicons name="add" size={18} color="#fff" />
@@ -306,7 +364,7 @@ export default function CalendarScreen(): React.JSX.Element {
                     isToday={ymd === todayStr}
                     isSelected={ymd === selectedDate}
                     isCurrentMonth={day.getMonth() === viewMonth}
-                    events={eventMap[ymd] ?? []}
+                    events={eventMap2[ymd] ?? []}
                     onPress={() => setSelectedDate(ymd)}
                   />
                 );
@@ -320,7 +378,7 @@ export default function CalendarScreen(): React.JSX.Element {
           {(Object.entries(TYPE_META) as [CalendarEvent['type'], { icon: string; color: string }][]).map(([type, meta]) => (
             <View key={type} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
-              <Text style={styles.legendLabel}>{meta.icon} {type.charAt(0).toUpperCase() + type.slice(1)}</Text>
+              <Text style={styles.legendLabel}>{meta.icon} {type === 'parking-pending' ? 'Parking (pending)' : type.charAt(0).toUpperCase() + type.slice(1)}</Text>
             </View>
           ))}
         </View>
@@ -352,8 +410,18 @@ export default function CalendarScreen(): React.JSX.Element {
                 const timeLabel = item.startTime
                   ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
                   : null;
+                const syncKey = item.type === 'parking' || item.type === 'parking-pending'
+                  ? `pk-${item.id.replace('pk-', '')}`
+                  : `ev-${item.id.replace('ev-', '')}`;
+                const alreadySynced = !!eventMap[syncKey];
+                const showSyncBtn = item.type === 'event' || item.type === 'parking' || item.type === 'parking-pending';
+                const hideSyncBtn = alreadySynced && (
+                  (item.type === 'event' && connected && autoSync.events) ||
+                  ((item.type === 'parking' || item.type === 'parking-pending') && connected && autoSync.parking)
+                );
+
                 return (
-                  <View style={styles.eventRow}>
+                  <View style={[styles.eventRow, item.type === 'personal' && styles.eventRowPersonal]}>
                     <View style={[styles.eventIconWrap, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
                       <Text style={styles.eventIcon}>{TYPE_META[item.type].icon}</Text>
                     </View>
@@ -365,10 +433,43 @@ export default function CalendarScreen(): React.JSX.Element {
                     <View style={styles.eventRight}>
                       <View style={[styles.typeBadge, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
                         <Text style={[styles.typeBadgeText, { color: TYPE_META[item.type].color }]}>
-                          {item.type}
+                          {item.type === 'parking-pending' ? 'pending' : item.type}
                         </Text>
                       </View>
-                      {item.type === 'event' && item.detail === myName && (
+                      {showSyncBtn && Platform.OS === 'web' ? (
+                        <>
+                          <Pressable
+                            onPress={() => openGoogleCalendar({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Add to Google Calendar"
+                          >
+                            <Ionicons name="logo-google" size={16} color={colors.textSecondary} />
+                          </Pressable>
+                          <Pressable
+                            onPress={() => downloadIcs({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Download .ics file"
+                          >
+                            <Ionicons name="download-outline" size={16} color={colors.textSecondary} />
+                          </Pressable>
+                        </>
+                      ) : showSyncBtn && !hideSyncBtn ? (
+                        <Pressable
+                          onPress={() => handleManualSync(item).catch(() => {})}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
+                        >
+                          <Ionicons
+                            name={alreadySynced ? 'checkmark-circle' : 'calendar-outline'}
+                            size={18}
+                            color={alreadySynced ? colors.positive : colors.textSecondary}
+                          />
+                        </Pressable>
+                      ) : null}
+                      {item.type === 'event' && (
                         <Pressable
                           onPress={() => removeEvent(item.id.replace('ev-', ''))}
                           hitSlop={8}
@@ -447,6 +548,7 @@ const styles = StyleSheet.create({
   emptyDay: { paddingVertical: sizes.lg, alignItems: 'center' },
   emptyDayText: { color: colors.textSecondary, fontSize: 14, ...font.regular, textAlign: 'center' },
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.background, borderRadius: 10, padding: sizes.sm },
+  eventRowPersonal: { opacity: 0.75 },
   eventIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   eventIcon: { fontSize: 18 },
   eventInfo: { flex: 1 },

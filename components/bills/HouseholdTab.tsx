@@ -14,6 +14,7 @@ import {
 } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { DateInput } from '@components/shared/DateInput';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -42,6 +43,7 @@ function FairnessSection(): React.JSX.Element {
   const { t } = useTranslation();
   const bills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
+  const currency = useSettingsStore((s) => s.currency);
   const fairness = calculateFairness(bills, payments);
 
   if (fairness.length === 0) return <></>;
@@ -60,9 +62,9 @@ function FairnessSection(): React.JSX.Element {
               backgroundColor: f.balance >= 0 ? colors.positive : colors.negative,
             }]} />
           </View>
-          <Text style={styles.fairnessAmount}>₪{f.total.toFixed(0)}</Text>
+          <Text style={styles.fairnessAmount}>{currency}{f.total.toFixed(0)}</Text>
           <Text style={[styles.fairnessBalance, { color: f.balance >= 0 ? colors.positive : colors.negative }]}>
-            {f.balance >= 0 ? `+₪${f.balance.toFixed(0)}` : `-₪${Math.abs(f.balance).toFixed(0)}`}
+            {f.balance >= 0 ? `+${currency}${f.balance.toFixed(0)}` : `-${currency}${Math.abs(f.balance).toFixed(0)}`}
           </Text>
         </View>
       ))}
@@ -80,6 +82,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const deleteBill = useRecurringBillsStore((s) => s.deleteBill);
   const deletePayment = useRecurringBillsStore((s) => s.deletePayment);
   const houseId = useAuthStore((s) => s.houseId);
+  const currency = useSettingsStore((s) => s.currency);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const [logging, setLogging] = useState(false);
@@ -119,7 +122,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             <View style={styles.metaChip}>
               <Text style={styles.metaChipText}>{t(`bills.freq_${bill.frequency}`)}</Text>
             </View>
-            <Text style={styles.typicalAmount}>~₪{bill.typicalAmount}</Text>
+            <Text style={styles.typicalAmount}>~{currency}{bill.typicalAmount}</Text>
           </View>
         </View>
         <Pressable onPress={() => deleteBill(bill.id)} style={styles.deleteBtn} accessibilityRole="button" hitSlop={8}>
@@ -130,7 +133,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       {/* Last payment + due date */}
       <View style={styles.billStatus}>
         {last ? (
-          <Text style={styles.lastPaid}>{t('bills.household_last_paid')} {formatDate(last.paidAt)} · ₪{last.amount.toFixed(0)}</Text>
+          <Text style={styles.lastPaid}>{t('bills.household_last_paid')} {formatDate(last.paidAt)} · {currency}{last.amount.toFixed(0)}</Text>
         ) : (
           <Text style={styles.neverPaid}>{t('bills.household_no_payments')}</Text>
         )}
@@ -186,7 +189,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           {billPayments.map((p) => (
             <View key={p.id} style={styles.historyRow}>
               <Text style={styles.historyDate}>{formatDate(p.paidAt)}</Text>
-              <Text style={styles.historyAmount}>₪{p.amount.toFixed(0)}</Text>
+              <Text style={styles.historyAmount}>{currency}{p.amount.toFixed(0)}</Text>
               {p.note ? <Text style={styles.historyNote}>{p.note}</Text> : null}
               <Pressable onPress={() => deletePayment(p.id)} hitSlop={8}>
                 <Ionicons name="close" size={14} color={colors.textSecondary} />

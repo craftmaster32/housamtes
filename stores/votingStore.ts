@@ -89,10 +89,18 @@ export const useVotingStore = create<VotingStore>()(
         const proposal = get().proposals.find((p) => p.id === proposalId);
         if (!proposal) return;
         const votes: Vote[] = [...proposal.votes.filter((v) => v.person !== person), { person, choice }];
-        await supabase.from('proposals').update({ votes }).eq('id', proposalId);
+        // Optimistically update UI first
         set({
           proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes } : p)),
         });
+        const { error } = await supabase.from('proposals').update({ votes }).eq('id', proposalId);
+        if (error) {
+          // Revert on failure
+          set({
+            proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes: proposal.votes } : p)),
+          });
+          throw new Error(`Failed to cast vote: ${error.message}`);
+        }
       },
       closeProposal: async (proposalId): Promise<void> => {
         await supabase.from('proposals').update({ is_open: false }).eq('id', proposalId);

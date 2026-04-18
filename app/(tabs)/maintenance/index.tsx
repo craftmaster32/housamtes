@@ -35,7 +35,7 @@ function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Eleme
   );
 }
 
-function RequestCard({ request }: { request: ReturnType<typeof useMaintenanceStore.getState>['requests'][0] }): React.JSX.Element {
+function RequestCard({ request, myName }: { request: ReturnType<typeof useMaintenanceStore.getState>['requests'][0]; myName: string }): React.JSX.Element {
   const { t } = useTranslation();
   const updateStatus = useMaintenanceStore((s) => s.updateStatus);
   const remove = useMaintenanceStore((s) => s.remove);
@@ -59,9 +59,11 @@ function RequestCard({ request }: { request: ReturnType<typeof useMaintenanceSto
             {request.category} · {t('maintenance.reported_by', { name: request.reportedBy })} · {timeAgo(request.createdAt)}
           </Text>
         </View>
-        <Pressable onPress={handleRemove} style={styles.removeBtn}>
-          <Text style={styles.removeBtnText}>✕</Text>
-        </Pressable>
+        {request.reportedBy === myName && (
+          <Pressable onPress={handleRemove} style={styles.removeBtn}>
+            <Text style={styles.removeBtnText}>✕</Text>
+          </Pressable>
+        )}
       </View>
 
       {request.description ? (
@@ -200,7 +202,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
           </View>
         )}
 
-        {open.map((r) => <RequestCard key={r.id} request={r} />)}
+        {open.map((r) => <RequestCard key={r.id} request={r} myName={profile?.name ?? ''} />)}
 
         {resolved.length > 0 && (
           <>
@@ -209,7 +211,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
                 {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
               </Text>
             </Pressable>
-            {showResolved && resolved.map((r) => <RequestCard key={r.id} request={r} />)}
+            {showResolved && resolved.map((r) => <RequestCard key={r.id} request={r} myName={profile?.name ?? ''} />)}
           </>
         )}
 
