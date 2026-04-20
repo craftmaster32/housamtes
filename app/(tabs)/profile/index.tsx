@@ -205,6 +205,110 @@ function PersonalDetailsForm({
   );
 }
 
+// ── Change password form ───────────────────────────────────────────────────────
+function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Element {
+  const changePassword = useAuthStore((s) => s.changePassword);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword]         = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const handleSave = useCallback(async (): Promise<void> => {
+    if (!currentPassword) { setError('Please enter your current password.'); return; }
+    if (newPassword.length < 8) { setError('New password must be at least 8 characters.'); return; }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      await changePassword(currentPassword, newPassword);
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update password. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [currentPassword, newPassword, confirmPassword, changePassword]);
+
+  if (success) {
+    return (
+      <View style={styles.pwForm}>
+        <Text style={styles.detailsSuccess}>Password updated successfully.</Text>
+        <Pressable onPress={onDone} accessibilityRole="button">
+          <Text style={styles.cancelText}>Done</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.pwForm}>
+      <View>
+        <Text style={styles.detailsLabel}>Current password</Text>
+        <TextInput
+          style={styles.textInput}
+          value={currentPassword}
+          onChangeText={(v) => { setCurrentPassword(v); setError(''); }}
+          placeholder="Your current password"
+          placeholderTextColor={colors.textDisabled}
+          secureTextEntry
+          autoCapitalize="none"
+          autoComplete="off"
+          accessibilityLabel="Current password"
+        />
+      </View>
+      <View>
+        <Text style={styles.detailsLabel}>New password</Text>
+        <TextInput
+          style={styles.textInput}
+          value={newPassword}
+          onChangeText={(v) => { setNewPassword(v); setError(''); }}
+          placeholder="At least 8 characters"
+          placeholderTextColor={colors.textDisabled}
+          secureTextEntry
+          autoCapitalize="none"
+          accessibilityLabel="New password"
+        />
+      </View>
+      <View>
+        <Text style={styles.detailsLabel}>Confirm new password</Text>
+        <TextInput
+          style={styles.textInput}
+          value={confirmPassword}
+          onChangeText={(v) => { setConfirmPassword(v); setError(''); }}
+          placeholder="Repeat new password"
+          placeholderTextColor={colors.textDisabled}
+          secureTextEntry
+          autoCapitalize="none"
+          accessibilityLabel="Confirm new password"
+        />
+      </View>
+      {!!error && <Text style={styles.fieldError}>{error}</Text>}
+      <View style={styles.pwBtns}>
+        <Pressable
+          style={[styles.saveBtn, saving && styles.saveBtnOff]}
+          onPress={handleSave}
+          disabled={saving}
+          accessibilityRole="button"
+        >
+          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Update password'}</Text>
+        </Pressable>
+        <Pressable onPress={onDone} accessibilityRole="button">
+          <Text style={styles.cancelText}>Cancel</Text>
+        </Pressable>
+      </View>
+      <Pressable
+        onPress={() => router.push('/(auth)/forgot-password')}
+        accessibilityRole="button"
+        style={styles.forgotLink}
+      >
+        <Text style={styles.forgotLinkText}>Forgot your password?</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function ProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -224,14 +328,18 @@ export default function ProfileScreen(): React.JSX.Element {
   const loadBills  = useBillsStore((s) => s.load);
   const months     = useSpendingStore((s) => s.months);
 
-  const [showDetailsForm, setShowDetailsForm] = useState(false);
+  const [showDetailsForm, setShowDetailsForm]   = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
 
-  // Load bills for recent activity if not already loaded
+  // Load bills for recent activity if not already loaded by the root layout
   useEffect(() => {
     if (houseId && bills.length === 0) loadBills(houseId);
-  }, [houseId, bills.length, loadBills]);
+    // Intentionally omit bills.length — we only want to trigger on houseId change,
+    // not every time a bill is added/deleted (which would cause a redundant fetch when count hits 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [houseId, loadBills]);
 
   const initial = (profile?.name ?? '?')[0].toUpperCase();
   const isOwnerOrAdmin = role === 'owner' || role === 'admin';
@@ -363,8 +471,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
   const handleLogout = useCallback(() => {
     if (Platform.OS === 'web') {
-      if (!window.confirm(t('profile.sign_out_confirm'))) return;
-      signOut().then(() => router.replace('/(auth)/welcome'));
+      signOut().then(() => router.replace('/(auth)/welcome')).catch(() => {});
       return;
     }
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
@@ -518,6 +625,19 @@ export default function ProfileScreen(): React.JSX.Element {
               )}
               <View style={styles.rowDivider} />
               <ProfileRow
+                iconName="lock-closed-outline"
+                title="Change password"
+                sub={showPasswordForm ? 'Tap to close' : 'Update your login password'}
+                onPress={() => { setShowPasswordForm((v) => !v); setShowDetailsForm(false); }}
+              />
+              {showPasswordForm && (
+                <>
+                  <View style={styles.rowDivider} />
+                  <ChangePasswordForm onDone={() => setShowPasswordForm(false)} />
+                </>
+              )}
+              <View style={styles.rowDivider} />
+              <ProfileRow
                 iconName="card-outline"
                 title="Payouts & refunds"
                 sub="Where repayments should go"
@@ -535,7 +655,7 @@ export default function ProfileScreen(): React.JSX.Element {
                 iconName="settings-outline"
                 title="App settings"
                 sub="Notifications, theme and account"
-                onPress={() => router.push('/(tabs)/more/settings')}
+                onPress={() => router.push({ pathname: '/(tabs)/more/settings', params: { from: 'profile' } })}
               />
             </View>
           </View>
@@ -893,4 +1013,6 @@ const styles = StyleSheet.create({
   cancelText:   { color: colors.textSecondary, fontSize: 14, ...font.regular },
 
   version: { color: colors.textDisabled, fontSize: 13, ...font.regular, textAlign: 'center', marginTop: sizes.sm },
+  forgotLink: { alignSelf: 'flex-start', marginTop: 2 },
+  forgotLinkText: { fontSize: 13, ...font.regular, color: colors.primary },
 });

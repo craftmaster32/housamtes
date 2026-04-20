@@ -1,11 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEventsStore } from '@stores/eventsStore';
 import { useParkingStore } from '@stores/parkingStore';
-import { useBillsStore } from '@stores/billsStore';
+import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useChoresStore } from '@stores/choresStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -203,12 +203,14 @@ function DayCell({
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function CalendarScreen(): React.JSX.Element {
-  const events       = useEventsStore((s) => s.events);
-  const removeEvent  = useEventsStore((s) => s.removeEvent);
-  const reservations = useParkingStore((s) => s.reservations);
-  const bills        = useBillsStore((s) => s.bills);
-  const chores       = useChoresStore((s) => s.chores);
-  const currency     = useSettingsStore((s) => s.currency);
+  const events                     = useEventsStore((s) => s.events);
+  const removeEvent                = useEventsStore((s) => s.removeEvent);
+  const reservations               = useParkingStore((s) => s.reservations);
+  const recurringBills             = useRecurringBillsStore((s) => s.bills);
+  const recurringPayments          = useRecurringBillsStore((s) => s.payments);
+  const chores                     = useChoresStore((s) => s.chores);
+  const currency                   = useSettingsStore((s) => s.currency);
+  const showRecurringBillsOnCalendar = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
 
   const connected           = useCalendarSyncStore((s) => s.connected);
   const autoSync            = useCalendarSyncStore((s) => s.autoSync);
@@ -249,8 +251,13 @@ export default function CalendarScreen(): React.JSX.Element {
         list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${r.requestedBy} (pending)`, type: 'parking-pending', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
       }
     }
-    for (const b of bills) {
-      list.push({ id: `bl-${b.id}`, date: b.date, title: b.title, type: 'bill', detail: `${currency}${b.amount.toFixed(2)}` });
+    if (showRecurringBillsOnCalendar) {
+      for (const p of recurringPayments) {
+        const bill = recurringBills.find((b) => b.id === p.billId);
+        if (bill) {
+          list.push({ id: `bl-${p.id}`, date: p.paidAt, title: bill.name, type: 'bill', detail: `${currency}${p.amount.toFixed(2)}` });
+        }
+      }
     }
     for (const c of chores) {
       if (c.recurrence === 'once' && c.recurrenceDay) {
@@ -261,7 +268,7 @@ export default function CalendarScreen(): React.JSX.Element {
       list.push({ id: p.id, date: p.date, title: p.title, type: 'personal', startTime: p.startTime, endTime: p.endTime });
     }
     return list;
-  }, [events, reservations, bills, chores, currency, personalEvents]);
+  }, [events, reservations, recurringBills, recurringPayments, showRecurringBillsOnCalendar, chores, currency, personalEvents]);
 
   const eventMap2 = useMemo((): Record<string, Array<{ title: string; color: string }>> => {
     const map: Record<string, Array<{ title: string; color: string }>> = {};
@@ -471,7 +478,13 @@ export default function CalendarScreen(): React.JSX.Element {
                       ) : null}
                       {item.type === 'event' && (
                         <Pressable
-                          onPress={() => removeEvent(item.id.replace('ev-', ''))}
+                          onPress={async () => {
+                            try {
+                              await removeEvent(item.id.replace('ev-', ''));
+                            } catch {
+                              Alert.alert('Error', 'Could not remove event. Try again.');
+                            }
+                          }}
                           hitSlop={8}
                           accessibilityRole="button"
                         >

@@ -88,6 +88,7 @@ export const useVotingStore = create<VotingStore>()(
       castVote: async (proposalId, person, choice): Promise<void> => {
         const proposal = get().proposals.find((p) => p.id === proposalId);
         if (!proposal) return;
+        if (!proposal.isOpen) throw new Error('This vote is already closed');
         const votes: Vote[] = [...proposal.votes.filter((v) => v.person !== person), { person, choice }];
         // Optimistically update UI first
         set({
@@ -103,13 +104,15 @@ export const useVotingStore = create<VotingStore>()(
         }
       },
       closeProposal: async (proposalId): Promise<void> => {
-        await supabase.from('proposals').update({ is_open: false }).eq('id', proposalId);
+        const { error } = await supabase.from('proposals').update({ is_open: false }).eq('id', proposalId);
+        if (error) throw new Error(`Failed to close proposal: ${error.message}`);
         set({
           proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, isOpen: false } : p)),
         });
       },
       remove: async (proposalId): Promise<void> => {
-        await supabase.from('proposals').delete().eq('id', proposalId);
+        const { error } = await supabase.from('proposals').delete().eq('id', proposalId);
+        if (error) throw new Error(`Failed to remove proposal: ${error.message}`);
         set({ proposals: get().proposals.filter((p) => p.id !== proposalId) });
       },
     }),

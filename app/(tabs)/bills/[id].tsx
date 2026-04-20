@@ -19,6 +19,9 @@ export default function BillDetailScreen(): React.JSX.Element {
   const settleBill = useBillsStore((s) => s.settleBill);
   const deleteBill = useBillsStore((s) => s.deleteBill);
   const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
+  const role = useAuthStore((s) => s.role);
+  const canDelete = role === 'owner' || role === 'admin';
   const currency = useSettingsStore((s) => s.currency);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -47,21 +50,25 @@ export default function BillDetailScreen(): React.JSX.Element {
   }, [bill, title, amount, date, notes, editBill, t]);
 
   const handleSettle = useCallback(async () => {
-    if (!bill || !profile) return;
+    if (!bill || !profile || !houseId) return;
     try {
       setIsSettling(true);
-      await settleBill(bill.id, profile.name);
+      await settleBill(bill.id, profile.name, houseId);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('bills.failed_settle'));
     } finally {
       setIsSettling(false);
     }
-  }, [bill, profile, settleBill, t]);
+  }, [bill, profile, houseId, settleBill, t]);
 
   const handleDelete = useCallback(async () => {
     if (!bill) return;
-    await deleteBill(bill.id);
-    router.replace('/(tabs)/bills');
+    try {
+      await deleteBill(bill.id);
+      router.replace('/(tabs)/bills');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete bill');
+    }
   }, [bill, deleteBill]);
 
   if (!bill) {
@@ -207,7 +214,7 @@ export default function BillDetailScreen(): React.JSX.Element {
           </Button>
         )}
 
-        {!isEditing && (
+        {!isEditing && canDelete && (
           <Button
             mode="outlined"
             onPress={handleDelete}

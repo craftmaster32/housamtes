@@ -5,6 +5,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import webpush from 'npm:web-push';
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 const PREF_COLUMN: Record<string, string> = {
@@ -27,13 +33,16 @@ interface SendPushPayload {
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: CORS_HEADERS, status: 200 });
+  }
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return new Response('Method not allowed', { status: 405, headers: CORS_HEADERS });
   }
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
-    return new Response('Unauthorized', { status: 401 });
+    return new Response('Unauthorized', { status: 401, headers: CORS_HEADERS });
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -45,14 +54,14 @@ Deno.serve(async (req: Request) => {
   });
   const { data: { user }, error: authError } = await userClient.auth.getUser();
   if (authError || !user) {
-    return new Response('Unauthorized', { status: 401 });
+    return new Response('Unauthorized', { status: 401, headers: CORS_HEADERS });
   }
 
   let payload: SendPushPayload;
   try {
     payload = await req.json() as SendPushPayload;
   } catch {
-    return new Response('Invalid JSON', { status: 400 });
+    return new Response('Invalid JSON', { status: 400, headers: CORS_HEADERS });
   }
 
   const { house_id, exclude_user_id, title, body, data, notification_type } = payload;
@@ -65,7 +74,7 @@ Deno.serve(async (req: Request) => {
     .maybeSingle();
 
   if (!membership) {
-    return new Response('Forbidden', { status: 403 });
+    return new Response('Forbidden', { status: 403, headers: CORS_HEADERS });
   }
 
   // ── Fetch tokens + subscriptions for this house (excluding sender) ──────────
@@ -99,6 +108,9 @@ Deno.serve(async (req: Request) => {
   const prefColumn = notification_type ? PREF_COLUMN[notification_type] : null;
 
   function isEnabled(userId: string): boolean {
+    // Unknown notification_type → fail closed (don't send) so future types never
+    // accidentally bypass per-user mute preferences before they're wired up.
+    if (notification_type && !prefColumn) return false;
     if (!prefColumn) return true;
     const prefs = prefMap.get(userId);
     if (!prefs) return true; // no prefs row = all enabled by default
@@ -116,12 +128,23 @@ Deno.serve(async (req: Request) => {
     const messages = expoTokens.map((to) => ({
       to, title, body, data: data ?? {}, sound: 'default', priority: 'high',
     }));
-    await fetch(EXPO_PUSH_URL, {
+    const expoRes = await fetch(EXPO_PUSH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(messages),
     });
-    expoSent = expoTokens.length;
+    const expoBody = await expoRes.json() as { data?: Array<{ status: string; details?: { error?: string } }> };
+    const tickets = expoBody.data ?? [];
+
+    // Remove tokens that Expo says are no longer registered
+    const badTokens = tickets
+      .map((ticket, i) => (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered' ? expoTokens[i] : null))
+      .filter((t): t is string => t !== null);
+    if (badTokens.length > 0) {
+      await supabase.from('push_tokens').delete().in('token', badTokens);
+    }
+
+    expoSent = tickets.filter((t) => t.status === 'ok').length;
   }
 
   // ── Send Web push (browser) ─────────────────────────────────────────────────
@@ -129,9 +152,10 @@ Deno.serve(async (req: Request) => {
   const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
   let webSent = 0;
 
-  if (vapidPublicKey && vapidPrivateKey && webSubRows.length > 0) {
+  const vapidContact = Deno.env.get('VAPID_CONTACT_EMAIL');
+  if (vapidPublicKey && vapidPrivateKey && vapidContact && webSubRows.length > 0) {
     webpush.setVapidDetails(
-      'mailto:liorhalivner@gmail.com',
+      `mailto:${vapidContact}`,
       vapidPublicKey,
       vapidPrivateKey
     );
@@ -139,7 +163,7 @@ Deno.serve(async (req: Request) => {
     const eligibleSubs = webSubRows.filter((r: { user_id: string }) => isEnabled(r.user_id));
     const webPayload = JSON.stringify({ title, body, data: data ?? {} });
 
-    await Promise.allSettled(
+    const webResults = await Promise.allSettled(
       eligibleSubs.map((sub: { endpoint: string; p256dh: string; auth: string }) =>
         webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -147,10 +171,22 @@ Deno.serve(async (req: Request) => {
         )
       )
     );
-    webSent = eligibleSubs.length;
+
+    // Clean up expired subscriptions (HTTP 410 = subscription no longer valid)
+    const expiredEndpoints: string[] = [];
+    webResults.forEach((result, i) => {
+      if (result.status === 'rejected' && (result.reason as { statusCode?: number })?.statusCode === 410) {
+        expiredEndpoints.push(eligibleSubs[i].endpoint);
+      }
+    });
+    if (expiredEndpoints.length > 0) {
+      await supabase.from('web_push_subscriptions').delete().in('endpoint', expiredEndpoints);
+    }
+
+    webSent = webResults.filter((r) => r.status === 'fulfilled').length;
   }
 
   return new Response(JSON.stringify({ expo: expoSent, web: webSent }), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });
 });

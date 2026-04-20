@@ -146,8 +146,8 @@ export default function RootLayout(): React.JSX.Element | null {
   useEffect(() => {
     if (!authStable) return;
 
-    // Never redirect away from the reset-password screen — it handles itself
-    if (currentScreen === 'reset-password') return;
+    // Never redirect away from these screens — they handle their own flow
+    if (currentScreen === 'reset-password' || currentScreen === 'forgot-password') return;
 
     if (isPasswordRecovery) {
       router.replace('/(auth)/reset-password');
@@ -200,10 +200,10 @@ export default function RootLayout(): React.JSX.Element | null {
       useConditionStore.getState().unsubscribe();
     };
   }, [
-    houseId,
+    houseId, user,
     loadHousemates, loadBills, loadRecurringBills, loadParking, loadGrocery,
     loadChores, loadEvents, loadAnnouncements, loadMaintenance,
-    loadVoting, loadCondition,
+    loadVoting, loadCondition, loadNotificationPrefs,
   ]);
 
   const showChrome = !!user && !!houseId;

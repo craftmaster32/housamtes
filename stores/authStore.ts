@@ -1,11 +1,26 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { AppState, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@lib/supabase';
 import { identifyUser, clearUser, captureError } from '@lib/errorTracking';
 import { registerPushToken, unregisterPushToken } from '@lib/notifications';
 import { registerWebPush, unregisterWebPush } from '@lib/webPush';
 import type { User, Session } from '@supabase/supabase-js';
+
+const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
+
+async function savePendingEmail(email: string): Promise<void> {
+  try { await AsyncStorage.setItem(PENDING_EMAIL_KEY, email); } catch { /* non-fatal */ }
+}
+
+async function loadPendingEmail(): Promise<string | null> {
+  try { return await AsyncStorage.getItem(PENDING_EMAIL_KEY); } catch { return null; }
+}
+
+async function clearPendingEmail(): Promise<void> {
+  try { await AsyncStorage.removeItem(PENDING_EMAIL_KEY); } catch { /* non-fatal */ }
+}
 
 // ── Persistent house cache ────────────────────────────────────────────────────
 // Stores houseId keyed by userId so the app never forgets which house
@@ -136,9 +151,12 @@ interface AuthStore {
   setHouseId: (houseId: string) => void;
   reloadMembership: () => Promise<void>;
   leaveHouse: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   clearError: () => void;
   clearPasswordRecovery: () => void;
 }
+
+let _appStateSub: ReturnType<typeof AppState.addEventListener> | null = null;
 
 export const useAuthStore = create<AuthStore>()(
   devtools(
@@ -155,8 +173,10 @@ export const useAuthStore = create<AuthStore>()(
       isPasswordRecovery: false,
 
       initialize: async (): Promise<void> => {
-        // Refresh tokens when the app comes back to the foreground
-        AppState.addEventListener('change', (state) => {
+        // Remove any previously attached AppState listener before re-attaching
+        // (guards against double-init on Fast Refresh or double render)
+        _appStateSub?.remove();
+        _appStateSub = AppState.addEventListener('change', (state) => {
           if (state === 'active') {
             supabase.auth.startAutoRefresh().catch(() => {
               // Stale token — sign out silently so the user lands on the login screen
@@ -208,6 +228,10 @@ export const useAuthStore = create<AuthStore>()(
           }
         });
 
+        // Restore pending verification email across restarts
+        const restoredEmail = await loadPendingEmail();
+        if (restoredEmail) set({ pendingEmail: restoredEmail });
+
         try {
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
           // Invalid / expired refresh token — clear it so the user is redirected to login
@@ -252,6 +276,7 @@ export const useAuthStore = create<AuthStore>()(
             // The handle_new_user trigger already created the profile row — no insert needed here.
             if (!data.session) {
               set({ pendingEmail: email, isLoading: false });
+              savePendingEmail(email).catch(() => {});
               return { needsVerification: true };
             }
             const profile = await fetchProfile(data.user.id, data.user.user_metadata as Record<string, unknown>);
@@ -280,7 +305,12 @@ export const useAuthStore = create<AuthStore>()(
               fetchProfile(data.user.id, data.user.user_metadata as Record<string, unknown>),
               fetchMemberData(data.user.id),
             ]);
-            set({ user: data.user, session: data.session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, isLoading: false });
+            clearPendingEmail().catch(() => {});
+            set({ user: data.user, session: data.session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, isLoading: false, pendingEmail: null });
+            if (memberData.houseId) {
+              registerPushToken(data.user.id, memberData.houseId);
+              registerWebPush(data.user.id, memberData.houseId);
+            }
           }
         } catch (err) {
           const message = sanitizeAuthError(err);
@@ -290,10 +320,19 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       signOut: async (): Promise<void> => {
+        // Unregister push tokens before clearing state so we still have the IDs.
+        // Done here explicitly because if signOut() fails (expired token), onAuthStateChange
+        // never fires and tokens would otherwise remain registered indefinitely.
+        const { user: prevUser, houseId: prevHouseId } = useAuthStore.getState();
+        if (prevUser && prevHouseId) {
+          unregisterPushToken(prevUser.id, prevHouseId);
+          unregisterWebPush(prevUser.id, prevHouseId);
+        }
         // Clear local state regardless of whether the Supabase call succeeds
         // (e.g. expired token will cause signOut to fail but user should still be logged out locally)
         await supabase.auth.signOut().catch(() => {});
-        set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
+        clearPendingEmail().catch(() => {});
+        set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS, pendingEmail: null });
       },
 
       updateProfile: async (name: string): Promise<void> => {
@@ -310,6 +349,18 @@ export const useAuthStore = create<AuthStore>()(
       updateEmail: async (email: string): Promise<void> => {
         const { error } = await supabase.auth.updateUser({ email });
         if (error) throw new Error('Could not update email. Please try again.');
+      },
+
+      changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+        const { user } = useAuthStore.getState();
+        if (!user?.email) throw new Error('Not signed in.');
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: currentPassword,
+        });
+        if (verifyError) throw new Error('Current password is incorrect.');
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw new Error('Could not update password. Please try again.');
       },
 
       uploadAvatar: async (uri: string, mimeType = 'image/jpeg', base64?: string): Promise<void> => {
@@ -389,7 +440,9 @@ export const useAuthStore = create<AuthStore>()(
             .eq('user_id', user.id)
             .eq('house_id', houseId);
         } catch { /* non-fatal */ }
-        // Always clear cache regardless of whether the DB delete succeeded
+        // Unregister push tokens so ex-housemates don't receive stale notifications
+        unregisterPushToken(user.id, houseId);
+        unregisterWebPush(user.id, houseId);
         await clearCachedHouseId(user.id).catch(() => {});
         set({ houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
       },

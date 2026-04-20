@@ -29,8 +29,10 @@ const DEFAULT_PREFS: NotificationPrefs = {
 interface NotificationStore {
   prefs: NotificationPrefs;
   isLoading: boolean;
+  error: string | null;
   load: (userId: string, houseId: string) => Promise<void>;
   update: (userId: string, houseId: string, changes: Partial<NotificationPrefs>) => Promise<void>;
+  clearError: () => void;
 }
 
 function rowToPrefs(row: Record<string, unknown>): NotificationPrefs {
@@ -61,18 +63,25 @@ function prefsToRow(prefs: Partial<NotificationPrefs>): Record<string, unknown> 
 
 export const useNotificationStore = create<NotificationStore>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
       prefs: { ...DEFAULT_PREFS },
       isLoading: false,
+      error: null,
 
       load: async (userId, houseId): Promise<void> => {
-        set({ isLoading: true });
-        const { data } = await supabase
+        set({ isLoading: true, error: null });
+        const { data, error } = await supabase
           .from('notification_preferences')
           .select('*')
           .eq('user_id', userId)
           .eq('house_id', houseId)
           .maybeSingle();
+        if (error) {
+          // Network/query failure — keep whatever prefs are already in state rather
+          // than silently overwriting them with defaults and then saving on next update.
+          set({ isLoading: false, error: 'Failed to load notification preferences' });
+          return;
+        }
         set({
           prefs: data ? rowToPrefs(data as Record<string, unknown>) : { ...DEFAULT_PREFS },
           isLoading: false,
@@ -80,15 +89,20 @@ export const useNotificationStore = create<NotificationStore>()(
       },
 
       update: async (userId, houseId, changes): Promise<void> => {
-        // Optimistic update
+        const previousPrefs = get().prefs;
         set((s) => ({ prefs: { ...s.prefs, ...changes } }));
-        await supabase
+        const { error } = await supabase
           .from('notification_preferences')
           .upsert(
             { user_id: userId, house_id: houseId, ...prefsToRow(changes) },
             { onConflict: 'user_id,house_id' }
           );
+        if (error) {
+          set({ prefs: previousPrefs, error: 'Failed to save preferences' });
+        }
       },
+
+      clearError: (): void => set({ error: null }),
     }),
     { name: 'notification-store' }
   )

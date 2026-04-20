@@ -42,7 +42,7 @@ export async function notifyHousemates({
     const token = sessionData.session?.access_token;
     if (!token) return;
 
-    await fetch(FUNCTION_URL, {
+    const res = await fetch(FUNCTION_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -57,6 +57,9 @@ export async function notifyHousemates({
         notification_type: notificationType,
       }),
     });
+    if (!res.ok) {
+      throw new Error(`send-push returned ${res.status}`);
+    }
   } catch (err) {
     captureError(err, { context: 'notifyHousemates' });
   }

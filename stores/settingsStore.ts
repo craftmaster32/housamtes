@@ -84,9 +84,11 @@ interface SettingsStore {
   features: FeatureConfig[];
   dashboardWidgets: string[];
   currency: string;
+  showRecurringBillsOnCalendar: boolean;
   toggleFeature: (key: string) => void;
   toggleDashboardWidget: (key: string) => void;
   setCurrency: (currency: string) => void;
+  toggleShowRecurringBillsOnCalendar: () => void;
   isEnabled: (key: string) => boolean;
   isDashboardWidget: (key: string) => boolean;
 }
@@ -98,6 +100,7 @@ export const useSettingsStore = create<SettingsStore>()(
         features: DEFAULT_FEATURES,
         dashboardWidgets: ALL_FEATURE_KEYS,
         currency: '₪',
+        showRecurringBillsOnCalendar: true,
 
         toggleFeature: (key: string): void => {
           set((s) => ({
@@ -109,6 +112,10 @@ export const useSettingsStore = create<SettingsStore>()(
 
         setCurrency: (currency: string): void => {
           set({ currency });
+        },
+
+        toggleShowRecurringBillsOnCalendar: (): void => {
+          set((s) => ({ showRecurringBillsOnCalendar: !s.showRecurringBillsOnCalendar }));
         },
 
         toggleDashboardWidget: (key: string): void => {

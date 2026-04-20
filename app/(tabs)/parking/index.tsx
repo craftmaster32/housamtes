@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, Modal, ScrollView } from 'react-native';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { View, StyleSheet, FlatList, Pressable, TextInput, Modal, ScrollView, AppState, type AppStateStatus } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { useParkingStore, isDateConflict, type ParkingReservation } from '@stores/parkingStore';
+import { useParkingStore, isDateConflict, type ParkingReservation, type ParkingSession } from '@stores/parkingStore';
 import { useAuthStore } from '@stores/authStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
@@ -26,12 +26,14 @@ function formatDate(dateStr: string): string {
 function ReservationCard({
   item,
   currentUser,
+  canApprove,
   onCancel,
   onApprove,
   houseId,
 }: {
   item: ParkingReservation;
   currentUser: string;
+  canApprove: boolean;
   onCancel: (id: string) => void;
   onApprove: (id: string, houseId: string) => void;
   houseId: string;
@@ -67,7 +69,7 @@ function ReservationCard({
             <Ionicons name="close-circle-outline" size={20} color={colors.danger} />
           </Pressable>
         )}
-        {!isOwn && item.status === 'pending' && (
+        {!isOwn && canApprove && item.status === 'pending' && (
           <Pressable onPress={() => onApprove(item.id, houseId)} style={styles.approveBtn} accessibilityRole="button">
             <Text style={styles.approveBtnText}>{t('parking.approve')}</Text>
           </Pressable>
@@ -84,12 +86,14 @@ function ReserveModal({
   myName,
   houseId,
   reservations,
+  current,
 }: {
   visible: boolean;
   onClose: () => void;
   myName: string;
   houseId: string;
   reservations: ParkingReservation[];
+  current: ParkingSession | null;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const addReservation    = useParkingStore((s) => s.addReservation);
@@ -105,7 +109,11 @@ function ReserveModal({
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
 
-  const dateConflict = isDateConflict(date, reservations);
+  const activeConflict =
+    current && date === todayStr
+      ? `${current.occupant === myName ? 'You are' : `${current.occupant} is`} currently using the spot`
+      : null;
+  const dateConflict = activeConflict ?? isDateConflict(date, reservations);
 
   const reset = useCallback((): void => {
     setDate(todayStr);
@@ -205,6 +213,8 @@ export default function ParkingScreen(): React.JSX.Element {
 
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
+  const role    = useAuthStore((s) => s.role);
+  const canApprove = role === 'owner' || role === 'admin';
   const syncParkingApproved  = useCalendarSyncStore((s) => s.syncParkingApproved);
   const removeCalendarEvent  = useCalendarSyncStore((s) => s.removeCalendarEvent);
 
@@ -212,8 +222,23 @@ export default function ParkingScreen(): React.JSX.Element {
   const isMine  = current?.occupant === myName;
   const isFree  = !current;
 
+  const checkReservationAutoApply = useParkingStore((s) => s.checkReservationAutoApply);
+
   const [showReserve, setShowReserve] = useState(false);
   const [error, setError]             = useState('');
+
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  useEffect(() => {
+    if (!houseId) return;
+    const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (appStateRef.current !== 'active' && nextState === 'active') {
+        checkReservationAutoApply(houseId);
+      }
+      appStateRef.current = nextState;
+    });
+    const interval = setInterval(() => { checkReservationAutoApply(houseId ?? ''); }, 60_000);
+    return () => { sub.remove(); clearInterval(interval); };
+  }, [houseId, checkReservationAutoApply]);
 
   const handleClaim = useCallback(async (): Promise<void> => {
     setError('');
@@ -233,24 +258,33 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [release, houseId, t]);
 
-  const handleCancel = useCallback((id: string): void => {
-    cancelReservation(id);
-    removeCalendarEvent(`pk-${id}`).catch(() => {});
-  }, [cancelReservation, removeCalendarEvent]);
-
-  const handleApprove = useCallback((id: string, hid: string): void => {
-    approveReservation(id, hid);
-    const r = reservations.find((res) => res.id === id);
-    if (r) {
-      syncParkingApproved({ id: r.id, requestedBy: r.requestedBy, date: r.date, startTime: r.startTime, endTime: r.endTime }).catch(() => {});
+  const handleCancel = useCallback(async (id: string): Promise<void> => {
+    try {
+      await cancelReservation(id, houseId ?? '');
+      removeCalendarEvent(`pk-${id}`).catch(() => {});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('parking.failed_release'));
     }
-  }, [approveReservation, reservations, syncParkingApproved]);
+  }, [cancelReservation, houseId, removeCalendarEvent, t]);
+
+  const handleApprove = useCallback(async (id: string, hid: string): Promise<void> => {
+    try {
+      await approveReservation(id, hid);
+      const r = reservations.find((res) => res.id === id);
+      if (r) {
+        syncParkingApproved({ id: r.id, requestedBy: r.requestedBy, date: r.date, startTime: r.startTime, endTime: r.endTime }).catch(() => {});
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('parking.failed_claim'));
+    }
+  }, [approveReservation, reservations, syncParkingApproved, t]);
 
   const renderReservation = useCallback(
     ({ item }: { item: ParkingReservation }): React.JSX.Element => (
       <ReservationCard
         item={item}
         currentUser={myName}
+        canApprove={canApprove}
         onCancel={handleCancel}
         onApprove={handleApprove}
         houseId={houseId ?? ''}
@@ -353,6 +387,7 @@ export default function ParkingScreen(): React.JSX.Element {
         myName={myName}
         houseId={houseId ?? ''}
         reservations={reservations}
+        current={current}
       />
     </SafeAreaView>
   );

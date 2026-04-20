@@ -48,9 +48,9 @@ export const useChoresStore = create<ChoresStore>()(
             name: r.title,
             claimedBy: r.assigned_to ?? null,
             recurrence: (r.recurrence ?? 'once') as Recurrence,
-            recurrenceDay: null,
+            recurrenceDay: r.recurrence_day ?? null,
             isComplete: r.is_done,
-            completedAt: null,
+            completedAt: r.completed_at ?? null,
             createdAt: r.created_at,
           }));
           set({ chores, isLoading: false });
@@ -68,10 +68,10 @@ export const useChoresStore = create<ChoresStore>()(
       unsubscribe: (): void => {
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
-      addChore: async (name, recurrence, _recurrenceDay, houseId): Promise<void> => {
+      addChore: async (name, recurrence, recurrenceDay, houseId): Promise<void> => {
         const { data, error } = await supabase
           .from('chores')
-          .insert({ house_id: houseId, title: name, recurrence })
+          .insert({ house_id: houseId, title: name, recurrence, recurrence_day: recurrenceDay ?? null })
           .select()
           .single();
         if (error) throw new Error(`Failed to add chore: ${error.message}`);
@@ -80,7 +80,7 @@ export const useChoresStore = create<ChoresStore>()(
           name: data.title,
           claimedBy: null,
           recurrence: (data.recurrence ?? 'once') as Recurrence,
-          recurrenceDay: null,
+          recurrenceDay: data.recurrence_day ?? null,
           isComplete: false,
           completedAt: null,
           createdAt: data.created_at,
@@ -91,27 +91,33 @@ export const useChoresStore = create<ChoresStore>()(
         const chore = get().chores.find((c) => c.id === id);
         if (!chore) return;
         const isDone = !chore.isComplete;
-        await supabase.from('chores').update({ is_done: isDone }).eq('id', id);
+        const completedAt = isDone ? new Date().toISOString() : null;
+        const { error } = await supabase.from('chores').update({ is_done: isDone, completed_at: completedAt }).eq('id', id);
+        if (error) throw new Error(`Failed to update chore: ${error.message}`);
         set({
           chores: get().chores.map((c) =>
-            c.id === id ? { ...c, isComplete: isDone, completedAt: isDone ? new Date().toISOString() : null } : c
+            c.id === id ? { ...c, isComplete: isDone, completedAt } : c
           ),
         });
       },
       claimChore: async (id, name): Promise<void> => {
-        await supabase.from('chores').update({ assigned_to: name }).eq('id', id);
+        const { error } = await supabase.from('chores').update({ assigned_to: name }).eq('id', id);
+        if (error) throw new Error(`Failed to claim chore: ${error.message}`);
         set({ chores: get().chores.map((c) => (c.id === id ? { ...c, claimedBy: name } : c)) });
       },
       unclaimChore: async (id): Promise<void> => {
-        await supabase.from('chores').update({ assigned_to: null }).eq('id', id);
+        const { error } = await supabase.from('chores').update({ assigned_to: null }).eq('id', id);
+        if (error) throw new Error(`Failed to unclaim chore: ${error.message}`);
         set({ chores: get().chores.map((c) => (c.id === id ? { ...c, claimedBy: null } : c)) });
       },
       deleteChore: async (id): Promise<void> => {
-        await supabase.from('chores').delete().eq('id', id);
+        const { error } = await supabase.from('chores').delete().eq('id', id);
+        if (error) throw new Error(`Failed to delete chore: ${error.message}`);
         set({ chores: get().chores.filter((c) => c.id !== id) });
       },
       resetAll: async (houseId: string): Promise<void> => {
-        await supabase.from('chores').update({ is_done: false, assigned_to: null }).eq('house_id', houseId);
+        const { error } = await supabase.from('chores').update({ is_done: false, assigned_to: null, completed_at: null }).eq('house_id', houseId);
+        if (error) throw new Error(`Failed to reset chores: ${error.message}`);
         set({
           chores: get().chores.map((c) => ({ ...c, isComplete: false, completedAt: null, claimedBy: null })),
         });

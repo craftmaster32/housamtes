@@ -4,6 +4,8 @@ import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { supabase } from '@lib/supabase';
+import { useAuthStore } from '@stores/authStore';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -21,7 +23,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
       setError(t('auth.enter_password_error'));
       return;
     }
-    if (password.length < 6) {
+    if (password.length < 8) {
       setError(t('auth.password_min_length'));
       return;
     }
@@ -31,10 +33,17 @@ export default function ResetPasswordScreen(): React.JSX.Element {
     }
     setIsLoading(true);
     setError('');
-    // Supabase call will go here
-    setIsLoading(false);
-    setDone(true);
-  }, [password, confirm]);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      useAuthStore.getState().clearPasswordRecovery();
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('auth.reset_failed'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [password, confirm, t]);
 
   if (done) {
     return (

@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, Switch, Modal } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Alert, Switch, Modal, Platform } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -11,6 +11,7 @@ import { useSettingsStore, CURRENCIES } from '@stores/settingsStore';
 import { useNotificationStore, BillDueDays } from '@stores/notificationStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useLanguageStore } from '@stores/languageStore';
+import { enableWebPush, getWebPushStatus, type WebPushStatus } from '@lib/webPush';
 import type { AppLanguage } from '@lib/i18n';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -116,9 +117,24 @@ export default function SettingsScreen(): React.JSX.Element {
   const calDisconnect  = useCalendarSyncStore((s) => s.disconnect);
   const calSetAutoSync = useCalendarSyncStore((s) => s.setAutoSync);
 
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [calLoading, setCalLoading] = useState(false);
+
+  const [webPushStatus, setWebPushStatus] = useState<WebPushStatus>('unavailable');
+  useEffect(() => {
+    if (Platform.OS === 'web') setWebPushStatus(getWebPushStatus());
+  }, []);
+
+  const handleEnableWebPush = useCallback(async (): Promise<void> => {
+    if (!user?.id || !houseId) return;
+    const result = await enableWebPush(user.id, houseId);
+    setWebPushStatus(result);
+    if (result === 'denied') {
+      Alert.alert('Notifications blocked', 'To enable, go to your browser settings and allow notifications for this site.');
+    }
+  }, [user?.id, houseId]);
 
   const handleLeaveHouse = useCallback(async (): Promise<void> => {
     setLeaving(true);
@@ -135,6 +151,9 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const prefs = useNotificationStore((s) => s.prefs);
   const updatePrefs = useNotificationStore((s) => s.update);
+
+  const showRecurringBillsOnCalendar = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
+  const toggleShowRecurringBillsOnCalendar = useSettingsStore((s) => s.toggleShowRecurringBillsOnCalendar);
 
   const currentLanguage = useLanguageStore((s) => s.language);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
@@ -182,7 +201,7 @@ export default function SettingsScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container}>
       <Pressable
         style={styles.backBtn}
-        onPress={() => router.back()}
+        onPress={() => from === 'profile' ? router.push('/(tabs)/profile') : router.back()}
         accessible
         accessibilityRole="button"
         accessibilityLabel={t('common.back')}
@@ -348,11 +367,51 @@ export default function SettingsScreen(): React.JSX.Element {
               </View>
             </>
           )}
+          <RowDivider />
+          <ToggleRow
+            icon="💰"
+            label="Show recurring bills"
+            sub="Display recurring bill payments on the calendar"
+            value={showRecurringBillsOnCalendar}
+            onToggle={() => toggleShowRecurringBillsOnCalendar()}
+          />
         </View>
 
         {/* Notifications */}
         <SectionDivider label={t('settings.notifications_section')} />
         <View style={styles.menuGroup}>
+          {webPushStatus !== 'unavailable' && (
+            <>
+              <Pressable
+                style={({ pressed }) => [styles.menuItem, webPushStatus === 'default' && pressed && styles.menuItemPressed]}
+                onPress={webPushStatus === 'default' ? handleEnableWebPush : undefined}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Browser notifications"
+              >
+                <View style={styles.menuIcon}>
+                  <Text style={styles.menuIconText}>🔔</Text>
+                </View>
+                <View style={styles.menuText}>
+                  <Text style={styles.menuLabel}>Browser notifications</Text>
+                  <Text style={styles.menuSub}>
+                    {webPushStatus === 'granted'
+                      ? 'Enabled for this browser'
+                      : webPushStatus === 'denied'
+                      ? 'Blocked — allow in browser settings'
+                      : 'Tap to enable push notifications'}
+                  </Text>
+                </View>
+                {webPushStatus === 'granted' && (
+                  <Text style={styles.webPushOn}>On</Text>
+                )}
+                {webPushStatus === 'default' && (
+                  <Text style={styles.menuChevron}>›</Text>
+                )}
+              </Pressable>
+              <RowDivider />
+            </>
+          )}
           <ToggleRow
             icon="💰"
             label={t('settings.notify_bill_added')}
@@ -583,6 +642,7 @@ const styles = StyleSheet.create({
   dayChipTextActive: {
     color: colors.white,
   },
+  webPushOn: { color: colors.positive, ...font.semibold, fontSize: 13 },
   daysPickerSuffix: {
     fontSize: 13,
     ...font.regular,

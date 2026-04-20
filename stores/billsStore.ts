@@ -35,7 +35,7 @@ interface BillsStore {
   unsubscribe: () => void;
   addBill: (bill: Omit<Bill, 'id' | 'createdAt' | 'settled' | 'settledBy' | 'settledAt' | 'notes'> & { notes?: string }, houseId: string) => Promise<void>;
   editBill: (id: string, updates: { title: string; amount: number; date: string; notes: string }) => Promise<void>;
-  settleBill: (id: string, settledBy: string) => Promise<void>;
+  settleBill: (id: string, settledBy: string, houseId: string) => Promise<void>;
   deleteBill: (id: string) => Promise<void>;
 }
 
@@ -142,35 +142,31 @@ export const useBillsStore = create<BillsStore>()(
           ),
         });
       },
-      settleBill: async (id, settledBy): Promise<void> => {
+      settleBill: async (id, settledBy, houseId): Promise<void> => {
+        const bill = get().bills.find((b) => b.id === id);
+        if (!bill) throw new Error('Bill not found');
+        if (bill.settled) throw new Error('Bill is already settled');
         const now = new Date().toISOString();
         const { error } = await supabase
           .from('bills')
           .update({ settled: true, settled_by: settledBy, settled_at: now })
           .eq('id', id);
         if (error) throw new Error(`Failed to settle bill: ${error.message}`);
-        const bill = get().bills.find((b) => b.id === id);
         set({
           bills: get().bills.map((b) =>
             b.id === id ? { ...b, settled: true, settledBy, settledAt: now } : b
           ),
         });
-        if (bill) {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const userId = sessionData.session?.user.id ?? '';
-          const houseRes = await supabase.from('push_tokens').select('house_id').eq('user_id', userId).maybeSingle();
-          const houseId = houseRes.data?.house_id;
-          if (houseId) {
-            notifyHousemates({
-              houseId,
-              excludeUserId: userId,
-              title: '✅ Bill settled',
-              body: `${bill.title} marked as settled by ${settledBy}`,
-              data: { screen: 'bills' },
-              notificationType: 'bill_settled',
-            });
-          }
-        }
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData.session?.user.id ?? '';
+        notifyHousemates({
+          houseId,
+          excludeUserId: userId,
+          title: '✅ Bill settled',
+          body: `${bill.title} marked as settled by ${settledBy}`,
+          data: { screen: 'bills' },
+          notificationType: 'bill_settled',
+        });
       },
       deleteBill: async (id): Promise<void> => {
         const { error } = await supabase.from('bills').delete().eq('id', id);
@@ -185,12 +181,12 @@ export const useBillsStore = create<BillsStore>()(
 export function calculateAllNetBalances(bills: Bill[]): Map<string, number> {
   const net = new Map<string, number>();
   for (const bill of bills) {
-    const n = bill.splitBetween.length;
-    if (n === 0) continue;
-    const share = bill.amount / n;
-    net.set(bill.paidBy, (net.get(bill.paidBy) ?? 0) + bill.amount - share);
+    if (bill.settled) continue;
+    if (bill.splitBetween.length === 0) continue;
     for (const person of bill.splitBetween) {
       if (person === bill.paidBy) continue;
+      const share = getPersonShare(bill, person);
+      net.set(bill.paidBy, (net.get(bill.paidBy) ?? 0) + share);
       net.set(person, (net.get(person) ?? 0) - share);
     }
   }
@@ -229,6 +225,7 @@ export function getPersonShare(bill: Bill, person: string): number {
   if (bill.splitAmounts && bill.splitAmounts[person] !== undefined) {
     return bill.splitAmounts[person];
   }
+  if (bill.splitBetween.length === 0) return 0;
   return bill.amount / bill.splitBetween.length;
 }
 
@@ -236,6 +233,7 @@ export function calculateBalances(bills: Bill[], currentUser: string): Balance[]
   const map = new Map<string, number>();
 
   bills.forEach((bill) => {
+    if (bill.settled) return;
     bill.splitBetween.forEach((person) => {
       if (person === bill.paidBy) return;
       const share = getPersonShare(bill, person);

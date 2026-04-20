@@ -1,12 +1,11 @@
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, Platform, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
-import { supabase } from '@lib/supabase';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -62,11 +61,13 @@ export default function ProfileScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
+  const changePassword = useAuthStore((s) => s.changePassword);
   const housemates = useHousematesStore((s) => s.housemates);
   const inviteCode = useHousematesStore((s) => s.inviteCode);
   const houseName = useHousematesStore((s) => s.houseName);
 
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -77,8 +78,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
   const handleLogout = useCallback(() => {
     if (Platform.OS === 'web') {
-      if (!window.confirm(t('profile.sign_out_confirm'))) return;
-      signOut().then(() => router.replace('/(auth)/welcome'));
+      signOut().then(() => router.replace('/(auth)/welcome')).catch(() => {});
       return;
     }
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
@@ -95,24 +95,25 @@ export default function ProfileScreen(): React.JSX.Element {
   }, [signOut, t]);
 
   const handleChangePassword = useCallback(async () => {
+    if (!currentPassword) { setPasswordError('Enter your current password'); return; }
     if (!newPassword) { setPasswordError(t('profile.enter_new_password')); return; }
-    if (newPassword.length < 6) { setPasswordError(t('profile.password_min')); return; }
+    if (newPassword.length < 8) { setPasswordError(t('profile.password_min')); return; }
     if (newPassword !== confirmPassword) { setPasswordError(t('profile.passwords_no_match')); return; }
     setPasswordSaving(true);
     setPasswordError('');
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setShowPasswordForm(false);
       Alert.alert(t('common.done'), t('profile.password_updated'));
-    } catch {
-      setPasswordError(t('profile.could_not_update'));
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : t('profile.could_not_update'));
     } finally {
       setPasswordSaving(false);
     }
-  }, [newPassword, confirmPassword, t]);
+  }, [currentPassword, newPassword, confirmPassword, changePassword, t]);
 
   const handleCopyInviteCode = useCallback(() => {
     Alert.alert(t('profile.invite_code'), `${t('profile.share_code')}\n\n${inviteCode}`, [
@@ -150,6 +151,14 @@ export default function ProfileScreen(): React.JSX.Element {
           {showPasswordForm && (
             <View style={styles.passwordForm}>
               <View style={styles.passwordField}>
+                <Text style={styles.fieldLabel}>Current password</Text>
+                <PasswordInput
+                  value={currentPassword}
+                  onChange={(v) => { setCurrentPassword(v); setPasswordError(''); }}
+                  placeholder="Enter current password"
+                />
+              </View>
+              <View style={styles.passwordField}>
                 <Text style={styles.fieldLabel}>{t('profile.new_password')}</Text>
                 <PasswordInput
                   value={newPassword}
@@ -177,7 +186,7 @@ export default function ProfileScreen(): React.JSX.Element {
                 >
                   <Text style={styles.saveBtnText}>{passwordSaving ? t('profile.saving') : t('profile.save_password')}</Text>
                 </Pressable>
-                <Pressable onPress={() => { setShowPasswordForm(false); setPasswordError(''); setNewPassword(''); setConfirmPassword(''); }}>
+                <Pressable onPress={() => { setShowPasswordForm(false); setPasswordError(''); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); }}>
                   <Text style={styles.cancelText}>{t('common.cancel')}</Text>
                 </Pressable>
               </View>
@@ -246,8 +255,6 @@ export default function ProfileScreen(): React.JSX.Element {
   );
 }
 
-// Simple inline secure text input using Pressable + TextInput
-import { TextInput } from 'react-native';
 function PasswordInput({
   value,
   onChange,
