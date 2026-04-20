@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, PanResponder } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, PanResponder, AppState } from 'react-native';
 import * as Linking from 'expo-linking';
 import { initErrorTracking } from '@lib/errorTracking';
 import { Stack, router, useSegments } from 'expo-router';
@@ -204,6 +204,33 @@ export default function RootLayout(): React.JSX.Element | null {
     loadHousemates, loadBills, loadRecurringBills, loadParking, loadGrocery,
     loadChores, loadEvents, loadAnnouncements, loadMaintenance,
     loadVoting, loadCondition, loadNotificationPrefs,
+  ]);
+
+  // Re-fetch all data when app comes back to foreground — iOS drops the
+  // WebSocket connection when backgrounded, so realtime misses updates.
+  useEffect(() => {
+    if (!houseId) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        loadHousemates(houseId);
+        loadBills(houseId);
+        loadRecurringBills(houseId);
+        loadParking(houseId);
+        loadGrocery(houseId);
+        loadChores(houseId);
+        loadEvents(houseId);
+        loadAnnouncements(houseId);
+        loadMaintenance(houseId);
+        loadVoting(houseId);
+        loadCondition(houseId);
+      }
+    });
+    return () => sub.remove();
+  }, [
+    houseId,
+    loadHousemates, loadBills, loadRecurringBills, loadParking, loadGrocery,
+    loadChores, loadEvents, loadAnnouncements, loadMaintenance,
+    loadVoting, loadCondition,
   ]);
 
   const showChrome = !!user && !!houseId;

@@ -163,6 +163,8 @@ Deno.serve(async (req: Request) => {
     const eligibleSubs = webSubRows.filter((r: { user_id: string }) => isEnabled(r.user_id));
     const webPayload = JSON.stringify({ title, body, data: data ?? {} });
 
+    console.log(`[send-push] web subs total=${webSubRows.length} eligible=${eligibleSubs.length}`);
+
     const webResults = await Promise.allSettled(
       eligibleSubs.map((sub: { endpoint: string; p256dh: string; auth: string }) =>
         webpush.sendNotification(
@@ -175,8 +177,13 @@ Deno.serve(async (req: Request) => {
     // Clean up expired subscriptions (HTTP 410 = subscription no longer valid)
     const expiredEndpoints: string[] = [];
     webResults.forEach((result, i) => {
-      if (result.status === 'rejected' && (result.reason as { statusCode?: number })?.statusCode === 410) {
-        expiredEndpoints.push(eligibleSubs[i].endpoint);
+      if (result.status === 'fulfilled') {
+        console.log(`[send-push] web push ok for sub ${i}`);
+      } else {
+        console.error(`[send-push] web push failed for sub ${i}:`, JSON.stringify(result.reason));
+        if ((result.reason as { statusCode?: number })?.statusCode === 410) {
+          expiredEndpoints.push(eligibleSubs[i].endpoint);
+        }
       }
     });
     if (expiredEndpoints.length > 0) {
