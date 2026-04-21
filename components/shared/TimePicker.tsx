@@ -102,7 +102,7 @@ function WheelColumn({ items, selectedIndex, onSelect, colWidth }: WheelColumnPr
         scrollRef.current?.scrollTo({ y, animated: false });
         liveY.current = y;
       }, 40);
-      return () => clearTimeout(t);
+      return (): void => clearTimeout(t);
     }
     // only scroll when it was changed from outside, not from our own onSelect
     if (selectedIndex !== lastEmitted.current) {

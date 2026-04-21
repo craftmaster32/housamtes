@@ -13,7 +13,7 @@ async function compressImage(file: File): Promise<string> {
     const QUALITY = 0.75;
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
-    img.onload = () => {
+    img.onload = (): void => {
       URL.revokeObjectURL(objectUrl);
       const ratio = Math.min(1, MAX_PX / Math.max(img.width, img.height));
       const canvas = document.createElement('canvas');

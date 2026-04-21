@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -83,9 +85,12 @@ function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JS
       {shown.map((h, i) => (
         <View
           key={h.id}
-          style={[styles.stackAvatar, { backgroundColor: h.color, marginLeft: i === 0 ? 0 : -10 }]}
+          style={[styles.stackAvatar, { backgroundColor: h.avatarUrl ? 'transparent' : h.color, marginLeft: i === 0 ? 0 : -10 }]}
         >
-          <Text style={styles.stackAvatarText}>{h.name[0].toUpperCase()}</Text>
+          {h.avatarUrl
+            ? <Image source={{ uri: h.avatarUrl }} style={styles.stackAvatarImg} contentFit="cover" />
+            : <Text style={styles.stackAvatarText}>{h.name[0].toUpperCase()}</Text>
+          }
         </View>
       ))}
     </View>
@@ -157,7 +162,7 @@ function PersonalDetailsForm({
     } finally {
       setSaving(false);
     }
-  }, [name, email, currentName, currentEmail, updateProfile, updateEmail]);
+  }, [name, email, currentName, currentEmail, updateProfile, updateEmail, onDone]);
 
   return (
     <View style={styles.pwForm}>
@@ -355,6 +360,44 @@ export default function ProfileScreen(): React.JSX.Element {
   const yesterdayBills = recentBills.filter((b) => billDayLabel(b.date) === 'yesterday');
 
   const pickImage = useCallback(async (source: 'camera' | 'library'): Promise<void> => {
+    // Web browsers don't support allowsEditing — pick the file then auto-center-crop it.
+    if (Platform.OS === 'web') {
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'] as ImagePicker.MediaType[],
+        quality: 1,
+      });
+      if (res.canceled || !res.assets[0]) return;
+      const a = res.assets[0];
+      const w = a.width ?? 800;
+      const h = a.height ?? 800;
+      const size = Math.min(w, h);
+      setUploading(true);
+      try {
+        const cropped = await ImageManipulator.manipulateAsync(
+          a.uri,
+          [
+            { crop: { originX: Math.round((w - size) / 2), originY: Math.round((h - size) / 2), width: size, height: size } },
+            { resize: { width: 512, height: 512 } },
+          ],
+          { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+        );
+        await uploadAvatar(cropped.uri, 'image/jpeg', cropped.base64 ?? undefined);
+      } catch (err) {
+        Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload photo.');
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+
+    // Native iOS/Android: allowsEditing shows the built-in square crop UI.
+    const opts = {
+      mediaTypes: ['images'] as ImagePicker.MediaType[],
+      allowsEditing: true,
+      aspect: [1, 1] as [number, number],
+      quality: 0.8,
+      base64: true,
+    };
     let result: ImagePicker.ImagePickerResult;
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -362,26 +405,14 @@ export default function ProfileScreen(): React.JSX.Element {
         Alert.alert('Permission needed', 'Camera access is required to take a photo.');
         return;
       }
-      result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: true,
-      });
+      result = await ImagePicker.launchCameraAsync(opts);
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission needed', 'Photo library access is required to choose a photo.');
         return;
       }
-      result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: true,
-      });
+      result = await ImagePicker.launchImageLibraryAsync(opts);
     }
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
@@ -449,8 +480,8 @@ export default function ProfileScreen(): React.JSX.Element {
       return;
     }
     const options: Parameters<typeof Alert.alert>[2] = [
-      { text: 'Take photo', onPress: () => { pickImage('camera'); } },
-      { text: 'Choose from library', onPress: () => { pickImage('library'); } },
+      { text: 'Take photo', onPress: (): void => { pickImage('camera'); } },
+      { text: 'Choose from library', onPress: (): void => { pickImage('library'); } },
     ];
     if (profile?.avatarUrl) {
       options.push({
@@ -476,7 +507,7 @@ export default function ProfileScreen(): React.JSX.Element {
     }
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
       { text: t('common.cancel'), style: 'cancel' },
-      { text: t('profile.sign_out'), style: 'destructive', onPress: async () => {
+      { text: t('profile.sign_out'), style: 'destructive', onPress: async (): Promise<void> => {
         await signOut();
         router.replace('/(auth)/welcome');
       }},
@@ -499,7 +530,7 @@ export default function ProfileScreen(): React.JSX.Element {
             accessibilityLabel="Change cover photo"
           >
             {profile?.coverUrl
-              ? <Image source={{ uri: profile.coverUrl }} style={styles.coverImage} />
+              ? <Image source={{ uri: profile.coverUrl }} style={styles.coverImage} contentFit="cover" />
               : (
                 <>
                   <View style={styles.decoCircleTL} />
@@ -526,9 +557,9 @@ export default function ProfileScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel="Change profile photo"
           >
-            <View style={[styles.avatarRing, { backgroundColor: profile?.avatarColor ?? colors.primary }]}>
+            <View style={[styles.avatarRing, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? colors.primary) }]}>
               {profile?.avatarUrl
-                ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} />
+                ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} contentFit="cover" />
                 : <Text style={styles.avatarInitial}>{initial}</Text>
               }
               {uploading && (
@@ -730,6 +761,7 @@ export default function ProfileScreen(): React.JSX.Element {
           <Text style={styles.version}>{t('profile.footer')}</Text>
         </View>
       </ScrollView>
+
     </SafeAreaView>
   );
 }
@@ -809,7 +841,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.75)',
     overflow: 'hidden',
   },
-  avatarImage: { width: 96, height: 96, borderRadius: 48 },
+  avatarImage: { width: 96, height: 96 },
   avatarOverlay: {
     position: 'absolute',
     width: 96,
@@ -905,7 +937,9 @@ const styles = StyleSheet.create({
     borderColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
+  stackAvatarImg: { width: 34, height: 34 },
   stackAvatarText: { color: colors.white, fontSize: 13, ...font.bold },
 
   // Profile row

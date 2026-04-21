@@ -76,7 +76,7 @@ export const useSpendingStore = create<SpendingStore>()(
         set({ isLoading: true });
         try {
           // Fetch one-time bills + recurring bill payments in parallel
-          const sixMonthsAgo = (() => {
+          const sixMonthsAgo = ((): string => {
             const d = new Date();
             d.setMonth(d.getMonth() - 6);
             return d.toISOString().split('T')[0];

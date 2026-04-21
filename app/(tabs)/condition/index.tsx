@@ -104,7 +104,7 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
       setSaveError(err instanceof Error ? err.message : t('condition.failed_save'));
       setIsSaving(false);
     }
-  }, [finalArea, condition, type, description, recordedBy, date, photos, add, onClose, houseId]);
+  }, [finalArea, condition, type, description, recordedBy, date, photos, add, onClose, houseId, t]);
 
   return (
     <View style={styles.form}>

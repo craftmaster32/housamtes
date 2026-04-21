@@ -7,7 +7,7 @@ type SentryType = typeof import('@sentry/react-native');
 const getSentry = (): SentryType | null => {
   if (__DEV__ || !process.env.EXPO_PUBLIC_SENTRY_DSN) return null;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
     return require('@sentry/react-native') as SentryType;
   } catch {
     return null;

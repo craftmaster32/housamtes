@@ -266,7 +266,7 @@ export default function GroceryScreen(): React.JSX.Element {
             <Text style={styles.shoppingIconText}>🛍️</Text>
           </View>
           <View style={styles.shoppingCopy}>
-            <Text style={styles.titleLg}>You're at the store</Text>
+            <Text style={styles.titleLg}>{"You're at the store"}</Text>
             <Text style={styles.textSm}>{elapsedLabel(activeRun.startedAt)} · Housemates can see the list</Text>
           </View>
           <Pressable style={[styles.btnPrimary, styles.btnFull, styles.btnDanger]} onPress={handleEndRun} accessibilityRole="button">
@@ -284,7 +284,7 @@ export default function GroceryScreen(): React.JSX.Element {
           </View>
           <View style={styles.shoppingCopy}>
             <Text style={styles.titleLg}>{activeRun.shopperName} is at the store!</Text>
-            <Text style={styles.textSm}>Add last-minute items — they'll see the list update live</Text>
+            <Text style={styles.textSm}>{"Add last-minute items — they'll see the list update live"}</Text>
           </View>
           <View style={styles.shopperBadge}>
             <UserAvatar name={activeRun.shopperName} size={28} />
@@ -302,11 +302,11 @@ export default function GroceryScreen(): React.JSX.Element {
         <View style={styles.shoppingCopy}>
           <Text style={styles.titleLg}>Start a Shopping Run</Text>
           <Text style={styles.textSm}>
-            Let your housemates know you're at the store so they can add last-minute items.
+            {"Let your housemates know you're at the store so they can add last-minute items."}
           </Text>
         </View>
         <Pressable style={[styles.btnPrimary, styles.btnFull]} onPress={handleStartRun} accessibilityRole="button">
-          <Text style={styles.btnPrimaryText}>I'm going shopping</Text>
+          <Text style={styles.btnPrimaryText}>{"I'm going shopping"}</Text>
         </Pressable>
       </View>
     );

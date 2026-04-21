@@ -4,7 +4,6 @@ import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { signInSchema } from '@utils/validation';
 import { colors } from '@constants/colors';
@@ -15,7 +14,6 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
 
 export default function LoginScreen(): React.JSX.Element {
-  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,7 +26,7 @@ export default function LoginScreen(): React.JSX.Element {
   const lockoutTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    return () => {
+    return (): void => {
       if (lockoutTimer.current) clearInterval(lockoutTimer.current);
     };
   }, []);

@@ -8,13 +8,8 @@ interface DateInputProps {
   style?: object;
 }
 
-// Extend HTMLInputElement to include the showPicker API (not yet in TS DOM lib)
-interface DateInputElement extends HTMLInputElement {
-  showPicker?: () => void;
-}
-
 export function DateInput({ value, onChange, style }: DateInputProps): React.JSX.Element {
-  const inputRef = React.useRef<DateInputElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   const [yr, mo, dy] = value ? value.split('-') : ['', '', ''];
   const displayText = value ? `${dy}/${mo}/${yr}` : 'Select date';

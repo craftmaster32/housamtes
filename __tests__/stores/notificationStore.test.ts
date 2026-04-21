@@ -21,7 +21,7 @@ const mockFrom = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
-    from: (...a: unknown[]) => mockFrom(...a),
+    from: (...a: unknown[]): unknown => mockFrom(...a),
   },
 }));
 

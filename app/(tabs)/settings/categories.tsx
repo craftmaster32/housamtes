@@ -149,7 +149,7 @@ export default function CategoriesScreen(): React.JSX.Element {
   const handleDelete = useCallback((cat: ExpenseCategory) => {
     Alert.alert('Delete Category', `Remove "${cat.name}"? Bills with this category will keep the name but it won't appear as an option.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
+      { text: 'Delete', style: 'destructive', onPress: async (): Promise<void> => {
         await remove(cat.id);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       }},

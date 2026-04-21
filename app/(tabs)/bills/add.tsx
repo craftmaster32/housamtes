@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,7 +23,7 @@ export default function AddBillScreen(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId);
   const currency = useSettingsStore((s) => s.currency);
 
-  const allNames = housemates.map((h) => h.name);
+  const allNames = useMemo(() => housemates.map((h) => h.name), [housemates]);
   const myName = profile?.name ?? '';
 
   const [title, setTitle] = useState('');
@@ -42,7 +42,7 @@ export default function AddBillScreen(): React.JSX.Element {
     if (allNames.length === 0) return;
     setPaidBy((prev) => prev || myName || allNames[0]);
     setSelectedPeople((prev) => (prev.length === 0 ? allNames : prev));
-  }, [allNames.join(','), myName]);
+  }, [allNames, myName]);
 
   const togglePerson = useCallback((name: string) => {
     setSelectedPeople((prev) =>

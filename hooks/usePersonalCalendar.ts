@@ -5,7 +5,7 @@ import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let ExpoCalendar: typeof import('expo-calendar') | null = null;
 if (Platform.OS !== 'web') {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   ExpoCalendar = require('expo-calendar') as typeof import('expo-calendar');
 }
 
@@ -68,7 +68,7 @@ export function usePersonalCalendar(startDate: Date, endDate: Date): PersonalEve
     }
 
     load().catch(() => {});
-    return () => { cancelled = true; };
+    return (): void => { cancelled = true; };
   }, [connected, eventMap, startDate, endDate]);
 
   return events;

@@ -4,7 +4,7 @@ import { Tabs } from 'expo-router';
 // All screens are registered here so Expo Router can resolve their routes.
 export default function TabsLayout(): React.JSX.Element {
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' }, gestureEnabled: true }}>
+    <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
       <Tabs.Screen name="dashboard/index" />
       <Tabs.Screen name="bills/index" />
       <Tabs.Screen name="bills/add" options={{ href: null }} />

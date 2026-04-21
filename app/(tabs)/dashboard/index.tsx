@@ -8,13 +8,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { useBillsStore, calculateBalances } from '@stores/billsStore';
+import { useBillsStore, calculateBalances, type Bill } from '@stores/billsStore';
 import { useParkingStore } from '@stores/parkingStore';
-import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
+import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
+import { useChoresStore, type Chore } from '@stores/choresStore';
+import { useChatStore } from '@stores/chatStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useEventsStore } from '@stores/eventsStore';
-import { useAnnouncementsStore, type Announcement } from '@stores/announcementsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -430,7 +430,7 @@ function VotesWidget(): React.JSX.Element {
   const allVoted = totalVotes >= totalPeople;
 
   type BadgeState = { label: string; bg: string; color: string };
-  const badge: BadgeState = (() => {
+  const badge: BadgeState = ((): BadgeState => {
     if (!myVote) return { label: 'Vote now', bg: colors.danger + '20', color: colors.danger };
     if (!allVoted) return { label: `Waiting (${totalVotes}/${totalPeople})`, bg: colors.textSecondary + '18', color: colors.textSecondary };
     if (yesCount > noCount) return { label: 'Passed', bg: colors.positive + '20', color: colors.positive };
@@ -620,87 +620,142 @@ function MiniCalendarWidget(): React.JSX.Element {
   );
 }
 
-// ── Activity feed ─────────────────────────────────────────────────────────────
+// ── Activity feed (real household events) ─────────────────────────────────────
 
-function ActivityFeedItem({ item, myName, onDelete }: {
-  item: Announcement;
-  myName: string;
-  onDelete: (id: string) => void;
-}): React.JSX.Element {
-  const isMine = item.author === myName;
-  const initial = item.author[0]?.toUpperCase() ?? '?';
+interface ActivityEvent {
+  id: string;
+  icon: string;
+  iconColor: string;
+  iconBg: string;
+  actor: string;
+  text: string;
+  time: string;
+}
+
+function buildActivityEvents(
+  bills: Bill[],
+  groceryItems: GroceryItem[],
+  chores: Chore[],
+  myName: string
+): ActivityEvent[] {
+  const events: ActivityEvent[] = [];
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  bills
+    .filter((b) => new Date(b.createdAt).getTime() > cutoff)
+    .forEach((b) => {
+      events.push({
+        id: `bill-${b.id}`,
+        icon: 'card-outline',
+        iconColor: '#FF4757',
+        iconBg: '#FFF0F0',
+        actor: b.paidBy === myName ? 'You' : b.paidBy,
+        text: `added a bill — ${b.title}`,
+        time: b.createdAt,
+      });
+    });
+
+  groceryItems
+    .filter((i) => new Date(i.createdAt).getTime() > cutoff)
+    .forEach((i) => {
+      events.push({
+        id: `grocery-${i.id}`,
+        icon: 'cart-outline',
+        iconColor: '#2ED573',
+        iconBg: '#F0FFF4',
+        actor: i.addedBy === myName ? 'You' : i.addedBy,
+        text: `added "${i.name}" to the grocery list`,
+        time: i.createdAt,
+      });
+    });
+
+  chores
+    .filter((c) => c.isComplete && c.completedAt && new Date(c.completedAt).getTime() > cutoff)
+    .forEach((c) => {
+      events.push({
+        id: `chore-${c.id}`,
+        icon: 'checkmark-done-outline',
+        iconColor: '#FF8C00',
+        iconBg: '#FFF8F0',
+        actor: c.claimedBy === myName ? 'You' : (c.claimedBy ?? 'Someone'),
+        text: `completed "${c.name}"`,
+        time: c.completedAt!,
+      });
+    });
+
+  return events
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 8);
+}
+
+function ActivityEventItem({ event }: { event: ActivityEvent }): React.JSX.Element {
   return (
     <View style={styles.activityRow}>
-      <View style={styles.activityAvatar}>
-        <Text style={styles.activityAvatarText}>{initial}</Text>
+      <View style={[styles.activityIconWrap, { backgroundColor: event.iconBg }]}>
+        <Ionicons name={event.icon as never} size={14} color={event.iconColor} />
       </View>
       <View style={styles.activityContent}>
-        <Text style={styles.activityAuthor}>{isMine ? 'You' : item.author}</Text>
-        <Text style={styles.activityText}>{item.text}</Text>
-        <Text style={styles.activityTime}>{timeAgo(item.createdAt)}</Text>
+        <Text style={styles.activityText} numberOfLines={2}>
+          <Text style={styles.activityActor}>{event.actor} </Text>
+          {event.text}
+        </Text>
+        <Text style={styles.activityTime}>{timeAgo(event.time)}</Text>
       </View>
-      {isMine && (
-        <Pressable onPress={() => onDelete(item.id)} hitSlop={8} accessibilityRole="button">
-          <Ionicons name="close" size={14} color={colors.textSecondary} />
-        </Pressable>
-      )}
     </View>
   );
 }
 
 function ActivityFeed(): React.JSX.Element {
-  const notes = useAnnouncementsStore((s) => s.items);
-  const postNote = useAnnouncementsStore((s) => s.post);
-  const removeNote = useAnnouncementsStore((s) => s.remove);
+  const bills = useBillsStore((s) => s.bills);
+  const groceryItems = useGroceryStore((s) => s.items);
+  const chores = useChoresStore((s) => s.chores);
   const profile = useAuthStore((s) => s.profile);
-  const houseId = useAuthStore((s) => s.houseId);
   const myName = profile?.name ?? '';
-  const [input, setInput] = useState('');
 
-  const handlePost = useCallback(async (): Promise<void> => {
-    if (!input.trim()) return;
-    await postNote(input.trim(), myName || 'Someone', houseId ?? '').catch(() => {});
-    setInput('');
-  }, [input, myName, houseId, postNote]);
-
-  const handleDelete = useCallback((id: string): void => { removeNote(id); }, [removeNote]);
+  const events = useMemo(
+    () => buildActivityEvents(bills, groceryItems, chores, myName),
+    [bills, groceryItems, chores, myName]
+  );
 
   return (
     <WidgetCard>
       <View style={styles.cardHeader}>
         <View style={[styles.cardIconWrap, { backgroundColor: '#F0F7FF' }]}>
-          <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primary} />
+          <Ionicons name="pulse-outline" size={18} color={colors.primary} />
         </View>
         <Text style={styles.cardTitle}>Recent Activity</Text>
       </View>
 
-      <View style={styles.activityInput}>
-        <TextInput
-          style={styles.noteInput}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Leave a note for your housemates..."
-          placeholderTextColor={colors.textSecondary}
-          returnKeyType="send"
-          onSubmitEditing={handlePost}
-        />
-        <Pressable
-          style={[styles.sendBtn, !input.trim() && styles.sendBtnOff]}
-          onPress={handlePost}
-          disabled={!input.trim()}
-          accessibilityRole="button"
-        >
-          <Ionicons name="send" size={14} color={input.trim() ? '#fff' : colors.textSecondary} />
-        </Pressable>
-      </View>
-
-      {notes.slice(0, 6).map((item) => (
-        <ActivityFeedItem key={item.id} item={item} myName={myName} onDelete={handleDelete} />
-      ))}
-      {notes.length === 0 && (
-        <Text style={styles.cardMuted}>No activity yet — be the first to post!</Text>
+      {events.length === 0 ? (
+        <Text style={styles.cardMuted}>No activity in the last 7 days</Text>
+      ) : (
+        events.map((event) => (
+          <ActivityEventItem key={event.id} event={event} />
+        ))
       )}
     </WidgetCard>
+  );
+}
+
+// ── Floating Chat Bubble ──────────────────────────────────────────────────────
+
+function FloatingChatBubble(): React.JSX.Element {
+  const unreadCount = useChatStore((s) => s.unreadCount);
+
+  return (
+    <Pressable
+      style={styles.chatBubble}
+      onPress={() => router.push('/(tabs)/more/chat')}
+      accessibilityRole="button"
+      accessibilityLabel={`House chat${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+    >
+      <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
+      {unreadCount > 0 && (
+        <View style={styles.chatBubbleBadge}>
+          <Text style={styles.chatBubbleBadgeText}>{unreadCount > 9 ? '9+' : String(unreadCount)}</Text>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -716,6 +771,7 @@ export default function DashboardScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.flex}>
       <ScrollView
         contentContainerStyle={[styles.scroll, isWide && styles.scrollWide]}
         showsVerticalScrollIndicator={false}
@@ -779,6 +835,8 @@ export default function DashboardScreen(): React.JSX.Element {
 
         <View style={styles.bottomPad} />
       </ScrollView>
+      <FloatingChatBubble />
+      </View>
     </SafeAreaView>
   );
 }
@@ -930,31 +988,33 @@ const styles = StyleSheet.create({
   voteBar: { height: 8, borderRadius: 4 },
   voteCount: { width: 20, fontSize: 12, ...font.bold, color: colors.textPrimary, textAlign: 'right' },
 
+  flex: { flex: 1 },
+
   // ── Activity feed
-  activityInput: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.surfaceSecondary, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  noteInput: { flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary },
-  sendBtn: {
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: colors.primary,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  sendBtnOff: { backgroundColor: colors.surfaceSecondary },
-  activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  activityAvatar: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: colors.primary + '22',
-    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
-  },
-  activityAvatarText: { fontSize: 13, ...font.bold, color: colors.primary },
+  activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 7, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  activityIconWrap: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center', flexShrink: 0, marginTop: 1 },
   activityContent: { flex: 1, gap: 2 },
-  activityAuthor: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
+  activityActor: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
   activityText: { fontSize: 13, ...font.regular, color: colors.textPrimary, lineHeight: 18 },
   activityTime: { fontSize: 11, ...font.regular, color: colors.textSecondary },
+
+  // ── Floating chat bubble
+  chatBubble: {
+    position: 'absolute', bottom: 20, right: 16,
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: colors.primary,
+    justifyContent: 'center', alignItems: 'center',
+    boxShadow: '0 4px 16px rgba(79,120,182,0.4)',
+  } as never,
+  chatBubbleBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: colors.danger,
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2, borderColor: colors.background,
+  },
+  chatBubbleBadgeText: { color: '#fff', fontSize: 10, ...font.bold },
 
   bottomPad: { height: 40 },
 

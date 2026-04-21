@@ -42,7 +42,7 @@ export default function SignupScreen(): React.JSX.Element {
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.something_went_wrong'));
     }
-  }, [name, email, password, selectedColor, signUp]);
+  }, [name, email, password, selectedColor, signUp, t]);
 
   return (
     <SafeAreaView style={styles.container}>

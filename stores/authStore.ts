@@ -372,14 +372,21 @@ export const useAuthStore = create<AuthStore>()(
           .from('profiles')
           .upload(path, buffer, { contentType, upsert: true });
         if (uploadError) throw new Error(uploadError.message);
-        const { data: { publicUrl } } = supabase.storage.from('profiles').getPublicUrl(path);
-        const urlWithBust = `${publicUrl}?t=${Date.now()}`;
+        // Store a marker so fetchProfile knows a photo exists.
+        // We do NOT store a signed/public URL because those can expire or be inaccessible
+        // if the bucket public flag isn't set — instead we always generate a fresh signed URL.
+        const placeholder = `profiles:${path}`;
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({ avatar_url: urlWithBust })
+          .update({ avatar_url: placeholder })
           .eq('id', user.id);
         if (updateError) throw new Error(updateError.message);
-        set((s) => ({ profile: s.profile ? { ...s.profile, avatarUrl: urlWithBust } : s.profile }));
+        // Generate a signed URL for immediate display (bypasses public-bucket requirement)
+        const { data: signed } = await supabase.storage
+          .from('profiles')
+          .createSignedUrl(path, 60 * 60 * 24 * 365);
+        if (!signed?.signedUrl) throw new Error('Could not generate photo URL. Check storage permissions.');
+        set((s) => ({ profile: s.profile ? { ...s.profile, avatarUrl: signed.signedUrl } : s.profile }));
       },
 
       removeAvatar: async (): Promise<void> => {
@@ -399,14 +406,17 @@ export const useAuthStore = create<AuthStore>()(
           .from('profiles')
           .upload(path, buffer, { contentType, upsert: true });
         if (uploadError) throw new Error(uploadError.message);
-        const { data: { publicUrl } } = supabase.storage.from('profiles').getPublicUrl(path);
-        const urlWithBust = `${publicUrl}?t=${Date.now()}`;
+        const placeholder = `profiles:${path}`;
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({ cover_url: urlWithBust })
+          .update({ cover_url: placeholder })
           .eq('id', user.id);
         if (updateError) throw new Error(updateError.message);
-        set((s) => ({ profile: s.profile ? { ...s.profile, coverUrl: urlWithBust } : s.profile }));
+        const { data: signed } = await supabase.storage
+          .from('profiles')
+          .createSignedUrl(path, 60 * 60 * 24 * 365);
+        if (!signed?.signedUrl) throw new Error('Could not generate cover URL. Check storage permissions.');
+        set((s) => ({ profile: s.profile ? { ...s.profile, coverUrl: signed.signedUrl } : s.profile }));
       },
 
       removeCover: async (): Promise<void> => {
@@ -493,7 +503,26 @@ async function fetchProfile(
     .eq('id', userId)
     .maybeSingle();
 
-  if (data) return { id: data.id, name: data.name, avatarColor: data.avatar_color, avatarUrl: data.avatar_url ?? undefined, coverUrl: data.cover_url ?? undefined };
+  if (data) {
+    // Generate fresh signed URLs so photos work regardless of bucket public flag.
+    // The DB value may be a placeholder ('profiles:userId/avatar'), a legacy URL,
+    // or anything truthy — we only care that a file was uploaded, not the stored value.
+    let avatarUrl: string | undefined;
+    let coverUrl: string | undefined;
+    if (data.avatar_url) {
+      const { data: signed } = await supabase.storage
+        .from('profiles')
+        .createSignedUrl(`${userId}/avatar`, 60 * 60 * 24 * 365);
+      avatarUrl = signed?.signedUrl;
+    }
+    if (data.cover_url) {
+      const { data: signed } = await supabase.storage
+        .from('profiles')
+        .createSignedUrl(`${userId}/cover`, 60 * 60 * 24 * 365);
+      coverUrl = signed?.signedUrl;
+    }
+    return { id: data.id, name: data.name, avatarColor: data.avatar_color, avatarUrl, coverUrl };
+  }
 
   // Profile row missing — create it from auth metadata so the app works immediately
   if (!userMeta) return null;

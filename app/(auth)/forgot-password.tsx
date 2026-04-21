@@ -41,7 +41,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [email]);
+  }, [email, t]);
 
   const handleReset = useCallback(async () => {
     if (!code.trim()) {
@@ -88,7 +88,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [code, email, password, confirm]);
+  }, [code, email, password, confirm, t]);
 
   if (done) {
     return (

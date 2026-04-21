@@ -13,16 +13,16 @@
  *   mockFrom.mockReturnValue(dbResult({ data: [...], error: null }))
  *   mockFrom.mockReturnValueOnce(dbResult({ data: null, error: { message: 'fail' } }))
  */
-export function dbResult(result: { data: unknown; error: unknown }) {
+export function dbResult(result: { data: unknown; error: unknown }): Record<string, unknown> {
   const p = Promise.resolve(result);
 
   // The chain object is both a thenable (for direct `await`) and carries all
   // method calls that return itself so chaining works to any depth.
   const chain: Record<string, unknown> = {
     // Direct-await support
-    then: (res: Parameters<Promise<unknown>['then']>[0], rej: Parameters<Promise<unknown>['then']>[1]) =>
+    then: (res: Parameters<Promise<unknown>['then']>[0], rej: Parameters<Promise<unknown>['then']>[1]): Promise<unknown> =>
       p.then(res, rej),
-    catch: (rej: Parameters<Promise<unknown>['catch']>[0]) => p.catch(rej),
+    catch: (rej: Parameters<Promise<unknown>['catch']>[0]): Promise<unknown> => p.catch(rej),
     finally: (fn: Parameters<Promise<unknown>['finally']>[0]) => p.finally(fn),
 
     // Terminal methods
@@ -40,16 +40,16 @@ export function dbResult(result: { data: unknown; error: unknown }) {
     select: jest.fn(() => ({
       single: jest.fn(() => p),
     })),
-    then: (res: Parameters<Promise<unknown>['then']>[0], rej: Parameters<Promise<unknown>['then']>[1]) =>
+    then: (res: Parameters<Promise<unknown>['then']>[0], rej: Parameters<Promise<unknown>['then']>[1]): Promise<unknown> =>
       p.then(res, rej),
-    catch: (rej: Parameters<Promise<unknown>['catch']>[0]) => p.catch(rej),
+    catch: (rej: Parameters<Promise<unknown>['catch']>[0]): Promise<unknown> => p.catch(rej),
   }));
 
   return chain;
 }
 
 /** Convenience: successful response with data */
-export const ok = (data: unknown = null) => dbResult({ data, error: null });
+export const ok = (data: unknown = null): Record<string, unknown> => dbResult({ data, error: null });
 
 /** Convenience: failed response with error message */
-export const fail = (message: string) => dbResult({ data: null, error: { message } });
+export const fail = (message: string): Record<string, unknown> => dbResult({ data: null, error: { message } });

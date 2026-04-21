@@ -21,11 +21,11 @@ export const useHouseStore = create<HouseStore>()(
       members: [],
       isLoading: false,
       error: null,
-      setHouse: (house) => set({ house }),
-      setMembers: (members) => set({ members }),
-      setLoading: (isLoading) => set({ isLoading }),
-      setError: (error) => set({ error }),
-      clearError: () => set({ error: null }),
+      setHouse: (house): void => set({ house }),
+      setMembers: (members): void => set({ members }),
+      setLoading: (isLoading): void => set({ isLoading }),
+      setError: (error): void => set({ error }),
+      clearError: (): void => set({ error: null }),
     }),
     { name: 'house-store' }
   )

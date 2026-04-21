@@ -27,7 +27,7 @@ const mockFrom = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
-    from: (...a: unknown[]) => mockFrom(...a),
+    from: (...a: unknown[]): unknown => mockFrom(...a),
     channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
     removeChannel: jest.fn(),
     auth: { getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } }) },
@@ -36,7 +36,7 @@ jest.mock('@lib/supabase', () => ({
 
 jest.mock('@lib/notifyHousemates', () => ({ notifyHousemates: jest.fn() }));
 jest.mock('@stores/settingsStore', () => ({
-  useSettingsStore: { getState: () => ({ currency: '$' }) },
+  useSettingsStore: { getState: (): { currency: string } => ({ currency: '$' }) },
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

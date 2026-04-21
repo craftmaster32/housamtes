@@ -43,11 +43,6 @@ const BUCKET = 'house-photos';
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
 
-function storagePathFromUrl(url: string): string {
-  // Extract the path after /storage/v1/object/public/{bucket}/
-  const match = url.match(/house-photos\/(.+)$/);
-  return match ? match[1] : '';
-}
 
 export const usePhotoStore = create<PhotoStore>()(
   devtools(

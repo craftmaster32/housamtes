@@ -65,7 +65,7 @@ export function setupI18n(initialLanguage: AppLanguage): void {
       interpolation: {
         escapeValue: false, // React Native handles XSS
       },
-      compatibilityJSON: 'v3', // Required for Android
+      compatibilityJSON: 'v4',
     });
 }
 

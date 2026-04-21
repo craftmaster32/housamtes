@@ -7,7 +7,7 @@ import { Platform, Alert } from 'react-native';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let ExpoCalendar: typeof import('expo-calendar') | null = null;
 if (Platform.OS !== 'web') {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   ExpoCalendar = require('expo-calendar') as typeof import('expo-calendar');
 }
 
@@ -60,7 +60,7 @@ function buildDates(
     const [sh, sm] = startTime.split(':').map(Number);
     const startDate = new Date(year, month - 1, day, sh, sm, 0);
     const endDate = endTime
-      ? (() => { const [eh, em] = endTime.split(':').map(Number); return new Date(year, month - 1, day, eh, em, 0); })()
+      ? ((): Date => { const [eh, em] = endTime.split(':').map(Number); return new Date(year, month - 1, day, eh, em, 0); })()
       : new Date(startDate.getTime() + 60 * 60 * 1000);
     return { startDate, endDate, allDay: false };
   }

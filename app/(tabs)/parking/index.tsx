@@ -144,7 +144,7 @@ function ReserveModal({
     } finally {
       setSaving(false);
     }
-  }, [dateConflict, date, startTime, endTime, note, myName, houseId, addReservation, handleClose, t]);
+  }, [dateConflict, date, startTime, endTime, note, myName, houseId, addReservation, handleClose, syncParkingPending, t]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
@@ -237,7 +237,7 @@ export default function ParkingScreen(): React.JSX.Element {
       appStateRef.current = nextState;
     });
     const interval = setInterval(() => { checkReservationAutoApply(houseId ?? ''); }, 60_000);
-    return () => { sub.remove(); clearInterval(interval); };
+    return (): void => { sub.remove(); clearInterval(interval); };
   }, [houseId, checkReservationAutoApply]);
 
   const handleClaim = useCallback(async (): Promise<void> => {
@@ -290,7 +290,7 @@ export default function ParkingScreen(): React.JSX.Element {
         houseId={houseId ?? ''}
       />
     ),
-    [myName, handleCancel, handleApprove, houseId]
+    [myName, handleCancel, handleApprove, houseId, canApprove]
   );
 
   return (

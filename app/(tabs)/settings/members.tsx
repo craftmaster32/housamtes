@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, Switch, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -21,9 +22,6 @@ const PERMISSION_LABELS: Array<{ key: keyof MemberPermissions; label: string; ic
   { key: 'condition',   label: 'Property Condition',  icon: '📋' },
 ];
 
-function avatarColor(_name: string, fallback: string): string {
-  return fallback;
-}
 
 // ── Member card ───────────────────────────────────────────────────────────────
 function MemberCard({
@@ -45,8 +43,11 @@ function MemberCard({
     <View style={styles.memberCard}>
       {/* Header */}
       <View style={styles.memberHeader}>
-        <View style={[styles.memberAvatar, { backgroundColor: avatarColor(member.name, member.color) }]}>
-          <Text style={styles.memberAvatarText}>{member.name[0].toUpperCase()}</Text>
+        <View style={[styles.memberAvatar, { backgroundColor: member.avatarUrl ? 'transparent' : member.color }]}>
+          {member.avatarUrl
+            ? <Image source={{ uri: member.avatarUrl }} style={styles.memberAvatarImg} contentFit="cover" />
+            : <Text style={styles.memberAvatarText}>{member.name[0].toUpperCase()}</Text>
+          }
         </View>
         <View style={styles.memberMeta}>
           <Text style={styles.memberName}>{member.name}{isMe ? ' (you)' : ''}</Text>
@@ -118,7 +119,7 @@ export default function MembersScreen(): React.JSX.Element {
       [
         ...options.map((r) => ({
           text: `Make ${labels[r]}`,
-          onPress: async () => {
+          onPress: async (): Promise<void> => {
             await updateRole(member.memberId, r);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
           },
@@ -174,7 +175,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
   },
   memberHeader: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
-  memberAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  memberAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  memberAvatarImg: { width: 44, height: 44 },
   memberAvatarText: { color: '#FFF', fontSize: 18, ...font.bold },
   memberMeta:   { flex: 1 },
   memberName:   { fontSize: 16, ...font.semibold, color: colors.textPrimary },

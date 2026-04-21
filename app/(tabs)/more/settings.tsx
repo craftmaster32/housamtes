@@ -172,7 +172,7 @@ export default function SettingsScreen(): React.JSX.Element {
       if (!user?.id || !houseId) return;
       updatePrefs(user.id, houseId, { [key]: value });
     },
-    [user?.id, houseId, updatePrefs, prefs]
+    [user?.id, houseId, updatePrefs]
   );
 
   const setDaysBefore = useCallback(

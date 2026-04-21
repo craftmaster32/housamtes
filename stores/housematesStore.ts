@@ -10,6 +10,7 @@ export interface Housemate {
   memberId: string; // house_members.id (for permission updates)
   name: string;
   color: string;
+  avatarUrl?: string;
   role: MemberRole;
   permissions: MemberPermissions;
 }
@@ -65,11 +66,24 @@ export const useHousematesStore = create<HousematesStore>()(
           // (house_members.user_id → auth.users ← profiles.id) that PostgREST
           // may not resolve, causing all profiles to silently return null.
           const profilesRes = userIds.length > 0
-            ? await supabase.from('profiles').select('id, name, avatar_color').in('id', userIds)
-            : { data: [] as { id: string; name: string; avatar_color: string }[] };
+            ? await supabase.from('profiles').select('id, name, avatar_color, avatar_url').in('id', userIds)
+            : { data: [] as { id: string; name: string; avatar_color: string; avatar_url: string | null }[] };
 
-          const profileMap = new Map<string, { id: string; name: string; avatar_color: string }>(
+          const profileMap = new Map<string, { id: string; name: string; avatar_color: string; avatar_url: string | null }>(
             (profilesRes.data ?? []).map((p) => [p.id, p])
+          );
+
+          // Generate signed avatar URLs in parallel for members who have one
+          const signedUrls = new Map<string, string>();
+          await Promise.all(
+            (profilesRes.data ?? [])
+              .filter((p) => p.avatar_url)
+              .map(async (p) => {
+                const { data } = await supabase.storage
+                  .from('profiles')
+                  .createSignedUrl(`${p.id}/avatar`, 60 * 60 * 24 * 7);
+                if (data?.signedUrl) signedUrls.set(p.id, data.signedUrl);
+              })
           );
 
           const housemates: Housemate[] = memberRows
@@ -81,11 +95,12 @@ export const useHousematesStore = create<HousematesStore>()(
                 memberId: m.id as string,
                 name: p.name,
                 color: p.avatar_color,
+                avatarUrl: signedUrls.get(p.id),
                 role: ((m.role as MemberRole | undefined) ?? 'member') as MemberRole,
                 permissions: { ...defaultPerms, ...(m.permissions as Partial<MemberPermissions>) },
               };
             })
-            .filter((h): h is Housemate => h !== null);
+            .filter((h) => h !== null) as Housemate[];
 
           set({
             housemates,

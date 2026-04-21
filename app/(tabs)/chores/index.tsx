@@ -207,7 +207,7 @@ export default function ChoresScreen(): React.JSX.Element {
               <View style={styles.heroCopy}>
                 <Text style={styles.titleHero}>{t('chores.title')}</Text>
                 <Text style={styles.textBase}>
-                  Assign tasks, claim what you'll do, and check them off together.
+                  {"Assign tasks, claim what you'll do, and check them off together."}
                 </Text>
               </View>
 

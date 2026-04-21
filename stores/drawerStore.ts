@@ -9,7 +9,7 @@ interface DrawerStore {
 
 export const useDrawerStore = create<DrawerStore>()((set) => ({
   isOpen: false,
-  open: () => set({ isOpen: true }),
-  close: () => set({ isOpen: false }),
-  toggle: () => set((s) => ({ isOpen: !s.isOpen })),
+  open: (): void => set({ isOpen: true }),
+  close: (): void => set({ isOpen: false }),
+  toggle: (): void => set((s): { isOpen: boolean } => ({ isOpen: !s.isOpen })),
 }));

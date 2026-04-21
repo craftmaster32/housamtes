@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Alert, Platform, TextInput } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -86,7 +87,7 @@ export default function ProfileScreen(): React.JSX.Element {
       {
         text: t('profile.sign_out'),
         style: 'destructive',
-        onPress: async () => {
+        onPress: async (): Promise<void> => {
           await signOut();
           router.replace('/(auth)/welcome');
         },
@@ -127,8 +128,11 @@ export default function ProfileScreen(): React.JSX.Element {
 
         {/* ── Profile header ── */}
         <View style={styles.profileHeader}>
-          <View style={[styles.avatarLarge, { backgroundColor: profile?.avatarColor ?? colors.primary }]}>
-            <Text style={styles.avatarLargeText}>{initial}</Text>
+          <View style={[styles.avatarLarge, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? colors.primary) }]}>
+            {profile?.avatarUrl
+              ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarLargeImg} contentFit="cover" />
+              : <Text style={styles.avatarLargeText}>{initial}</Text>
+            }
           </View>
           <Text style={styles.profileName}>{profile?.name ?? 'You'}</Text>
           {!!email && <Text style={styles.profileEmail}>{email}</Text>}
@@ -295,8 +299,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: sizes.sm,
+    overflow: 'hidden',
     boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
   } as never,
+  avatarLargeImg: { width: 96, height: 96 },
   avatarLargeText: { color: colors.white, fontSize: 40, ...font.bold },
   profileName: { fontSize: 24, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
   profileEmail: { fontSize: 14, ...font.regular, color: colors.textSecondary },

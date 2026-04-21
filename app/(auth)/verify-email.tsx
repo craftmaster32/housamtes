@@ -29,7 +29,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
     } finally {
       setIsResending(false);
     }
-  }, [pendingEmail, resendVerification]);
+  }, [pendingEmail, resendVerification, t]);
 
   return (
     <SafeAreaView style={styles.container}>

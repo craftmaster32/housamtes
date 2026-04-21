@@ -76,7 +76,7 @@ function MessageBubble({
       t('chat.delete_body'),
       [
         { text: t('common.cancel'), style: 'cancel' },
-        { text: t('common.delete'), style: 'destructive', onPress: () => onDelete(msg.id) },
+        { text: t('common.delete'), style: 'destructive', onPress: (): void => onDelete(msg.id) },
       ]
     );
   }, [canDelete, msg.id, onDelete, t]);
@@ -137,7 +137,7 @@ export default function ChatScreen(): React.JSX.Element {
   // Lazy-load: chat is not loaded at startup, load it when this screen opens
   useEffect(() => {
     if (houseId) load(houseId);
-    return () => { useChatStore.getState().unsubscribe(); };
+    return (): void => { useChatStore.getState().unsubscribe(); };
   }, [houseId, load]);
 
   useEffect(() => { markRead(); }, [markRead]);

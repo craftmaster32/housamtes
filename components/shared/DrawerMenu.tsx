@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -193,8 +194,11 @@ export function DrawerMenu(): React.JSX.Element {
 
           {/* Profile header — tappable to go to profile */}
           <Pressable style={styles.profileSection} onPress={() => navigate('/(tabs)/profile')}>
-            <View style={[styles.avatar, { backgroundColor: profile?.avatarColor ?? colors.primary }]}>
-              <Text style={styles.avatarText}>{initial}</Text>
+            <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? colors.primary) }]}>
+              {profile?.avatarUrl
+                ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
+                : <Text style={styles.avatarText}>{initial}</Text>
+              }
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.profileName}>{profile?.name ?? user?.email ?? 'You'}</Text>
@@ -326,7 +330,9 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
+  avatarImg: { width: 52, height: 52 },
   avatarText: {
     color: colors.white,
     fontSize: 20,

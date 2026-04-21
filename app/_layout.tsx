@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, PanResponder, AppState } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { initErrorTracking } from '@lib/errorTracking';
 import { Stack, router, useSegments } from 'expo-router';
@@ -86,8 +87,9 @@ export default function RootLayout(): React.JSX.Element | null {
     if (!isLoading && fontsLoaded) setAuthStable(true);
   }, [isLoading, fontsLoaded]);
   const segments = useSegments();
-  const segmentsKey = segments[0] ?? '';
-  const currentScreen = segments[1] ?? '';
+  const segArr = segments as string[];
+  const segmentsKey = segArr[0] ?? '';
+  const currentScreen = segArr[1] ?? '';
 
   const loadHousemates = useHousematesStore((s) => s.load);
   const loadBills = useBillsStore((s) => s.load);
@@ -139,7 +141,7 @@ export default function RootLayout(): React.JSX.Element | null {
 
     // App already open and deep link arrives
     const sub = Linking.addEventListener('url', ({ url }) => { handleUrl(url); });
-    return () => sub.remove();
+    return (): void => sub.remove();
   }, []);
 
   // Navigate based on auth state — only once auth is fully stable
@@ -186,7 +188,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadMaintenance(houseId);
     loadVoting(houseId);
     loadCondition(houseId);
-    return () => {
+    return (): void => {
       useHousematesStore.getState().unsubscribe();
       useBillsStore.getState().unsubscribe();
       useRecurringBillsStore.getState().unsubscribe();
@@ -225,7 +227,7 @@ export default function RootLayout(): React.JSX.Element | null {
         loadCondition(houseId);
       }
     });
-    return () => sub.remove();
+    return (): void => sub.remove();
   }, [
     houseId,
     loadHousemates, loadBills, loadRecurringBills, loadParking, loadGrocery,
@@ -255,6 +257,7 @@ export default function RootLayout(): React.JSX.Element | null {
 
   // Stack must always render — navigation happens via useEffect above
   return (
+    <GestureHandlerRootView style={styles.gestureRoot}>
     <PaperProvider theme={theme}>
       <StatusBar style="auto" />
       <ErrorBoundary>
@@ -272,10 +275,12 @@ export default function RootLayout(): React.JSX.Element | null {
         </View>
       </ErrorBoundary>
     </PaperProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  gestureRoot: { flex: 1 },
   root: { flex: 1 },
   content: { flex: 1 },
   splash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },

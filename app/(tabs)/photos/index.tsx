@@ -31,7 +31,7 @@ export default function PhotosScreen(): React.JSX.Element {
   // Lazy-load: photos are not loaded at startup, load when this screen opens
   useEffect(() => {
     if (houseId) load(houseId);
-    return () => { usePhotoStore.getState().unsubscribe(); };
+    return (): void => { usePhotoStore.getState().unsubscribe(); };
   }, [houseId, load]);
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory | 'general'>('general');
@@ -65,7 +65,7 @@ export default function PhotosScreen(): React.JSX.Element {
       setPickedMime(asset.mimeType ?? 'image/jpeg');
       setShowUploadModal(true);
     }
-  }, []);
+  }, [t]);
 
   const handleUpload = useCallback(async () => {
     if (!pickedUri || !user || !houseId || !profile) return;
@@ -93,14 +93,14 @@ export default function PhotosScreen(): React.JSX.Element {
     } finally {
       setIsUploading(false);
     }
-  }, [pickedUri, pickedFileName, pickedMime, caption, uploadCategory, user, houseId, profile, photos.length, upload]);
+  }, [pickedUri, pickedFileName, pickedMime, caption, uploadCategory, user, houseId, profile, photos.length, upload, t]);
 
   const handleDelete = useCallback((photo: Photo) => {
     Alert.alert(t('photos.delete_photo'), t('photos.delete_confirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'), style: 'destructive',
-        onPress: async () => {
+        onPress: async (): Promise<void> => {
           // Extract storage path from URL
           const url = photo.url;
           const match = url.match(/house-photos\/(.+)$/);
@@ -110,7 +110,7 @@ export default function PhotosScreen(): React.JSX.Element {
         },
       },
     ]);
-  }, [remove]);
+  }, [remove, t]);
 
   const renderPhoto = useCallback(
     ({ item }: { item: Photo }) => (
