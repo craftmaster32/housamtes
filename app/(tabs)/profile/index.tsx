@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, PanResponder } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, type GestureResponderEvent } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -317,7 +317,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
 // ── Interactive crop editor ────────────────────────────────────────────────────
 interface CropSource { uri: string; imgW: number; imgH: number; }
 
-const CROP_FRAME = 280;
+const CROP_FRAME = 260;
 
 function CropEditor({
   source, onConfirm, onCancel,
@@ -328,21 +328,31 @@ function CropEditor({
 }): React.JSX.Element {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+
   const accumulated = useRef({ x: 0, y: 0 });
-  const gestureStart = useRef({ x: 0, y: 0 });
+  const scaleRef    = useRef(1);
+  scaleRef.current  = scale;
+
+  // Track touch gesture state via ref (avoids stale closure issues)
+  const touch = useRef<{
+    mode: 'idle' | 'drag' | 'pinch';
+    dragStart: { accX: number; accY: number; px: number; py: number };
+    pinchStart: { dist: number; scale: number };
+  }>({ mode: 'idle', dragStart: { accX: 0, accY: 0, px: 0, py: 0 }, pinchStart: { dist: 1, scale: 1 } });
 
   const imgW = source.imgW > 0 ? source.imgW : CROP_FRAME;
   const imgH = source.imgH > 0 ? source.imgH : CROP_FRAME;
-  const minDim = Math.min(imgW, imgH);
+  const minDim    = Math.min(imgW, imgH);
   const dispFactor = (CROP_FRAME * scale) / minDim;
-  const dispW = imgW * dispFactor;
-  const dispH = imgH * dispFactor;
-  const maxDx = Math.max(0, (dispW - CROP_FRAME) / 2);
-  const maxDy = Math.max(0, (dispH - CROP_FRAME) / 2);
+  const dispW     = imgW * dispFactor;
+  const dispH     = imgH * dispFactor;
+  const maxDx     = Math.max(0, (dispW - CROP_FRAME) / 2);
+  const maxDy     = Math.max(0, (dispH - CROP_FRAME) / 2);
 
   const layoutRef = useRef({ maxDx, maxDy });
   layoutRef.current = { maxDx, maxDy };
 
+  // Re-clamp offset when scale changes
   useEffect(() => {
     const { maxDx: mx, maxDy: my } = layoutRef.current;
     const newX = Math.min(mx, Math.max(-mx, accumulated.current.x));
@@ -351,28 +361,50 @@ function CropEditor({
     setOffset({ x: newX, y: newY });
   }, [scale]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        gestureStart.current = { x: accumulated.current.x, y: accumulated.current.y };
-      },
-      onPanResponderMove: (_, gs) => {
-        const { maxDx: mx, maxDy: my } = layoutRef.current;
-        const newX = Math.min(mx, Math.max(-mx, gestureStart.current.x + gs.dx));
-        const newY = Math.min(my, Math.max(-my, gestureStart.current.y + gs.dy));
-        accumulated.current = { x: newX, y: newY };
-        setOffset({ x: newX, y: newY });
-      },
-      onPanResponderRelease: () => {},
-    })
-  ).current;
+  const pinchDist = (t: GestureResponderEvent['nativeEvent']['touches']): number => {
+    const dx = t[0].pageX - t[1].pageX;
+    const dy = t[0].pageY - t[1].pageY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleTouchStart = useCallback((e: GestureResponderEvent): void => {
+    const t = e.nativeEvent.touches;
+    if (t.length >= 2) {
+      touch.current = { ...touch.current, mode: 'pinch', pinchStart: { dist: pinchDist(t), scale: scaleRef.current } };
+    } else {
+      touch.current = { ...touch.current, mode: 'drag', dragStart: { accX: accumulated.current.x, accY: accumulated.current.y, px: t[0].pageX, py: t[0].pageY } };
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: GestureResponderEvent): void => {
+    const t = e.nativeEvent.touches;
+    const state = touch.current;
+    if (t.length >= 2 && state.mode === 'pinch') {
+      const newScale = Math.max(1, state.pinchStart.scale * pinchDist(t) / state.pinchStart.dist);
+      setScale(parseFloat(newScale.toFixed(2)));
+    } else if (t.length === 1 && state.mode === 'drag') {
+      const { maxDx: mx, maxDy: my } = layoutRef.current;
+      const newX = Math.min(mx, Math.max(-mx, state.dragStart.accX + t[0].pageX - state.dragStart.px));
+      const newY = Math.min(my, Math.max(-my, state.dragStart.accY + t[0].pageY - state.dragStart.py));
+      accumulated.current = { x: newX, y: newY };
+      setOffset({ x: newX, y: newY });
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e: GestureResponderEvent): void => {
+    const t = e.nativeEvent.touches;
+    if (t.length === 0) {
+      touch.current = { ...touch.current, mode: 'idle' };
+    } else if (t.length === 1) {
+      // One finger lifted during pinch — switch back to drag
+      touch.current = { ...touch.current, mode: 'drag', dragStart: { accX: accumulated.current.x, accY: accumulated.current.y, px: t[0].pageX, py: t[0].pageY } };
+    }
+  }, []);
 
   const imgLeft = (CROP_FRAME - dispW) / 2 + offset.x;
   const imgTop  = (CROP_FRAME - dispH) / 2 + offset.y;
 
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = useCallback((): void => {
     const originX = Math.max(0, Math.round(-imgLeft / dispFactor));
     const originY = Math.max(0, Math.round(-imgTop / dispFactor));
     const cropSz  = Math.min(imgW, imgH, Math.max(1, Math.round(CROP_FRAME / dispFactor)));
@@ -381,10 +413,12 @@ function CropEditor({
 
   return (
     <View style={cedStyles.wrapper}>
-      <Text style={cedStyles.hint}>Drag to reposition · use + − to zoom</Text>
+      <Text style={cedStyles.hint}>Drag · pinch to zoom</Text>
       <View
-        style={[cedStyles.frame, { width: CROP_FRAME, height: CROP_FRAME }]}
-        {...panResponder.panHandlers}
+        style={cedStyles.frame}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <Image
           source={{ uri: source.uri }}
@@ -393,21 +427,11 @@ function CropEditor({
         />
       </View>
       <View style={cedStyles.zoomRow}>
-        <Pressable
-          style={cedStyles.zoomBtn}
-          onPress={() => setScale((s) => Math.max(1, parseFloat((s - 0.25).toFixed(2))))}
-          accessibilityRole="button"
-          accessibilityLabel="Zoom out"
-        >
+        <Pressable style={cedStyles.zoomBtn} onPress={() => setScale((s) => Math.max(1, parseFloat((s - 0.2).toFixed(1))))} accessibilityRole="button" accessibilityLabel="Zoom out">
           <Text style={cedStyles.zoomBtnText}>−</Text>
         </Pressable>
         <Text style={cedStyles.zoomLabel}>Zoom</Text>
-        <Pressable
-          style={cedStyles.zoomBtn}
-          onPress={() => setScale((s) => parseFloat((s + 0.25).toFixed(2)))}
-          accessibilityRole="button"
-          accessibilityLabel="Zoom in"
-        >
+        <Pressable style={cedStyles.zoomBtn} onPress={() => setScale((s) => parseFloat((s + 0.2).toFixed(1)))} accessibilityRole="button" accessibilityLabel="Zoom in">
           <Text style={cedStyles.zoomBtnText}>+</Text>
         </Pressable>
       </View>
@@ -424,22 +448,24 @@ function CropEditor({
 }
 
 const cedStyles = StyleSheet.create({
-  wrapper:  { alignItems: 'center', gap: sizes.md },
-  hint:     { fontSize: 13, ...font.regular, color: colors.textSecondary },
+  wrapper: { alignItems: 'center', gap: sizes.md },
+  hint:    { fontSize: 13, ...font.regular, color: colors.textSecondary },
   frame: {
+    width: CROP_FRAME,
+    height: CROP_FRAME,
+    borderRadius: CROP_FRAME / 2,   // circular — matches avatar shape
     overflow: 'hidden',
-    borderRadius: sizes.borderRadiusLg,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: colors.primary,
   },
-  zoomRow:    { flexDirection: 'row', alignItems: 'center', gap: sizes.xl },
-  zoomBtn:    { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary + '15', justifyContent: 'center', alignItems: 'center' },
-  zoomBtnText:{ fontSize: 26, color: colors.primary, lineHeight: 30 },
-  zoomLabel:  { fontSize: 14, ...font.bold, color: colors.textSecondary },
-  btnRow:     { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
-  confirmBtn: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: sizes.xl, borderRadius: 10 },
-  confirmText:{ color: colors.white, ...font.semibold, fontSize: 15 },
-  cancelText: { color: colors.textSecondary, fontSize: 14, ...font.regular },
+  zoomRow:     { flexDirection: 'row', alignItems: 'center', gap: sizes.xl },
+  zoomBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  zoomBtnText: { fontSize: 26, color: colors.primary, lineHeight: 30 },
+  zoomLabel:   { fontSize: 14, ...font.bold, color: colors.textSecondary },
+  btnRow:      { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
+  confirmBtn:  { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: sizes.xl, borderRadius: 10 },
+  confirmText: { color: colors.white, ...font.semibold, fontSize: 15 },
+  cancelText:  { color: colors.textSecondary, fontSize: 14, ...font.regular },
 });
 
 // ── Main screen ────────────────────────────────────────────────────────────────
