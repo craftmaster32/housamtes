@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -337,6 +337,7 @@ export default function ProfileScreen(): React.JSX.Element {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [cropPending, setCropPending] = useState<{ uri: string; base64?: string } | null>(null);
 
   // Load bills for recent activity if not already loaded by the root layout
   useEffect(() => {
@@ -359,8 +360,22 @@ export default function ProfileScreen(): React.JSX.Element {
   const todayBills     = recentBills.filter((b) => billDayLabel(b.date) === 'today');
   const yesterdayBills = recentBills.filter((b) => billDayLabel(b.date) === 'yesterday');
 
+  const handleCropConfirm = useCallback(async (): Promise<void> => {
+    if (!cropPending) return;
+    setUploading(true);
+    try {
+      await uploadAvatar(cropPending.uri, 'image/jpeg', cropPending.base64);
+    } catch (err) {
+      Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload photo.');
+    } finally {
+      setUploading(false);
+      setCropPending(null);
+    }
+  }, [cropPending, uploadAvatar]);
+
   const pickImage = useCallback(async (source: 'camera' | 'library'): Promise<void> => {
-    // Web browsers don't support allowsEditing — pick the file then auto-center-crop it.
+    // Web browsers don't support allowsEditing — pick the file, auto-center-crop it,
+    // then show a preview so the user can confirm before uploading.
     if (Platform.OS === 'web') {
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'] as ImagePicker.MediaType[],
@@ -368,24 +383,22 @@ export default function ProfileScreen(): React.JSX.Element {
       });
       if (res.canceled || !res.assets[0]) return;
       const a = res.assets[0];
-      const w = a.width ?? 800;
-      const h = a.height ?? 800;
-      const size = Math.min(w, h);
-      setUploading(true);
+      const w = a.width ?? 0;
+      const h = a.height ?? 0;
       try {
+        const ops: ImageManipulator.Action[] = [];
+        if (w > 0 && h > 0 && w !== h) {
+          const size = Math.min(w, h);
+          ops.push({ crop: { originX: Math.round((w - size) / 2), originY: Math.round((h - size) / 2), width: size, height: size } });
+        }
+        ops.push({ resize: { width: 512, height: 512 } });
         const cropped = await ImageManipulator.manipulateAsync(
-          a.uri,
-          [
-            { crop: { originX: Math.round((w - size) / 2), originY: Math.round((h - size) / 2), width: size, height: size } },
-            { resize: { width: 512, height: 512 } },
-          ],
+          a.uri, ops,
           { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true }
         );
-        await uploadAvatar(cropped.uri, 'image/jpeg', cropped.base64 ?? undefined);
-      } catch (err) {
-        Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload photo.');
-      } finally {
-        setUploading(false);
+        setCropPending({ uri: cropped.uri, base64: cropped.base64 ?? undefined });
+      } catch {
+        setCropPending({ uri: a.uri });
       }
       return;
     }
@@ -762,6 +775,38 @@ export default function ProfileScreen(): React.JSX.Element {
         </View>
       </ScrollView>
 
+        {/* ── Crop preview modal (web only) ──────────────────────── */}
+        <Modal visible={cropPending !== null} transparent animationType="fade">
+          <View style={styles.cropOverlay}>
+            <View style={styles.cropModal}>
+              <Text style={styles.cropTitle}>Use this photo?</Text>
+              {cropPending && (
+                <Image
+                  source={{ uri: cropPending.uri }}
+                  style={styles.cropPreview}
+                  contentFit="cover"
+                />
+              )}
+              <View style={styles.cropBtns}>
+                <Pressable
+                  style={[styles.cropConfirmBtn, uploading && styles.saveBtnOff]}
+                  onPress={handleCropConfirm}
+                  disabled={uploading}
+                  accessibilityRole="button"
+                >
+                  {uploading
+                    ? <ActivityIndicator color={colors.white} size="small" />
+                    : <Text style={styles.cropConfirmText}>Use Photo</Text>
+                  }
+                </Pressable>
+                <Pressable onPress={() => setCropPending(null)} accessibilityRole="button" disabled={uploading}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
     </SafeAreaView>
   );
 }
@@ -1049,4 +1094,34 @@ const styles = StyleSheet.create({
   version: { color: colors.textDisabled, fontSize: 13, ...font.regular, textAlign: 'center', marginTop: sizes.sm },
   forgotLink: { alignSelf: 'flex-start', marginTop: 2 },
   forgotLinkText: { fontSize: 13, ...font.regular, color: colors.primary },
+
+  // Crop preview modal
+  cropOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: sizes.lg,
+  },
+  cropModal: {
+    backgroundColor: colors.white,
+    borderRadius: sizes.borderRadiusLg,
+    padding: sizes.lg,
+    alignItems: 'center',
+    gap: sizes.md,
+    width: '100%',
+    maxWidth: 360,
+  },
+  cropTitle: { fontSize: 18, ...font.extrabold, color: colors.textPrimary },
+  cropPreview: { width: 240, height: 240, borderRadius: sizes.borderRadiusLg },
+  cropBtns: { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
+  cropConfirmBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: sizes.xl,
+    borderRadius: 10,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  cropConfirmText: { color: colors.white, ...font.semibold, fontSize: 15 },
 });
