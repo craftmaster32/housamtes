@@ -340,6 +340,28 @@ function CropEditor({
     pinchStart: { dist: number; scale: number };
   }>({ mode: 'idle', dragStart: { accX: 0, accY: 0, px: 0, py: 0 }, pinchStart: { dist: 1, scale: 1 } });
 
+  const frameRef = useRef<View>(null);
+
+  // Prevent Safari from intercepting the pinch as a page-zoom gesture.
+  // onTouchMove alone won't block it — we need a non-passive DOM listener
+  // that calls preventDefault() for multi-touch events.
+  useEffect((): (() => void) | undefined => {
+    if (Platform.OS !== 'web') return undefined;
+    try {
+      const el = frameRef.current as unknown as HTMLElement | null;
+      if (!el?.addEventListener) return undefined;
+      const prevent = (e: Event): void => {
+        if ((e as TouchEvent).touches?.length >= 2) e.preventDefault();
+      };
+      el.addEventListener('touchstart', prevent, { passive: false });
+      el.addEventListener('touchmove', prevent, { passive: false });
+      return (): void => {
+        el.removeEventListener('touchstart', prevent);
+        el.removeEventListener('touchmove', prevent);
+      };
+    } catch { return undefined; }
+  }, []);
+
   const imgW = source.imgW > 0 ? source.imgW : CROP_FRAME;
   const imgH = source.imgH > 0 ? source.imgH : CROP_FRAME;
   const minDim    = Math.min(imgW, imgH);
@@ -415,10 +437,12 @@ function CropEditor({
     <View style={cedStyles.wrapper}>
       <Text style={cedStyles.hint}>Drag · pinch to zoom</Text>
       <View
+        ref={frameRef}
         style={cedStyles.frame}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <Image
           source={{ uri: source.uri }}
