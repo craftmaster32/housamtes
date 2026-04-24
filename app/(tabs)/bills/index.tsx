@@ -3,6 +3,7 @@ import {
   View, SectionList, ScrollView, StyleSheet, Pressable,
   useWindowDimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -13,6 +14,7 @@ import {
 } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { colors } from '@constants/colors';
@@ -56,7 +58,7 @@ function formatDateLabel(dateStr: string): string {
 }
 
 // ── Housemate balance card ────────────────────────────────────────────────────
-interface HousemateBalance { name: string; amount: number; color: string }
+interface HousemateBalance { name: string; amount: number; color: string; avatarUrl?: string }
 
 function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element {
   const currency = useSettingsStore((s) => s.currency);
@@ -64,8 +66,11 @@ function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element 
   const initial = item.name[0]?.toUpperCase() ?? '?';
   return (
     <View style={styles.hmCard}>
-      <View style={[styles.hmAvatar, { backgroundColor: item.color + '22' }]}>
-        <Text style={[styles.hmAvatarText, { color: item.color }]}>{initial}</Text>
+      <View style={[styles.hmAvatar, { backgroundColor: item.avatarUrl ? 'transparent' : item.color + '22' }]}>
+        {item.avatarUrl
+          ? <Image source={{ uri: item.avatarUrl }} style={styles.hmAvatarImg} contentFit="cover" />
+          : <Text style={[styles.hmAvatarText, { color: item.color }]}>{initial}</Text>
+        }
       </View>
       <Text style={styles.hmName} numberOfLines={1}>{item.name}</Text>
       <Text style={[styles.hmStatus, { color: owesMe ? colors.positive : colors.negative }]}>
@@ -134,8 +139,10 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
 
 // ── Settle Up content (used inside collapsible card) ──────────────────────────
 function SettleUpPanel(): React.JSX.Element {
-  const currency = useSettingsStore((s) => s.currency);
-  const bills = useBillsStore((s) => s.bills);
+  const currency   = useSettingsStore((s) => s.currency);
+  const bills      = useBillsStore((s) => s.bills);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const avatarByName = new Map(housemates.map((h) => [h.name, h.avatarUrl]));
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
 
@@ -162,12 +169,18 @@ function SettleUpPanel(): React.JSX.Element {
       {settlements.map((s, idx) => (
         <View key={idx} style={styles.settleRow}>
           <View style={styles.settleAvatar}>
-            <Text style={styles.settleAvatarText}>{s.from[0]?.toUpperCase()}</Text>
+            {avatarByName.get(s.from)
+              ? <Image source={{ uri: avatarByName.get(s.from) }} style={styles.settleAvatarImg} contentFit="cover" />
+              : <Text style={styles.settleAvatarText}>{s.from[0]?.toUpperCase()}</Text>
+            }
           </View>
           <Text style={styles.settleName}>{s.from}</Text>
           <Ionicons name="arrow-forward" size={12} color={colors.textSecondary} style={styles.settleArrow} />
           <View style={styles.settleAvatar}>
-            <Text style={styles.settleAvatarText}>{s.to[0]?.toUpperCase()}</Text>
+            {avatarByName.get(s.to)
+              ? <Image source={{ uri: avatarByName.get(s.to) }} style={styles.settleAvatarImg} contentFit="cover" />
+              : <Text style={styles.settleAvatarText}>{s.to[0]?.toUpperCase()}</Text>
+            }
           </View>
           <Text style={styles.settleName}>{s.to}</Text>
           <Text style={styles.settleAmt}>{currency}{s.amount.toFixed(2)}</Text>
@@ -183,10 +196,12 @@ export default function BillsScreen(): React.JSX.Element {
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
 
-  const bills = useBillsStore((s) => s.bills);
-  const isLoading = useBillsStore((s) => s.isLoading);
-  const profile = useAuthStore((s) => s.profile);
-  const currency = useSettingsStore((s) => s.currency);
+  const bills      = useBillsStore((s) => s.bills);
+  const isLoading  = useBillsStore((s) => s.isLoading);
+  const profile    = useAuthStore((s) => s.profile);
+  const currency   = useSettingsStore((s) => s.currency);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const avatarByName = useMemo(() => new Map(housemates.map((h) => [h.name, h.avatarUrl])), [housemates]);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
   const [showSettle, setShowSettle] = useState(false);
@@ -204,6 +219,7 @@ export default function BillsScreen(): React.JSX.Element {
     name: b.person,
     amount: b.amount,
     color: COLORS[i % COLORS.length],
+    avatarUrl: avatarByName.get(b.person),
   }));
 
   // Group bills by date for section list
@@ -511,7 +527,9 @@ const styles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: colors.primary + '22',
     justifyContent: 'center', alignItems: 'center',
+    overflow: 'hidden',
   },
+  settleAvatarImg: { width: 28, height: 28 },
   settleAvatarText: { fontSize: 12, ...font.bold, color: colors.primary },
   settleName: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
   settleArrow: { marginHorizontal: 2 },
@@ -538,7 +556,9 @@ const styles = StyleSheet.create({
   hmAvatar: {
     width: 44, height: 44, borderRadius: 22,
     justifyContent: 'center', alignItems: 'center', marginBottom: 2,
+    overflow: 'hidden',
   },
+  hmAvatarImg: { width: 44, height: 44 },
   hmAvatarText: { fontSize: 18, ...font.bold },
   hmName: { fontSize: 13, ...font.semibold, color: colors.textPrimary, textAlign: 'center' },
   hmStatus: { fontSize: 11, ...font.regular, textAlign: 'center' },

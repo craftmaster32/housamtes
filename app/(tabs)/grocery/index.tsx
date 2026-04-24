@@ -8,12 +8,14 @@ import {
   Platform,
   SectionList,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -64,11 +66,13 @@ function elapsedLabel(startedAt: string): string {
 
 // ── Avatar ─────────────────────────────────────────────────────────────────────
 function UserAvatar({ name, size = 24 }: { name: string; size?: number }): React.JSX.Element {
+  const avatarUrl = useHousematesStore((s) => s.housemates.find((h) => h.name === name)?.avatarUrl);
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarColor(name) }]}>
-      <Text style={[styles.avatarText, { fontSize: Math.round(size * 0.44) }]}>
-        {(name ?? '?')[0].toUpperCase()}
-      </Text>
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : avatarColor(name) }]}>
+      {avatarUrl
+        ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" />
+        : <Text style={[styles.avatarText, { fontSize: Math.round(size * 0.44) }]}>{(name ?? '?')[0].toUpperCase()}</Text>
+      }
     </View>
   );
 }

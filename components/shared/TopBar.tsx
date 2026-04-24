@@ -1,4 +1,5 @@
 import { View, StyleSheet, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -109,8 +110,11 @@ export function TopBar(): React.JSX.Element {
         accessibilityLabel="Open profile"
         accessible={true}
       >
-        <View style={[styles.avatar, { backgroundColor: profile?.avatarColor ?? colors.primary }]}>
-          <Text style={styles.avatarText}>{initial}</Text>
+        <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? colors.primary) }]}>
+          {profile?.avatarUrl
+            ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
+            : <Text style={styles.avatarText}>{initial}</Text>
+          }
         </View>
       </Pressable>
     </View>
@@ -184,7 +188,9 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
+  avatarImg: { width: 34, height: 34 },
   avatarText: {
     color: colors.white,
     fontSize: 14,
