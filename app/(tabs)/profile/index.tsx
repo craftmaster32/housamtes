@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal } from 'react-native';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, PanResponder } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -314,6 +314,134 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
   );
 }
 
+// ── Interactive crop editor ────────────────────────────────────────────────────
+interface CropSource { uri: string; imgW: number; imgH: number; }
+
+const CROP_FRAME = 280;
+
+function CropEditor({
+  source, onConfirm, onCancel,
+}: {
+  source: CropSource;
+  onConfirm: (originX: number, originY: number, cropSize: number) => void;
+  onCancel: () => void;
+}): React.JSX.Element {
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const accumulated = useRef({ x: 0, y: 0 });
+  const gestureStart = useRef({ x: 0, y: 0 });
+
+  const imgW = source.imgW > 0 ? source.imgW : CROP_FRAME;
+  const imgH = source.imgH > 0 ? source.imgH : CROP_FRAME;
+  const minDim = Math.min(imgW, imgH);
+  const dispFactor = (CROP_FRAME * scale) / minDim;
+  const dispW = imgW * dispFactor;
+  const dispH = imgH * dispFactor;
+  const maxDx = Math.max(0, (dispW - CROP_FRAME) / 2);
+  const maxDy = Math.max(0, (dispH - CROP_FRAME) / 2);
+
+  const layoutRef = useRef({ maxDx, maxDy });
+  layoutRef.current = { maxDx, maxDy };
+
+  useEffect(() => {
+    const { maxDx: mx, maxDy: my } = layoutRef.current;
+    const newX = Math.min(mx, Math.max(-mx, accumulated.current.x));
+    const newY = Math.min(my, Math.max(-my, accumulated.current.y));
+    accumulated.current = { x: newX, y: newY };
+    setOffset({ x: newX, y: newY });
+  }, [scale]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        gestureStart.current = { x: accumulated.current.x, y: accumulated.current.y };
+      },
+      onPanResponderMove: (_, gs) => {
+        const { maxDx: mx, maxDy: my } = layoutRef.current;
+        const newX = Math.min(mx, Math.max(-mx, gestureStart.current.x + gs.dx));
+        const newY = Math.min(my, Math.max(-my, gestureStart.current.y + gs.dy));
+        accumulated.current = { x: newX, y: newY };
+        setOffset({ x: newX, y: newY });
+      },
+      onPanResponderRelease: () => {},
+    })
+  ).current;
+
+  const imgLeft = (CROP_FRAME - dispW) / 2 + offset.x;
+  const imgTop  = (CROP_FRAME - dispH) / 2 + offset.y;
+
+  const handleConfirm = useCallback(() => {
+    const originX = Math.max(0, Math.round(-imgLeft / dispFactor));
+    const originY = Math.max(0, Math.round(-imgTop / dispFactor));
+    const cropSz  = Math.min(imgW, imgH, Math.max(1, Math.round(CROP_FRAME / dispFactor)));
+    onConfirm(originX, originY, cropSz);
+  }, [imgLeft, imgTop, dispFactor, imgW, imgH, onConfirm]);
+
+  return (
+    <View style={cedStyles.wrapper}>
+      <Text style={cedStyles.hint}>Drag to reposition · use + − to zoom</Text>
+      <View
+        style={[cedStyles.frame, { width: CROP_FRAME, height: CROP_FRAME }]}
+        {...panResponder.panHandlers}
+      >
+        <Image
+          source={{ uri: source.uri }}
+          style={{ position: 'absolute', width: dispW, height: dispH, left: imgLeft, top: imgTop }}
+          contentFit="fill"
+        />
+      </View>
+      <View style={cedStyles.zoomRow}>
+        <Pressable
+          style={cedStyles.zoomBtn}
+          onPress={() => setScale((s) => Math.max(1, parseFloat((s - 0.25).toFixed(2))))}
+          accessibilityRole="button"
+          accessibilityLabel="Zoom out"
+        >
+          <Text style={cedStyles.zoomBtnText}>−</Text>
+        </Pressable>
+        <Text style={cedStyles.zoomLabel}>Zoom</Text>
+        <Pressable
+          style={cedStyles.zoomBtn}
+          onPress={() => setScale((s) => parseFloat((s + 0.25).toFixed(2)))}
+          accessibilityRole="button"
+          accessibilityLabel="Zoom in"
+        >
+          <Text style={cedStyles.zoomBtnText}>+</Text>
+        </Pressable>
+      </View>
+      <View style={cedStyles.btnRow}>
+        <Pressable style={cedStyles.confirmBtn} onPress={handleConfirm} accessibilityRole="button">
+          <Text style={cedStyles.confirmText}>Use Photo</Text>
+        </Pressable>
+        <Pressable onPress={onCancel} accessibilityRole="button">
+          <Text style={cedStyles.cancelText}>Cancel</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const cedStyles = StyleSheet.create({
+  wrapper:  { alignItems: 'center', gap: sizes.md },
+  hint:     { fontSize: 13, ...font.regular, color: colors.textSecondary },
+  frame: {
+    overflow: 'hidden',
+    borderRadius: sizes.borderRadiusLg,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  zoomRow:    { flexDirection: 'row', alignItems: 'center', gap: sizes.xl },
+  zoomBtn:    { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary + '15', justifyContent: 'center', alignItems: 'center' },
+  zoomBtnText:{ fontSize: 26, color: colors.primary, lineHeight: 30 },
+  zoomLabel:  { fontSize: 14, ...font.bold, color: colors.textSecondary },
+  btnRow:     { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
+  confirmBtn: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: sizes.xl, borderRadius: 10 },
+  confirmText:{ color: colors.white, ...font.semibold, fontSize: 15 },
+  cancelText: { color: colors.textSecondary, fontSize: 14, ...font.regular },
+});
+
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function ProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -337,7 +465,7 @@ export default function ProfileScreen(): React.JSX.Element {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [cropPending, setCropPending] = useState<{ uri: string; base64?: string } | null>(null);
+  const [cropSource, setCropSource] = useState<CropSource | null>(null);
 
   // Load bills for recent activity if not already loaded by the root layout
   useEffect(() => {
@@ -360,22 +488,30 @@ export default function ProfileScreen(): React.JSX.Element {
   const todayBills     = recentBills.filter((b) => billDayLabel(b.date) === 'today');
   const yesterdayBills = recentBills.filter((b) => billDayLabel(b.date) === 'yesterday');
 
-  const handleCropConfirm = useCallback(async (): Promise<void> => {
-    if (!cropPending) return;
+  const handleCropConfirm = useCallback(async (originX: number, originY: number, cropSz: number): Promise<void> => {
+    if (!cropSource) return;
+    const src = cropSource;
+    setCropSource(null);
     setUploading(true);
     try {
-      await uploadAvatar(cropPending.uri, 'image/jpeg', cropPending.base64);
+      const ops: ImageManipulator.Action[] = [];
+      if (cropSz > 0 && src.imgW > 0 && src.imgH > 0) {
+        ops.push({ crop: { originX, originY, width: cropSz, height: cropSz } });
+      }
+      ops.push({ resize: { width: 512, height: 512 } });
+      const result = await ImageManipulator.manipulateAsync(
+        src.uri, ops, { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      await uploadAvatar(result.uri, 'image/jpeg', result.base64 ?? undefined);
     } catch (err) {
       Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload photo.');
     } finally {
       setUploading(false);
-      setCropPending(null);
     }
-  }, [cropPending, uploadAvatar]);
+  }, [cropSource, uploadAvatar]);
 
   const pickImage = useCallback(async (source: 'camera' | 'library'): Promise<void> => {
-    // Web browsers don't support allowsEditing — pick the file, auto-center-crop it,
-    // then show a preview so the user can confirm before uploading.
+    // Web browsers don't support allowsEditing — open the crop editor instead.
     if (Platform.OS === 'web') {
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'] as ImagePicker.MediaType[],
@@ -383,23 +519,7 @@ export default function ProfileScreen(): React.JSX.Element {
       });
       if (res.canceled || !res.assets[0]) return;
       const a = res.assets[0];
-      const w = a.width ?? 0;
-      const h = a.height ?? 0;
-      try {
-        const ops: ImageManipulator.Action[] = [];
-        if (w > 0 && h > 0 && w !== h) {
-          const size = Math.min(w, h);
-          ops.push({ crop: { originX: Math.round((w - size) / 2), originY: Math.round((h - size) / 2), width: size, height: size } });
-        }
-        ops.push({ resize: { width: 512, height: 512 } });
-        const cropped = await ImageManipulator.manipulateAsync(
-          a.uri, ops,
-          { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true }
-        );
-        setCropPending({ uri: cropped.uri, base64: cropped.base64 ?? undefined });
-      } catch {
-        setCropPending({ uri: a.uri });
-      }
+      setCropSource({ uri: a.uri, imgW: a.width ?? 0, imgH: a.height ?? 0 });
       return;
     }
 
@@ -775,34 +895,24 @@ export default function ProfileScreen(): React.JSX.Element {
         </View>
       </ScrollView>
 
-        {/* ── Crop preview modal (web only) ──────────────────────── */}
-        <Modal visible={cropPending !== null} transparent animationType="fade">
+        {/* ── Crop editor modal (web only) ────────────────────────── */}
+        <Modal visible={cropSource !== null} transparent animationType="fade">
           <View style={styles.cropOverlay}>
             <View style={styles.cropModal}>
-              <Text style={styles.cropTitle}>Use this photo?</Text>
-              {cropPending && (
-                <Image
-                  source={{ uri: cropPending.uri }}
-                  style={styles.cropPreview}
-                  contentFit="cover"
+              <Text style={styles.cropTitle}>Crop photo</Text>
+              {cropSource && (
+                <CropEditor
+                  source={cropSource}
+                  onConfirm={handleCropConfirm}
+                  onCancel={() => setCropSource(null)}
                 />
               )}
-              <View style={styles.cropBtns}>
-                <Pressable
-                  style={[styles.cropConfirmBtn, uploading && styles.saveBtnOff]}
-                  onPress={handleCropConfirm}
-                  disabled={uploading}
-                  accessibilityRole="button"
-                >
-                  {uploading
-                    ? <ActivityIndicator color={colors.white} size="small" />
-                    : <Text style={styles.cropConfirmText}>Use Photo</Text>
-                  }
-                </Pressable>
-                <Pressable onPress={() => setCropPending(null)} accessibilityRole="button" disabled={uploading}>
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </Pressable>
-              </View>
+              {uploading && (
+                <View style={styles.cropUploading}>
+                  <ActivityIndicator color={colors.primary} />
+                  <Text style={styles.cropUploadingText}>Uploading…</Text>
+                </View>
+              )}
             </View>
           </View>
         </Modal>
@@ -1095,13 +1205,13 @@ const styles = StyleSheet.create({
   forgotLink: { alignSelf: 'flex-start', marginTop: 2 },
   forgotLinkText: { fontSize: 13, ...font.regular, color: colors.primary },
 
-  // Crop preview modal
+  // Crop editor modal
   cropOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: sizes.lg,
+    padding: sizes.md,
   },
   cropModal: {
     backgroundColor: colors.white,
@@ -1113,15 +1223,6 @@ const styles = StyleSheet.create({
     maxWidth: 360,
   },
   cropTitle: { fontSize: 18, ...font.extrabold, color: colors.textPrimary },
-  cropPreview: { width: 240, height: 240, borderRadius: sizes.borderRadiusLg },
-  cropBtns: { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
-  cropConfirmBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: sizes.xl,
-    borderRadius: 10,
-    minWidth: 120,
-    alignItems: 'center',
-  },
-  cropConfirmText: { color: colors.white, ...font.semibold, fontSize: 15 },
+  cropUploading: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
+  cropUploadingText: { fontSize: 14, ...font.regular, color: colors.textSecondary },
 });
