@@ -11,13 +11,13 @@ VALUES (
 )
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- Allow authenticated users to read their own profile media.
--- Public bucket flag handles anonymous reads; this handles
--- createSignedUrl() calls from authenticated users.
+-- Allow any authenticated user to read profile media for housemates.
+-- Signed URLs for avatars require the caller to have SELECT on the object.
 DROP POLICY IF EXISTS "profile media: owner read" ON storage.objects;
-CREATE POLICY "profile media: owner read"
+DROP POLICY IF EXISTS "profile media: authenticated read" ON storage.objects;
+CREATE POLICY "profile media: authenticated read"
   ON storage.objects FOR SELECT
   USING (
     bucket_id = 'profiles'
-    AND split_part(name, '/', 1) = auth.uid()::text
+    AND auth.role() = 'authenticated'
   );
