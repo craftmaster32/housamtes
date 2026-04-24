@@ -505,8 +505,9 @@ export default function ProfileScreen(): React.JSX.Element {
   const uploadCover   = useAuthStore((s) => s.uploadCover);
   const removeCover   = useAuthStore((s) => s.removeCover);
   const currency   = useSettingsStore((s) => s.currency);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const houseName  = useHousematesStore((s) => s.houseName);
+  const housemates      = useHousematesStore((s) => s.housemates);
+  const houseName       = useHousematesStore((s) => s.houseName);
+  const loadHousemates  = useHousematesStore((s) => s.load);
   const bills      = useBillsStore((s) => s.bills);
   const loadBills  = useBillsStore((s) => s.load);
   const months     = useSpendingStore((s) => s.months);
@@ -553,12 +554,14 @@ export default function ProfileScreen(): React.JSX.Element {
         src.uri, ops, { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true }
       );
       await uploadAvatar(result.uri, 'image/jpeg', result.base64 ?? undefined);
+      // Refresh housemates so the new avatar appears everywhere (stack, members screen, drawer)
+      if (houseId) loadHousemates(houseId).catch(() => {});
     } catch (err) {
       Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload photo.');
     } finally {
       setUploading(false);
     }
-  }, [cropSource, uploadAvatar]);
+  }, [cropSource, uploadAvatar, houseId, loadHousemates]);
 
   const pickImage = useCallback(async (source: 'camera' | 'library'): Promise<void> => {
     // Web browsers don't support allowsEditing — open the crop editor instead.
