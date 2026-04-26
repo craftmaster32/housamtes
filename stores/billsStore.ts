@@ -6,7 +6,10 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 
-export const CATEGORIES = ['Rent', 'Electricity', 'Water', 'Internet', 'Groceries', 'Other'];
+export const CATEGORIES = [
+  'Rent', 'Groceries', 'Food', 'Transport', 'Utilities',
+  'Internet', 'Phone', 'Entertainment', 'Health', 'Shopping', 'Travel', 'Other',
+];
 
 export interface Bill {
   id: string;

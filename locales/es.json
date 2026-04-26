@@ -285,7 +285,18 @@
     "cat_water": "Agua",
     "cat_internet": "Internet",
     "cat_groceries": "Compras",
-    "cat_other": "Otro"
+    "cat_food": "Comida",
+    "cat_transport": "Transporte",
+    "cat_utilities": "Servicios",
+    "cat_phone": "Teléfono",
+    "cat_entertainment": "Ocio",
+    "cat_health": "Salud",
+    "cat_shopping": "Shopping",
+    "cat_travel": "Viajes",
+    "cat_other": "Otro",
+    "pick_date": "Elegir fecha",
+    "prev_month": "Mes anterior",
+    "next_month": "Mes siguiente"
   },
   "parking": {
     "title": "Estacionamiento",
