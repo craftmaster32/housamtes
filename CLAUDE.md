@@ -343,9 +343,9 @@ Optional one-liner explaining WHY, not what.
 These are the only two commands the owner ever needs to run in the terminal.
 Claude will always say explicitly: *"Now run X in your terminal."*
 
-### `supabase db push`
+### `npx supabase db push`
 Run this when a task includes **database changes** (new `.sql` files in `supabase/migrations/`).
-Claude will always flag this: *"This task has a migration — run `supabase db push` after merging."*
+Claude will always flag this: *"This task has a migration — run `npx supabase db push` after merging."*
 - Run it AFTER merging to main, AFTER the post-merge check passes
 - Do NOT run it on a feature branch — only on main
 
@@ -355,7 +355,7 @@ npm run deploy
 ```
 Run this after every merge to keep the live web app (housemates-five.vercel.app) up to date.
 - Run it AFTER the post-merge check passes
-- If the task had a migration, run `supabase db push` first, then `npm run deploy`
+- If the task had a migration, run `npx supabase db push` first, then `npm run deploy`
 - Claude will always remind you at the end of every session
 - **Never** use the old long command (`npx expo export...vercel --prod`) — `npm run deploy` does all of that automatically
 
