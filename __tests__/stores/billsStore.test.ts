@@ -15,6 +15,7 @@ import {
   getPersonShare,
   calculateAllNetBalances,
   calculateBalances,
+  calculateSimplifiedBalancesForUser,
   settleDebts,
   useBillsStore,
   type Bill,
@@ -244,7 +245,63 @@ describe('calculateBalances', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 5. Store actions — DB error handling and race conditions
+// 5. calculateSimplifiedBalancesForUser
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('calculateSimplifiedBalancesForUser', () => {
+  it('returns empty array when net map is empty', () => {
+    expect(calculateSimplifiedBalancesForUser(new Map(), 'Lior')).toHaveLength(0);
+  });
+
+  it('returns empty array when current user has no settlements', () => {
+    // Alice and Bob owe each other; Lior is uninvolved
+    const net = new Map([['Alice', 50], ['Bob', -50]]);
+    expect(calculateSimplifiedBalancesForUser(net, 'Lior')).toHaveLength(0);
+  });
+
+  it('positive amount — other person owes me', () => {
+    const net = new Map([['Lior', 100], ['Bob', -100]]);
+    const result = calculateSimplifiedBalancesForUser(net, 'Lior');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ person: 'Bob', amount: 100 });
+  });
+
+  it('negative amount — I owe the other person', () => {
+    const net = new Map([['Alice', 100], ['Lior', -100]]);
+    const result = calculateSimplifiedBalancesForUser(net, 'Lior');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ person: 'Alice', amount: -100 });
+  });
+
+  it('simplifies chain debt — intermediate person drops out', () => {
+    // Alice owes Bob $100, Bob owes Lior $100.
+    // Global net: Alice -100, Bob 0, Lior +100.
+    // Splitwise result: Alice pays Lior directly (1 transfer, not 2).
+    const net = new Map([['Lior', 100], ['Bob', 0], ['Alice', -100]]);
+    const result = calculateSimplifiedBalancesForUser(net, 'Lior');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ person: 'Alice', amount: 100 });
+  });
+
+  it('splits owed amount across multiple debtors when needed', () => {
+    // Alice owes Lior 60, Bob owes Lior 40
+    const net = new Map([['Lior', 100], ['Alice', -60], ['Bob', -40]]);
+    const result = calculateSimplifiedBalancesForUser(net, 'Lior');
+    const total = result.reduce((s, b) => s + b.amount, 0);
+    expect(total).toBeCloseTo(100);
+    expect(result.every((b) => b.amount > 0)).toBe(true);
+  });
+
+  it('does not mutate the input net map', () => {
+    const net = new Map([['Lior', 50], ['Alice', -50]]);
+    const copy = new Map(net);
+    calculateSimplifiedBalancesForUser(net, 'Lior');
+    expect(net).toEqual(copy);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Store actions — DB error handling and race conditions
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('billsStore — settleBill', () => {

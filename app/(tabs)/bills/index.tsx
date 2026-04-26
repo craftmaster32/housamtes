@@ -10,7 +10,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  useBillsStore, calculateBalances, calculateAllNetBalances, settleDebts, type Bill,
+  useBillsStore, calculateAllNetBalances, calculateSimplifiedBalancesForUser, settleDebts, type Bill,
 } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
@@ -216,9 +216,19 @@ export default function BillsScreen(): React.JSX.Element {
   const [filter, setFilter] = useState<BillFilter>('one-off');
   const [showSettle, setShowSettle] = useState(false);
 
+  const householdBills = useRecurringBillsStore((s) => s.bills);
+  const payments = useRecurringBillsStore((s) => s.payments);
+
   const myId = profile?.id ?? '';
   const activeBills = bills.filter((b) => !b.settled);
-  const sharedBalances = calculateBalances(activeBills, myId);
+
+  // Build combined net (shared expenses + household fairness) then simplify to
+  // minimum transfers — same data the Settle Up panel shows, filtered per person.
+  const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
+  for (const { person, balance } of calculateFairness(householdBills, payments)) {
+    combinedNet.set(person, (combinedNet.get(person) ?? 0) + balance);
+  }
+  const sharedBalances = calculateSimplifiedBalancesForUser(combinedNet, myId);
 
   const totalOwed = sharedBalances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
   const totalOwe  = sharedBalances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
