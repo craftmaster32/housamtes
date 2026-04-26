@@ -285,6 +285,14 @@
     "cat_water": "Agua",
     "cat_internet": "Internet",
     "cat_groceries": "Compras",
+    "cat_food": "Comida",
+    "cat_transport": "Transporte",
+    "cat_utilities": "Servicios",
+    "cat_phone": "Teléfono",
+    "cat_entertainment": "Ocio",
+    "cat_health": "Salud",
+    "cat_shopping": "Compras",
+    "cat_travel": "Viajes",
     "cat_other": "Otro"
   },
   "parking": {

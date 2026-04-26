@@ -4,16 +4,46 @@ import { Text, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useBillsStore, CATEGORIES } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useBadgeStore } from '@stores/badgeStore';
+import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
 type SplitType = 'equal' | 'custom';
+
+const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  rent: 'home-outline',
+  groceries: 'cart-outline',
+  food: 'fast-food-outline',
+  transport: 'car-outline',
+  utilities: 'flash-outline',
+  internet: 'wifi-outline',
+  phone: 'phone-portrait-outline',
+  entertainment: 'musical-notes-outline',
+  health: 'medkit-outline',
+  shopping: 'bag-outline',
+  travel: 'airplane-outline',
+  other: 'receipt-outline',
+};
+
+function todayString(): string {
+  const d = new Date();
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function formatDisplayDate(iso: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 export default function AddBillScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -33,33 +63,30 @@ export default function AddBillScreen(): React.JSX.Element {
   const [paidBy, setPaidBy] = useState('');
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
   const [category, setCategory] = useState(CATEGORIES[0]);
-  const [date, setDate] = useState(() => {
-    const d = new Date();
-    const pad = (n: number): string => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  });
+  const [date, setDate] = useState(todayString);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [splitType, setSplitType] = useState<SplitType>('equal');
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Reset the entire form every time this screen comes into focus so
-  // stale data from a previous session never leaks into a new bill.
+  const resetForm = useCallback((ids: string[], userId: string) => {
+    setTitle('');
+    setAmount('');
+    setPaidBy(userId || ids[0] || '');
+    setSelectedPeople(ids.length > 0 ? ids : []);
+    setCategory(CATEGORIES[0]);
+    setDate(todayString());
+    setSplitType('equal');
+    setCustomAmounts({});
+    setIsLoading(false);
+    setError('');
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      const d = new Date();
-      const pad = (n: number): string => String(n).padStart(2, '0');
-      setTitle('');
-      setAmount('');
-      setPaidBy(myId || allIds[0] || '');
-      setSelectedPeople(allIds.length > 0 ? allIds : []);
-      setCategory(CATEGORIES[0]);
-      setDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
-      setSplitType('equal');
-      setCustomAmounts({});
-      setIsLoading(false);
-      setError('');
-    }, [myId, allIds])
+      resetForm(allIds, myId);
+    }, [allIds, myId, resetForm])
   );
 
   const togglePerson = useCallback((id: string) => {
@@ -114,12 +141,14 @@ export default function AddBillScreen(): React.JSX.Element {
         date,
       }, houseId ?? '');
       markSeen('bills').catch(() => {});
+      // Reset before navigating so stale state never persists on re-entry
+      resetForm(allIds, myId);
       router.replace('/(tabs)/bills');
     } catch {
       setError(t('bills.failed_save'));
       setIsLoading(false);
     }
-  }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, category, date, addBill, houseId, getCustomTotal, markSeen, t]);
+  }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, category, date, addBill, houseId, getCustomTotal, markSeen, resetForm, allIds, myId, t]);
 
   if (housematesLoading) {
     return (
@@ -247,7 +276,6 @@ export default function AddBillScreen(): React.JSX.Element {
               </Pressable>
             </View>
 
-            {/* Equal preview */}
             {splitType === 'equal' && totalAmount > 0 && (
               <View style={styles.previewBox}>
                 <Text style={styles.previewText}>
@@ -256,7 +284,6 @@ export default function AddBillScreen(): React.JSX.Element {
               </View>
             )}
 
-            {/* Custom split inputs */}
             {splitType === 'custom' && (
               <View style={styles.customBox}>
                 {selectedPeople.map((id) => (
@@ -292,31 +319,41 @@ export default function AddBillScreen(): React.JSX.Element {
         {/* Category */}
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.category')}</Text>
-          <View style={styles.chipRow}>
-            {CATEGORIES.map((cat) => (
-              <Pressable
-                key={cat}
-                style={[styles.chip, category === cat && styles.chipSelected]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text style={[styles.chipText, category === cat && styles.chipTextSelected]}>{t(`bills.cat_${cat.toLowerCase()}`)}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+            {CATEGORIES.map((cat) => {
+              const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
+              const selected = category === cat;
+              return (
+                <Pressable
+                  key={cat}
+                  style={[styles.catChip, selected && styles.catChipSelected]}
+                  onPress={() => setCategory(cat)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                >
+                  <Ionicons name={icon} size={15} color={selected ? colors.white : colors.primary} />
+                  <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
+                    {t(`bills.cat_${cat.toLowerCase()}`)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
 
         {/* Date */}
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.date')}</Text>
-          <TextInput
-            value={date}
-            onChangeText={setDate}
-            mode="outlined"
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            outlineColor={colors.border}
-            activeOutlineColor={colors.primary}
-          />
+          <Pressable
+            style={styles.dateTrigger}
+            onPress={() => setShowDatePicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Pick date"
+          >
+            <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+            <Text style={styles.dateTriggerText}>{formatDisplayDate(date)}</Text>
+            <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
+          </Pressable>
         </View>
 
         {!!error && (
@@ -338,6 +375,13 @@ export default function AddBillScreen(): React.JSX.Element {
           {t('bills.save_expense')}
         </Button>
       </ScrollView>
+
+      <DatePickerModal
+        visible={showDatePicker}
+        value={date}
+        onSelect={setDate}
+        onClose={() => setShowDatePicker(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -402,6 +446,37 @@ const styles = StyleSheet.create({
   },
   customTotalLabel: { color: colors.textSecondary, fontSize: 14, ...font.medium },
   customTotalValue: { fontSize: 14, ...font.semibold },
+
+  // Category horizontal scroll
+  categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: sizes.borderRadiusFull,
+    borderWidth: 1.5,
+    borderColor: colors.primary + '55',
+    backgroundColor: colors.primary + '08',
+  },
+  catChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  catChipText: { color: colors.primary, fontSize: 13, ...font.semibold },
+  catChipTextSelected: { color: colors.white },
+
+  // Date trigger button
+  dateTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  dateTriggerText: { flex: 1, fontSize: 15, ...font.medium, color: colors.textPrimary },
 
   errorBox: {
     backgroundColor: colors.danger + '12',

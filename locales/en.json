@@ -286,6 +286,14 @@
     "cat_water": "Water",
     "cat_internet": "Internet",
     "cat_groceries": "Groceries",
+    "cat_food": "Food",
+    "cat_transport": "Transport",
+    "cat_utilities": "Utilities",
+    "cat_phone": "Phone",
+    "cat_entertainment": "Entertainment",
+    "cat_health": "Health",
+    "cat_shopping": "Shopping",
+    "cat_travel": "Travel",
     "cat_other": "Other"
   },
   "parking": {

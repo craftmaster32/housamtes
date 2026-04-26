@@ -285,6 +285,14 @@
     "cat_water": "מים",
     "cat_internet": "אינטרנט",
     "cat_groceries": "קניות",
+    "cat_food": "אוכל",
+    "cat_transport": "תחבורה",
+    "cat_utilities": "שירותים",
+    "cat_phone": "טלפון",
+    "cat_entertainment": "בידור",
+    "cat_health": "בריאות",
+    "cat_shopping": "שופינג",
+    "cat_travel": "נסיעות",
     "cat_other": "אחר"
   },
   "parking": {
