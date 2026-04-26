@@ -11,10 +11,22 @@ function getMonthName(year: number, month: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month));
 }
 
+// First day of week per locale: 0 = Sunday, 1 = Monday
+const LOCALE_FIRST_DAY: Record<string, number> = {
+  en: 0,
+  he: 0, // Israel starts on Sunday
+  es: 1, // Spain / Latin America start on Monday
+};
+
+function getFirstDay(locale: string): number {
+  return LOCALE_FIRST_DAY[locale] ?? 0;
+}
+
 function getDayLabels(locale: string): string[] {
-  // Jan 7 2024 is a Sunday — generate Sun→Sat short labels
+  const firstDay = getFirstDay(locale);
+  // Jan 7 2024 is a Sunday (dow 0); offset by firstDay to start the row correctly
   return Array.from({ length: 7 }, (_, i) =>
-    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2024, 0, 7 + i))
+    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2024, 0, 7 + firstDay + i))
   );
 }
 
@@ -58,7 +70,10 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
   }, [visible]);
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const locale = i18n.language;
+  const firstDay = getFirstDay(locale);
+  // Shift the raw Sunday-based weekday so column 0 = locale's first day of week
+  const firstDow = (new Date(viewYear, viewMonth, 1).getDay() - firstDay + 7) % 7;
 
   const prevMonth = useCallback(() => {
     setViewMonth((m) => {
@@ -98,7 +113,6 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
     return now.getFullYear() === viewYear && now.getMonth() === viewMonth && now.getDate() === day;
   };
 
-  const locale = i18n.language;
   const dayLabels = getDayLabels(locale);
   const monthLabel = getMonthName(viewYear, viewMonth, locale);
 
@@ -109,11 +123,25 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
 
           {/* Month nav */}
           <View style={styles.navRow}>
-            <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button" accessibilityLabel="Previous month">
+            <Pressable
+              style={styles.navBtn}
+              onPress={prevMonth}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('bills.prev_month')}
+              accessibilityState={{ disabled: false }}
+            >
               <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
             </Pressable>
             <Text style={styles.monthLabel}>{monthLabel} {viewYear}</Text>
-            <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button" accessibilityLabel="Next month">
+            <Pressable
+              style={styles.navBtn}
+              onPress={nextMonth}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('bills.next_month')}
+              accessibilityState={{ disabled: false }}
+            >
               <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
             </Pressable>
           </View>

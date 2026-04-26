@@ -294,7 +294,10 @@
     "cat_health": "Health",
     "cat_shopping": "Shopping",
     "cat_travel": "Travel",
-    "cat_other": "Other"
+    "cat_other": "Other",
+    "pick_date": "Pick date",
+    "prev_month": "Previous month",
+    "next_month": "Next month"
   },
   "parking": {
     "title": "Parking",

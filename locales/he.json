@@ -293,7 +293,10 @@
     "cat_health": "בריאות",
     "cat_shopping": "שופינג",
     "cat_travel": "נסיעות",
-    "cat_other": "אחר"
+    "cat_other": "אחר",
+    "pick_date": "בחר תאריך",
+    "prev_month": "חודש קודם",
+    "next_month": "חודש הבא"
   },
   "parking": {
     "title": "חניה",

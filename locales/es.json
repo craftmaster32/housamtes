@@ -293,7 +293,10 @@
     "cat_health": "Salud",
     "cat_shopping": "Shopping",
     "cat_travel": "Viajes",
-    "cat_other": "Otro"
+    "cat_other": "Otro",
+    "pick_date": "Elegir fecha",
+    "prev_month": "Mes anterior",
+    "next_month": "Mes siguiente"
   },
   "parking": {
     "title": "Estacionamiento",

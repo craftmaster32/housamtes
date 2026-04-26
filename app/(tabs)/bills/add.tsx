@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,15 +38,15 @@ function todayString(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function formatDisplayDate(iso: string): string {
+function formatDisplayDate(iso: string, locale: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return iso;
   const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
-  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString(locale || undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export default function AddBillScreen(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const housemates = useHousematesStore((state) => state.housemates);
   const housematesLoading = useHousematesStore((state) => state.isLoading);
   const addBill = useBillsStore((state) => state.addBill);
@@ -57,6 +57,14 @@ export default function AddBillScreen(): React.JSX.Element {
 
   const myId = profile?.id ?? '';
   const allIds = useMemo(() => housemates.map((h) => h.id), [housemates]);
+
+  // Refs keep the latest values accessible inside the stable useFocusEffect
+  // callback without making allIds/myId part of its dependency array — which
+  // would re-fire the effect (and wipe a draft) whenever housemates reload.
+  const allIdsRef = useRef(allIds);
+  allIdsRef.current = allIds;
+  const myIdRef = useRef(myId);
+  myIdRef.current = myId;
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -86,8 +94,8 @@ export default function AddBillScreen(): React.JSX.Element {
 
   useFocusEffect(
     useCallback(() => {
-      resetForm(allIds, myId);
-    }, [allIds, myId, resetForm])
+      resetForm(allIdsRef.current, myIdRef.current);
+    }, [resetForm])
   );
 
   const togglePerson = useCallback((id: string) => {
@@ -333,7 +341,9 @@ export default function AddBillScreen(): React.JSX.Element {
                   key={cat}
                   style={[styles.catChip, selected && styles.catChipSelected]}
                   onPress={() => setCategory(cat)}
+                  accessible
                   accessibilityRole="radio"
+                  accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
                   accessibilityState={{ selected }}
                 >
                   <Ionicons name={icon} size={15} color={selected ? colors.white : colors.primary} />
@@ -352,11 +362,13 @@ export default function AddBillScreen(): React.JSX.Element {
           <Pressable
             style={styles.dateTrigger}
             onPress={() => setShowDatePicker(true)}
+            accessible
             accessibilityRole="button"
-            accessibilityLabel="Pick date"
+            accessibilityLabel={t('bills.pick_date')}
+            accessibilityState={{ expanded: showDatePicker }}
           >
             <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-            <Text style={styles.dateTriggerText}>{formatDisplayDate(date)}</Text>
+            <Text style={styles.dateTriggerText}>{formatDisplayDate(date, i18n.language)}</Text>
             <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
           </Pressable>
         </View>
