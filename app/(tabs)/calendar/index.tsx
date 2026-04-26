@@ -315,16 +315,6 @@ export default function CalendarScreen(): React.JSX.Element {
 
   const todayStr = toYMD(today);
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.centered}>
-          <Text style={styles.emptyDayText}>Loading…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   // ── Manual "add to my calendar" ───────────────────────────────────────────
   const handleManualSync = useCallback(async (item: CalendarEvent): Promise<void> => {
     if (!connected) {
@@ -339,6 +329,16 @@ export default function CalendarScreen(): React.JSX.Element {
       await syncParkingPending({ id: item.id.replace('pk-', ''), requestedBy: resolveName(item.person ?? '', housemates), date: item.date, startTime: item.startTime, endTime: item.endTime });
     }
   }, [connected, connect, syncHouseEvent, syncParkingApproved, syncParkingPending]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.centered}>
+          <Text style={styles.emptyDayText}>Loading…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

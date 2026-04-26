@@ -274,6 +274,89 @@ describe('BillCard', () => {
 
 ---
 
+## GIT WORKFLOW
+
+**Owner role:** Describe the task in plain English. Claude handles all git.
+**Claude role:** Branch → build → commit → check → push (with permission) → PR → verify merge.
+
+### Branch types
+| Prefix | When to use | Example |
+|---|---|---|
+| `feature/` | New screen, feature, or behaviour | `feature/bill-badge-fix` |
+| `fix/` | Bug fix | `fix/badge-not-clearing` |
+| `chore/` | Cleanup, dependency bump, config | `chore/update-deps` |
+
+### Full task flow — Claude follows this every time
+
+**Phase 1 — Build**
+1. `git checkout main && git pull` — always start from latest main
+2. `git checkout -b type/short-name` — create branch
+3. Write code + commit frequently with plain-English messages
+4. Run `npx tsc --noEmit` + `npm run lint` — must both pass before moving on
+5. Tell owner what changed in plain English, then ask: *"Ready to push?"*
+
+**Phase 2 — Review (CodeRabbit)**
+6. Push only after owner says yes: `git push origin branch-name`
+7. Claude opens a GitHub PR with a plain-English title + description
+8. Wait ~2 minutes for CodeRabbit to auto-review the PR
+9. Claude reads CodeRabbit's comments and either fixes the issues or explains why they can be ignored
+10. Tell owner: *"CodeRabbit is happy / here's what it flagged — safe to merge"*
+
+**Phase 3 — Merge & verify**
+11. Owner clicks **Merge** on GitHub (or asks Claude to merge)
+12. Claude pulls main locally and runs the post-merge check:
+    - `npx tsc --noEmit` — type check
+    - `npm run lint` — code quality
+    - `npm test` — tests
+13. **If all pass:** Claude tells owner what terminal commands to run (deploy + optionally db push)
+14. **If something fails:** Claude runs `git revert` to safely undo the merge, then investigates on the old branch and reports what went wrong in plain English
+
+### Post-merge rollback (if needed)
+- Claude uses `git revert HEAD~1 --no-edit` — this creates a new "undo" commit, it does NOT delete history
+- The old feature branch is still there — we can go back to it, fix the problem, and re-merge
+- **Never** use `git reset --hard` to undo a merge — it rewrites history and is not recoverable
+
+### Commit message format
+```
+type: short description (under 72 chars)
+
+Optional one-liner explaining WHY, not what.
+```
+`feat` new feature · `fix` bug · `style` UI only · `chore` non-code
+
+### Git rules
+- **Never** commit directly to `main`
+- **Never** push without the owner explicitly saying "push" or "yes" in that conversation
+- **Never** force-push (`--force`) under any circumstances
+- **Never** skip the done check (tsc + lint) before pushing
+- Always pull latest `main` before creating a new branch
+- One logical change per commit — keep them small and clear
+
+---
+
+## WHEN TO RUN TERMINAL COMMANDS
+
+These are the only two commands the owner ever needs to run in the terminal.
+Claude will always say explicitly: *"Now run X in your terminal."*
+
+### `supabase db push`
+Run this when a task includes **database changes** (new `.sql` files in `supabase/migrations/`).
+Claude will always flag this: *"This task has a migration — run `supabase db push` after merging."*
+- Run it AFTER merging to main, AFTER the post-merge check passes
+- Do NOT run it on a feature branch — only on main
+
+### Deploy (web app)
+```bash
+npm run deploy
+```
+Run this after every merge to keep the live web app (housemates-five.vercel.app) up to date.
+- Run it AFTER the post-merge check passes
+- If the task had a migration, run `supabase db push` first, then `npm run deploy`
+- Claude will always remind you at the end of every session
+- **Never** use the old long command (`npx expo export...vercel --prod`) — `npm run deploy` does all of that automatically
+
+---
+
 ## NEVER DO
 
 - Modify `CLAUDE.md`, `FEATURES.md`, `PHASES.md`, `AGENTS.md` without owner approval
@@ -282,9 +365,10 @@ describe('BillCard', () => {
 - Store tokens in `AsyncStorage`
 - Use `any` type or leave TODO comments in commits
 - Create Supabase table without RLS
-- Push to remote without explicit owner instruction
+- Push to remote without explicit owner instruction (see Git Workflow above)
 - Write screens missing loading/error/empty states
 - Use `console.log()` (use Sentry / `console.warn` / `console.error`)
+- Commit directly to `main`
 
 ---
 
@@ -297,8 +381,9 @@ npx tsc --noEmit             # Type check (required before commit)
 npm test                     # Tests
 npm run test:coverage        # Coverage
 npm run lint && npm run format
-npx supabase db push         # Apply migrations
+npx supabase db push         # Apply migrations (only when there are new .sql files)
 npx supabase db pull         # Pull from dashboard
+npm run deploy               # Build + deploy web app to Vercel (housemates-five.vercel.app)
 ```
 
 ---
