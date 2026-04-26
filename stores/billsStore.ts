@@ -260,6 +260,27 @@ export function getPersonShare(bill: Bill, person: string): number {
   return Math.floor(totalCents / bill.splitBetween.length) / 100;
 }
 
+/**
+ * Returns the current user's simplified balances after global debt cancellation.
+ * Pass the fully combined net map (shared bills + household fairness).
+ * Positive amount = that person owes you; negative = you owe them.
+ */
+export function calculateSimplifiedBalancesForUser(
+  allNetBalances: Map<string, number>,
+  currentUserId: string
+): Balance[] {
+  const settlements = settleDebts(allNetBalances);
+  const balances: Balance[] = [];
+  for (const s of settlements) {
+    if (s.from === currentUserId) {
+      balances.push({ person: s.to, amount: -s.amount });
+    } else if (s.to === currentUserId) {
+      balances.push({ person: s.from, amount: s.amount });
+    }
+  }
+  return balances;
+}
+
 export function calculateBalances(bills: Bill[], currentUserId: string): Balance[] {
   const map = new Map<string, number>();
 
