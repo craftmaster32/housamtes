@@ -8,7 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { useBillsStore, calculateBalances, type Bill } from '@stores/billsStore';
+import { useBillsStore, calculateAllNetBalances, calculateSimplifiedBalancesForUser, type Bill } from '@stores/billsStore';
+import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
 import { useChoresStore, type Chore } from '@stores/choresStore';
@@ -76,8 +77,15 @@ function BalanceCard(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
   const housemates = useHousematesStore((s) => s.housemates);
+  const householdBills = useRecurringBillsStore((s) => s.bills);
+  const payments = useRecurringBillsStore((s) => s.payments);
   const myId = profile?.id ?? '';
-  const balances = calculateBalances(bills.filter((b) => !b.settled), myId);
+  const activeBills = bills.filter((b) => !b.settled);
+  const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
+  for (const { person, balance } of calculateFairness(householdBills, payments)) {
+    combinedNet.set(person, (combinedNet.get(person) ?? 0) + balance);
+  }
+  const balances = calculateSimplifiedBalancesForUser(combinedNet, myId);
   const totalOwed = balances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
   const totalOwe  = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
   const netAmount = totalOwed - totalOwe;
