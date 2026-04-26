@@ -365,6 +365,18 @@ function GroceryWidget(): React.JSX.Element {
           returnKeyType="done"
           onSubmitEditing={handleAdd}
         />
+        {input.trim().length > 0 && (
+          <Pressable
+            accessible
+            onPress={handleAdd}
+            style={styles.groceryAddBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Add item"
+            accessibilityState={{ disabled: false }}
+          >
+            <Ionicons name="return-down-back-outline" size={15} color="#fff" />
+          </Pressable>
+        )}
       </View>
 
       {pending.length === 0 ? (
@@ -491,10 +503,11 @@ function toYMD(d: Date): string {
 }
 
 function MiniCalendarWidget(): React.JSX.Element {
-  const events        = useEventsStore((s) => s.events);
-  const reservations  = useParkingStore((s) => s.reservations);
-  const bills         = useBillsStore((s) => s.bills);
-  const chores        = useChoresStore((s) => s.chores);
+  const events            = useEventsStore((s) => s.events);
+  const reservations      = useParkingStore((s) => s.reservations);
+  const recurringBills    = useRecurringBillsStore((s) => s.bills);
+  const recurringPayments = useRecurringBillsStore((s) => s.payments);
+  const chores            = useChoresStore((s) => s.chores);
 
   const today = new Date();
   const [viewYear, setViewYear]   = useState(today.getFullYear());
@@ -508,12 +521,13 @@ function MiniCalendarWidget(): React.JSX.Element {
       if (!map[date]) map[date] = [];
       map[date].push({ title, color });
     };
+    const billNameById = new Map(recurringBills.map((b) => [b.id, b.name]));
     events.forEach((e) => push(e.date, e.title, '#6366f1'));
     reservations.forEach((r) => push(r.date, `Parking`, '#f59e0b'));
-    bills.forEach((b) => push(b.date, b.title, '#ef4444'));
+    recurringPayments.forEach((p) => push(p.paidAt, billNameById.get(p.billId) ?? 'Recurring', '#ef4444'));
     chores.forEach((c) => { if (c.recurrence === 'once' && c.recurrenceDay) push(c.recurrenceDay, c.name, '#22c55e'); });
     return map;
-  }, [events, reservations, bills, chores]);
+  }, [events, reservations, recurringPayments, recurringBills, chores]);
 
   const grid = useMemo((): Date[] => {
     const first = new Date(viewYear, viewMonth, 1);
@@ -621,7 +635,7 @@ function MiniCalendarWidget(): React.JSX.Element {
 
       {/* Legend */}
       <View style={styles.calLegend}>
-        {([['#6366f1','Events'],['#ef4444','Bills'],['#22c55e','Chores'],['#f59e0b','Parking']] as [string,string][]).map(([c, label]) => (
+        {([['#6366f1','Events'],['#ef4444','Recurring'],['#22c55e','Chores'],['#f59e0b','Parking']] as [string,string][]).map(([c, label]) => (
           <View key={label} style={styles.calLegendItem}>
             <View style={[styles.calLegendDot, { backgroundColor: c }]} />
             <Text style={styles.calLegendLabel}>{label}</Text>
@@ -988,6 +1002,11 @@ const styles = StyleSheet.create({
   },
   groceryInput: {
     flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary,
+  },
+  groceryAddBtn: {
+    minWidth: 44, minHeight: 44, borderRadius: 22,
+    backgroundColor: colors.primary,
+    justifyContent: 'center', alignItems: 'center',
   },
   groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   groceryItemText: { flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary },

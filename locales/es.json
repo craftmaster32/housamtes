@@ -9,6 +9,7 @@
     "confirm": "Confirmar",
     "loading": "Cargando…",
     "done": "Listo",
+    "undo": "Deshacer",
     "yes": "Sí",
     "no": "No",
     "ok": "OK",
@@ -332,7 +333,10 @@
     "empty": "La lista está vacía",
     "empty_hint": "Agrega algo arriba para comenzar.",
     "added_by": "Agregado por {{name}}",
-    "failed_add": "No se pudo agregar el artículo. Intenta de nuevo."
+    "failed_add": "No se pudo agregar el artículo. Intenta de nuevo.",
+    "mark_as_done": "Marcar como hecho",
+    "mark_as_needed": "Marcar como pendiente",
+    "delete_item": "Eliminar artículo"
   },
   "chores": {
     "title": "Tareas",
