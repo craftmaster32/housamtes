@@ -304,7 +304,7 @@ describe('BillCard', () => {
 10. Tell owner: *"CodeRabbit is happy / here's what it flagged — safe to merge"*
 
 **Phase 3 — Merge & verify**
-11. Owner clicks **Merge** on GitHub (or asks Claude to merge)
+11. Owner clicks **Merge pull request** on GitHub (always use "Create a merge commit" — not squash or rebase)
 12. Claude pulls main locally and runs the post-merge check:
     - `npx tsc --noEmit` — type check
     - `npm run lint` — code quality
@@ -313,6 +313,7 @@ describe('BillCard', () => {
 14. **If something fails:** Claude runs `git revert` to safely undo the merge, then investigates on the old branch and reports what went wrong in plain English
 
 ### Post-merge rollback (if needed)
+- Always merge with "Create a merge commit" on GitHub — this makes rollback reliable
 - Claude uses `git revert -m 1 HEAD --no-edit` — this creates a new "undo" commit, it does NOT delete history
 - The old feature branch is still there — we can go back to it, fix the problem, and re-merge
 - **Never** use `git reset --hard` to undo a merge — it rewrites history and is not recoverable
