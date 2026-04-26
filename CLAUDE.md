@@ -314,8 +314,10 @@ describe('BillCard', () => {
 
 ### Post-merge rollback (if needed)
 - Always merge with "Create a merge commit" on GitHub — this makes rollback reliable
-- Claude uses `git revert -m 1 HEAD --no-edit` — this creates a new "undo" commit, it does NOT delete history
-- The old feature branch is still there — we can go back to it, fix the problem, and re-merge
+- **Incident response exception:** committing a revert directly to `main` is allowed when a bad merge must be undone immediately
+- Preferred: click the **Revert** button on the merged PR in GitHub — it opens a revert PR you can merge normally
+- Alternative: Claude runs `git revert -m 1 HEAD --no-edit` on main — this creates a new "undo" commit, it does NOT delete history
+- The old feature branch is still there — go back to it, fix the problem, and re-merge as a new PR
 - **Never** use `git reset --hard` to undo a merge — it rewrites history and is not recoverable
 
 ### Commit message format
@@ -327,7 +329,7 @@ Optional one-liner explaining WHY, not what.
 `feat` new feature · `fix` bug · `style` UI only · `chore` non-code
 
 ### Git rules
-- **Never** commit directly to `main`
+- **Never** commit directly to `main` (exception: emergency revert commit during post-merge rollback — see above)
 - **Never** push without the owner explicitly saying "push" or "yes" in that conversation
 - **Never** force-push (`--force`) under any circumstances
 - **Never** skip the done check (tsc + lint) before pushing
