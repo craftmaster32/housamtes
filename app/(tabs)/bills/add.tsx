@@ -65,6 +65,7 @@ export default function AddBillScreen(): React.JSX.Element {
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [date, setDate] = useState(todayString);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
   const [splitType, setSplitType] = useState<SplitType>('equal');
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -380,7 +381,7 @@ export default function AddBillScreen(): React.JSX.Element {
         visible={showDatePicker}
         value={date}
         onSelect={setDate}
-        onClose={() => setShowDatePicker(false)}
+        onClose={closeDatePicker}
       />
     </SafeAreaView>
   );
@@ -453,8 +454,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
+    minHeight: 44,
     borderRadius: sizes.borderRadiusFull,
     borderWidth: 1.5,
     borderColor: colors.primary + '55',

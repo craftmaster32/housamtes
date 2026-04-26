@@ -1,22 +1,28 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, Modal, Pressable, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+function getMonthName(year: number, month: number, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month));
+}
+
+function getDayLabels(locale: string): string[] {
+  // Jan 7 2024 is a Sunday — generate Sun→Sat short labels
+  return Array.from({ length: 7 }, (_, i) =>
+    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2024, 0, 7 + i))
+  );
+}
 
 function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-interface DatePickerModalProps {
+export interface DatePickerModalProps {
   visible: boolean;
   value: string; // YYYY-MM-DD
   onSelect: (date: string) => void;
@@ -24,14 +30,32 @@ interface DatePickerModalProps {
 }
 
 export function DatePickerModal({ visible, value, onSelect, onClose }: DatePickerModalProps): React.JSX.Element {
-  const parsed = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const initYear = parsed ? parseInt(parsed[1]) : new Date().getFullYear();
-  const initMonth = parsed ? parseInt(parsed[2]) - 1 : new Date().getMonth();
-  const initDay = parsed ? parseInt(parsed[3]) : new Date().getDate();
+  const { t, i18n } = useTranslation();
 
-  const [viewYear, setViewYear] = useState(initYear);
-  const [viewMonth, setViewMonth] = useState(initMonth);
-  const [localSel, setLocalSel] = useState({ y: initYear, m: initMonth, d: initDay });
+  function parseValue(v: string): { year: number; month: number; day: number } {
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const now = new Date();
+    return m
+      ? { year: parseInt(m[1]), month: parseInt(m[2]) - 1, day: parseInt(m[3]) }
+      : { year: now.getFullYear(), month: now.getMonth(), day: now.getDate() };
+  }
+
+  const init = parseValue(value);
+  const [viewYear, setViewYear] = useState(init.year);
+  const [viewMonth, setViewMonth] = useState(init.month);
+  const [localSel, setLocalSel] = useState({ y: init.year, m: init.month, d: init.day });
+
+  // Sync picker state each time the modal opens so form resets are reflected
+  useEffect(() => {
+    if (visible) {
+      const { year, month, day } = parseValue(value);
+      setViewYear(year);
+      setViewMonth(month);
+      setLocalSel({ y: year, m: month, d: day });
+    }
+  // value and visible are the only inputs that should trigger a re-sync
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const firstDow = new Date(viewYear, viewMonth, 1).getDay();
@@ -64,16 +88,19 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
     ...Array.from({ length: firstDow }, () => null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
-  // Pad to full rows
   while (cells.length % 7 !== 0) cells.push(null);
 
   const isSelected = (day: number): boolean =>
     localSel.y === viewYear && localSel.m === viewMonth && localSel.d === day;
 
   const isToday = (day: number): boolean => {
-    const t = new Date();
-    return t.getFullYear() === viewYear && t.getMonth() === viewMonth && t.getDate() === day;
+    const now = new Date();
+    return now.getFullYear() === viewYear && now.getMonth() === viewMonth && now.getDate() === day;
   };
+
+  const locale = i18n.language;
+  const dayLabels = getDayLabels(locale);
+  const monthLabel = getMonthName(viewYear, viewMonth, locale);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -85,7 +112,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
             <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button" accessibilityLabel="Previous month">
               <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
             </Pressable>
-            <Text style={styles.monthLabel}>{MONTHS[viewMonth]} {viewYear}</Text>
+            <Text style={styles.monthLabel}>{monthLabel} {viewYear}</Text>
             <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button" accessibilityLabel="Next month">
               <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
             </Pressable>
@@ -93,7 +120,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
 
           {/* Day-of-week headers */}
           <View style={styles.dowRow}>
-            {DAY_LABELS.map((d) => (
+            {dayLabels.map((d) => (
               <Text key={d} style={styles.dowLabel}>{d}</Text>
             ))}
           </View>
@@ -106,8 +133,10 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
                   <Pressable
                     style={[styles.dayBtn, isSelected(day) && styles.dayBtnSelected, isToday(day) && !isSelected(day) && styles.dayBtnToday]}
                     onPress={() => pickDay(day)}
+                    // hitSlop extends the effective tap area to 44×44 without affecting layout
+                    hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
                     accessibilityRole="button"
-                    accessibilityLabel={`${day} ${MONTHS[viewMonth]} ${viewYear}`}
+                    accessibilityLabel={`${day} ${monthLabel} ${viewYear}`}
                     accessibilityState={{ selected: isSelected(day) }}
                   >
                     <Text style={[styles.dayText, isSelected(day) && styles.dayTextSelected, isToday(day) && !isSelected(day) && styles.dayTextToday]}>
@@ -122,10 +151,10 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
           {/* Actions */}
           <View style={styles.actions}>
             <Pressable style={styles.cancelBtn} onPress={onClose} accessibilityRole="button">
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable style={styles.confirmBtn} onPress={confirm} accessibilityRole="button">
-              <Text style={styles.confirmText}>Confirm</Text>
+              <Text style={styles.confirmText}>{t('common.confirm')}</Text>
             </Pressable>
           </View>
 
@@ -160,7 +189,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   navBtn: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 44, height: 44, borderRadius: 10,
     backgroundColor: colors.surfaceSecondary,
     justifyContent: 'center', alignItems: 'center',
   },
