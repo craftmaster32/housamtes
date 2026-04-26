@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,9 +9,11 @@ import {
   SectionList,
   ActivityIndicator,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
@@ -92,6 +94,7 @@ interface ItemRowProps {
 }
 
 function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: ItemRowProps): React.JSX.Element {
+  const swipeRef = useRef<Swipeable>(null);
   const qtyNum   = parseInt(item.quantity, 10);
   const hasCount = !isNaN(qtyNum) && qtyNum > 1;
   const bought   = item.boughtCount ?? 0;
@@ -104,53 +107,93 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: I
     }
   }, [hasCount, item.id, onToggle]);
 
-  const longTap = useCallback((): void => {
-    if (!canDelete) return;
+  const handleSwipeDelete = useCallback((): void => {
+    swipeRef.current?.close();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     onDelete(item.id);
-  }, [item.id, onDelete, canDelete]);
+  }, [item.id, onDelete]);
+
+  const handleSwipeToggle = useCallback((): void => {
+    swipeRef.current?.close();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onToggle(item.id);
+  }, [item.id, onToggle]);
+
+  const renderDeleteAction = useCallback((): React.JSX.Element => (
+    <Pressable
+      style={styles.swipeDelete}
+      onPress={handleSwipeDelete}
+      accessibilityRole="button"
+      accessibilityLabel="Delete item"
+    >
+      <Ionicons name="trash-outline" size={20} color="#fff" />
+      <Text style={styles.swipeActionText}>Delete</Text>
+    </Pressable>
+  ), [handleSwipeDelete]);
+
+  const renderCheckAction = useCallback((): React.JSX.Element => (
+    <Pressable
+      style={[styles.swipeCheck, item.isChecked && styles.swipeUncheck]}
+      onPress={handleSwipeToggle}
+      accessibilityRole="button"
+      accessibilityLabel={item.isChecked ? 'Mark as needed' : 'Mark as done'}
+    >
+      <Ionicons name={item.isChecked ? 'arrow-undo-outline' : 'checkmark'} size={20} color="#fff" />
+      <Text style={styles.swipeActionText}>{item.isChecked ? 'Undo' : 'Done'}</Text>
+    </Pressable>
+  ), [item.isChecked, handleSwipeToggle]);
 
   return (
-    <Pressable
-      style={[styles.groceryItem, item.isChecked && styles.groceryItemDone]}
-      onPress={tap}
-      onLongPress={longTap}
-      accessibilityRole="button"
-      accessibilityLabel={item.name}
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={canDelete ? renderDeleteAction : undefined}
+      renderLeftActions={!hasCount ? renderCheckAction : undefined}
+      overshootRight={false}
+      overshootLeft={false}
+      friction={2}
+      rightThreshold={40}
+      leftThreshold={40}
     >
-      {hasCount ? (
-        <View style={styles.counter}>
-          <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); onDecrement(item.id); }}
-            style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]} hitSlop={8}>
-            <Text style={styles.ctrBtnText}>−</Text>
-          </Pressable>
-          <Text style={styles.ctrText}>{bought}/{qtyNum}</Text>
-          <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); onIncrement(item.id); }}
-            style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]} hitSlop={8}>
-            <Text style={styles.ctrBtnText}>+</Text>
-          </Pressable>
+      <Pressable
+        style={[styles.groceryItem, item.isChecked && styles.groceryItemDone]}
+        onPress={tap}
+        accessibilityRole="button"
+        accessibilityLabel={item.name}
+      >
+        {hasCount ? (
+          <View style={styles.counter}>
+            <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); onDecrement(item.id); }}
+              style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]} hitSlop={8}>
+              <Text style={styles.ctrBtnText}>−</Text>
+            </Pressable>
+            <Text style={styles.ctrText}>{bought}/{qtyNum}</Text>
+            <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); onIncrement(item.id); }}
+              style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]} hitSlop={8}>
+              <Text style={styles.ctrBtnText}>+</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={[styles.checkCircle, item.isChecked && styles.checkCircleDone]}>
+            {item.isChecked && <Text style={styles.checkMark}>✓</Text>}
+          </View>
+        )}
+        <View style={styles.itemDetails}>
+          <View style={styles.itemNameWrap}>
+            <Text style={[styles.itemName, item.isChecked && styles.itemNameDone]} numberOfLines={1}>
+              {item.name}
+            </Text>
+            {!!item.quantity && (
+              <View style={styles.itemQty}>
+                <Text style={styles.itemQtyText}>{hasCount ? `x${qtyNum}` : item.quantity}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.itemAddedBy}>
+            <UserAvatar userId={item.addedBy} size={24} />
+          </View>
         </View>
-      ) : (
-        <View style={[styles.checkCircle, item.isChecked && styles.checkCircleDone]}>
-          {item.isChecked && <Text style={styles.checkMark}>✓</Text>}
-        </View>
-      )}
-      <View style={styles.itemDetails}>
-        <View style={styles.itemNameWrap}>
-          <Text style={[styles.itemName, item.isChecked && styles.itemNameDone]} numberOfLines={1}>
-            {item.name}
-          </Text>
-          {!!item.quantity && (
-            <View style={styles.itemQty}>
-              <Text style={styles.itemQtyText}>{hasCount ? `x${qtyNum}` : item.quantity}</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.itemAddedBy}>
-          <UserAvatar userId={item.addedBy} size={24} />
-        </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </Swipeable>
   );
 }
 
@@ -680,4 +723,16 @@ const styles = StyleSheet.create({
   clearText:      { fontSize: 13, ...font.semibold, color: colors.negative },
 
   bottomPad: { height: 40 },
+
+  // ── Swipe actions
+  swipeDelete: {
+    backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center',
+    width: 76, borderRadius: 14, marginLeft: 6, gap: 2,
+  },
+  swipeCheck: {
+    backgroundColor: '#22c55e', justifyContent: 'center', alignItems: 'center',
+    width: 76, borderRadius: 14, marginRight: 6, gap: 2,
+  },
+  swipeUncheck: { backgroundColor: '#94a3b8' },
+  swipeActionText: { fontSize: 11, ...font.semibold, color: '#fff' },
 });
