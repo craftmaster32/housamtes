@@ -9,6 +9,7 @@
     "confirm": "Confirm",
     "loading": "Loading…",
     "done": "Done",
+    "undo": "Undo",
     "yes": "Yes",
     "no": "No",
     "ok": "OK",
@@ -333,7 +334,10 @@
     "empty": "List is empty",
     "empty_hint": "Add something above to get started.",
     "added_by": "Added by {{name}}",
-    "failed_add": "Failed to add item. Try again."
+    "failed_add": "Failed to add item. Try again.",
+    "mark_as_done": "Mark as done",
+    "mark_as_needed": "Mark as needed",
+    "delete_item": "Delete item"
   },
   "chores": {
     "title": "Chores",

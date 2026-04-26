@@ -94,7 +94,9 @@ interface ItemRowProps {
 }
 
 function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: ItemRowProps): React.JSX.Element {
-  const swipeRef = useRef<Swipeable>(null);
+  const { t } = useTranslation();
+  const swipeRef   = useRef<Swipeable>(null);
+  const inFlightRef = useRef<Set<string>>(new Set());
   const qtyNum   = parseInt(item.quantity, 10);
   const hasCount = !isNaN(qtyNum) && qtyNum > 1;
   const bought   = item.boughtCount ?? 0;
@@ -108,40 +110,56 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: I
   }, [hasCount, item.id, onToggle]);
 
   const handleSwipeDelete = useCallback((): void => {
+    if (inFlightRef.current.has(item.id)) return;
+    inFlightRef.current.add(item.id);
     swipeRef.current?.close();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    onDelete(item.id);
+    Promise.resolve(onDelete(item.id)).finally(() => { inFlightRef.current.delete(item.id); });
   }, [item.id, onDelete]);
 
   const handleSwipeToggle = useCallback((): void => {
+    if (inFlightRef.current.has(item.id)) return;
+    inFlightRef.current.add(item.id);
     swipeRef.current?.close();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    onToggle(item.id);
+    Promise.resolve(onToggle(item.id)).finally(() => { inFlightRef.current.delete(item.id); });
   }, [item.id, onToggle]);
+
+  const handleDecrement = useCallback((): void => {
+    Haptics.selectionAsync().catch(() => {});
+    onDecrement(item.id);
+  }, [item.id, onDecrement]);
+
+  const handleIncrement = useCallback((): void => {
+    Haptics.selectionAsync().catch(() => {});
+    onIncrement(item.id);
+  }, [item.id, onIncrement]);
 
   const renderDeleteAction = useCallback((): React.JSX.Element => (
     <Pressable
+      accessible
       style={styles.swipeDelete}
       onPress={handleSwipeDelete}
       accessibilityRole="button"
-      accessibilityLabel="Delete item"
+      accessibilityLabel={t('grocery.delete_item')}
     >
       <Ionicons name="trash-outline" size={20} color="#fff" />
-      <Text style={styles.swipeActionText}>Delete</Text>
+      <Text style={styles.swipeActionText}>{t('common.delete')}</Text>
     </Pressable>
-  ), [handleSwipeDelete]);
+  ), [handleSwipeDelete, t]);
 
   const renderCheckAction = useCallback((): React.JSX.Element => (
     <Pressable
+      accessible
       style={[styles.swipeCheck, item.isChecked && styles.swipeUncheck]}
       onPress={handleSwipeToggle}
       accessibilityRole="button"
-      accessibilityLabel={item.isChecked ? 'Mark as needed' : 'Mark as done'}
+      accessibilityLabel={item.isChecked ? t('grocery.mark_as_needed') : t('grocery.mark_as_done')}
     >
       <Ionicons name={item.isChecked ? 'arrow-undo-outline' : 'checkmark'} size={20} color="#fff" />
-      <Text style={styles.swipeActionText}>{item.isChecked ? 'Undo' : 'Done'}</Text>
+      <Text style={styles.swipeActionText}>{item.isChecked ? t('common.undo') : t('common.done')}</Text>
     </Pressable>
-  ), [item.isChecked, handleSwipeToggle]);
+  ), [item.isChecked, handleSwipeToggle, t]);
 
   return (
     <Swipeable
@@ -162,13 +180,25 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: I
       >
         {hasCount ? (
           <View style={styles.counter}>
-            <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); onDecrement(item.id); }}
-              style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]} hitSlop={8}>
+            <Pressable
+              accessible
+              onPress={handleDecrement}
+              style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('common.delete')} ${item.name}`}
+              accessibilityState={{ disabled: bought === 0 }}
+            >
               <Text style={styles.ctrBtnText}>−</Text>
             </Pressable>
             <Text style={styles.ctrText}>{bought}/{qtyNum}</Text>
-            <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); onIncrement(item.id); }}
-              style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]} hitSlop={8}>
+            <Pressable
+              accessible
+              onPress={handleIncrement}
+              style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]}
+              accessibilityRole="button"
+              accessibilityLabel={`+ ${item.name}`}
+              accessibilityState={{ disabled: bought >= qtyNum }}
+            >
               <Text style={styles.ctrBtnText}>+</Text>
             </Pressable>
           </View>
@@ -672,7 +702,7 @@ const styles = StyleSheet.create({
   itemAddedBy:  { flexShrink: 0 },
 
   counter:    { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
-  ctrBtn:     { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.surfaceSecondary, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  ctrBtn:     { minWidth: 44, minHeight: 44, borderRadius: 22, backgroundColor: colors.surfaceSecondary, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   ctrBtnOff:  { opacity: 0.3 },
   ctrBtnText: { fontSize: 16, ...font.bold, color: colors.primary, lineHeight: 20 },
   ctrText:    { fontSize: 14, ...font.bold, color: colors.textPrimary, minWidth: 32, textAlign: 'center' },

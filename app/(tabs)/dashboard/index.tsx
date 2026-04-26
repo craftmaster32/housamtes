@@ -367,10 +367,12 @@ function GroceryWidget(): React.JSX.Element {
         />
         {input.trim().length > 0 && (
           <Pressable
+            accessible
             onPress={handleAdd}
             style={styles.groceryAddBtn}
             accessibilityRole="button"
             accessibilityLabel="Add item"
+            accessibilityState={{ disabled: false }}
           >
             <Ionicons name="return-down-back-outline" size={15} color="#fff" />
           </Pressable>
@@ -519,12 +521,10 @@ function MiniCalendarWidget(): React.JSX.Element {
       if (!map[date]) map[date] = [];
       map[date].push({ title, color });
     };
+    const billNameById = new Map(recurringBills.map((b) => [b.id, b.name]));
     events.forEach((e) => push(e.date, e.title, '#6366f1'));
     reservations.forEach((r) => push(r.date, `Parking`, '#f59e0b'));
-    recurringPayments.forEach((p) => {
-      const bill = recurringBills.find((b) => b.id === p.billId);
-      push(p.paidAt, bill?.name ?? 'Recurring', '#ef4444');
-    });
+    recurringPayments.forEach((p) => push(p.paidAt, billNameById.get(p.billId) ?? 'Recurring', '#ef4444'));
     chores.forEach((c) => { if (c.recurrence === 'once' && c.recurrenceDay) push(c.recurrenceDay, c.name, '#22c55e'); });
     return map;
   }, [events, reservations, recurringPayments, recurringBills, chores]);
@@ -1004,7 +1004,7 @@ const styles = StyleSheet.create({
     flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary,
   },
   groceryAddBtn: {
-    width: 28, height: 28, borderRadius: 14,
+    minWidth: 44, minHeight: 44, borderRadius: 22,
     backgroundColor: colors.primary,
     justifyContent: 'center', alignItems: 'center',
   },
