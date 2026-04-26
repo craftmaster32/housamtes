@@ -405,6 +405,7 @@ function GroceryWidget(): React.JSX.Element {
   const lastSeen = useBadgeStore((s) => s.lastSeen);
   const myId = profile?.id ?? '';
   const [input, setInput] = useState('');
+  const [qty, setQty]     = useState('');
   const pending = items.filter((i) => !i.isChecked).slice(0, 5);
   const newGrocery = countNew(
     items.filter((i) => !i.isChecked) as unknown as Array<{ createdAt: string; [k: string]: unknown }>,
@@ -416,9 +417,10 @@ function GroceryWidget(): React.JSX.Element {
   const handleAdd = useCallback(async (): Promise<void> => {
     const n = input.trim();
     if (!n) return;
-    await addItem(n, '', myId, houseId ?? '').catch(() => {});
+    await addItem(n, qty.trim(), myId, houseId ?? '').catch(() => {});
     setInput('');
-  }, [input, addItem, myId, houseId]);
+    setQty('');
+  }, [input, qty, addItem, myId, houseId]);
 
   const handleToggle = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
   const handleDelete = useCallback((id: string): void => { deleteItem(id).catch(() => {}); }, [deleteItem]);
@@ -442,10 +444,22 @@ function GroceryWidget(): React.JSX.Element {
           style={styles.groceryInput}
           value={input}
           onChangeText={setInput}
-          placeholder="Add an item to the list..."
+          placeholder="Add an item..."
           placeholderTextColor={colors.textSecondary}
+          returnKeyType="next"
+          onSubmitEditing={handleAdd}
+        />
+        <View style={styles.groceryQtySep} />
+        <TextInput
+          style={styles.groceryQtyInput}
+          value={qty}
+          onChangeText={setQty}
+          placeholder="Qty"
+          placeholderTextColor={colors.textSecondary}
+          keyboardType="number-pad"
           returnKeyType="done"
           onSubmitEditing={handleAdd}
+          accessibilityLabel="Quantity"
         />
         {input.trim().length > 0 && (
           <Pressable
@@ -1073,6 +1087,12 @@ const styles = StyleSheet.create({
   },
   groceryInput: {
     flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary,
+  },
+  groceryQtySep: {
+    width: StyleSheet.hairlineWidth, height: 18, backgroundColor: colors.border,
+  },
+  groceryQtyInput: {
+    width: 40, fontSize: 14, ...font.regular, color: colors.textPrimary, textAlign: 'center',
   },
   groceryAddBtn: {
     minWidth: 44, minHeight: 44, borderRadius: 22,
