@@ -184,6 +184,8 @@ export default function AddBillScreen(): React.JSX.Element {
             placeholder={t('bills.what_for_placeholder')}
             outlineColor={colors.border}
             activeOutlineColor={colors.primary}
+            accessibilityLabel={t('bills.what_for')}
+            accessibilityHint={t('bills.what_for_placeholder')}
           />
         </View>
 
@@ -199,6 +201,8 @@ export default function AddBillScreen(): React.JSX.Element {
             placeholder="0.00"
             outlineColor={colors.border}
             activeOutlineColor={colors.primary}
+            accessibilityLabel={t('bills.amount')}
+            accessibilityHint={t('bills.enter_valid_amount')}
           />
         </View>
 
@@ -477,6 +481,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 14,
+    minHeight: 44,
   },
   dateTriggerText: { flex: 1, fontSize: 15, ...font.medium, color: colors.textPrimary },
 

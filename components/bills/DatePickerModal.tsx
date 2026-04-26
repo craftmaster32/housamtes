@@ -134,7 +134,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
                     style={[styles.dayBtn, isSelected(day) && styles.dayBtnSelected, isToday(day) && !isSelected(day) && styles.dayBtnToday]}
                     onPress={() => pickDay(day)}
                     // hitSlop extends the effective tap area to 44×44 without affecting layout
-                    hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
+                    hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
                     accessibilityRole="button"
                     accessibilityLabel={`${day} ${monthLabel} ${viewYear}`}
                     accessibilityState={{ selected: isSelected(day) }}
@@ -150,10 +150,24 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
 
           {/* Actions */}
           <View style={styles.actions}>
-            <Pressable style={styles.cancelBtn} onPress={onClose} accessibilityRole="button">
+            <Pressable
+              style={styles.cancelBtn}
+              onPress={onClose}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
+              accessibilityState={{ disabled: false }}
+            >
               <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </Pressable>
-            <Pressable style={styles.confirmBtn} onPress={confirm} accessibilityRole="button">
+            <Pressable
+              style={styles.confirmBtn}
+              onPress={confirm}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('common.confirm')}
+              accessibilityState={{ disabled: false }}
+            >
               <Text style={styles.confirmText}>{t('common.confirm')}</Text>
             </Pressable>
           </View>
@@ -213,15 +227,15 @@ const styles = StyleSheet.create({
   dayTextToday: { color: colors.primary, ...font.bold },
   actions: { flexDirection: 'row', gap: sizes.sm, marginTop: 4 },
   cancelBtn: {
-    flex: 1, paddingVertical: 12, borderRadius: 12,
+    flex: 1, paddingVertical: 12, minHeight: 44, borderRadius: 12,
     backgroundColor: colors.surfaceSecondary,
-    alignItems: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   cancelText: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
   confirmBtn: {
-    flex: 1, paddingVertical: 12, borderRadius: 12,
+    flex: 1, paddingVertical: 12, minHeight: 44, borderRadius: 12,
     backgroundColor: colors.primary,
-    alignItems: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   confirmText: { fontSize: 15, ...font.semibold, color: colors.white },
 });
