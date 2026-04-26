@@ -280,6 +280,7 @@ describe('BillCard', () => {
 **Claude role:** Branch → build → commit → check → push (with permission) → PR → verify merge.
 
 ### Branch types
+
 | Prefix | When to use | Example |
 |---|---|---|
 | `feature/` | New screen, feature, or behaviour | `feature/bill-badge-fix` |
@@ -312,12 +313,12 @@ describe('BillCard', () => {
 14. **If something fails:** Claude runs `git revert` to safely undo the merge, then investigates on the old branch and reports what went wrong in plain English
 
 ### Post-merge rollback (if needed)
-- Claude uses `git revert HEAD~1 --no-edit` — this creates a new "undo" commit, it does NOT delete history
+- Claude uses `git revert -m 1 HEAD --no-edit` — this creates a new "undo" commit, it does NOT delete history
 - The old feature branch is still there — we can go back to it, fix the problem, and re-merge
 - **Never** use `git reset --hard` to undo a merge — it rewrites history and is not recoverable
 
 ### Commit message format
-```
+```text
 type: short description (under 72 chars)
 
 Optional one-liner explaining WHY, not what.
