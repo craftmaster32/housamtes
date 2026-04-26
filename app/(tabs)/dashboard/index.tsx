@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import {
-  View, StyleSheet, ScrollView, Pressable, TextInput,
+  View, StyleSheet, ScrollView, Pressable, TextInput, FlatList,
   useWindowDimensions,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -404,8 +404,9 @@ function GroceryWidget(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
   const myId = profile?.id ?? '';
-  const [input, setInput] = useState('');
-  const [qty, setQty]     = useState('');
+  const [input, setInput]     = useState('');
+  const [qty, setQty]         = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
   const pending = items.filter((i) => !i.isChecked).slice(0, 5);
   const newGrocery = countNew(
     items.filter((i) => !i.isChecked) as unknown as Array<{ createdAt: string; [k: string]: unknown }>,
@@ -417,13 +418,21 @@ function GroceryWidget(): React.JSX.Element {
   const handleAdd = useCallback(async (): Promise<void> => {
     const n = input.trim();
     if (!n) return;
-    await addItem(n, qty.trim(), myId, houseId ?? '').catch(() => {});
-    setInput('');
-    setQty('');
+    try {
+      await addItem(n, qty.trim(), myId, houseId ?? '');
+      setInput('');
+      setQty('');
+      setAddError(null);
+    } catch (err) {
+      setAddError('Could not add item. Try again.');
+      console.warn('[GroceryWidget] addItem failed', err);
+    }
   }, [input, qty, addItem, myId, houseId]);
 
   const handleToggle = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
-  const handleDelete = useCallback((id: string): void => { deleteItem(id).catch(() => {}); }, [deleteItem]);
+  const handleDelete = useCallback((id: string): void => {
+    deleteItem(id).catch((err: unknown) => { console.warn('[GroceryWidget] deleteItem failed', err); });
+  }, [deleteItem]);
 
   return (
     <WidgetCard>
@@ -443,11 +452,13 @@ function GroceryWidget(): React.JSX.Element {
         <TextInput
           style={styles.groceryInput}
           value={input}
-          onChangeText={setInput}
+          onChangeText={(t) => { setInput(t); if (addError) setAddError(null); }}
           placeholder="Add an item..."
           placeholderTextColor={colors.textSecondary}
           returnKeyType="next"
           onSubmitEditing={handleAdd}
+          accessibilityLabel="Grocery item name"
+          accessibilityHint="Type the name of the item and press enter to add it"
         />
         <View style={styles.groceryQtySep} />
         <TextInput
@@ -460,6 +471,7 @@ function GroceryWidget(): React.JSX.Element {
           returnKeyType="done"
           onSubmitEditing={handleAdd}
           accessibilityLabel="Quantity"
+          accessibilityHint="Enter the quantity for this item"
         />
         {input.trim().length > 0 && (
           <Pressable
@@ -474,20 +486,23 @@ function GroceryWidget(): React.JSX.Element {
           </Pressable>
         )}
       </View>
+      {!!addError && <Text style={styles.groceryAddError}>{addError}</Text>}
 
-      {pending.length === 0 ? (
-        <Text style={styles.cardMuted}>List is empty — add something above</Text>
-      ) : (
-        pending.map((item) => (
+      <FlatList
+        data={pending}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
           <GroceryWidgetRow
-            key={item.id}
             item={item}
             myId={myId}
             onToggle={handleToggle}
             onDelete={handleDelete}
           />
-        ))
-      )}
+        )}
+        ListEmptyComponent={<Text style={styles.cardMuted}>List is empty — add something above</Text>}
+        scrollEnabled={false}
+        nestedScrollEnabled
+      />
 
       {items.filter((i) => !i.isChecked).length > 5 && (
         <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button">
@@ -1099,7 +1114,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center', alignItems: 'center',
   },
-  groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, backgroundColor: colors.surface },
+  groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, minHeight: 44, backgroundColor: colors.surface },
+  groceryAddError: { fontSize: 12, ...font.regular, color: colors.negative, marginTop: 4 },
   widgetSwipeCheck:   { backgroundColor: '#22c55e', justifyContent: 'center', alignItems: 'center', width: 48, borderRadius: 10, marginRight: 4 },
   widgetSwipeUncheck: { backgroundColor: '#94a3b8' },
   widgetSwipeDelete:  { backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 48, borderRadius: 10, marginLeft: 4 },
