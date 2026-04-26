@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
 import { usePhotoStore, PHOTO_CATEGORIES, type Photo, type PhotoCategory } from '@stores/photoStore';
 import { useAuthStore } from '@stores/authStore';
+import { captureError } from '@lib/errorTracking';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -95,13 +96,40 @@ export default function PhotosScreen(): React.JSX.Element {
     }
   }, [pickedUri, pickedFileName, pickedMime, caption, uploadCategory, user, houseId, profile, photos.length, upload, t]);
 
+  const handleReport = useCallback((photo: Photo): void => {
+    Alert.alert(
+      'Report Photo',
+      `Report this photo by ${photo.uploadedBy} as inappropriate, harmful, or illegal content?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: (): void => {
+            captureError(new Error('User photo report'), {
+              type: 'photo_report',
+              reportedPhotoId: photo.id,
+              reportedUploader: photo.uploadedBy,
+              reporterUserId: user?.id ?? '',
+              houseId: houseId ?? '',
+            });
+            Alert.alert(
+              'Report Submitted',
+              'Thank you. Your report has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app.',
+              [{ text: 'OK' }]
+            );
+          },
+        },
+      ]
+    );
+  }, [user?.id, houseId]);
+
   const handleDelete = useCallback((photo: Photo) => {
     Alert.alert(t('photos.delete_photo'), t('photos.delete_confirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'), style: 'destructive',
         onPress: async (): Promise<void> => {
-          // Extract storage path from URL
           const url = photo.url;
           const match = url.match(/house-photos\/(.+)$/);
           const path = match ? decodeURIComponent(match[1]) : '';
@@ -241,9 +269,13 @@ export default function PhotosScreen(): React.JSX.Element {
                 <Text style={styles.viewerInfo}>
                   {viewPhoto.uploadedBy} · {new Date(viewPhoto.createdAt).toLocaleDateString()}
                 </Text>
-                {viewPhoto.userId === user?.id && (
+                {viewPhoto.userId === user?.id ? (
                   <Pressable onPress={() => handleDelete(viewPhoto)} style={styles.deleteBtn}>
                     <Text style={styles.deleteBtnText}>{t('photos.delete_photo')}</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable onPress={() => handleReport(viewPhoto)} style={styles.reportBtn}>
+                    <Text style={styles.reportBtnText}>Report photo</Text>
                   </Pressable>
                 )}
               </View>
@@ -342,4 +374,6 @@ const styles = StyleSheet.create({
   viewerInfo: { color: 'rgba(255,255,255,0.6)', fontSize: 13, ...font.regular },
   deleteBtn: { marginTop: sizes.sm, padding: sizes.sm },
   deleteBtnText: { color: colors.danger, fontSize: 14, ...font.semibold },
+  reportBtn: { marginTop: sizes.sm, padding: sizes.sm },
+  reportBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, ...font.regular, textDecorationLine: 'underline' },
 });

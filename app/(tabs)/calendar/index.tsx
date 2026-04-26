@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEventsStore } from '@stores/eventsStore';
 import { useParkingStore } from '@stores/parkingStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useChoresStore } from '@stores/choresStore';
 import { useAuthStore } from '@stores/authStore';
@@ -82,7 +84,7 @@ function AddEventModal({
       const eventId = await addEvent(
         title.trim(),
         date,
-        profile?.name ?? 'Someone',
+        profile?.id ?? '',
         houseId ?? '',
         startTime || undefined,
         endTime || undefined,
@@ -93,7 +95,7 @@ function AddEventModal({
         date,
         startTime: startTime || undefined,
         endTime: endTime || undefined,
-        createdBy: profile?.name,
+        createdBy: profile?.id,
       }).catch(() => {});
       setTitle('');
       setError('');
@@ -204,11 +206,14 @@ function DayCell({
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function CalendarScreen(): React.JSX.Element {
   const events                     = useEventsStore((s) => s.events);
+  const isLoading                  = useEventsStore((s) => s.isLoading);
+  const storeError                 = useEventsStore((s) => s.error);
   const removeEvent                = useEventsStore((s) => s.removeEvent);
   const reservations               = useParkingStore((s) => s.reservations);
   const recurringBills             = useRecurringBillsStore((s) => s.bills);
   const recurringPayments          = useRecurringBillsStore((s) => s.payments);
   const chores                     = useChoresStore((s) => s.chores);
+  const housemates                 = useHousematesStore((s) => s.housemates);
   const currency                   = useSettingsStore((s) => s.currency);
   const showRecurringBillsOnCalendar = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
 
@@ -242,13 +247,14 @@ export default function CalendarScreen(): React.JSX.Element {
   const allEvents = useMemo((): CalendarEvent[] => {
     const list: CalendarEvent[] = [];
     for (const e of events) {
-      list.push({ id: `ev-${e.id}`, date: e.date, title: e.title, type: 'event', detail: e.createdBy, startTime: e.startTime, endTime: e.endTime });
+      list.push({ id: `ev-${e.id}`, date: e.date, title: e.title, type: 'event', detail: resolveName(e.createdBy, housemates), startTime: e.startTime, endTime: e.endTime });
     }
     for (const r of reservations) {
+      const requesterName = resolveName(r.requestedBy, housemates);
       if (r.status === 'approved') {
-        list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${r.requestedBy}`, type: 'parking', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
+        list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${requesterName}`, type: 'parking', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
       } else if (r.status === 'pending') {
-        list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${r.requestedBy} (pending)`, type: 'parking-pending', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
+        list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${requesterName} (pending)`, type: 'parking-pending', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
       }
     }
     if (showRecurringBillsOnCalendar) {
@@ -261,7 +267,7 @@ export default function CalendarScreen(): React.JSX.Element {
     }
     for (const c of chores) {
       if (c.recurrence === 'once' && c.recurrenceDay) {
-        list.push({ id: `ch-${c.id}`, date: c.recurrenceDay, title: c.name, type: 'chore', detail: c.claimedBy ?? undefined });
+        list.push({ id: `ch-${c.id}`, date: c.recurrenceDay, title: c.name, type: 'chore', detail: c.claimedBy ? resolveName(c.claimedBy, housemates) : undefined });
       }
     }
     for (const p of personalEvents) {
@@ -309,6 +315,16 @@ export default function CalendarScreen(): React.JSX.Element {
 
   const todayStr = toYMD(today);
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.centered}>
+          <Text style={styles.emptyDayText}>Loading…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // ── Manual "add to my calendar" ───────────────────────────────────────────
   const handleManualSync = useCallback(async (item: CalendarEvent): Promise<void> => {
     if (!connected) {
@@ -318,15 +334,21 @@ export default function CalendarScreen(): React.JSX.Element {
     if (item.type === 'event') {
       await syncHouseEvent({ id: item.id.replace('ev-', ''), title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime, createdBy: item.detail });
     } else if (item.type === 'parking') {
-      await syncParkingApproved({ id: item.id.replace('pk-', ''), requestedBy: item.person ?? '', date: item.date, startTime: item.startTime, endTime: item.endTime });
+      await syncParkingApproved({ id: item.id.replace('pk-', ''), requestedBy: resolveName(item.person ?? '', housemates), date: item.date, startTime: item.startTime, endTime: item.endTime });
     } else if (item.type === 'parking-pending') {
-      await syncParkingPending({ id: item.id.replace('pk-', ''), requestedBy: item.person ?? '', date: item.date, startTime: item.startTime, endTime: item.endTime });
+      await syncParkingPending({ id: item.id.replace('pk-', ''), requestedBy: resolveName(item.person ?? '', housemates), date: item.date, startTime: item.startTime, endTime: item.endTime });
     }
   }, [connected, connect, syncHouseEvent, syncParkingApproved, syncParkingPending]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+        {!!storeError && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{storeError}</Text>
+          </View>
+        )}
 
         {/* ── Page header ── */}
         <View style={styles.pageHeader}>
@@ -571,6 +593,10 @@ const styles = StyleSheet.create({
   eventRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   typeBadgeText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
+
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  errorBanner: { backgroundColor: colors.negative + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.negative + '40' },
+  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.negative },
 
   // ── Add Event Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },

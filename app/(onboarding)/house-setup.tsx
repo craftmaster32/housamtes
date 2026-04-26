@@ -1,13 +1,17 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@stores/authStore';
+import { COLORS } from '@stores/housematesStore';
 import { supabase } from '@lib/supabase';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+
+const ONBOARDING_INTENT_KEY = 'onboarding_intent';
 
 type Tab = 'create' | 'join';
 
@@ -18,10 +22,22 @@ export default function HouseSetupScreen(): React.JSX.Element {
   const [inviteCode, setInviteCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [assignedColor, setAssignedColor] = useState<string | null>(null);
+  const joinAttemptsRef = useRef(0);
+  const joinLockedUntilRef = useRef<Date | null>(null);
   const user = useAuthStore((s) => s.user);
   const setHouseId = useAuthStore((s) => s.setHouseId);
   const reloadMembership = useAuthStore((s) => s.reloadMembership);
   const signOut = useAuthStore((s) => s.signOut);
+
+  useEffect(() => {
+    AsyncStorage.getItem(ONBOARDING_INTENT_KEY).then((intent) => {
+      if (intent === 'join') {
+        setTab('join');
+        AsyncStorage.removeItem(ONBOARDING_INTENT_KEY).catch(() => {});
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleCreate = useCallback(async () => {
     if (!houseName.trim()) { setError(t('house_setup.enter_house_name')); return; }
@@ -35,12 +51,12 @@ export default function HouseSetupScreen(): React.JSX.Element {
         .insert({ name: houseName.trim(), invite_code: code, created_by: user.id })
         .select()
         .single();
-      if (houseErr) throw houseErr;
+      if (houseErr) throw new Error(t('house_setup.failed_create'));
 
       const { error: memberErr } = await supabase
         .from('house_members')
         .insert({ house_id: house.id, user_id: user.id, role: 'owner' });
-      if (memberErr) throw memberErr;
+      if (memberErr) throw new Error(t('house_setup.failed_create'));
 
       setHouseId(house.id);
     } catch (err) {
@@ -50,6 +66,11 @@ export default function HouseSetupScreen(): React.JSX.Element {
   }, [houseName, user, setHouseId, t]);
 
   const handleJoin = useCallback(async () => {
+    if (joinLockedUntilRef.current && new Date() < joinLockedUntilRef.current) {
+      const secondsLeft = Math.ceil((joinLockedUntilRef.current.getTime() - Date.now()) / 1000);
+      setError(`Too many attempts. Please wait ${secondsLeft}s before trying again.`);
+      return;
+    }
     if (!inviteCode.trim()) { setError(t('house_setup.enter_invite_code')); return; }
     if (!user) return;
     setIsLoading(true);
@@ -61,16 +82,47 @@ export default function HouseSetupScreen(): React.JSX.Element {
         .eq('invite_code', inviteCode.trim().toUpperCase())
         .maybeSingle();
       if (houseErr) throw new Error(t('house_setup.failed_join'));
-      if (!house) throw new Error(t('house_setup.code_not_found'));
+      if (!house) {
+        joinAttemptsRef.current += 1;
+        if (joinAttemptsRef.current >= 3) {
+          const lockSeconds = Math.min(10 * Math.pow(2, joinAttemptsRef.current - 3), 300);
+          joinLockedUntilRef.current = new Date(Date.now() + lockSeconds * 1000);
+        }
+        throw new Error(t('house_setup.code_not_found'));
+      }
+      joinAttemptsRef.current = 0;
+      joinLockedUntilRef.current = null;
 
       const { error: memberErr } = await supabase
         .from('house_members')
         .insert({ house_id: house.id, user_id: user.id });
       // 23505 = duplicate key: user is already a member — treat as success
-      if (memberErr && memberErr.code !== '23505') throw memberErr;
+      if (memberErr && memberErr.code !== '23505') throw new Error(t('house_setup.failed_join'));
 
       // Reload membership so role & permissions reflect the new house
       await reloadMembership();
+
+      // Enforce unique color per house: if another member shares this user's color, auto-assign a free one
+      const { data: otherMembers } = await supabase
+        .from('house_members')
+        .select('user_id')
+        .eq('house_id', house.id)
+        .neq('user_id', user.id);
+
+      if (otherMembers && otherMembers.length > 0) {
+        const [{ data: otherProfiles }, { data: myProfile }] = await Promise.all([
+          supabase.from('profiles').select('avatar_color').in('id', otherMembers.map((m) => m.user_id)),
+          supabase.from('profiles').select('avatar_color').eq('id', user.id).maybeSingle(),
+        ]);
+        const takenColors = new Set(otherProfiles?.map((p) => p.avatar_color) ?? []);
+        if (myProfile && takenColors.has(myProfile.avatar_color)) {
+          const freeColor = COLORS.find((c) => !takenColors.has(c));
+          if (freeColor) {
+            await supabase.from('profiles').update({ avatar_color: freeColor }).eq('id', user.id);
+            setAssignedColor(freeColor);
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('house_setup.failed_join'));
       setIsLoading(false);
@@ -176,6 +228,14 @@ export default function HouseSetupScreen(): React.JSX.Element {
               error={!!error}
             />
             {!!error && <Text style={styles.error}>{error}</Text>}
+            {assignedColor && (
+              <View style={styles.colorNotice}>
+                <View style={[styles.colorNoticeDot, { backgroundColor: assignedColor }]} />
+                <Text style={styles.colorNoticeText}>
+                  Your color was updated to avoid a clash with your new housemates. Change it anytime in Profile.
+                </Text>
+              </View>
+            )}
             <Button
               mode="contained"
               onPress={handleJoin}
@@ -197,11 +257,9 @@ export default function HouseSetupScreen(): React.JSX.Element {
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
 }
 
 const styles = StyleSheet.create({
@@ -287,6 +345,27 @@ const styles = StyleSheet.create({
     fontSize: sizes.fontSm,
     ...font.regular,
     color: colors.danger,
+  },
+  colorNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sizes.sm,
+    backgroundColor: colors.primary + '12',
+    borderRadius: 10,
+    padding: sizes.sm,
+  },
+  colorNoticeDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    flexShrink: 0,
+  },
+  colorNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    ...font.regular,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
   button: {
     marginTop: sizes.sm,

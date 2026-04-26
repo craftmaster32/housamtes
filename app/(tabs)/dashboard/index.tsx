@@ -15,7 +15,8 @@ import { useChoresStore, type Chore } from '@stores/choresStore';
 import { useChatStore } from '@stores/chatStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useEventsStore } from '@stores/eventsStore';
-import { useHousematesStore } from '@stores/housematesStore';
+import { useHousematesStore, type Housemate } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
@@ -74,8 +75,9 @@ function BalanceCard(): React.JSX.Element {
   const bills = useBillsStore((s) => s.bills);
   const profile = useAuthStore((s) => s.profile);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
-  const myName = profile?.name ?? '';
-  const balances = calculateBalances(bills.filter((b) => !b.settled), myName);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const myId = profile?.id ?? '';
+  const balances = calculateBalances(bills.filter((b) => !b.settled), myId);
   const totalOwed = balances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
   const totalOwe  = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
   const netAmount = totalOwed - totalOwe;
@@ -109,7 +111,7 @@ function BalanceCard(): React.JSX.Element {
       {balances.slice(0, 2).map((b) => (
         <View key={b.person} style={styles.balanceRow}>
           <View style={[styles.personDot, { backgroundColor: b.amount > 0 ? colors.positive : colors.negative }]} />
-          <Text style={styles.balancePerson} numberOfLines={1}>{b.person}</Text>
+          <Text style={styles.balancePerson} numberOfLines={1}>{resolveName(b.person, housemates)}</Text>
           <Text style={[styles.balanceAmt, { color: b.amount > 0 ? colors.positive : colors.negative }]}>
             {b.amount > 0 ? '+' : ''}{currency}{b.amount.toFixed(2)}
           </Text>
@@ -128,8 +130,8 @@ function ChoreCard(): React.JSX.Element {
   const toggleChore = useChoresStore((s) => s.toggleChore);
   const profile = useAuthStore((s) => s.profile);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
-  const myName = profile?.name ?? '';
-  const myChore = chores.find((c) => !c.isComplete && c.claimedBy === myName);
+  const myId = profile?.id ?? '';
+  const myChore = chores.find((c) => !c.isComplete && c.claimedBy === myId);
   const pending = chores.filter((c) => !c.isComplete);
   const done = chores.filter((c) => c.isComplete);
   const newChores = countNewSimple(pending, lastSeen.chores);
@@ -191,22 +193,24 @@ function ParkingCard(): React.JSX.Element {
   const release = useParkingStore((s) => s.release);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const myId   = profile?.id ?? '';
   const myName = profile?.name ?? '';
   const isFree = !current;
-  const isMine = current?.occupant === myName;
+  const isMine = current?.occupant === myId;
 
   const lastSeen = useBadgeStore((s) => s.lastSeen);
   const sortedReservations = [...reservations].sort((a, b) => a.date.localeCompare(b.date));
   // Pending requests from others — these need approval
-  const pendingFromOthers = sortedReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myName);
+  const pendingFromOthers = sortedReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myId);
   // My own reservations (any status)
-  const myReservation = sortedReservations.find((r) => r.requestedBy === myName) ?? null;
+  const myReservation = sortedReservations.find((r) => r.requestedBy === myId) ?? null;
   const pendingCount = reservations.filter((r) => r.status === 'pending').length;
-  const newReservations = countNew(reservations as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.parking, myName, 'requestedBy');
+  const newReservations = countNew(reservations as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.parking, myId, 'requestedBy');
 
   const handleClaim = useCallback(async (): Promise<void> => {
-    await claim(myName, houseId ?? '').catch(() => {});
-  }, [claim, myName, houseId]);
+    await claim(myId, myName, houseId ?? '').catch(() => {});
+  }, [claim, myId, myName, houseId]);
 
   const handleRelease = useCallback(async (): Promise<void> => {
     await release(houseId ?? '').catch(() => {});
@@ -232,7 +236,7 @@ function ParkingCard(): React.JSX.Element {
       </View>
       <View style={[styles.parkingStatus, { backgroundColor: isFree ? colors.positive + '14' : colors.negative + '14' }]}>
         <Text style={[styles.parkingStatusText, { color: isFree ? colors.positive : colors.negative }]}>
-          {isFree ? 'Available now' : isMine ? 'Your car' : `${current?.occupant}`}
+          {isFree ? 'Available now' : isMine ? 'Your car' : resolveName(current?.occupant ?? '', housemates)}
         </Text>
         {current && !isFree && (
           <Text style={styles.parkingAge}>{parkingAge(current.startTime)}</Text>
@@ -243,7 +247,7 @@ function ParkingCard(): React.JSX.Element {
           ? 'No one is using the spot'
           : isMine
           ? `In use for ${parkingAge(current!.startTime)}`
-          : `Used by ${current?.occupant} · ${parkingAge(current!.startTime)}`}
+          : `Used by ${resolveName(current!.occupant, housemates)} · ${parkingAge(current!.startTime)}`}
       </Text>
       {/* Pending requests from others — show approve button */}
       {pendingFromOthers.map((r) => (
@@ -251,14 +255,14 @@ function ParkingCard(): React.JSX.Element {
           <View style={styles.parkingPendingInfo}>
             <Ionicons name="time-outline" size={14} color="#856404" />
             <Text style={styles.parkingPendingText}>
-              {r.requestedBy} wants {r.date}{r.startTime ? ` at ${r.startTime}` : ''}
+              {resolveName(r.requestedBy, housemates)} wants {r.date}{r.startTime ? ` at ${r.startTime}` : ''}
             </Text>
           </View>
           <Pressable
             style={styles.approveBtn}
             onPress={(e) => { e.stopPropagation?.(); handleApprove(r.id); }}
             accessibilityRole="button"
-            accessibilityLabel={`Approve parking request from ${r.requestedBy}`}
+            accessibilityLabel={`Approve parking request from ${resolveName(r.requestedBy, housemates)}`}
           >
             <Text style={styles.approveBtnText}>Approve</Text>
           </Pressable>
@@ -312,22 +316,22 @@ function GroceryWidget(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
-  const myName = profile?.name ?? '';
+  const myId = profile?.id ?? '';
   const [input, setInput] = useState('');
   const pending = items.filter((i) => !i.isChecked).slice(0, 5);
   const newGrocery = countNew(
     items.filter((i) => !i.isChecked) as unknown as Array<{ createdAt: string; [k: string]: unknown }>,
     lastSeen.grocery,
-    myName,
+    myId,
     'addedBy'
   );
 
   const handleAdd = useCallback(async (): Promise<void> => {
     const n = input.trim();
     if (!n) return;
-    await addItem(n, '', myName || 'Someone', houseId ?? '').catch(() => {});
+    await addItem(n, '', myId, houseId ?? '').catch(() => {});
     setInput('');
-  }, [input, addItem, myName, houseId]);
+  }, [input, addItem, myId, houseId]);
 
   return (
     <WidgetCard>
@@ -397,13 +401,13 @@ function VotesWidget(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const housemates = useHousematesStore((s) => s.housemates);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
-  const myName = profile?.name ?? '';
+  const myId = profile?.id ?? '';
   const totalPeople = Math.max(1, housemates.length);
   const active = proposals.filter((p) => p.isOpen);
   const newVotes = countNew(
     active as unknown as Array<{ createdAt: string; [k: string]: unknown }>,
     lastSeen.voting,
-    myName,
+    myId,
     'createdBy'
   );
 
@@ -426,7 +430,7 @@ function VotesWidget(): React.JSX.Element {
   const noCount  = top.votes.filter((v) => v.choice === 'no').length;
   const totalVotes = yesCount + noCount;
   const yesWidth = totalVotes > 0 ? (yesCount / totalVotes) * 100 : 0;
-  const myVote = top.votes.find((v) => v.person === myName)?.choice ?? null;
+  const myVote = top.votes.find((v) => v.person === myId)?.choice ?? null;
   const allVoted = totalVotes >= totalPeople;
 
   type BadgeState = { label: string; bg: string; color: string };
@@ -636,7 +640,8 @@ function buildActivityEvents(
   bills: Bill[],
   groceryItems: GroceryItem[],
   chores: Chore[],
-  myName: string
+  myId: string,
+  housemates: Housemate[]
 ): ActivityEvent[] {
   const events: ActivityEvent[] = [];
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -649,7 +654,7 @@ function buildActivityEvents(
         icon: 'card-outline',
         iconColor: '#FF4757',
         iconBg: '#FFF0F0',
-        actor: b.paidBy === myName ? 'You' : b.paidBy,
+        actor: b.paidBy === myId ? 'You' : resolveName(b.paidBy, housemates),
         text: `added a bill — ${b.title}`,
         time: b.createdAt,
       });
@@ -663,7 +668,7 @@ function buildActivityEvents(
         icon: 'cart-outline',
         iconColor: '#2ED573',
         iconBg: '#F0FFF4',
-        actor: i.addedBy === myName ? 'You' : i.addedBy,
+        actor: i.addedBy === myId ? 'You' : resolveName(i.addedBy, housemates),
         text: `added "${i.name}" to the grocery list`,
         time: i.createdAt,
       });
@@ -677,7 +682,7 @@ function buildActivityEvents(
         icon: 'checkmark-done-outline',
         iconColor: '#FF8C00',
         iconBg: '#FFF8F0',
-        actor: c.claimedBy === myName ? 'You' : (c.claimedBy ?? 'Someone'),
+        actor: !c.claimedBy ? 'Someone' : c.claimedBy === myId ? 'You' : resolveName(c.claimedBy, housemates),
         text: `completed "${c.name}"`,
         time: c.completedAt!,
       });
@@ -710,11 +715,12 @@ function ActivityFeed(): React.JSX.Element {
   const groceryItems = useGroceryStore((s) => s.items);
   const chores = useChoresStore((s) => s.chores);
   const profile = useAuthStore((s) => s.profile);
-  const myName = profile?.name ?? '';
+  const housemates = useHousematesStore((s) => s.housemates);
+  const myId = profile?.id ?? '';
 
   const events = useMemo(
-    () => buildActivityEvents(bills, groceryItems, chores, myName),
-    [bills, groceryItems, chores, myName]
+    () => buildActivityEvents(bills, groceryItems, chores, myId, housemates),
+    [bills, groceryItems, chores, myId, housemates]
   );
 
   return (

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 
 export interface ExpenseCategory {
   id: string;
@@ -46,6 +48,10 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
       isLoading: false,
 
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[expense-categories] house ID mismatch — aborting load');
+          return;
+        }
         set({ isLoading: true });
         try {
           const { data, error } = await supabase
@@ -69,7 +75,8 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
             })),
             isLoading: false,
           });
-        } catch {
+        } catch (err) {
+          captureError(err, { store: 'expense-categories', houseId });
           set({ isLoading: false });
         }
       },
@@ -102,7 +109,10 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           .insert({ house_id: houseId, name: cat.name, icon: cat.icon, color: cat.color, is_default: false, sort_order: 50 })
           .select()
           .single();
-        if (error) throw new Error(`Failed to add category: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'add-category', houseId });
+          throw new Error('Could not save the category. Please try again.');
+        }
         set({
           categories: [...get().categories, {
             id: data.id, name: data.name, icon: data.icon,
@@ -116,7 +126,10 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           .from('expense_categories')
           .update({ name: changes.name, icon: changes.icon, color: changes.color })
           .eq('id', id);
-        if (error) throw new Error(`Failed to update category: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'update-category', categoryId: id });
+          throw new Error('Could not update the category. Please try again.');
+        }
         set({
           categories: get().categories.map((c) => c.id === id ? { ...c, ...changes } : c),
         });
@@ -124,7 +137,10 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
 
       remove: async (id): Promise<void> => {
         const { error } = await supabase.from('expense_categories').delete().eq('id', id);
-        if (error) throw new Error(`Failed to delete category: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'delete-category', categoryId: id });
+          throw new Error('Could not delete the category. Please try again.');
+        }
         set({ categories: get().categories.filter((c) => c.id !== id) });
       },
     }),

@@ -35,8 +35,12 @@ jest.mock('@lib/supabase', () => ({
 }));
 
 jest.mock('@lib/notifyHousemates', () => ({ notifyHousemates: jest.fn() }));
+jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
 jest.mock('@stores/settingsStore', () => ({
   useSettingsStore: { getState: (): { currency: string } => ({ currency: '$' }) },
+}));
+jest.mock('@stores/authStore', () => ({
+  useAuthStore: { getState: (): { houseId: string } => ({ houseId: 'house-1' }) },
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -87,15 +91,13 @@ describe('getPersonShare', () => {
     expect(getPersonShare(b, 'Alice')).toBe(0);
   });
 
-  it('floating-point: individual share is not a round cent value for non-divisible amounts', () => {
-    // 10 / 3 = 3.3333... The raw share is never exactly $3.33.
-    // Callers must use toFixed(2) for display. The real danger is that three
-    // individual toFixed(2) amounts ($3.33 + $3.33 + $3.33 = $9.99) don't
-    // add up to the original $10.00 — creating a penny discrepancy.
+  it('floating-point: share floors to whole cents; payer absorbs the remainder', () => {
+    // 10 / 3: each person pays $3.33 (floored to whole cents via Math.floor on cents).
+    // The payer keeps the leftover penny — 3 × $3.33 = $9.99, not $10.00.
     const b = bill({ amount: 10, splitBetween: ['Alice', 'Bob', 'Carol'] });
     const share = getPersonShare(b, 'Bob');
-    // The raw value is not a round cent — it has many decimal places
-    expect(Number(share.toFixed(2))).not.toBe(share); // toFixed rounds it → not equal to raw
+    expect(share).toBe(3.33);
+    expect(share * b.splitBetween.length).toBeLessThan(b.amount);
   });
 });
 
@@ -251,8 +253,8 @@ describe('billsStore — settleBill', () => {
     mockFrom.mockReturnValue(fail('network timeout'));
 
     await expect(
-      useBillsStore.getState().settleBill('b1', 'Alice', 'house-1')
-    ).rejects.toThrow('Failed to settle bill');
+      useBillsStore.getState().settleBill('b1', 'uuid-alice', 'Alice', 'house-1')
+    ).rejects.toThrow('Could not settle the bill. Please try again.');
 
     expect(useBillsStore.getState().bills[0].settled).toBe(false);
   });
@@ -261,11 +263,11 @@ describe('billsStore — settleBill', () => {
     useBillsStore.setState({ bills: [bill({ id: 'b1', settled: false })] });
     mockFrom.mockReturnValue(ok());
 
-    await useBillsStore.getState().settleBill('b1', 'Alice', 'house-1');
+    await useBillsStore.getState().settleBill('b1', 'uuid-alice', 'Alice', 'house-1');
 
     const updated = useBillsStore.getState().bills[0];
     expect(updated.settled).toBe(true);
-    expect(updated.settledBy).toBe('Alice');
+    expect(updated.settledBy).toBe('uuid-alice');
   });
 
   it('throws "already settled" when trying to settle a bill that is already settled', async () => {
@@ -273,7 +275,7 @@ describe('billsStore — settleBill', () => {
     useBillsStore.setState({ bills: [bill({ id: 'b1', settled: true, settledBy: 'Bob' })] });
 
     await expect(
-      useBillsStore.getState().settleBill('b1', 'Carol', 'house-1')
+      useBillsStore.getState().settleBill('b1', 'uuid-carol', 'Carol', 'house-1')
     ).rejects.toThrow('Bill is already settled');
 
     expect(useBillsStore.getState().bills[0].settledBy).toBe('Bob'); // unchanged
@@ -284,7 +286,7 @@ describe('billsStore — settleBill', () => {
     useBillsStore.setState({ bills: [] });
 
     await expect(
-      useBillsStore.getState().settleBill('missing-id', 'Alice', 'house-1')
+      useBillsStore.getState().settleBill('missing-id', 'uuid-alice', 'Alice', 'house-1')
     ).rejects.toThrow('Bill not found');
 
     expect(mockFrom).not.toHaveBeenCalled(); // never reaches DB
@@ -298,7 +300,7 @@ describe('billsStore — settleBill', () => {
     mockFrom.mockReturnValue(ok());
 
     const { notifyHousemates } = jest.requireMock('@lib/notifyHousemates');
-    await useBillsStore.getState().settleBill('b1', 'Alice', 'house-1');
+    await useBillsStore.getState().settleBill('b1', 'uuid-alice', 'Alice', 'house-1');
 
     expect(notifyHousemates).toHaveBeenCalledTimes(1);
     expect(notifyHousemates).toHaveBeenCalledWith(expect.objectContaining({ title: '✅ Bill settled' }));
@@ -311,8 +313,8 @@ describe('billsStore — deleteBill', () => {
     mockFrom.mockReturnValue(fail('RLS violation'));
 
     await expect(
-      useBillsStore.getState().deleteBill('b1')
-    ).rejects.toThrow('Failed to delete bill');
+      useBillsStore.getState().deleteBill('b1', 'house1')
+    ).rejects.toThrow('Could not delete the bill. Please try again.');
 
     expect(useBillsStore.getState().bills).toHaveLength(1);
   });
@@ -321,7 +323,7 @@ describe('billsStore — deleteBill', () => {
     useBillsStore.setState({ bills: [bill({ id: 'b1' })] });
     mockFrom.mockReturnValue(ok());
 
-    await useBillsStore.getState().deleteBill('b1');
+    await useBillsStore.getState().deleteBill('b1', 'house1');
 
     expect(useBillsStore.getState().bills).toHaveLength(0);
   });
@@ -334,7 +336,7 @@ describe('billsStore — editBill', () => {
 
     await expect(
       useBillsStore.getState().editBill('b1', { title: 'Updated Rent', amount: 1000, date: '2026-05-01', notes: '' })
-    ).rejects.toThrow('Failed to update bill');
+    ).rejects.toThrow('Could not update the bill. Please try again.');
 
     expect(useBillsStore.getState().bills[0].title).toBe('Rent');
     expect(useBillsStore.getState().bills[0].amount).toBe(900);
@@ -359,7 +361,7 @@ describe('billsStore — load', () => {
 
     await useBillsStore.getState().load('house-1');
 
-    expect(useBillsStore.getState().error).toBe('Failed to load bills'); // generic fallback
+    expect(useBillsStore.getState().error).toBe('Could not load bills. Please try again.');
     expect(useBillsStore.getState().isLoading).toBe(false);
   });
 

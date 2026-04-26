@@ -7,6 +7,7 @@ const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/send-push`;
 export type NotificationType =
   | 'bill_added'
   | 'bill_settled'
+  | 'bill_deleted'
   | 'bill_due'
   | 'parking_claimed'
   | 'parking_reservation'

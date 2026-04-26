@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, Modal, ScrollView, AppState, type AppStateStatus } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, TextInput, Modal, ScrollView, AppState, ActivityIndicator, type AppStateStatus } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useParkingStore, isDateConflict, type ParkingReservation, type ParkingSession } from '@stores/parkingStore';
 import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
@@ -25,21 +27,22 @@ function formatDate(dateStr: string): string {
 
 function ReservationCard({
   item,
-  currentUser,
+  currentUserId,
   canApprove,
   onCancel,
   onApprove,
   houseId,
 }: {
   item: ParkingReservation;
-  currentUser: string;
+  currentUserId: string;
   canApprove: boolean;
   onCancel: (id: string) => void;
   onApprove: (id: string, houseId: string) => void;
   houseId: string;
 }): React.JSX.Element {
   const { t } = useTranslation();
-  const isOwn    = item.requestedBy === currentUser;
+  const housemates = useHousematesStore((s) => s.housemates);
+  const isOwn    = item.requestedBy === currentUserId;
   const approved = item.status === 'approved';
 
   const timeLabel = item.startTime
@@ -54,7 +57,7 @@ function ReservationCard({
       <View style={styles.resInfo}>
         <Text style={styles.resDate}>{formatDate(item.date)}{timeLabel}</Text>
         <Text style={styles.resBy}>
-          {isOwn ? 'You' : item.requestedBy}
+          {isOwn ? 'You' : resolveName(item.requestedBy, housemates)}
           {item.note ? ` · ${item.note}` : ''}
         </Text>
         <View style={[styles.badge, approved ? styles.badgeGreen : styles.badgeYellow]}>
@@ -83,6 +86,7 @@ function ReservationCard({
 function ReserveModal({
   visible,
   onClose,
+  myId,
   myName,
   houseId,
   reservations,
@@ -90,6 +94,7 @@ function ReserveModal({
 }: {
   visible: boolean;
   onClose: () => void;
+  myId: string;
   myName: string;
   houseId: string;
   reservations: ParkingReservation[];
@@ -98,6 +103,7 @@ function ReserveModal({
   const { t } = useTranslation();
   const addReservation    = useParkingStore((s) => s.addReservation);
   const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
+  const housemates = useHousematesStore((s) => s.housemates);
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -111,7 +117,7 @@ function ReserveModal({
 
   const activeConflict =
     current && date === todayStr
-      ? `${current.occupant === myName ? 'You are' : `${current.occupant} is`} currently using the spot`
+      ? `${current.occupant === myId ? 'You are' : `${resolveName(current.occupant, housemates)} is`} currently using the spot`
       : null;
   const dateConflict = activeConflict ?? isDateConflict(date, reservations);
 
@@ -134,7 +140,8 @@ function ReserveModal({
     setError('');
     try {
       const reservationId = await addReservation(
-        { requestedBy: myName, date, startTime: startTime || undefined, endTime: endTime || undefined, note },
+        { requestedBy: myId, date, startTime: startTime || undefined, endTime: endTime || undefined, note },
+        myName,
         houseId
       );
       syncParkingPending({ id: reservationId, requestedBy: myName, date, startTime: startTime || undefined, endTime: endTime || undefined }).catch(() => {});
@@ -144,7 +151,7 @@ function ReserveModal({
     } finally {
       setSaving(false);
     }
-  }, [dateConflict, date, startTime, endTime, note, myName, houseId, addReservation, handleClose, syncParkingPending, t]);
+  }, [dateConflict, date, startTime, endTime, note, myId, myName, houseId, addReservation, handleClose, syncParkingPending, t]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
@@ -204,6 +211,7 @@ function ReserveModal({
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function ParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const isLoading          = useParkingStore((s) => s.isLoading);
   const current            = useParkingStore((s) => s.current);
   const reservations       = useParkingStore((s) => s.reservations);
   const claim              = useParkingStore((s) => s.claim);
@@ -211,15 +219,17 @@ export default function ParkingScreen(): React.JSX.Element {
   const cancelReservation  = useParkingStore((s) => s.cancelReservation);
   const approveReservation = useParkingStore((s) => s.approveReservation);
 
-  const profile = useAuthStore((s) => s.profile);
-  const houseId = useAuthStore((s) => s.houseId);
-  const role    = useAuthStore((s) => s.role);
+  const profile    = useAuthStore((s) => s.profile);
+  const houseId    = useAuthStore((s) => s.houseId);
+  const role       = useAuthStore((s) => s.role);
+  const housemates = useHousematesStore((s) => s.housemates);
   const canApprove = role === 'owner' || role === 'admin';
   const syncParkingApproved  = useCalendarSyncStore((s) => s.syncParkingApproved);
   const removeCalendarEvent  = useCalendarSyncStore((s) => s.removeCalendarEvent);
 
+  const myId    = profile?.id ?? '';
   const myName  = profile?.name ?? '';
-  const isMine  = current?.occupant === myName;
+  const isMine  = current?.occupant === myId;
   const isFree  = !current;
 
   const checkReservationAutoApply = useParkingStore((s) => s.checkReservationAutoApply);
@@ -243,11 +253,11 @@ export default function ParkingScreen(): React.JSX.Element {
   const handleClaim = useCallback(async (): Promise<void> => {
     setError('');
     try {
-      await claim(myName, houseId ?? '');
+      await claim(myId, myName, houseId ?? '');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('parking.failed_claim'));
     }
-  }, [claim, myName, houseId, t]);
+  }, [claim, myId, myName, houseId, t]);
 
   const handleRelease = useCallback(async (): Promise<void> => {
     setError('');
@@ -272,7 +282,7 @@ export default function ParkingScreen(): React.JSX.Element {
       await approveReservation(id, hid);
       const r = reservations.find((res) => res.id === id);
       if (r) {
-        syncParkingApproved({ id: r.id, requestedBy: r.requestedBy, date: r.date, startTime: r.startTime, endTime: r.endTime }).catch(() => {});
+        syncParkingApproved({ id: r.id, requestedBy: resolveName(r.requestedBy, housemates), date: r.date, startTime: r.startTime, endTime: r.endTime }).catch(() => {});
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('parking.failed_claim'));
@@ -283,7 +293,7 @@ export default function ParkingScreen(): React.JSX.Element {
     ({ item }: { item: ParkingReservation }): React.JSX.Element => (
       <ReservationCard
         item={item}
-        currentUser={myName}
+        currentUserId={myId}
         canApprove={canApprove}
         onCancel={handleCancel}
         onApprove={handleApprove}
@@ -314,7 +324,7 @@ export default function ParkingScreen(): React.JSX.Element {
                     ? 'The spot is open — claim it before someone else does.'
                     : isMine
                     ? `You claimed it at ${formatTime(current!.startTime)}.`
-                    : `${current?.occupant} is parked since ${formatTime(current!.startTime)}.`}
+                    : `${resolveName(current?.occupant ?? '', housemates)} is parked since ${formatTime(current!.startTime)}.`}
                 </Text>
               </View>
 
@@ -351,6 +361,9 @@ export default function ParkingScreen(): React.JSX.Element {
             )}
 
             {/* ── Reservations header ── */}
+            {isLoading && (
+              <ActivityIndicator size="small" color="#4F78B6" style={styles.loadingIndicator} />
+            )}
             <View style={styles.sectionHeader}>
               <Text style={styles.eyebrow}>{t('parking.reservations')}</Text>
               <Pressable onPress={() => setShowReserve(true)} style={styles.addBtn} accessibilityRole="button">
@@ -384,6 +397,7 @@ export default function ParkingScreen(): React.JSX.Element {
       <ReserveModal
         visible={showReserve}
         onClose={() => setShowReserve(false)}
+        myId={myId}
         myName={myName}
         houseId={houseId ?? ''}
         reservations={reservations}
@@ -498,6 +512,7 @@ const styles = StyleSheet.create({
     padding: 12, marginBottom: 16,
   },
   errorText: { fontSize: 13, ...font.regular, color: colors.danger, flex: 1 },
+  loadingIndicator: { marginBottom: 12 },
 
   // ── Reserve Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },

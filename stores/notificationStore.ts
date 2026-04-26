@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
 
 export type BillDueDays = 1 | 2 | 3 | 7;
 
@@ -69,6 +70,11 @@ export const useNotificationStore = create<NotificationStore>()(
       error: null,
 
       load: async (userId, houseId): Promise<void> => {
+        const { useAuthStore } = await import('@stores/authStore');
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[notifications] house ID mismatch — aborting load');
+          return;
+        }
         set({ isLoading: true, error: null });
         const { data, error } = await supabase
           .from('notification_preferences')
@@ -77,9 +83,8 @@ export const useNotificationStore = create<NotificationStore>()(
           .eq('house_id', houseId)
           .maybeSingle();
         if (error) {
-          // Network/query failure — keep whatever prefs are already in state rather
-          // than silently overwriting them with defaults and then saving on next update.
-          set({ isLoading: false, error: 'Failed to load notification preferences' });
+          captureError(error, { store: 'notifications', userId, houseId });
+          set({ isLoading: false, error: 'Could not load notification preferences. Please try again.' });
           return;
         }
         set({
@@ -98,7 +103,8 @@ export const useNotificationStore = create<NotificationStore>()(
             { onConflict: 'user_id,house_id' }
           );
         if (error) {
-          set({ prefs: previousPrefs, error: 'Failed to save preferences' });
+          captureError(error, { store: 'notifications', userId, houseId });
+          set({ prefs: previousPrefs, error: 'Could not save preferences. Please try again.' });
         }
       },
 

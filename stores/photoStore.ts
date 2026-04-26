@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 
 export type PhotoCategory = 'receipts' | 'damage' | 'memories' | 'general';
 
@@ -50,6 +52,10 @@ export const usePhotoStore = create<PhotoStore>()(
       photos: [],
       isLoading: true,
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[photos] house ID mismatch — aborting load');
+          return;
+        }
         try {
           const { data, error } = await supabase
             .from('photos')
@@ -67,7 +73,8 @@ export const usePhotoStore = create<PhotoStore>()(
             createdAt: r.created_at,
           }));
           set({ photos, isLoading: false });
-        } catch {
+        } catch (err) {
+          captureError(err, { store: 'photos', houseId });
           set({ isLoading: false });
         }
 
@@ -85,12 +92,13 @@ export const usePhotoStore = create<PhotoStore>()(
         // Read file as ArrayBuffer via fetch
         const response = await fetch(localUri);
         const blob = await response.blob();
+        if (blob.size > 20 * 1024 * 1024) throw new Error('Photo must be under 20 MB. Please choose a smaller image.');
         const path = `${houseId}/${Date.now()}_${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from(BUCKET)
           .upload(path, blob, { contentType: mimeType, upsert: false });
-        if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+        if (uploadError) { captureError(uploadError, { context: 'photo-upload', houseId }); throw new Error('Could not upload the photo. Please try again.'); }
 
         const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
         const url = urlData.publicUrl;
@@ -103,14 +111,14 @@ export const usePhotoStore = create<PhotoStore>()(
           uploaded_by: uploadedBy,
           user_id: userId,
         });
-        if (insertError) throw new Error(`Failed to save photo: ${insertError.message}`);
+        if (insertError) { captureError(insertError, { context: 'photo-insert', houseId }); throw new Error('Could not save the photo. Please try again.'); }
       },
       remove: async (id, storagePath): Promise<void> => {
         if (storagePath) {
           await supabase.storage.from(BUCKET).remove([storagePath]);
         }
         const { error } = await supabase.from('photos').delete().eq('id', id);
-        if (error) throw new Error(`Failed to delete photo: ${error.message}`);
+        if (error) { captureError(error, { context: 'delete-photo', photoId: id }); throw new Error('Could not delete the photo. Please try again.'); }
         set({ photos: get().photos.filter((p) => p.id !== id) });
       },
     }),

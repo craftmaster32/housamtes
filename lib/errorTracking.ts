@@ -21,8 +21,17 @@ export function initErrorTracking(): void {
     dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     tracesSampleRate: 0.1,
     environment: 'production',
+    sendDefaultPii: false,
     beforeSend(event) {
+      // Strip request body and query string (may contain user input or tokens)
       if (event.request?.data) delete event.request.data;
+      if (event.request?.query_string) delete event.request.query_string;
+      if (event.request?.cookies) delete event.request.cookies;
+      // Keep only the anonymised user ID — no email, username, or IP
+      if (event.user) {
+        const { id } = event.user;
+        event.user = id ? { id } : undefined;
+      }
       return event;
     },
   });

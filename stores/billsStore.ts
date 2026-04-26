@@ -3,6 +3,8 @@ import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import { useSettingsStore } from '@stores/settingsStore';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 
 export const CATEGORIES = ['Rent', 'Electricity', 'Water', 'Internet', 'Groceries', 'Other'];
 
@@ -10,20 +12,20 @@ export interface Bill {
   id: string;
   title: string;
   amount: number;
-  paidBy: string;
-  splitBetween: string[];
-  splitAmounts: Record<string, number> | null; // null = equal split
+  paidBy: string;        // user UUID
+  splitBetween: string[]; // user UUIDs
+  splitAmounts: Record<string, number> | null; // null = equal split; keys are user UUIDs
   category: string;
   date: string;
   createdAt: string;
   settled: boolean;
-  settledBy: string | null;
+  settledBy: string | null; // user UUID
   settledAt: string | null;
   notes: string | null;
 }
 
 export interface Balance {
-  person: string;
+  person: string; // user UUID
   amount: number; // positive = they owe you, negative = you owe them
 }
 
@@ -35,8 +37,8 @@ interface BillsStore {
   unsubscribe: () => void;
   addBill: (bill: Omit<Bill, 'id' | 'createdAt' | 'settled' | 'settledBy' | 'settledAt' | 'notes'> & { notes?: string }, houseId: string) => Promise<void>;
   editBill: (id: string, updates: { title: string; amount: number; date: string; notes: string }) => Promise<void>;
-  settleBill: (id: string, settledBy: string, houseId: string) => Promise<void>;
-  deleteBill: (id: string) => Promise<void>;
+  settleBill: (id: string, settledByUserId: string, settledByName: string, houseId: string) => Promise<void>;
+  deleteBill: (id: string, houseId: string) => Promise<void>;
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
@@ -48,6 +50,11 @@ export const useBillsStore = create<BillsStore>()(
       isLoading: true,
       error: null,
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[bills] house ID mismatch — aborting load');
+          set({ isLoading: false });
+          return;
+        }
         try {
           const { data, error } = await supabase
             .from('bills')
@@ -72,7 +79,8 @@ export const useBillsStore = create<BillsStore>()(
           }));
           set({ bills, isLoading: false, error: null });
         } catch (err) {
-          set({ isLoading: false, error: err instanceof Error ? err.message : 'Failed to load bills' });
+          captureError(err, { store: 'bills', houseId });
+          set({ isLoading: false, error: 'Could not load bills. Please try again.' });
         }
 
         if (_channel) { supabase.removeChannel(_channel); }
@@ -86,7 +94,6 @@ export const useBillsStore = create<BillsStore>()(
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
       addBill: async (data, houseId): Promise<void> => {
-        // Grab userId before the async insert so we can exclude sender from notification
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData.session?.user.id ?? '';
         const { data: inserted, error } = await supabase
@@ -104,7 +111,7 @@ export const useBillsStore = create<BillsStore>()(
           })
           .select()
           .single();
-        if (error) throw new Error(`Failed to add bill: ${error.message}`);
+        if (error) { captureError(error, { context: 'add-bill', houseId }); throw new Error('Could not save the bill. Please try again.'); }
         const bill: Bill = {
           id: inserted.id,
           title: inserted.title,
@@ -121,57 +128,79 @@ export const useBillsStore = create<BillsStore>()(
           notes: inserted.notes ?? null,
         };
         set({ bills: [bill, ...get().bills] });
-        notifyHousemates({
-          houseId,
-          excludeUserId: userId,
-          title: '💰 New bill added',
-          body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}`,
-          data: { screen: 'bills' },
-          notificationType: 'bill_added',
-        });
+        if (userId) {
+          notifyHousemates({
+            houseId,
+            excludeUserId: userId,
+            title: '💰 New bill added',
+            body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}`,
+            data: { screen: 'bills' },
+            notificationType: 'bill_added',
+          });
+        }
       },
       editBill: async (id, updates): Promise<void> => {
         const { error } = await supabase
           .from('bills')
           .update({ title: updates.title, amount: updates.amount, date: updates.date, notes: updates.notes })
           .eq('id', id);
-        if (error) throw new Error(`Failed to update bill: ${error.message}`);
+        if (error) { captureError(error, { context: 'edit-bill', billId: id }); throw new Error('Could not update the bill. Please try again.'); }
         set({
           bills: get().bills.map((b) =>
             b.id === id ? { ...b, title: updates.title, amount: updates.amount, date: updates.date, notes: updates.notes } : b
           ),
         });
       },
-      settleBill: async (id, settledBy, houseId): Promise<void> => {
+      settleBill: async (id, settledByUserId, settledByName, houseId): Promise<void> => {
         const bill = get().bills.find((b) => b.id === id);
         if (!bill) throw new Error('Bill not found');
         if (bill.settled) throw new Error('Bill is already settled');
         const now = new Date().toISOString();
         const { error } = await supabase
           .from('bills')
-          .update({ settled: true, settled_by: settledBy, settled_at: now })
+          .update({ settled: true, settled_by: settledByUserId, settled_at: now })
           .eq('id', id);
-        if (error) throw new Error(`Failed to settle bill: ${error.message}`);
+        if (error) { captureError(error, { context: 'settle-bill', billId: id }); throw new Error('Could not settle the bill. Please try again.'); }
         set({
           bills: get().bills.map((b) =>
-            b.id === id ? { ...b, settled: true, settledBy, settledAt: now } : b
+            b.id === id ? { ...b, settled: true, settledBy: settledByUserId, settledAt: now } : b
           ),
         });
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user.id ?? '';
-        notifyHousemates({
-          houseId,
-          excludeUserId: userId,
-          title: '✅ Bill settled',
-          body: `${bill.title} marked as settled by ${settledBy}`,
-          data: { screen: 'bills' },
-          notificationType: 'bill_settled',
-        });
+        if (settledByUserId) {
+          notifyHousemates({
+            houseId,
+            excludeUserId: settledByUserId,
+            title: '✅ Bill settled',
+            body: `${bill.title} marked as settled by ${settledByName}`,
+            data: { screen: 'bills' },
+            notificationType: 'bill_deleted',
+          });
+        }
       },
-      deleteBill: async (id): Promise<void> => {
+      deleteBill: async (id, houseId): Promise<void> => {
+        const bill = get().bills.find((b) => b.id === id);
+        if (bill?.settled) {
+          throw new Error(
+            'Settled bills cannot be deleted — settlement history is permanent.'
+          );
+        }
         const { error } = await supabase.from('bills').delete().eq('id', id);
-        if (error) throw new Error(`Failed to delete bill: ${error.message}`);
+        if (error) { captureError(error, { context: 'delete-bill', billId: id }); throw new Error('Could not delete the bill. Please try again.'); }
         set({ bills: get().bills.filter((b) => b.id !== id) });
+        if (bill) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const userId = sessionData.session?.user.id ?? '';
+          if (userId) {
+            notifyHousemates({
+              houseId,
+              excludeUserId: userId,
+              title: '🗑️ Bill removed',
+              body: `${bill.title} was deleted`,
+              data: { screen: 'bills' },
+              notificationType: 'bill_settled',
+            });
+          }
+        }
       },
     }),
     { name: 'bills-store' }
@@ -194,8 +223,8 @@ export function calculateAllNetBalances(bills: Bill[]): Map<string, number> {
 }
 
 export interface Settlement {
-  from: string;
-  to: string;
+  from: string; // user UUID
+  to: string;   // user UUID
   amount: number;
 }
 
@@ -226,10 +255,12 @@ export function getPersonShare(bill: Bill, person: string): number {
     return bill.splitAmounts[person];
   }
   if (bill.splitBetween.length === 0) return 0;
-  return bill.amount / bill.splitBetween.length;
+  // Work in whole cents to avoid floating-point errors; payer absorbs any remainder
+  const totalCents = Math.round(bill.amount * 100);
+  return Math.floor(totalCents / bill.splitBetween.length) / 100;
 }
 
-export function calculateBalances(bills: Bill[], currentUser: string): Balance[] {
+export function calculateBalances(bills: Bill[], currentUserId: string): Balance[] {
   const map = new Map<string, number>();
 
   bills.forEach((bill) => {
@@ -237,9 +268,9 @@ export function calculateBalances(bills: Bill[], currentUser: string): Balance[]
     bill.splitBetween.forEach((person) => {
       if (person === bill.paidBy) return;
       const share = getPersonShare(bill, person);
-      if (bill.paidBy === currentUser) {
+      if (bill.paidBy === currentUserId) {
         map.set(person, (map.get(person) ?? 0) + share);
-      } else if (person === currentUser) {
+      } else if (person === currentUserId) {
         map.set(bill.paidBy, (map.get(bill.paidBy) ?? 0) - share);
       }
     });

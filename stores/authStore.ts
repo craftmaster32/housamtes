@@ -152,6 +152,7 @@ interface AuthStore {
   reloadMembership: () => Promise<void>;
   leaveHouse: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
   clearError: () => void;
   clearPasswordRecovery: () => void;
 }
@@ -272,6 +273,16 @@ export const useAuthStore = create<AuthStore>()(
           });
           if (error) throw error;
           if (data.user) {
+            // Record consent immediately after account creation (clickwrap legal evidence).
+            // Best-effort — failure here must not block account creation.
+            supabase.from('user_consents').insert({
+              user_id: data.user.id,
+              terms_version: '2026-04-25',
+              platform: Platform.OS,
+            }).then(({ error: consentErr }) => {
+              if (consentErr) captureError(consentErr, { context: 'record-consent', userId: data.user?.id ?? '' });
+            });
+
             // If session is null, email confirmation is required.
             // The handle_new_user trigger already created the profile row — no insert needed here.
             if (!data.session) {
@@ -359,8 +370,13 @@ export const useAuthStore = create<AuthStore>()(
           password: currentPassword,
         });
         if (verifyError) throw new Error('Current password is incorrect.');
+        if (newPassword.length < 8) throw new Error('Password must be at least 8 characters.');
+        if (!/[A-Z]/.test(newPassword)) throw new Error('Password must include at least one uppercase letter.');
+        if (!/[0-9]/.test(newPassword)) throw new Error('Password must include at least one number.');
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) throw new Error('Could not update password. Please try again.');
+        // Sign out all other sessions (other devices) so only this device stays logged in
+        await supabase.auth.signOut({ scope: 'others' });
       },
 
       uploadAvatar: async (uri: string, mimeType = 'image/jpeg', base64?: string): Promise<void> => {
@@ -368,10 +384,11 @@ export const useAuthStore = create<AuthStore>()(
         if (!user) return;
         const path = `${user.id}/avatar`;
         const { buffer, contentType } = await resolveUploadData(uri, mimeType, base64);
+        if (buffer.byteLength > 5 * 1024 * 1024) throw new Error('Photo must be under 5 MB. Please crop or compress the image.');
         const { error: uploadError } = await supabase.storage
           .from('profiles')
           .upload(path, buffer, { contentType, upsert: true });
-        if (uploadError) throw new Error(uploadError.message);
+        if (uploadError) { captureError(uploadError, { context: 'upload-avatar' }); throw new Error('Could not upload photo. Please try again.'); }
         // Store a marker so fetchProfile knows a photo exists.
         // We do NOT store a signed/public URL because those can expire or be inaccessible
         // if the bucket public flag isn't set — instead we always generate a fresh signed URL.
@@ -380,12 +397,12 @@ export const useAuthStore = create<AuthStore>()(
           .from('profiles')
           .update({ avatar_url: placeholder })
           .eq('id', user.id);
-        if (updateError) throw new Error(updateError.message);
+        if (updateError) { captureError(updateError, { context: 'update-avatar-url' }); throw new Error('Could not save photo. Please try again.'); }
         // Generate a signed URL for immediate display (bypasses public-bucket requirement)
         const { data: signed } = await supabase.storage
           .from('profiles')
           .createSignedUrl(path, 60 * 60 * 24 * 365);
-        if (!signed?.signedUrl) throw new Error('Could not generate photo URL. Check storage permissions.');
+        if (!signed?.signedUrl) throw new Error('Could not generate photo URL. Please try again.');
         set((s) => ({ profile: s.profile ? { ...s.profile, avatarUrl: signed.signedUrl } : s.profile }));
       },
 
@@ -402,20 +419,21 @@ export const useAuthStore = create<AuthStore>()(
         if (!user) return;
         const path = `${user.id}/cover`;
         const { buffer, contentType } = await resolveUploadData(uri, mimeType, base64);
+        if (buffer.byteLength > 10 * 1024 * 1024) throw new Error('Cover photo must be under 10 MB. Please use a smaller image.');
         const { error: uploadError } = await supabase.storage
           .from('profiles')
           .upload(path, buffer, { contentType, upsert: true });
-        if (uploadError) throw new Error(uploadError.message);
+        if (uploadError) { captureError(uploadError, { context: 'upload-cover' }); throw new Error('Could not upload cover photo. Please try again.'); }
         const placeholder = `profiles:${path}`;
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ cover_url: placeholder })
           .eq('id', user.id);
-        if (updateError) throw new Error(updateError.message);
+        if (updateError) { captureError(updateError, { context: 'update-cover-url' }); throw new Error('Could not save cover photo. Please try again.'); }
         const { data: signed } = await supabase.storage
           .from('profiles')
           .createSignedUrl(path, 60 * 60 * 24 * 365);
-        if (!signed?.signedUrl) throw new Error('Could not generate cover URL. Check storage permissions.');
+        if (!signed?.signedUrl) throw new Error('Could not generate cover URL. Please try again.');
         set((s) => ({ profile: s.profile ? { ...s.profile, coverUrl: signed.signedUrl } : s.profile }));
       },
 
@@ -455,6 +473,31 @@ export const useAuthStore = create<AuthStore>()(
         unregisterWebPush(user.id, houseId);
         await clearCachedHouseId(user.id).catch(() => {});
         set({ houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
+      },
+
+      deleteAccount: async (): Promise<void> => {
+        const { session, user, houseId } = useAuthStore.getState();
+        if (!session || !user) throw new Error('Not signed in.');
+        // Unregister push tokens before deletion
+        if (houseId) {
+          unregisterPushToken(user.id, houseId);
+          unregisterWebPush(user.id, houseId);
+        }
+        const supabaseUrl = (supabase as unknown as { supabaseUrl: string }).supabaseUrl;
+        const res = await fetch(`${supabaseUrl}/functions/v1/delete-account`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({})) as { error?: string };
+          throw new Error(body.error ?? 'Could not delete account. Please try again or contact support@housemates.app.');
+        }
+        // Clear all local state — the auth user is now gone server-side
+        await clearCachedHouseId(user.id).catch(() => {});
+        set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
       },
 
       clearError: (): void => {

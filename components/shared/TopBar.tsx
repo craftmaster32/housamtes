@@ -29,7 +29,7 @@ export function TopBar(): React.JSX.Element {
 
   // Badge counts — same logic as DrawerMenu
   const lastSeen          = useBadgeStore((s) => s.lastSeen);
-  const myName            = profile?.name ?? '';
+  const myId              = profile?.id ?? '';
   const parkingReservations = useParkingStore((s) => s.reservations);
   const groceryItems      = useGroceryStore((s) => s.items);
   const chores            = useChoresStore((s) => s.chores);
@@ -40,11 +40,11 @@ export function TopBar(): React.JSX.Element {
   type GenericItem = Array<{ createdAt: string; [k: string]: unknown }>;
   // Cast to the generic shape that countNew / countNewSimple expect
   const totalBadge =
-    countNew(parkingReservations as unknown as GenericItem, lastSeen.parking, myName, 'occupant') +
-    countNew((groceryItems.filter((i) => !i.isChecked)) as unknown as GenericItem, lastSeen.grocery, myName, 'addedBy') +
+    countNew(parkingReservations as unknown as GenericItem, lastSeen.parking, myId, 'occupant') +
+    countNew((groceryItems.filter((i) => !i.isChecked)) as unknown as GenericItem, lastSeen.grocery, myId, 'addedBy') +
     countNewSimple(chores.filter((c) => !c.isComplete), lastSeen.chores) +
     countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills) +
-    countNew((proposals.filter((p) => p.isOpen)) as unknown as GenericItem, lastSeen.voting, myName, 'createdBy') +
+    countNew((proposals.filter((p) => p.isOpen)) as unknown as GenericItem, lastSeen.voting, myId, 'createdBy') +
     countNewSimple(maintenanceItems.filter((m) => m.status === 'open'), lastSeen.maintenance);
 
   const handleMenuPress = (): void => {

@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 
 export type Recurrence = 'once' | 'weekly' | 'monthly';
 
 export interface Chore {
   id: string;
   name: string;
-  claimedBy: string | null;
+  claimedBy: string | null; // user UUID
   recurrence: Recurrence;
   recurrenceDay: string | null;
   isComplete: boolean;
@@ -18,11 +20,12 @@ export interface Chore {
 interface ChoresStore {
   chores: Chore[];
   isLoading: boolean;
+  error: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addChore: (name: string, recurrence: Recurrence, recurrenceDay: string | null, houseId: string) => Promise<void>;
   toggleChore: (id: string) => Promise<void>;
-  claimChore: (id: string, name: string) => Promise<void>;
+  claimChore: (id: string, userId: string) => Promise<void>;
   unclaimChore: (id: string) => Promise<void>;
   deleteChore: (id: string) => Promise<void>;
   resetAll: (houseId: string) => Promise<void>;
@@ -35,7 +38,12 @@ export const useChoresStore = create<ChoresStore>()(
     (set, get) => ({
       chores: [],
       isLoading: true,
+      error: null,
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[chores] house ID mismatch — aborting load');
+          return;
+        }
         try {
           const { data, error } = await supabase
             .from('chores')
@@ -53,9 +61,10 @@ export const useChoresStore = create<ChoresStore>()(
             completedAt: r.completed_at ?? null,
             createdAt: r.created_at,
           }));
-          set({ chores, isLoading: false });
-        } catch {
-          set({ isLoading: false });
+          set({ chores, isLoading: false, error: null });
+        } catch (err) {
+          captureError(err, { store: 'chores', houseId });
+          set({ isLoading: false, error: 'Could not load chores. Please try again.' });
         }
 
         if (_channel) { supabase.removeChannel(_channel); }
@@ -74,7 +83,10 @@ export const useChoresStore = create<ChoresStore>()(
           .insert({ house_id: houseId, title: name, recurrence, recurrence_day: recurrenceDay ?? null })
           .select()
           .single();
-        if (error) throw new Error(`Failed to add chore: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'add-chore', houseId });
+          throw new Error('Could not save the chore. Please try again.');
+        }
         const chore: Chore = {
           id: data.id,
           name: data.title,
@@ -93,31 +105,46 @@ export const useChoresStore = create<ChoresStore>()(
         const isDone = !chore.isComplete;
         const completedAt = isDone ? new Date().toISOString() : null;
         const { error } = await supabase.from('chores').update({ is_done: isDone, completed_at: completedAt }).eq('id', id);
-        if (error) throw new Error(`Failed to update chore: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'toggle-chore', choreId: id });
+          throw new Error('Could not update the chore. Please try again.');
+        }
         set({
           chores: get().chores.map((c) =>
             c.id === id ? { ...c, isComplete: isDone, completedAt } : c
           ),
         });
       },
-      claimChore: async (id, name): Promise<void> => {
-        const { error } = await supabase.from('chores').update({ assigned_to: name }).eq('id', id);
-        if (error) throw new Error(`Failed to claim chore: ${error.message}`);
-        set({ chores: get().chores.map((c) => (c.id === id ? { ...c, claimedBy: name } : c)) });
+      claimChore: async (id, userId): Promise<void> => {
+        const { error } = await supabase.from('chores').update({ assigned_to: userId }).eq('id', id);
+        if (error) {
+          captureError(error, { context: 'claim-chore', choreId: id });
+          throw new Error('Could not claim the chore. Please try again.');
+        }
+        set({ chores: get().chores.map((c) => (c.id === id ? { ...c, claimedBy: userId } : c)) });
       },
       unclaimChore: async (id): Promise<void> => {
         const { error } = await supabase.from('chores').update({ assigned_to: null }).eq('id', id);
-        if (error) throw new Error(`Failed to unclaim chore: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'unclaim-chore', choreId: id });
+          throw new Error('Could not unclaim the chore. Please try again.');
+        }
         set({ chores: get().chores.map((c) => (c.id === id ? { ...c, claimedBy: null } : c)) });
       },
       deleteChore: async (id): Promise<void> => {
         const { error } = await supabase.from('chores').delete().eq('id', id);
-        if (error) throw new Error(`Failed to delete chore: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'delete-chore', choreId: id });
+          throw new Error('Could not delete the chore. Please try again.');
+        }
         set({ chores: get().chores.filter((c) => c.id !== id) });
       },
       resetAll: async (houseId: string): Promise<void> => {
         const { error } = await supabase.from('chores').update({ is_done: false, assigned_to: null, completed_at: null }).eq('house_id', houseId);
-        if (error) throw new Error(`Failed to reset chores: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'reset-chores', houseId });
+          throw new Error('Could not reset chores. Please try again.');
+        }
         set({
           chores: get().chores.map((c) => ({ ...c, isComplete: false, completedAt: null, claimedBy: null })),
         });

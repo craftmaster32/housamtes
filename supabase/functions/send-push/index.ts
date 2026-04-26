@@ -82,6 +82,25 @@ Deno.serve(async (req: Request) => {
     return new Response('Forbidden', { status: 403, headers: CORS_HEADERS });
   }
 
+  // Rate limit: max 30 push calls per user per 60 seconds
+  const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+  const { count: recentCalls } = await supabase
+    .from('push_rate_log')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', callerId)
+    .gte('created_at', oneMinuteAgo);
+
+  if ((recentCalls ?? 0) >= 30) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+      status: 429,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+
+  await supabase.from('push_rate_log').insert({ user_id: callerId, house_id });
+  // Purge entries older than 5 minutes to keep the table small
+  supabase.from('push_rate_log').delete().lt('created_at', new Date(Date.now() - 300_000).toISOString());
+
   // ── Fetch tokens + subscriptions for this house (excluding sender) ──────────
   const [tokenResult, webSubResult] = await Promise.all([
     supabase.from('push_tokens').select('token, user_id').eq('house_id', house_id).neq('user_id', exclude_user_id),

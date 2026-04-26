@@ -9,6 +9,8 @@ import { useSettingsStore, CURRENCIES } from '@stores/settingsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
+import { useBillsStore, calculateBalances } from '@stores/billsStore';
+import { useVotingStore } from '@stores/votingStore';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -20,7 +22,11 @@ export default function SettingsScreen(): React.JSX.Element {
   const currency = useSettingsStore((s) => s.currency);
   const setCurrency = useSettingsStore((s) => s.setCurrency);
   const leaveHouse = useAuthStore((s) => s.leaveHouse);
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
   const houseName = useHousematesStore((s) => s.houseName);
+  const bills = useBillsStore((s) => s.bills);
+  const addProposal = useVotingStore((s) => s.addProposal);
   const calConnected    = useCalendarSyncStore((s) => s.connected);
   const calAutoSync     = useCalendarSyncStore((s) => s.autoSync);
   const calConnect      = useCalendarSyncStore((s) => s.connect);
@@ -28,7 +34,10 @@ export default function SettingsScreen(): React.JSX.Element {
   const calSetAutoSync  = useCalendarSyncStore((s) => s.setAutoSync);
 
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showDebtModal, setShowDebtModal] = useState(false);
+  const [debtAmount, setDebtAmount] = useState(0);
   const [leaving, setLeaving] = useState(false);
+  const [requestingVote, setRequestingVote] = useState(false);
   const [calLoading, setCalLoading] = useState(false);
 
   const handleCalendarToggle = useCallback(async (): Promise<void> => {
@@ -51,6 +60,18 @@ export default function SettingsScreen(): React.JSX.Element {
     [toggleFeature]
   );
 
+  const handleLeavePress = useCallback((): void => {
+    const myId = profile?.id ?? '';
+    const balances = calculateBalances(bills.filter((b) => !b.settled), myId);
+    const owed = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
+    if (owed > 0.01) {
+      setDebtAmount(owed);
+      setShowDebtModal(true);
+    } else {
+      setShowLeaveConfirm(true);
+    }
+  }, [profile, bills]);
+
   const handleLeaveHouse = useCallback(async (): Promise<void> => {
     setLeaving(true);
     try {
@@ -63,6 +84,25 @@ export default function SettingsScreen(): React.JSX.Element {
       setLeaving(false);
     }
   }, [leaveHouse]);
+
+  const handleRequestLeaveVote = useCallback(async (): Promise<void> => {
+    if (!profile || !houseId) return;
+    setRequestingVote(true);
+    try {
+      await addProposal(
+        `Approve ${profile.name}'s request to leave`,
+        `${profile.name} wants to leave the house but has an unsettled balance of ${debtAmount.toFixed(2)}. Vote to approve their departure despite the outstanding balance.`,
+        profile.id,
+        houseId
+      );
+      setShowDebtModal(false);
+      router.push('/(tabs)/voting');
+    } catch {
+      Alert.alert('Error', 'Could not create the vote. Please try again.');
+    } finally {
+      setRequestingVote(false);
+    }
+  }, [profile, houseId, debtAmount, addProposal]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -189,7 +229,7 @@ export default function SettingsScreen(): React.JSX.Element {
         <View style={styles.card}>
           <Pressable
             style={styles.row}
-            onPress={() => setShowLeaveConfirm(true)}
+            onPress={handleLeavePress}
             accessibilityRole="button"
           >
             <Ionicons name="exit-outline" size={22} color={colors.negative} style={styles.iconNative} />
@@ -230,6 +270,48 @@ export default function SettingsScreen(): React.JSX.Element {
               <Pressable
                 style={styles.modalBtnCancel}
                 onPress={() => setShowLeaveConfirm(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        {/* ── Debt block modal ── */}
+        <Modal
+          visible={showDebtModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDebtModal(false)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowDebtModal(false)}>
+            <Pressable style={styles.modalBox} onPress={() => {}}>
+              <View style={[styles.modalIconWrap, { backgroundColor: '#FFF3CD' }]}>
+                <Ionicons name="warning-outline" size={28} color="#856404" />
+              </View>
+              <Text style={styles.modalTitle}>Settle Up First</Text>
+              <Text style={styles.modalBody}>
+                You owe your housemates {debtAmount.toFixed(2)}. Please settle your balance before leaving, or ask the house to vote on approving your departure.
+              </Text>
+              <Pressable
+                style={[styles.modalBtnPrimary]}
+                onPress={() => { setShowDebtModal(false); router.push('/(tabs)/bills'); }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnPrimaryText}>Settle Up</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtnSecondary, requestingVote && { opacity: 0.6 }]}
+                onPress={handleRequestLeaveVote}
+                disabled={requestingVote}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnSecondaryText}>{requestingVote ? 'Creating vote…' : 'Request a Vote to Leave'}</Text>
+              </Pressable>
+              <Pressable
+                style={styles.modalBtnCancel}
+                onPress={() => setShowDebtModal(false)}
                 accessibilityRole="button"
               >
                 <Text style={styles.modalBtnCancelText}>Cancel</Text>
@@ -334,6 +416,10 @@ const styles = StyleSheet.create({
   modalBody: { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
   modalBtnDanger: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.negative, alignItems: 'center', marginTop: 4 },
   modalBtnDangerText: { fontSize: 15, ...font.semibold, color: '#fff' },
+  modalBtnPrimary: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', marginTop: 4 },
+  modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+  modalBtnSecondary: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center' },
+  modalBtnSecondaryText: { fontSize: 15, ...font.semibold, color: colors.primary },
   modalBtnCancel: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   modalBtnCancelText: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
 });

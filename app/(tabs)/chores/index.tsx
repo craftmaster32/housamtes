@@ -1,12 +1,14 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useChoresStore, type Chore, type Recurrence } from '@stores/choresStore';
 import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
+import { resolveName } from '@utils/housemates';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -37,9 +39,9 @@ function freqLabel(chore: Chore, t: (key: string, opts?: Record<string, unknown>
 }
 
 function ChoreRow({
-  chore, myName, onToggle, onClaim, onUnclaim, onDelete,
+  chore, myId, onToggle, onClaim, onUnclaim, onDelete,
 }: {
-  chore: Chore; myName: string;
+  chore: Chore; myId: string;
   onToggle: (id: string) => void;
   onClaim: (id: string) => void;
   onUnclaim: (id: string) => void;
@@ -47,7 +49,8 @@ function ChoreRow({
 }): React.JSX.Element {
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
-  const isMineClaimed = chore.claimedBy === myName;
+  const housemates = useHousematesStore((s) => s.housemates);
+  const isMineClaimed = chore.claimedBy === myId;
   const freq = freqLabel(chore, t, language);
 
   return (
@@ -82,7 +85,7 @@ function ChoreRow({
             <View style={styles.claimedBadge}>
               <Ionicons name="person-outline" size={11} color={colors.primary} />
               <Text style={styles.claimedText}>
-                {isMineClaimed ? 'You' : chore.claimedBy}
+                {isMineClaimed ? 'You' : resolveName(chore.claimedBy ?? '', housemates)}
               </Text>
             </View>
             {isMineClaimed && (
@@ -100,7 +103,7 @@ function ChoreRow({
         )}
       </View>
 
-      {(!chore.claimedBy || chore.claimedBy === myName) && (
+      {(!chore.claimedBy || chore.claimedBy === myId) && (
         <Pressable onPress={() => onDelete(chore.id)} style={styles.deleteBtn} accessibilityRole="button" hitSlop={8}>
           <Ionicons name="close" size={16} color={colors.textSecondary} />
         </Pressable>
@@ -112,6 +115,8 @@ function ChoreRow({
 export default function ChoresScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const chores = useChoresStore((state) => state.chores);
+  const isLoading = useChoresStore((state) => state.isLoading);
+  const storeError = useChoresStore((state) => state.error);
   const addChore = useChoresStore((state) => state.addChore);
   const toggleChore = useChoresStore((state) => state.toggleChore);
   const claimChore = useChoresStore((state) => state.claimChore);
@@ -120,6 +125,8 @@ export default function ChoresScreen(): React.JSX.Element {
   const resetAll = useChoresStore((state) => state.resetAll);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
+  const role = useAuthStore((s) => s.role);
+  const canReset = role === 'owner' || role === 'admin';
   const language = useLanguageStore((s) => s.language);
 
   const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
@@ -135,7 +142,7 @@ export default function ChoresScreen(): React.JSX.Element {
     [language]
   );
 
-  const myName = profile?.name ?? '';
+  const myId = profile?.id ?? '';
   const [choreName, setChoreName] = useState('');
   const [recurrence, setRecurrence] = useState<Recurrence>('once');
   const [recurrenceDay, setRecurrenceDay] = useState<string | null>(null);
@@ -175,19 +182,19 @@ export default function ChoresScreen(): React.JSX.Element {
   }, [choreName, recurrence, recurrenceDay, addChore, houseId, isAdding, t]);
 
   const handleToggle = useCallback((id: string): void => { toggleChore(id); }, [toggleChore]);
-  const handleClaim = useCallback((id: string): void => { claimChore(id, myName); }, [claimChore, myName]);
+  const handleClaim = useCallback((id: string): void => { claimChore(id, myId); }, [claimChore, myId]);
   const handleUnclaim = useCallback((id: string): void => { unclaimChore(id); }, [unclaimChore]);
   const handleDelete = useCallback((id: string): void => { deleteChore(id); }, [deleteChore]);
 
   const renderChore = useCallback(
     ({ item }: { item: Chore }): React.JSX.Element => (
       <ChoreRow
-        chore={item} myName={myName}
+        chore={item} myId={myId}
         onToggle={handleToggle} onClaim={handleClaim}
         onUnclaim={handleUnclaim} onDelete={handleDelete}
       />
     ),
-    [myName, handleToggle, handleClaim, handleUnclaim, handleDelete]
+    [myId, handleToggle, handleClaim, handleUnclaim, handleDelete]
   );
 
   return (
@@ -216,7 +223,7 @@ export default function ChoresScreen(): React.JSX.Element {
                 <View style={styles.progressSection}>
                   <View style={styles.progressLabelRow}>
                     <Text style={styles.progressLabel}>{done.length} of {chores.length} done</Text>
-                    {done.length > 0 && (
+                    {done.length > 0 && canReset && (
                       <Pressable onPress={() => resetAll(houseId ?? '')} style={styles.resetBtn} accessibilityRole="button">
                         <Text style={styles.resetBtnText}>{t('chores.reset_all')}</Text>
                       </Pressable>
@@ -315,6 +322,15 @@ export default function ChoresScreen(): React.JSX.Element {
                 </Text>
               </Pressable>
             </View>
+
+            {isLoading && chores.length === 0 && (
+              <ActivityIndicator size="small" color="#4F78B6" style={styles.loadingIndicator} />
+            )}
+            {!!storeError && (
+              <View style={styles.storeErrorBox}>
+                <Text style={styles.storeErrorText}>{storeError}</Text>
+              </View>
+            )}
 
             {pending.length > 0 && (
               <View style={styles.sectionHeader}>
@@ -477,6 +493,12 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary },
   emptyText: { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+
+  loadingIndicator: { marginBottom: 8 },
+  storeErrorBox: {
+    backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 8,
+  },
+  storeErrorText: { fontSize: 13, color: '#D94F4F' },
 
   // Error
   errorBox: {

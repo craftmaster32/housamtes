@@ -6,7 +6,7 @@ import {
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -16,7 +16,9 @@ import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBill
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
+import { resolveName } from '@utils/housemates';
 import { HouseholdTab } from '@components/bills/HouseholdTab';
+import { useBadgeStore } from '@stores/badgeStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -58,7 +60,7 @@ function formatDateLabel(dateStr: string): string {
 }
 
 // ── Housemate balance card ────────────────────────────────────────────────────
-interface HousemateBalance { name: string; amount: number; color: string; avatarUrl?: string }
+interface HousemateBalance { person: string; name: string; amount: number; color: string; avatarUrl?: string }
 
 function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element {
   const currency = useSettingsStore((s) => s.currency);
@@ -95,6 +97,7 @@ function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element 
 // ── Bill row card ─────────────────────────────────────────────────────────────
 function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
   const currency = useSettingsStore((s) => s.currency);
+  const housemates = useHousematesStore((s) => s.housemates);
   const share = bill.amount / Math.max(bill.splitBetween.length, 1);
   const icon = getCategoryIcon(bill.category ?? '');
   return (
@@ -119,7 +122,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
           {bill.title}
         </Text>
         <Text style={styles.billMeta} numberOfLines={1}>
-          Paid by {bill.paidBy} · {currency}{share.toFixed(2)} each
+          Paid by {resolveName(bill.paidBy, housemates)} · {currency}{share.toFixed(2)} each
         </Text>
       </View>
       <View style={styles.billRight}>
@@ -142,7 +145,7 @@ function SettleUpPanel(): React.JSX.Element {
   const currency   = useSettingsStore((s) => s.currency);
   const bills      = useBillsStore((s) => s.bills);
   const housemates = useHousematesStore((s) => s.housemates);
-  const avatarByName = new Map(housemates.map((h) => [h.name, h.avatarUrl]));
+  const avatarById = new Map(housemates.map((h) => [h.id, h.avatarUrl]));
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
 
@@ -166,26 +169,30 @@ function SettleUpPanel(): React.JSX.Element {
 
   return (
     <View style={styles.settleList}>
-      {settlements.map((s, idx) => (
-        <View key={idx} style={styles.settleRow}>
-          <View style={styles.settleAvatar}>
-            {avatarByName.get(s.from)
-              ? <Image source={{ uri: avatarByName.get(s.from) }} style={styles.settleAvatarImg} contentFit="cover" />
-              : <Text style={styles.settleAvatarText}>{s.from[0]?.toUpperCase()}</Text>
-            }
+      {settlements.map((s, idx) => {
+        const fromName = resolveName(s.from, housemates);
+        const toName = resolveName(s.to, housemates);
+        return (
+          <View key={idx} style={styles.settleRow}>
+            <View style={styles.settleAvatar}>
+              {avatarById.get(s.from)
+                ? <Image source={{ uri: avatarById.get(s.from) }} style={styles.settleAvatarImg} contentFit="cover" />
+                : <Text style={styles.settleAvatarText}>{fromName[0]?.toUpperCase()}</Text>
+              }
+            </View>
+            <Text style={styles.settleName}>{fromName}</Text>
+            <Ionicons name="arrow-forward" size={12} color={colors.textSecondary} style={styles.settleArrow} />
+            <View style={styles.settleAvatar}>
+              {avatarById.get(s.to)
+                ? <Image source={{ uri: avatarById.get(s.to) }} style={styles.settleAvatarImg} contentFit="cover" />
+                : <Text style={styles.settleAvatarText}>{toName[0]?.toUpperCase()}</Text>
+              }
+            </View>
+            <Text style={styles.settleName}>{toName}</Text>
+            <Text style={styles.settleAmt}>{currency}{s.amount.toFixed(2)}</Text>
           </View>
-          <Text style={styles.settleName}>{s.from}</Text>
-          <Ionicons name="arrow-forward" size={12} color={colors.textSecondary} style={styles.settleArrow} />
-          <View style={styles.settleAvatar}>
-            {avatarByName.get(s.to)
-              ? <Image source={{ uri: avatarByName.get(s.to) }} style={styles.settleAvatarImg} contentFit="cover" />
-              : <Text style={styles.settleAvatarText}>{s.to[0]?.toUpperCase()}</Text>
-            }
-          </View>
-          <Text style={styles.settleName}>{s.to}</Text>
-          <Text style={styles.settleAmt}>{currency}{s.amount.toFixed(2)}</Text>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
@@ -196,19 +203,22 @@ export default function BillsScreen(): React.JSX.Element {
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
 
+  const markSeen = useBadgeStore((s) => s.markSeen);
+  useFocusEffect(useCallback(() => { markSeen('bills').catch(() => {}); }, [markSeen]));
+
   const bills      = useBillsStore((s) => s.bills);
   const isLoading  = useBillsStore((s) => s.isLoading);
   const profile    = useAuthStore((s) => s.profile);
   const currency   = useSettingsStore((s) => s.currency);
   const housemates = useHousematesStore((s) => s.housemates);
-  const avatarByName = useMemo(() => new Map(housemates.map((h) => [h.name, h.avatarUrl])), [housemates]);
+  const housemateById = useMemo(() => new Map(housemates.map((h) => [h.id, h])), [housemates]);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
   const [showSettle, setShowSettle] = useState(false);
 
-  const myName = profile?.name ?? '';
+  const myId = profile?.id ?? '';
   const activeBills = bills.filter((b) => !b.settled);
-  const sharedBalances = calculateBalances(activeBills, myName);
+  const sharedBalances = calculateBalances(activeBills, myId);
 
   const totalOwed = sharedBalances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
   const totalOwe  = sharedBalances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
@@ -216,10 +226,11 @@ export default function BillsScreen(): React.JSX.Element {
 
   const COLORS = ['#6366f1', '#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
   const hmBalances: HousemateBalance[] = sharedBalances.map((b, i) => ({
-    name: b.person,
+    person: b.person,
+    name: resolveName(b.person, housemates),
     amount: b.amount,
-    color: COLORS[i % COLORS.length],
-    avatarUrl: avatarByName.get(b.person),
+    color: housemateById.get(b.person)?.color ?? COLORS[i % COLORS.length],
+    avatarUrl: housemateById.get(b.person)?.avatarUrl,
   }));
 
   // Group bills by date for section list
@@ -346,7 +357,7 @@ export default function BillsScreen(): React.JSX.Element {
             contentContainerStyle={styles.hmScrollContent}
           >
             {hmBalances.map((item) => (
-              <HousemateCard key={item.name} item={item} />
+              <HousemateCard key={item.person} item={item} />
             ))}
           </ScrollView>
         </View>

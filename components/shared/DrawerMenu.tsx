@@ -73,7 +73,7 @@ export function DrawerMenu(): React.JSX.Element {
   // Badge counts from badge store
   const lastSeen = useBadgeStore((s) => s.lastSeen);
   const markSeen = useBadgeStore((s) => s.markSeen);
-  const myName = profile?.name ?? '';
+  const myId = profile?.id ?? '';
   const parkingReservations = useParkingStore((s) => s.reservations);
   const groceryItems = useGroceryStore((s) => s.items);
   const chores = useChoresStore((s) => s.chores);
@@ -83,11 +83,11 @@ export function DrawerMenu(): React.JSX.Element {
 
   type GenericItem = { createdAt: string; [k: string]: unknown };
   const badgeCounts: Record<string, number> = {
-    parking: parkingReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myName).length,
-    grocery: countNew(groceryItems.filter((i) => !i.isChecked) as unknown as GenericItem[], lastSeen.grocery, myName, 'addedBy'),
+    parking: parkingReservations.filter((r) => r.status === 'pending' && r.requestedBy !== profile?.id).length,
+    grocery: countNew(groceryItems.filter((i) => !i.isChecked) as unknown as GenericItem[], lastSeen.grocery, myId, 'addedBy'),
     chores: countNewSimple(chores.filter((c) => !c.isComplete), lastSeen.chores),
     bills: countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills),
-    voting: countNew(proposals.filter((p) => p.isOpen) as unknown as GenericItem[], lastSeen.voting, myName, 'createdBy'),
+    voting: countNew(proposals.filter((p) => p.isOpen) as unknown as GenericItem[], lastSeen.voting, myId, 'createdBy'),
     maintenance: countNewSimple(maintenanceItems.filter((m) => m.status === 'open'), lastSeen.maintenance),
   };
 

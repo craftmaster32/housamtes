@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 
 export interface HouseEvent {
   id: string;
@@ -8,13 +10,14 @@ export interface HouseEvent {
   date: string;       // YYYY-MM-DD
   startTime?: string; // HH:MM
   endTime?: string;   // HH:MM
-  createdBy: string;
+  createdBy: string; // user UUID
   createdAt: string;
 }
 
 interface EventsStore {
   events: HouseEvent[];
   isLoading: boolean;
+  error: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addEvent: (
@@ -24,7 +27,7 @@ interface EventsStore {
     houseId: string,
     startTime?: string,
     endTime?: string
-  ) => Promise<string>; // returns new event ID
+  ) => Promise<string>;
   removeEvent: (id: string) => Promise<void>;
 }
 
@@ -35,7 +38,12 @@ export const useEventsStore = create<EventsStore>()(
     (set, get) => ({
       events: [],
       isLoading: true,
+      error: null,
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[events] house ID mismatch — aborting load');
+          return;
+        }
         try {
           const { data, error } = await supabase
             .from('events')
@@ -52,9 +60,10 @@ export const useEventsStore = create<EventsStore>()(
             createdBy: r.created_by,
             createdAt: r.created_at,
           }));
-          set({ events, isLoading: false });
-        } catch {
-          set({ isLoading: false });
+          set({ events, isLoading: false, error: null });
+        } catch (err) {
+          captureError(err, { store: 'events', houseId });
+          set({ isLoading: false, error: 'Could not load events. Please try again.' });
         }
 
         if (_channel) { supabase.removeChannel(_channel); }
@@ -80,7 +89,10 @@ export const useEventsStore = create<EventsStore>()(
           })
           .select()
           .single();
-        if (error) throw new Error(`Failed to add event: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'add-event', houseId });
+          throw new Error('Could not save the event. Please try again.');
+        }
         const event: HouseEvent = {
           id: data.id,
           title: data.title,
@@ -95,7 +107,11 @@ export const useEventsStore = create<EventsStore>()(
         return event.id;
       },
       removeEvent: async (id): Promise<void> => {
-        await supabase.from('events').delete().eq('id', id);
+        const { error } = await supabase.from('events').delete().eq('id', id);
+        if (error) {
+          captureError(error, { context: 'delete-event', eventId: id });
+          throw new Error('Could not delete the event. Please try again.');
+        }
         set({ events: get().events.filter((e) => e.id !== id) });
       },
     }),

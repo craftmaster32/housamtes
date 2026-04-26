@@ -499,6 +499,7 @@ export default function ProfileScreen(): React.JSX.Element {
   const user          = useAuthStore((s) => s.user);
   const role          = useAuthStore((s) => s.role);
   const signOut       = useAuthStore((s) => s.signOut);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const houseId       = useAuthStore((s) => s.houseId);
   const uploadAvatar  = useAuthStore((s) => s.uploadAvatar);
   const removeAvatar  = useAuthStore((s) => s.removeAvatar);
@@ -685,6 +686,41 @@ export default function ProfileScreen(): React.JSX.Element {
     options.push({ text: 'Cancel', style: 'cancel' });
     Alert.alert('Profile photo', 'Choose an option', options);
   }, [pickImage, removeAvatar, profile?.avatarUrl]);
+
+  const handleDeleteAccount = useCallback(() => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your personal data. This cannot be undone.\n\nHousehold content you created (bills, chores, etc.) may remain visible to other members.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete My Account',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you sure?',
+              'Your account will be permanently deleted. You will lose access immediately.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, Delete Permanently',
+                  style: 'destructive',
+                  onPress: async (): Promise<void> => {
+                    try {
+                      await deleteAccount();
+                      router.replace('/(auth)/welcome');
+                    } catch (err) {
+                      Alert.alert('Error', err instanceof Error ? err.message : 'Could not delete account. Please try again.');
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  }, [deleteAccount]);
 
   const handleLogout = useCallback(() => {
     if (Platform.OS === 'web') {
@@ -942,6 +978,16 @@ export default function ProfileScreen(): React.JSX.Element {
           >
             <Ionicons name="log-out-outline" size={18} color={colors.negative} />
             <Text style={styles.signOutText}>{t('profile.sign_out')}</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.deleteAccountBtn, pressed && { opacity: 0.7 }]}
+            onPress={handleDeleteAccount}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
+          >
+            <Text style={styles.deleteAccountText}>Delete Account</Text>
           </Pressable>
 
           <Text style={styles.version}>{t('profile.footer')}</Text>
@@ -1254,6 +1300,17 @@ const styles = StyleSheet.create({
   saveBtnText:  { color: colors.white, ...font.semibold, fontSize: 14 },
   cancelText:   { color: colors.textSecondary, fontSize: 14, ...font.regular },
 
+  deleteAccountBtn: {
+    alignItems: 'center',
+    paddingVertical: sizes.sm,
+    marginTop: sizes.xs,
+  },
+  deleteAccountText: {
+    fontSize: 13,
+    ...font.regular,
+    color: colors.textDisabled,
+    textDecorationLine: 'underline',
+  },
   version: { color: colors.textDisabled, fontSize: 13, ...font.regular, textAlign: 'center', marginTop: sizes.sm },
   forgotLink: { alignSelf: 'flex-start', marginTop: 2 },
   forgotLinkText: { fontSize: 13, ...font.regular, color: colors.primary },

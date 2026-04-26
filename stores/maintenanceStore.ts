@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 
 export type MaintenanceStatus = 'open' | 'in_progress' | 'resolved';
 
@@ -10,7 +12,7 @@ export interface MaintenanceRequest {
   description: string;
   category: string;
   status: MaintenanceStatus;
-  reportedBy: string;
+  reportedBy: string; // user UUID
   createdAt: string;
   resolvedAt: string | null;
 }
@@ -18,6 +20,7 @@ export interface MaintenanceRequest {
 interface MaintenanceStore {
   requests: MaintenanceRequest[];
   isLoading: boolean;
+  error: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   add: (data: Omit<MaintenanceRequest, 'id' | 'createdAt' | 'resolvedAt'>, houseId: string) => Promise<void>;
@@ -32,7 +35,12 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
     (set, get) => ({
       requests: [],
       isLoading: true,
+      error: null,
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[maintenance] house ID mismatch — aborting load');
+          return;
+        }
         try {
           const { data, error } = await supabase
             .from('maintenance_requests')
@@ -50,9 +58,10 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
             createdAt: r.created_at,
             resolvedAt: r.resolved_at ?? null,
           }));
-          set({ requests, isLoading: false });
-        } catch {
-          set({ isLoading: false });
+          set({ requests, isLoading: false, error: null });
+        } catch (err) {
+          captureError(err, { store: 'maintenance', houseId });
+          set({ isLoading: false, error: 'Could not load maintenance requests. Please try again.' });
         }
 
         if (_channel) { supabase.removeChannel(_channel); }
@@ -78,7 +87,10 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
           })
           .select()
           .single();
-        if (error) throw new Error(`Failed to add request: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'add-maintenance', houseId });
+          throw new Error('Could not save the request. Please try again.');
+        }
         const request: MaintenanceRequest = {
           id: inserted.id,
           title: inserted.title,
@@ -93,7 +105,14 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
       },
       updateStatus: async (id, status): Promise<void> => {
         const resolvedAt = status === 'resolved' ? new Date().toISOString() : null;
-        await supabase.from('maintenance_requests').update({ status, resolved_at: resolvedAt }).eq('id', id);
+        const { error } = await supabase
+          .from('maintenance_requests')
+          .update({ status, resolved_at: resolvedAt })
+          .eq('id', id);
+        if (error) {
+          captureError(error, { context: 'update-maintenance-status', requestId: id });
+          throw new Error('Could not update the status. Please try again.');
+        }
         set({
           requests: get().requests.map((r) =>
             r.id === id ? { ...r, status, resolvedAt: resolvedAt ?? r.resolvedAt } : r
@@ -101,7 +120,11 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
         });
       },
       remove: async (id): Promise<void> => {
-        await supabase.from('maintenance_requests').delete().eq('id', id);
+        const { error } = await supabase.from('maintenance_requests').delete().eq('id', id);
+        if (error) {
+          captureError(error, { context: 'delete-maintenance', requestId: id });
+          throw new Error('Could not delete the request. Please try again.');
+        }
         set({ requests: get().requests.filter((r) => r.id !== id) });
       },
     }),

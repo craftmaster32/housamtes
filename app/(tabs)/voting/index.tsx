@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useVotingStore, type Proposal } from '@stores/votingStore';
+import { resolveName } from '@utils/housemates';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -20,14 +21,15 @@ function timeAgo(iso: string): string {
 
 function ProposalCard({
   proposal,
-  myName,
+  myId,
   totalPeople,
 }: {
   proposal: Proposal;
-  myName: string;
+  myId: string;
   totalPeople: number;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const housemates = useHousematesStore((s) => s.housemates);
   const castVote = useVotingStore((s) => s.castVote);
   const closeProposal = useVotingStore((s) => s.closeProposal);
   const remove = useVotingStore((s) => s.remove);
@@ -35,18 +37,18 @@ function ProposalCard({
 
   const yesVotes = proposal.votes.filter((v) => v.choice === 'yes').length;
   const noVotes = proposal.votes.filter((v) => v.choice === 'no').length;
-  const myVote = proposal.votes.find((v) => v.person === myName)?.choice ?? null;
+  const myVote = proposal.votes.find((v) => v.person === myId)?.choice ?? null;
   const totalVoted = proposal.votes.length;
   const allVoted = totalVoted >= totalPeople;
 
   const handleVote = useCallback(
     (choice: 'yes' | 'no') => {
       setVoteError(null);
-      castVote(proposal.id, myName, choice).catch(() => {
+      castVote(proposal.id, myId, choice).catch(() => {
         setVoteError('Could not save your vote. Try again.');
       });
     },
-    [proposal.id, myName, castVote]
+    [proposal.id, myId, castVote]
   );
 
   const result = !proposal.isOpen
@@ -65,7 +67,7 @@ function ProposalCard({
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle}>{proposal.title}</Text>
           <Text style={styles.cardMeta}>
-            {t('voting.proposed_by', { name: proposal.createdBy })} · {timeAgo(proposal.createdAt)}
+            {t('voting.proposed_by', { name: resolveName(proposal.createdBy, housemates) })} · {timeAgo(proposal.createdAt)}
           </Text>
         </View>
         {proposal.isOpen ? (
@@ -79,7 +81,7 @@ function ProposalCard({
             </Text>
           </View>
         )}
-        {myName === proposal.createdBy && (
+        {myId === proposal.createdBy && (
           <Pressable onPress={() => remove(proposal.id)} style={styles.removeBtn}>
             <Text style={styles.removeBtnText}>✕</Text>
           </Pressable>
@@ -145,7 +147,7 @@ function ProposalCard({
               </Text>
             </Pressable>
           )}
-          {!allVoted && myName === proposal.createdBy && (
+          {!allVoted && myId === proposal.createdBy && (
             <Pressable style={styles.closeBtn} onPress={() => closeProposal(proposal.id)}>
               <Text style={styles.closeBtnText}>{t('voting.close_vote')}</Text>
             </Pressable>
@@ -223,21 +225,39 @@ function AddProposalForm({ onClose, createdBy, houseId }: { onClose: () => void;
 export default function VotingScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const proposals = useVotingStore((s) => s.proposals);
+  const isLoading = useVotingStore((s) => s.isLoading);
+  const error = useVotingStore((s) => s.error);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const housemates = useHousematesStore((s) => s.housemates);
   const [showForm, setShowForm] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
 
-  const myName = profile?.name ?? '';
+  const myId = profile?.id ?? '';
   const totalPeople = Math.max(1, housemates.length);
 
   const open = proposals.filter((p) => p.isOpen);
   const closed = proposals.filter((p) => !p.isOpen);
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>{t('common.loading')}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+
+        {!!error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{error}</Text>
+          </View>
+        )}
 
         <View style={styles.pageHeader}>
           <Text style={styles.heading}>{t('voting.title')}</Text>
@@ -245,7 +265,7 @@ export default function VotingScreen(): React.JSX.Element {
         </View>
 
         {showForm ? (
-          <AddProposalForm onClose={() => setShowForm(false)} createdBy={myName} houseId={houseId ?? ''} />
+          <AddProposalForm onClose={() => setShowForm(false)} createdBy={myId} houseId={houseId ?? ''} />
         ) : (
           <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
             <Text style={styles.addBtnText}>{t('voting.new_proposal')}</Text>
@@ -260,7 +280,7 @@ export default function VotingScreen(): React.JSX.Element {
         )}
 
         {open.map((p) => (
-          <ProposalCard key={p.id} proposal={p} myName={myName} totalPeople={totalPeople} />
+          <ProposalCard key={p.id} proposal={p} myId={myId} totalPeople={totalPeople} />
         ))}
 
         {closed.length > 0 && (
@@ -271,7 +291,7 @@ export default function VotingScreen(): React.JSX.Element {
               </Text>
             </Pressable>
             {showClosed && closed.map((p) => (
-              <ProposalCard key={p.id} proposal={p} myName={myName} totalPeople={totalPeople} />
+              <ProposalCard key={p.id} proposal={p} myId={myId} totalPeople={totalPeople} />
             ))}
           </>
         )}
@@ -348,4 +368,7 @@ const styles = StyleSheet.create({
   emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
   emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
   emptyText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  errorBanner: { backgroundColor: colors.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.danger + '40' },
+  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.danger },
 });

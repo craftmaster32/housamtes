@@ -1,9 +1,12 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import {
   useConditionStore,
   PRESET_AREAS,
@@ -34,6 +37,7 @@ function getAreaIcon(area: string): string {
 
 function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
   const remove = useConditionStore((s) => s.remove);
+  const housemates = useHousematesStore((s) => s.housemates);
   const cond = CONDITION_CONFIG[entry.condition];
   const type = ENTRY_TYPE_CONFIG[entry.type];
 
@@ -51,7 +55,7 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
             </View>
           </View>
           <Text style={styles.entryDate}>
-            {formatDate(entry.date)} · by {entry.recordedBy}
+            {formatDate(entry.date)} · by {resolveName(entry.recordedBy, housemates)}
           </Text>
         </View>
         <Pressable onPress={() => remove(entry.id)} style={styles.removeBtn}>
@@ -221,6 +225,8 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
 export default function ConditionScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const entries = useConditionStore((s) => s.entries);
+  const isLoading = useConditionStore((s) => s.isLoading);
+  const error = useConditionStore((s) => s.error);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const [showForm, setShowForm] = useState(false);
@@ -244,6 +250,16 @@ export default function ConditionScreen(): React.JSX.Element {
   const hasDamage = entries.some((e) => e.condition === 'poor');
   const totalEntries = entries.length;
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>{t('common.loading')}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const FILTERS: { key: FilterType; label: string }[] = [
     { key: 'all', label: t('condition.all') },
     { key: 'move_in', label: t('condition.move_in') },
@@ -254,6 +270,12 @@ export default function ConditionScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+
+        {!!error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{error}</Text>
+          </View>
+        )}
 
         <View style={styles.pageHeader}>
           <Text style={styles.heading}>{t('condition.title')}</Text>
@@ -284,7 +306,7 @@ export default function ConditionScreen(): React.JSX.Element {
 
         {/* Add / form */}
         {showForm ? (
-          <AddEntryForm onClose={() => setShowForm(false)} recordedBy={profile?.name ?? 'Someone'} houseId={houseId ?? ''} />
+          <AddEntryForm onClose={() => setShowForm(false)} recordedBy={profile?.id ?? ''} houseId={houseId ?? ''} />
         ) : (
           <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
             <Text style={styles.addBtnText}>{t('condition.add_record')}</Text>
@@ -407,4 +429,7 @@ const styles = StyleSheet.create({
   emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
   emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
   emptyText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  errorBanner: { backgroundColor: colors.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.danger + '40' },
+  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.danger },
 });

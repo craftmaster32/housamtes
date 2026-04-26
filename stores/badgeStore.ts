@@ -63,11 +63,11 @@ export const useBadgeStore = create<BadgeStore>()((set, get) => ({
 }));
 
 // ── Selectors — count items created after lastSeen, not by me ─────────────────
-export function countNew(items: Array<{ createdAt: string; [k: string]: unknown }>, lastSeen: string, myName: string, authorKey = 'author'): number {
+export function countNew(items: Array<{ createdAt: string; [k: string]: unknown }>, lastSeen: string, myId: string, authorKey = 'author'): number {
   return items.filter(
     (item) =>
       item.createdAt > lastSeen &&
-      (item[authorKey] as string | undefined) !== myName
+      (item[authorKey] as string | undefined) !== myId
   ).length;
 }
 

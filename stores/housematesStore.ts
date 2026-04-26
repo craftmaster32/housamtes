@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 import type { MemberRole, MemberPermissions } from '@stores/authStore';
 
 export type { MemberRole, MemberPermissions };
@@ -41,6 +43,11 @@ export const useHousematesStore = create<HousematesStore>()(
       isSetup: false,
       isLoading: true,
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[housemates] house ID mismatch — aborting load');
+          set({ isLoading: false });
+          return;
+        }
         try {
           const [membersRes, houseRes] = await Promise.all([
             supabase
@@ -109,7 +116,8 @@ export const useHousematesStore = create<HousematesStore>()(
             isSetup: housemates.length >= 1,
             isLoading: false,
           });
-        } catch {
+        } catch (err) {
+          captureError(err, { store: 'housemates', houseId });
           set({ isSetup: false, isLoading: false });
         }
 
@@ -129,7 +137,7 @@ export const useHousematesStore = create<HousematesStore>()(
       },
       updatePermissions: async (memberId, permissions): Promise<void> => {
         const { error } = await supabase.from('house_members').update({ permissions }).eq('id', memberId);
-        if (error) throw new Error(`Failed to update permissions: ${error.message}`);
+        if (error) { captureError(error, { context: 'update-permissions', memberId }); throw new Error('Could not update permissions. Please try again.'); }
         set({
           housemates: get().housemates.map((h) =>
             h.memberId === memberId ? { ...h, permissions } : h
@@ -138,7 +146,7 @@ export const useHousematesStore = create<HousematesStore>()(
       },
       updateRole: async (memberId, role): Promise<void> => {
         const { error } = await supabase.from('house_members').update({ role }).eq('id', memberId);
-        if (error) throw new Error(`Failed to update role: ${error.message}`);
+        if (error) { captureError(error, { context: 'update-role', memberId }); throw new Error('Could not update role. Please try again.'); }
         set({
           housemates: get().housemates.map((h) =>
             h.memberId === memberId ? { ...h, role } : h

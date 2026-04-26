@@ -4,6 +4,8 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import {
   useMaintenanceStore,
   MAINTENANCE_CATEGORIES,
@@ -35,8 +37,9 @@ function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Eleme
   );
 }
 
-function RequestCard({ request, myName }: { request: ReturnType<typeof useMaintenanceStore.getState>['requests'][0]; myName: string }): React.JSX.Element {
+function RequestCard({ request, myId }: { request: ReturnType<typeof useMaintenanceStore.getState>['requests'][0]; myId: string }): React.JSX.Element {
   const { t } = useTranslation();
+  const housemates = useHousematesStore((s) => s.housemates);
   const updateStatus = useMaintenanceStore((s) => s.updateStatus);
   const remove = useMaintenanceStore((s) => s.remove);
   const category = MAINTENANCE_CATEGORIES.find((c) => c.label === request.category);
@@ -56,10 +59,10 @@ function RequestCard({ request, myName }: { request: ReturnType<typeof useMainte
             {request.title}
           </Text>
           <Text style={styles.cardMeta}>
-            {request.category} · {t('maintenance.reported_by', { name: request.reportedBy })} · {timeAgo(request.createdAt)}
+            {request.category} · {t('maintenance.reported_by', { name: resolveName(request.reportedBy, housemates) })} · {timeAgo(request.createdAt)}
           </Text>
         </View>
-        {request.reportedBy === myName && (
+        {request.reportedBy === myId && (
           <Pressable onPress={handleRemove} style={styles.removeBtn}>
             <Text style={styles.removeBtnText}>✕</Text>
           </Pressable>
@@ -170,6 +173,8 @@ function AddRequestForm({ onClose, reportedBy, houseId }: { onClose: () => void;
 export default function MaintenanceScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const requests = useMaintenanceStore((s) => s.requests);
+  const isLoading = useMaintenanceStore((s) => s.isLoading);
+  const error = useMaintenanceStore((s) => s.error);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const [showForm, setShowForm] = useState(false);
@@ -178,9 +183,25 @@ export default function MaintenanceScreen(): React.JSX.Element {
   const resolved = requests.filter((r) => r.status === 'resolved');
   const [showResolved, setShowResolved] = useState(false);
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>{t('common.loading')}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+
+        {!!error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{error}</Text>
+          </View>
+        )}
 
         <View style={styles.pageHeader}>
           <Text style={styles.heading}>{t('maintenance.title')}</Text>
@@ -188,7 +209,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
         </View>
 
         {showForm ? (
-          <AddRequestForm onClose={() => setShowForm(false)} reportedBy={profile?.name ?? 'Someone'} houseId={houseId ?? ''} />
+          <AddRequestForm onClose={() => setShowForm(false)} reportedBy={profile?.id ?? ''} houseId={houseId ?? ''} />
         ) : (
           <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
             <Text style={styles.addBtnText}>{t('maintenance.log_new')}</Text>
@@ -202,7 +223,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
           </View>
         )}
 
-        {open.map((r) => <RequestCard key={r.id} request={r} myName={profile?.name ?? ''} />)}
+        {open.map((r) => <RequestCard key={r.id} request={r} myId={profile?.id ?? ''} />)}
 
         {resolved.length > 0 && (
           <>
@@ -211,7 +232,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
                 {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
               </Text>
             </Pressable>
-            {showResolved && resolved.map((r) => <RequestCard key={r.id} request={r} myName={profile?.name ?? ''} />)}
+            {showResolved && resolved.map((r) => <RequestCard key={r.id} request={r} myId={profile?.id ?? ''} />)}
           </>
         )}
 
@@ -275,4 +296,7 @@ const styles = StyleSheet.create({
   emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
   emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
   emptyText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  errorBanner: { backgroundColor: colors.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.danger + '40' },
+  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.danger },
 });

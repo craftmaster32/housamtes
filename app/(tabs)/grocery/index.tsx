@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   SectionList,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
@@ -16,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -65,13 +67,15 @@ function elapsedLabel(startedAt: string): string {
 }
 
 // ── Avatar ─────────────────────────────────────────────────────────────────────
-function UserAvatar({ name, size = 24 }: { name: string; size?: number }): React.JSX.Element {
-  const avatarUrl = useHousematesStore((s) => s.housemates.find((h) => h.name === name)?.avatarUrl);
+function UserAvatar({ userId, size = 24 }: { userId: string; size?: number }): React.JSX.Element {
+  const housemate = useHousematesStore((s) => s.housemates.find((h) => h.id === userId));
+  const avatarUrl = housemate?.avatarUrl;
+  const displayName = housemate?.name ?? '?';
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : avatarColor(name) }]}>
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : avatarColor(displayName) }]}>
       {avatarUrl
         ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" />
-        : <Text style={[styles.avatarText, { fontSize: Math.round(size * 0.44) }]}>{(name ?? '?')[0].toUpperCase()}</Text>
+        : <Text style={[styles.avatarText, { fontSize: Math.round(size * 0.44) }]}>{displayName[0].toUpperCase()}</Text>
       }
     </View>
   );
@@ -80,18 +84,18 @@ function UserAvatar({ name, size = 24 }: { name: string; size?: number }): React
 // ── Item row ───────────────────────────────────────────────────────────────────
 interface ItemRowProps {
   item: GroceryItem;
-  myName: string;
+  myId: string;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
 }
 
-function ItemRow({ item, myName, onToggle, onDelete, onIncrement, onDecrement }: ItemRowProps): React.JSX.Element {
+function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: ItemRowProps): React.JSX.Element {
   const qtyNum   = parseInt(item.quantity, 10);
   const hasCount = !isNaN(qtyNum) && qtyNum > 1;
   const bought   = item.boughtCount ?? 0;
-  const canDelete = item.addedBy === myName;
+  const canDelete = item.addedBy === myId;
 
   const tap = useCallback((): void => {
     if (!hasCount) {
@@ -143,7 +147,7 @@ function ItemRow({ item, myName, onToggle, onDelete, onIncrement, onDecrement }:
           )}
         </View>
         <View style={styles.itemAddedBy}>
-          <UserAvatar name={item.addedBy} size={24} />
+          <UserAvatar userId={item.addedBy} size={24} />
         </View>
       </View>
     </Pressable>
@@ -155,6 +159,8 @@ interface SectionData { title: string; icon: string; data: GroceryItem[] }
 
 export default function GroceryScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const isLoading    = useGroceryStore((s) => s.isLoading);
+  const error        = useGroceryStore((s) => s.error);
   const items        = useGroceryStore((s) => s.items);
   const addItem      = useGroceryStore((s) => s.addItem);
   const toggleItem   = useGroceryStore((s) => s.toggleItem);
@@ -167,6 +173,8 @@ export default function GroceryScreen(): React.JSX.Element {
   const endRun       = useGroceryStore((s) => s.endRun);
   const profile      = useAuthStore((s) => s.profile);
   const houseId      = useAuthStore((s) => s.houseId);
+  const housemates   = useHousematesStore((s) => s.housemates);
+  const myId         = profile?.id ?? '';
   const myName       = profile?.name ?? '';
 
   const [itemName, setItemName]           = useState('');
@@ -201,7 +209,7 @@ export default function GroceryScreen(): React.JSX.Element {
     if (!n || isAdding) return;
     setIsAdding(true);
     try {
-      await addItem(n, quick ? '' : resolvedQty, profile?.name ?? 'Someone', houseId ?? '');
+      await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '');
       setItemName('');
       setQty('1');
       setCustomQty('');
@@ -210,7 +218,7 @@ export default function GroceryScreen(): React.JSX.Element {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch { /* ignore */ }
     finally { setIsAdding(false); }
-  }, [itemName, resolvedQty, profile, houseId, addItem, isAdding]);
+  }, [itemName, resolvedQty, myId, houseId, addItem, isAdding]);
 
   const openForm  = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -228,8 +236,8 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleStartRun = useCallback(async (): Promise<void> => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setIAmShopping(true);
-    await startRun(profile?.name ?? 'Someone');
-  }, [startRun, profile]);
+    await startRun(myId, myName);
+  }, [startRun, myId, myName]);
 
   const handleEndRun = useCallback(async (): Promise<void> => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -244,9 +252,9 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const renderItem = useCallback(
     ({ item }: { item: GroceryItem }): React.JSX.Element => (
-      <ItemRow item={item} myName={myName} onToggle={onToggle} onDelete={onDelete} onIncrement={onInc} onDecrement={onDec} />
+      <ItemRow item={item} myId={myId} onToggle={onToggle} onDelete={onDelete} onIncrement={onInc} onDecrement={onDec} />
     ),
-    [myName, onToggle, onDelete, onInc, onDec]
+    [myId, onToggle, onDelete, onInc, onDec]
   );
 
   const renderSectionHeader = useCallback(
@@ -291,7 +299,7 @@ export default function GroceryScreen(): React.JSX.Element {
             <Text style={styles.textSm}>{"Add last-minute items — they'll see the list update live"}</Text>
           </View>
           <View style={styles.shopperBadge}>
-            <UserAvatar name={activeRun.shopperName} size={28} />
+            <UserAvatar userId={activeRun.shopperId} size={28} />
             <Text style={styles.shopperBadgeText}>{elapsedLabel(activeRun.startedAt)}</Text>
           </View>
         </View>
@@ -433,6 +441,16 @@ export default function GroceryScreen(): React.JSX.Element {
                 </View>
               </View>
 
+              {/* ── Load / error states ──────────────────────────────────── */}
+              {isLoading && items.length === 0 && (
+                <ActivityIndicator size="small" color="#4F78B6" style={styles.loadingIndicator} />
+              )}
+              {!!error && (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorBannerText}>{error}</Text>
+                </View>
+              )}
+
               {/* ── TO BUY section header ─────────────────────────────────── */}
               {pending.length > 0 && (
                 <View style={styles.sectionHeader}>
@@ -479,7 +497,7 @@ export default function GroceryScreen(): React.JSX.Element {
                           <Text style={styles.recentCheck}>✓</Text>
                           <Text style={styles.recentName}>{item.name}</Text>
                         </View>
-                        <Text style={styles.textSm}>By {item.addedBy}</Text>
+                        <Text style={styles.textSm}>By {resolveName(item.addedBy, housemates)}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -618,6 +636,12 @@ const styles = StyleSheet.create({
 
   avatar:     { justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   avatarText: { color: '#FFFFFF', ...font.bold },
+
+  loadingIndicator: { marginBottom: 8 },
+  errorBanner: {
+    backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 8,
+  },
+  errorBannerText: { fontSize: 13, color: '#D94F4F' },
 
   emptyWrap:  { alignItems: 'center', paddingVertical: 48, gap: 8 },
   emptyIcon:  { fontSize: 44 },

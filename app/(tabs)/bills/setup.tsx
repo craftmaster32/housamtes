@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +17,7 @@ export default function HousematesScreen(): React.JSX.Element {
   const inviteCode = useHousematesStore((s) => s.inviteCode);
   const isLoading = useHousematesStore((s) => s.isLoading);
   const profile = useAuthStore((s) => s.profile);
-  const myName = profile?.name ?? '';
+  const myId = profile?.id ?? '';
 
   const [copied, setCopied] = useState(false);
 
@@ -74,12 +75,15 @@ export default function HousematesScreen(): React.JSX.Element {
         ) : (
           <View style={styles.membersList}>
             {housemates.map((h) => {
-              const isMe = h.name === myName;
+              const isMe = h.id === myId;
               const initial = (h.name || '?')[0].toUpperCase();
               return (
                 <View key={h.id} style={styles.memberRow}>
-                  <View style={[styles.avatar, { backgroundColor: h.color ?? colors.primary }]}>
-                    <Text style={styles.avatarText}>{initial}</Text>
+                  <View style={[styles.avatar, { backgroundColor: h.avatarUrl ? 'transparent' : (h.color ?? colors.primary) }]}>
+                    {h.avatarUrl
+                      ? <Image source={{ uri: h.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
+                      : <Text style={styles.avatarText}>{initial}</Text>
+                    }
                   </View>
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>{h.name}</Text>
@@ -179,7 +183,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
+  avatarImg: { width: 44, height: 44 },
   avatarText: { color: colors.white, fontSize: 17, ...font.bold },
   memberInfo: { flex: 1 },
   memberName: { fontSize: 16, ...font.semibold, color: colors.textPrimary },

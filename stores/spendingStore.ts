@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 
 // ── Category metadata ──────────────────────────────────────────────────────────
 export const CATEGORY_META: Record<string, { icon: string; color: string }> = {
@@ -73,6 +75,10 @@ export const useSpendingStore = create<SpendingStore>()(
       isLoading: false,
 
       load: async (houseId: string, userName: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[spending] house ID mismatch — aborting load');
+          return;
+        }
         set({ isLoading: true });
         try {
           // Fetch one-time bills + recurring bill payments in parallel
@@ -133,7 +139,8 @@ export const useSpendingStore = create<SpendingStore>()(
           });
 
           set({ months, isLoading: false });
-        } catch {
+        } catch (err) {
+          captureError(err, { store: 'spending', houseId });
           set({ isLoading: false });
         }
       },

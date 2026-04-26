@@ -1,12 +1,15 @@
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useBillsStore, getPersonShare } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
+import { useBadgeStore } from '@stores/badgeStore';
+import { resolveName } from '@utils/housemates';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -15,6 +18,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
+  const isLoading = useBillsStore((s) => s.isLoading);
   const editBill = useBillsStore((s) => s.editBill);
   const settleBill = useBillsStore((s) => s.settleBill);
   const deleteBill = useBillsStore((s) => s.deleteBill);
@@ -23,6 +27,10 @@ export default function BillDetailScreen(): React.JSX.Element {
   const role = useAuthStore((s) => s.role);
   const canDelete = role === 'owner' || role === 'admin';
   const currency = useSettingsStore((s) => s.currency);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const markSeen = useBadgeStore((s) => s.markSeen);
+
+  useFocusEffect(useCallback(() => { markSeen('bills').catch(() => {}); }, [markSeen]));
 
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(bill?.title ?? '');
@@ -53,7 +61,7 @@ export default function BillDetailScreen(): React.JSX.Element {
     if (!bill || !profile || !houseId) return;
     try {
       setIsSettling(true);
-      await settleBill(bill.id, profile.name, houseId);
+      await settleBill(bill.id, profile.id, profile.name, houseId);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('bills.failed_settle'));
     } finally {
@@ -64,21 +72,28 @@ export default function BillDetailScreen(): React.JSX.Element {
   const handleDelete = useCallback(async () => {
     if (!bill) return;
     try {
-      await deleteBill(bill.id);
+      await deleteBill(bill.id, houseId ?? '');
       router.replace('/(tabs)/bills');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete bill');
     }
-  }, [bill, deleteBill]);
+  }, [bill, houseId, deleteBill]);
 
   if (!bill) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text style={styles.emptyText}>{t('bills.bill_not_found')}</Text>
-          <Pressable onPress={() => router.replace('/(tabs)/bills')}>
-            <Text style={styles.linkText}>{t('bills.back_to_bills')}</Text>
-          </Pressable>
+          {isLoading
+            ? <ActivityIndicator size="large" color="#4F78B6" />
+            : (
+              <>
+                <Text style={styles.emptyText}>{t('bills.bill_not_found')}</Text>
+                <Pressable onPress={() => router.replace('/(tabs)/bills')}>
+                  <Text style={styles.linkText}>{t('bills.back_to_bills')}</Text>
+                </Pressable>
+              </>
+            )
+          }
         </View>
       </SafeAreaView>
     );
@@ -106,7 +121,7 @@ export default function BillDetailScreen(): React.JSX.Element {
           <View style={styles.settledBanner}>
             <Text style={styles.settledBannerText}>
               ✓ {t('bills.settled_by_on', {
-                name: bill.settledBy,
+                name: bill.settledBy ? resolveName(bill.settledBy, housemates) : '',
                 date: bill.settledAt ? new Date(bill.settledAt).toLocaleDateString() : '',
               })}
             </Text>
@@ -171,7 +186,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
-              <Text style={styles.metaValue}>{bill.paidBy}</Text>
+              <Text style={styles.metaValue}>{resolveName(bill.paidBy, housemates)}</Text>
             </View>
             {bill.notes ? (
               <View style={styles.metaRow}>
@@ -192,7 +207,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>
                 <View style={styles.splitDot} />
-                <Text style={styles.splitPerson}>{person}</Text>
+                <Text style={styles.splitPerson}>{resolveName(person, housemates)}</Text>
                 <Text style={styles.splitAmount}>{currency}{getPersonShare(bill, person).toFixed(2)}</Text>
               </View>
             ))}

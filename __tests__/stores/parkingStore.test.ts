@@ -98,8 +98,8 @@ describe('parkingStore — claim', () => {
     mockFrom.mockReturnValue(ok({ id: 'ps1', occupant: 'Bob' }));
 
     await expect(
-      useParkingStore.getState().claim('Alice', 'house-1')
-    ).rejects.toThrow('Bob already has the spot');
+      useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1')
+    ).rejects.toThrow('Parking spot is already taken');
 
     expect(useParkingStore.getState().current).toBeNull();
   });
@@ -110,7 +110,7 @@ describe('parkingStore — claim', () => {
       .mockReturnValueOnce(fail('unique constraint'));   // insert fails
 
     await expect(
-      useParkingStore.getState().claim('Alice', 'house-1')
+      useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1')
     ).rejects.toThrow('Failed to claim parking');
 
     expect(useParkingStore.getState().current).toBeNull();
@@ -121,7 +121,7 @@ describe('parkingStore — claim', () => {
       .mockReturnValueOnce(ok(null))  // no existing session
       .mockReturnValueOnce(ok({ id: 'ps2', occupant: 'Alice', start_time: '09:00' })); // insert
 
-    await useParkingStore.getState().claim('Alice', 'house-1');
+    await useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1');
 
     expect(useParkingStore.getState().current).toMatchObject({
       id: 'ps2',
@@ -132,18 +132,13 @@ describe('parkingStore — claim', () => {
   it('throws when name is empty string (profile not loaded guard)', async () => {
     // Guard added: name.trim() === '' throws before any DB call.
     await expect(
-      useParkingStore.getState().claim('', 'house-1')
-    ).rejects.toThrow('Name is required to claim parking');
+      useParkingStore.getState().claim('', '', 'house-1')
+    ).rejects.toThrow('User ID is required to claim parking');
 
     expect(mockFrom).not.toHaveBeenCalled();
     expect(useParkingStore.getState().current).toBeNull();
   });
 
-  it('throws when name is whitespace-only', async () => {
-    await expect(
-      useParkingStore.getState().claim('   ', 'house-1')
-    ).rejects.toThrow('Name is required to claim parking');
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -190,10 +185,11 @@ describe('parkingStore — addReservation', () => {
 
     await expect(
       useParkingStore.getState().addReservation(
-        { requestedBy: 'Alice', date: '2026-04-20', note: '' },
+        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+        'Alice',
         'house-1'
       )
-    ).rejects.toThrow(/already reserved by Bob/i);
+    ).rejects.toThrow('This date is already reserved');
 
     expect(mockFrom).not.toHaveBeenCalled(); // should not reach DB
   });
@@ -212,7 +208,8 @@ describe('parkingStore — addReservation', () => {
 
     // This succeeds even though another user may have booked simultaneously
     const id = await useParkingStore.getState().addReservation(
-      { requestedBy: 'Alice', date: '2026-04-20', note: '' },
+      { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+      'Alice',
       'house-1'
     );
 
@@ -225,7 +222,8 @@ describe('parkingStore — addReservation', () => {
 
     await expect(
       useParkingStore.getState().addReservation(
-        { requestedBy: 'Alice', date: '2026-04-20', note: '' },
+        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+        'Alice',
         'house-1'
       )
     ).rejects.toThrow('Failed to add reservation');
@@ -243,7 +241,8 @@ describe('parkingStore — addReservation', () => {
     mockFrom.mockReturnValue(ok(row));
 
     await useParkingStore.getState().addReservation(
-      { requestedBy: 'Alice', date: '2026-04-25', note: 'dentist' },
+      { requestedBy: 'uuid-alice', date: '2026-04-25', note: 'dentist' },
+      'Alice',
       'house-1'
     );
 

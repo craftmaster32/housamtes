@@ -1,13 +1,14 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useBillsStore, CATEGORIES } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
+import { useBadgeStore } from '@stores/badgeStore';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -22,36 +23,53 @@ export default function AddBillScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const currency = useSettingsStore((s) => s.currency);
+  const markSeen = useBadgeStore((s) => s.markSeen);
 
-  const allNames = useMemo(() => housemates.map((h) => h.name), [housemates]);
-  const myName = profile?.name ?? '';
+  const myId = profile?.id ?? '';
+  const allIds = useMemo(() => housemates.map((h) => h.id), [housemates]);
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState(myName || allNames[0] || '');
+  const [paidBy, setPaidBy] = useState('');
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
   const [category, setCategory] = useState(CATEGORIES[0]);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  });
   const [splitType, setSplitType] = useState<SplitType>('equal');
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Once housemates load, set sensible defaults
-  useEffect(() => {
-    if (allNames.length === 0) return;
-    setPaidBy((prev) => prev || myName || allNames[0]);
-    setSelectedPeople((prev) => (prev.length === 0 ? allNames : prev));
-  }, [allNames, myName]);
+  // Reset the entire form every time this screen comes into focus so
+  // stale data from a previous session never leaks into a new bill.
+  useFocusEffect(
+    useCallback(() => {
+      const d = new Date();
+      const pad = (n: number): string => String(n).padStart(2, '0');
+      setTitle('');
+      setAmount('');
+      setPaidBy(myId || allIds[0] || '');
+      setSelectedPeople(allIds.length > 0 ? allIds : []);
+      setCategory(CATEGORIES[0]);
+      setDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+      setSplitType('equal');
+      setCustomAmounts({});
+      setIsLoading(false);
+      setError('');
+    }, [myId, allIds])
+  );
 
-  const togglePerson = useCallback((name: string) => {
+  const togglePerson = useCallback((id: string) => {
     setSelectedPeople((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
   }, []);
 
-  const setPersonAmount = useCallback((name: string, value: string) => {
-    setCustomAmounts((prev) => ({ ...prev, [name]: value }));
+  const setPersonAmount = useCallback((id: string, value: string) => {
+    setCustomAmounts((prev) => ({ ...prev, [id]: value }));
     setError('');
   }, []);
 
@@ -59,7 +77,7 @@ export default function AddBillScreen(): React.JSX.Element {
 
   const getCustomTotal = useCallback((): number => {
     return selectedPeople.reduce(
-      (sum, name) => sum + (parseFloat(customAmounts[name] ?? '0') || 0),
+      (sum, id) => sum + (parseFloat(customAmounts[id] ?? '0') || 0),
       0
     );
   }, [selectedPeople, customAmounts]);
@@ -79,8 +97,8 @@ export default function AddBillScreen(): React.JSX.Element {
         return;
       }
       splitAmounts = {};
-      for (const name of selectedPeople) {
-        splitAmounts[name] = parseFloat(customAmounts[name] ?? '0') || 0;
+      for (const id of selectedPeople) {
+        splitAmounts[id] = parseFloat(customAmounts[id] ?? '0') || 0;
       }
     }
 
@@ -95,12 +113,13 @@ export default function AddBillScreen(): React.JSX.Element {
         category,
         date,
       }, houseId ?? '');
+      markSeen('bills').catch(() => {});
       router.replace('/(tabs)/bills');
     } catch {
       setError(t('bills.failed_save'));
       setIsLoading(false);
     }
-  }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, category, date, addBill, houseId, getCustomTotal, t]);
+  }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, category, date, addBill, houseId, getCustomTotal, markSeen, t]);
 
   if (housematesLoading) {
     return (
@@ -157,17 +176,17 @@ export default function AddBillScreen(): React.JSX.Element {
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.who_paid')}</Text>
           <View style={styles.chipRow}>
-            {allNames.map((name) => (
+            {housemates.map((h) => (
               <Pressable
-                key={name}
-                style={[styles.chip, paidBy === name && styles.chipSelected]}
-                onPress={() => setPaidBy(name)}
+                key={h.id}
+                style={[styles.chip, paidBy === h.id && styles.chipSelected]}
+                onPress={() => setPaidBy(h.id)}
                 accessible
                 accessibilityRole="radio"
-                accessibilityState={{ selected: paidBy === name }}
+                accessibilityState={{ selected: paidBy === h.id }}
               >
-                <Text style={[styles.chipText, paidBy === name && styles.chipTextSelected]}>
-                  {name}{name === myName ? ` (${t('common.me')})` : ''}
+                <Text style={[styles.chipText, paidBy === h.id && styles.chipTextSelected]}>
+                  {h.name}{h.id === myId ? ` (${t('common.me')})` : ''}
                 </Text>
               </Pressable>
             ))}
@@ -178,22 +197,22 @@ export default function AddBillScreen(): React.JSX.Element {
         <View style={styles.field}>
           <View style={styles.labelRow}>
             <Text style={styles.label}>{t('bills.split_between')}</Text>
-            <Pressable onPress={() => setSelectedPeople(allNames)}>
+            <Pressable onPress={() => setSelectedPeople(allIds)}>
               <Text style={styles.selectAll}>{t('bills.select_all')}</Text>
             </Pressable>
           </View>
           <View style={styles.chipRow}>
-            {allNames.map((name) => (
+            {housemates.map((h) => (
               <Pressable
-                key={name}
-                style={[styles.chip, selectedPeople.includes(name) && styles.chipSelected]}
-                onPress={() => togglePerson(name)}
+                key={h.id}
+                style={[styles.chip, selectedPeople.includes(h.id) && styles.chipSelected]}
+                onPress={() => togglePerson(h.id)}
                 accessible
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: selectedPeople.includes(name) }}
+                accessibilityState={{ checked: selectedPeople.includes(h.id) }}
               >
-                <Text style={[styles.chipText, selectedPeople.includes(name) && styles.chipTextSelected]}>
-                  {name}{name === myName ? ` (${t('common.me')})` : ''}
+                <Text style={[styles.chipText, selectedPeople.includes(h.id) && styles.chipTextSelected]}>
+                  {h.name}{h.id === myId ? ` (${t('common.me')})` : ''}
                 </Text>
               </Pressable>
             ))}
@@ -240,12 +259,12 @@ export default function AddBillScreen(): React.JSX.Element {
             {/* Custom split inputs */}
             {splitType === 'custom' && (
               <View style={styles.customBox}>
-                {selectedPeople.map((name) => (
-                  <View key={name} style={styles.customRow}>
-                    <Text style={styles.customName}>{name}</Text>
+                {selectedPeople.map((id) => (
+                  <View key={id} style={styles.customRow}>
+                    <Text style={styles.customName}>{housemates.find((h) => h.id === id)?.name ?? id}</Text>
                     <TextInput
-                      value={customAmounts[name] ?? ''}
-                      onChangeText={(v) => setPersonAmount(name, v)}
+                      value={customAmounts[id] ?? ''}
+                      onChangeText={(v) => setPersonAmount(id, v)}
                       mode="outlined"
                       style={styles.customInput}
                       keyboardType="decimal-pad"

@@ -3,12 +3,25 @@ import { Text, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+const ONBOARDING_INTENT_KEY = 'onboarding_intent';
+
 export default function WelcomeScreen(): React.JSX.Element {
   const { t } = useTranslation();
+
+  const handleCreateHouse = async (): Promise<void> => {
+    await AsyncStorage.removeItem(ONBOARDING_INTENT_KEY);
+    router.push('/(auth)/signup');
+  };
+
+  const handleJoinHouse = async (): Promise<void> => {
+    await AsyncStorage.setItem(ONBOARDING_INTENT_KEY, 'join');
+    router.push('/(auth)/signup');
+  };
 
   return (
     <View style={styles.root}>
@@ -45,16 +58,29 @@ export default function WelcomeScreen(): React.JSX.Element {
       <View style={styles.bottom}>
         <Button
           mode="contained"
-          onPress={() => router.push('/(auth)/signup')}
+          onPress={handleCreateHouse}
           style={styles.primaryButton}
           contentStyle={styles.primaryButtonContent}
           labelStyle={styles.primaryButtonLabel}
           buttonColor={colors.primary}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Create a new account"
+          accessibilityLabel="Create a new house"
         >
-          {t('welcome.get_started')}
+          Create a House
+        </Button>
+
+        <Button
+          mode="outlined"
+          onPress={handleJoinHouse}
+          style={styles.outlinedButton}
+          contentStyle={styles.primaryButtonContent}
+          labelStyle={[styles.primaryButtonLabel, { color: colors.primary }]}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Join an existing house"
+        >
+          Join a House
         </Button>
 
         <Button
@@ -66,7 +92,7 @@ export default function WelcomeScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel="Log in to existing account"
         >
-          {t('welcome.sign_in')}
+          Already have an account? Sign in
         </Button>
 
         <Text style={styles.termsText}>
@@ -155,6 +181,11 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     borderRadius: 14,
+    marginBottom: 4,
+  },
+  outlinedButton: {
+    borderRadius: 14,
+    borderColor: colors.primary,
     marginBottom: 4,
   },
   primaryButtonContent: {

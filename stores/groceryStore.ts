@@ -1,24 +1,32 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
+
+const ACTIVE_RUN_KEY = 'grocery_active_run';
+const RUN_MAX_AGE_MS = 4 * 60 * 60 * 1000;
 
 export interface GroceryItem {
   id: string;
   name: string;
   quantity: string;
   boughtCount: number;
-  addedBy: string;
+  addedBy: string; // user UUID
   isChecked: boolean;
   createdAt: string;
 }
 
 export interface ShoppingRun {
-  shopperName: string;
+  shopperId: string;   // user UUID
+  shopperName: string; // display name for broadcast UI
   startedAt: string;
 }
 
 interface RunPayload {
   active: boolean;
+  shopperId: string;
   shopperName: string;
   startedAt: string;
 }
@@ -26,16 +34,17 @@ interface RunPayload {
 interface GroceryStore {
   items: GroceryItem[];
   isLoading: boolean;
+  error: string | null;
   activeRun: ShoppingRun | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addItem: (name: string, quantity: string, addedBy: string, houseId: string) => Promise<void>;
+  addItem: (name: string, quantity: string, addedByUserId: string, houseId: string) => Promise<void>;
   toggleItem: (id: string) => Promise<void>;
   incrementBought: (id: string) => Promise<void>;
   decrementBought: (id: string) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   clearChecked: (houseId: string) => Promise<void>;
-  startRun: (shopperName: string) => Promise<void>;
+  startRun: (shopperId: string, shopperName: string) => Promise<void>;
   endRun: () => Promise<void>;
 }
 
@@ -46,10 +55,27 @@ export const useGroceryStore = create<GroceryStore>()(
     (set, get) => ({
       items: [],
       isLoading: true,
+      error: null,
       activeRun: null,
 
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[grocery] house ID mismatch — aborting load');
+          return;
+        }
         try {
+          try {
+            const stored = await AsyncStorage.getItem(ACTIVE_RUN_KEY);
+            if (stored) {
+              const run = JSON.parse(stored) as ShoppingRun;
+              if (Date.now() - new Date(run.startedAt).getTime() < RUN_MAX_AGE_MS) {
+                set({ activeRun: run });
+              } else {
+                AsyncStorage.removeItem(ACTIVE_RUN_KEY).catch(() => {});
+              }
+            }
+          } catch { /* ignore storage errors */ }
+
           const { data, error } = await supabase
             .from('grocery_items')
             .select('*')
@@ -65,9 +91,10 @@ export const useGroceryStore = create<GroceryStore>()(
             isChecked: r.is_checked,
             createdAt: r.created_at,
           }));
-          set({ items, isLoading: false });
-        } catch {
-          set({ isLoading: false });
+          set({ items, isLoading: false, error: null });
+        } catch (err) {
+          captureError(err, { store: 'grocery', houseId });
+          set({ isLoading: false, error: 'Could not load groceries. Please try again.' });
         }
 
         if (_channel) { supabase.removeChannel(_channel); }
@@ -77,7 +104,13 @@ export const useGroceryStore = create<GroceryStore>()(
             () => { get().load(houseId); })
           .on('broadcast', { event: 'shopping_run' }, (msg: { payload: unknown }) => {
             const p = msg.payload as RunPayload;
-            set({ activeRun: p.active ? { shopperName: p.shopperName, startedAt: p.startedAt } : null });
+            const newRun = p.active ? { shopperId: p.shopperId, shopperName: p.shopperName, startedAt: p.startedAt } : null;
+            set({ activeRun: newRun });
+            if (p.active && newRun) {
+              AsyncStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(newRun)).catch(() => {});
+            } else {
+              AsyncStorage.removeItem(ACTIVE_RUN_KEY).catch(() => {});
+            }
           })
           .subscribe();
       },
@@ -86,13 +119,13 @@ export const useGroceryStore = create<GroceryStore>()(
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
 
-      addItem: async (name, quantity, addedBy, houseId): Promise<void> => {
+      addItem: async (name, quantity, addedByUserId, houseId): Promise<void> => {
         const { data, error } = await supabase
           .from('grocery_items')
-          .insert({ house_id: houseId, name, quantity, added_by: addedBy })
+          .insert({ house_id: houseId, name, quantity, added_by: addedByUserId })
           .select()
           .single();
-        if (error) throw new Error(`Failed to add item: ${error.message}`);
+        if (error) { captureError(error, { context: 'add-grocery', houseId }); throw new Error('Could not add the item. Please try again.'); }
         const item: GroceryItem = {
           id: data.id,
           name: data.name,
@@ -145,22 +178,25 @@ export const useGroceryStore = create<GroceryStore>()(
         set({ items: get().items.filter((i) => !i.isChecked) });
       },
 
-      startRun: async (shopperName: string): Promise<void> => {
+      startRun: async (shopperId: string, shopperName: string): Promise<void> => {
         const startedAt = new Date().toISOString();
-        set({ activeRun: { shopperName, startedAt } });
+        const run: ShoppingRun = { shopperId, shopperName, startedAt };
+        set({ activeRun: run });
+        AsyncStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(run)).catch(() => {});
         _channel?.send({
           type: 'broadcast',
           event: 'shopping_run',
-          payload: { active: true, shopperName, startedAt },
+          payload: { active: true, shopperId, shopperName, startedAt },
         }).catch(() => {});
       },
 
       endRun: async (): Promise<void> => {
         set({ activeRun: null });
+        AsyncStorage.removeItem(ACTIVE_RUN_KEY).catch(() => {});
         _channel?.send({
           type: 'broadcast',
           event: 'shopping_run',
-          payload: { active: false, shopperName: '', startedAt: '' },
+          payload: { active: false, shopperId: '', shopperName: '', startedAt: '' },
         }).catch(() => {});
       },
     }),

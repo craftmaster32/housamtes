@@ -5,6 +5,7 @@ import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signUpSchema } from '@utils/validation';
 import { colors } from '@constants/colors';
@@ -20,6 +21,8 @@ export default function SignupScreen(): React.JSX.Element {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [confirmedAge, setConfirmedAge] = useState(false);
   const [error, setError] = useState('');
   const signUp = useAuthStore((s) => s.signUp);
   const isLoading = useAuthStore((s) => s.isLoading);
@@ -27,6 +30,14 @@ export default function SignupScreen(): React.JSX.Element {
   const passwordRef = useRef<RNTextInput>(null);
 
   const handleSignup = useCallback(async () => {
+    if (!confirmedAge) {
+      setError('Please confirm that you are 18 or older to continue.');
+      return;
+    }
+    if (!agreedToTerms) {
+      setError('Please agree to the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
     const result = signUpSchema.safeParse({ name, email, password });
     if (!result.success) {
       setError(result.error.errors[0].message);
@@ -42,7 +53,7 @@ export default function SignupScreen(): React.JSX.Element {
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.something_went_wrong'));
     }
-  }, [name, email, password, selectedColor, signUp, t]);
+  }, [name, email, password, selectedColor, confirmedAge, agreedToTerms, signUp, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -136,11 +147,56 @@ export default function SignupScreen(): React.JSX.Element {
           ))}
         </View>
 
+        <Pressable
+          style={styles.termsRow}
+          onPress={() => { setConfirmedAge((v) => !v); setError(''); }}
+          accessible
+          accessibilityRole="checkbox"
+          accessibilityLabel="I confirm I am 18 or older"
+          accessibilityState={{ checked: confirmedAge }}
+        >
+          <View style={[styles.checkbox, confirmedAge && styles.checkboxChecked]}>
+            {confirmedAge && <Ionicons name="checkmark" size={14} color={colors.white} />}
+          </View>
+          <Text style={styles.termsText}>I confirm I am 18 years of age or older</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.termsRow}
+          onPress={() => { setAgreedToTerms((v) => !v); setError(''); }}
+          accessible
+          accessibilityRole="checkbox"
+          accessibilityLabel="I agree to the Terms of Service and Privacy Policy"
+          accessibilityState={{ checked: agreedToTerms }}
+        >
+          <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
+            {agreedToTerms && <Ionicons name="checkmark" size={14} color={colors.white} />}
+          </View>
+          <Text style={styles.termsText}>
+            {'I agree to the '}
+            <Text
+              style={styles.termsLink}
+              onPress={() => router.push('/(tabs)/settings/terms')}
+              accessibilityRole="link"
+            >
+              Terms of Service
+            </Text>
+            {' and '}
+            <Text
+              style={styles.termsLink}
+              onPress={() => router.push('/(tabs)/settings/privacy-policy')}
+              accessibilityRole="link"
+            >
+              Privacy Policy
+            </Text>
+          </Text>
+        </Pressable>
+
         <Button
           mode="contained"
           onPress={handleSignup}
           loading={isLoading}
-          disabled={isLoading}
+          disabled={isLoading || !confirmedAge || !agreedToTerms}
           style={styles.button}
           contentStyle={styles.buttonContent}
           labelStyle={styles.buttonLabel}
@@ -226,6 +282,39 @@ const styles = StyleSheet.create({
     fontSize: 20,
     ...font.bold,
     color: colors.white,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: sizes.sm,
+    marginTop: sizes.xs,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 13,
+    ...font.regular,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: colors.primary,
+    ...font.semibold,
   },
   button: {
     borderRadius: 14,

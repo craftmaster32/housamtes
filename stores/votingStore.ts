@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 
 export interface Vote {
-  person: string;
+  person: string; // user UUID
   choice: 'yes' | 'no';
 }
 
@@ -11,7 +13,7 @@ export interface Proposal {
   id: string;
   title: string;
   description: string;
-  createdBy: string;
+  createdBy: string; // user UUID
   createdAt: string;
   isOpen: boolean;
   votes: Vote[];
@@ -20,10 +22,11 @@ export interface Proposal {
 interface VotingStore {
   proposals: Proposal[];
   isLoading: boolean;
+  error: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addProposal: (title: string, description: string, createdBy: string, houseId: string) => Promise<void>;
-  castVote: (proposalId: string, person: string, choice: 'yes' | 'no') => Promise<void>;
+  addProposal: (title: string, description: string, createdByUserId: string, houseId: string) => Promise<void>;
+  castVote: (proposalId: string, userId: string, choice: 'yes' | 'no') => Promise<void>;
   closeProposal: (proposalId: string) => Promise<void>;
   remove: (proposalId: string) => Promise<void>;
 }
@@ -35,7 +38,12 @@ export const useVotingStore = create<VotingStore>()(
     (set, get) => ({
       proposals: [],
       isLoading: true,
+      error: null,
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[voting] house ID mismatch — aborting load');
+          return;
+        }
         try {
           const { data, error } = await supabase
             .from('proposals')
@@ -52,9 +60,10 @@ export const useVotingStore = create<VotingStore>()(
             isOpen: r.is_open,
             votes: (r.votes ?? []) as Vote[],
           }));
-          set({ proposals, isLoading: false });
-        } catch {
-          set({ isLoading: false });
+          set({ proposals, isLoading: false, error: null });
+        } catch (err) {
+          captureError(err, { store: 'voting', houseId });
+          set({ isLoading: false, error: 'Could not load proposals. Please try again.' });
         }
 
         if (_channel) { supabase.removeChannel(_channel); }
@@ -67,13 +76,16 @@ export const useVotingStore = create<VotingStore>()(
       unsubscribe: (): void => {
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
-      addProposal: async (title, description, createdBy, houseId): Promise<void> => {
+      addProposal: async (title, description, createdByUserId, houseId): Promise<void> => {
         const { data, error } = await supabase
           .from('proposals')
-          .insert({ house_id: houseId, title, description, created_by: createdBy, votes: [] })
+          .insert({ house_id: houseId, title, description, created_by: createdByUserId, votes: [] })
           .select()
           .single();
-        if (error) throw new Error(`Failed to add proposal: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'add-proposal', houseId });
+          throw new Error('Could not save the proposal. Please try again.');
+        }
         const proposal: Proposal = {
           id: data.id,
           title: data.title,
@@ -85,34 +97,33 @@ export const useVotingStore = create<VotingStore>()(
         };
         set({ proposals: [proposal, ...get().proposals] });
       },
-      castVote: async (proposalId, person, choice): Promise<void> => {
+      castVote: async (proposalId, userId, choice): Promise<void> => {
         const proposal = get().proposals.find((p) => p.id === proposalId);
         if (!proposal) return;
         if (!proposal.isOpen) throw new Error('This vote is already closed');
-        const votes: Vote[] = [...proposal.votes.filter((v) => v.person !== person), { person, choice }];
-        // Optimistically update UI first
-        set({
-          proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes } : p)),
-        });
+        const votes: Vote[] = [...proposal.votes.filter((v) => v.person !== userId), { person: userId, choice }];
+        set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes } : p)) });
         const { error } = await supabase.from('proposals').update({ votes }).eq('id', proposalId);
         if (error) {
-          // Revert on failure
-          set({
-            proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes: proposal.votes } : p)),
-          });
-          throw new Error(`Failed to cast vote: ${error.message}`);
+          set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes: proposal.votes } : p)) });
+          captureError(error, { context: 'cast-vote', proposalId });
+          throw new Error('Could not record your vote. Please try again.');
         }
       },
       closeProposal: async (proposalId): Promise<void> => {
         const { error } = await supabase.from('proposals').update({ is_open: false }).eq('id', proposalId);
-        if (error) throw new Error(`Failed to close proposal: ${error.message}`);
-        set({
-          proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, isOpen: false } : p)),
-        });
+        if (error) {
+          captureError(error, { context: 'close-proposal', proposalId });
+          throw new Error('Could not close the proposal. Please try again.');
+        }
+        set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, isOpen: false } : p)) });
       },
       remove: async (proposalId): Promise<void> => {
         const { error } = await supabase.from('proposals').delete().eq('id', proposalId);
-        if (error) throw new Error(`Failed to remove proposal: ${error.message}`);
+        if (error) {
+          captureError(error, { context: 'delete-proposal', proposalId });
+          throw new Error('Could not delete the proposal. Please try again.');
+        }
         set({ proposals: get().proposals.filter((p) => p.id !== proposalId) });
       },
     }),

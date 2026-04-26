@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
+import { useAuthStore } from '@stores/authStore';
 
 export type BillFrequency = 'monthly' | 'bimonthly' | 'quarterly';
 
 export interface RecurringBill {
   id: string;
   name: string;
-  assignedTo: string;
+  assignedTo: string; // user UUID
   frequency: BillFrequency;
   typicalAmount: number;
   icon: string;
@@ -26,6 +28,7 @@ interface RecurringBillsStore {
   bills: RecurringBill[];
   payments: HouseholdPayment[];
   isLoading: boolean;
+  error: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addBill: (bill: Omit<RecurringBill, 'id' | 'createdAt'>, houseId: string) => Promise<void>;
@@ -42,7 +45,12 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
       bills: [],
       payments: [],
       isLoading: true,
+      error: null,
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[recurring-bills] house ID mismatch — aborting load');
+          return;
+        }
         try {
           const [billsRes, paymentsRes] = await Promise.all([
             supabase.from('recurring_bills').select('*').eq('house_id', houseId).order('created_at'),
@@ -64,9 +72,10 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             paidAt: r.paid_at,
             note: r.note ?? '',
           }));
-          set({ bills, payments, isLoading: false });
-        } catch {
-          set({ isLoading: false });
+          set({ bills, payments, isLoading: false, error: null });
+        } catch (err) {
+          captureError(err, { store: 'recurring-bills', houseId });
+          set({ isLoading: false, error: 'Could not load bills. Please try again.' });
         }
 
         if (_channel) { supabase.removeChannel(_channel); }
@@ -94,7 +103,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           })
           .select()
           .single();
-        if (error) throw new Error(`Failed to add bill: ${error.message}`);
+        if (error) { captureError(error, { context: 'add-recurring-bill', houseId }); throw new Error('Could not save the bill. Please try again.'); }
         const bill: RecurringBill = {
           id: inserted.id,
           name: inserted.name,
@@ -108,7 +117,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
       },
       deleteBill: async (id): Promise<void> => {
         const { error } = await supabase.from('recurring_bills').delete().eq('id', id);
-        if (error) throw new Error(`Failed to delete bill: ${error.message}`);
+        if (error) { captureError(error, { context: 'delete-recurring-bill', billId: id }); throw new Error('Could not delete the bill. Please try again.'); }
         set({
           bills: get().bills.filter((b) => b.id !== id),
           payments: get().payments.filter((p) => p.billId !== id),
@@ -120,7 +129,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           .insert({ house_id: houseId, bill_id: data.billId, amount: data.amount, paid_at: data.paidAt, note: data.note })
           .select()
           .single();
-        if (error) throw new Error(`Failed to log payment: ${error.message}`);
+        if (error) { captureError(error, { context: 'log-payment', houseId }); throw new Error('Could not log the payment. Please try again.'); }
         const payment: HouseholdPayment = {
           id: inserted.id,
           billId: inserted.bill_id,
@@ -132,7 +141,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
       },
       deletePayment: async (id): Promise<void> => {
         const { error } = await supabase.from('household_payments').delete().eq('id', id);
-        if (error) throw new Error(`Failed to delete payment: ${error.message}`);
+        if (error) { captureError(error, { context: 'delete-payment', paymentId: id }); throw new Error('Could not delete the payment. Please try again.'); }
         set({ payments: get().payments.filter((p) => p.id !== id) });
       },
     }),

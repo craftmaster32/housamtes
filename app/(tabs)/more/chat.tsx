@@ -1,11 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { captureError } from '@lib/errorTracking';
 import { View, StyleSheet, FlatList, Pressable, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useChatStore, type ChatMessage } from '@stores/chatStore';
 import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -58,48 +62,73 @@ function buildListItems(messages: ChatMessage[]): ListItem[] {
 function MessageBubble({
   msg,
   isMine,
+  authorName,
+  authorAvatarUrl,
   onDelete,
+  onReport,
 }: {
   msg: ChatMessage;
   isMine: boolean;
+  authorName: string;
+  authorAvatarUrl?: string;
   onDelete: (id: string) => void;
+  onReport: (id: string, authorName: string) => void;
 }): React.JSX.Element {
-  const initial = msg.author[0]?.toUpperCase() ?? '?';
+  const initial = authorName[0]?.toUpperCase() ?? '?';
   const canDelete = isMine && Date.now() - new Date(msg.createdAt).getTime() < DELETE_WINDOW_MS;
 
   const { t } = useTranslation();
 
   const handleLongPress = useCallback(() => {
-    if (!canDelete) return;
-    Alert.alert(
-      t('chat.delete_title'),
-      t('chat.delete_body'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('common.delete'), style: 'destructive', onPress: (): void => onDelete(msg.id) },
-      ]
-    );
-  }, [canDelete, msg.id, onDelete, t]);
+    if (isMine) {
+      if (!canDelete) return;
+      Alert.alert(
+        t('chat.delete_title'),
+        t('chat.delete_body'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('common.delete'), style: 'destructive', onPress: (): void => onDelete(msg.id) },
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Report Message',
+        `Report this message from ${authorName} as inappropriate, harmful, or illegal content?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Report',
+            style: 'destructive',
+            onPress: (): void => onReport(msg.id, authorName),
+          },
+        ]
+      );
+    }
+  }, [isMine, canDelete, msg.id, authorName, onDelete, onReport, t]);
 
   return (
     <Pressable
       style={[styles.row, isMine && styles.rowMine]}
       onLongPress={handleLongPress}
       delayLongPress={400}
+      accessible
+      accessibilityLabel={isMine ? 'Your message. Long-press to delete.' : `Message from ${authorName}. Long-press to report.`}
     >
       {!isMine && (
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initial}</Text>
+        <View style={[styles.avatar, authorAvatarUrl ? { backgroundColor: 'transparent' } : undefined]}>
+          {authorAvatarUrl
+            ? <Image source={{ uri: authorAvatarUrl }} style={styles.avatarImg} contentFit="cover" />
+            : <Text style={styles.avatarText}>{initial}</Text>
+          }
         </View>
       )}
       <View style={[styles.bubble, isMine && styles.bubbleMine]}>
-        {!isMine && <Text style={styles.author}>{msg.author}</Text>}
+        {!isMine && <Text style={styles.author}>{authorName}</Text>}
         <Text style={[styles.msgText, isMine && styles.msgTextMine]}>{msg.text}</Text>
         <View style={styles.meta}>
           <Text style={[styles.time, isMine && styles.timeMine]}>{formatTime(msg.createdAt)}</Text>
-          {canDelete && (
-            <Text style={styles.deleteHint}>{t('chat.hold_to_delete')}</Text>
-          )}
+          {canDelete && <Text style={styles.deleteHint}>{t('chat.hold_to_delete')}</Text>}
+          {!isMine && <Text style={styles.reportHint}>Hold to report</Text>}
         </View>
       </View>
     </Pressable>
@@ -123,12 +152,16 @@ function DateSeparator({ label }: { label: string }): React.JSX.Element {
 export default function ChatScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const messages = useChatStore((state) => state.messages);
+  const isLoading = useChatStore((state) => state.isLoading);
+  const chatError = useChatStore((state) => state.error);
   const send = useChatStore((state) => state.send);
   const remove = useChatStore((state) => state.remove);
   const markRead = useChatStore((state) => state.markRead);
   const load = useChatStore((state) => state.load);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const myId   = profile?.id ?? '';
   const myName = profile?.name ?? '';
 
   const [text, setText] = useState('');
@@ -146,12 +179,28 @@ export default function ChatScreen(): React.JSX.Element {
 
   const handleSend = useCallback(async () => {
     if (!text.trim() || !houseId) return;
-    await send(text.trim(), myName || 'Someone', houseId);
+    await send(text.trim(), myId, myName || 'Someone', houseId);
     setText('');
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
-  }, [text, myName, houseId, send]);
+  }, [text, myId, myName, houseId, send]);
 
   const handleDelete = useCallback((id: string) => { remove(id); }, [remove]);
+
+  const handleReport = useCallback((messageId: string, reportedAuthor: string): void => {
+    Alert.alert(
+      'Report Submitted',
+      `Thank you. Your report about a message from ${reportedAuthor} has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app`,
+      [{ text: 'OK' }]
+    );
+    // Log to Sentry so we have a server-side record of every report
+    captureError(new Error('User content report'), {
+      type: 'content_report',
+      reportedMessageId: messageId,
+      reportedAuthor,
+      reporterId: myId,
+      houseId: houseId ?? '',
+    });
+  }, [myId, houseId]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -162,6 +211,12 @@ export default function ChatScreen(): React.JSX.Element {
         <Text style={styles.headerTitle}>{t('chat.title')}</Text>
         <View style={styles.backBtn} />
       </View>
+
+      {!!chatError && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{chatError}</Text>
+        </View>
+      )}
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -179,15 +234,20 @@ export default function ChatScreen(): React.JSX.Element {
             return (
               <MessageBubble
                 msg={item.msg}
-                isMine={item.msg.author === myName}
+                isMine={item.msg.author === myId}
+                authorName={resolveName(item.msg.author, housemates)}
+                authorAvatarUrl={housemates.find((h) => h.id === item.msg.author)?.avatarUrl}
                 onDelete={handleDelete}
+                onReport={handleReport}
               />
             );
           }}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>{t('chat.no_messages')}</Text>
+              <Text style={styles.emptyText}>
+                {isLoading ? t('common.loading') : t('chat.no_messages')}
+              </Text>
             </View>
           }
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
@@ -258,7 +318,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center', alignItems: 'center',
     marginBottom: 2,
+    overflow: 'hidden',
   },
+  avatarImg: { width: 32, height: 32 },
   avatarText: { color: colors.white, ...font.bold, fontSize: sizes.fontSm },
 
   bubble: {
@@ -285,10 +347,14 @@ const styles = StyleSheet.create({
   time: { color: colors.textSecondary, fontSize: 11, ...font.regular },
   timeMine: { color: 'rgba(255,255,255,0.7)' },
   deleteHint: { color: 'rgba(255,255,255,0.55)', fontSize: 10, ...font.regular },
+  reportHint: { color: colors.textDisabled, fontSize: 10, ...font.regular },
 
   // Empty state
   empty: { alignItems: 'center', paddingTop: sizes.xxl },
   emptyText: { color: colors.textDisabled, ...font.regular, fontSize: sizes.fontMd },
+
+  errorBanner: { backgroundColor: colors.danger + '15', padding: sizes.sm, borderBottomWidth: 1, borderBottomColor: colors.danger + '40' },
+  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.danger, textAlign: 'center' },
 
   // Input bar
   inputBar: {
