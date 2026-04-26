@@ -1,10 +1,11 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, TextInput,
   useWindowDimensions,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Swipeable } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
@@ -317,10 +318,88 @@ function ParkingCard(): React.JSX.Element {
 }
 
 // ── Grocery Widget ────────────────────────────────────────────────────────────
+// ── Grocery widget row (needs its own ref for Swipeable) ─────────────────────
+interface GroceryWidgetRowProps {
+  item: GroceryItem;
+  myId: string;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+function GroceryWidgetRow({ item, myId, onToggle, onDelete }: GroceryWidgetRowProps): React.JSX.Element {
+  const swipeRef = useRef<Swipeable>(null);
+  const canDelete = item.addedBy === myId;
+
+  const handleToggle = useCallback((): void => {
+    swipeRef.current?.close();
+    onToggle(item.id);
+  }, [item.id, onToggle]);
+
+  const handleDelete = useCallback((): void => {
+    swipeRef.current?.close();
+    onDelete(item.id);
+  }, [item.id, onDelete]);
+
+  const renderCheckAction = useCallback((): React.JSX.Element => (
+    <Pressable
+      accessible
+      style={[styles.widgetSwipeCheck, item.isChecked && styles.widgetSwipeUncheck]}
+      onPress={handleToggle}
+      accessibilityRole="button"
+      accessibilityLabel={item.isChecked ? 'Mark as needed' : 'Mark as done'}
+    >
+      <Ionicons name={item.isChecked ? 'arrow-undo-outline' : 'checkmark'} size={16} color="#fff" />
+    </Pressable>
+  ), [item.isChecked, handleToggle]);
+
+  const renderDeleteAction = useCallback((): React.JSX.Element => (
+    <Pressable
+      accessible
+      style={styles.widgetSwipeDelete}
+      onPress={handleDelete}
+      accessibilityRole="button"
+      accessibilityLabel="Delete item"
+    >
+      <Ionicons name="trash-outline" size={16} color="#fff" />
+    </Pressable>
+  ), [handleDelete]);
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderLeftActions={renderCheckAction}
+      renderRightActions={canDelete ? renderDeleteAction : undefined}
+      overshootLeft={false}
+      overshootRight={false}
+      friction={2}
+    >
+      <Pressable
+        style={styles.groceryRow}
+        onPress={handleToggle}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: item.isChecked }}
+      >
+        <Ionicons
+          name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+          size={18}
+          color={item.isChecked ? colors.positive : colors.border}
+        />
+        <Text style={[styles.groceryItemText, item.isChecked && styles.groceryItemDone]}>
+          {item.name}
+        </Text>
+        {item.quantity && item.quantity !== '1' && (
+          <Text style={styles.groceryQty}>×{item.quantity}</Text>
+        )}
+      </Pressable>
+    </Swipeable>
+  );
+}
+
 function GroceryWidget(): React.JSX.Element {
   const items = useGroceryStore((s) => s.items);
   const addItem = useGroceryStore((s) => s.addItem);
   const toggleItem = useGroceryStore((s) => s.toggleItem);
+  const deleteItem = useGroceryStore((s) => s.deleteItem);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
@@ -340,6 +419,9 @@ function GroceryWidget(): React.JSX.Element {
     await addItem(n, '', myId, houseId ?? '').catch(() => {});
     setInput('');
   }, [input, addItem, myId, houseId]);
+
+  const handleToggle = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
+  const handleDelete = useCallback((id: string): void => { deleteItem(id).catch(() => {}); }, [deleteItem]);
 
   return (
     <WidgetCard>
@@ -383,24 +465,13 @@ function GroceryWidget(): React.JSX.Element {
         <Text style={styles.cardMuted}>List is empty — add something above</Text>
       ) : (
         pending.map((item) => (
-          <Pressable
+          <GroceryWidgetRow
             key={item.id}
-            style={styles.groceryRow}
-            onPress={() => toggleItem(item.id)}
-            accessibilityRole="checkbox"
-          >
-            <Ionicons
-              name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-              size={18}
-              color={item.isChecked ? colors.positive : colors.border}
-            />
-            <Text style={[styles.groceryItemText, item.isChecked && styles.groceryItemDone]}>
-              {item.name}
-            </Text>
-            {item.quantity && item.quantity !== '1' && (
-              <Text style={styles.groceryQty}>×{item.quantity}</Text>
-            )}
-          </Pressable>
+            item={item}
+            myId={myId}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+          />
         ))
       )}
 
@@ -1008,7 +1079,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center', alignItems: 'center',
   },
-  groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, backgroundColor: colors.surface },
+  widgetSwipeCheck:   { backgroundColor: '#22c55e', justifyContent: 'center', alignItems: 'center', width: 48, borderRadius: 10, marginRight: 4 },
+  widgetSwipeUncheck: { backgroundColor: '#94a3b8' },
+  widgetSwipeDelete:  { backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 48, borderRadius: 10, marginLeft: 4 },
   groceryItemText: { flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary },
   groceryItemDone: { textDecorationLine: 'line-through', color: colors.textSecondary },
   groceryQty: { fontSize: 12, ...font.regular, color: colors.textSecondary },

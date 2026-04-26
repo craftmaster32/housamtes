@@ -203,9 +203,11 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: I
             </Pressable>
           </View>
         ) : (
-          <View style={[styles.checkCircle, item.isChecked && styles.checkCircleDone]}>
-            {item.isChecked && <Text style={styles.checkMark}>✓</Text>}
-          </View>
+          <Ionicons
+            name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+            size={24}
+            color={item.isChecked ? colors.positive : colors.border}
+          />
         )}
         <View style={styles.itemDetails}>
           <View style={styles.itemNameWrap}>
@@ -689,9 +691,7 @@ const styles = StyleSheet.create({
   itemSep:         { height: 8 },
   sectionSep:      { height: 8 },
 
-  checkCircle:     { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  checkCircleDone: { backgroundColor: colors.surfaceSecondary, borderColor: colors.surfaceSecondary },
-  checkMark:       { fontSize: 11, ...font.bold, color: colors.textSecondary },
+
 
   itemDetails:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minWidth: 0 },
   itemNameWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
