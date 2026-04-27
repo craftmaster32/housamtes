@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,7 +9,6 @@ import {
   SectionList,
   ActivityIndicator,
 } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +18,6 @@ import * as Haptics from 'expo-haptics';
 import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
-import { resolveName } from '@utils/housemates';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -94,36 +92,22 @@ interface ItemRowProps {
 }
 
 function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: ItemRowProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const swipeRef   = useRef<Swipeable>(null);
-  const inFlightRef = useRef<Set<string>>(new Set());
-  const qtyNum   = parseInt(item.quantity, 10);
-  const hasCount = !isNaN(qtyNum) && qtyNum > 1;
-  const bought   = item.boughtCount ?? 0;
+  const qtyNum    = parseInt(item.quantity, 10);
+  const hasCount  = !isNaN(qtyNum) && qtyNum > 1;
+  const bought    = item.boughtCount ?? 0;
   const canDelete = item.addedBy === myId;
 
-  const tap = useCallback((): void => {
+  const handleTap = useCallback((): void => {
     if (!hasCount) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       onToggle(item.id);
     }
   }, [hasCount, item.id, onToggle]);
 
-  const handleSwipeDelete = useCallback((): void => {
-    if (inFlightRef.current.has(item.id)) return;
-    inFlightRef.current.add(item.id);
-    swipeRef.current?.close();
+  const handleDelete = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    Promise.resolve(onDelete(item.id)).finally(() => { inFlightRef.current.delete(item.id); });
+    onDelete(item.id);
   }, [item.id, onDelete]);
-
-  const handleSwipeToggle = useCallback((): void => {
-    if (inFlightRef.current.has(item.id)) return;
-    inFlightRef.current.add(item.id);
-    swipeRef.current?.close();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    Promise.resolve(onToggle(item.id)).finally(() => { inFlightRef.current.delete(item.id); });
-  }, [item.id, onToggle]);
 
   const handleDecrement = useCallback((): void => {
     Haptics.selectionAsync().catch(() => {});
@@ -135,97 +119,71 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: I
     onIncrement(item.id);
   }, [item.id, onIncrement]);
 
-  const renderDeleteAction = useCallback((): React.JSX.Element => (
-    <Pressable
-      accessible
-      style={styles.swipeDelete}
-      onPress={handleSwipeDelete}
-      accessibilityRole="button"
-      accessibilityLabel={t('grocery.delete_item')}
-    >
-      <Ionicons name="trash-outline" size={20} color="#fff" />
-      <Text style={styles.swipeActionText}>{t('common.delete')}</Text>
-    </Pressable>
-  ), [handleSwipeDelete, t]);
-
-  const renderCheckAction = useCallback((): React.JSX.Element => (
-    <Pressable
-      accessible
-      style={[styles.swipeCheck, item.isChecked && styles.swipeUncheck]}
-      onPress={handleSwipeToggle}
-      accessibilityRole="button"
-      accessibilityLabel={item.isChecked ? t('grocery.mark_as_needed') : t('grocery.mark_as_done')}
-    >
-      <Ionicons name={item.isChecked ? 'arrow-undo-outline' : 'checkmark'} size={20} color="#fff" />
-      <Text style={styles.swipeActionText}>{item.isChecked ? t('common.undo') : t('common.done')}</Text>
-    </Pressable>
-  ), [item.isChecked, handleSwipeToggle, t]);
-
   return (
-    <Swipeable
-      ref={swipeRef}
-      renderRightActions={canDelete ? renderDeleteAction : undefined}
-      renderLeftActions={!hasCount ? renderCheckAction : undefined}
-      overshootRight={false}
-      overshootLeft={false}
-      friction={2}
-      rightThreshold={40}
-      leftThreshold={40}
+    <Pressable
+      style={[styles.groceryItem, item.isChecked && styles.groceryItemDone]}
+      onPress={handleTap}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: item.isChecked }}
+      accessibilityLabel={item.name}
     >
-      <Pressable
-        style={[styles.groceryItem, item.isChecked && styles.groceryItemDone]}
-        onPress={tap}
-        accessibilityRole="button"
-        accessibilityLabel={item.name}
-      >
-        {hasCount ? (
-          <View style={styles.counter}>
-            <Pressable
-              accessible
-              onPress={handleDecrement}
-              style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]}
-              accessibilityRole="button"
-              accessibilityLabel={`${t('common.delete')} ${item.name}`}
-              accessibilityState={{ disabled: bought === 0 }}
-            >
-              <Text style={styles.ctrBtnText}>−</Text>
-            </Pressable>
-            <Text style={styles.ctrText}>{bought}/{qtyNum}</Text>
-            <Pressable
-              accessible
-              onPress={handleIncrement}
-              style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]}
-              accessibilityRole="button"
-              accessibilityLabel={`+ ${item.name}`}
-              accessibilityState={{ disabled: bought >= qtyNum }}
-            >
-              <Text style={styles.ctrBtnText}>+</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <Ionicons
-            name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-            size={24}
-            color={item.isChecked ? colors.positive : colors.border}
-          />
-        )}
-        <View style={styles.itemDetails}>
-          <View style={styles.itemNameWrap}>
-            <Text style={[styles.itemName, item.isChecked && styles.itemNameDone]} numberOfLines={1}>
-              {item.name}
-            </Text>
-            {!!item.quantity && (
-              <View style={styles.itemQty}>
-                <Text style={styles.itemQtyText}>{hasCount ? `x${qtyNum}` : item.quantity}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.itemAddedBy}>
-            <UserAvatar userId={item.addedBy} size={24} />
-          </View>
+      {hasCount ? (
+        <View style={styles.counter}>
+          <Pressable
+            accessible
+            onPress={handleDecrement}
+            style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]}
+            accessibilityRole="button"
+            accessibilityLabel={`Decrease ${item.name}`}
+            accessibilityState={{ disabled: bought === 0 }}
+          >
+            <Text style={styles.ctrBtnText}>−</Text>
+          </Pressable>
+          <Text style={styles.ctrText}>{bought}/{qtyNum}</Text>
+          <Pressable
+            accessible
+            onPress={handleIncrement}
+            style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]}
+            accessibilityRole="button"
+            accessibilityLabel={`Increase ${item.name}`}
+            accessibilityState={{ disabled: bought >= qtyNum }}
+          >
+            <Text style={styles.ctrBtnText}>+</Text>
+          </Pressable>
         </View>
-      </Pressable>
-    </Swipeable>
+      ) : (
+        <Ionicons
+          name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+          size={24}
+          color={item.isChecked ? colors.positive : colors.border}
+        />
+      )}
+      <View style={styles.itemDetails}>
+        <View style={styles.itemNameWrap}>
+          <Text style={[styles.itemName, item.isChecked && styles.itemNameDone]} numberOfLines={1}>
+            {item.name}
+          </Text>
+          {!!item.quantity && (
+            <View style={styles.itemQty}>
+              <Text style={styles.itemQtyText}>{hasCount ? `x${qtyNum}` : item.quantity}</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.itemActions}>
+          <UserAvatar userId={item.addedBy} size={22} />
+          {canDelete && (
+            <Pressable
+              onPress={handleDelete}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${item.name}`}
+            >
+              <Ionicons name="trash-outline" size={17} color={colors.textSecondary} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -248,7 +206,6 @@ export default function GroceryScreen(): React.JSX.Element {
   const endRun       = useGroceryStore((s) => s.endRun);
   const profile      = useAuthStore((s) => s.profile);
   const houseId      = useAuthStore((s) => s.houseId);
-  const housemates   = useHousematesStore((s) => s.housemates);
   const myId         = profile?.id ?? '';
   const myName       = profile?.name ?? '';
 
@@ -262,12 +219,11 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const resolvedQty = showCustomQty ? customQty : qty;
 
-  const pending = useMemo(() => items.filter((i) => !i.isChecked), [items]);
-  const checked = useMemo(() => items.filter((i) => i.isChecked),  [items]);
+  const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
   const sections = useMemo((): SectionData[] => {
     const map = new Map<string, SectionData>();
-    for (const item of pending) {
+    for (const item of items) {
       const cat = detectCategory(item.name);
       if (!map.has(cat.label)) map.set(cat.label, { title: cat.label, icon: cat.icon, data: [] });
       map.get(cat.label)!.data.push(item);
@@ -277,7 +233,7 @@ export default function GroceryScreen(): React.JSX.Element {
         (RULES.find((r) => r.cat.label === a.title)?.cat.order ?? 99) -
         (RULES.find((r) => r.cat.label === b.title)?.cat.order ?? 99)
     );
-  }, [pending]);
+  }, [items]);
 
   const handleAdd = useCallback(async (quick?: string): Promise<void> => {
     const n = quick ?? itemName.trim();
@@ -526,14 +482,20 @@ export default function GroceryScreen(): React.JSX.Element {
                 </View>
               )}
 
-              {/* ── TO BUY section header ─────────────────────────────────── */}
-              {pending.length > 0 && (
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.eyebrow}>To Buy</Text>
-                  <View style={styles.pillNeutral}>
-                    <Text style={styles.pillNeutralText}>{pending.length} Items</Text>
+              {/* ── Clear checked bar ────────────────────────────────────── */}
+              {checked.length > 0 && (
+                <Pressable
+                  style={styles.clearBar}
+                  onPress={() => clearChecked(houseId ?? '')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Clear ${checked.length} checked items`}
+                >
+                  <View style={styles.clearBarLeft}>
+                    <Ionicons name="checkmark-done-outline" size={16} color={colors.positive} />
+                    <Text style={styles.clearBarCount}>{checked.length} checked</Text>
                   </View>
-                </View>
+                  <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
+                </Pressable>
               )}
             </View>
           }
@@ -551,34 +513,6 @@ export default function GroceryScreen(): React.JSX.Element {
           ListFooterComponent={
             <View style={styles.footer}>
               <ShoppingRunCard />
-
-              {/* ── Recently Checked Off ──────────────────────────────────── */}
-              {checked.length > 0 && (
-                <View>
-                  <View style={[styles.sectionHeader, styles.sectionHeaderSpaced]}>
-                    <Text style={styles.eyebrow}>Recently Checked Off</Text>
-                    <Pressable onPress={() => clearChecked(houseId ?? '')} accessibilityRole="button">
-                      <Text style={styles.clearText}>{t('grocery.clear_checked')}</Text>
-                    </Pressable>
-                  </View>
-                  <View style={styles.recentList}>
-                    {checked.map((item, i) => (
-                      <Pressable
-                        key={item.id}
-                        style={[styles.recentItem, i === checked.length - 1 && styles.recentItemLast]}
-                        onPress={() => onToggle(item.id)}
-                      >
-                        <View style={styles.recentInfo}>
-                          <Text style={styles.recentCheck}>✓</Text>
-                          <Text style={styles.recentName}>{item.name}</Text>
-                        </View>
-                        <Text style={styles.textSm}>By {resolveName(item.addedBy, housemates)}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
-
               <View style={styles.bottomPad} />
             </View>
           }
@@ -670,7 +604,6 @@ const styles = StyleSheet.create({
 
   // ── Section header
   sectionHeader:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginBottom: 12 },
-  sectionHeaderSpaced: { marginTop: 8 },
 
   pillNeutral:     { minHeight: 28, paddingHorizontal: 10, borderRadius: 9999, backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center' },
   pillNeutralText: { fontSize: 12, ...font.bold, color: colors.secondaryForeground },
@@ -687,7 +620,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
     boxShadow: '0 4px 16px rgba(44,51,61,0.02)',
   } as never,
-  groceryItemDone: { backgroundColor: 'rgba(251,248,245,0.4)', borderColor: 'transparent', boxShadow: 'none' } as never,
+  groceryItemDone: { opacity: 0.5, borderColor: 'transparent', boxShadow: 'none' } as never,
   itemSep:         { height: 8 },
   sectionSep:      { height: 8 },
 
@@ -699,7 +632,7 @@ const styles = StyleSheet.create({
   itemNameDone: { textDecorationLine: 'line-through', color: colors.textSecondary },
   itemQty:      { backgroundColor: colors.secondary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexShrink: 0 },
   itemQtyText:  { fontSize: 12, ...font.bold, color: colors.textSecondary },
-  itemAddedBy:  { flexShrink: 0 },
+  itemActions:  { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 },
 
   counter:    { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   ctrBtn:     { minWidth: 44, minHeight: 44, borderRadius: 22, backgroundColor: colors.surfaceSecondary, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
@@ -720,6 +653,17 @@ const styles = StyleSheet.create({
   emptyIcon:  { fontSize: 44 },
   emptyTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary },
   emptyText:  { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
+
+  // ── Clear checked bar
+  clearBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderRadius: 12, marginBottom: 12,
+    backgroundColor: 'rgba(34,197,94,0.08)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)',
+  },
+  clearBarLeft:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  clearBarCount:  { fontSize: 14, ...font.semibold, color: colors.positive },
+  clearBarAction: { fontSize: 13, ...font.semibold, color: colors.positive },
 
   // ── Footer
   footer: { gap: 20 },
@@ -743,26 +687,7 @@ const styles = StyleSheet.create({
   shopperBadge:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.7)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 },
   shopperBadgeText: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
 
-  // ── Recently checked off
-  recentList:     { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16, paddingVertical: 4 },
-  recentItem:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  recentItemLast: { borderBottomWidth: 0 },
-  recentInfo:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  recentCheck:    { fontSize: 16, color: colors.textSecondary },
-  recentName:     { fontSize: 14, ...font.medium, color: colors.textSecondary, textDecorationLine: 'line-through' },
-  clearText:      { fontSize: 13, ...font.semibold, color: colors.negative },
 
   bottomPad: { height: 40 },
 
-  // ── Swipe actions
-  swipeDelete: {
-    backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center',
-    width: 76, borderRadius: 14, marginLeft: 6, gap: 2,
-  },
-  swipeCheck: {
-    backgroundColor: '#22c55e', justifyContent: 'center', alignItems: 'center',
-    width: 76, borderRadius: 14, marginRight: 6, gap: 2,
-  },
-  swipeUncheck: { backgroundColor: '#94a3b8' },
-  swipeActionText: { fontSize: 11, ...font.semibold, color: '#fff' },
 });
