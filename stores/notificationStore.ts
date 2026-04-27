@@ -70,11 +70,6 @@ export const useNotificationStore = create<NotificationStore>()(
       error: null,
 
       load: async (userId, houseId): Promise<void> => {
-        const { useAuthStore } = await import('@stores/authStore');
-        if (houseId !== useAuthStore.getState().houseId) {
-          console.warn('[notifications] house ID mismatch — aborting load');
-          return;
-        }
         set({ isLoading: true, error: null });
         const { data, error } = await supabase
           .from('notification_preferences')

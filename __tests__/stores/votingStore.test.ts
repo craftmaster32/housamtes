@@ -124,7 +124,7 @@ describe('votingStore — castVote', () => {
 
     await expect(
       useVotingStore.getState().castVote('p1', 'Bob', 'yes')
-    ).rejects.toThrow('Failed to cast vote');
+    ).rejects.toThrow('Could not record your vote. Please try again.');
 
     // Reverted correctly — Bob's vote is gone
     expect(useVotingStore.getState().proposals[0].votes).toEqual(originalVotes);
@@ -169,7 +169,7 @@ describe('votingStore — closeProposal', () => {
 
     await expect(
       useVotingStore.getState().closeProposal('p1')
-    ).rejects.toThrow('Failed to close proposal');
+    ).rejects.toThrow('Could not close the proposal. Please try again.');
 
     expect(useVotingStore.getState().proposals[0].isOpen).toBe(true); // unchanged
   });
@@ -209,7 +209,7 @@ describe('votingStore — remove', () => {
 
     await expect(
       useVotingStore.getState().remove('p1')
-    ).rejects.toThrow('Failed to remove proposal');
+    ).rejects.toThrow('Could not delete the proposal. Please try again.');
 
     expect(useVotingStore.getState().proposals).toHaveLength(1); // unchanged
   });
@@ -240,7 +240,7 @@ describe('votingStore — addProposal', () => {
 
     await expect(
       useVotingStore.getState().addProposal('New topic', 'details', 'Alice', 'house-1')
-    ).rejects.toThrow('Failed to add proposal');
+    ).rejects.toThrow('Could not save the proposal. Please try again.');
 
     expect(useVotingStore.getState().proposals).toHaveLength(0);
   });

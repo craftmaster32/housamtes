@@ -95,7 +95,7 @@ describe('choresStore — toggleChore', () => {
 
     await expect(
       useChoresStore.getState().toggleChore('c1')
-    ).rejects.toThrow('Failed to update chore');
+    ).rejects.toThrow('Could not update the chore. Please try again.');
 
     expect(useChoresStore.getState().chores[0].isComplete).toBe(false); // unchanged
   });
@@ -122,7 +122,7 @@ describe('choresStore — claimChore', () => {
 
     await expect(
       useChoresStore.getState().claimChore('c1', 'Bob')
-    ).rejects.toThrow('Failed to claim chore');
+    ).rejects.toThrow('Could not claim the chore. Please try again.');
 
     expect(useChoresStore.getState().chores[0].claimedBy).toBeNull(); // unchanged
   });
@@ -149,7 +149,7 @@ describe('choresStore — unclaimChore', () => {
 
     await expect(
       useChoresStore.getState().unclaimChore('c1')
-    ).rejects.toThrow('Failed to unclaim chore');
+    ).rejects.toThrow('Could not unclaim the chore. Please try again.');
 
     expect(useChoresStore.getState().chores[0].claimedBy).toBe('Alice'); // unchanged
   });
@@ -176,7 +176,7 @@ describe('choresStore — deleteChore', () => {
 
     await expect(
       useChoresStore.getState().deleteChore('c1')
-    ).rejects.toThrow('Failed to delete chore');
+    ).rejects.toThrow('Could not delete the chore. Please try again.');
 
     expect(useChoresStore.getState().chores).toHaveLength(1); // unchanged
   });
@@ -213,7 +213,7 @@ describe('choresStore — resetAll', () => {
 
     await expect(
       useChoresStore.getState().resetAll('house-1')
-    ).rejects.toThrow('Failed to reset chores');
+    ).rejects.toThrow('Could not reset chores. Please try again.');
 
     const c = useChoresStore.getState().chores[0];
     expect(c.isComplete).toBe(true);        // unchanged
@@ -231,7 +231,7 @@ describe('choresStore — addChore', () => {
 
     await expect(
       useChoresStore.getState().addChore('Dishes', 'weekly', 'Monday', 'house-1')
-    ).rejects.toThrow('Failed to add chore');
+    ).rejects.toThrow('Could not save the chore. Please try again.');
 
     expect(useChoresStore.getState().chores).toHaveLength(0);
   });
