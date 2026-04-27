@@ -111,7 +111,7 @@ describe('parkingStore — claim', () => {
 
     await expect(
       useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1')
-    ).rejects.toThrow('Failed to claim parking');
+    ).rejects.toThrow('Could not claim the parking spot. Please try again.');
 
     expect(useParkingStore.getState().current).toBeNull();
   });
@@ -158,7 +158,7 @@ describe('parkingStore — release', () => {
 
     await expect(
       useParkingStore.getState().release('house-1')
-    ).rejects.toThrow('Failed to release parking');
+    ).rejects.toThrow('Could not release the parking spot. Please try again.');
 
     // Session should still be set — no rollback because release throws before set({ current: null })
     expect(useParkingStore.getState().current).not.toBeNull();
@@ -226,7 +226,7 @@ describe('parkingStore — addReservation', () => {
         'Alice',
         'house-1'
       )
-    ).rejects.toThrow('Failed to add reservation');
+    ).rejects.toThrow('Could not save the reservation. Please try again.');
 
     expect(useParkingStore.getState().reservations).toHaveLength(0);
   });
@@ -336,7 +336,7 @@ describe('parkingStore — approveReservation', () => {
 
     await expect(
       useParkingStore.getState().approveReservation('r1', 'house-1')
-    ).rejects.toThrow('Failed to approve reservation');
+    ).rejects.toThrow('Could not approve the reservation. Please try again.');
 
     expect(useParkingStore.getState().reservations[0].status).toBe('pending'); // unchanged
   });
@@ -363,7 +363,7 @@ describe('parkingStore — cancelReservation', () => {
 
     await expect(
       useParkingStore.getState().cancelReservation('r1', 'house-1')
-    ).rejects.toThrow('Failed to cancel reservation');
+    ).rejects.toThrow('Could not cancel the reservation. Please try again.');
 
     expect(useParkingStore.getState().reservations).toHaveLength(1); // unchanged
   });
