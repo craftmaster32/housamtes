@@ -100,8 +100,8 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: I
   const handleTap = useCallback((): void => {
     if (!hasCount) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      onToggle(item.id);
     }
+    onToggle(item.id);
   }, [hasCount, item.id, onToggle]);
 
   const handleDelete = useCallback((): void => {
@@ -110,14 +110,16 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: I
   }, [item.id, onDelete]);
 
   const handleDecrement = useCallback((): void => {
+    if (bought === 0) return;
     Haptics.selectionAsync().catch(() => {});
     onDecrement(item.id);
-  }, [item.id, onDecrement]);
+  }, [bought, item.id, onDecrement]);
 
   const handleIncrement = useCallback((): void => {
+    if (bought >= qtyNum) return;
     Haptics.selectionAsync().catch(() => {});
     onIncrement(item.id);
-  }, [item.id, onIncrement]);
+  }, [bought, qtyNum, item.id, onIncrement]);
 
   return (
     <Pressable
@@ -174,7 +176,7 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement }: I
           {canDelete && (
             <Pressable
               onPress={handleDelete}
-              hitSlop={10}
+              style={styles.deleteBtn}
               accessibilityRole="button"
               accessibilityLabel={`Delete ${item.name}`}
             >
@@ -633,6 +635,7 @@ const styles = StyleSheet.create({
   itemQty:      { backgroundColor: colors.secondary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexShrink: 0 },
   itemQtyText:  { fontSize: 12, ...font.bold, color: colors.textSecondary },
   itemActions:  { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 },
+  deleteBtn:    { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
 
   counter:    { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   ctrBtn:     { minWidth: 44, minHeight: 44, borderRadius: 22, backgroundColor: colors.surfaceSecondary, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
