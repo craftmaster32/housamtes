@@ -16,6 +16,7 @@ export interface GroceryItem {
   addedBy: string; // user UUID
   isChecked: boolean;
   createdAt: string;
+  isPersonal: boolean;
 }
 
 export interface ShoppingRun {
@@ -38,7 +39,8 @@ interface GroceryStore {
   activeRun: ShoppingRun | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addItem: (name: string, quantity: string, addedByUserId: string, houseId: string) => Promise<void>;
+  addItem: (name: string, quantity: string, addedByUserId: string, houseId: string, isPersonal?: boolean) => Promise<void>;
+  updateItem: (id: string, name: string, quantity: string) => Promise<void>;
   toggleItem: (id: string) => Promise<void>;
   incrementBought: (id: string) => Promise<void>;
   decrementBought: (id: string) => Promise<void>;
@@ -80,7 +82,7 @@ export const useGroceryStore = create<GroceryStore>()(
             .from('grocery_items')
             .select('*')
             .eq('house_id', houseId)
-            .order('created_at');
+            .order('created_at', { ascending: false });
           if (error) throw error;
           const items: GroceryItem[] = (data ?? []).map((r) => ({
             id: r.id,
@@ -90,6 +92,7 @@ export const useGroceryStore = create<GroceryStore>()(
             addedBy: r.added_by,
             isChecked: r.is_checked,
             createdAt: r.created_at,
+            isPersonal: r.is_personal ?? false,
           }));
           set({ items, isLoading: false, error: null });
         } catch (err) {
@@ -119,10 +122,10 @@ export const useGroceryStore = create<GroceryStore>()(
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
 
-      addItem: async (name, quantity, addedByUserId, houseId): Promise<void> => {
+      addItem: async (name, quantity, addedByUserId, houseId, isPersonal = false): Promise<void> => {
         const { data, error } = await supabase
           .from('grocery_items')
-          .insert({ house_id: houseId, name, quantity, added_by: addedByUserId })
+          .insert({ house_id: houseId, name, quantity, added_by: addedByUserId, is_personal: isPersonal })
           .select()
           .single();
         if (error) { captureError(error, { context: 'add-grocery', houseId }); throw new Error('Could not add the item. Please try again.'); }
@@ -134,8 +137,18 @@ export const useGroceryStore = create<GroceryStore>()(
           addedBy: data.added_by,
           isChecked: false,
           createdAt: data.created_at,
+          isPersonal: data.is_personal ?? false,
         };
-        set({ items: [...get().items, item] });
+        set({ items: [item, ...get().items] });
+      },
+
+      updateItem: async (id, name, quantity): Promise<void> => {
+        const { error } = await supabase
+          .from('grocery_items')
+          .update({ name, quantity })
+          .eq('id', id);
+        if (error) { captureError(error, { context: 'update-grocery' }); throw new Error('Could not update the item. Please try again.'); }
+        set({ items: get().items.map((i) => (i.id === id ? { ...i, name, quantity } : i)) });
       },
 
       toggleItem: async (id): Promise<void> => {
