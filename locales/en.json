@@ -337,7 +337,8 @@
     "failed_add": "Failed to add item. Try again.",
     "mark_as_done": "Mark as done",
     "mark_as_needed": "Mark as needed",
-    "delete_item": "Delete item"
+    "delete_item": "Delete item",
+    "checked_count": "{{count}} checked"
   },
   "chores": {
     "title": "Chores",
