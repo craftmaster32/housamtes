@@ -336,7 +336,8 @@
     "failed_add": "No se pudo agregar el artículo. Intenta de nuevo.",
     "mark_as_done": "Marcar como hecho",
     "mark_as_needed": "Marcar como pendiente",
-    "delete_item": "Eliminar artículo"
+    "delete_item": "Eliminar artículo",
+    "checked_count": "{{count}} marcados"
   },
   "chores": {
     "title": "Tareas",

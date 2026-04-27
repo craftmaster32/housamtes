@@ -278,10 +278,11 @@ export default function GroceryScreen(): React.JSX.Element {
     await endRun();
   }, [endRun]);
 
-  const onToggle = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
-  const onDelete = useCallback((id: string): void => { deleteItem(id); }, [deleteItem]);
-  const onInc    = useCallback((id: string): void => { incBought(id); }, [incBought]);
-  const onDec    = useCallback((id: string): void => { decBought(id); }, [decBought]);
+  const onToggle    = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
+  const onDelete    = useCallback((id: string): void => { deleteItem(id); }, [deleteItem]);
+  const onInc       = useCallback((id: string): void => { incBought(id); }, [incBought]);
+  const onDec       = useCallback((id: string): void => { decBought(id); }, [decBought]);
+  const handleClear = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
 
   const renderItem = useCallback(
     ({ item }: { item: GroceryItem }): React.JSX.Element => (
@@ -487,14 +488,16 @@ export default function GroceryScreen(): React.JSX.Element {
               {/* ── Clear checked bar ────────────────────────────────────── */}
               {checked.length > 0 && (
                 <Pressable
+                  accessible
                   style={styles.clearBar}
-                  onPress={() => clearChecked(houseId ?? '')}
+                  onPress={handleClear}
                   accessibilityRole="button"
                   accessibilityLabel={`Clear ${checked.length} checked items`}
+                  accessibilityState={{ disabled: false }}
                 >
                   <View style={styles.clearBarLeft}>
                     <Ionicons name="checkmark-done-outline" size={16} color={colors.positive} />
-                    <Text style={styles.clearBarCount}>{checked.length} checked</Text>
+                    <Text style={styles.clearBarCount}>{t('grocery.checked_count', { count: checked.length })}</Text>
                   </View>
                   <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
                 </Pressable>
@@ -660,7 +663,7 @@ const styles = StyleSheet.create({
   // ── Clear checked bar
   clearBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 14, paddingVertical: 12,
+    paddingHorizontal: 14, paddingVertical: 12, minHeight: 44,
     borderRadius: 12, marginBottom: 12,
     backgroundColor: 'rgba(34,197,94,0.08)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)',
   },
