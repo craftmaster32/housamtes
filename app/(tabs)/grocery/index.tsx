@@ -181,6 +181,9 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement, onU
             onChangeText={setEditQty}
             style={styles.editQtyInput}
             keyboardType="default"
+            returnKeyType="done"
+            blurOnSubmit={false}
+            onSubmitEditing={saveEdit}
             placeholder="Qty"
             placeholderTextColor={colors.textSecondary}
             accessible
@@ -374,15 +377,23 @@ export default function GroceryScreen(): React.JSX.Element {
   }, [itemName, resolvedQty, myId, houseId, addItem, isAdding, isPersonal]);
 
   const handleStartRun = useCallback(async (): Promise<void> => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    setIAmShopping(true);
-    await startRun(myId, myName);
+    try {
+      await startRun(myId, myName);
+      setIAmShopping(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch {
+      setAddError('Could not start shopping run. Please try again.');
+    }
   }, [startRun, myId, myName]);
 
   const handleEndRun = useCallback(async (): Promise<void> => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    setIAmShopping(false);
-    await endRun();
+    try {
+      await endRun();
+      setIAmShopping(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    } catch {
+      setAddError('Could not end shopping run. Please try again.');
+    }
   }, [endRun]);
 
   const onToggle    = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
@@ -589,6 +600,10 @@ export default function GroceryScreen(): React.JSX.Element {
                       keyboardType="number-pad"
                       style={styles.formQty}
                       autoFocus
+                      accessible
+                      accessibilityRole="text"
+                      accessibilityLabel="Custom quantity"
+                      accessibilityHint="Enter the number of items to add, for example six"
                     />
                   )}
                 </View>
