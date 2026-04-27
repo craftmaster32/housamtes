@@ -130,13 +130,25 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement, onU
     onIncrement(item.id);
   }, [bought, qtyNum, item.id, onIncrement]);
 
+  const handleEditNameChange = useCallback((v: string): void => {
+    setEditName(v);
+    setSaveError(null);
+  }, []);
+
+  const handleEditQtyChange = useCallback((v: string): void => {
+    setEditQty(v);
+    setSaveError(null);
+  }, []);
+
   const startEdit = useCallback((): void => {
     setEditName(item.name);
     setEditQty(item.quantity);
+    setSaveError(null);
     setIsEditing(true);
   }, [item.name, item.quantity]);
 
   const cancelEdit = useCallback((): void => {
+    setSaveError(null);
     setIsEditing(false);
   }, []);
 
@@ -163,7 +175,7 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement, onU
         <View style={[styles.groceryItem, styles.groceryItemEditing]}>
           <TextInput
             value={editName}
-            onChangeText={(v) => { setEditName(v); setSaveError(null); }}
+            onChangeText={handleEditNameChange}
             style={styles.editNameInput}
             autoFocus
             returnKeyType="done"
@@ -178,7 +190,7 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement, onU
           />
           <TextInput
             value={editQty}
-            onChangeText={setEditQty}
+            onChangeText={handleEditQtyChange}
             style={styles.editQtyInput}
             keyboardType="default"
             returnKeyType="done"
@@ -315,7 +327,6 @@ export default function GroceryScreen(): React.JSX.Element {
   const [customQty, setCustomQty]         = useState('');
   const [isAdding, setIsAdding]           = useState(false);
   const [isPersonal, setIsPersonal]       = useState(false);
-  const [iAmShopping, setIAmShopping]     = useState(false);
   const [addError, setAddError]           = useState<string | null>(null);
 
   const inputRef = useRef<TextInput>(null);
@@ -379,7 +390,6 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleStartRun = useCallback(async (): Promise<void> => {
     try {
       await startRun(myId, myName);
-      setIAmShopping(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch {
       setAddError('Could not start shopping run. Please try again.');
@@ -389,7 +399,6 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleEndRun = useCallback(async (): Promise<void> => {
     try {
       await endRun();
-      setIAmShopping(false);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     } catch {
       setAddError('Could not end shopping run. Please try again.');
@@ -402,6 +411,18 @@ export default function GroceryScreen(): React.JSX.Element {
   const onDec       = useCallback((id: string): void => { decBought(id); }, [decBought]);
   const onUpdate    = useCallback((id: string, name: string, quantity: string): Promise<void> => updateItem(id, name, quantity), [updateItem]);
   const handleClear = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
+
+  // ── Stable header-card handlers ────────────────────────────────────────────
+  const handleSetShared       = useCallback((): void => setIsPersonal(false), []);
+  const handleSetPrivate      = useCallback((): void => setIsPersonal(true), []);
+  const handleItemNameChange  = useCallback((v: string): void => { setItemName(v); setAddError(null); }, []);
+  const handleAddPress        = useCallback((): void => { handleAdd(); }, [handleAdd]);
+  const handleQtyPresetSelect = useCallback((p: string): void => { setShowCustomQty(false); setQty(p); }, []);
+  const handleToggleCustomQty = useCallback((): void => { setShowCustomQty(true); setQty(''); }, []);
+  const handleQuickAdd        = useCallback((name: string): void => {
+    Haptics.selectionAsync().catch(() => {});
+    handleAdd(name);
+  }, [handleAdd]);
 
   const renderItem = useCallback(
     ({ item }: { item: GroceryItem }): React.JSX.Element => (
@@ -430,7 +451,7 @@ export default function GroceryScreen(): React.JSX.Element {
     []
   );
 
-  const isMyRun = iAmShopping && !!activeRun;
+  const isMyRun = !!activeRun && activeRun.shopperId === myId;
 
   // ── Shopping run card ───────────────────────────────────────────────────────
   const ShoppingRunCard = (): React.JSX.Element => {
@@ -517,7 +538,7 @@ export default function GroceryScreen(): React.JSX.Element {
                 <View style={styles.modeToggle}>
                   <Pressable
                     style={[styles.modeBtn, !isPersonal && styles.modeBtnOn]}
-                    onPress={() => setIsPersonal(false)}
+                    onPress={handleSetShared}
                     accessibilityRole="button"
                     accessibilityState={{ selected: !isPersonal }}
                   >
@@ -525,7 +546,7 @@ export default function GroceryScreen(): React.JSX.Element {
                   </Pressable>
                   <Pressable
                     style={[styles.modeBtn, isPersonal && styles.modeBtnPersonal]}
-                    onPress={() => setIsPersonal(true)}
+                    onPress={handleSetPrivate}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isPersonal }}
                   >
@@ -543,13 +564,13 @@ export default function GroceryScreen(): React.JSX.Element {
                   <TextInput
                     ref={inputRef}
                     value={itemName}
-                    onChangeText={(v) => { setItemName(v); setAddError(null); }}
+                    onChangeText={handleItemNameChange}
                     placeholder={t('grocery.item_placeholder')}
                     placeholderTextColor={colors.textSecondary}
                     style={styles.addInput}
                     returnKeyType="done"
                     blurOnSubmit={false}
-                    onSubmitEditing={() => handleAdd()}
+                    onSubmitEditing={handleAddPress}
                     accessible
                     accessibilityRole="search"
                     accessibilityLabel="Add item name"
@@ -557,7 +578,7 @@ export default function GroceryScreen(): React.JSX.Element {
                   />
                   <Pressable
                     style={[styles.addBtn, (!itemName.trim() || isAdding) && styles.addBtnOff, isPersonal && styles.addBtnPersonal]}
-                    onPress={() => handleAdd()}
+                    onPress={handleAddPress}
                     disabled={!itemName.trim() || isAdding}
                     accessibilityRole="button"
                     accessibilityLabel="Add item"
@@ -576,7 +597,7 @@ export default function GroceryScreen(): React.JSX.Element {
                         <Pressable
                           key={p}
                           style={[styles.qtyBtn, active && styles.qtyBtnOn]}
-                          onPress={() => { setShowCustomQty(false); setQty(p); }}
+                          onPress={() => handleQtyPresetSelect(p)}
                           hitSlop={4}
                         >
                           <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>{p}</Text>
@@ -585,7 +606,7 @@ export default function GroceryScreen(): React.JSX.Element {
                     })}
                     <Pressable
                       style={[styles.qtyBtn, showCustomQty && styles.qtyBtnOn]}
-                      onPress={() => { setShowCustomQty(true); setQty(''); }}
+                      onPress={handleToggleCustomQty}
                       hitSlop={4}
                     >
                       <Text style={[styles.qtyBtnText, showCustomQty && styles.qtyBtnTextOn]}>✏️</Text>
@@ -616,7 +637,7 @@ export default function GroceryScreen(): React.JSX.Element {
                       <Pressable
                         key={qa}
                         style={styles.quickAddBtn}
-                        onPress={() => { Haptics.selectionAsync().catch(() => {}); handleAdd(qa); }}
+                        onPress={() => handleQuickAdd(qa)}
                         accessibilityRole="button"
                         accessibilityLabel={`Add ${qa}`}
                       >
