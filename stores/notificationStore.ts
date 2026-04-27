@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
-import { useAuthStore } from '@stores/authStore';
 
 export type BillDueDays = 1 | 2 | 3 | 7;
 
@@ -71,10 +70,6 @@ export const useNotificationStore = create<NotificationStore>()(
       error: null,
 
       load: async (userId, houseId): Promise<void> => {
-        if (houseId !== useAuthStore.getState().houseId) {
-          console.warn('[notifications] house ID mismatch — aborting load');
-          return;
-        }
         set({ isLoading: true, error: null });
         const { data, error } = await supabase
           .from('notification_preferences')

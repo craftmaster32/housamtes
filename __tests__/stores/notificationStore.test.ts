@@ -13,7 +13,6 @@
  */
 
 import { useNotificationStore } from '../../stores/notificationStore';
-import { useAuthStore } from '../../stores/authStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
@@ -41,7 +40,6 @@ const DEFAULT_PREFS = {
 
 beforeEach(() => {
   useNotificationStore.setState({ prefs: { ...DEFAULT_PREFS }, isLoading: false });
-  useAuthStore.setState({ houseId: 'house-1' });
   jest.clearAllMocks();
 });
 
