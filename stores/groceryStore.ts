@@ -46,6 +46,7 @@ interface GroceryStore {
   decrementBought: (id: string) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   clearChecked: (houseId: string) => Promise<void>;
+  publishPersonalItems: (userId: string) => Promise<void>;
   startRun: (shopperId: string, shopperName: string) => Promise<void>;
   endRun: () => Promise<void>;
 }
@@ -189,6 +190,17 @@ export const useGroceryStore = create<GroceryStore>()(
       clearChecked: async (houseId: string): Promise<void> => {
         await supabase.from('grocery_items').delete().eq('house_id', houseId).eq('is_checked', true);
         set({ items: get().items.filter((i) => !i.isChecked) });
+      },
+
+      publishPersonalItems: async (userId: string): Promise<void> => {
+        const personalIds = get().items.filter((i) => i.isPersonal && i.addedBy === userId).map((i) => i.id);
+        if (personalIds.length === 0) return;
+        const { error } = await supabase
+          .from('grocery_items')
+          .update({ is_personal: false })
+          .in('id', personalIds);
+        if (error) { captureError(error, { context: 'publish-personal', userId }); throw new Error('Could not upload to shared list. Please try again.'); }
+        set({ items: get().items.map((i) => personalIds.includes(i.id) ? { ...i, isPersonal: false } : i) });
       },
 
       startRun: async (shopperId: string, shopperName: string): Promise<void> => {
