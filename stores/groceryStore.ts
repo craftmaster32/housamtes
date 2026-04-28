@@ -193,14 +193,30 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       publishPersonalItems: async (userId: string): Promise<void> => {
-        const personalIds = get().items.filter((i) => i.isPersonal && i.addedBy === userId).map((i) => i.id);
+        const personalIds = get().items
+          .filter((i) => i.isPersonal && i.addedBy === userId)
+          .map((i) => i.id);
         if (personalIds.length === 0) return;
-        const { error } = await supabase
-          .from('grocery_items')
-          .update({ is_personal: false })
-          .in('id', personalIds);
-        if (error) { captureError(error, { context: 'publish-personal', userId }); throw new Error('Could not upload to shared list. Please try again.'); }
-        set({ items: get().items.map((i) => personalIds.includes(i.id) ? { ...i, isPersonal: false } : i) });
+        try {
+          const { error } = await supabase
+            .from('grocery_items')
+            .update({ is_personal: false })
+            .in('id', personalIds)
+            .eq('added_by', userId)
+            .eq('is_personal', true);
+          if (error) {
+            captureError(error, { context: 'publish-personal', userId });
+            throw new Error('Could not upload to shared list. Please try again.');
+          }
+          set({
+            items: get().items.map((i) =>
+              personalIds.includes(i.id) && i.addedBy === userId ? { ...i, isPersonal: false } : i
+            ),
+          });
+        } catch (err) {
+          captureError(err, { context: 'publish-personal-exception', userId });
+          throw err instanceof Error ? err : new Error('Could not upload to shared list. Please try again.');
+        }
       },
 
       startRun: async (shopperId: string, shopperName: string): Promise<void> => {

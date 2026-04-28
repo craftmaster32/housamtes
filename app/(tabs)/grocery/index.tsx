@@ -468,7 +468,9 @@ export default function GroceryScreen(): React.JSX.Element {
               style={[styles.uploadBtn, isPublishing && styles.uploadBtnOff]}
               onPress={handlePublish}
               disabled={isPublishing}
+              accessible={true}
               accessibilityRole="button"
+              accessibilityState={{ disabled: isPublishing }}
               accessibilityLabel="Upload to shared list"
               accessibilityHint="Moves all your private items to the shared list so housemates can see them"
             >
