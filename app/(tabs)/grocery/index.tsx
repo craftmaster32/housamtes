@@ -421,8 +421,8 @@ export default function GroceryScreen(): React.JSX.Element {
     try {
       await publishPersonalItems(myId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch {
-      setAddError('Could not upload to shared list. Please try again.');
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Could not upload to shared list. Please try again.');
     } finally {
       setIsPublishing(false);
     }
