@@ -8,6 +8,8 @@ import { useAuthStore } from '@stores/authStore';
 const ACTIVE_RUN_KEY = 'grocery_active_run';
 const RUN_MAX_AGE_MS = 4 * 60 * 60 * 1000;
 
+export type AddMode = 'shared' | 'draft' | 'private';
+
 export interface GroceryItem {
   id: string;
   name: string;
@@ -17,6 +19,7 @@ export interface GroceryItem {
   isChecked: boolean;
   createdAt: string;
   isPersonal: boolean;
+  isDraft: boolean;
 }
 
 export interface ShoppingRun {
@@ -39,14 +42,14 @@ interface GroceryStore {
   activeRun: ShoppingRun | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addItem: (name: string, quantity: string, addedByUserId: string, houseId: string, isPersonal?: boolean) => Promise<void>;
+  addItem: (name: string, quantity: string, addedByUserId: string, houseId: string, mode?: AddMode) => Promise<void>;
   updateItem: (id: string, name: string, quantity: string) => Promise<void>;
   toggleItem: (id: string) => Promise<void>;
   incrementBought: (id: string) => Promise<void>;
   decrementBought: (id: string) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   clearChecked: (houseId: string) => Promise<void>;
-  publishPersonalItems: (userId: string) => Promise<void>;
+  publishDraftItems: (userId: string) => Promise<void>;
   startRun: (shopperId: string, shopperName: string) => Promise<void>;
   endRun: () => Promise<void>;
 }
@@ -94,6 +97,7 @@ export const useGroceryStore = create<GroceryStore>()(
             isChecked: r.is_checked,
             createdAt: r.created_at,
             isPersonal: r.is_personal ?? false,
+            isDraft: r.is_draft ?? false,
           }));
           set({ items, isLoading: false, error: null });
         } catch (err) {
@@ -123,10 +127,12 @@ export const useGroceryStore = create<GroceryStore>()(
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
 
-      addItem: async (name, quantity, addedByUserId, houseId, isPersonal = false): Promise<void> => {
+      addItem: async (name, quantity, addedByUserId, houseId, mode = 'shared'): Promise<void> => {
+        const isPersonal = mode !== 'shared';
+        const isDraft    = mode === 'draft';
         const { data, error } = await supabase
           .from('grocery_items')
-          .insert({ house_id: houseId, name, quantity, added_by: addedByUserId, is_personal: isPersonal })
+          .insert({ house_id: houseId, name, quantity, added_by: addedByUserId, is_personal: isPersonal, is_draft: isDraft })
           .select()
           .single();
         if (error) { captureError(error, { context: 'add-grocery', houseId }); throw new Error('Could not add the item. Please try again.'); }
@@ -139,6 +145,7 @@ export const useGroceryStore = create<GroceryStore>()(
           isChecked: false,
           createdAt: data.created_at,
           isPersonal: data.is_personal ?? false,
+          isDraft: data.is_draft ?? false,
         };
         set({ items: [item, ...get().items] });
       },
@@ -192,30 +199,32 @@ export const useGroceryStore = create<GroceryStore>()(
         set({ items: get().items.filter((i) => !i.isChecked) });
       },
 
-      publishPersonalItems: async (userId: string): Promise<void> => {
-        const personalIds = get().items
-          .filter((i) => i.isPersonal && i.addedBy === userId)
+      publishDraftItems: async (userId: string): Promise<void> => {
+        const draftIds = get().items
+          .filter((i) => i.isDraft && i.addedBy === userId)
           .map((i) => i.id);
-        if (personalIds.length === 0) return;
+        if (draftIds.length === 0) return;
         try {
           const { error } = await supabase
             .from('grocery_items')
-            .update({ is_personal: false })
-            .in('id', personalIds)
+            .update({ is_personal: false, is_draft: false })
+            .in('id', draftIds)
             .eq('added_by', userId)
-            .eq('is_personal', true);
+            .eq('is_draft', true);
           if (error) {
-            captureError(error, { context: 'publish-personal', userId });
-            throw new Error('Could not upload to shared list. Please try again.');
+            captureError(error, { context: 'publish-draft', userId });
+            throw new Error('Could not share your list. Please try again.');
           }
           set({
             items: get().items.map((i) =>
-              personalIds.includes(i.id) && i.addedBy === userId ? { ...i, isPersonal: false } : i
+              draftIds.includes(i.id) && i.addedBy === userId
+                ? { ...i, isPersonal: false, isDraft: false }
+                : i
             ),
           });
         } catch (err) {
-          captureError(err, { context: 'publish-personal-exception', userId });
-          throw err instanceof Error ? err : new Error('Could not upload to shared list. Please try again.');
+          captureError(err, { context: 'publish-draft-exception', userId });
+          throw err instanceof Error ? err : new Error('Could not share your list. Please try again.');
         }
       },
 

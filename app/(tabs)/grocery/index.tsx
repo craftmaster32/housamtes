@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -15,7 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
-import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useGroceryStore, type GroceryItem, type AddMode } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { colors } from '@constants/colors';
@@ -27,8 +28,12 @@ const SHOP_CARD_BG = 'rgba(239,246,255,0.9)';
 const SHOP_BORDER  = 'rgba(191,219,254,0.7)';
 const SHOP_ACTIVE_BG  = 'rgba(235,255,240,0.95)';
 const SHOP_ACTIVE_BORDER = 'rgba(140,210,160,0.7)';
-const PERSONAL_BG  = 'rgba(245,240,255,0.6)';
+const PERSONAL_BG    = 'rgba(245,240,255,0.6)';
 const PERSONAL_BORDER = 'rgba(167,139,250,0.35)';
+const DRAFT_BG       = 'rgba(255,250,235,0.85)';
+const DRAFT_BORDER   = 'rgba(234,179,8,0.35)';
+
+const ADD_MODE_KEY = 'grocery_add_mode';
 
 const QUICK_ADDS = ['Milk', 'Bread', 'Trash Bags', 'Coffee', 'Butter', 'Olive Oil'];
 const QTY_PRESETS = ['1', '2', '3'];
@@ -87,6 +92,7 @@ function UserAvatar({ userId, size = 24 }: { userId: string; size?: number }): R
 interface ItemRowProps {
   item: GroceryItem;
   myId: string;
+  isDuplicate?: boolean;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
   onIncrement: (id: string) => void;
@@ -94,7 +100,7 @@ interface ItemRowProps {
   onUpdate: (id: string, name: string, quantity: string) => Promise<void>;
 }
 
-function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement, onUpdate }: ItemRowProps): React.JSX.Element {
+function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrement, onDecrement, onUpdate }: ItemRowProps): React.JSX.Element {
   const qtyNum    = parseInt(item.quantity, 10);
   const hasCount  = !isNaN(qtyNum) && qtyNum > 1;
   const bought    = item.boughtCount ?? 0;
@@ -219,7 +225,7 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement, onU
 
   return (
     <Pressable
-      style={[styles.groceryItem, item.isChecked && styles.groceryItemDone, item.isPersonal && styles.groceryItemPersonal]}
+      style={[styles.groceryItem, item.isChecked && styles.groceryItemDone, item.isPersonal && styles.groceryItemPersonal, item.isDraft && styles.groceryItemDraft]}
       onPress={handleTap}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.isChecked }}
@@ -268,6 +274,11 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement, onU
           )}
         </View>
         <View style={styles.itemActions}>
+          {isDuplicate && (
+            <View style={styles.duplicateBadge} accessibilityLabel="Already on shared list">
+              <Text style={styles.duplicateBadgeText}>⚠️ on list</Text>
+            </View>
+          )}
           {item.isPersonal
             ? <Ionicons name="lock-closed" size={14} color="rgba(139,92,246,0.6)" />
             : <UserAvatar userId={item.addedBy} size={22} />
@@ -299,7 +310,8 @@ function ItemRow({ item, myId, onToggle, onDelete, onIncrement, onDecrement, onU
 }
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
-interface SectionData { title: string; icon: string; data: GroceryItem[]; isPersonal?: boolean }
+interface GroceryItemWithMeta extends GroceryItem { isDuplicate?: boolean }
+interface SectionData { title: string; icon: string; data: GroceryItemWithMeta[]; sectionType: 'draft' | 'private' | 'shared' }
 
 export default function GroceryScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -312,8 +324,8 @@ export default function GroceryScreen(): React.JSX.Element {
   const incBought    = useGroceryStore((s) => s.incrementBought);
   const decBought    = useGroceryStore((s) => s.decrementBought);
   const deleteItem   = useGroceryStore((s) => s.deleteItem);
-  const clearChecked         = useGroceryStore((s) => s.clearChecked);
-  const publishPersonalItems = useGroceryStore((s) => s.publishPersonalItems);
+  const clearChecked        = useGroceryStore((s) => s.clearChecked);
+  const publishDraftItems   = useGroceryStore((s) => s.publishDraftItems);
   const activeRun    = useGroceryStore((s) => s.activeRun);
   const startRun     = useGroceryStore((s) => s.startRun);
   const endRun       = useGroceryStore((s) => s.endRun);
@@ -326,36 +338,55 @@ export default function GroceryScreen(): React.JSX.Element {
   const [qty, setQty]                     = useState('1');
   const [showCustomQty, setShowCustomQty] = useState(false);
   const [customQty, setCustomQty]         = useState('');
-  const [isAdding, setIsAdding]           = useState(false);
-  const [isPersonal, setIsPersonal]       = useState(false);
-  const [addError, setAddError]           = useState<string | null>(null);
-  const [isPublishing, setIsPublishing]   = useState(false);
+  const [isAdding, setIsAdding]         = useState(false);
+  const [addMode, setAddMode]           = useState<AddMode>('draft');
+  const [addError, setAddError]         = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const inputRef = useRef<TextInput>(null);
+
+  // Restore persisted add-mode preference
+  useEffect((): void => {
+    AsyncStorage.getItem(ADD_MODE_KEY).then((v) => {
+      if (v === 'shared' || v === 'draft' || v === 'private') setAddMode(v);
+    }).catch(() => {});
+  }, []);
 
   const resolvedQty = showCustomQty ? customQty : qty;
 
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
   const sections = useMemo((): SectionData[] => {
-    const personalItems = items.filter((i) => i.isPersonal);
-    const sharedItems   = items.filter((i) => !i.isPersonal);
+    const draftItems   = items.filter((i) => i.isDraft   && i.addedBy === myId);
+    const privateItems = items.filter((i) => i.isPersonal && !i.isDraft);
+    const sharedItems  = items.filter((i) => !i.isPersonal);
+
+    // Build a lowercase name set from shared items for duplicate detection in the draft
+    const sharedNames = new Set(sharedItems.map((i) => i.name.toLowerCase().trim()));
 
     const result: SectionData[] = [];
 
-    if (personalItems.length > 0) {
-      result.push({ title: 'My Private List', icon: '🔒', data: personalItems, isPersonal: true });
+    if (draftItems.length > 0) {
+      result.push({
+        title: 'My Draft',
+        icon: '📝',
+        sectionType: 'draft',
+        data: draftItems.map((i) => ({ ...i, isDuplicate: sharedNames.has(i.name.toLowerCase().trim()) })),
+      });
     }
 
-    // firstIndex records when each category first appears in the newest-first items array.
-    // Sections are sorted by this so the most recently touched category floats to the top.
+    if (privateItems.length > 0) {
+      result.push({ title: 'My Private List', icon: '🔒', sectionType: 'private', data: privateItems });
+    }
+
+    // Shared categories — sorted by first-occurrence so most recently touched category floats up
     const firstIndex = new Map<string, number>();
     const map = new Map<string, SectionData>();
     for (let i = 0; i < sharedItems.length; i++) {
       const item = sharedItems[i];
       const cat = detectCategory(item.name);
       if (!map.has(cat.label)) {
-        map.set(cat.label, { title: cat.label, icon: cat.icon, data: [], isPersonal: false });
+        map.set(cat.label, { title: cat.label, icon: cat.icon, sectionType: 'shared', data: [] });
         firstIndex.set(cat.label, i);
       }
       map.get(cat.label)!.data.push(item);
@@ -367,7 +398,7 @@ export default function GroceryScreen(): React.JSX.Element {
     );
 
     return result;
-  }, [items]);
+  }, [items, myId]);
 
   const handleAdd = useCallback(async (quick?: string): Promise<void> => {
     const n = quick ?? itemName.trim();
@@ -375,7 +406,7 @@ export default function GroceryScreen(): React.JSX.Element {
     setIsAdding(true);
     setAddError(null);
     try {
-      await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '', isPersonal);
+      await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '', addMode);
       setItemName('');
       setQty('1');
       setCustomQty('');
@@ -387,7 +418,7 @@ export default function GroceryScreen(): React.JSX.Element {
     } finally {
       setIsAdding(false);
     }
-  }, [itemName, resolvedQty, myId, houseId, addItem, isAdding, isPersonal]);
+  }, [itemName, resolvedQty, myId, houseId, addItem, isAdding, addMode]);
 
   const handleStartRun = useCallback(async (): Promise<void> => {
     try {
@@ -414,23 +445,25 @@ export default function GroceryScreen(): React.JSX.Element {
   const onUpdate    = useCallback((id: string, name: string, quantity: string): Promise<void> => updateItem(id, name, quantity), [updateItem]);
   const handleClear   = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
 
-  const handlePublish = useCallback(async (): Promise<void> => {
+  const handlePublishDraft = useCallback(async (): Promise<void> => {
     if (isPublishing || !myId) return;
     setIsPublishing(true);
     setAddError(null);
     try {
-      await publishPersonalItems(myId);
+      await publishDraftItems(myId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : 'Could not upload to shared list. Please try again.');
+      setAddError(err instanceof Error ? err.message : 'Could not share your list. Please try again.');
     } finally {
       setIsPublishing(false);
     }
-  }, [publishPersonalItems, myId, isPublishing]);
+  }, [publishDraftItems, myId, isPublishing]);
 
   // ── Stable header-card handlers ────────────────────────────────────────────
-  const handleSetShared       = useCallback((): void => setIsPersonal(false), []);
-  const handleSetPrivate      = useCallback((): void => setIsPersonal(true), []);
+  const handleSetMode = useCallback((mode: AddMode): void => {
+    setAddMode(mode);
+    AsyncStorage.setItem(ADD_MODE_KEY, mode).catch(() => {});
+  }, []);
   const handleItemNameChange  = useCallback((v: string): void => { setItemName(v); setAddError(null); }, []);
   const handleAddPress        = useCallback((): void => { handleAdd(); }, [handleAdd]);
   const handleQtyPresetSelect = useCallback((p: string): void => { setShowCustomQty(false); setQty(p); }, []);
@@ -441,10 +474,11 @@ export default function GroceryScreen(): React.JSX.Element {
   }, [handleAdd]);
 
   const renderItem = useCallback(
-    ({ item }: { item: GroceryItem }): React.JSX.Element => (
+    ({ item }: { item: GroceryItemWithMeta }): React.JSX.Element => (
       <ItemRow
         item={item}
         myId={myId}
+        isDuplicate={item.isDuplicate}
         onToggle={onToggle}
         onDelete={onDelete}
         onIncrement={onInc}
@@ -457,32 +491,37 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionData }): React.JSX.Element => {
-      if (section.isPersonal) {
+      if (section.sectionType === 'draft') {
+        const doneDisabled = isPublishing || !myId;
         return (
-          <View style={styles.catTitlePersonalRow}>
-            <View style={[styles.catTitle, styles.catTitlePersonal, styles.catTitlePersonalFlex]}>
+          <View style={styles.catTitleDraftRow}>
+            <View style={[styles.catTitle, styles.catTitleDraft, styles.catTitleFlex]}>
               <Text style={styles.catTitleIcon}>{section.icon}</Text>
-              <Text style={[styles.catTitleText, styles.catTitleTextPersonal]}>{section.title}</Text>
+              <Text style={[styles.catTitleText, styles.catTitleTextDraft]}>{section.title}</Text>
             </View>
             <Pressable
-              style={[styles.uploadBtn, (isPublishing || !myId) && styles.uploadBtnOff]}
-              onPress={handlePublish}
-              disabled={isPublishing || !myId}
+              style={[styles.doneBtn, doneDisabled && styles.doneBtnOff]}
+              onPress={handlePublishDraft}
+              disabled={doneDisabled}
               accessible={true}
               accessibilityRole="button"
-              accessibilityState={{ disabled: isPublishing || !myId }}
-              accessibilityLabel="Upload to shared list"
-              accessibilityHint="Moves all your private items to the shared list so housemates can see them"
+              accessibilityState={{ disabled: doneDisabled }}
+              accessibilityLabel="Done — share with housemates"
+              accessibilityHint="Adds all draft items to the shared grocery list"
             >
-              <Ionicons
-                name="cloud-upload-outline"
-                size={14}
-                color={(isPublishing || !myId) ? 'rgb(180,160,220)' : 'rgb(76,29,149)'}
-              />
-              <Text style={[styles.uploadBtnText, (isPublishing || !myId) && styles.uploadBtnTextOff]}>
-                {isPublishing ? '…' : 'Upload to shared'}
+              <Ionicons name="checkmark-circle-outline" size={15} color={doneDisabled ? 'rgb(200,185,100)' : 'rgb(133,77,14)'} />
+              <Text style={[styles.doneBtnText, doneDisabled && styles.doneBtnTextOff]}>
+                {isPublishing ? '…' : 'Done — share'}
               </Text>
             </Pressable>
+          </View>
+        );
+      }
+      if (section.sectionType === 'private') {
+        return (
+          <View style={[styles.catTitle, styles.catTitlePersonal]}>
+            <Text style={styles.catTitleIcon}>{section.icon}</Text>
+            <Text style={[styles.catTitleText, styles.catTitleTextPersonal]}>{section.title}</Text>
           </View>
         );
       }
@@ -493,7 +532,7 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
       );
     },
-    [handlePublish, isPublishing, myId]
+    [handlePublishDraft, isPublishing, myId]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
@@ -579,33 +618,41 @@ export default function GroceryScreen(): React.JSX.Element {
                   </Text>
                 </View>
 
-                {/* ── Shared / Personal toggle ─────────────────────────── */}
+                {/* ── Add mode toggle ──────────────────────────────── */}
                 <View style={styles.modeToggle}>
                   <Pressable
-                    style={[styles.modeBtn, !isPersonal && styles.modeBtnOn]}
-                    onPress={handleSetShared}
+                    style={[styles.modeBtn, addMode === 'draft' && styles.modeBtnDraft]}
+                    onPress={() => handleSetMode('draft')}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: !isPersonal }}
+                    accessibilityState={{ selected: addMode === 'draft' }}
                   >
-                    <Text style={[styles.modeBtnText, !isPersonal && styles.modeBtnTextOn]}>🏠 Shared</Text>
+                    <Text style={[styles.modeBtnText, addMode === 'draft' && styles.modeBtnTextDraft]}>📝 Draft</Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.modeBtn, isPersonal && styles.modeBtnPersonal]}
-                    onPress={handleSetPrivate}
+                    style={[styles.modeBtn, addMode === 'shared' && styles.modeBtnOn]}
+                    onPress={() => handleSetMode('shared')}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: isPersonal }}
+                    accessibilityState={{ selected: addMode === 'shared' }}
                   >
-                    <Text style={[styles.modeBtnText, isPersonal && styles.modeBtnTextPersonal]}>🔒 Just me</Text>
+                    <Text style={[styles.modeBtnText, addMode === 'shared' && styles.modeBtnTextOn]}>🏠 Shared</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.modeBtn, addMode === 'private' && styles.modeBtnPersonal]}
+                    onPress={() => handleSetMode('private')}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: addMode === 'private' }}
+                  >
+                    <Text style={[styles.modeBtnText, addMode === 'private' && styles.modeBtnTextPersonal]}>🔒 Private</Text>
                   </Pressable>
                 </View>
 
-                {/* ── Inline add input ────────────────────────────────── */}
+                {/* ── Inline add input ──────────────────────────────── */}
                 {!!addError && (
                   <View style={styles.errorBanner}>
                     <Text style={styles.errorBannerText}>{addError}</Text>
                   </View>
                 )}
-                <View style={[styles.addRow, isPersonal && styles.addRowPersonal]}>
+                <View style={[styles.addRow, addMode === 'draft' && styles.addRowDraft, addMode === 'private' && styles.addRowPersonal]}>
                   <TextInput
                     ref={inputRef}
                     value={itemName}
@@ -622,7 +669,7 @@ export default function GroceryScreen(): React.JSX.Element {
                     accessibilityHint="Type a grocery item and press the plus button or return to add it"
                   />
                   <Pressable
-                    style={[styles.addBtn, (!itemName.trim() || isAdding) && styles.addBtnOff, isPersonal && styles.addBtnPersonal]}
+                    style={[styles.addBtn, (!itemName.trim() || isAdding) && styles.addBtnOff, addMode === 'draft' && styles.addBtnDraft, addMode === 'private' && styles.addBtnPersonal]}
                     onPress={handleAddPress}
                     disabled={!itemName.trim() || isAdding}
                     accessibilityRole="button"
@@ -769,16 +816,18 @@ const styles = StyleSheet.create({
   textSm:    { fontSize: 13, ...font.regular, color: colors.textSecondary, lineHeight: 18, textAlign: 'center' },
   eyebrow:   { fontSize: 12, ...font.bold, color: colors.textSecondary, letterSpacing: 0.72, textTransform: 'uppercase' },
 
-  // ── Shared / Personal toggle
-  modeToggle: { flexDirection: 'row', gap: 8 },
+  // ── Add mode toggle
+  modeToggle: { flexDirection: 'row', gap: 6 },
   modeBtn: {
     flex: 1, minHeight: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
     backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border,
   },
   modeBtnOn:           { backgroundColor: colors.primary, borderColor: colors.primary },
+  modeBtnDraft:        { backgroundColor: 'rgba(234,179,8,0.12)', borderColor: 'rgba(234,179,8,0.5)' },
   modeBtnPersonal:     { backgroundColor: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.4)' },
-  modeBtnText:         { fontSize: 14, ...font.semibold, color: colors.textSecondary },
+  modeBtnText:         { fontSize: 13, ...font.semibold, color: colors.textSecondary },
   modeBtnTextOn:       { color: '#FFFFFF' },
+  modeBtnTextDraft:    { color: 'rgb(133,77,14)' },
   modeBtnTextPersonal: { color: 'rgb(76,29,149)' },
 
   // ── Inline add row
@@ -788,6 +837,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBFAF8', paddingRight: 6, paddingLeft: 4,
     height: 50,
   },
+  addRowDraft:    { borderColor: 'rgba(234,179,8,0.5)', backgroundColor: 'rgba(255,250,235,0.8)' },
   addRowPersonal: { borderColor: 'rgba(139,92,246,0.4)', backgroundColor: 'rgba(245,240,255,0.6)' },
   addInput: {
     flex: 1, height: '100%', paddingHorizontal: 10,
@@ -799,6 +849,7 @@ const styles = StyleSheet.create({
     boxShadow: '0 4px 12px rgba(79,120,182,0.22)',
   } as never,
   addBtnOff:      { backgroundColor: colors.textDisabled, boxShadow: 'none' } as never,
+  addBtnDraft:    { backgroundColor: 'rgb(161,98,7)' },
   addBtnPersonal: { backgroundColor: 'rgb(124,58,237)' },
   addBtnText:     { fontSize: 22, ...font.bold, color: '#FFFFFF', lineHeight: 26 },
 
@@ -843,24 +894,26 @@ const styles = StyleSheet.create({
 
   // ── Section header
   catTitle:             { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
+  catTitleDraft:        { backgroundColor: DRAFT_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: DRAFT_BORDER },
   catTitlePersonal:     { backgroundColor: PERSONAL_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: PERSONAL_BORDER },
-  catTitlePersonalRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 4, gap: 8 },
-  catTitlePersonalFlex: { flex: 1 },
+  catTitleDraftRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 4, gap: 8 },
+  catTitleFlex:         { flex: 1 },
   catTitleIcon:         { fontSize: 15 },
   catTitleText:         { fontSize: 14, ...font.bold, color: colors.textPrimary },
+  catTitleTextDraft:    { color: 'rgb(133,77,14)' },
   catTitleTextPersonal: { color: 'rgb(76,29,149)' },
 
-  // ── Upload button
-  uploadBtn: {
+  // ── Done button (publish draft)
+  doneBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingVertical: 7, paddingHorizontal: 12,
     borderRadius: 9999, borderWidth: 1,
-    borderColor: PERSONAL_BORDER, backgroundColor: PERSONAL_BG,
+    borderColor: DRAFT_BORDER, backgroundColor: DRAFT_BG,
     minHeight: 44, minWidth: 44,
   },
-  uploadBtnOff:     { backgroundColor: 'rgba(139,92,246,0.04)', borderColor: 'rgba(139,92,246,0.15)' },
-  uploadBtnText:    { fontSize: 13, ...font.semibold, color: 'rgb(76,29,149)' },
-  uploadBtnTextOff: { color: 'rgb(180,160,220)' },
+  doneBtnOff:     { backgroundColor: 'rgba(234,179,8,0.04)', borderColor: 'rgba(234,179,8,0.2)' },
+  doneBtnText:    { fontSize: 13, ...font.semibold, color: 'rgb(133,77,14)' },
+  doneBtnTextOff: { color: 'rgb(200,185,100)' },
 
   // ── Grocery item
   groceryItem: {
@@ -872,7 +925,15 @@ const styles = StyleSheet.create({
   } as never,
   groceryItemDone:     { opacity: 0.5, borderColor: 'transparent', boxShadow: 'none' } as never,
   groceryItemPersonal: { backgroundColor: 'rgba(245,240,255,0.7)', borderColor: 'rgba(139,92,246,0.2)' },
+  groceryItemDraft:    { backgroundColor: 'rgba(255,251,235,0.9)', borderColor: 'rgba(234,179,8,0.25)' },
   groceryItemEditing:  { backgroundColor: '#FAFAF8', borderColor: colors.primary, gap: 8 },
+
+  // ── Duplicate warning badge
+  duplicateBadge: {
+    backgroundColor: 'rgba(234,179,8,0.15)', borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(234,179,8,0.4)',
+  },
+  duplicateBadgeText: { fontSize: 11, ...font.semibold, color: 'rgb(133,77,14)' },
   itemSep:             { height: 8 },
   sectionSep:          { height: 8 },
 
