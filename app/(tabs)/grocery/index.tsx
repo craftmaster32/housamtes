@@ -312,7 +312,8 @@ export default function GroceryScreen(): React.JSX.Element {
   const incBought    = useGroceryStore((s) => s.incrementBought);
   const decBought    = useGroceryStore((s) => s.decrementBought);
   const deleteItem   = useGroceryStore((s) => s.deleteItem);
-  const clearChecked = useGroceryStore((s) => s.clearChecked);
+  const clearChecked         = useGroceryStore((s) => s.clearChecked);
+  const publishPersonalItems = useGroceryStore((s) => s.publishPersonalItems);
   const activeRun    = useGroceryStore((s) => s.activeRun);
   const startRun     = useGroceryStore((s) => s.startRun);
   const endRun       = useGroceryStore((s) => s.endRun);
@@ -328,6 +329,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const [isAdding, setIsAdding]           = useState(false);
   const [isPersonal, setIsPersonal]       = useState(false);
   const [addError, setAddError]           = useState<string | null>(null);
+  const [isPublishing, setIsPublishing]   = useState(false);
 
   const inputRef = useRef<TextInput>(null);
 
@@ -410,7 +412,21 @@ export default function GroceryScreen(): React.JSX.Element {
   const onInc       = useCallback((id: string): void => { incBought(id); }, [incBought]);
   const onDec       = useCallback((id: string): void => { decBought(id); }, [decBought]);
   const onUpdate    = useCallback((id: string, name: string, quantity: string): Promise<void> => updateItem(id, name, quantity), [updateItem]);
-  const handleClear = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
+  const handleClear   = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
+
+  const handlePublish = useCallback(async (): Promise<void> => {
+    if (isPublishing || !myId) return;
+    setIsPublishing(true);
+    setAddError(null);
+    try {
+      await publishPersonalItems(myId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Could not upload to shared list. Please try again.');
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [publishPersonalItems, myId, isPublishing]);
 
   // ── Stable header-card handlers ────────────────────────────────────────────
   const handleSetShared       = useCallback((): void => setIsPersonal(false), []);
@@ -440,15 +456,44 @@ export default function GroceryScreen(): React.JSX.Element {
   );
 
   const renderSectionHeader = useCallback(
-    ({ section }: { section: SectionData }): React.JSX.Element => (
-      <View style={[styles.catTitle, section.isPersonal && styles.catTitlePersonal]}>
-        <Text style={styles.catTitleIcon}>{section.icon}</Text>
-        <Text style={[styles.catTitleText, section.isPersonal && styles.catTitleTextPersonal]}>
-          {section.title}
-        </Text>
-      </View>
-    ),
-    []
+    ({ section }: { section: SectionData }): React.JSX.Element => {
+      if (section.isPersonal) {
+        return (
+          <View style={styles.catTitlePersonalRow}>
+            <View style={[styles.catTitle, styles.catTitlePersonal, styles.catTitlePersonalFlex]}>
+              <Text style={styles.catTitleIcon}>{section.icon}</Text>
+              <Text style={[styles.catTitleText, styles.catTitleTextPersonal]}>{section.title}</Text>
+            </View>
+            <Pressable
+              style={[styles.uploadBtn, (isPublishing || !myId) && styles.uploadBtnOff]}
+              onPress={handlePublish}
+              disabled={isPublishing || !myId}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isPublishing || !myId }}
+              accessibilityLabel="Upload to shared list"
+              accessibilityHint="Moves all your private items to the shared list so housemates can see them"
+            >
+              <Ionicons
+                name="cloud-upload-outline"
+                size={14}
+                color={(isPublishing || !myId) ? 'rgb(180,160,220)' : 'rgb(76,29,149)'}
+              />
+              <Text style={[styles.uploadBtnText, (isPublishing || !myId) && styles.uploadBtnTextOff]}>
+                {isPublishing ? '…' : 'Upload to shared'}
+              </Text>
+            </Pressable>
+          </View>
+        );
+      }
+      return (
+        <View style={styles.catTitle}>
+          <Text style={styles.catTitleIcon}>{section.icon}</Text>
+          <Text style={styles.catTitleText}>{section.title}</Text>
+        </View>
+      );
+    },
+    [handlePublish, isPublishing, myId]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
@@ -797,11 +842,25 @@ const styles = StyleSheet.create({
   quickAddText: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
 
   // ── Section header
-  catTitle:            { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
-  catTitlePersonal:    { backgroundColor: PERSONAL_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: PERSONAL_BORDER },
-  catTitleIcon:        { fontSize: 15 },
-  catTitleText:        { fontSize: 14, ...font.bold, color: colors.textPrimary },
-  catTitleTextPersonal:{ color: 'rgb(109,40,217)' },
+  catTitle:             { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
+  catTitlePersonal:     { backgroundColor: PERSONAL_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: PERSONAL_BORDER },
+  catTitlePersonalRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 4, gap: 8 },
+  catTitlePersonalFlex: { flex: 1 },
+  catTitleIcon:         { fontSize: 15 },
+  catTitleText:         { fontSize: 14, ...font.bold, color: colors.textPrimary },
+  catTitleTextPersonal: { color: 'rgb(76,29,149)' },
+
+  // ── Upload button
+  uploadBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingVertical: 7, paddingHorizontal: 12,
+    borderRadius: 9999, borderWidth: 1,
+    borderColor: PERSONAL_BORDER, backgroundColor: PERSONAL_BG,
+    minHeight: 44, minWidth: 44,
+  },
+  uploadBtnOff:     { backgroundColor: 'rgba(139,92,246,0.04)', borderColor: 'rgba(139,92,246,0.15)' },
+  uploadBtnText:    { fontSize: 13, ...font.semibold, color: 'rgb(76,29,149)' },
+  uploadBtnTextOff: { color: 'rgb(180,160,220)' },
 
   // ── Grocery item
   groceryItem: {
