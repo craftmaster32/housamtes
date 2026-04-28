@@ -415,7 +415,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleClear   = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
 
   const handlePublish = useCallback(async (): Promise<void> => {
-    if (isPublishing) return;
+    if (isPublishing || !myId) return;
     setIsPublishing(true);
     setAddError(null);
     try {
@@ -465,17 +465,23 @@ export default function GroceryScreen(): React.JSX.Element {
               <Text style={[styles.catTitleText, styles.catTitleTextPersonal]}>{section.title}</Text>
             </View>
             <Pressable
-              style={[styles.uploadBtn, isPublishing && styles.uploadBtnOff]}
+              style={[styles.uploadBtn, (isPublishing || !myId) && styles.uploadBtnOff]}
               onPress={handlePublish}
-              disabled={isPublishing}
+              disabled={isPublishing || !myId}
               accessible={true}
               accessibilityRole="button"
-              accessibilityState={{ disabled: isPublishing }}
+              accessibilityState={{ disabled: isPublishing || !myId }}
               accessibilityLabel="Upload to shared list"
               accessibilityHint="Moves all your private items to the shared list so housemates can see them"
             >
-              <Ionicons name="cloud-upload-outline" size={14} color="rgb(76,29,149)" />
-              <Text style={styles.uploadBtnText}>{isPublishing ? '…' : 'Upload to shared'}</Text>
+              <Ionicons
+                name="cloud-upload-outline"
+                size={14}
+                color={(isPublishing || !myId) ? 'rgb(180,160,220)' : 'rgb(76,29,149)'}
+              />
+              <Text style={[styles.uploadBtnText, (isPublishing || !myId) && styles.uploadBtnTextOff]}>
+                {isPublishing ? '…' : 'Upload to shared'}
+              </Text>
             </Pressable>
           </View>
         );
@@ -487,7 +493,7 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
       );
     },
-    [handlePublish, isPublishing]
+    [handlePublish, isPublishing, myId]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
@@ -852,8 +858,9 @@ const styles = StyleSheet.create({
     borderColor: PERSONAL_BORDER, backgroundColor: PERSONAL_BG,
     minHeight: 44, minWidth: 44,
   },
-  uploadBtnOff:  { opacity: 0.5 },
-  uploadBtnText: { fontSize: 13, ...font.semibold, color: 'rgb(76,29,149)' },
+  uploadBtnOff:     { backgroundColor: 'rgba(139,92,246,0.04)', borderColor: 'rgba(139,92,246,0.15)' },
+  uploadBtnText:    { fontSize: 13, ...font.semibold, color: 'rgb(76,29,149)' },
+  uploadBtnTextOff: { color: 'rgb(180,160,220)' },
 
   // ── Grocery item
   groceryItem: {
