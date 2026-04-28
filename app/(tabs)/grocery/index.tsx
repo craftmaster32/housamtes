@@ -309,6 +309,14 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
   );
 }
 
+// ── Stable list separators (module-level so SectionList never sees new refs) ──
+function ItemSeparator(): React.JSX.Element {
+  return <View style={styles.itemSep} />;
+}
+function SectionSeparator(): React.JSX.Element {
+  return <View style={styles.sectionSep} />;
+}
+
 // ── Screen ─────────────────────────────────────────────────────────────────────
 interface GroceryItemWithMeta extends GroceryItem { isDuplicate?: boolean }
 interface SectionData { title: string; icon: string; data: GroceryItemWithMeta[]; sectionType: 'draft' | 'private' | 'shared' }
@@ -346,7 +354,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const inputRef = useRef<TextInput>(null);
 
   // Restore persisted add-mode preference
-  useEffect((): void => {
+  useEffect((): void | (() => void) => {
     AsyncStorage.getItem(ADD_MODE_KEY).then((v) => {
       if (v === 'shared' || v === 'draft' || v === 'private') setAddMode(v);
     }).catch(() => {});
@@ -357,8 +365,8 @@ export default function GroceryScreen(): React.JSX.Element {
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
   const sections = useMemo((): SectionData[] => {
-    const draftItems   = items.filter((i) => i.isDraft   && i.addedBy === myId);
-    const privateItems = items.filter((i) => i.isPersonal && !i.isDraft);
+    const draftItems   = items.filter((i) => i.isDraft    && i.addedBy === myId);
+    const privateItems = items.filter((i) => i.isPersonal && !i.isDraft && i.addedBy === myId);
     const sharedItems  = items.filter((i) => !i.isPersonal);
 
     // Build a lowercase name set from shared items for duplicate detection in the draft
@@ -460,10 +468,13 @@ export default function GroceryScreen(): React.JSX.Element {
   }, [publishDraftItems, myId, isPublishing]);
 
   // ── Stable header-card handlers ────────────────────────────────────────────
-  const handleSetMode = useCallback((mode: AddMode): void => {
+  const handleSetMode    = useCallback((mode: AddMode): void => {
     setAddMode(mode);
     AsyncStorage.setItem(ADD_MODE_KEY, mode).catch(() => {});
   }, []);
+  const handleSetDraft   = useCallback((): void => handleSetMode('draft'),   [handleSetMode]);
+  const handleSetShared  = useCallback((): void => handleSetMode('shared'),  [handleSetMode]);
+  const handleSetPrivate = useCallback((): void => handleSetMode('private'), [handleSetMode]);
   const handleItemNameChange  = useCallback((v: string): void => { setItemName(v); setAddError(null); }, []);
   const handleAddPress        = useCallback((): void => { handleAdd(); }, [handleAdd]);
   const handleQtyPresetSelect = useCallback((p: string): void => { setShowCustomQty(false); setQty(p); }, []);
@@ -604,8 +615,8 @@ export default function GroceryScreen(): React.JSX.Element {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.itemSep} />}
-          SectionSeparatorComponent={() => <View style={styles.sectionSep} />}
+          ItemSeparatorComponent={ItemSeparator}
+          SectionSeparatorComponent={SectionSeparator}
 
           ListHeaderComponent={
             <View>
@@ -622,7 +633,7 @@ export default function GroceryScreen(): React.JSX.Element {
                 <View style={styles.modeToggle}>
                   <Pressable
                     style={[styles.modeBtn, addMode === 'draft' && styles.modeBtnDraft]}
-                    onPress={() => handleSetMode('draft')}
+                    onPress={handleSetDraft}
                     accessibilityRole="button"
                     accessibilityState={{ selected: addMode === 'draft' }}
                   >
@@ -630,7 +641,7 @@ export default function GroceryScreen(): React.JSX.Element {
                   </Pressable>
                   <Pressable
                     style={[styles.modeBtn, addMode === 'shared' && styles.modeBtnOn]}
-                    onPress={() => handleSetMode('shared')}
+                    onPress={handleSetShared}
                     accessibilityRole="button"
                     accessibilityState={{ selected: addMode === 'shared' }}
                   >
@@ -638,7 +649,7 @@ export default function GroceryScreen(): React.JSX.Element {
                   </Pressable>
                   <Pressable
                     style={[styles.modeBtn, addMode === 'private' && styles.modeBtnPersonal]}
-                    onPress={() => handleSetMode('private')}
+                    onPress={handleSetPrivate}
                     accessibilityRole="button"
                     accessibilityState={{ selected: addMode === 'private' }}
                   >
