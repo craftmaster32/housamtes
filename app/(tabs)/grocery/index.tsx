@@ -229,7 +229,7 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
       onPress={handleTap}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.isChecked }}
-      accessibilityLabel={item.name}
+      accessibilityLabel={isDuplicate ? `${item.name}, already on shared list` : item.name}
     >
       {hasCount ? (
         <View style={styles.counter}>
