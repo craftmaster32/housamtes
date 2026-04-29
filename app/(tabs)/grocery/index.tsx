@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGroceryStore, type GroceryItem, type AddMode } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -30,8 +31,6 @@ const SHOP_ACTIVE_BG  = 'rgba(235,255,240,0.95)';
 const SHOP_ACTIVE_BORDER = 'rgba(140,210,160,0.7)';
 const PERSONAL_BG    = 'rgba(245,240,255,0.6)';
 const PERSONAL_BORDER = 'rgba(167,139,250,0.35)';
-const DRAFT_BG       = 'rgba(255,250,235,0.85)';
-const DRAFT_BORDER   = 'rgba(234,179,8,0.35)';
 
 const ADD_MODE_KEY = 'grocery_add_mode';
 
@@ -225,7 +224,7 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
 
   return (
     <Pressable
-      style={[styles.groceryItem, item.isChecked && styles.groceryItemDone, item.isPersonal && styles.groceryItemPersonal, item.isDraft && styles.groceryItemDraft]}
+      style={[styles.groceryItem, item.isChecked && styles.groceryItemDone, item.isPersonal && styles.groceryItemPersonal]}
       onPress={handleTap}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.isChecked }}
@@ -341,6 +340,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const houseId      = useAuthStore((s) => s.houseId);
   const myId         = profile?.id ?? '';
   const myName       = profile?.name ?? '';
+  const draftEnabled = useSettingsStore((s) => s.features.find((f) => f.key === 'grocery_draft')?.enabled ?? true);
 
   const [itemName, setItemName]           = useState('');
   const [qty, setQty]                     = useState('1');
@@ -361,6 +361,7 @@ export default function GroceryScreen(): React.JSX.Element {
   }, []);
 
   const resolvedQty = showCustomQty ? customQty : qty;
+  const effectiveMode: AddMode = !draftEnabled && addMode === 'draft' ? 'shared' : addMode;
 
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
@@ -414,7 +415,8 @@ export default function GroceryScreen(): React.JSX.Element {
     setIsAdding(true);
     setAddError(null);
     try {
-      await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '', addMode);
+      const mode: AddMode = !draftEnabled && addMode === 'draft' ? 'shared' : addMode;
+      await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '', mode);
       setItemName('');
       setQty('1');
       setCustomQty('');
@@ -426,7 +428,7 @@ export default function GroceryScreen(): React.JSX.Element {
     } finally {
       setIsAdding(false);
     }
-  }, [itemName, resolvedQty, myId, houseId, addItem, isAdding, addMode]);
+  }, [itemName, resolvedQty, myId, houseId, addItem, isAdding, addMode, draftEnabled]);
 
   const handleStartRun = useCallback(async (): Promise<void> => {
     try {
@@ -506,24 +508,24 @@ export default function GroceryScreen(): React.JSX.Element {
         const doneDisabled = isPublishing || !myId;
         return (
           <View style={styles.catTitleDraftRow}>
-            <View style={[styles.catTitle, styles.catTitleDraft, styles.catTitleFlex]}>
+            <View style={[styles.catTitle, styles.catTitleFlex]}>
               <Text style={styles.catTitleIcon}>{section.icon}</Text>
               <Text style={[styles.catTitleText, styles.catTitleTextDraft]}>{section.title}</Text>
             </View>
             <Pressable
-              style={[styles.doneBtn, doneDisabled && styles.doneBtnOff]}
+              style={[styles.draftPublishBtn, doneDisabled && styles.draftPublishBtnOff]}
               onPress={handlePublishDraft}
               disabled={doneDisabled}
               accessible={true}
               accessibilityRole="button"
               accessibilityState={{ disabled: doneDisabled }}
-              accessibilityLabel="Done — share with housemates"
+              accessibilityLabel="Share draft with housemates"
               accessibilityHint="Adds all draft items to the shared grocery list"
             >
-              <Ionicons name="checkmark-circle-outline" size={15} color={doneDisabled ? 'rgb(200,185,100)' : 'rgb(133,77,14)'} />
-              <Text style={[styles.doneBtnText, doneDisabled && styles.doneBtnTextOff]}>
-                {isPublishing ? '…' : 'Done — share'}
-              </Text>
+              {isPublishing
+                ? <ActivityIndicator size="small" color="rgb(133,77,14)" />
+                : <Ionicons name="checkmark-circle" size={26} color="rgb(133,77,14)" />
+              }
             </Pressable>
           </View>
         );
@@ -631,29 +633,31 @@ export default function GroceryScreen(): React.JSX.Element {
 
                 {/* ── Add mode toggle ──────────────────────────────── */}
                 <View style={styles.modeToggle}>
+                  {draftEnabled && (
+                    <Pressable
+                      style={[styles.modeBtn, effectiveMode === 'draft' && styles.modeBtnDraft]}
+                      onPress={handleSetDraft}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: effectiveMode === 'draft' }}
+                    >
+                      <Text style={[styles.modeBtnText, effectiveMode === 'draft' && styles.modeBtnTextDraft]}>📝 Draft</Text>
+                    </Pressable>
+                  )}
                   <Pressable
-                    style={[styles.modeBtn, addMode === 'draft' && styles.modeBtnDraft]}
-                    onPress={handleSetDraft}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: addMode === 'draft' }}
-                  >
-                    <Text style={[styles.modeBtnText, addMode === 'draft' && styles.modeBtnTextDraft]}>📝 Draft</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.modeBtn, addMode === 'shared' && styles.modeBtnOn]}
+                    style={[styles.modeBtn, effectiveMode === 'shared' && styles.modeBtnOn]}
                     onPress={handleSetShared}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: addMode === 'shared' }}
+                    accessibilityState={{ selected: effectiveMode === 'shared' }}
                   >
-                    <Text style={[styles.modeBtnText, addMode === 'shared' && styles.modeBtnTextOn]}>🏠 Shared</Text>
+                    <Text style={[styles.modeBtnText, effectiveMode === 'shared' && styles.modeBtnTextOn]}>🏠 Shared</Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.modeBtn, addMode === 'private' && styles.modeBtnPersonal]}
+                    style={[styles.modeBtn, effectiveMode === 'private' && styles.modeBtnPersonal]}
                     onPress={handleSetPrivate}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: addMode === 'private' }}
+                    accessibilityState={{ selected: effectiveMode === 'private' }}
                   >
-                    <Text style={[styles.modeBtnText, addMode === 'private' && styles.modeBtnTextPersonal]}>🔒 Private</Text>
+                    <Text style={[styles.modeBtnText, effectiveMode === 'private' && styles.modeBtnTextPersonal]}>🔒 Private</Text>
                   </Pressable>
                 </View>
 
@@ -663,7 +667,7 @@ export default function GroceryScreen(): React.JSX.Element {
                     <Text style={styles.errorBannerText}>{addError}</Text>
                   </View>
                 )}
-                <View style={[styles.addRow, addMode === 'draft' && styles.addRowDraft, addMode === 'private' && styles.addRowPersonal]}>
+                <View style={[styles.addRow, effectiveMode === 'draft' && styles.addRowDraft, effectiveMode === 'private' && styles.addRowPersonal]}>
                   <TextInput
                     ref={inputRef}
                     value={itemName}
@@ -680,7 +684,7 @@ export default function GroceryScreen(): React.JSX.Element {
                     accessibilityHint="Type a grocery item and press the plus button or return to add it"
                   />
                   <Pressable
-                    style={[styles.addBtn, (!itemName.trim() || isAdding) && styles.addBtnOff, addMode === 'draft' && styles.addBtnDraft, addMode === 'private' && styles.addBtnPersonal]}
+                    style={[styles.addBtn, (!itemName.trim() || isAdding) && styles.addBtnOff, effectiveMode === 'draft' && styles.addBtnDraft, effectiveMode === 'private' && styles.addBtnPersonal]}
                     onPress={handleAddPress}
                     disabled={!itemName.trim() || isAdding}
                     accessibilityRole="button"
@@ -904,9 +908,8 @@ const styles = StyleSheet.create({
   quickAddText: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
 
   // ── Section header
-  catTitle:             { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
-  catTitleDraft:        { backgroundColor: DRAFT_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: DRAFT_BORDER },
-  catTitlePersonal:     { backgroundColor: PERSONAL_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: PERSONAL_BORDER },
+  catTitle:         { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
+  catTitlePersonal: { backgroundColor: PERSONAL_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: PERSONAL_BORDER },
   catTitleDraftRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 4, gap: 8 },
   catTitleFlex:         { flex: 1 },
   catTitleIcon:         { fontSize: 15 },
@@ -914,17 +917,9 @@ const styles = StyleSheet.create({
   catTitleTextDraft:    { color: 'rgb(133,77,14)' },
   catTitleTextPersonal: { color: 'rgb(76,29,149)' },
 
-  // ── Done button (publish draft)
-  doneBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingVertical: 7, paddingHorizontal: 12,
-    borderRadius: 9999, borderWidth: 1,
-    borderColor: DRAFT_BORDER, backgroundColor: DRAFT_BG,
-    minHeight: 44, minWidth: 44,
-  },
-  doneBtnOff:     { backgroundColor: 'rgba(234,179,8,0.04)', borderColor: 'rgba(234,179,8,0.2)' },
-  doneBtnText:    { fontSize: 13, ...font.semibold, color: 'rgb(133,77,14)' },
-  doneBtnTextOff: { color: 'rgb(200,185,100)' },
+  // ── Publish draft icon button
+  draftPublishBtn:    { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  draftPublishBtnOff: { opacity: 0.35 },
 
   // ── Grocery item
   groceryItem: {
@@ -936,7 +931,6 @@ const styles = StyleSheet.create({
   } as never,
   groceryItemDone:     { opacity: 0.5, borderColor: 'transparent', boxShadow: 'none' } as never,
   groceryItemPersonal: { backgroundColor: 'rgba(245,240,255,0.7)', borderColor: 'rgba(139,92,246,0.2)' },
-  groceryItemDraft:    { backgroundColor: 'rgba(255,251,235,0.9)', borderColor: 'rgba(234,179,8,0.25)' },
   groceryItemEditing:  { backgroundColor: '#FAFAF8', borderColor: colors.primary, gap: 8 },
 
   // ── Duplicate warning badge

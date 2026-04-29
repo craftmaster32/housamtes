@@ -42,6 +42,13 @@ export const DEFAULT_FEATURES: FeatureConfig[] = [
     enabled: true,
   },
   {
+    key: 'grocery_draft',
+    label: 'Grocery Draft Mode',
+    icon: '📝',
+    description: 'Privately compose your shopping list before sharing it with the house',
+    enabled: true,
+  },
+  {
     key: 'chores',
     label: 'Chores',
     icon: '🧹',
