@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, TextInput, FlatList,
-  useWindowDimensions,
+  ActivityIndicator, useWindowDimensions,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -396,18 +396,34 @@ function GroceryWidgetRow({ item, myId, onToggle, onDelete }: GroceryWidgetRowPr
 }
 
 function GroceryWidget(): React.JSX.Element {
-  const items = useGroceryStore((s) => s.items);
-  const addItem = useGroceryStore((s) => s.addItem);
-  const toggleItem = useGroceryStore((s) => s.toggleItem);
-  const deleteItem = useGroceryStore((s) => s.deleteItem);
-  const profile = useAuthStore((s) => s.profile);
-  const houseId = useAuthStore((s) => s.houseId);
-  const lastSeen = useBadgeStore((s) => s.lastSeen);
-  const myId = profile?.id ?? '';
-  const [input, setInput]     = useState('');
-  const [qty, setQty]         = useState('');
-  const [addError, setAddError] = useState<string | null>(null);
-  const pending = items.filter((i) => !i.isChecked).slice(0, 5);
+  const items             = useGroceryStore((s) => s.items);
+  const addItem           = useGroceryStore((s) => s.addItem);
+  const toggleItem        = useGroceryStore((s) => s.toggleItem);
+  const deleteItem        = useGroceryStore((s) => s.deleteItem);
+  const publishDraftItems = useGroceryStore((s) => s.publishDraftItems);
+  const profile   = useAuthStore((s) => s.profile);
+  const houseId   = useAuthStore((s) => s.houseId);
+  const lastSeen  = useBadgeStore((s) => s.lastSeen);
+  const myId      = profile?.id ?? '';
+
+  const [input, setInput]         = useState('');
+  const [qty, setQty]             = useState('');
+  const [addError, setAddError]   = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const myDraftItems = useMemo(
+    () => items.filter((i) => i.isDraft && i.addedBy === myId && !i.isChecked),
+    [items, myId]
+  );
+  const sharedPending = useMemo(
+    () => items.filter((i) => !i.isPersonal && !i.isChecked).slice(0, 5),
+    [items]
+  );
+  const totalShared = useMemo(
+    () => items.filter((i) => !i.isPersonal && !i.isChecked).length,
+    [items]
+  );
+
   const newGrocery = countNew(
     items.filter((i) => !i.isChecked) as unknown as Array<{ createdAt: string; [k: string]: unknown }>,
     lastSeen.grocery,
@@ -429,10 +445,51 @@ function GroceryWidget(): React.JSX.Element {
     }
   }, [input, qty, addItem, myId, houseId]);
 
+  const handlePublish = useCallback(async (): Promise<void> => {
+    if (isPublishing || !myId) return;
+    setIsPublishing(true);
+    try {
+      await publishDraftItems(myId);
+    } catch {
+      setAddError('Could not share draft. Try again.');
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [publishDraftItems, myId, isPublishing]);
+
   const handleToggle = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
   const handleDelete = useCallback((id: string): void => {
     deleteItem(id).catch((err: unknown) => { console.warn('[GroceryWidget] deleteItem failed', err); });
   }, [deleteItem]);
+
+  const draftHeader = myDraftItems.length > 0 ? (
+    <>
+      <View style={styles.groceryDraftHeader}>
+        <Text style={styles.groceryDraftTitle}>📝 My Draft</Text>
+        <Pressable
+          onPress={handlePublish}
+          disabled={isPublishing}
+          style={[styles.groceryDraftApproveBtn, isPublishing && { opacity: 0.4 }]}
+          accessible
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isPublishing }}
+          accessibilityLabel="Share draft with housemates"
+          accessibilityHint="Adds all draft items to the shared grocery list"
+        >
+          {isPublishing
+            ? <ActivityIndicator size="small" color="rgb(133,77,14)" />
+            : <Ionicons name="checkmark-circle" size={22} color="rgb(133,77,14)" />
+          }
+        </Pressable>
+      </View>
+      {myDraftItems.map((item) => (
+        <GroceryWidgetRow key={item.id} item={item} myId={myId} onToggle={handleToggle} onDelete={handleDelete} />
+      ))}
+      {sharedPending.length > 0 && (
+        <Text style={styles.grocerySharedLabel}>🏠 Shared</Text>
+      )}
+    </>
+  ) : null;
 
   return (
     <WidgetCard>
@@ -489,26 +546,20 @@ function GroceryWidget(): React.JSX.Element {
       {!!addError && <Text style={styles.groceryAddError}>{addError}</Text>}
 
       <FlatList
-        data={pending}
+        data={sharedPending}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <GroceryWidgetRow
-            item={item}
-            myId={myId}
-            onToggle={handleToggle}
-            onDelete={handleDelete}
-          />
+          <GroceryWidgetRow item={item} myId={myId} onToggle={handleToggle} onDelete={handleDelete} />
         )}
-        ListEmptyComponent={<Text style={styles.cardMuted}>List is empty — add something above</Text>}
+        ListHeaderComponent={draftHeader}
+        ListEmptyComponent={myDraftItems.length === 0 ? <Text style={styles.cardMuted}>List is empty — add something above</Text> : null}
         scrollEnabled={false}
         nestedScrollEnabled
       />
 
-      {items.filter((i) => !i.isChecked).length > 5 && (
+      {totalShared > 5 && (
         <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button">
-          <Text style={styles.viewAll}>
-            +{items.filter((i) => !i.isChecked).length - 5} more items
-          </Text>
+          <Text style={styles.viewAll}>+{totalShared - 5} more items</Text>
         </Pressable>
       )}
     </WidgetCard>
@@ -1116,6 +1167,10 @@ const styles = StyleSheet.create({
   },
   groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, minHeight: 44, backgroundColor: colors.surface },
   groceryAddError: { fontSize: 12, ...font.regular, color: colors.negative, marginTop: 4 },
+  groceryDraftHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 2 },
+  groceryDraftTitle:  { fontSize: 12, ...font.bold, color: 'rgb(133,77,14)', textTransform: 'uppercase', letterSpacing: 0.5 },
+  groceryDraftApproveBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+  grocerySharedLabel: { fontSize: 12, ...font.bold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, paddingTop: 10, paddingBottom: 2 },
   widgetSwipeCheck:   { backgroundColor: '#22c55e', justifyContent: 'center', alignItems: 'center', width: 48, borderRadius: 10, marginRight: 4 },
   widgetSwipeUncheck: { backgroundColor: '#94a3b8' },
   widgetSwipeDelete:  { backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 48, borderRadius: 10, marginLeft: 4 },
