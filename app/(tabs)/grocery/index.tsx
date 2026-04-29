@@ -224,7 +224,7 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
 
   return (
     <Pressable
-      style={[styles.groceryItem, item.isChecked && styles.groceryItemDone, item.isPersonal && styles.groceryItemPersonal]}
+      style={[styles.groceryItem, item.isChecked && styles.groceryItemDone, item.isPersonal && !item.isDraft && styles.groceryItemPersonal]}
       onPress={handleTap}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.isChecked }}

@@ -401,10 +401,11 @@ function GroceryWidget(): React.JSX.Element {
   const toggleItem        = useGroceryStore((s) => s.toggleItem);
   const deleteItem        = useGroceryStore((s) => s.deleteItem);
   const publishDraftItems = useGroceryStore((s) => s.publishDraftItems);
-  const profile   = useAuthStore((s) => s.profile);
-  const houseId   = useAuthStore((s) => s.houseId);
-  const lastSeen  = useBadgeStore((s) => s.lastSeen);
-  const myId      = profile?.id ?? '';
+  const profile          = useAuthStore((s) => s.profile);
+  const houseId          = useAuthStore((s) => s.houseId);
+  const lastSeen         = useBadgeStore((s) => s.lastSeen);
+  const draftEnabled     = useSettingsStore((s) => s.features.find((f) => f.key === 'grocery_draft')?.enabled ?? true);
+  const myId             = profile?.id ?? '';
 
   const [input, setInput]         = useState('');
   const [qty, setQty]             = useState('');
@@ -435,7 +436,7 @@ function GroceryWidget(): React.JSX.Element {
     const n = input.trim();
     if (!n) return;
     try {
-      await addItem(n, qty.trim(), myId, houseId ?? '', 'draft');
+      await addItem(n, qty.trim(), myId, houseId ?? '', draftEnabled ? 'draft' : 'shared');
       setInput('');
       setQty('');
       setAddError(null);
@@ -443,7 +444,7 @@ function GroceryWidget(): React.JSX.Element {
       setAddError('Could not add item. Try again.');
       console.warn('[GroceryWidget] addItem failed', err);
     }
-  }, [input, qty, addItem, myId, houseId]);
+  }, [input, qty, addItem, myId, houseId, draftEnabled]);
 
   const handlePublish = useCallback(async (): Promise<void> => {
     if (isPublishing || !myId) return;
@@ -469,7 +470,7 @@ function GroceryWidget(): React.JSX.Element {
         <Pressable
           onPress={handlePublish}
           disabled={isPublishing}
-          style={[styles.groceryDraftApproveBtn, isPublishing && { opacity: 0.4 }]}
+          style={[styles.groceryDraftApproveBtn, isPublishing && styles.groceryDraftApproveBtnDisabled]}
           accessible
           accessibilityRole="button"
           accessibilityState={{ disabled: isPublishing }}
@@ -1169,7 +1170,8 @@ const styles = StyleSheet.create({
   groceryAddError: { fontSize: 12, ...font.regular, color: colors.negative, marginTop: 4 },
   groceryDraftHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 2 },
   groceryDraftTitle:  { fontSize: 12, ...font.bold, color: 'rgb(133,77,14)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  groceryDraftApproveBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+  groceryDraftApproveBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  groceryDraftApproveBtnDisabled: { opacity: 0.4 },
   grocerySharedLabel: { fontSize: 12, ...font.bold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, paddingTop: 10, paddingBottom: 2 },
   widgetSwipeCheck:   { backgroundColor: '#22c55e', justifyContent: 'center', alignItems: 'center', width: 48, borderRadius: 10, marginRight: 4 },
   widgetSwipeUncheck: { backgroundColor: '#94a3b8' },
