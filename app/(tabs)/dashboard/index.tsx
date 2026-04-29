@@ -419,7 +419,7 @@ function GroceryWidget(): React.JSX.Element {
     const n = input.trim();
     if (!n) return;
     try {
-      await addItem(n, qty.trim(), myId, houseId ?? '');
+      await addItem(n, qty.trim(), myId, houseId ?? '', 'draft');
       setInput('');
       setQty('');
       setAddError(null);

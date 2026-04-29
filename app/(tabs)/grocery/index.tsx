@@ -474,9 +474,8 @@ export default function GroceryScreen(): React.JSX.Element {
     setAddMode(mode);
     AsyncStorage.setItem(ADD_MODE_KEY, mode).catch(() => {});
   }, []);
-  const handleSetDraft   = useCallback((): void => handleSetMode('draft'),   [handleSetMode]);
-  const handleSetShared  = useCallback((): void => handleSetMode('shared'),  [handleSetMode]);
-  const handleSetPrivate = useCallback((): void => handleSetMode('private'), [handleSetMode]);
+  const handleSetShared  = useCallback((): void => handleSetMode(addMode === 'shared'  ? 'draft' : 'shared'),  [addMode, handleSetMode]);
+  const handleSetPrivate = useCallback((): void => handleSetMode(addMode === 'private' ? 'draft' : 'private'), [addMode, handleSetMode]);
   const handleItemNameChange  = useCallback((v: string): void => { setItemName(v); setAddError(null); }, []);
   const handleAddPress        = useCallback((): void => { handleAdd(); }, [handleAdd]);
   const handleQtyPresetSelect = useCallback((p: string): void => { setShowCustomQty(false); setQty(p); }, []);
@@ -633,16 +632,6 @@ export default function GroceryScreen(): React.JSX.Element {
 
                 {/* ── Add mode toggle ──────────────────────────────── */}
                 <View style={styles.modeToggle}>
-                  {draftEnabled && (
-                    <Pressable
-                      style={[styles.modeBtn, effectiveMode === 'draft' && styles.modeBtnDraft]}
-                      onPress={handleSetDraft}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: effectiveMode === 'draft' }}
-                    >
-                      <Text style={[styles.modeBtnText, effectiveMode === 'draft' && styles.modeBtnTextDraft]}>📝 Draft</Text>
-                    </Pressable>
-                  )}
                   <Pressable
                     style={[styles.modeBtn, effectiveMode === 'shared' && styles.modeBtnOn]}
                     onPress={handleSetShared}
@@ -660,6 +649,12 @@ export default function GroceryScreen(): React.JSX.Element {
                     <Text style={[styles.modeBtnText, effectiveMode === 'private' && styles.modeBtnTextPersonal]}>🔒 Private</Text>
                   </Pressable>
                 </View>
+                {draftEnabled && effectiveMode === 'draft' && (
+                  <View style={styles.draftHint}>
+                    <Ionicons name="pencil-outline" size={12} color={colors.textSecondary} />
+                    <Text style={styles.draftHintText}>Saves to your draft</Text>
+                  </View>
+                )}
 
                 {/* ── Inline add input ──────────────────────────────── */}
                 {!!addError && (
@@ -667,7 +662,7 @@ export default function GroceryScreen(): React.JSX.Element {
                     <Text style={styles.errorBannerText}>{addError}</Text>
                   </View>
                 )}
-                <View style={[styles.addRow, effectiveMode === 'draft' && styles.addRowDraft, effectiveMode === 'private' && styles.addRowPersonal]}>
+                <View style={[styles.addRow, effectiveMode === 'private' && styles.addRowPersonal]}>
                   <TextInput
                     ref={inputRef}
                     value={itemName}
@@ -684,7 +679,7 @@ export default function GroceryScreen(): React.JSX.Element {
                     accessibilityHint="Type a grocery item and press the plus button or return to add it"
                   />
                   <Pressable
-                    style={[styles.addBtn, (!itemName.trim() || isAdding) && styles.addBtnOff, effectiveMode === 'draft' && styles.addBtnDraft, effectiveMode === 'private' && styles.addBtnPersonal]}
+                    style={[styles.addBtn, (!itemName.trim() || isAdding) && styles.addBtnOff, effectiveMode === 'private' && styles.addBtnPersonal]}
                     onPress={handleAddPress}
                     disabled={!itemName.trim() || isAdding}
                     accessibilityRole="button"
@@ -838,12 +833,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border,
   },
   modeBtnOn:           { backgroundColor: colors.primary, borderColor: colors.primary },
-  modeBtnDraft:        { backgroundColor: 'rgba(234,179,8,0.12)', borderColor: 'rgba(234,179,8,0.5)' },
   modeBtnPersonal:     { backgroundColor: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.4)' },
   modeBtnText:         { fontSize: 13, ...font.semibold, color: colors.textSecondary },
   modeBtnTextOn:       { color: '#FFFFFF' },
-  modeBtnTextDraft:    { color: 'rgb(133,77,14)' },
   modeBtnTextPersonal: { color: 'rgb(76,29,149)' },
+
+  // ── Draft hint
+  draftHint:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -8 },
+  draftHintText: { fontSize: 12, ...font.regular, color: colors.textSecondary },
 
   // ── Inline add row
   addRow: {
@@ -852,7 +849,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBFAF8', paddingRight: 6, paddingLeft: 4,
     height: 50,
   },
-  addRowDraft:    { borderColor: 'rgba(234,179,8,0.5)', backgroundColor: 'rgba(255,250,235,0.8)' },
   addRowPersonal: { borderColor: 'rgba(139,92,246,0.4)', backgroundColor: 'rgba(245,240,255,0.6)' },
   addInput: {
     flex: 1, height: '100%', paddingHorizontal: 10,
@@ -864,7 +860,6 @@ const styles = StyleSheet.create({
     boxShadow: '0 4px 12px rgba(79,120,182,0.22)',
   } as never,
   addBtnOff:      { backgroundColor: colors.textDisabled, boxShadow: 'none' } as never,
-  addBtnDraft:    { backgroundColor: 'rgb(161,98,7)' },
   addBtnPersonal: { backgroundColor: 'rgb(124,58,237)' },
   addBtnText:     { fontSize: 22, ...font.bold, color: '#FFFFFF', lineHeight: 26 },
 
