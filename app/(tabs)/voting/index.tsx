@@ -54,7 +54,7 @@ function ProposalCard({
   const result = !proposal.isOpen
     ? yesVotes === totalPeople
       ? 'passed'
-      : noVotes > yesVotes
+      : noVotes > totalPeople / 2
       ? 'rejected'
       : 'blocked'
     : null;
@@ -81,7 +81,7 @@ function ProposalCard({
         ) : (
           <View style={[styles.resultBadge, { backgroundColor: resultColor + '18' }]}>
             <Text style={[styles.resultBadgeText, { color: resultColor }]}>
-              {result === 'passed' ? t('voting.passed') : result === 'rejected' ? t('voting.rejected') : 'Blocked'}
+              {result === 'passed' ? t('voting.passed') : result === 'rejected' ? t('voting.rejected') : t('voting.blocked')}
             </Text>
           </View>
         )}
@@ -128,17 +128,17 @@ function ProposalCard({
               <Text style={styles.voterName}>{hm.name}</Text>
               {vote?.choice === 'yes' && (
                 <View style={[styles.voterChip, styles.voterChipYes]}>
-                  <Text style={[styles.voterChipText, { color: colors.positive }]}>✓ Yes</Text>
+                  <Text style={[styles.voterChipText, { color: colors.positive }]}>{t('voting.yes')}</Text>
                 </View>
               )}
               {vote?.choice === 'no' && (
                 <View style={[styles.voterChip, styles.voterChipNo]}>
-                  <Text style={[styles.voterChipText, { color: colors.negative }]}>✗ No</Text>
+                  <Text style={[styles.voterChipText, { color: colors.negative }]}>{t('voting.no')}</Text>
                 </View>
               )}
               {!vote && (
                 <View style={styles.voterChip}>
-                  <Text style={[styles.voterChipText, { color: colors.textDisabled }]}>Waiting…</Text>
+                  <Text style={[styles.voterChipText, { color: colors.textDisabled }]}>{t('voting.waiting')}</Text>
                 </View>
               )}
             </View>
@@ -169,14 +169,22 @@ function ProposalCard({
           </View>
           {allVotedYes ? (
             <Pressable
-              style={[styles.closeResultBtn, { backgroundColor: colors.positive }]}
+              style={[styles.closeResultBtn, styles.closeResultBtnPositive]}
               onPress={() => closeProposal(proposal.id)}
+              accessible={true}
               accessibilityRole="button"
+              accessibilityState={{ disabled: false }}
             >
-              <Text style={styles.closeResultBtnText}>✓ Everyone agreed — Close & Approve</Text>
+              <Text style={styles.closeResultBtnText}>{t('voting.everyoneAgreedCloseApprove')}</Text>
             </Pressable>
           ) : myId === proposal.createdBy ? (
-            <Pressable style={styles.closeBtn} onPress={() => closeProposal(proposal.id)}>
+            <Pressable
+              style={styles.closeBtn}
+              onPress={() => closeProposal(proposal.id)}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: false }}
+            >
               <Text style={styles.closeBtnText}>{t('voting.close_vote')}</Text>
             </Pressable>
           ) : null}
@@ -374,6 +382,7 @@ const styles = StyleSheet.create({
   closeBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: colors.border },
   closeBtnText: { color: colors.textSecondary, fontSize: sizes.fontSm, ...font.regular },
   closeResultBtn: { borderRadius: 12, paddingVertical: sizes.sm, paddingHorizontal: sizes.md, alignItems: 'center' },
+  closeResultBtnPositive: { backgroundColor: colors.positive },
   closeResultBtnText: { color: colors.white, fontSize: sizes.fontSm, ...font.bold },
   voteErrorText: { color: colors.danger, fontSize: sizes.fontXs, ...font.regular },
 

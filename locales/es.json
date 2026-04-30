@@ -406,7 +406,12 @@
     "proposed_by": "Propuesto por {{name}}",
     "voted_count": "{{voted}} de {{total}} votaron",
     "close_vote": "Cerrar votación",
-    "failed_post": "No se pudo publicar la propuesta. Intenta de nuevo."
+    "failed_post": "No se pudo publicar la propuesta. Intenta de nuevo.",
+    "blocked": "⚠ Bloqueada",
+    "yes": "✓ Sí",
+    "no": "✗ No",
+    "waiting": "Esperando…",
+    "everyoneAgreedCloseApprove": "✓ Todos de acuerdo — Cerrar y aprobar"
   },
   "condition": {
     "title": "Estado de la vivienda",

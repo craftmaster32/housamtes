@@ -407,7 +407,12 @@
     "proposed_by": "Proposed by {{name}}",
     "voted_count": "{{voted}} of {{total}} voted",
     "close_vote": "Close vote",
-    "failed_post": "Failed to post proposal. Try again."
+    "failed_post": "Failed to post proposal. Try again.",
+    "blocked": "⚠ Blocked",
+    "yes": "✓ Yes",
+    "no": "✗ No",
+    "waiting": "Waiting…",
+    "everyoneAgreedCloseApprove": "✓ Everyone agreed — Close & Approve"
   },
   "condition": {
     "title": "House condition",

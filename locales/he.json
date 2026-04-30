@@ -401,7 +401,12 @@
     "proposed_by": "הוצע על ידי {{name}}",
     "voted_count": "{{voted}} מתוך {{total}} הצביעו",
     "close_vote": "סגור הצבעה",
-    "failed_post": "פרסום ההצעה נכשל. נסה שוב."
+    "failed_post": "פרסום ההצעה נכשל. נסה שוב.",
+    "blocked": "⚠ חסום",
+    "yes": "✓ כן",
+    "no": "✗ לא",
+    "waiting": "ממתין…",
+    "everyoneAgreedCloseApprove": "✓ כולם מסכימים — סגור ואשר"
   },
   "condition": {
     "title": "מצב הדירה",

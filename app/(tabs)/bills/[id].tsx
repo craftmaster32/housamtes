@@ -50,7 +50,8 @@ export default function BillDetailScreen(): React.JSX.Element {
   const [isSettling, setIsSettling] = useState(false);
   const [error, setError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
+  const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
+  const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
 
   const handleSaveEdit = useCallback(async () => {
     const parsed = parseFloat(amount);
@@ -162,7 +163,7 @@ export default function BillDetailScreen(): React.JSX.Element {
               <Text style={styles.dateFieldLabel}>{t('bills.date_label')}</Text>
               <Pressable
                 style={styles.dateTrigger}
-                onPress={() => setShowDatePicker(true)}
+                onPress={openDatePicker}
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel={t('bills.pick_date')}
