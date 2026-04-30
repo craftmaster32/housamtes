@@ -42,6 +42,13 @@ export const DEFAULT_FEATURES: FeatureConfig[] = [
     enabled: true,
   },
   {
+    key: 'grocery_draft',
+    label: 'Grocery Draft Mode',
+    icon: '📝',
+    description: 'Privately compose your shopping list before sharing it with the house',
+    enabled: true,
+  },
+  {
     key: 'chores',
     label: 'Chores',
     icon: '🧹',
@@ -139,6 +146,27 @@ export const useSettingsStore = create<SettingsStore>()(
       {
         name: 'housemates-settings',
         storage: createJSONStorage(() => AsyncStorage),
+        version: 2,
+        migrate: (state: unknown, fromVersion: number): SettingsStore => {
+          const s = state as SettingsStore;
+          if (fromVersion < 2) {
+            const hasGroceryDraft = s.features?.some((f) => f.key === 'grocery_draft');
+            if (!hasGroceryDraft) {
+              const groceryIndex = s.features?.findIndex((f) => f.key === 'grocery') ?? -1;
+              const entry: FeatureConfig = {
+                key: 'grocery_draft',
+                label: 'Grocery Draft Mode',
+                icon: '📝',
+                description: 'Privately compose your shopping list before sharing it with the house',
+                enabled: true,
+              };
+              const features = [...(s.features ?? [])];
+              features.splice(groceryIndex + 1, 0, entry);
+              return { ...s, features };
+            }
+          }
+          return s;
+        },
       }
     ),
     { name: 'settings-store' }
