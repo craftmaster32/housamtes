@@ -278,7 +278,7 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
               <Text style={styles.duplicateBadgeText}>⚠️ on list</Text>
             </View>
           )}
-          {item.isPersonal
+          {item.isPersonal && !item.isDraft
             ? <Ionicons name="lock-closed" size={14} color="rgba(139,92,246,0.6)" />
             : <UserAvatar userId={item.addedBy} size={22} />
           }
