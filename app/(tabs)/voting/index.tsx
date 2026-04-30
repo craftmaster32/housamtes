@@ -54,10 +54,16 @@ function ProposalCard({
   const result = !proposal.isOpen
     ? yesVotes === totalPeople
       ? 'passed'
-      : 'rejected'
+      : noVotes > yesVotes
+      ? 'rejected'
+      : 'blocked'
     : null;
 
-  const resultColor = result === 'passed' ? colors.positive : result === 'rejected' ? colors.negative : colors.textSecondary;
+  const resultColor =
+    result === 'passed' ? colors.positive :
+    result === 'rejected' ? colors.negative :
+    result === 'blocked' ? colors.warning :
+    colors.textSecondary;
 
   return (
     <View style={[styles.card, !proposal.isOpen && styles.cardClosed]}>
@@ -75,7 +81,7 @@ function ProposalCard({
         ) : (
           <View style={[styles.resultBadge, { backgroundColor: resultColor + '18' }]}>
             <Text style={[styles.resultBadgeText, { color: resultColor }]}>
-              {result === 'passed' ? t('voting.passed') : t('voting.rejected')}
+              {result === 'passed' ? t('voting.passed') : result === 'rejected' ? t('voting.rejected') : 'Blocked'}
             </Text>
           </View>
         )}
