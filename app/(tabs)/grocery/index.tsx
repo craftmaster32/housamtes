@@ -356,9 +356,11 @@ export default function GroceryScreen(): React.JSX.Element {
   // Restore persisted add-mode preference
   useEffect((): void | (() => void) => {
     AsyncStorage.getItem(ADD_MODE_KEY).then((v) => {
-      if (v === 'shared' || v === 'draft' || v === 'private') setAddMode(v);
+      if (v === 'shared' || v === 'draft' || v === 'private') {
+        setAddMode(v === 'draft' && !draftEnabled ? 'shared' : v);
+      }
     }).catch(() => {});
-  }, []);
+  }, [draftEnabled]);
 
   const resolvedQty = showCustomQty ? customQty : qty;
   const effectiveMode: AddMode = !draftEnabled && addMode === 'draft' ? 'shared' : addMode;
