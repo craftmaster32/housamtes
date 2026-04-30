@@ -413,7 +413,7 @@ function GroceryWidget(): React.JSX.Element {
   const [isPublishing, setIsPublishing] = useState(false);
 
   const myDraftItems = useMemo(
-    () => items.filter((i) => i.isDraft && i.addedBy === myId && !i.isChecked),
+    () => items.filter((i) => i.isDraft && i.addedBy === myId),
     [items, myId]
   );
   const sharedPending = useMemo(
@@ -448,6 +448,7 @@ function GroceryWidget(): React.JSX.Element {
 
   const handlePublish = useCallback(async (): Promise<void> => {
     if (isPublishing || !myId) return;
+    setAddError(null);
     setIsPublishing(true);
     try {
       await publishDraftItems(myId);
@@ -469,11 +470,11 @@ function GroceryWidget(): React.JSX.Element {
         <Text style={styles.groceryDraftTitle}>📝 My Draft</Text>
         <Pressable
           onPress={handlePublish}
-          disabled={isPublishing}
-          style={[styles.groceryDraftApproveBtn, isPublishing && styles.groceryDraftApproveBtnDisabled]}
+          disabled={isPublishing || !myId}
+          style={[styles.groceryDraftApproveBtn, (isPublishing || !myId) && styles.groceryDraftApproveBtnDisabled]}
           accessible
           accessibilityRole="button"
-          accessibilityState={{ disabled: isPublishing }}
+          accessibilityState={{ disabled: isPublishing || !myId }}
           accessibilityLabel="Share draft with housemates"
           accessibilityHint="Adds all draft items to the shared grocery list"
         >

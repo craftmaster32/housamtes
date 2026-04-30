@@ -471,9 +471,10 @@ export default function GroceryScreen(): React.JSX.Element {
 
   // ── Stable header-card handlers ────────────────────────────────────────────
   const handleSetMode    = useCallback((mode: AddMode): void => {
-    setAddMode(mode);
-    AsyncStorage.setItem(ADD_MODE_KEY, mode).catch(() => {});
-  }, []);
+    const safe: AddMode = mode === 'draft' && !draftEnabled ? 'shared' : mode;
+    setAddMode(safe);
+    AsyncStorage.setItem(ADD_MODE_KEY, safe).catch(() => {});
+  }, [draftEnabled]);
   const handleSetShared  = useCallback((): void => handleSetMode(addMode === 'shared'  ? 'draft' : 'shared'),  [addMode, handleSetMode]);
   const handleSetPrivate = useCallback((): void => handleSetMode(addMode === 'private' ? 'draft' : 'private'), [addMode, handleSetMode]);
   const handleItemNameChange  = useCallback((v: string): void => { setItemName(v); setAddError(null); }, []);
