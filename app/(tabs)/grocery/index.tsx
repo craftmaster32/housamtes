@@ -340,7 +340,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const houseId      = useAuthStore((s) => s.houseId);
   const myId         = profile?.id ?? '';
   const myName       = profile?.name ?? '';
-  const draftEnabled = useSettingsStore((s) => s.features.find((f) => f.key === 'grocery_draft')?.enabled ?? true);
+  const draftEnabled = useSettingsStore((s) => s.isEnabled('grocery_draft'));
 
   const [itemName, setItemName]           = useState('');
   const [qty, setQty]                     = useState('1');
@@ -417,8 +417,7 @@ export default function GroceryScreen(): React.JSX.Element {
     setIsAdding(true);
     setAddError(null);
     try {
-      const mode: AddMode = !draftEnabled && addMode === 'draft' ? 'shared' : addMode;
-      await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '', mode);
+      await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '', effectiveMode);
       setItemName('');
       setQty('1');
       setCustomQty('');
@@ -430,7 +429,7 @@ export default function GroceryScreen(): React.JSX.Element {
     } finally {
       setIsAdding(false);
     }
-  }, [itemName, resolvedQty, myId, houseId, addItem, isAdding, addMode, draftEnabled]);
+  }, [itemName, resolvedQty, myId, houseId, addItem, isAdding, effectiveMode]);
 
   const handleStartRun = useCallback(async (): Promise<void> => {
     try {
