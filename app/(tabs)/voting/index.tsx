@@ -39,7 +39,7 @@ function ProposalCard({
   const noVotes = proposal.votes.filter((v) => v.choice === 'no').length;
   const myVote = proposal.votes.find((v) => v.person === myId)?.choice ?? null;
   const totalVoted = proposal.votes.length;
-  const allVoted = totalVoted >= totalPeople;
+  const allVotedYes = yesVotes === totalPeople;
 
   const handleVote = useCallback(
     (choice: 'yes' | 'no') => {
@@ -52,11 +52,9 @@ function ProposalCard({
   );
 
   const result = !proposal.isOpen
-    ? yesVotes > noVotes
+    ? yesVotes === totalPeople
       ? 'passed'
-      : yesVotes < noVotes
-      ? 'rejected'
-      : 'tied'
+      : 'rejected'
     : null;
 
   const resultColor = result === 'passed' ? colors.positive : result === 'rejected' ? colors.negative : colors.textSecondary;
@@ -77,7 +75,7 @@ function ProposalCard({
         ) : (
           <View style={[styles.resultBadge, { backgroundColor: resultColor + '18' }]}>
             <Text style={[styles.resultBadgeText, { color: resultColor }]}>
-              {result === 'passed' ? t('voting.passed') : result === 'rejected' ? t('voting.rejected') : t('voting.tied')}
+              {result === 'passed' ? t('voting.passed') : t('voting.rejected')}
             </Text>
           </View>
         )}
@@ -115,6 +113,33 @@ function ProposalCard({
 
       <Text style={styles.tallyMeta}>{t('voting.voted_count', { voted: totalVoted, total: totalPeople })}</Text>
 
+      {/* Voter status — who voted what, who's still pending */}
+      <View style={styles.voterList}>
+        {housemates.map((hm) => {
+          const vote = proposal.votes.find((v) => v.person === hm.id);
+          return (
+            <View key={hm.id} style={styles.voterRow}>
+              <Text style={styles.voterName}>{hm.name}</Text>
+              {vote?.choice === 'yes' && (
+                <View style={[styles.voterChip, styles.voterChipYes]}>
+                  <Text style={[styles.voterChipText, { color: colors.positive }]}>✓ Yes</Text>
+                </View>
+              )}
+              {vote?.choice === 'no' && (
+                <View style={[styles.voterChip, styles.voterChipNo]}>
+                  <Text style={[styles.voterChipText, { color: colors.negative }]}>✗ No</Text>
+                </View>
+              )}
+              {!vote && (
+                <View style={styles.voterChip}>
+                  <Text style={[styles.voterChipText, { color: colors.textDisabled }]}>Waiting…</Text>
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
+
       {/* Voting buttons — only if open */}
       {proposal.isOpen && (
         <>
@@ -136,22 +161,19 @@ function ProposalCard({
               </Text>
             </Pressable>
           </View>
-          {allVoted && (
+          {allVotedYes ? (
             <Pressable
-              style={[styles.closeResultBtn, { backgroundColor: yesVotes > noVotes ? colors.positive : colors.negative }]}
+              style={[styles.closeResultBtn, { backgroundColor: colors.positive }]}
               onPress={() => closeProposal(proposal.id)}
               accessibilityRole="button"
             >
-              <Text style={styles.closeResultBtnText}>
-                {yesVotes > noVotes ? '✓ Close — Passed' : '✗ Close — Rejected'}
-              </Text>
+              <Text style={styles.closeResultBtnText}>✓ Everyone agreed — Close & Approve</Text>
             </Pressable>
-          )}
-          {!allVoted && myId === proposal.createdBy && (
+          ) : myId === proposal.createdBy ? (
             <Pressable style={styles.closeBtn} onPress={() => closeProposal(proposal.id)}>
               <Text style={styles.closeBtnText}>{t('voting.close_vote')}</Text>
             </Pressable>
-          )}
+          ) : null}
           {!!voteError && <Text style={styles.voteErrorText}>{voteError}</Text>}
         </>
       )}
@@ -348,6 +370,14 @@ const styles = StyleSheet.create({
   closeResultBtn: { borderRadius: 12, paddingVertical: sizes.sm, paddingHorizontal: sizes.md, alignItems: 'center' },
   closeResultBtnText: { color: colors.white, fontSize: sizes.fontSm, ...font.bold },
   voteErrorText: { color: colors.danger, fontSize: sizes.fontXs, ...font.regular },
+
+  voterList: { gap: 6 },
+  voterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  voterName: { fontSize: sizes.fontSm, ...font.medium, color: colors.textPrimary },
+  voterChip: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 2, backgroundColor: colors.border + '60' },
+  voterChipYes: { backgroundColor: colors.positive + '18' },
+  voterChipNo: { backgroundColor: colors.negative + '18' },
+  voterChipText: { fontSize: sizes.fontXs, ...font.semibold },
 
   form: { backgroundColor: colors.white, borderRadius: 16, padding: sizes.md, gap: sizes.sm, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' } as never,
   formTitle: { fontSize: 17, ...font.bold, color: colors.textPrimary, marginBottom: sizes.xs },
