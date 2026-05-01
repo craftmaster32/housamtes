@@ -16,6 +16,7 @@ import { usePersonalCalendar } from '@hooks/usePersonalCalendar';
 import { openGoogleCalendar, downloadIcs } from '@utils/calendarWeb';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
+import { addWeeks, addMonths, addYears } from 'date-fns';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -29,6 +30,7 @@ interface CalendarEvent {
   title: string;
   type: 'event' | 'parking' | 'parking-pending' | 'bill' | 'chore' | 'personal';
   detail?: string;
+  createdBy?: string;
   startTime?: string;
   endTime?: string;
   notes?: string;
@@ -68,12 +70,12 @@ function expandRecurringDates(
 ): string[] {
   const recEnd = recurrenceEnd ? new Date(recurrenceEnd + 'T00:00:00') : null;
   const dates: string[] = [];
-  const current = new Date(startDate + 'T00:00:00');
+  let current = new Date(startDate + 'T00:00:00');
 
   const advance = (): void => {
-    if (recurrence === 'weekly') current.setDate(current.getDate() + 7);
-    else if (recurrence === 'monthly') current.setMonth(current.getMonth() + 1);
-    else current.setFullYear(current.getFullYear() + 1);
+    if (recurrence === 'weekly') current = addWeeks(current, 1);
+    else if (recurrence === 'monthly') current = addMonths(current, 1);
+    else current = addYears(current, 1);
   };
 
   // Fast-forward to the first occurrence at or after 'from'
@@ -219,6 +221,8 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
               placeholderTextColor={colors.textSecondary}
               returnKeyType="done"
               onSubmitEditing={handleSave}
+              accessibilityLabel="Event name"
+              accessibilityHint="Enter the event title"
             />
 
             <Text style={[formStyles.label, formStyles.labelGap]}>Start date</Text>
@@ -234,6 +238,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                   style={formStyles.clearLink}
                   onPress={() => { setShowEndDate(false); setEndDate(''); }}
                   accessibilityRole="button"
+                  accessibilityLabel="Remove end date"
                 >
                   <Text style={formStyles.clearLinkText}>Remove end date</Text>
                 </Pressable>
@@ -243,6 +248,8 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                 style={formStyles.addToggle}
                 onPress={() => { setShowEndDate(true); setEndDate(date); }}
                 accessibilityRole="button"
+                accessibilityLabel="Add end date"
+                accessibilityHint="Make this a multi-day event"
               >
                 <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
                 <Text style={formStyles.addToggleText}>Add end date</Text>
@@ -265,6 +272,8 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              accessibilityLabel="Notes"
+              accessibilityHint="Optional additional details for this event"
             />
 
             <Text style={[formStyles.label, formStyles.labelGap]}>Repeat</Text>
@@ -296,6 +305,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                       style={formStyles.clearLink}
                       onPress={() => { setShowRecEnd(false); setRecurrenceEnd(''); }}
                       accessibilityRole="button"
+                      accessibilityLabel="Remove repeat end date"
                     >
                       <Text style={formStyles.clearLinkText}>No end date (repeat forever)</Text>
                     </Pressable>
@@ -305,6 +315,8 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                     style={formStyles.addToggle}
                     onPress={() => setShowRecEnd(true)}
                     accessibilityRole="button"
+                    accessibilityLabel="Set repeat end date"
+                    accessibilityHint="Choose when this event stops repeating"
                   >
                     <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
                     <Text style={formStyles.addToggleText}>Set an end date for repeating</Text>
@@ -429,6 +441,7 @@ export default function CalendarScreen(): React.JSX.Element {
         title: e.title,
         type: 'event' as const,
         detail: resolveName(e.createdBy, housemates),
+        createdBy: e.createdBy,
         startTime: e.startTime,
         endTime: e.endTime,
         endDate: e.endDate,
@@ -438,8 +451,22 @@ export default function CalendarScreen(): React.JSX.Element {
 
       if (e.recurrence) {
         const dates = expandRecurringDates(e.date, e.recurrence, e.recurrenceEnd, gridStart, expandEnd);
-        for (const d of dates) {
-          list.push({ ...base, id: `ev-${e.id}-${d}`, date: d });
+        if (e.endDate && e.endDate > e.date) {
+          const spanDays = Math.round(
+            (new Date(e.endDate + 'T00:00:00').getTime() - new Date(e.date + 'T00:00:00').getTime()) / 86400000
+          );
+          for (const d of dates) {
+            const anchor = new Date(d + 'T00:00:00');
+            for (let offset = 0; offset <= spanDays; offset++) {
+              const cur = new Date(anchor);
+              cur.setDate(anchor.getDate() + offset);
+              list.push({ ...base, id: `ev-${e.id}-${toYMD(cur)}`, date: toYMD(cur) });
+            }
+          }
+        } else {
+          for (const d of dates) {
+            list.push({ ...base, id: `ev-${e.id}-${d}`, date: d });
+          }
         }
       } else if (e.endDate && e.endDate > e.date) {
         const start = new Date(e.date + 'T00:00:00');
@@ -550,7 +577,7 @@ export default function CalendarScreen(): React.JSX.Element {
       if (!ok) return;
     }
     if (item.type === 'event') {
-      await syncHouseEvent({ id: item.sourceId, title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime, createdBy: item.detail });
+      await syncHouseEvent({ id: item.sourceId, title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime, createdBy: item.createdBy });
     } else if (item.type === 'parking') {
       await syncParkingApproved({ id: item.sourceId, requestedBy: resolveName(item.person ?? '', housemates), date: item.date, startTime: item.startTime, endTime: item.endTime });
     } else if (item.type === 'parking-pending') {
@@ -674,7 +701,7 @@ export default function CalendarScreen(): React.JSX.Element {
                   : null;
                 const syncKey = (item.type === 'parking' || item.type === 'parking-pending')
                   ? `pk-${item.sourceId}`
-                  : `ev-${item.sourceId}`;
+                  : `ev-${item.sourceId}-${item.date}`;
                 const alreadySynced = !!eventMap[syncKey];
                 const showSyncBtn = item.type === 'event' || item.type === 'parking' || item.type === 'parking-pending';
                 const hideSyncBtn = alreadySynced && (
@@ -710,16 +737,16 @@ export default function CalendarScreen(): React.JSX.Element {
                       {showSyncBtn && Platform.OS === 'web' ? (
                         <>
                           <Pressable
+                            style={styles.iconBtn}
                             onPress={() => openGoogleCalendar({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
-                            hitSlop={8}
                             accessibilityRole="button"
                             accessibilityLabel="Add to Google Calendar"
                           >
                             <Ionicons name="logo-google" size={16} color={colors.textSecondary} />
                           </Pressable>
                           <Pressable
+                            style={styles.iconBtn}
                             onPress={() => downloadIcs({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
-                            hitSlop={8}
                             accessibilityRole="button"
                             accessibilityLabel="Download .ics file"
                           >
@@ -728,8 +755,8 @@ export default function CalendarScreen(): React.JSX.Element {
                         </>
                       ) : showSyncBtn && !hideSyncBtn ? (
                         <Pressable
+                          style={styles.iconBtn}
                           onPress={() => handleManualSync(item).catch(() => {})}
-                          hitSlop={8}
                           accessibilityRole="button"
                           accessibilityLabel={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
                         >
@@ -743,19 +770,19 @@ export default function CalendarScreen(): React.JSX.Element {
                       {item.type === 'event' && (
                         <>
                           <Pressable
+                            style={styles.iconBtn}
                             onPress={() => handleEditEvent(item.sourceId)}
-                            hitSlop={8}
                             accessibilityRole="button"
                             accessibilityLabel="Edit event"
                           >
                             <Ionicons name="pencil-outline" size={16} color={colors.primary} />
                           </Pressable>
                           <Pressable
+                            style={styles.iconBtn}
                             onPress={async () => {
                               try { await removeEvent(item.sourceId); }
                               catch { Alert.alert('Error', 'Could not remove event. Try again.'); }
                             }}
-                            hitSlop={8}
                             accessibilityRole="button"
                             accessibilityLabel="Delete event"
                           >
@@ -849,6 +876,7 @@ const styles = StyleSheet.create({
   eventRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   typeBadgeText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
+  iconBtn: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   errorBanner: { backgroundColor: colors.negative + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.negative + '40' },

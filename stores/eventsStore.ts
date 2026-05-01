@@ -109,55 +109,59 @@ export const useEventsStore = create<EventsStore>()(
       },
 
       addEvent: async (title, date, createdBy, houseId, startTime, endTime, endDate, notes, recurrence, recurrenceEnd): Promise<string> => {
-        const { data, error } = await supabase
-          .from('events')
-          .insert({
-            house_id: houseId,
-            title,
-            date,
-            created_by: createdBy,
-            start_time: startTime ?? null,
-            end_time: endTime ?? null,
-            end_date: endDate ?? null,
-            notes: notes ?? null,
-            recurrence: recurrence ?? null,
-            recurrence_end: recurrenceEnd ?? null,
-          })
-          .select()
-          .single();
-        if (error) {
-          captureError(error, { context: 'add-event', houseId });
+        try {
+          const { data, error } = await supabase
+            .from('events')
+            .insert({
+              house_id: houseId,
+              title,
+              date,
+              created_by: createdBy,
+              start_time: startTime ?? null,
+              end_time: endTime ?? null,
+              end_date: endDate ?? null,
+              notes: notes ?? null,
+              recurrence: recurrence ?? null,
+              recurrence_end: recurrenceEnd ?? null,
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          const event = mapRow(data as Record<string, unknown>);
+          const events = [...get().events, event].sort((a, b) => a.date.localeCompare(b.date));
+          set({ events });
+          return event.id;
+        } catch (err) {
+          captureError(err, { context: 'add-event', houseId });
           throw new Error('Could not save the event. Please try again.');
         }
-        const event = mapRow(data as Record<string, unknown>);
-        const events = [...get().events, event].sort((a, b) => a.date.localeCompare(b.date));
-        set({ events });
-        return event.id;
       },
 
       editEvent: async (id, updates): Promise<void> => {
-        const { error } = await supabase
-          .from('events')
-          .update({
-            title: updates.title,
-            date: updates.date,
-            end_date: updates.endDate ?? null,
-            start_time: updates.startTime ?? null,
-            end_time: updates.endTime ?? null,
-            notes: updates.notes ?? null,
-            recurrence: updates.recurrence ?? null,
-            recurrence_end: updates.recurrenceEnd ?? null,
-          })
-          .eq('id', id);
-        if (error) {
-          captureError(error, { context: 'edit-event', eventId: id });
+        try {
+          const { error } = await supabase
+            .from('events')
+            .update({
+              title: updates.title,
+              date: updates.date,
+              end_date: updates.endDate ?? null,
+              start_time: updates.startTime ?? null,
+              end_time: updates.endTime ?? null,
+              notes: updates.notes ?? null,
+              recurrence: updates.recurrence ?? null,
+              recurrence_end: updates.recurrenceEnd ?? null,
+            })
+            .eq('id', id);
+          if (error) throw error;
+          set({
+            events: get().events
+              .map((e) => e.id === id ? { ...e, ...updates } : e)
+              .sort((a, b) => a.date.localeCompare(b.date)),
+          });
+        } catch (err) {
+          captureError(err, { context: 'edit-event', eventId: id });
           throw new Error('Could not update the event. Please try again.');
         }
-        set({
-          events: get().events
-            .map((e) => e.id === id ? { ...e, ...updates } : e)
-            .sort((a, b) => a.date.localeCompare(b.date)),
-        });
       },
 
       removeEvent: async (id): Promise<void> => {
