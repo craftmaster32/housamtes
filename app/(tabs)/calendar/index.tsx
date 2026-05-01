@@ -1,13 +1,13 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useEventsStore } from '@stores/eventsStore';
+import { useEventsStore, HouseEvent, EventRecurrence, EventUpdates } from '@stores/eventsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
-import { useRecurringBillsStore } from '@stores/recurringBillsStore';
+import { useRecurringBillsStore, getNextDueDate } from '@stores/recurringBillsStore';
 import { useChoresStore } from '@stores/choresStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -23,139 +23,311 @@ import { sizes } from '@constants/sizes';
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CalendarEvent {
   id: string;
+  sourceId: string;
   date: string;
+  endDate?: string;
   title: string;
   type: 'event' | 'parking' | 'parking-pending' | 'bill' | 'chore' | 'personal';
   detail?: string;
   startTime?: string;
   endTime?: string;
-  person?: string; // for parking: requestedBy
+  notes?: string;
+  recurrence?: EventRecurrence;
+  person?: string;
 }
 
 const TYPE_META: Record<CalendarEvent['type'], { icon: string; color: string }> = {
-  event:           { icon: '📅', color: '#6366f1' },
-  parking:         { icon: '🚗', color: '#f59e0b' },
+  event:             { icon: '📅', color: '#6366f1' },
+  parking:           { icon: '🚗', color: '#f59e0b' },
   'parking-pending': { icon: '🅿️', color: '#94a3b8' },
-  bill:            { icon: '💰', color: '#ef4444' },
-  chore:           { icon: '🧹', color: '#22c55e' },
-  personal:        { icon: '👤', color: '#8b5cf6' },
+  bill:              { icon: '💰', color: '#ef4444' },
+  chore:             { icon: '🧹', color: '#22c55e' },
+  personal:          { icon: '👤', color: '#8b5cf6' },
 };
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS   = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// ── Add Event Modal ───────────────────────────────────────────────────────────
-function AddEventModal({
-  visible, initialDate, onClose,
-}: {
+function formatShortDate(ymd: string): string {
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return ymd;
+  return `${SHORT_MONTHS[parseInt(m[2]) - 1]} ${parseInt(m[3])}`;
+}
+
+function expandRecurringDates(
+  startDate: string,
+  recurrence: EventRecurrence,
+  recurrenceEnd: string | undefined,
+  from: Date,
+  to: Date,
+): string[] {
+  const recEnd = recurrenceEnd ? new Date(recurrenceEnd + 'T00:00:00') : null;
+  const dates: string[] = [];
+  const current = new Date(startDate + 'T00:00:00');
+
+  const advance = (): void => {
+    if (recurrence === 'weekly') current.setDate(current.getDate() + 7);
+    else if (recurrence === 'monthly') current.setMonth(current.getMonth() + 1);
+    else current.setFullYear(current.getFullYear() + 1);
+  };
+
+  // Fast-forward to the first occurrence at or after 'from'
+  while (current < from) advance();
+
+  while (current <= to) {
+    if (recEnd && current > recEnd) break;
+    dates.push(toYMD(current));
+    advance();
+  }
+  return dates;
+}
+
+// ── Event Form Modal (add + edit) ─────────────────────────────────────────────
+interface EventFormModalProps {
   visible: boolean;
   initialDate: string;
+  editingEvent?: HouseEvent;
   onClose: () => void;
-}): React.JSX.Element {
+}
+
+const RECURRENCE_OPTIONS: Array<{ label: string; value: EventRecurrence | '' }> = [
+  { label: 'None', value: '' },
+  { label: 'Weekly', value: 'weekly' },
+  { label: 'Monthly', value: 'monthly' },
+  { label: 'Yearly', value: 'yearly' },
+];
+
+function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFormModalProps): React.JSX.Element {
   const addEvent       = useEventsStore((s) => s.addEvent);
+  const editEvent      = useEventsStore((s) => s.editEvent);
   const profile        = useAuthStore((s) => s.profile);
   const houseId        = useAuthStore((s) => s.houseId);
   const syncHouseEvent = useCalendarSyncStore((s) => s.syncHouseEvent);
 
-  const [title, setTitle]         = useState('');
-  const [date, setDate]           = useState(initialDate);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime]     = useState('');
-  const [saving, setSaving]       = useState(false);
-  const [error, setError]         = useState('');
+  const [title, setTitle]               = useState('');
+  const [date, setDate]                 = useState(initialDate);
+  const [showEndDate, setShowEndDate]   = useState(false);
+  const [endDate, setEndDate]           = useState('');
+  const [startTime, setStartTime]       = useState('');
+  const [endTime, setEndTime]           = useState('');
+  const [notes, setNotes]               = useState('');
+  const [recurrence, setRecurrence]     = useState<EventRecurrence | ''>('');
+  const [showRecEnd, setShowRecEnd]     = useState(false);
+  const [recurrenceEnd, setRecurrenceEnd] = useState('');
+  const [saving, setSaving]             = useState(false);
+  const [error, setError]               = useState('');
 
-  const handleShow = useCallback((): void => {
-    setTitle('');
-    setDate(initialDate);
-    setStartTime('');
-    setEndTime('');
+  useEffect(() => {
+    if (!visible) return;
+    if (editingEvent) {
+      setTitle(editingEvent.title);
+      setDate(editingEvent.date);
+      setEndDate(editingEvent.endDate ?? '');
+      setShowEndDate(!!editingEvent.endDate);
+      setStartTime(editingEvent.startTime ?? '');
+      setEndTime(editingEvent.endTime ?? '');
+      setNotes(editingEvent.notes ?? '');
+      setRecurrence(editingEvent.recurrence ?? '');
+      setRecurrenceEnd(editingEvent.recurrenceEnd ?? '');
+      setShowRecEnd(!!editingEvent.recurrenceEnd);
+    } else {
+      setTitle('');
+      setDate(initialDate);
+      setEndDate('');
+      setShowEndDate(false);
+      setStartTime('');
+      setEndTime('');
+      setNotes('');
+      setRecurrence('');
+      setRecurrenceEnd('');
+      setShowRecEnd(false);
+    }
     setError('');
-  }, [initialDate]);
+  }, [visible, editingEvent, initialDate]);
 
   const handleSave = useCallback(async (): Promise<void> => {
     if (!title.trim()) { setError('Enter an event name'); return; }
     if (!date) { setError('Pick a date'); return; }
+    if (showEndDate && endDate && endDate < date) { setError('End date must be on or after start date'); return; }
     setSaving(true);
     try {
-      const eventId = await addEvent(
-        title.trim(),
-        date,
-        profile?.id ?? '',
-        houseId ?? '',
-        startTime || undefined,
-        endTime || undefined,
-      );
-      syncHouseEvent({
-        id: eventId,
-        title: title.trim(),
-        date,
-        startTime: startTime || undefined,
-        endTime: endTime || undefined,
-        createdBy: profile?.id,
-      }).catch(() => {});
-      setTitle('');
-      setError('');
+      const resolvedEndDate = showEndDate && endDate ? endDate : undefined;
+      const resolvedRecEnd  = recurrence && showRecEnd && recurrenceEnd ? recurrenceEnd : undefined;
+      const resolvedRec     = recurrence || undefined;
+      if (editingEvent) {
+        const updates: EventUpdates = {
+          title: title.trim(), date,
+          endDate: resolvedEndDate,
+          startTime: startTime || undefined,
+          endTime: endTime || undefined,
+          notes: notes || undefined,
+          recurrence: resolvedRec,
+          recurrenceEnd: resolvedRecEnd,
+        };
+        await editEvent(editingEvent.id, updates);
+      } else {
+        const eventId = await addEvent(
+          title.trim(), date,
+          profile?.id ?? '', houseId ?? '',
+          startTime || undefined,
+          endTime || undefined,
+          resolvedEndDate,
+          notes || undefined,
+          resolvedRec,
+          resolvedRecEnd,
+        );
+        syncHouseEvent({
+          id: eventId, title: title.trim(), date,
+          startTime: startTime || undefined,
+          endTime: endTime || undefined,
+          createdBy: profile?.id,
+        }).catch(() => {});
+      }
       onClose();
     } catch {
       setError('Could not save event. Try again.');
     } finally {
       setSaving(false);
     }
-  }, [title, date, startTime, endTime, profile, houseId, addEvent, syncHouseEvent, onClose]);
+  }, [title, date, showEndDate, endDate, startTime, endTime, notes, recurrence, showRecEnd, recurrenceEnd, editingEvent, addEvent, editEvent, profile, houseId, syncHouseEvent, onClose]);
+
+  const isEditing = !!editingEvent;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onShow={handleShow}
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
-          <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Add Event</Text>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={formStyles.backdrop} onPress={onClose}>
+        <Pressable style={formStyles.sheet} onPress={() => {}}>
+          <View style={formStyles.handle} />
+          <Text style={formStyles.title}>{isEditing ? 'Edit Event' : 'Add Event'}</Text>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
-            <Text style={styles.fieldLabel}>Event name</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={formStyles.scroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={formStyles.label}>Event name</Text>
             <TextInput
-              style={styles.fieldInput}
+              style={formStyles.input}
               value={title}
               onChangeText={(v) => { setTitle(v); setError(''); }}
-              placeholder="e.g. House meeting, Inspection..."
+              placeholder="e.g. House meeting, Inspection…"
               placeholderTextColor={colors.textSecondary}
-              autoFocus
               returnKeyType="done"
               onSubmitEditing={handleSave}
             />
 
-            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Date</Text>
-            <CalendarPicker value={date} onChange={setDate} />
+            <Text style={[formStyles.label, formStyles.labelGap]}>Start date</Text>
+            <CalendarPicker value={date} onChange={(v) => { setDate(v); setError(''); }} />
 
-            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Start time (optional)</Text>
+            <Text style={[formStyles.label, formStyles.labelGap]}>
+              End date <Text style={formStyles.optional}>(optional — for multi-day events)</Text>
+            </Text>
+            {showEndDate ? (
+              <>
+                <CalendarPicker value={endDate || date} onChange={setEndDate} />
+                <Pressable
+                  style={formStyles.clearLink}
+                  onPress={() => { setShowEndDate(false); setEndDate(''); }}
+                  accessibilityRole="button"
+                >
+                  <Text style={formStyles.clearLinkText}>Remove end date</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                style={formStyles.addToggle}
+                onPress={() => { setShowEndDate(true); setEndDate(date); }}
+                accessibilityRole="button"
+              >
+                <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
+                <Text style={formStyles.addToggleText}>Add end date</Text>
+              </Pressable>
+            )}
+
+            <Text style={[formStyles.label, formStyles.labelGap]}>Start time <Text style={formStyles.optional}>(optional)</Text></Text>
             <TimePicker value={startTime} onChange={setStartTime} />
 
-            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>End time (optional)</Text>
+            <Text style={[formStyles.label, formStyles.labelGap]}>End time <Text style={formStyles.optional}>(optional)</Text></Text>
             <TimePicker value={endTime} onChange={setEndTime} />
 
-            {!!error && <Text style={[styles.fieldError, { marginTop: 8 }]}>{error}</Text>}
+            <Text style={[formStyles.label, formStyles.labelGap]}>Notes <Text style={formStyles.optional}>(optional)</Text></Text>
+            <TextInput
+              style={[formStyles.input, formStyles.notesInput]}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Any extra details…"
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+
+            <Text style={[formStyles.label, formStyles.labelGap]}>Repeat</Text>
+            <View style={formStyles.chips}>
+              {RECURRENCE_OPTIONS.map(({ label, value }) => (
+                <Pressable
+                  key={value || 'none'}
+                  style={[formStyles.chip, recurrence === value && formStyles.chipSelected]}
+                  onPress={() => setRecurrence(value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: recurrence === value }}
+                >
+                  <Text style={[formStyles.chipText, recurrence === value && formStyles.chipTextSelected]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {recurrence !== '' && (
+              <>
+                <Text style={[formStyles.label, formStyles.labelGap]}>
+                  Repeat until <Text style={formStyles.optional}>(optional)</Text>
+                </Text>
+                {showRecEnd ? (
+                  <>
+                    <CalendarPicker value={recurrenceEnd || date} onChange={setRecurrenceEnd} />
+                    <Pressable
+                      style={formStyles.clearLink}
+                      onPress={() => { setShowRecEnd(false); setRecurrenceEnd(''); }}
+                      accessibilityRole="button"
+                    >
+                      <Text style={formStyles.clearLinkText}>No end date (repeat forever)</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <Pressable
+                    style={formStyles.addToggle}
+                    onPress={() => setShowRecEnd(true)}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
+                    <Text style={formStyles.addToggleText}>Set an end date for repeating</Text>
+                  </Pressable>
+                )}
+              </>
+            )}
+
+            {!!error && <Text style={[formStyles.errorText, formStyles.labelGap]}>{error}</Text>}
+            <View style={{ height: 16 }} />
           </ScrollView>
 
-          <View style={styles.modalBtns}>
-            <Pressable style={styles.modalBtnOutline} onPress={onClose} accessibilityRole="button">
-              <Text style={styles.modalBtnOutlineText}>Cancel</Text>
+          <View style={formStyles.btns}>
+            <Pressable style={formStyles.btnOutline} onPress={onClose} accessibilityRole="button">
+              <Text style={formStyles.btnOutlineText}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={[styles.modalBtnPrimary, saving && { opacity: 0.6 }]}
+              style={[formStyles.btnPrimary, saving && formStyles.btnDisabled]}
               onPress={handleSave}
               disabled={saving}
               accessibilityRole="button"
             >
-              <Text style={styles.modalBtnPrimaryText}>{saving ? 'Saving…' : 'Save Event'}</Text>
+              <Text style={formStyles.btnPrimaryText}>{saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Save Event'}</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -166,7 +338,7 @@ function AddEventModal({
 
 // ── Day Cell ──────────────────────────────────────────────────────────────────
 function DayCell({
-  day, isToday, isSelected, isCurrentMonth, events, onPress,
+  day, isToday, isSelected, isCurrentMonth, events: dayEvents, onPress,
 }: {
   day: Date;
   isToday: boolean;
@@ -191,30 +363,30 @@ function DayCell({
           {day.getDate()}
         </Text>
       </View>
-      {events.slice(0, 2).map((ev, i) => (
+      {dayEvents.slice(0, 2).map((ev, i) => (
         <View key={i} style={[styles.eventChip, { backgroundColor: ev.color }]}>
           <Text style={styles.eventChipText} numberOfLines={1}>{ev.title}</Text>
         </View>
       ))}
-      {events.length > 2 && (
-        <Text style={styles.moreChip}>+{events.length - 2}</Text>
+      {dayEvents.length > 2 && (
+        <Text style={styles.moreChip}>+{dayEvents.length - 2}</Text>
       )}
     </Pressable>
   );
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
+// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function CalendarScreen(): React.JSX.Element {
-  const events                     = useEventsStore((s) => s.events);
-  const isLoading                  = useEventsStore((s) => s.isLoading);
-  const storeError                 = useEventsStore((s) => s.error);
-  const removeEvent                = useEventsStore((s) => s.removeEvent);
-  const reservations               = useParkingStore((s) => s.reservations);
-  const recurringBills             = useRecurringBillsStore((s) => s.bills);
-  const recurringPayments          = useRecurringBillsStore((s) => s.payments);
-  const chores                     = useChoresStore((s) => s.chores);
-  const housemates                 = useHousematesStore((s) => s.housemates);
-  const currency                   = useSettingsStore((s) => s.currency);
+  const events                       = useEventsStore((s) => s.events);
+  const isLoading                    = useEventsStore((s) => s.isLoading);
+  const storeError                   = useEventsStore((s) => s.error);
+  const removeEvent                  = useEventsStore((s) => s.removeEvent);
+  const reservations                 = useParkingStore((s) => s.reservations);
+  const recurringBills               = useRecurringBillsStore((s) => s.bills);
+  const recurringPayments            = useRecurringBillsStore((s) => s.payments);
+  const chores                       = useChoresStore((s) => s.chores);
+  const housemates                   = useHousematesStore((s) => s.housemates);
+  const currency                     = useSettingsStore((s) => s.currency);
   const showRecurringBillsOnCalendar = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
 
   const connected           = useCalendarSyncStore((s) => s.connected);
@@ -229,9 +401,9 @@ export default function CalendarScreen(): React.JSX.Element {
   const [viewYear, setViewYear]   = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState(toYMD(today));
-  const [showAdd, setShowAdd] = useState(false);
+  const [showForm, setShowForm]         = useState(false);
+  const [editingEvent, setEditingEvent] = useState<HouseEvent | undefined>(undefined);
 
-  // Date range for personal calendar — covers the full 6-week grid
   const [gridStart, gridEnd] = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1);
     const start = new Date(first);
@@ -246,35 +418,77 @@ export default function CalendarScreen(): React.JSX.Element {
 
   const allEvents = useMemo((): CalendarEvent[] => {
     const list: CalendarEvent[] = [];
+
+    // Expand window: grid + 2 extra months for recurring events
+    const expandEnd = new Date(gridEnd);
+    expandEnd.setMonth(expandEnd.getMonth() + 2);
+
     for (const e of events) {
-      list.push({ id: `ev-${e.id}`, date: e.date, title: e.title, type: 'event', detail: resolveName(e.createdBy, housemates), startTime: e.startTime, endTime: e.endTime });
-    }
-    for (const r of reservations) {
-      const requesterName = resolveName(r.requestedBy, housemates);
-      if (r.status === 'approved') {
-        list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${requesterName}`, type: 'parking', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
-      } else if (r.status === 'pending') {
-        list.push({ id: `pk-${r.id}`, date: r.date, title: `Parking — ${requesterName} (pending)`, type: 'parking-pending', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
+      const base = {
+        sourceId: e.id,
+        title: e.title,
+        type: 'event' as const,
+        detail: resolveName(e.createdBy, housemates),
+        startTime: e.startTime,
+        endTime: e.endTime,
+        endDate: e.endDate,
+        notes: e.notes,
+        recurrence: e.recurrence,
+      };
+
+      if (e.recurrence) {
+        const dates = expandRecurringDates(e.date, e.recurrence, e.recurrenceEnd, gridStart, expandEnd);
+        for (const d of dates) {
+          list.push({ ...base, id: `ev-${e.id}-${d}`, date: d });
+        }
+      } else if (e.endDate && e.endDate > e.date) {
+        const start = new Date(e.date + 'T00:00:00');
+        const end   = new Date(e.endDate + 'T00:00:00');
+        const cur   = new Date(start);
+        while (cur <= end) {
+          list.push({ ...base, id: `ev-${e.id}-${toYMD(cur)}`, date: toYMD(cur) });
+          cur.setDate(cur.getDate() + 1);
+        }
+      } else {
+        list.push({ ...base, id: `ev-${e.id}`, date: e.date });
       }
     }
+
+    for (const r of reservations) {
+      const name = resolveName(r.requestedBy, housemates);
+      if (r.status === 'approved') {
+        list.push({ sourceId: r.id, id: `pk-${r.id}`, date: r.date, title: `Parking — ${name}`, type: 'parking', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
+      } else if (r.status === 'pending') {
+        list.push({ sourceId: r.id, id: `pk-${r.id}`, date: r.date, title: `Parking — ${name} (pending)`, type: 'parking-pending', detail: r.note, startTime: r.startTime, endTime: r.endTime, person: r.requestedBy });
+      }
+    }
+
     if (showRecurringBillsOnCalendar) {
-      for (const p of recurringPayments) {
-        const bill = recurringBills.find((b) => b.id === p.billId);
-        if (bill) {
-          list.push({ id: `bl-${p.id}`, date: p.paidAt, title: bill.name, type: 'bill', detail: `${currency}${p.amount.toFixed(2)}` });
+      for (const bill of recurringBills) {
+        const nextDue = getNextDueDate(bill, recurringPayments);
+        if (nextDue) {
+          list.push({
+            sourceId: `bl-${bill.id}`, id: `bl-${bill.id}`, date: nextDue,
+            title: `${bill.icon} ${bill.name}`,
+            type: 'bill',
+            detail: `Due · ${currency}${bill.typicalAmount.toFixed(2)}`,
+          });
         }
       }
     }
+
     for (const c of chores) {
       if (c.recurrence === 'once' && c.recurrenceDay) {
-        list.push({ id: `ch-${c.id}`, date: c.recurrenceDay, title: c.name, type: 'chore', detail: c.claimedBy ? resolveName(c.claimedBy, housemates) : undefined });
+        list.push({ sourceId: c.id, id: `ch-${c.id}`, date: c.recurrenceDay, title: c.name, type: 'chore', detail: c.claimedBy ? resolveName(c.claimedBy, housemates) : undefined });
       }
     }
+
     for (const p of personalEvents) {
-      list.push({ id: p.id, date: p.date, title: p.title, type: 'personal', startTime: p.startTime, endTime: p.endTime });
+      list.push({ sourceId: p.id, id: p.id, date: p.date, title: p.title, type: 'personal', startTime: p.startTime, endTime: p.endTime });
     }
+
     return list;
-  }, [events, reservations, recurringBills, recurringPayments, showRecurringBillsOnCalendar, chores, currency, personalEvents]);
+  }, [events, reservations, recurringBills, recurringPayments, showRecurringBillsOnCalendar, chores, currency, personalEvents, housemates, gridStart, gridEnd]);
 
   const eventMap2 = useMemo((): Record<string, Array<{ title: string; color: string }>> => {
     const map: Record<string, Array<{ title: string; color: string }>> = {};
@@ -298,12 +512,12 @@ export default function CalendarScreen(): React.JSX.Element {
     return days;
   }, [viewYear, viewMonth]);
 
-  const prevMonth = useCallback(() => {
+  const prevMonth = useCallback((): void => {
     if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
     else setViewMonth((m) => m - 1);
   }, [viewMonth]);
 
-  const nextMonth = useCallback(() => {
+  const nextMonth = useCallback((): void => {
     if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
     else setViewMonth((m) => m + 1);
   }, [viewMonth]);
@@ -315,20 +529,34 @@ export default function CalendarScreen(): React.JSX.Element {
 
   const todayStr = toYMD(today);
 
-  // ── Manual "add to my calendar" ───────────────────────────────────────────
+  const handleOpenAdd = useCallback((): void => {
+    setEditingEvent(undefined);
+    setShowForm(true);
+  }, []);
+
+  const handleEditEvent = useCallback((sourceId: string): void => {
+    const ev = events.find((e) => e.id === sourceId);
+    if (ev) { setEditingEvent(ev); setShowForm(true); }
+  }, [events]);
+
+  const handleCloseForm = useCallback((): void => {
+    setShowForm(false);
+    setEditingEvent(undefined);
+  }, []);
+
   const handleManualSync = useCallback(async (item: CalendarEvent): Promise<void> => {
     if (!connected) {
       const ok = await connect();
       if (!ok) return;
     }
     if (item.type === 'event') {
-      await syncHouseEvent({ id: item.id.replace('ev-', ''), title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime, createdBy: item.detail });
+      await syncHouseEvent({ id: item.sourceId, title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime, createdBy: item.detail });
     } else if (item.type === 'parking') {
-      await syncParkingApproved({ id: item.id.replace('pk-', ''), requestedBy: resolveName(item.person ?? '', housemates), date: item.date, startTime: item.startTime, endTime: item.endTime });
+      await syncParkingApproved({ id: item.sourceId, requestedBy: resolveName(item.person ?? '', housemates), date: item.date, startTime: item.startTime, endTime: item.endTime });
     } else if (item.type === 'parking-pending') {
-      await syncParkingPending({ id: item.id.replace('pk-', ''), requestedBy: resolveName(item.person ?? '', housemates), date: item.date, startTime: item.startTime, endTime: item.endTime });
+      await syncParkingPending({ id: item.sourceId, requestedBy: resolveName(item.person ?? '', housemates), date: item.date, startTime: item.startTime, endTime: item.endTime });
     }
-  }, [connected, connect, syncHouseEvent, syncParkingApproved, syncParkingPending]);
+  }, [connected, connect, syncHouseEvent, syncParkingApproved, syncParkingPending, housemates]);
 
   if (isLoading) {
     return (
@@ -342,7 +570,7 @@ export default function CalendarScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {!!storeError && (
           <View style={styles.errorBanner}>
@@ -350,7 +578,7 @@ export default function CalendarScreen(): React.JSX.Element {
           </View>
         )}
 
-        {/* ── Page header ── */}
+        {/* Header */}
         <View style={styles.pageHeader}>
           <View>
             <Text style={styles.pageTitle}>Calendar</Text>
@@ -358,13 +586,13 @@ export default function CalendarScreen(): React.JSX.Element {
               {connected ? 'Synced with your calendar' : 'House schedule'}
             </Text>
           </View>
-          <Pressable style={styles.addBtn} onPress={() => setShowAdd(true)} accessibilityRole="button">
+          <Pressable style={styles.addBtn} onPress={handleOpenAdd} accessibilityRole="button">
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={styles.addBtnText}>Add Event</Text>
           </Pressable>
         </View>
 
-        {/* ── Month header ── */}
+        {/* Month nav */}
         <View style={styles.monthHeader}>
           <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button">
             <Ionicons name="chevron-back" size={18} color={colors.primary} />
@@ -375,7 +603,7 @@ export default function CalendarScreen(): React.JSX.Element {
           </Pressable>
         </View>
 
-        {/* ── Calendar grid ── */}
+        {/* Calendar grid */}
         <View style={styles.calCard}>
           <View style={styles.weekRow}>
             {WEEKDAYS.map((d) => (
@@ -402,17 +630,19 @@ export default function CalendarScreen(): React.JSX.Element {
           ))}
         </View>
 
-        {/* ── Legend ── */}
+        {/* Legend */}
         <View style={styles.legend}>
           {(Object.entries(TYPE_META) as [CalendarEvent['type'], { icon: string; color: string }][]).map(([type, meta]) => (
             <View key={type} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
-              <Text style={styles.legendLabel}>{meta.icon} {type === 'parking-pending' ? 'Parking (pending)' : type.charAt(0).toUpperCase() + type.slice(1)}</Text>
+              <Text style={styles.legendLabel}>
+                {meta.icon} {type === 'parking-pending' ? 'Parking (pending)' : type.charAt(0).toUpperCase() + type.slice(1)}
+              </Text>
             </View>
           ))}
         </View>
 
-        {/* ── Selected day events ── */}
+        {/* Selected day */}
         <View style={styles.eventsSection}>
           <View style={styles.eventsSectionHeader}>
             <Text style={styles.eventsSectionTitle}>
@@ -420,7 +650,7 @@ export default function CalendarScreen(): React.JSX.Element {
                 ? 'Today'
                 : new Date(selectedDate + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
             </Text>
-            <Pressable style={styles.addDayBtn} onPress={() => setShowAdd(true)} accessibilityRole="button">
+            <Pressable style={styles.addDayBtn} onPress={handleOpenAdd} accessibilityRole="button">
               <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
               <Text style={styles.addDayBtnText}>Add</Text>
             </Pressable>
@@ -439,9 +669,12 @@ export default function CalendarScreen(): React.JSX.Element {
                 const timeLabel = item.startTime
                   ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
                   : null;
-                const syncKey = item.type === 'parking' || item.type === 'parking-pending'
-                  ? `pk-${item.id.replace('pk-', '')}`
-                  : `ev-${item.id.replace('ev-', '')}`;
+                const dateRangeLabel = item.endDate && item.endDate !== item.date
+                  ? `${formatShortDate(item.date)} – ${formatShortDate(item.endDate)}`
+                  : null;
+                const syncKey = (item.type === 'parking' || item.type === 'parking-pending')
+                  ? `pk-${item.sourceId}`
+                  : `ev-${item.sourceId}`;
                 const alreadySynced = !!eventMap[syncKey];
                 const showSyncBtn = item.type === 'event' || item.type === 'parking' || item.type === 'parking-pending';
                 const hideSyncBtn = alreadySynced && (
@@ -455,9 +688,18 @@ export default function CalendarScreen(): React.JSX.Element {
                       <Text style={styles.eventIcon}>{TYPE_META[item.type].icon}</Text>
                     </View>
                     <View style={styles.eventInfo}>
-                      <Text style={styles.eventTitle}>{item.title}</Text>
+                      <View style={styles.eventTitleRow}>
+                        <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
+                        {item.recurrence && (
+                          <View style={styles.recurrenceBadge}>
+                            <Text style={styles.recurrenceBadgeText}>↻ {item.recurrence}</Text>
+                          </View>
+                        )}
+                      </View>
                       {!!timeLabel && <Text style={styles.eventTime}>{timeLabel}</Text>}
+                      {!!dateRangeLabel && <Text style={styles.eventTime}>{dateRangeLabel}</Text>}
                       {!!item.detail && <Text style={styles.eventDetail}>{item.detail}</Text>}
+                      {!!item.notes && <Text style={styles.eventNotes} numberOfLines={2}>{item.notes}</Text>}
                     </View>
                     <View style={styles.eventRight}>
                       <View style={[styles.typeBadge, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
@@ -499,19 +741,27 @@ export default function CalendarScreen(): React.JSX.Element {
                         </Pressable>
                       ) : null}
                       {item.type === 'event' && (
-                        <Pressable
-                          onPress={async () => {
-                            try {
-                              await removeEvent(item.id.replace('ev-', ''));
-                            } catch {
-                              Alert.alert('Error', 'Could not remove event. Try again.');
-                            }
-                          }}
-                          hitSlop={8}
-                          accessibilityRole="button"
-                        >
-                          <Ionicons name="trash-outline" size={16} color={colors.negative} />
-                        </Pressable>
+                        <>
+                          <Pressable
+                            onPress={() => handleEditEvent(item.sourceId)}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Edit event"
+                          >
+                            <Ionicons name="pencil-outline" size={16} color={colors.primary} />
+                          </Pressable>
+                          <Pressable
+                            onPress={async () => {
+                              try { await removeEvent(item.sourceId); }
+                              catch { Alert.alert('Error', 'Could not remove event. Try again.'); }
+                            }}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel="Delete event"
+                          >
+                            <Ionicons name="trash-outline" size={16} color={colors.negative} />
+                          </Pressable>
+                        </>
                       )}
                     </View>
                   </View>
@@ -524,10 +774,11 @@ export default function CalendarScreen(): React.JSX.Element {
 
       </ScrollView>
 
-      <AddEventModal
-        visible={showAdd}
+      <EventFormModal
+        visible={showForm}
         initialDate={selectedDate}
-        onClose={() => setShowAdd(false)}
+        editingEvent={editingEvent}
+        onClose={handleCloseForm}
       />
     </SafeAreaView>
   );
@@ -582,39 +833,63 @@ const styles = StyleSheet.create({
   addDayBtnText: { fontSize: 14, ...font.semibold, color: colors.primary },
   emptyDay: { paddingVertical: sizes.lg, alignItems: 'center' },
   emptyDayText: { color: colors.textSecondary, fontSize: 14, ...font.regular, textAlign: 'center' },
-  eventRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.background, borderRadius: 10, padding: sizes.sm },
+
+  eventRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: colors.background, borderRadius: 10, padding: sizes.sm },
   eventRowPersonal: { opacity: 0.75 },
-  eventIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  eventIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
   eventIcon: { fontSize: 18 },
-  eventInfo: { flex: 1 },
-  eventTitle: { fontSize: 14, ...font.semibold, color: colors.textPrimary },
-  eventTime: { fontSize: 12, ...font.semibold, color: colors.primary, marginTop: 1 },
-  eventDetail: { fontSize: 12, ...font.regular, color: colors.textSecondary, marginTop: 1 },
-  eventRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  eventInfo: { flex: 1, gap: 2 },
+  eventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  eventTitle: { fontSize: 14, ...font.semibold, color: colors.textPrimary, flexShrink: 1 },
+  recurrenceBadge: { backgroundColor: '#6366f120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  recurrenceBadgeText: { fontSize: 10, ...font.semibold, color: '#6366f1' },
+  eventTime: { fontSize: 12, ...font.semibold, color: colors.primary },
+  eventDetail: { fontSize: 12, ...font.regular, color: colors.textSecondary },
+  eventNotes: { fontSize: 12, ...font.regular, color: colors.textSecondary, fontStyle: 'italic' },
+  eventRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
   typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   typeBadgeText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   errorBanner: { backgroundColor: colors.negative + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.negative + '40' },
   errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.negative },
+});
 
-  // ── Add Event Modal
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalSheet: {
+const formStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheet: {
     backgroundColor: colors.white,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40, gap: 12,
-    maxHeight: '92%',
+    maxHeight: '94%',
   },
-  modalScroll: { flexGrow: 0 },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 4 },
-  modalTitle: { fontSize: 20, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
-  fieldLabel: { fontSize: 13, ...font.semibold, color: colors.textPrimary, marginBottom: 6 },
-  fieldInput: { borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, ...font.regular, color: colors.textPrimary, backgroundColor: colors.surfaceSecondary },
-  fieldError: { fontSize: 13, ...font.regular, color: colors.negative },
-  modalBtns: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  modalBtnOutline: { flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center' },
-  modalBtnOutlineText: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
-  modalBtnPrimary: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },
-  modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+  scroll: { flexGrow: 0 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 4 },
+  title: { fontSize: 20, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
+  label: { fontSize: 13, ...font.semibold, color: colors.textPrimary, marginBottom: 6 },
+  labelGap: { marginTop: 14 },
+  optional: { ...font.regular, color: colors.textSecondary },
+  input: {
+    borderWidth: 1.5, borderColor: colors.border, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, ...font.regular, color: colors.textPrimary,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  notesInput: { minHeight: 80, paddingTop: 12 },
+  addToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.secondary },
+  addToggleText: { fontSize: 14, ...font.medium, color: colors.primary },
+  clearLink: { alignSelf: 'flex-start', marginTop: 6 },
+  clearLinkText: { fontSize: 12, ...font.regular, color: colors.textSecondary, textDecorationLine: 'underline' },
+  chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surfaceSecondary },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 14, ...font.semibold, color: colors.textSecondary },
+  chipTextSelected: { color: colors.white },
+  errorText: { fontSize: 13, ...font.regular, color: colors.negative },
+  btns: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  btnOutline: { flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center' },
+  btnOutlineText: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
+  btnPrimary: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },
+  btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+  btnDisabled: { opacity: 0.6 },
 });
