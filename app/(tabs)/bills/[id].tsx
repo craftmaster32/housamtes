@@ -4,6 +4,8 @@ import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
+import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { useBillsStore, getPersonShare } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -14,8 +16,15 @@ import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+function formatDisplayDate(iso: string, locale: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+  return d.toLocaleDateString(locale || undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export default function BillDetailScreen(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
   const isLoading = useBillsStore((s) => s.isLoading);
@@ -40,6 +49,9 @@ export default function BillDetailScreen(): React.JSX.Element {
   const [isSaving, setIsSaving] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
   const [error, setError] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
+  const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
 
   const handleSaveEdit = useCallback(async () => {
     const parsed = parseFloat(amount);
@@ -147,13 +159,21 @@ export default function BillDetailScreen(): React.JSX.Element {
               style={styles.input}
               keyboardType="decimal-pad"
             />
-            <TextInput
-              label={t('bills.date_label')}
-              value={date}
-              onChangeText={setDate}
-              mode="outlined"
-              style={styles.input}
-            />
+            <View style={styles.dateField}>
+              <Text style={styles.dateFieldLabel}>{t('bills.date_label')}</Text>
+              <Pressable
+                style={styles.dateTrigger}
+                onPress={openDatePicker}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('bills.pick_date')}
+                accessibilityState={{ expanded: showDatePicker }}
+              >
+                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+                <Text style={styles.dateTriggerText}>{formatDisplayDate(date, i18n.language)}</Text>
+                <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
+              </Pressable>
+            </View>
             <TextInput
               label={t('bills.notes_label')}
               value={notes}
@@ -243,6 +263,13 @@ export default function BillDetailScreen(): React.JSX.Element {
 
         {!!error && !isEditing && <Text style={styles.error}>{error}</Text>}
       </ScrollView>
+
+      <DatePickerModal
+        visible={showDatePicker}
+        value={date}
+        onSelect={setDate}
+        onClose={closeDatePicker}
+      />
     </SafeAreaView>
   );
 }
@@ -281,6 +308,14 @@ const styles = StyleSheet.create({
   splitPerson: { flex: 1, color: colors.textPrimary, fontSize: 15, ...font.medium },
   splitAmount: { color: colors.primary, fontSize: 15, ...font.semibold },
   input: { backgroundColor: colors.white },
+  dateField: { gap: 4 },
+  dateFieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginLeft: 4 },
+  dateTrigger: {
+    flexDirection: 'row', alignItems: 'center', gap: sizes.sm,
+    backgroundColor: colors.white, borderRadius: 4, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 14, paddingVertical: 14, minHeight: 56,
+  },
+  dateTriggerText: { flex: 1, fontSize: 15, ...font.regular, color: colors.textPrimary },
   editButtons: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center', marginTop: sizes.xs },
   saveBtn: { borderRadius: 14 },
   settleBtn: { borderRadius: 14 },
