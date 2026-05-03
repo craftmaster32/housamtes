@@ -22,6 +22,8 @@
     "just_now": "Just now",
     "minutes_ago": "{{n}}m ago",
     "hours_ago": "{{n}}h ago",
+    "days_ago_one": "1 day ago",
+    "days_ago_other": "{{count}} days ago",
     "failed_try_again": "Something went wrong. Try again.",
     "person_one": "{{count}} person",
     "person_other": "{{count}} people",

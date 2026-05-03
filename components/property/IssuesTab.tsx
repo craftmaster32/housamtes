@@ -24,9 +24,8 @@ function timeAgo(iso: string, t: TFunction): string {
   const days = Math.floor(diff / 86400000);
   if (days === 0) return t('common.today');
   if (days === 1) return t('common.yesterday');
-  if (days < 7) return `${days} days ago`;
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  if (days < 7) return t('common.days_ago', { count: days });
+  return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso));
 }
 
 function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Element {
@@ -159,6 +158,10 @@ function AddRequestForm({
             key={c.label}
             style={[styles.chip, category === c.label && styles.chipActive]}
             onPress={() => setCategory(c.label)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={c.label}
+            accessibilityState={{ selected: category === c.label }}
           >
             <Text style={styles.chipIcon}>{c.icon}</Text>
             <Text style={[styles.chipText, category === c.label && styles.chipTextActive]}>{c.label}</Text>
@@ -249,7 +252,13 @@ export function IssuesTab(): React.JSX.Element {
   const renderItem = useCallback(({ item }: { item: ListItem }) => {
     if (item.kind === 'resolved-toggle') {
       return (
-        <Pressable style={styles.resolvedToggle} onPress={() => setShowResolved((v) => !v)}>
+        <Pressable
+          style={styles.resolvedToggle}
+          onPress={() => setShowResolved((v) => !v)}
+          accessible
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showResolved }}
+        >
           <Text style={styles.resolvedToggleText}>
             {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
           </Text>

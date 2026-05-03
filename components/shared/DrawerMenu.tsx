@@ -214,7 +214,8 @@ export function DrawerMenu(): React.JSX.Element {
           {/* Main navigation */}
           {filterNav(MAIN_NAV).map((item) => {
             const active = isActive(item.route);
-            const count = item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0;
+            const badgeKey = item.badgeKey ?? item.featureKey;
+            const count = badgeKey ? (badgeCounts[badgeKey] ?? 0) : 0;
             return (
               <Pressable
                 key={item.route}

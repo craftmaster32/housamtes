@@ -22,6 +22,8 @@
     "just_now": "Ahora mismo",
     "minutes_ago": "hace {{n}} min",
     "hours_ago": "hace {{n}} h",
+    "days_ago_one": "hace 1 día",
+    "days_ago_other": "hace {{count}} días",
     "failed_try_again": "Algo salió mal. Intenta de nuevo.",
     "person_one": "{{count}} persona",
     "person_other": "{{count}} personas",
