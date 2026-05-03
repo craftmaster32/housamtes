@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
-import { useAuthStore } from '@stores/authStore';
 
 export type EventRecurrence = 'weekly' | 'monthly' | 'yearly';
 
@@ -81,10 +80,6 @@ export const useEventsStore = create<EventsStore>()(
       error: null,
 
       load: async (houseId: string): Promise<void> => {
-        if (houseId !== useAuthStore.getState().houseId) {
-          console.warn('[events] house ID mismatch — aborting load');
-          return;
-        }
         try {
           const { data, error } = await supabase
             .from('events')
