@@ -58,6 +58,10 @@
     "house_section": "HOUSE",
     "me_section": "ME"
   },
+  "property": {
+    "tab_issues": "Issues",
+    "tab_condition": "Condition"
+  },
   "auth": {
     "welcome_back": "Welcome back",
     "sign_in_subtitle": "Sign in to HouseMates",

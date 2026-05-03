@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
+import { parseISO, format } from 'date-fns';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
@@ -24,8 +25,7 @@ import { font } from '@constants/typography';
 type FilterType = 'all' | EntryType;
 
 function formatDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-');
-  return `${d}/${m}/${y}`;
+  return format(parseISO(dateStr), 'dd/MM/yyyy');
 }
 
 function getAreaIcon(area: string): string {
@@ -33,10 +33,15 @@ function getAreaIcon(area: string): string {
 }
 
 function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
+  const { t } = useTranslation();
   const remove = useConditionStore((s) => s.remove);
   const housemates = useHousematesStore((s) => s.housemates);
   const cond = CONDITION_CONFIG[entry.condition];
   const type = ENTRY_TYPE_CONFIG[entry.type];
+
+  const handleRemove = useCallback(() => {
+    void remove(entry.id);
+  }, [entry.id, remove]);
 
   return (
     <View style={styles.entryCard}>
@@ -54,10 +59,16 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
             </View>
           </View>
           <Text style={styles.entryDate}>
-            {formatDate(entry.date)} · by {resolveName(entry.recordedBy, housemates)}
+            {formatDate(entry.date)} · {t('common.by')} {resolveName(entry.recordedBy, housemates)}
           </Text>
         </View>
-        <Pressable onPress={() => remove(entry.id)} style={styles.removeBtn}>
+        <Pressable
+          onPress={handleRemove}
+          style={styles.removeBtn}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.delete')}
+        >
           <Text style={styles.removeBtnText}>✕</Text>
         </Pressable>
       </View>
@@ -66,7 +77,12 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
       {entry.photos && entry.photos.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoRow}>
           {entry.photos.map((src, i) => (
-            <Image key={i} source={{ uri: src }} style={styles.photoThumb} />
+            <Image
+              key={i}
+              source={{ uri: src }}
+              style={styles.photoThumb}
+              accessibilityLabel={`Photo ${i + 1} of ${entry.photos!.length}`}
+            />
           ))}
         </ScrollView>
       )}

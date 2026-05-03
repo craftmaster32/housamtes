@@ -56,6 +56,10 @@
     "house_section": "בית",
     "me_section": "אני"
   },
+  "property": {
+    "tab_issues": "תקלות",
+    "tab_condition": "מצב הדירה"
+  },
   "auth": {
     "welcome_back": "ברוך שובך",
     "sign_in_subtitle": "כניסה ל-HouseMates",

@@ -34,11 +34,12 @@ interface NavItem {
   labelKey: string;
   route: string;
   featureKey?: string;
+  badgeKey?: string;
 }
 
 const MAIN_NAV: NavItem[] = [
   { icon: 'home-outline', iconActive: 'home', labelKey: 'nav.dashboard', route: '/(tabs)/dashboard' },
-  { icon: 'card-outline', iconActive: 'card', labelKey: 'nav.bills', route: '/(tabs)/bills' },
+  { icon: 'card-outline', iconActive: 'card', labelKey: 'nav.bills', route: '/(tabs)/bills', badgeKey: 'bills' },
   { icon: 'car-outline', iconActive: 'car', labelKey: 'nav.parking', route: '/(tabs)/parking', featureKey: 'parking' },
   { icon: 'cart-outline', iconActive: 'cart', labelKey: 'nav.grocery', route: '/(tabs)/grocery', featureKey: 'grocery' },
   { icon: 'checkmark-done-outline', iconActive: 'checkmark-done', labelKey: 'nav.chores', route: '/(tabs)/chores', featureKey: 'chores' },
@@ -218,7 +219,7 @@ export function DrawerMenu(): React.JSX.Element {
               <Pressable
                 key={item.route}
                 style={[styles.navItem, active && styles.navItemActive]}
-                onPress={() => navigate(item.route, item.featureKey)}
+                onPress={() => navigate(item.route, item.badgeKey ?? item.featureKey)}
               >
                 <Ionicons
                   name={active ? item.iconActive : item.icon}

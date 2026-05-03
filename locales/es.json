@@ -57,6 +57,10 @@
     "house_section": "CASA",
     "me_section": "YO"
   },
+  "property": {
+    "tab_issues": "Problemas",
+    "tab_condition": "Estado"
+  },
   "auth": {
     "welcome_back": "Bienvenido de vuelta",
     "sign_in_subtitle": "Inicia sesión en HouseMates",

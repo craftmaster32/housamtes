@@ -29,10 +29,10 @@ export default function PropertyScreen(): React.JSX.Element {
             accessible
             accessibilityRole="tab"
             accessibilityState={{ selected: activeTab === 'issues' }}
-            accessibilityLabel="Issues tab"
+            accessibilityLabel={t('property.tab_issues')}
           >
             <Text style={[styles.segmentText, activeTab === 'issues' && styles.segmentTextActive]}>
-              Issues
+              {t('property.tab_issues')}
             </Text>
           </Pressable>
           <Pressable
@@ -41,10 +41,10 @@ export default function PropertyScreen(): React.JSX.Element {
             accessible
             accessibilityRole="tab"
             accessibilityState={{ selected: activeTab === 'condition' }}
-            accessibilityLabel="Condition tab"
+            accessibilityLabel={t('property.tab_condition')}
           >
             <Text style={[styles.segmentText, activeTab === 'condition' && styles.segmentTextActive]}>
-              Condition
+              {t('property.tab_condition')}
             </Text>
           </Pressable>
         </View>

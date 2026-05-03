@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
@@ -17,11 +17,13 @@ import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
-function timeAgo(iso: string): string {
+type TFunction = (key: string, options?: Record<string, unknown>) => string;
+
+function timeAgo(iso: string, t: TFunction): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
+  if (days === 0) return t('common.today');
+  if (days === 1) return t('common.yesterday');
   if (days < 7) return `${days} days ago`;
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -38,6 +40,11 @@ function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Eleme
 
 type MaintenanceRequest = ReturnType<typeof useMaintenanceStore.getState>['requests'][0];
 
+type ListItem =
+  | { kind: 'open'; request: MaintenanceRequest }
+  | { kind: 'resolved-toggle' }
+  | { kind: 'resolved'; request: MaintenanceRequest };
+
 function RequestCard({ request, myId }: { request: MaintenanceRequest; myId: string }): React.JSX.Element {
   const { t } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
@@ -46,10 +53,12 @@ function RequestCard({ request, myId }: { request: MaintenanceRequest; myId: str
   const category = MAINTENANCE_CATEGORIES.find((c) => c.label === request.category);
 
   const handleNextStatus = useCallback(() => {
-    updateStatus(request.id, NEXT_STATUS[request.status]);
+    void updateStatus(request.id, NEXT_STATUS[request.status]);
   }, [request.id, request.status, updateStatus]);
 
-  const handleRemove = useCallback(() => remove(request.id), [request.id, remove]);
+  const handleRemove = useCallback(() => {
+    void remove(request.id);
+  }, [request.id, remove]);
 
   return (
     <View style={[styles.card, request.status === 'resolved' && styles.cardResolved]}>
@@ -60,11 +69,17 @@ function RequestCard({ request, myId }: { request: MaintenanceRequest; myId: str
             {request.title}
           </Text>
           <Text style={styles.cardMeta}>
-            {request.category} · {t('maintenance.reported_by', { name: resolveName(request.reportedBy, housemates) })} · {timeAgo(request.createdAt)}
+            {request.category} · {t('maintenance.reported_by', { name: resolveName(request.reportedBy, housemates) })} · {timeAgo(request.createdAt, t)}
           </Text>
         </View>
         {request.reportedBy === myId && (
-          <Pressable onPress={handleRemove} style={styles.removeBtn}>
+          <Pressable
+            onPress={handleRemove}
+            style={styles.removeBtn}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('common.delete')}
+          >
             <Text style={styles.removeBtnText}>✕</Text>
           </Pressable>
         )}
@@ -77,14 +92,24 @@ function RequestCard({ request, myId }: { request: MaintenanceRequest; myId: str
       <View style={styles.cardFooter}>
         <StatusBadge status={request.status} />
         {request.status !== 'resolved' && (
-          <Pressable style={styles.advanceBtn} onPress={handleNextStatus}>
+          <Pressable
+            style={styles.advanceBtn}
+            onPress={handleNextStatus}
+            accessible
+            accessibilityRole="button"
+          >
             <Text style={styles.advanceBtnText}>
               {request.status === 'open' ? t('maintenance.mark_in_progress') : t('maintenance.mark_resolved')}
             </Text>
           </Pressable>
         )}
         {request.status === 'resolved' && (
-          <Pressable style={styles.reopenBtn} onPress={handleNextStatus}>
+          <Pressable
+            style={styles.reopenBtn}
+            onPress={handleNextStatus}
+            accessible
+            accessibilityRole="button"
+          >
             <Text style={styles.reopenBtnText}>{t('maintenance.reopen')}</Text>
           </Pressable>
         )}
@@ -148,6 +173,8 @@ function AddRequestForm({
         onChangeText={setTitle}
         placeholder={t('maintenance.issue_placeholder')}
         placeholderTextColor={colors.textDisabled}
+        accessibilityLabel={t('maintenance.issue_label')}
+        accessibilityHint={t('maintenance.issue_placeholder')}
       />
 
       <Text style={styles.fieldLabel}>{t('maintenance.details_label')}</Text>
@@ -159,18 +186,32 @@ function AddRequestForm({
         placeholderTextColor={colors.textDisabled}
         multiline
         numberOfLines={3}
+        accessibilityLabel={t('maintenance.details_label')}
+        accessibilityHint={t('maintenance.details_placeholder')}
       />
 
       {!!saveError && <Text style={styles.saveError}>{saveError}</Text>}
 
       <View style={styles.formActions}>
-        <Pressable style={styles.cancelBtn} onPress={onClose} disabled={isSaving}>
+        <Pressable
+          style={styles.cancelBtn}
+          onPress={onClose}
+          disabled={isSaving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
+          accessibilityState={{ disabled: isSaving }}
+        >
           <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
         </Pressable>
         <Pressable
           style={[styles.saveBtn, (!title.trim() || isSaving) && styles.saveBtnDisabled]}
           onPress={handleSave}
-          disabled={isSaving}
+          disabled={!title.trim() || isSaving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('maintenance.log_issue')}
+          accessibilityState={{ disabled: !title.trim() || isSaving }}
         >
           <Text style={styles.saveBtnText}>{isSaving ? t('common.loading') : t('maintenance.log_issue')}</Text>
         </Pressable>
@@ -189,8 +230,39 @@ export function IssuesTab(): React.JSX.Element {
   const [showForm, setShowForm] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
 
-  const open = requests.filter((r) => r.status !== 'resolved');
-  const resolved = requests.filter((r) => r.status === 'resolved');
+  const open = useMemo(() => requests.filter((r) => r.status !== 'resolved'), [requests]);
+  const resolved = useMemo(() => requests.filter((r) => r.status === 'resolved'), [requests]);
+
+  const data = useMemo((): ListItem[] => {
+    const items: ListItem[] = open.map((request) => ({ kind: 'open', request }));
+    if (resolved.length > 0) {
+      items.push({ kind: 'resolved-toggle' });
+      if (showResolved) {
+        resolved.forEach((request) => items.push({ kind: 'resolved', request }));
+      }
+    }
+    return items;
+  }, [open, resolved, showResolved]);
+
+  const myId = profile?.id ?? '';
+
+  const renderItem = useCallback(({ item }: { item: ListItem }) => {
+    if (item.kind === 'resolved-toggle') {
+      return (
+        <Pressable style={styles.resolvedToggle} onPress={() => setShowResolved((v) => !v)}>
+          <Text style={styles.resolvedToggleText}>
+            {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
+          </Text>
+        </Pressable>
+      );
+    }
+    return <RequestCard request={item.request} myId={myId} />;
+  }, [showResolved, resolved.length, t, myId]);
+
+  const keyExtractor = useCallback((item: ListItem) => {
+    if (item.kind === 'resolved-toggle') return 'resolved-toggle';
+    return item.request.id;
+  }, []);
 
   if (isLoading) {
     return (
@@ -201,52 +273,46 @@ export function IssuesTab(): React.JSX.Element {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
-      {!!error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>{error}</Text>
+    <FlatList
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      contentContainerStyle={styles.scroll}
+      ListHeaderComponent={
+        <View style={styles.listHeader}>
+          {!!error && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
+          )}
+          {showForm ? (
+            <AddRequestForm
+              onClose={() => setShowForm(false)}
+              reportedBy={profile?.id ?? ''}
+              houseId={houseId ?? ''}
+            />
+          ) : (
+            <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
+              <Text style={styles.addBtnText}>{t('maintenance.log_new')}</Text>
+            </Pressable>
+          )}
         </View>
-      )}
-
-      {showForm ? (
-        <AddRequestForm
-          onClose={() => setShowForm(false)}
-          reportedBy={profile?.id ?? ''}
-          houseId={houseId ?? ''}
-        />
-      ) : (
-        <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
-          <Text style={styles.addBtnText}>{t('maintenance.log_new')}</Text>
-        </Pressable>
-      )}
-
-      {open.length === 0 && !showForm && (
-        <View style={styles.emptySection}>
-          <Text style={styles.emptyTitle}>{t('maintenance.no_open')}</Text>
-          <Text style={styles.emptyText}>{t('maintenance.no_open_hint')}</Text>
-        </View>
-      )}
-
-      {open.map((r) => (
-        <RequestCard key={r.id} request={r} myId={profile?.id ?? ''} />
-      ))}
-
-      {resolved.length > 0 && (
-        <>
-          <Pressable style={styles.resolvedToggle} onPress={() => setShowResolved((v) => !v)}>
-            <Text style={styles.resolvedToggleText}>
-              {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
-            </Text>
-          </Pressable>
-          {showResolved && resolved.map((r) => <RequestCard key={r.id} request={r} myId={profile?.id ?? ''} />)}
-        </>
-      )}
-    </ScrollView>
+      }
+      ListEmptyComponent={
+        !showForm ? (
+          <View style={styles.emptySection}>
+            <Text style={styles.emptyTitle}>{t('maintenance.no_open')}</Text>
+            <Text style={styles.emptyText}>{t('maintenance.no_open_hint')}</Text>
+          </View>
+        ) : null
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
   scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+  listHeader: { gap: sizes.sm },
 
   addBtn: {
     borderWidth: 2,
