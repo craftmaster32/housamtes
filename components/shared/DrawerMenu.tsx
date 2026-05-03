@@ -34,7 +34,7 @@ interface NavItem {
   labelKey: string;
   route: string;
   featureKey?: string;
-  badgeKey?: string;
+  badgeKey?: BadgeFeature;
 }
 
 const MAIN_NAV: NavItem[] = [
@@ -160,10 +160,10 @@ export function DrawerMenu(): React.JSX.Element {
     return pathname.includes(segment) && segment !== '';
   }, [pathname]);
 
-  const navigate = useCallback((route: string, badgeFeature?: string) => {
+  const navigate = useCallback((route: string, badgeFeature?: BadgeFeature) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     close();
-    if (badgeFeature) markSeen(badgeFeature as BadgeFeature).catch(() => {});
+    if (badgeFeature) markSeen(badgeFeature).catch(() => {});
     router.push(route as Parameters<typeof router.push>[0]);
   }, [close, markSeen]);
 
@@ -220,7 +220,7 @@ export function DrawerMenu(): React.JSX.Element {
               <Pressable
                 key={item.route}
                 style={[styles.navItem, active && styles.navItemActive]}
-                onPress={() => navigate(item.route, item.badgeKey ?? item.featureKey)}
+                onPress={() => navigate(item.route, item.badgeKey ?? item.featureKey as BadgeFeature | undefined)}
               >
                 <Ionicons
                   name={active ? item.iconActive : item.icon}
@@ -255,7 +255,7 @@ export function DrawerMenu(): React.JSX.Element {
               <Pressable
                 key={item.route}
                 style={[styles.navItem, active && styles.navItemActive]}
-                onPress={() => navigate(item.route, item.featureKey)}
+                onPress={() => navigate(item.route, item.featureKey as BadgeFeature | undefined)}
               >
                 <Ionicons
                   name={active ? item.iconActive : item.icon}
