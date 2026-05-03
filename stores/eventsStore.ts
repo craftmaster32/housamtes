@@ -137,33 +137,32 @@ export const useEventsStore = create<EventsStore>()(
 
       editEvent: async (id, updates): Promise<void> => {
         try {
-          const { error } = await supabase
-            .from('events')
-            .update({
-              title: updates.title,
-              date: updates.date,
-              end_date: updates.endDate ?? null,
-              start_time: updates.startTime ?? null,
-              end_time: updates.endTime ?? null,
-              notes: updates.notes ?? null,
-              recurrence: updates.recurrence ?? null,
-              recurrence_end: updates.recurrenceEnd ?? null,
-            })
-            .eq('id', id);
+          // Only include optional fields that were explicitly provided by the caller.
+          // Using `in` distinguishes "set to undefined (= clear)" from "key absent (= preserve)".
+          const dbPayload: Record<string, unknown> = { title: updates.title, date: updates.date };
+          if ('endDate' in updates)       dbPayload.end_date        = updates.endDate ?? null;
+          if ('startTime' in updates)     dbPayload.start_time      = updates.startTime ?? null;
+          if ('endTime' in updates)       dbPayload.end_time        = updates.endTime ?? null;
+          if ('notes' in updates)         dbPayload.notes           = updates.notes ?? null;
+          if ('recurrence' in updates)    dbPayload.recurrence      = updates.recurrence ?? null;
+          if ('recurrenceEnd' in updates) dbPayload.recurrence_end  = updates.recurrenceEnd ?? null;
+
+          const { error } = await supabase.from('events').update(dbPayload).eq('id', id);
           if (error) throw error;
+
           set({
             events: get().events
-              .map((e) => e.id === id ? {
-                ...e,
-                title: updates.title,
-                date: updates.date,
-                endDate: updates.endDate,
-                startTime: updates.startTime,
-                endTime: updates.endTime,
-                notes: updates.notes,
-                recurrence: updates.recurrence,
-                recurrenceEnd: updates.recurrenceEnd,
-              } : e)
+              .map((e) => {
+                if (e.id !== id) return e;
+                const merged: HouseEvent = { ...e, title: updates.title, date: updates.date };
+                if ('endDate' in updates)       merged.endDate       = updates.endDate;
+                if ('startTime' in updates)     merged.startTime     = updates.startTime;
+                if ('endTime' in updates)       merged.endTime       = updates.endTime;
+                if ('notes' in updates)         merged.notes         = updates.notes;
+                if ('recurrence' in updates)    merged.recurrence    = updates.recurrence;
+                if ('recurrenceEnd' in updates) merged.recurrenceEnd = updates.recurrenceEnd;
+                return merged;
+              })
               .sort((a, b) => a.date.localeCompare(b.date)),
           });
         } catch (err) {
