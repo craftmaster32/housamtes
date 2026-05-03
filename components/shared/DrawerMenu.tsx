@@ -34,11 +34,12 @@ interface NavItem {
   labelKey: string;
   route: string;
   featureKey?: string;
+  badgeKey?: BadgeFeature;
 }
 
 const MAIN_NAV: NavItem[] = [
   { icon: 'home-outline', iconActive: 'home', labelKey: 'nav.dashboard', route: '/(tabs)/dashboard' },
-  { icon: 'card-outline', iconActive: 'card', labelKey: 'nav.bills', route: '/(tabs)/bills', featureKey: 'bills' },
+  { icon: 'card-outline', iconActive: 'card', labelKey: 'nav.bills', route: '/(tabs)/bills', badgeKey: 'bills' },
   { icon: 'car-outline', iconActive: 'car', labelKey: 'nav.parking', route: '/(tabs)/parking', featureKey: 'parking' },
   { icon: 'cart-outline', iconActive: 'cart', labelKey: 'nav.grocery', route: '/(tabs)/grocery', featureKey: 'grocery' },
   { icon: 'checkmark-done-outline', iconActive: 'checkmark-done', labelKey: 'nav.chores', route: '/(tabs)/chores', featureKey: 'chores' },
@@ -50,8 +51,7 @@ const MORE_NAV: NavItem[] = [
   { icon: 'images-outline', iconActive: 'images', labelKey: 'nav.photos', route: '/(tabs)/photos' },
   { icon: 'people-outline', iconActive: 'people', labelKey: 'nav.housemates', route: '/(tabs)/bills/setup' },
   { icon: 'hand-left-outline', iconActive: 'hand-left', labelKey: 'nav.votes', route: '/(tabs)/voting', featureKey: 'voting' },
-  { icon: 'build-outline', iconActive: 'build', labelKey: 'nav.maintenance', route: '/(tabs)/maintenance', featureKey: 'maintenance' },
-  { icon: 'document-text-outline', iconActive: 'document-text', labelKey: 'nav.condition', route: '/(tabs)/condition', featureKey: 'condition' },
+  { icon: 'construct-outline', iconActive: 'construct', labelKey: 'nav.property', route: '/(tabs)/property', featureKey: 'maintenance' },
 ];
 
 
@@ -160,10 +160,10 @@ export function DrawerMenu(): React.JSX.Element {
     return pathname.includes(segment) && segment !== '';
   }, [pathname]);
 
-  const navigate = useCallback((route: string, badgeFeature?: string) => {
+  const navigate = useCallback((route: string, badgeFeature?: BadgeFeature) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     close();
-    if (badgeFeature) markSeen(badgeFeature as BadgeFeature).catch(() => {});
+    if (badgeFeature) markSeen(badgeFeature).catch(() => {});
     router.push(route as Parameters<typeof router.push>[0]);
   }, [close, markSeen]);
 
@@ -214,12 +214,13 @@ export function DrawerMenu(): React.JSX.Element {
           {/* Main navigation */}
           {filterNav(MAIN_NAV).map((item) => {
             const active = isActive(item.route);
-            const count = item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0;
+            const badgeKey = item.badgeKey ?? item.featureKey;
+            const count = badgeKey ? (badgeCounts[badgeKey] ?? 0) : 0;
             return (
               <Pressable
                 key={item.route}
                 style={[styles.navItem, active && styles.navItemActive]}
-                onPress={() => navigate(item.route, item.featureKey)}
+                onPress={() => navigate(item.route, item.badgeKey ?? item.featureKey as BadgeFeature | undefined)}
               >
                 <Ionicons
                   name={active ? item.iconActive : item.icon}
@@ -254,7 +255,7 @@ export function DrawerMenu(): React.JSX.Element {
               <Pressable
                 key={item.route}
                 style={[styles.navItem, active && styles.navItemActive]}
-                onPress={() => navigate(item.route, item.featureKey)}
+                onPress={() => navigate(item.route, item.featureKey as BadgeFeature | undefined)}
               >
                 <Ionicons
                   name={active ? item.iconActive : item.icon}

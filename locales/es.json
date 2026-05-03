@@ -22,6 +22,8 @@
     "just_now": "Ahora mismo",
     "minutes_ago": "hace {{n}} min",
     "hours_ago": "hace {{n}} h",
+    "days_ago_one": "hace 1 día",
+    "days_ago_other": "hace {{count}} días",
     "failed_try_again": "Algo salió mal. Intenta de nuevo.",
     "person_one": "{{count}} persona",
     "person_other": "{{count}} personas",
@@ -48,6 +50,7 @@
     "maintenance": "Mantenimiento",
     "votes": "Votaciones",
     "condition": "Estado",
+    "property": "Propiedad",
     "photos": "Fotos",
     "chat": "Chat de casa",
     "housemates": "Compañeros",
@@ -55,6 +58,10 @@
     "settings": "Ajustes",
     "house_section": "CASA",
     "me_section": "YO"
+  },
+  "property": {
+    "tab_issues": "Problemas",
+    "tab_condition": "Estado"
   },
   "auth": {
     "welcome_back": "Bienvenido de vuelta",

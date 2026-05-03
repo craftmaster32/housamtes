@@ -21,6 +21,8 @@
     "just_now": "הרגע",
     "minutes_ago": "לפני {{n}} דק׳",
     "hours_ago": "לפני {{n}} ש׳",
+    "days_ago_one": "לפני יום",
+    "days_ago_other": "לפני {{count}} ימים",
     "failed_try_again": "משהו השתבש. נסה שוב.",
     "person_one": "{{count}} שותף",
     "person_other": "{{count}} שותפים",
@@ -47,6 +49,7 @@
     "maintenance": "תחזוקה",
     "votes": "הצבעות",
     "condition": "מצב הדירה",
+    "property": "נכס",
     "photos": "תמונות",
     "chat": "צ׳אט בית",
     "housemates": "שותפים",
@@ -54,6 +57,10 @@
     "settings": "הגדרות",
     "house_section": "בית",
     "me_section": "אני"
+  },
+  "property": {
+    "tab_issues": "תקלות",
+    "tab_condition": "מצב הדירה"
   },
   "auth": {
     "welcome_back": "ברוך שובך",
