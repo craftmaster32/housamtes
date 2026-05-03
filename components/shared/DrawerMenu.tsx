@@ -50,8 +50,7 @@ const MORE_NAV: NavItem[] = [
   { icon: 'images-outline', iconActive: 'images', labelKey: 'nav.photos', route: '/(tabs)/photos' },
   { icon: 'people-outline', iconActive: 'people', labelKey: 'nav.housemates', route: '/(tabs)/bills/setup' },
   { icon: 'hand-left-outline', iconActive: 'hand-left', labelKey: 'nav.votes', route: '/(tabs)/voting', featureKey: 'voting' },
-  { icon: 'build-outline', iconActive: 'build', labelKey: 'nav.maintenance', route: '/(tabs)/maintenance', featureKey: 'maintenance' },
-  { icon: 'document-text-outline', iconActive: 'document-text', labelKey: 'nav.condition', route: '/(tabs)/condition', featureKey: 'condition' },
+  { icon: 'construct-outline', iconActive: 'construct', labelKey: 'nav.property', route: '/(tabs)/property', featureKey: 'maintenance' },
 ];
 
 
