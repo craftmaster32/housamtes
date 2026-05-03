@@ -13,7 +13,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useSpendingStore, CATEGORY_META } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { SpendingAnalytics } from '@components/profile/SpendingAnalytics';
+import { SpendingCard } from '@components/profile/SpendingCard';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -811,7 +811,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
           {/* ── Spending card ──────────────────────────────────────────── */}
           {houseId && profile?.name && (
-            <SpendingAnalytics houseId={houseId} userName={profile.name} />
+            <SpendingCard houseId={houseId} userName={profile.name} />
           )}
 
           {/* ── Expense summary ────────────────────────────────────────── */}
