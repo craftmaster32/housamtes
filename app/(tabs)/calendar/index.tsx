@@ -173,16 +173,18 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
         };
         await editEvent(editingEvent.id, updates);
       } else {
-        const eventId = await addEvent(
-          title.trim(), date,
-          profile?.id ?? '', houseId ?? '',
-          startTime || undefined,
-          endTime || undefined,
-          resolvedEndDate,
-          notes || undefined,
-          resolvedRec,
-          resolvedRecEnd,
-        );
+        const eventId = await addEvent({
+          title: title.trim(),
+          date,
+          createdBy: profile?.id ?? '',
+          houseId: houseId ?? '',
+          startTime: startTime || undefined,
+          endTime: endTime || undefined,
+          endDate: resolvedEndDate,
+          notes: notes || undefined,
+          recurrence: resolvedRec,
+          recurrenceEnd: resolvedRecEnd,
+        });
         syncHouseEvent({
           id: eventId, title: title.trim(), date,
           startTime: startTime || undefined,

@@ -20,6 +20,19 @@ export interface HouseEvent {
   createdAt: string;
 }
 
+export interface AddEventPayload {
+  title: string;
+  date: string;
+  createdBy: string;
+  houseId: string;
+  startTime?: string;
+  endTime?: string;
+  endDate?: string;
+  notes?: string;
+  recurrence?: EventRecurrence;
+  recurrenceEnd?: string;
+}
+
 export interface EventUpdates {
   title: string;
   date: string;
@@ -37,18 +50,7 @@ interface EventsStore {
   error: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addEvent: (
-    title: string,
-    date: string,
-    createdBy: string,
-    houseId: string,
-    startTime?: string,
-    endTime?: string,
-    endDate?: string,
-    notes?: string,
-    recurrence?: EventRecurrence,
-    recurrenceEnd?: string,
-  ) => Promise<string>;
+  addEvent: (payload: AddEventPayload) => Promise<string>;
   editEvent: (id: string, updates: EventUpdates) => Promise<void>;
   removeEvent: (id: string) => Promise<void>;
 }
@@ -108,7 +110,8 @@ export const useEventsStore = create<EventsStore>()(
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
 
-      addEvent: async (title, date, createdBy, houseId, startTime, endTime, endDate, notes, recurrence, recurrenceEnd): Promise<string> => {
+      addEvent: async (payload): Promise<string> => {
+        const { title, date, createdBy, houseId, startTime, endTime, endDate, notes, recurrence, recurrenceEnd } = payload;
         try {
           const { data, error } = await supabase
             .from('events')
@@ -155,7 +158,17 @@ export const useEventsStore = create<EventsStore>()(
           if (error) throw error;
           set({
             events: get().events
-              .map((e) => e.id === id ? { ...e, ...updates } : e)
+              .map((e) => e.id === id ? {
+                ...e,
+                title: updates.title,
+                date: updates.date,
+                endDate: updates.endDate,
+                startTime: updates.startTime,
+                endTime: updates.endTime,
+                notes: updates.notes,
+                recurrence: updates.recurrence,
+                recurrenceEnd: updates.recurrenceEnd,
+              } : e)
               .sort((a, b) => a.date.localeCompare(b.date)),
           });
         } catch (err) {
