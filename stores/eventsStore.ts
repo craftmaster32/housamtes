@@ -165,12 +165,14 @@ export const useEventsStore = create<EventsStore>()(
       },
 
       removeEvent: async (id): Promise<void> => {
-        const { error } = await supabase.from('events').delete().eq('id', id);
-        if (error) {
-          captureError(error, { context: 'delete-event', eventId: id });
+        try {
+          const { error } = await supabase.from('events').delete().eq('id', id);
+          if (error) throw error;
+          set({ events: get().events.filter((e) => e.id !== id) });
+        } catch (err) {
+          captureError(err, { context: 'delete-event', eventId: id });
           throw new Error('Could not delete the event. Please try again.');
         }
-        set({ events: get().events.filter((e) => e.id !== id) });
       },
     }),
     { name: 'events-store' }
