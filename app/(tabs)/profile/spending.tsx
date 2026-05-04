@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, SectionList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { useSpendingStore, type CategorySpend, type MonthSpend } from '@stores/spendingStore';
+import { useSpendingStore, type CategorySpend, type MonthSpend, type DrillDownItem } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -15,17 +15,19 @@ import { sizes } from '@constants/sizes';
 
 const BAR_MAX_H = 56;
 
-// Categories treated as fixed house expenses
-const HOUSE_BILL_CATS = new Set([
-  'rent', 'electricity', 'water', 'internet', 'gas', 'tax', 'taxes',
-  'insurance', 'rates', 'council', 'body corporate', 'strata', 'mortgage',
-  'arnona', 'municipal', 'phone', 'building', 'maintenance',
-]);
+// Keyword-based matching so names like "Electricity Bill" or "Wifi" still land here
+const HOUSE_BILL_KEYWORDS = [
+  'rent', 'electric', 'water', 'internet', 'wifi', 'gas', 'tax',
+  'arnona', 'insurance', 'maintenance', 'rates', 'mortgage',
+  'strata', 'municipal', 'building', 'utilities', 'utility',
+  'phone', 'broadband', 'council', 'body corporate',
+];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function isHouseCat(name: string): boolean {
-  return HOUSE_BILL_CATS.has(name.toLowerCase());
+  const n = name.toLowerCase();
+  return HOUSE_BILL_KEYWORDS.some((kw) => n.includes(kw));
 }
 
 function fmtFull(n: number, sym: string): string {
@@ -49,6 +51,7 @@ interface CategoryRowItem {
   myAmount: number;
   prevHouseAmount: number;
   sectionTotal: number;
+  drillDownItems: DrillDownItem[];
 }
 
 interface SpendingSection {
@@ -227,16 +230,30 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth }: MonthlyC
 interface CategoryRowProps {
   item: CategoryRowItem;
   currency: string;
+  isExpanded: boolean;
+  onToggle: (name: string) => void;
 }
 
-function CategoryRow({ item, currency }: CategoryRowProps): React.JSX.Element {
-  const { cat, myAmount, prevHouseAmount, sectionTotal } = item;
-  const pct          = pctChange(cat.amount, prevHouseAmount);
-  const isUp         = pct !== null && pct > 0;
-  const barPct       = sectionTotal > 0 ? Math.round((cat.amount / sectionTotal) * 100) : 0;
+function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps): React.JSX.Element {
+  const { cat, myAmount, prevHouseAmount, sectionTotal, drillDownItems } = item;
+  const pct       = pctChange(cat.amount, prevHouseAmount);
+  const isUp      = pct !== null && pct > 0;
+  const barPct    = sectionTotal > 0 ? Math.round((cat.amount / sectionTotal) * 100) : 0;
+  const canExpand = drillDownItems.length > 0;
+
+  const handlePress = useCallback(() => {
+    if (canExpand) onToggle(cat.name);
+  }, [canExpand, onToggle, cat.name]);
 
   return (
-    <View style={styles.catRow}>
+    <Pressable
+      style={styles.catRow}
+      onPress={canExpand ? handlePress : undefined}
+      accessible
+      accessibilityRole={canExpand ? 'button' : 'none'}
+      accessibilityLabel={`${cat.name}, ${fmtFull(cat.amount, currency)}${canExpand ? ', tap to see details' : ''}`}
+      accessibilityState={canExpand ? { expanded: isExpanded } : undefined}
+    >
       <View style={[styles.catIcon, { backgroundColor: cat.color + '18' }]}>
         <Text style={styles.catIconText}>{cat.icon}</Text>
       </View>
@@ -251,16 +268,34 @@ function CategoryRow({ item, currency }: CategoryRowProps): React.JSX.Element {
               </Text>
             )}
           </View>
+          {canExpand && (
+            <Ionicons
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={colors.textSecondary}
+              style={styles.catChevron}
+            />
+          )}
         </View>
-        {/* Progress bar */}
         <View style={styles.catBarTrack}>
           <View style={[styles.catBarFill, { width: `${barPct}%` as `${number}%`, backgroundColor: cat.color }]} />
         </View>
         {myAmount > 0 && (
           <Text style={styles.catMyShare}>Your share: {fmtFull(myAmount, currency)}</Text>
         )}
+        {isExpanded && drillDownItems.length > 0 && (
+          <View style={styles.drillDown}>
+            {drillDownItems.map((d) => (
+              <View key={d.id} style={styles.drillDownRow}>
+                <Text style={styles.drillDownType}>{d.type === 'recurring' ? '↻' : '·'}</Text>
+                <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
+                <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -285,6 +320,7 @@ function SpendingSectionHeader({ title, icon, total, currency }: SectionHeaderPr
 
 export default function SpendingScreen(): React.JSX.Element {
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const profile        = useAuthStore((s) => s.profile);
   const houseId        = useAuthStore((s) => s.houseId);
@@ -299,9 +335,12 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const userName = profile?.name ?? '';
 
-  useEffect(() => {
-    if (houseId && userName) load(houseId, userName);
-  }, [houseId, userName, load]);
+  // Reload every time the screen comes into focus (picks up bill category edits etc.)
+  useFocusEffect(
+    useCallback(() => {
+      if (houseId && userName) void load(houseId, userName);
+    }, [houseId, userName, load])
+  );
 
   useEffect(() => {
     if (months.length && houseId) fetchInsight(houseId, userName, currency);
@@ -319,6 +358,11 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const handleSelectMonth = useCallback((idx: number) => {
     setSelectedIdx(idx);
+    setExpandedCategory(null);
+  }, []);
+
+  const handleToggleCategory = useCallback((name: string) => {
+    setExpandedCategory((prev) => prev === name ? null : name);
   }, []);
 
   const selectedMonth = months[selectedIdx];
@@ -335,7 +379,8 @@ export default function SpendingScreen(): React.JSX.Element {
     function toCatRow(cat: CategorySpend, sectionTotal: number): CategoryRowItem {
       const myAmount        = selectedMonth.categories.find((c) => c.name === cat.name)?.amount ?? 0;
       const prevHouseAmount = previousMonth?.houseCategories.find((c) => c.name === cat.name)?.amount ?? 0;
-      return { cat, myAmount, prevHouseAmount, sectionTotal };
+      const drillDownItems  = selectedMonth.billsByCategory[cat.name] ?? [];
+      return { cat, myAmount, prevHouseAmount, sectionTotal, drillDownItems };
     }
 
     const result: SpendingSection[] = [];
@@ -359,8 +404,15 @@ export default function SpendingScreen(): React.JSX.Element {
   }, [selectedMonth, previousMonth]);
 
   const renderItem = useCallback(
-    ({ item }: { item: CategoryRowItem }) => <CategoryRow item={item} currency={currency} />,
-    [currency],
+    ({ item }: { item: CategoryRowItem }) => (
+      <CategoryRow
+        item={item}
+        currency={currency}
+        isExpanded={expandedCategory === item.cat.name}
+        onToggle={handleToggleCategory}
+      />
+    ),
+    [currency, expandedCategory, handleToggleCategory],
   );
 
   const renderSectionHeader = useCallback(
@@ -399,7 +451,7 @@ export default function SpendingScreen(): React.JSX.Element {
     </View>
   );
 
-  if (isLoading) {
+  if (isLoading && months.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         {pageHeader}
@@ -675,6 +727,20 @@ const styles = StyleSheet.create({
   },
   catBarFill: { height: 4, borderRadius: 2 },
   catMyShare: { fontSize: 12, ...font.regular, color: colors.textSecondary },
+  catChevron: { marginLeft: 4 },
+
+  // Drill-down accordion
+  drillDown: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+    gap: 6,
+  },
+  drillDownRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  drillDownType: { width: 14, fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
+  drillDownTitle: { flex: 1, fontSize: 13, ...font.regular, color: colors.textSecondary },
+  drillDownAmt: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
 
   // States
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: sizes.sm, padding: sizes.lg },
