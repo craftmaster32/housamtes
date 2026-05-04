@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -62,6 +62,18 @@ export default function BillDetailScreen(): React.JSX.Element {
   const [date, setDate] = useState(bill?.date ?? '');
   const [notes, setNotes] = useState(bill?.notes ?? '');
   const [category, setCategory] = useState(bill?.category ?? 'Other');
+
+  // Sync form back to bill data when not editing (covers async load + cancel)
+  useEffect(() => {
+    if (!isEditing && bill) {
+      setTitle(bill.title);
+      setAmount(bill.amount.toString());
+      setDate(bill.date);
+      setNotes(bill.notes ?? '');
+      setCategory(bill.category ?? 'Other');
+    }
+  }, [bill, isEditing]);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
   const [error, setError] = useState('');

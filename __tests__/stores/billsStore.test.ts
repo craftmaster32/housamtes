@@ -403,9 +403,10 @@ describe('billsStore — editBill', () => {
     useBillsStore.setState({ bills: [bill({ id: 'b1', title: 'Rent' })] });
     mockFrom.mockReturnValue(ok());
 
-    await useBillsStore.getState().editBill('b1', { title: 'New Rent', amount: 1000, date: '2026-05-01', notes: 'increased', category: 'Rent' });
+    await useBillsStore.getState().editBill('b1', { title: 'New Rent', amount: 1000, date: '2026-05-01', notes: 'increased', category: 'Groceries' });
 
     expect(useBillsStore.getState().bills[0].title).toBe('New Rent');
+    expect(useBillsStore.getState().bills[0].category).toBe('Groceries');
   });
 });
 
