@@ -689,6 +689,9 @@ const styles = StyleSheet.create({
     borderRadius: sizes.borderRadius,
     paddingHorizontal: sizes.lg,
     paddingVertical: sizes.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   retryBtnText: { fontSize: sizes.fontSm, ...font.semibold, color: colors.white },
 });
