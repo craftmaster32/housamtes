@@ -377,6 +377,12 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const keyExtractor = useCallback((item: CategoryRowItem) => item.cat.name, []);
 
+  const handleRetry = useCallback(() => {
+    if (houseId && userName) void load(houseId, userName);
+  }, [houseId, userName, load]);
+
+  const handleJumpToCurrent = useCallback(() => setSelectedIdx(0), []);
+
   const pageHeader = (
     <View style={styles.header}>
       <Pressable
@@ -413,7 +419,7 @@ export default function SpendingScreen(): React.JSX.Element {
           <Text style={styles.errorText}>{error}</Text>
           <Pressable
             style={styles.retryBtn}
-            onPress={() => { if (houseId && userName) void load(houseId, userName); }}
+            onPress={handleRetry}
             accessible
             accessibilityRole="button"
             accessibilityLabel="Retry loading spending data"
@@ -441,7 +447,7 @@ export default function SpendingScreen(): React.JSX.Element {
       {selectedIdx > 0 && (
         <Pressable
           style={styles.jumpBtn}
-          onPress={() => setSelectedIdx(0)}
+          onPress={handleJumpToCurrent}
           accessible
           accessibilityRole="button"
           accessibilityLabel="Jump to current month"
@@ -611,10 +617,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     alignSelf: 'flex-end',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 44,
     backgroundColor: colors.primary + '12',
-    borderRadius: 20,
+    borderRadius: 22,
   },
   jumpBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
 
