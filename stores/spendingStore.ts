@@ -33,21 +33,30 @@ export interface CategorySpend {
 }
 
 export interface MonthSpend {
-  month: string;   // "2026-03"
-  label: string;   // "Mar 2026"
-  total: number;
-  categories: CategorySpend[];
+  month: string;          // "2026-03"
+  label: string;          // "Mar 2026"
+  total: number;          // logged-in user's share
+  houseTotal: number;     // full house spending
+  categories: CategorySpend[];       // user's share per category
+  houseCategories: CategorySpend[];  // house total per category
 }
 
 interface SpendingStore {
   months: MonthSpend[];
   isLoading: boolean;
+  error: string | null;
+  insight: string | null;
+  insightLoading: boolean;
+  insightMonth: string | null;
+  insightCurrency: string | null;
+  insightUser: string | null;
   load: (houseId: string, userName: string) => Promise<void>;
+  fetchInsight: (houseId: string, userName: string, currency: string) => Promise<void>;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function toMonthKey(dateStr: string): string {
-  return dateStr.slice(0, 7); // "2026-04-09" → "2026-04"
+  return dateStr.slice(0, 7);
 }
 
 function toMonthLabel(monthKey: string): string {
@@ -56,7 +65,6 @@ function toMonthLabel(monthKey: string): string {
     .toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
 }
 
-// Last N months as "YYYY-MM" strings, newest first
 function lastNMonths(n: number): string[] {
   const result: string[] = [];
   const now = new Date();
@@ -73,15 +81,20 @@ export const useSpendingStore = create<SpendingStore>()(
     (set) => ({
       months: [],
       isLoading: false,
+      error: null,
+      insight: null,
+      insightLoading: false,
+      insightMonth: null,
+      insightCurrency: null,
+      insightUser: null,
 
       load: async (houseId: string, userName: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[spending] house ID mismatch — aborting load');
           return;
         }
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
-          // Fetch one-time bills + recurring bill payments in parallel
           const sixMonthsAgo = ((): string => {
             const d = new Date();
             d.setMonth(d.getMonth() - 6);
@@ -100,11 +113,12 @@ export const useSpendingStore = create<SpendingStore>()(
               .eq('house_id', houseId)
               .gte('paid_at', sixMonthsAgo),
           ]);
+          if (billsRes.error) throw billsRes.error;
+          if (paymentsRes.error) throw paymentsRes.error;
 
-          // Accumulate: monthKey → categoryName → amount
+          // ── User tally: logged-in user's proportional share ────────────────
           const tally = new Map<string, Map<string, number>>();
 
-          // One-time bills — user's proportional share
           for (const b of billsRes.data ?? []) {
             const splits: string[] = Array.isArray(b.split_between) ? b.split_between : [];
             if (!splits.includes(userName)) continue;
@@ -112,11 +126,9 @@ export const useSpendingStore = create<SpendingStore>()(
             const mk = toMonthKey(b.date);
             const cat = (b.category as string | null)?.toLowerCase() ?? 'other';
             if (!tally.has(mk)) tally.set(mk, new Map());
-            const prev = tally.get(mk)!.get(cat) ?? 0;
-            tally.get(mk)!.set(cat, prev + share);
+            tally.get(mk)!.set(cat, (tally.get(mk)!.get(cat) ?? 0) + share);
           }
 
-          // Recurring bill payments — full amount for bills assigned to user
           for (const p of paymentsRes.data ?? []) {
             const rbRaw = p.recurring_bills;
             const rb = (Array.isArray(rbRaw) ? rbRaw[0] : rbRaw) as { name: string; assigned_to: string } | null;
@@ -124,24 +136,80 @@ export const useSpendingStore = create<SpendingStore>()(
             const mk = toMonthKey(p.paid_at);
             const cat = rb.name.toLowerCase();
             if (!tally.has(mk)) tally.set(mk, new Map());
-            const prev = tally.get(mk)!.get(cat) ?? 0;
-            tally.get(mk)!.set(cat, prev + Number(p.amount));
+            tally.get(mk)!.set(cat, (tally.get(mk)!.get(cat) ?? 0) + Number(p.amount));
           }
 
-          // Build MonthSpend[] for the last 6 months (fill empty months with 0)
+          // ── House tally: full house spending ──────────────────────────────
+          const houseTally = new Map<string, Map<string, number>>();
+
+          for (const b of billsRes.data ?? []) {
+            const mk = toMonthKey(b.date);
+            const cat = (b.category as string | null)?.toLowerCase() ?? 'other';
+            if (!houseTally.has(mk)) houseTally.set(mk, new Map());
+            houseTally.get(mk)!.set(cat, (houseTally.get(mk)!.get(cat) ?? 0) + Number(b.amount));
+          }
+
+          for (const p of paymentsRes.data ?? []) {
+            const rbRaw = p.recurring_bills;
+            const rb = (Array.isArray(rbRaw) ? rbRaw[0] : rbRaw) as { name: string; assigned_to: string } | null;
+            if (!rb) continue;
+            const mk = toMonthKey(p.paid_at);
+            const cat = rb.name.toLowerCase();
+            if (!houseTally.has(mk)) houseTally.set(mk, new Map());
+            houseTally.get(mk)!.set(cat, (houseTally.get(mk)!.get(cat) ?? 0) + Number(p.amount));
+          }
+
+          // ── Build MonthSpend[] ─────────────────────────────────────────────
           const months: MonthSpend[] = lastNMonths(6).map((mk) => {
             const catMap = tally.get(mk) ?? new Map();
             const categories: CategorySpend[] = Array.from(catMap.entries())
               .map(([name, amount]) => ({ name, amount, ...categoryMeta(name) }))
               .sort((a, b) => b.amount - a.amount);
             const total = categories.reduce((s, c) => s + c.amount, 0);
-            return { month: mk, label: toMonthLabel(mk), total, categories };
+
+            const houseCatMap = houseTally.get(mk) ?? new Map();
+            const houseCategories: CategorySpend[] = Array.from(houseCatMap.entries())
+              .map(([name, amount]) => ({ name, amount, ...categoryMeta(name) }))
+              .sort((a, b) => b.amount - a.amount);
+            const houseTotal = houseCategories.reduce((s, c) => s + c.amount, 0);
+
+            return { month: mk, label: toMonthLabel(mk), total, categories, houseTotal, houseCategories };
           });
 
           set({ months, isLoading: false });
         } catch (err) {
           captureError(err, { store: 'spending', houseId });
-          set({ isLoading: false });
+          set({ isLoading: false, error: 'Failed to load spending data' });
+        }
+      },
+
+      fetchInsight: async (houseId: string, userName: string, currency: string): Promise<void> => {
+        const state = useSpendingStore.getState();
+        const currentMonth = state.months[0]?.month;
+        if (!currentMonth || !state.months.length) return;
+        if (
+          state.insightMonth === currentMonth &&
+          state.insightCurrency === currency &&
+          state.insightUser === userName &&
+          state.insight
+        ) return;
+
+        set({ insightLoading: true, error: null });
+        try {
+          const { data, error } = await supabase.functions.invoke('spending-analysis', {
+            body: { months: state.months.slice(0, 3), userName, currency },
+          });
+          if (error) throw error;
+          set({
+            insight: (data as { insight: string }).insight,
+            insightMonth: currentMonth,
+            insightCurrency: currency,
+            insightUser: userName,
+            insightLoading: false,
+          });
+        } catch (err) {
+          captureError(err, { store: 'spending', action: 'fetchInsight', houseId });
+          set({ insightLoading: false, error: 'Failed to load insight' });
         }
       },
     }),
