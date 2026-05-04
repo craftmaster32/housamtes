@@ -329,6 +329,8 @@
     "free": "Libre",
     "taken": "Ocupada",
     "history": "Historial",
+    "error_vote_failed": "No se pudo guardar tu voto",
+    "error_clear_failed": "No se pudo borrar este elemento",
     "failed_claim": "No se pudo ocupar la plaza",
     "failed_release": "No se pudo liberar la plaza",
     "failed_reservation": "No se pudo agregar la reserva"

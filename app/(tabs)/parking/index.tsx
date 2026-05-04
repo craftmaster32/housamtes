@@ -20,6 +20,7 @@ import {
   useParkingStore,
   isDateConflict,
   type ParkingReservation,
+  type ParkingReservationStatus,
   type ParkingSession,
   type ParkingVote,
   type ParkingVoteChoice,
@@ -386,6 +387,31 @@ export default function ParkingScreen(): React.JSX.Element {
     return (): void => { sub.remove(); clearInterval(interval); };
   }, [houseId, checkReservationAutoApply]);
 
+  // Sync the requester's own calendar entry when their request is resolved.
+  // Voters already call syncParkingApproved in handleVote; this effect handles
+  // the requester's device where the status change arrives via realtime.
+  const prevStatusMapRef = useRef<Map<string, ParkingReservationStatus>>(new Map());
+  useEffect(() => {
+    const prevMap = prevStatusMapRef.current;
+    for (const r of reservations) {
+      const prev = prevMap.get(r.id);
+      if (prev === 'pending' && r.status !== 'pending' && r.requestedBy === myId) {
+        if (r.status === 'approved') {
+          syncParkingApproved({
+            id: r.id,
+            requestedBy: myName,
+            date: r.date,
+            startTime: r.startTime,
+            endTime: r.endTime,
+          }).catch(() => {});
+        } else {
+          removeCalendarEvent(`pk-${r.id}`).catch(() => {});
+        }
+      }
+      prevMap.set(r.id, r.status);
+    }
+  }, [reservations, myId, myName, syncParkingApproved, removeCalendarEvent]);
+
   // Split into upcoming (date >= today) and history (date < today)
   // Plain const so the value refreshes each render — same-day string equality
   // prevents the downstream memos from re-running, but a midnight transition
@@ -448,17 +474,17 @@ export default function ParkingScreen(): React.JSX.Element {
         }).catch(() => {});
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save your vote');
+      setError(err instanceof Error ? err.message : t('parking.error_vote_failed'));
     }
-  }, [voteOnReservation, reservations, housemates, houseId, syncParkingApproved]);
+  }, [voteOnReservation, reservations, housemates, houseId, syncParkingApproved, t]);
 
   const handleClear = useCallback(async (id: string): Promise<void> => {
     try {
       await clearHistoryItem(id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not clear this item');
+      setError(err instanceof Error ? err.message : t('parking.error_clear_failed'));
     }
-  }, [clearHistoryItem]);
+  }, [clearHistoryItem, t]);
 
   const keyExtractor = useCallback((item: FlatItem): string =>
     item._k === 'hist-header' ? 'history-header' : item.res.id

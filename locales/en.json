@@ -330,6 +330,8 @@
     "free": "Free",
     "taken": "Taken",
     "history": "History",
+    "error_vote_failed": "Could not save your vote",
+    "error_clear_failed": "Could not clear this item",
     "failed_claim": "Failed to claim spot",
     "failed_release": "Failed to release spot",
     "failed_reservation": "Failed to add reservation"
