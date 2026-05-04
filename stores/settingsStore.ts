@@ -87,15 +87,19 @@ export const DEFAULT_FEATURES: FeatureConfig[] = [
 
 const ALL_FEATURE_KEYS = DEFAULT_FEATURES.map((f) => f.key);
 
+export type AppTheme = 'dark' | 'light';
+
 interface SettingsStore {
   features: FeatureConfig[];
   dashboardWidgets: string[];
   currency: string;
   showRecurringBillsOnCalendar: boolean;
+  theme: AppTheme;
   toggleFeature: (key: string) => void;
   toggleDashboardWidget: (key: string) => void;
   setCurrency: (currency: string) => void;
   toggleShowRecurringBillsOnCalendar: () => void;
+  setTheme: (theme: AppTheme) => void;
   isEnabled: (key: string) => boolean;
   isDashboardWidget: (key: string) => boolean;
 }
@@ -108,6 +112,7 @@ export const useSettingsStore = create<SettingsStore>()(
         dashboardWidgets: ALL_FEATURE_KEYS,
         currency: '₪',
         showRecurringBillsOnCalendar: true,
+        theme: 'dark' as AppTheme,
 
         toggleFeature: (key: string): void => {
           set((s) => ({
@@ -133,6 +138,10 @@ export const useSettingsStore = create<SettingsStore>()(
           }));
         },
 
+        setTheme: (theme: AppTheme): void => {
+          set({ theme });
+        },
+
         isEnabled: (key: string): boolean => {
           return get().features.find((f) => f.key === key)?.enabled ?? false;
         },
@@ -146,9 +155,12 @@ export const useSettingsStore = create<SettingsStore>()(
       {
         name: 'housemates-settings',
         storage: createJSONStorage(() => AsyncStorage),
-        version: 2,
+        version: 3,
         migrate: (state: unknown, fromVersion: number): SettingsStore => {
           const s = state as SettingsStore;
+          if (fromVersion < 3 && !s.theme) {
+            return { ...s, theme: 'dark' };
+          }
           if (fromVersion < 2) {
             const hasGroceryDraft = s.features?.some((f) => f.key === 'grocery_draft');
             if (!hasGroceryDraft) {
