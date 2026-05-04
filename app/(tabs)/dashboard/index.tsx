@@ -967,14 +967,26 @@ export default function DashboardScreen(): React.JSX.Element {
               {houseName ? ` in ${houseName}` : ''} today.
             </Text>
           </View>
-          <Pressable
-            style={styles.newExpenseBtn}
-            onPress={() => router.push('/(tabs)/bills/add')}
-            accessibilityRole="button"
-          >
-            <Ionicons name="add" size={16} color="#fff" />
-            <Text style={styles.newExpenseBtnText}>New Expense</Text>
-          </Pressable>
+          <View style={styles.heroBtns}>
+            <Pressable
+              style={styles.newExpenseBtn}
+              onPress={() => router.push('/(tabs)/bills/add')}
+              accessibilityRole="button"
+              accessibilityLabel="Add new expense"
+            >
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={styles.newExpenseBtnText}>Expense</Text>
+            </Pressable>
+            <Pressable
+              style={styles.newHouseBillBtn}
+              onPress={() => router.push('/(tabs)/bills?openRecurring=1')}
+              accessibilityRole="button"
+              accessibilityLabel="Add house bill"
+            >
+              <Ionicons name="home-outline" size={16} color={colors.primary} />
+              <Text style={styles.newHouseBillBtnText}>House Bill</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* ── Top row: Balances · Chore · Parking ──────────────────── */}
@@ -1035,13 +1047,20 @@ const styles = StyleSheet.create({
   heroText: { flex: 1, gap: 4 },
   greeting: { fontSize: 24, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.6 },
   greetingSub: { fontSize: 14, ...font.regular, color: colors.textSecondary, lineHeight: 20 },
+  heroBtns: { flexDirection: 'row', gap: 8, flexShrink: 0 },
   newExpenseBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: 14,
-    borderRadius: 10, flexShrink: 0,
+    borderRadius: 10,
     boxShadow: '0 4px 12px rgba(79,120,182,0.22)',
   } as never,
   newExpenseBtnText: { fontSize: 13, ...font.semibold, color: '#fff' },
+  newHouseBillBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary + '14', paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 10, borderWidth: 1, borderColor: colors.primary + '40',
+  },
+  newHouseBillBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
 
   // ── Grid
   row: { flexDirection: 'column', gap: 12, marginBottom: 12 },

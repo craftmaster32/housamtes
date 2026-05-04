@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, SectionList, ScrollView, StyleSheet, Pressable,
   useWindowDimensions,
@@ -6,7 +6,7 @@ import {
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -214,6 +214,10 @@ export default function BillsScreen(): React.JSX.Element {
   const housemateById = useMemo(() => new Map(housemates.map((h) => [h.id, h])), [housemates]);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
+  const { openRecurring } = useLocalSearchParams<{ openRecurring?: string }>();
+  useEffect(() => {
+    if (openRecurring === '1') setFilter('recurring');
+  }, [openRecurring]);
   const [showSettle, setShowSettle] = useState(false);
 
   const householdBills = useRecurringBillsStore((s) => s.bills);

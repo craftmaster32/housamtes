@@ -21,6 +21,19 @@ import { sizes } from '@constants/sizes';
 
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
 
+const BILL_ICON_LABELS: Record<string, string> = {
+  '🏛️': 'Tax',
+  '⚡': 'Electric',
+  '💧': 'Water',
+  '🔥': 'Gas',
+  '📶': 'Internet',
+  '🏢': 'Building',
+  '🏠': 'Rent',
+  '🧾': 'Other',
+  '🌡️': 'Heating',
+  '♻️': 'Waste',
+};
+
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -213,14 +226,28 @@ function AddBillForm({ allPeople, onClose }: { allPeople: string[]; onClose: () 
   const [frequency, setFrequency] = useState<BillFrequency>('monthly');
   const [typicalAmount, setTypicalAmount] = useState('');
   const [icon, setIcon] = useState(BILL_ICONS[0]);
+  const [nextDueDate, setNextDueDate] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
-    if (!name.trim() || !typicalAmount || !houseId) return;
+    if (!name.trim()) { setError('Please enter a bill name.'); return; }
     const amt = parseFloat(typicalAmount);
-    if (isNaN(amt) || amt <= 0) return;
-    await addBill({ name: name.trim(), assignedTo, frequency, typicalAmount: amt, icon }, houseId);
-    onClose();
-  }, [name, assignedTo, frequency, typicalAmount, icon, addBill, houseId, onClose]);
+    if (!typicalAmount || isNaN(amt) || amt <= 0) { setError('Please enter a valid amount.'); return; }
+    if (!houseId) return;
+    try {
+      setSaving(true);
+      await addBill(
+        { name: name.trim(), assignedTo, frequency, typicalAmount: amt, icon, nextDueDate: nextDueDate || undefined },
+        houseId,
+      );
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the bill. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [name, assignedTo, frequency, typicalAmount, icon, nextDueDate, addBill, houseId, onClose]);
 
   return (
     <View style={styles.addForm}>
@@ -234,8 +261,15 @@ function AddBillForm({ allPeople, onClose }: { allPeople: string[]; onClose: () 
             key={ic}
             style={[styles.iconChip, icon === ic && styles.iconChipActive]}
             onPress={() => setIcon(ic)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={BILL_ICON_LABELS[ic] ?? ic}
+            accessibilityState={{ selected: icon === ic }}
           >
-            <Text style={styles.iconChipText}>{ic}</Text>
+            <Text style={styles.iconChipEmoji}>{ic}</Text>
+            <Text style={[styles.iconChipLabel, icon === ic && styles.iconChipLabelActive]}>
+              {BILL_ICON_LABELS[ic] ?? ''}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -290,15 +324,22 @@ function AddBillForm({ allPeople, onClose }: { allPeople: string[]; onClose: () 
         placeholderTextColor={colors.textDisabled}
       />
 
+      {/* Next due date */}
+      <Text style={styles.fieldLabel}>Next due date (optional)</Text>
+      <DateInput value={nextDueDate} onChange={setNextDueDate} style={styles.dateInput} />
+
+      {!!error && <Text style={styles.formError}>{error}</Text>}
+
       <View style={styles.addFormActions}>
         <Pressable style={styles.cancelBtn} onPress={onClose}>
           <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
         </Pressable>
         <Pressable
-          style={[styles.saveBtn, (!name.trim() || !typicalAmount) && styles.saveBtnDisabled]}
+          style={[styles.saveBtn, (saving || !name.trim() || !typicalAmount) && styles.saveBtnDisabled]}
           onPress={handleSave}
+          disabled={saving}
         >
-          <Text style={styles.saveBtnText}>{t('bills.household_add_bill')}</Text>
+          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : t('bills.household_add_bill')}</Text>
         </Pressable>
       </View>
     </View>
@@ -314,7 +355,7 @@ export function HouseholdTab(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const allPeople = [profile?.name ?? '', ...housemates.map((h) => h.name)].filter(Boolean);
+  const allPeople = [...new Set([profile?.name ?? '', ...housemates.map((h) => h.name)])].filter(Boolean);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -399,9 +440,13 @@ const styles = StyleSheet.create({
   addFormTitle: { fontSize: sizes.fontMd, fontWeight: '700', color: colors.textPrimary, marginBottom: sizes.xs },
   fieldLabel: { fontSize: sizes.fontXs, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
   iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  iconChip: { width: 40, height: 40, borderRadius: sizes.borderRadiusSm, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+  iconChip: { width: 56, height: 56, borderRadius: sizes.borderRadiusSm, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent', gap: 2 },
   iconChipActive: { borderColor: colors.primary, backgroundColor: colors.primary + '12' },
-  iconChipText: { fontSize: 20 },
+  iconChipEmoji: { fontSize: 20 },
+  iconChipLabel: { fontSize: 9, color: colors.textSecondary, textAlign: 'center' },
+  iconChipLabelActive: { color: colors.primary },
+  dateInput: { minHeight: 44 },
+  formError: { fontSize: sizes.fontSm, color: colors.negative, marginTop: 2 },
   addInput: { backgroundColor: colors.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: colors.textPrimary },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
   chip: { paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },

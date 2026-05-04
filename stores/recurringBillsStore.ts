@@ -14,6 +14,7 @@ export interface RecurringBill {
   typicalAmount: number;
   icon: string;
   createdAt: string;
+  nextDueDate?: string; // YYYY-MM-DD — used when no payments have been logged yet
 }
 
 export interface HouseholdPayment {
@@ -64,6 +65,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             typicalAmount: Number(r.typical_amount),
             icon: r.icon ?? '🧾',
             createdAt: r.created_at,
+            nextDueDate: r.next_due_date ?? undefined,
           }));
           const payments: HouseholdPayment[] = (paymentsRes.data ?? []).map((r) => ({
             id: r.id,
@@ -100,6 +102,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             frequency: data.frequency,
             typical_amount: data.typicalAmount,
             icon: data.icon,
+            next_due_date: data.nextDueDate ?? null,
           })
           .select()
           .single();
@@ -112,6 +115,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           typicalAmount: Number(inserted.typical_amount),
           icon: inserted.icon ?? '🧾',
           createdAt: inserted.created_at,
+          nextDueDate: inserted.next_due_date ?? undefined,
         };
         set({ bills: [...get().bills, bill] });
       },
@@ -167,10 +171,12 @@ export function getLastPayment(billId: string, payments: HouseholdPayment[]): Ho
 
 export function getNextDueDate(bill: RecurringBill, payments: HouseholdPayment[]): string | null {
   const last = getLastPayment(bill.id, payments);
-  if (!last) return null;
-  const d = new Date(last.paidAt + 'T00:00:00');
-  d.setMonth(d.getMonth() + FREQUENCY_MONTHS[bill.frequency]);
-  return d.toISOString().split('T')[0];
+  if (last) {
+    const d = new Date(last.paidAt + 'T00:00:00');
+    d.setMonth(d.getMonth() + FREQUENCY_MONTHS[bill.frequency]);
+    return d.toISOString().split('T')[0];
+  }
+  return bill.nextDueDate ?? null;
 }
 
 export interface FairnessEntry {
