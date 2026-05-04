@@ -39,7 +39,7 @@ interface BillsStore {
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addBill: (bill: Omit<Bill, 'id' | 'createdAt' | 'settled' | 'settledBy' | 'settledAt' | 'notes'> & { notes?: string }, houseId: string) => Promise<void>;
-  editBill: (id: string, updates: { title: string; amount: number; date: string; notes: string }) => Promise<void>;
+  editBill: (id: string, updates: { title: string; amount: number; date: string; notes: string; category: string }) => Promise<void>;
   settleBill: (id: string, settledByUserId: string, settledByName: string, houseId: string) => Promise<void>;
   deleteBill: (id: string, houseId: string) => Promise<void>;
 }
@@ -145,12 +145,12 @@ export const useBillsStore = create<BillsStore>()(
       editBill: async (id, updates): Promise<void> => {
         const { error } = await supabase
           .from('bills')
-          .update({ title: updates.title, amount: updates.amount, date: updates.date, notes: updates.notes })
+          .update({ title: updates.title, amount: updates.amount, date: updates.date, notes: updates.notes, category: updates.category })
           .eq('id', id);
         if (error) { captureError(error, { context: 'edit-bill', billId: id }); throw new Error('Could not update the bill. Please try again.'); }
         set({
           bills: get().bills.map((b) =>
-            b.id === id ? { ...b, title: updates.title, amount: updates.amount, date: updates.date, notes: updates.notes } : b
+            b.id === id ? { ...b, title: updates.title, amount: updates.amount, date: updates.date, notes: updates.notes, category: updates.category } : b
           ),
         });
       },
