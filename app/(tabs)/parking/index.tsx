@@ -1,12 +1,30 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, Modal, ScrollView, AppState, ActivityIndicator, type AppStateStatus } from 'react-native';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  TextInput,
+  Modal,
+  ScrollView,
+  AppState,
+  ActivityIndicator,
+  type AppStateStatus,
+  type ListRenderItemInfo,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { useParkingStore, isDateConflict, type ParkingReservation, type ParkingSession } from '@stores/parkingStore';
+import {
+  useParkingStore,
+  isDateConflict,
+  type ParkingReservation,
+  type ParkingSession,
+  type ParkingVote,
+} from '@stores/parkingStore';
 import { useAuthStore } from '@stores/authStore';
-import { useHousematesStore } from '@stores/housematesStore';
+import { useHousematesStore, type Housemate } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
@@ -25,57 +43,168 @@ function formatDate(dateStr: string): string {
   return `${d}/${m}/${y}`;
 }
 
+function todayString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ── Vote status row ────────────────────────────────────────────────────────────
+function VoteRow({
+  votes,
+  housemates,
+  requestedBy,
+}: {
+  votes: ParkingVote[];
+  housemates: Housemate[];
+  requestedBy: string;
+}): React.JSX.Element {
+  const voters = housemates.filter((h) => h.id !== requestedBy);
+  if (voters.length === 0) return <View />;
+
+  return (
+    <View style={styles.voteRow}>
+      {voters.map((h) => {
+        const v = votes.find((vote) => vote.userId === h.id);
+        const dotStyle =
+          v?.vote === 'approve' ? styles.dotApprove
+          : v?.vote === 'reject' ? styles.dotReject
+          : styles.dotPending;
+        const dotIcon =
+          v?.vote === 'approve' ? 'checkmark'
+          : v?.vote === 'reject' ? 'close'
+          : 'remove';
+        return (
+          <View key={h.id} style={styles.voteAvatarWrap}>
+            <View style={[styles.voteAvatarCircle, { backgroundColor: h.color + '30' }]}>
+              <Text style={[styles.voteAvatarInitial, { color: h.color }]}>
+                {h.name.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View style={[styles.voteDot, dotStyle]}>
+              <Ionicons name={dotIcon as 'checkmark' | 'close' | 'remove'} size={7} color="#fff" />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// ── Reservation card ───────────────────────────────────────────────────────────
 function ReservationCard({
   item,
   currentUserId,
-  canApprove,
   onCancel,
-  onApprove,
-  houseId,
+  onVote,
+  onClear,
+  isHistory,
 }: {
   item: ParkingReservation;
   currentUserId: string;
-  canApprove: boolean;
   onCancel: (id: string) => void;
-  onApprove: (id: string, houseId: string) => void;
-  houseId: string;
+  onVote: (id: string, vote: 'approve' | 'reject') => void;
+  onClear: (id: string) => void;
+  isHistory: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
-  const isOwn    = item.requestedBy === currentUserId;
+  const isOwn = item.requestedBy === currentUserId;
+  const isPending = item.status === 'pending';
   const approved = item.status === 'approved';
+  const rejected = item.status === 'rejected';
+
+  const statusColor = approved ? colors.positive : rejected ? colors.danger : colors.warning;
+  const statusBg = approved
+    ? colors.positive + '20'
+    : rejected
+    ? colors.danger + '15'
+    : colors.warning + '20';
+  const statusLabel = approved
+    ? t('parking.approved')
+    : rejected
+    ? 'Rejected'
+    : t('parking.pending');
 
   const timeLabel = item.startTime
     ? ` · ${item.startTime}${item.endTime ? `–${item.endTime}` : ''}`
     : '';
 
+  const myVote = item.votes.find((v) => v.userId === currentUserId);
+  const canVote = !isOwn && isPending;
+
   return (
-    <View style={styles.resCard}>
+    <View style={[styles.resCard, isHistory && styles.resCardDim]}>
       <View style={styles.resIconWrap}>
-        <Ionicons name="calendar-outline" size={18} color={approved ? colors.positive : colors.warning} />
+        <Ionicons name="calendar-outline" size={18} color={statusColor} />
       </View>
+
       <View style={styles.resInfo}>
-        <Text style={styles.resDate}>{formatDate(item.date)}{timeLabel}</Text>
+        <Text style={styles.resDate}>
+          {formatDate(item.date)}
+          {timeLabel}
+        </Text>
         <Text style={styles.resBy}>
           {isOwn ? 'You' : resolveName(item.requestedBy, housemates)}
           {item.note ? ` · ${item.note}` : ''}
         </Text>
-        <View style={[styles.badge, approved ? styles.badgeGreen : styles.badgeYellow]}>
-          <Text style={[styles.badgeText, { color: approved ? colors.positive : colors.warning }]}>
-            {approved ? t('parking.approved') : t('parking.pending')}
-          </Text>
+
+        <VoteRow votes={item.votes} housemates={housemates} requestedBy={item.requestedBy} />
+
+        <View style={[styles.badge, { backgroundColor: statusBg }]}>
+          <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
       </View>
+
       <View style={styles.resActions}>
-        {isOwn && (
-          <Pressable onPress={() => onCancel(item.id)} style={styles.cancelBtn} accessibilityRole="button">
+        {isOwn && isPending && (
+          <Pressable
+            onPress={() => onCancel(item.id)}
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel reservation"
+          >
             <Ionicons name="close-circle-outline" size={20} color={colors.danger} />
           </Pressable>
         )}
-        {!isOwn && canApprove && item.status === 'pending' && (
-          <Pressable onPress={() => onApprove(item.id, houseId)} style={styles.approveBtn} accessibilityRole="button">
-            <Text style={styles.approveBtnText}>{t('parking.approve')}</Text>
+
+        {isHistory && (
+          <Pressable
+            onPress={() => onClear(item.id)}
+            style={styles.iconBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Clear from history"
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.textSecondary} />
           </Pressable>
+        )}
+
+        {canVote && (
+          <View style={styles.voteBtns}>
+            <Pressable
+              onPress={() => onVote(item.id, 'approve')}
+              style={[styles.voteBtn, myVote?.vote === 'approve' && styles.voteBtnApproveActive]}
+              accessibilityRole="button"
+              accessibilityLabel="Approve parking request"
+            >
+              <Ionicons
+                name="checkmark"
+                size={15}
+                color={myVote?.vote === 'approve' ? '#fff' : colors.positive}
+              />
+            </Pressable>
+            <Pressable
+              onPress={() => onVote(item.id, 'reject')}
+              style={[styles.voteBtn, myVote?.vote === 'reject' && styles.voteBtnRejectActive]}
+              accessibilityRole="button"
+              accessibilityLabel="Reject parking request"
+            >
+              <Ionicons
+                name="close"
+                size={15}
+                color={myVote?.vote === 'reject' ? '#fff' : colors.danger}
+              />
+            </Pressable>
+          </View>
         )}
       </View>
     </View>
@@ -101,19 +230,19 @@ function ReserveModal({
   current: ParkingSession | null;
 }): React.JSX.Element {
   const { t } = useTranslation();
-  const addReservation    = useParkingStore((s) => s.addReservation);
+  const addReservation = useParkingStore((s) => s.addReservation);
   const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
   const housemates = useHousematesStore((s) => s.housemates);
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  const [date, setDate]           = useState(todayStr);
+  const [date, setDate] = useState(todayStr);
   const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime]     = useState('');
-  const [note, setNote]           = useState('');
-  const [saving, setSaving]       = useState(false);
-  const [error, setError]         = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const activeConflict =
     current && date === todayStr
@@ -144,7 +273,13 @@ function ReserveModal({
         myName,
         houseId
       );
-      syncParkingPending({ id: reservationId, requestedBy: myName, date, startTime: startTime || undefined, endTime: endTime || undefined }).catch(() => {});
+      syncParkingPending({
+        id: reservationId,
+        requestedBy: myName,
+        date,
+        startTime: startTime || undefined,
+        endTime: endTime || undefined,
+      }).catch(() => {});
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('parking.failed_reservation'));
@@ -208,34 +343,37 @@ function ReserveModal({
   );
 }
 
+// ── List item union type ───────────────────────────────────────────────────────
+type FlatItem =
+  | { _k: 'res'; res: ParkingReservation; isHistory: boolean }
+  | { _k: 'hist-header'; count: number };
+
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function ParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const isLoading          = useParkingStore((s) => s.isLoading);
-  const current            = useParkingStore((s) => s.current);
-  const reservations       = useParkingStore((s) => s.reservations);
-  const claim              = useParkingStore((s) => s.claim);
-  const release            = useParkingStore((s) => s.release);
-  const cancelReservation  = useParkingStore((s) => s.cancelReservation);
-  const approveReservation = useParkingStore((s) => s.approveReservation);
-
-  const profile    = useAuthStore((s) => s.profile);
-  const houseId    = useAuthStore((s) => s.houseId);
-  const role       = useAuthStore((s) => s.role);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const canApprove = role === 'owner' || role === 'admin';
-  const syncParkingApproved  = useCalendarSyncStore((s) => s.syncParkingApproved);
-  const removeCalendarEvent  = useCalendarSyncStore((s) => s.removeCalendarEvent);
-
-  const myId    = profile?.id ?? '';
-  const myName  = profile?.name ?? '';
-  const isMine  = current?.occupant === myId;
-  const isFree  = !current;
-
+  const isLoading = useParkingStore((s) => s.isLoading);
+  const current = useParkingStore((s) => s.current);
+  const reservations = useParkingStore((s) => s.reservations);
+  const claim = useParkingStore((s) => s.claim);
+  const release = useParkingStore((s) => s.release);
+  const cancelReservation = useParkingStore((s) => s.cancelReservation);
+  const voteOnReservation = useParkingStore((s) => s.voteOnReservation);
+  const clearHistoryItem = useParkingStore((s) => s.clearHistoryItem);
   const checkReservationAutoApply = useParkingStore((s) => s.checkReservationAutoApply);
 
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const syncParkingApproved = useCalendarSyncStore((s) => s.syncParkingApproved);
+  const removeCalendarEvent = useCalendarSyncStore((s) => s.removeCalendarEvent);
+
+  const myId = profile?.id ?? '';
+  const myName = profile?.name ?? '';
+  const isMine = current?.occupant === myId;
+  const isFree = !current;
+
   const [showReserve, setShowReserve] = useState(false);
-  const [error, setError]             = useState('');
+  const [error, setError] = useState('');
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   useEffect(() => {
@@ -249,6 +387,23 @@ export default function ParkingScreen(): React.JSX.Element {
     const interval = setInterval(() => { checkReservationAutoApply(houseId ?? ''); }, 60_000);
     return (): void => { sub.remove(); clearInterval(interval); };
   }, [houseId, checkReservationAutoApply]);
+
+  // Split into upcoming (date >= today) and history (date < today)
+  const today = useMemo(() => todayString(), []);
+  const upcoming = useMemo(
+    () => reservations.filter((r) => r.date >= today),
+    [reservations, today]
+  );
+  const history = useMemo(
+    () => reservations.filter((r) => r.date < today),
+    [reservations, today]
+  );
+
+  const listData = useMemo((): FlatItem[] => [
+    ...upcoming.map((r) => ({ _k: 'res' as const, res: r, isHistory: false })),
+    ...(history.length > 0 ? [{ _k: 'hist-header' as const, count: history.length }] : []),
+    ...history.map((r) => ({ _k: 'res' as const, res: r, isHistory: true })),
+  ], [upcoming, history]);
 
   const handleClaim = useCallback(async (): Promise<void> => {
     setError('');
@@ -277,38 +432,70 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [cancelReservation, houseId, removeCalendarEvent, t]);
 
-  const handleApprove = useCallback(async (id: string, hid: string): Promise<void> => {
+  const handleVote = useCallback(async (id: string, vote: 'approve' | 'reject'): Promise<void> => {
+    const reservation = reservations.find((r) => r.id === id);
+    if (!reservation) return;
+    // All housemates except the requester must vote
+    const otherMemberIds = housemates
+      .filter((h) => h.id !== reservation.requestedBy)
+      .map((h) => h.id);
     try {
-      await approveReservation(id, hid);
-      const r = reservations.find((res) => res.id === id);
-      if (r) {
-        syncParkingApproved({ id: r.id, requestedBy: resolveName(r.requestedBy, housemates), date: r.date, startTime: r.startTime, endTime: r.endTime }).catch(() => {});
+      const resultStatus = await voteOnReservation(id, vote, houseId ?? '', otherMemberIds);
+      if (resultStatus === 'approved') {
+        syncParkingApproved({
+          id: reservation.id,
+          requestedBy: resolveName(reservation.requestedBy, housemates),
+          date: reservation.date,
+          startTime: reservation.startTime,
+          endTime: reservation.endTime,
+        }).catch(() => {});
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.failed_claim'));
+      setError(err instanceof Error ? err.message : 'Could not save your vote');
     }
-  }, [approveReservation, reservations, syncParkingApproved, t]);
+  }, [voteOnReservation, reservations, housemates, houseId, syncParkingApproved]);
 
-  const renderReservation = useCallback(
-    ({ item }: { item: ParkingReservation }): React.JSX.Element => (
+  const handleClear = useCallback(async (id: string): Promise<void> => {
+    try {
+      await clearHistoryItem(id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not clear this item');
+    }
+  }, [clearHistoryItem]);
+
+  const keyExtractor = useCallback((item: FlatItem): string =>
+    item._k === 'hist-header' ? 'history-header' : item.res.id
+  , []);
+
+  const renderItem = useCallback(({ item }: ListRenderItemInfo<FlatItem>): React.JSX.Element => {
+    if (item._k === 'hist-header') {
+      return (
+        <View style={styles.historyHeaderRow}>
+          <Text style={styles.eyebrow}>History</Text>
+          <View style={styles.countPill}>
+            <Text style={styles.countPillText}>{item.count}</Text>
+          </View>
+        </View>
+      );
+    }
+    return (
       <ReservationCard
-        item={item}
+        item={item.res}
         currentUserId={myId}
-        canApprove={canApprove}
         onCancel={handleCancel}
-        onApprove={handleApprove}
-        houseId={houseId ?? ''}
+        onVote={handleVote}
+        onClear={handleClear}
+        isHistory={item.isHistory}
       />
-    ),
-    [myName, handleCancel, handleApprove, houseId, canApprove]
-  );
+    );
+  }, [myId, handleCancel, handleVote, handleClear]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
-        data={reservations}
-        keyExtractor={(item) => item.id}
-        renderItem={renderReservation}
+        data={listData}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
@@ -360,10 +547,11 @@ export default function ParkingScreen(): React.JSX.Element {
               </View>
             )}
 
-            {/* ── Reservations header ── */}
             {isLoading && (
               <ActivityIndicator size="small" color="#4F78B6" style={styles.loadingIndicator} />
             )}
+
+            {/* ── Reservations section header ── */}
             <View style={styles.sectionHeader}>
               <Text style={styles.eyebrow}>{t('parking.reservations')}</Text>
               <Pressable onPress={() => setShowReserve(true)} style={styles.addBtn} accessibilityRole="button">
@@ -372,11 +560,11 @@ export default function ParkingScreen(): React.JSX.Element {
               </Pressable>
             </View>
 
-            {reservations.length > 0 && (
-              <View style={styles.upcomingRow}>
+            {upcoming.length > 0 && (
+              <View style={styles.subHeaderRow}>
                 <Text style={styles.eyebrow}>{t('parking.upcoming')}</Text>
                 <View style={styles.countPill}>
-                  <Text style={styles.countPillText}>{reservations.length}</Text>
+                  <Text style={styles.countPillText}>{upcoming.length}</Text>
                 </View>
               </View>
             )}
@@ -389,7 +577,9 @@ export default function ParkingScreen(): React.JSX.Element {
               <Ionicons name="calendar-outline" size={36} color={colors.textSecondary} />
             </View>
             <Text style={styles.emptyTitle}>{t('parking.no_reservations')}</Text>
-            <Text style={styles.emptyText}>Reserve ahead of time so housemates know when the spot is taken.</Text>
+            <Text style={styles.emptyText}>
+              Reserve ahead of time so housemates know when the spot is taken.
+            </Text>
           </View>
         }
       />
@@ -456,10 +646,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 4, marginBottom: 12,
   },
-  eyebrow: { fontSize: 12, ...font.bold, color: colors.textSecondary, letterSpacing: 0.72, textTransform: 'uppercase' },
-  upcomingRow: {
+  subHeaderRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 4, marginBottom: 12,
+  },
+  eyebrow: {
+    fontSize: 12, ...font.bold, color: colors.textSecondary,
+    letterSpacing: 0.72, textTransform: 'uppercase',
   },
   countPill: {
     minHeight: 22, paddingHorizontal: 8, borderRadius: 9999,
@@ -467,35 +660,74 @@ const styles = StyleSheet.create({
   },
   countPillText: { fontSize: 11, ...font.bold, color: colors.secondaryForeground },
 
+  historyHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 4, paddingTop: 16, paddingBottom: 8,
+  },
+
+  // ── Reservation card
   resCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     paddingHorizontal: 14, paddingVertical: 14,
     borderRadius: 14, backgroundColor: colors.surface,
     borderWidth: 1, borderColor: colors.border,
     boxShadow: '0 4px 16px rgba(44,51,61,0.02)',
   } as never,
+  resCardDim: { opacity: 0.72 },
   resIconWrap: {
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: colors.surfaceSecondary,
     justifyContent: 'center', alignItems: 'center', flexShrink: 0,
+    marginTop: 2,
   },
-  resInfo: { flex: 1, gap: 3 },
+  resInfo: { flex: 1, gap: 4 },
   resDate: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
   resBy: { fontSize: 13, ...font.regular, color: colors.textSecondary },
+
   badge: {
     alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2,
     borderRadius: 9999, marginTop: 2,
   },
-  badgeGreen: { backgroundColor: colors.positive + '20' },
-  badgeYellow: { backgroundColor: colors.warning + '20' },
   badgeText: { fontSize: 11, ...font.semibold },
-  resActions: { gap: 8 },
-  cancelBtn: { padding: 4 },
-  approveBtn: {
-    backgroundColor: colors.positive + '18',
-    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
+
+  resActions: { gap: 6, alignItems: 'center', paddingTop: 2 },
+  iconBtn: { padding: 4 },
+
+  // ── Vote row (avatars + dots)
+  voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  voteAvatarWrap: { position: 'relative', width: 28, height: 28 },
+  voteAvatarCircle: {
+    width: 28, height: 28, borderRadius: 14,
+    justifyContent: 'center', alignItems: 'center',
   },
-  approveBtnText: { color: colors.positive, fontSize: 13, ...font.semibold },
+  voteAvatarInitial: { fontSize: 11, ...font.bold },
+  voteDot: {
+    position: 'absolute', bottom: -1, right: -1,
+    width: 13, height: 13, borderRadius: 7,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1.5, borderColor: colors.surface,
+  },
+  dotApprove: { backgroundColor: colors.positive },
+  dotReject:  { backgroundColor: colors.danger },
+  dotPending: { backgroundColor: colors.textSecondary + '80' },
+
+  // ── Vote buttons (Approve / Reject)
+  voteBtns: { flexDirection: 'row', gap: 6 },
+  voteBtn: {
+    width: 32, height: 32, borderRadius: 9999,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  voteBtnApproveActive: {
+    backgroundColor: colors.positive,
+    borderColor: colors.positive,
+  },
+  voteBtnRejectActive: {
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
+  },
 
   emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
   emptyIconWrap: {

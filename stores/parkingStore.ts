@@ -11,6 +11,11 @@ export interface ParkingSession {
   startTime: string;
 }
 
+export interface ParkingVote {
+  userId: string;
+  vote: 'approve' | 'reject';
+}
+
 export interface ParkingReservation {
   id: string;
   requestedBy: string; // user UUID
@@ -18,8 +23,9 @@ export interface ParkingReservation {
   startTime?: string; // HH:MM
   endTime?: string;   // HH:MM
   note: string;
-  status: 'pending' | 'approved';
+  status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
+  votes: ParkingVote[];
 }
 
 interface ParkingStore {
@@ -32,12 +38,18 @@ interface ParkingStore {
   claim: (userId: string, displayName: string, houseId: string) => Promise<void>;
   release: (houseId: string) => Promise<void>;
   addReservation: (
-    r: Omit<ParkingReservation, 'id' | 'createdAt' | 'status'>,
+    r: Omit<ParkingReservation, 'id' | 'createdAt' | 'status' | 'votes'>,
     displayName: string,
     houseId: string
   ) => Promise<string>;
   cancelReservation: (id: string, houseId: string) => Promise<void>;
-  approveReservation: (id: string, houseId: string) => Promise<void>;
+  voteOnReservation: (
+    reservationId: string,
+    vote: 'approve' | 'reject',
+    houseId: string,
+    otherMemberIds: string[]
+  ) => Promise<'pending' | 'approved' | 'rejected'>;
+  clearHistoryItem: (id: string) => Promise<void>;
   checkReservationAutoApply: (houseId: string) => Promise<void>;
 }
 
@@ -81,7 +93,7 @@ export const useParkingStore = create<ParkingStore>()(
               .limit(1),
             supabase
               .from('parking_reservations')
-              .select('*')
+              .select('*, parking_reservation_votes(user_id, vote)')
               .eq('house_id', houseId)
               .order('date'),
           ]);
@@ -96,8 +108,11 @@ export const useParkingStore = create<ParkingStore>()(
             startTime: r.start_time ?? undefined,
             endTime: r.end_time ?? undefined,
             note: r.note ?? '',
-            status: r.status as 'pending' | 'approved',
+            status: r.status as 'pending' | 'approved' | 'rejected',
             createdAt: r.created_at,
+            votes: ((r.parking_reservation_votes ?? []) as { user_id: string; vote: string }[]).map(
+              (v) => ({ userId: v.user_id, vote: v.vote as 'approve' | 'reject' })
+            ),
           }));
           set({ current, reservations, isLoading: false, error: null });
           await get().checkReservationAutoApply(houseId);
@@ -112,6 +127,8 @@ export const useParkingStore = create<ParkingStore>()(
           .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_sessions', filter: `house_id=eq.${houseId}` },
             () => { get().load(houseId); })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_reservations', filter: `house_id=eq.${houseId}` },
+            () => { get().load(houseId); })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_reservation_votes', filter: `house_id=eq.${houseId}` },
             () => { get().load(houseId); })
           .subscribe();
       },
@@ -200,9 +217,9 @@ export const useParkingStore = create<ParkingStore>()(
           note: inserted.note ?? '',
           status: 'pending',
           createdAt: inserted.created_at,
+          votes: [],
         };
         set({ reservations: [r, ...get().reservations] });
-        const reservationId = r.id;
         const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
         notifyHousemates({
           houseId,
@@ -212,7 +229,7 @@ export const useParkingStore = create<ParkingStore>()(
           data: { screen: 'parking' },
           notificationType: 'parking_reservation',
         });
-        return reservationId;
+        return r.id;
       },
       cancelReservation: async (id, houseId): Promise<void> => {
         const reservation = get().reservations.find((r) => r.id === id);
@@ -227,6 +244,83 @@ export const useParkingStore = create<ParkingStore>()(
             await get().release(houseId);
           }
         }
+      },
+      voteOnReservation: async (reservationId, vote, houseId, otherMemberIds): Promise<'pending' | 'approved' | 'rejected'> => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData.session?.user.id ?? '';
+        if (!userId) throw new Error('Not signed in');
+
+        const { error: voteError } = await supabase
+          .from('parking_reservation_votes')
+          .upsert(
+            { reservation_id: reservationId, house_id: houseId, user_id: userId, vote },
+            { onConflict: 'reservation_id,user_id' }
+          );
+        if (voteError) {
+          captureError(voteError, { context: 'vote-reservation', reservationId });
+          throw new Error('Could not save your vote. Please try again.');
+        }
+
+        const { data: allVotes } = await supabase
+          .from('parking_reservation_votes')
+          .select('user_id, vote')
+          .eq('reservation_id', reservationId);
+
+        const votes = allVotes ?? [];
+        const anyRejected = votes.some((v) => v.vote === 'reject');
+        const votedIds = new Set(votes.map((v) => v.user_id));
+        const allVoted = otherMemberIds.length > 0 && otherMemberIds.every((id) => votedIds.has(id));
+
+        let newStatus: 'pending' | 'approved' | 'rejected' = 'pending';
+        if (anyRejected) {
+          newStatus = 'rejected';
+        } else if (allVoted) {
+          newStatus = 'approved';
+        }
+
+        if (newStatus !== 'pending') {
+          await supabase
+            .from('parking_reservations')
+            .update({ status: newStatus })
+            .eq('id', reservationId);
+
+          if (newStatus === 'approved') {
+            const reservation = get().reservations.find((r) => r.id === reservationId);
+            if (reservation) {
+              notifyHousemates({
+                houseId,
+                excludeUserId: userId,
+                title: '✅ Parking approved',
+                body: `Parking spot confirmed for ${reservation.date}${reservation.startTime ? ` at ${reservation.startTime}` : ''}`,
+                data: { screen: 'parking' },
+                notificationType: 'parking_reservation',
+              });
+            }
+          }
+        }
+
+        // Optimistic local update while realtime syncs
+        set({
+          reservations: get().reservations.map((r) => {
+            if (r.id !== reservationId) return r;
+            const existing = r.votes.findIndex((v) => v.userId === userId);
+            const updatedVotes =
+              existing >= 0
+                ? r.votes.map((v, i) => (i === existing ? { userId, vote } : v))
+                : [...r.votes, { userId, vote }];
+            return { ...r, votes: updatedVotes, status: newStatus };
+          }),
+        });
+
+        return newStatus;
+      },
+      clearHistoryItem: async (id): Promise<void> => {
+        const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
+        if (error) {
+          captureError(error, { context: 'clear-history-item', id });
+          throw new Error('Could not clear this item. Please try again.');
+        }
+        set({ reservations: get().reservations.filter((r) => r.id !== id) });
       },
       checkReservationAutoApply: async (houseId: string): Promise<void> => {
         const { current, reservations } = get();
@@ -261,31 +355,6 @@ export const useParkingStore = create<ParkingStore>()(
             .single();
           if (!error && data) {
             set({ current: { id: data.id, occupant: data.occupant, startTime: data.start_time } });
-          }
-        }
-      },
-      approveReservation: async (id, houseId): Promise<void> => {
-        const { error } = await supabase.from('parking_reservations').update({ status: 'approved' }).eq('id', id);
-        if (error) { captureError(error, { context: 'approve-reservation' }); throw new Error('Could not approve the reservation. Please try again.'); }
-        const reservation = get().reservations.find((r) => r.id === id);
-        set({
-          reservations: get().reservations.map((r) =>
-            r.id === id ? { ...r, status: 'approved' as const } : r
-          ),
-        });
-
-        if (reservation) {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const approverId = sessionData.session?.user.id ?? '';
-          if (approverId) {
-            notifyHousemates({
-              houseId,
-              excludeUserId: approverId,
-              title: '✅ Parking approved',
-              body: `Parking spot confirmed for ${reservation.date}${reservation.startTime ? ` at ${reservation.startTime}` : ''}`,
-              data: { screen: 'parking' },
-              notificationType: 'parking_reservation',
-            });
           }
         }
       },
