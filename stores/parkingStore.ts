@@ -261,10 +261,14 @@ export const useParkingStore = create<ParkingStore>()(
           throw new Error('Could not save your vote. Please try again.');
         }
 
-        const { data: allVotes } = await supabase
+        const { data: allVotes, error: selectError } = await supabase
           .from('parking_reservation_votes')
           .select('user_id, vote')
           .eq('reservation_id', reservationId);
+        if (selectError) {
+          captureError(selectError, { context: 'vote-tally', reservationId });
+          throw new Error('Could not read vote tally. Please try again.');
+        }
 
         const votes = allVotes ?? [];
         const anyRejected = votes.some((v) => v.vote === 'reject');
@@ -279,10 +283,14 @@ export const useParkingStore = create<ParkingStore>()(
         }
 
         if (newStatus !== 'pending') {
-          await supabase
+          const { error: updateError } = await supabase
             .from('parking_reservations')
             .update({ status: newStatus })
             .eq('id', reservationId);
+          if (updateError) {
+            captureError(updateError, { context: 'vote-status-update', reservationId });
+            throw new Error('Could not update reservation status. Please try again.');
+          }
 
           if (newStatus === 'approved') {
             const reservation = get().reservations.find((r) => r.id === reservationId);

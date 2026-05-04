@@ -25,8 +25,13 @@ CREATE TABLE IF NOT EXISTS parking_reservation_votes (
   user_id         text NOT NULL,
   vote            text NOT NULL CHECK (vote IN ('approve', 'reject')),
   created_at      timestamptz DEFAULT now(),
+  updated_at      timestamptz DEFAULT now(),
   UNIQUE(reservation_id, user_id)
 );
+
+CREATE TRIGGER trg_parking_reservation_votes_updated_at
+  BEFORE UPDATE ON parking_reservation_votes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 CREATE INDEX IF NOT EXISTS idx_parking_votes_reservation_id ON parking_reservation_votes(reservation_id);
 CREATE INDEX IF NOT EXISTS idx_parking_votes_house_id       ON parking_reservation_votes(house_id);

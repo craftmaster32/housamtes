@@ -389,7 +389,10 @@ export default function ParkingScreen(): React.JSX.Element {
   }, [houseId, checkReservationAutoApply]);
 
   // Split into upcoming (date >= today) and history (date < today)
-  const today = useMemo(() => todayString(), []);
+  // Plain const so the value refreshes each render — same-day string equality
+  // prevents the downstream memos from re-running, but a midnight transition
+  // will produce a new string and correctly re-categorize reservations.
+  const today = todayString();
   const upcoming = useMemo(
     () => reservations.filter((r) => r.date >= today),
     [reservations, today]
