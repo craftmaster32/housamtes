@@ -287,11 +287,21 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
         {isExpanded && drillDownItems.length > 0 && (
           <View style={styles.drillDown}>
             {drillDownItems.map((d) => (
-              <View key={d.id} style={styles.drillDownRow}>
+              <Pressable
+                key={d.id}
+                style={styles.drillDownRow}
+                onPress={d.type === 'bill' ? () => router.push(`/(tabs)/bills/${d.id}`) : undefined}
+                accessible
+                accessibilityRole={d.type === 'bill' ? 'button' : 'none'}
+                accessibilityLabel={d.type === 'bill' ? `Open bill: ${d.title}` : undefined}
+              >
                 <Text style={styles.drillDownType}>{d.type === 'recurring' ? '↻' : '·'}</Text>
                 <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
                 <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
-              </View>
+                {d.type === 'bill' && (
+                  <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+                )}
+              </Pressable>
             ))}
           </View>
         )}
@@ -322,6 +332,7 @@ function SpendingSectionHeader({ title, icon, total, currency }: SectionHeaderPr
 export default function SpendingScreen(): React.JSX.Element {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'house' | 'personal'>('house');
 
   const profile        = useAuthStore((s) => s.profile);
   const houseId        = useAuthStore((s) => s.houseId);
@@ -373,14 +384,19 @@ export default function SpendingScreen(): React.JSX.Element {
   const sections = useMemo((): SpendingSection[] => {
     if (!selectedMonth) return [];
 
-    const houseBillCats = selectedMonth.houseCategories.filter((c) => isHouseCat(c.name));
-    const lifestyleCats = selectedMonth.houseCategories.filter((c) => !isHouseCat(c.name));
+    const sourceCats    = viewMode === 'house' ? selectedMonth.houseCategories : selectedMonth.categories;
+    const prevCats      = viewMode === 'house' ? previousMonth?.houseCategories : previousMonth?.categories;
+
+    const houseBillCats = sourceCats.filter((c) => isHouseCat(c.name));
+    const lifestyleCats = sourceCats.filter((c) => !isHouseCat(c.name));
     const houseBillTotal = houseBillCats.reduce((s, c) => s + c.amount, 0);
     const lifestyleTotal  = lifestyleCats.reduce((s, c) => s + c.amount, 0);
 
     function toCatRow(cat: CategorySpend, sectionTotal: number): CategoryRowItem {
-      const myAmount        = selectedMonth.categories.find((c) => c.name === cat.name)?.amount ?? 0;
-      const prevHouseAmount = previousMonth?.houseCategories.find((c) => c.name === cat.name)?.amount ?? 0;
+      const myAmount = viewMode === 'house'
+        ? (selectedMonth.categories.find((c) => c.name === cat.name)?.amount ?? 0)
+        : 0;
+      const prevHouseAmount = prevCats?.find((c) => c.name === cat.name)?.amount ?? 0;
       const drillDownItems  = selectedMonth.billsByCategory[cat.name] ?? [];
       return { cat, myAmount, prevHouseAmount, sectionTotal, drillDownItems };
     }
@@ -403,7 +419,7 @@ export default function SpendingScreen(): React.JSX.Element {
       });
     }
     return result;
-  }, [selectedMonth, previousMonth]);
+  }, [selectedMonth, previousMonth, viewMode]);
 
   const renderItem = useCallback(
     ({ item }: { item: CategoryRowItem }) => (
@@ -521,9 +537,35 @@ export default function SpendingScreen(): React.JSX.Element {
       )}
 
       {sections.length > 0 && (
-        <Text style={styles.breakdownTitle}>
-          {selectedMonth?.label ?? ''} breakdown
-        </Text>
+        <View style={styles.breakdownHeader}>
+          <Text style={styles.breakdownTitle}>
+            {selectedMonth?.label ?? ''} breakdown
+          </Text>
+          <View style={styles.viewToggle}>
+            <Pressable
+              style={[styles.viewToggleBtn, viewMode === 'house' && styles.viewToggleBtnActive]}
+              onPress={() => { setViewMode('house'); setExpandedCategory(null); }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: viewMode === 'house' }}
+              accessibilityLabel="Show all house spending"
+            >
+              <Text style={[styles.viewToggleBtnText, viewMode === 'house' && styles.viewToggleBtnTextActive]}>
+                House
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.viewToggleBtn, viewMode === 'personal' && styles.viewToggleBtnActive]}
+              onPress={() => { setViewMode('personal'); setExpandedCategory(null); }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: viewMode === 'personal' }}
+              accessibilityLabel="Show my personal spending"
+            >
+              <Text style={[styles.viewToggleBtnText, viewMode === 'personal' && styles.viewToggleBtnTextActive]}>
+                Personal
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -685,8 +727,33 @@ const styles = StyleSheet.create({
   },
   jumpBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
 
-  // Breakdown title
-  breakdownTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary, marginTop: 4 },
+  // Breakdown header with toggle
+  breakdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  breakdownTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary },
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 10,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  viewToggleBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 32,
+  },
+  viewToggleBtnActive: { backgroundColor: colors.primary },
+  viewToggleBtnText: { fontSize: 13, ...font.semibold, color: colors.textSecondary },
+  viewToggleBtnTextActive: { color: colors.white },
 
   // Section headers
   sectionHeader: {
