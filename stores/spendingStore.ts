@@ -60,12 +60,22 @@ interface SpendingStore {
   isLoading: boolean;
   error: string | null;
   insight: string | null;
+  insightError: string | null;
   insightLoading: boolean;
   insightMonth: string | null;
   insightCurrency: string | null;
   insightUser: string | null;
   load: (houseId: string, userName: string) => Promise<void>;
   fetchInsight: (houseId: string, userName: string, currency: string) => Promise<void>;
+}
+
+interface SpendingInsightResponse {
+  insight?: string;
+  error?: string;
+}
+
+interface JsonBodyContext {
+  clone: () => { json: () => Promise<unknown> };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -118,6 +128,58 @@ function addToTally(
   tally.get(monthKey)!.set(cat, (tally.get(monthKey)!.get(cat) ?? 0) + amount);
 }
 
+function getPayloadError(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const result = payload as SpendingInsightResponse;
+  return typeof result.error === 'string' && result.error.trim() ? result.error.trim() : null;
+}
+
+function getPayloadInsight(payload: unknown): string {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('AI analysis did not return a response.');
+  }
+  const result = payload as SpendingInsightResponse;
+  const payloadError = getPayloadError(result);
+  if (payloadError) throw new Error(payloadError);
+  if (typeof result.insight !== 'string' || !result.insight.trim()) {
+    throw new Error('AI analysis came back empty. Try again.');
+  }
+  return result.insight.trim();
+}
+
+function hasJsonBodyContext(value: unknown): value is JsonBodyContext {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<JsonBodyContext>;
+  return typeof candidate.clone === 'function';
+}
+
+function getErrorContext(err: unknown): unknown {
+  if (!err || typeof err !== 'object' || !('context' in err)) return null;
+  return (err as { context?: unknown }).context ?? null;
+}
+
+async function readFunctionError(err: unknown): Promise<string | null> {
+  const context = getErrorContext(err);
+  if (!hasJsonBodyContext(context)) return null;
+
+  const payload = await context.clone().json().catch(() => null);
+  return getPayloadError(payload);
+}
+
+function toFriendlyInsightError(message: string | null): string {
+  if (!message) return 'AI analysis is not available right now. Try again.';
+  if (message.includes('ANTHROPIC_API_KEY') || message.toLowerCase().includes('not connected')) {
+    return 'AI analysis is not connected yet. Add the Claude API key in Supabase secrets.';
+  }
+  if (message.toLowerCase().includes('rate limit')) {
+    return 'AI analysis is busy right now. Try again in a minute.';
+  }
+  if (message.toLowerCase().includes('network')) {
+    return 'AI analysis could not reach the server. Check your connection and try again.';
+  }
+  return message;
+}
+
 // ── Store ──────────────────────────────────────────────────────────────────────
 export const useSpendingStore = create<SpendingStore>()(
   devtools(
@@ -126,6 +188,7 @@ export const useSpendingStore = create<SpendingStore>()(
       isLoading: false,
       error: null,
       insight: null,
+      insightError: null,
       insightLoading: false,
       insightMonth: null,
       insightCurrency: null,
@@ -136,6 +199,7 @@ export const useSpendingStore = create<SpendingStore>()(
           console.warn('[spending] house ID mismatch — aborting load');
           return;
         }
+        const currentUserId = useAuthStore.getState().profile?.id ?? userName;
         set({ isLoading: true, error: null });
         try {
           const sixMonthsAgo = ((): string => {
@@ -179,7 +243,7 @@ export const useSpendingStore = create<SpendingStore>()(
 
             addToTally(houseTally, mk, cat, amt);
             addDetail(mk, cat, { id: b.id, title: (b.title as string) || cat, amount: amt, date: b.date, type: 'bill' });
-            if (splits.includes(userName)) {
+            if (currentUserId && splits.includes(currentUserId)) {
               addToTally(tally, mk, cat, amt / (splits.length || 1));
             }
           }
@@ -211,7 +275,7 @@ export const useSpendingStore = create<SpendingStore>()(
                 date: p.paid_at,
                 type: 'recurring',
               });
-              if (rb.assigned_to === userName) {
+              if (currentUserId && rb.assigned_to === currentUserId) {
                 addToTally(tally, monthKey, cat, sliceAmt);
               }
             }
@@ -260,22 +324,29 @@ export const useSpendingStore = create<SpendingStore>()(
           state.insight
         ) return;
 
-        set({ insightLoading: true, error: null });
+        set({ insightLoading: true, insightError: null });
         try {
           const { data, error } = await supabase.functions.invoke('spending-analysis', {
             body: { months: state.months.slice(0, 3), userName, currency },
           });
           if (error) throw error;
+          const insight = getPayloadInsight(data);
           set({
-            insight: (data as { insight: string }).insight,
+            insight,
+            insightError: null,
             insightMonth: currentMonth,
             insightCurrency: currency,
             insightUser: userName,
             insightLoading: false,
           });
         } catch (err) {
+          const serverMessage = await readFunctionError(err);
+          const localMessage = err instanceof Error ? err.message : null;
           captureError(err, { store: 'spending', action: 'fetchInsight', houseId });
-          set({ insightLoading: false, error: 'Failed to load insight' });
+          set({
+            insightLoading: false,
+            insightError: toFriendlyInsightError(serverMessage ?? localMessage),
+          });
         }
       },
     }),

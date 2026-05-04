@@ -23,6 +23,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   const months         = useSpendingStore((s) => s.months);
   const isLoading      = useSpendingStore((s) => s.isLoading);
   const insight        = useSpendingStore((s) => s.insight);
+  const insightError   = useSpendingStore((s) => s.insightError);
   const insightLoading = useSpendingStore((s) => s.insightLoading);
   const load           = useSpendingStore((s) => s.load);
   const fetchInsight   = useSpendingStore((s) => s.fetchInsight);
@@ -95,6 +96,11 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
             <>
               <Text style={styles.insightIcon}>✨</Text>
               <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
+            </>
+          ) : insightError ? (
+            <>
+              <Ionicons name="warning-outline" size={14} color="rgba(255,255,255,0.74)" />
+              <Text style={styles.insightText} numberOfLines={1}>AI insight unavailable</Text>
             </>
           ) : null}
         </View>

@@ -6,6 +6,8 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const JSON_HEADERS = { ...CORS, 'Content-Type': 'application/json' };
+
 interface CategorySpend {
   name: string;
   amount: number;
@@ -29,13 +31,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS });
 
   try {
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!anthropicApiKey) {
+      console.error('[spending-analysis] ANTHROPIC_API_KEY is not configured');
+      return new Response(
+        JSON.stringify({ error: 'AI analysis is not connected yet. Add ANTHROPIC_API_KEY in Supabase secrets.' }),
+        { status: 500, headers: JSON_HEADERS }
+      );
+    }
+
     const body = (await req.json()) as RequestBody;
     const { months, userName, currency } = body;
 
     if (!Array.isArray(months) || months.length === 0) {
       return new Response(
         JSON.stringify({ error: 'months must be a non-empty array' }),
-        { status: 400, headers: { ...CORS, 'Content-Type': 'application/json' } }
+        { status: 400, headers: JSON_HEADERS }
       );
     }
 
@@ -49,7 +60,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ) {
       return new Response(
         JSON.stringify({ error: 'Invalid month data structure' }),
-        { status: 400, headers: { ...CORS, 'Content-Type': 'application/json' } }
+        { status: 400, headers: JSON_HEADERS }
       );
     }
 
@@ -58,7 +69,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (current.houseTotal === 0) {
       return new Response(
         JSON.stringify({ insight: 'No spending recorded yet — add some bills to see your analysis.' }),
-        { headers: { ...CORS, 'Content-Type': 'application/json' } }
+        { headers: JSON_HEADERS }
       );
     }
 
@@ -87,24 +98,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
       `- Be direct, specific, and friendly. No corporate language. No bullet points.`,
     ].filter(Boolean).join('\n');
 
-    const anthropic = new Anthropic();
+    const anthropic = new Anthropic({ apiKey: anthropicApiKey });
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 160,
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const insight = message.content[0].type === 'text' ? message.content[0].text.trim() : '';
+    const firstBlock = message.content[0];
+    const insight = firstBlock?.type === 'text' ? firstBlock.text.trim() : '';
+    if (!insight) throw new Error('Claude returned an empty spending insight');
 
     return new Response(
       JSON.stringify({ insight }),
-      { headers: { ...CORS, 'Content-Type': 'application/json' } }
+      { headers: JSON_HEADERS }
     );
   } catch (err) {
     console.error('[spending-analysis]', err);
     return new Response(
       JSON.stringify({ error: 'Failed to generate insight' }),
-      { status: 500, headers: { ...CORS, 'Content-Type': 'application/json' } }
+      { status: 500, headers: JSON_HEADERS }
     );
   }
 });
