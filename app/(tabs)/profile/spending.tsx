@@ -49,9 +49,11 @@ function InsightCard({
           <Pressable
             onPress={onRefresh}
             disabled={isLoading}
+            style={styles.refreshBtn}
             accessible
             accessibilityRole="button"
             accessibilityLabel="Refresh insight"
+            accessibilityState={{ disabled: isLoading }}
           >
             {isLoading
               ? <ActivityIndicator color="rgba(255,255,255,0.7)" size="small" />
@@ -376,6 +378,7 @@ const styles = StyleSheet.create({
   insightCardPad: { padding: 20, gap: 10 },
   insightCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   insightCardLabel: { fontSize: 11, ...font.extrabold, color: colors.white, letterSpacing: 1.1, opacity: 0.88 },
+  refreshBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   insightCardText: { fontSize: 14, ...font.regular, color: colors.white, lineHeight: 21 },
   insightCardEmpty: { fontSize: 13, ...font.regular, color: 'rgba(255,255,255,0.60)', fontStyle: 'italic' },
 

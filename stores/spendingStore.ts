@@ -44,9 +44,12 @@ export interface MonthSpend {
 interface SpendingStore {
   months: MonthSpend[];
   isLoading: boolean;
+  error: string | null;
   insight: string | null;
   insightLoading: boolean;
   insightMonth: string | null;
+  insightCurrency: string | null;
+  insightUser: string | null;
   load: (houseId: string, userName: string) => Promise<void>;
   fetchInsight: (houseId: string, userName: string, currency: string) => Promise<void>;
 }
@@ -78,16 +81,19 @@ export const useSpendingStore = create<SpendingStore>()(
     (set) => ({
       months: [],
       isLoading: false,
+      error: null,
       insight: null,
       insightLoading: false,
       insightMonth: null,
+      insightCurrency: null,
+      insightUser: null,
 
       load: async (houseId: string, userName: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[spending] house ID mismatch — aborting load');
           return;
         }
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           const sixMonthsAgo = ((): string => {
             const d = new Date();
@@ -107,6 +113,8 @@ export const useSpendingStore = create<SpendingStore>()(
               .eq('house_id', houseId)
               .gte('paid_at', sixMonthsAgo),
           ]);
+          if (billsRes.error) throw billsRes.error;
+          if (paymentsRes.error) throw paymentsRes.error;
 
           // ── User tally: logged-in user's proportional share ────────────────
           const tally = new Map<string, Map<string, number>>();
@@ -171,7 +179,7 @@ export const useSpendingStore = create<SpendingStore>()(
           set({ months, isLoading: false });
         } catch (err) {
           captureError(err, { store: 'spending', houseId });
-          set({ isLoading: false });
+          set({ isLoading: false, error: 'Failed to load spending data' });
         }
       },
 
@@ -179,9 +187,14 @@ export const useSpendingStore = create<SpendingStore>()(
         const state = useSpendingStore.getState();
         const currentMonth = state.months[0]?.month;
         if (!currentMonth || !state.months.length) return;
-        if (state.insightMonth === currentMonth && state.insight) return;
+        if (
+          state.insightMonth === currentMonth &&
+          state.insightCurrency === currency &&
+          state.insightUser === userName &&
+          state.insight
+        ) return;
 
-        set({ insightLoading: true });
+        set({ insightLoading: true, error: null });
         try {
           const { data, error } = await supabase.functions.invoke('spending-analysis', {
             body: { months: state.months.slice(0, 3), userName, currency },
@@ -190,11 +203,13 @@ export const useSpendingStore = create<SpendingStore>()(
           set({
             insight: (data as { insight: string }).insight,
             insightMonth: currentMonth,
+            insightCurrency: currency,
+            insightUser: userName,
             insightLoading: false,
           });
         } catch (err) {
           captureError(err, { store: 'spending', action: 'fetchInsight', houseId });
-          set({ insightLoading: false });
+          set({ insightLoading: false, error: 'Failed to load insight' });
         }
       },
     }),
