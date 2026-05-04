@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, SectionList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useSpendingStore, type CategorySpend, type MonthSpend, type DrillDownItem } from '@stores/spendingStore';
@@ -286,22 +286,26 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
         )}
         {isExpanded && drillDownItems.length > 0 && (
           <View style={styles.drillDown}>
-            {drillDownItems.map((d) => (
-              <Pressable
-                key={d.id}
-                style={styles.drillDownRow}
-                onPress={d.type === 'bill' ? () => router.push(`/(tabs)/bills/${d.id}`) : undefined}
-                accessible
-                accessibilityRole={d.type === 'bill' ? 'button' : 'none'}
-                accessibilityLabel={d.type === 'bill' ? `Open bill: ${d.title}` : undefined}
-              >
-                <Text style={styles.drillDownType}>{d.type === 'recurring' ? '↻' : '·'}</Text>
+            {drillDownItems.map((d) => d.type === 'bill' ? (
+              <Link key={d.id} href={`/(tabs)/bills/${d.id}` as never} asChild>
+                <Pressable
+                  style={styles.drillDownRow}
+                  accessible
+                  accessibilityRole="link"
+                  accessibilityLabel={`Open bill: ${d.title}`}
+                >
+                  <Text style={styles.drillDownType}>·</Text>
+                  <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
+                  <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
+                  <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+                </Pressable>
+              </Link>
+            ) : (
+              <View key={d.id} style={styles.drillDownRow} accessible accessibilityRole="none">
+                <Text style={styles.drillDownType}>↻</Text>
                 <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
                 <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
-                {d.type === 'bill' && (
-                  <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
-                )}
-              </Pressable>
+              </View>
             ))}
           </View>
         )}
@@ -376,6 +380,16 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const handleToggleCategory = useCallback((name: string) => {
     setExpandedCategory((prev) => prev === name ? null : name);
+  }, []);
+
+  const handleSetHouseView = useCallback(() => {
+    setViewMode('house');
+    setExpandedCategory(null);
+  }, []);
+
+  const handleSetPersonalView = useCallback(() => {
+    setViewMode('personal');
+    setExpandedCategory(null);
   }, []);
 
   const selectedMonth = months[selectedIdx];
@@ -544,7 +558,7 @@ export default function SpendingScreen(): React.JSX.Element {
           <View style={styles.viewToggle}>
             <Pressable
               style={[styles.viewToggleBtn, viewMode === 'house' && styles.viewToggleBtnActive]}
-              onPress={() => { setViewMode('house'); setExpandedCategory(null); }}
+              onPress={handleSetHouseView}
               accessibilityRole="tab"
               accessibilityState={{ selected: viewMode === 'house' }}
               accessibilityLabel="Show all house spending"
@@ -555,7 +569,7 @@ export default function SpendingScreen(): React.JSX.Element {
             </Pressable>
             <Pressable
               style={[styles.viewToggleBtn, viewMode === 'personal' && styles.viewToggleBtnActive]}
-              onPress={() => { setViewMode('personal'); setExpandedCategory(null); }}
+              onPress={handleSetPersonalView}
               accessibilityRole="tab"
               accessibilityState={{ selected: viewMode === 'personal' }}
               accessibilityLabel="Show my personal spending"
@@ -749,7 +763,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 32,
+    minHeight: 44,
   },
   viewToggleBtnActive: { backgroundColor: colors.primary },
   viewToggleBtnText: { fontSize: 13, ...font.semibold, color: colors.textSecondary },
