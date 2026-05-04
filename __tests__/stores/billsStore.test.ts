@@ -392,7 +392,7 @@ describe('billsStore — editBill', () => {
     mockFrom.mockReturnValue(fail('timeout'));
 
     await expect(
-      useBillsStore.getState().editBill('b1', { title: 'Updated Rent', amount: 1000, date: '2026-05-01', notes: '' })
+      useBillsStore.getState().editBill('b1', { title: 'Updated Rent', amount: 1000, date: '2026-05-01', notes: '', category: 'Rent' })
     ).rejects.toThrow('Could not update the bill. Please try again.');
 
     expect(useBillsStore.getState().bills[0].title).toBe('Rent');
@@ -403,7 +403,7 @@ describe('billsStore — editBill', () => {
     useBillsStore.setState({ bills: [bill({ id: 'b1', title: 'Rent' })] });
     mockFrom.mockReturnValue(ok());
 
-    await useBillsStore.getState().editBill('b1', { title: 'New Rent', amount: 1000, date: '2026-05-01', notes: 'increased' });
+    await useBillsStore.getState().editBill('b1', { title: 'New Rent', amount: 1000, date: '2026-05-01', notes: 'increased', category: 'Rent' });
 
     expect(useBillsStore.getState().bills[0].title).toBe('New Rent');
   });

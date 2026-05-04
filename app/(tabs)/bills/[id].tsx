@@ -6,7 +6,7 @@ import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import { useBillsStore, getPersonShare } from '@stores/billsStore';
+import { useBillsStore, getPersonShare, CATEGORIES } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -15,6 +15,21 @@ import { resolveName } from '@utils/housemates';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+
+const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  rent: 'home-outline',
+  groceries: 'cart-outline',
+  food: 'fast-food-outline',
+  transport: 'car-outline',
+  utilities: 'flash-outline',
+  internet: 'wifi-outline',
+  phone: 'phone-portrait-outline',
+  entertainment: 'musical-notes-outline',
+  health: 'medkit-outline',
+  shopping: 'bag-outline',
+  travel: 'airplane-outline',
+  other: 'receipt-outline',
+};
 
 function formatDisplayDate(iso: string, locale: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -46,6 +61,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const [amount, setAmount] = useState(bill?.amount.toString() ?? '');
   const [date, setDate] = useState(bill?.date ?? '');
   const [notes, setNotes] = useState(bill?.notes ?? '');
+  const [category, setCategory] = useState(bill?.category ?? 'Other');
   const [isSaving, setIsSaving] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
   const [error, setError] = useState('');
@@ -60,14 +76,14 @@ export default function BillDetailScreen(): React.JSX.Element {
     if (!bill) return;
     try {
       setIsSaving(true);
-      await editBill(bill.id, { title: title.trim(), amount: parsed, date, notes });
+      await editBill(bill.id, { title: title.trim(), amount: parsed, date, notes, category });
       setIsEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('bills.failed_save'));
     } finally {
       setIsSaving(false);
     }
-  }, [bill, title, amount, date, notes, editBill, t]);
+  }, [bill, title, amount, date, notes, category, editBill, t]);
 
   const handleSettle = useCallback(async () => {
     if (!bill || !profile || !houseId) return;
@@ -184,6 +200,31 @@ export default function BillDetailScreen(): React.JSX.Element {
               multiline
               numberOfLines={2}
             />
+            <View style={styles.categoryField}>
+              <Text style={styles.categoryFieldLabel}>{t('bills.category')}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+                {CATEGORIES.map((cat) => {
+                  const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
+                  const selected = category === cat;
+                  return (
+                    <Pressable
+                      key={cat}
+                      style={[styles.catChip, selected && styles.catChipSelected]}
+                      onPress={() => setCategory(cat)}
+                      accessible
+                      accessibilityRole="radio"
+                      accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
+                      accessibilityState={{ selected }}
+                    >
+                      <Ionicons name={icon} size={15} color={selected ? colors.white : colors.primary} />
+                      <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
+                        {t(`bills.cat_${cat.toLowerCase()}`)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
             <View style={styles.editButtons}>
               <Button mode="contained" onPress={handleSaveEdit} loading={isSaving} disabled={isSaving} style={styles.saveBtn}>
@@ -323,4 +364,24 @@ const styles = StyleSheet.create({
   error: { color: colors.danger, fontSize: sizes.fontSm, ...font.regular },
   emptyText: { color: colors.textSecondary, fontSize: 15, ...font.regular },
   linkText: { color: colors.primary, fontSize: 15, ...font.medium },
+
+  // Category selector
+  categoryField: { gap: 4 },
+  categoryFieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginLeft: 4 },
+  categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    minHeight: 44,
+    borderRadius: sizes.borderRadiusFull,
+    borderWidth: 1.5,
+    borderColor: colors.primary + '55',
+    backgroundColor: colors.primary + '08',
+  },
+  catChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  catChipText: { color: colors.primary, fontSize: 13, ...font.semibold },
+  catChipTextSelected: { color: colors.white },
 });
