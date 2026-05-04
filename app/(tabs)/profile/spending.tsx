@@ -31,15 +31,13 @@ function pctChange(current: number, previous: number): number | null {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function InsightCard({
-  insight,
-  isLoading,
-  onRefresh,
-}: {
+interface InsightCardProps {
   insight: string | null;
   isLoading: boolean;
   onRefresh: () => void;
-}): React.JSX.Element {
+}
+
+function InsightCard({ insight, isLoading, onRefresh }: InsightCardProps): React.JSX.Element {
   return (
     <View style={styles.insightCard}>
       <View style={styles.insightCardDeco} />
@@ -73,15 +71,13 @@ function InsightCard({
   );
 }
 
-function OverviewCard({
-  current,
-  previous,
-  currency,
-}: {
+interface OverviewCardProps {
   current: MonthSpend;
   previous: MonthSpend | undefined;
   currency: string;
-}): React.JSX.Element {
+}
+
+function OverviewCard({ current, previous, currency }: OverviewCardProps): React.JSX.Element {
   const diff = previous ? current.houseTotal - previous.houseTotal : null;
   const pct  = previous ? pctChange(current.houseTotal, previous.houseTotal) : null;
   const isUp = diff !== null && diff > 0;
@@ -133,13 +129,12 @@ function OverviewCard({
   );
 }
 
-function MonthlyChart({
-  months,
-  currency,
-}: {
+interface MonthlyChartProps {
   months: MonthSpend[];
   currency: string;
-}): React.JSX.Element {
+}
+
+function MonthlyChart({ months, currency }: MonthlyChartProps): React.JSX.Element {
   const chartData = months.slice(0, 6).reverse();
   const maxHouse  = Math.max(...chartData.map((m) => m.houseTotal), 1);
   const current   = months[0];
@@ -191,7 +186,12 @@ interface CategoryRowItem {
   prevHouseAmount: number;
 }
 
-function CategoryRow({ item, currency }: { item: CategoryRowItem; currency: string }): React.JSX.Element {
+interface CategoryRowProps {
+  item: CategoryRowItem;
+  currency: string;
+}
+
+function CategoryRow({ item, currency }: CategoryRowProps): React.JSX.Element {
   const { cat, myAmount, prevHouseAmount } = item;
   const pct = pctChange(cat.amount, prevHouseAmount);
   const isUp = pct !== null && pct > 0;
@@ -224,6 +224,7 @@ export default function SpendingScreen(): React.JSX.Element {
   const houseId        = useAuthStore((s) => s.houseId);
   const months         = useSpendingStore((s) => s.months);
   const isLoading      = useSpendingStore((s) => s.isLoading);
+  const error          = useSpendingStore((s) => s.error);
   const insight        = useSpendingStore((s) => s.insight);
   const insightLoading = useSpendingStore((s) => s.insightLoading);
   const load           = useSpendingStore((s) => s.load);
@@ -269,16 +270,20 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const keyExtractor = useCallback((item: CategoryRowItem) => item.cat.name, []);
 
+  const header = (
+    <View style={styles.header}>
+      <Pressable onPress={handleBack} style={styles.backBtn} accessible accessibilityRole="button" accessibilityLabel="Go back">
+        <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+      </Pressable>
+      <Text style={styles.title}>Spending Analysis</Text>
+      <View style={styles.backBtn} />
+    </View>
+  );
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Pressable onPress={handleBack} style={styles.backBtn} accessible accessibilityRole="button" accessibilityLabel="Go back">
-            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-          </Pressable>
-          <Text style={styles.title}>Spending Analysis</Text>
-          <View style={styles.backBtn} />
-        </View>
+        {header}
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -286,17 +291,30 @@ export default function SpendingScreen(): React.JSX.Element {
     );
   }
 
+  if (error && months.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {header}
+        <View style={styles.centered}>
+          <Text style={styles.errorTitle}>Could not load spending</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable
+            style={styles.retryBtn}
+            onPress={() => { if (houseId && userName) void load(houseId, userName); }}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading spending data"
+          >
+            <Text style={styles.retryBtnText}>Try again</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={handleBack} style={styles.backBtn} accessible accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.title}>Spending Analysis</Text>
-        <View style={styles.backBtn} />
-      </View>
-
+      {header}
       <FlatList
         data={categoryItems}
         renderItem={renderCategory}
@@ -354,7 +372,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  backBtn: { width: 40, height: 40, justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   title: { fontSize: 17, ...font.bold, color: colors.textPrimary },
 
   scroll: { padding: sizes.lg, paddingBottom: 60 },
@@ -473,8 +491,12 @@ const styles = StyleSheet.create({
   catPct: { fontSize: 13, ...font.bold },
 
   // States
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: sizes.sm, padding: sizes.lg },
   emptyState: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
   emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
   emptyText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
+  errorTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary, textAlign: 'center' },
+  errorText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
+  retryBtn: { marginTop: sizes.sm, backgroundColor: colors.primary, borderRadius: sizes.borderRadius, paddingHorizontal: sizes.lg, paddingVertical: sizes.sm },
+  retryBtnText: { fontSize: sizes.fontSm, ...font.semibold, color: colors.white },
 });
