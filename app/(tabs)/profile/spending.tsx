@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   chartPad: { padding: 20, gap: 14 },
   chartTitle: { fontSize: 11, ...font.extrabold, color: colors.white, letterSpacing: 1.1, opacity: 0.88 },
   barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 100 },
-  barCol: { flex: 1, alignItems: 'center', gap: 5, justifyContent: 'flex-end' },
+  barCol: { flex: 1, minWidth: 44, alignItems: 'center', gap: 5, justifyContent: 'flex-end' },
   barAmt: { fontSize: 9, ...font.bold, color: 'rgba(255,255,255,0.65)', textAlign: 'center' },
   barAmtSelected: { color: colors.white, fontSize: 10 },
   barTrack: {
