@@ -37,6 +37,14 @@ export interface CategorySpend {
   amount: number;
 }
 
+export interface DrillDownItem {
+  id: string;
+  title: string;
+  amount: number;
+  date: string;
+  type: 'bill' | 'recurring';
+}
+
 export interface MonthSpend {
   month: string;          // "2026-03"
   label: string;          // "Mar 2026"
@@ -44,6 +52,7 @@ export interface MonthSpend {
   houseTotal: number;     // full house spending
   categories: CategorySpend[];       // user's share per category
   houseCategories: CategorySpend[];  // house total per category
+  billsByCategory: Record<string, DrillDownItem[]>; // raw items per category for drill-down
 }
 
 interface SpendingStore {
@@ -138,7 +147,7 @@ export const useSpendingStore = create<SpendingStore>()(
           const [billsRes, paymentsRes] = await Promise.all([
             supabase
               .from('bills')
-              .select('id, amount, paid_by, split_between, date, category')
+              .select('id, title, amount, paid_by, split_between, date, category')
               .eq('house_id', houseId)
               .gte('date', sixMonthsAgo),
             supabase
@@ -150,8 +159,16 @@ export const useSpendingStore = create<SpendingStore>()(
           if (billsRes.error) throw billsRes.error;
           if (paymentsRes.error) throw paymentsRes.error;
 
-          const tally      = new Map<string, Map<string, number>>();
-          const houseTally = new Map<string, Map<string, number>>();
+          const tally       = new Map<string, Map<string, number>>();
+          const houseTally  = new Map<string, Map<string, number>>();
+          const detailTally = new Map<string, Map<string, DrillDownItem[]>>();
+
+          const addDetail = (mk: string, cat: string, item: DrillDownItem): void => {
+            if (!detailTally.has(mk)) detailTally.set(mk, new Map());
+            const m = detailTally.get(mk)!;
+            if (!m.has(cat)) m.set(cat, []);
+            m.get(cat)!.push(item);
+          };
 
           // ── One-off bills ──────────────────────────────────────────────────
           for (const b of billsRes.data ?? []) {
@@ -161,6 +178,7 @@ export const useSpendingStore = create<SpendingStore>()(
             const amt = Number(b.amount);
 
             addToTally(houseTally, mk, cat, amt);
+            addDetail(mk, cat, { id: b.id, title: (b.title as string) || cat, amount: amt, date: b.date, type: 'bill' });
             if (splits.includes(userName)) {
               addToTally(tally, mk, cat, amt / (splits.length || 1));
             }
@@ -180,11 +198,19 @@ export const useSpendingStore = create<SpendingStore>()(
               ? (rb.frequency as Frequency)
               : 'monthly';
             const cat    = rb.name.toLowerCase();
+            const n      = FREQ_MONTHS[freq];
             const shares = paymentMonthShares(p.paid_at, freq);
 
             for (const { monthKey, share } of shares) {
               const sliceAmt = Number(p.amount) * share;
               addToTally(houseTally, monthKey, cat, sliceAmt);
+              addDetail(monthKey, cat, {
+                id: `${p.id}_${monthKey}`,
+                title: n > 1 ? `${rb.name} (${n}-month split)` : rb.name,
+                amount: sliceAmt,
+                date: p.paid_at,
+                type: 'recurring',
+              });
               if (rb.assigned_to === userName) {
                 addToTally(tally, monthKey, cat, sliceAmt);
               }
@@ -205,7 +231,15 @@ export const useSpendingStore = create<SpendingStore>()(
               .sort((a, b) => b.amount - a.amount);
             const houseTotal = houseCategories.reduce((s, c) => s + c.amount, 0);
 
-            return { month: mk, label: toMonthLabel(mk), total, categories, houseTotal, houseCategories };
+            const billsByCategory: Record<string, DrillDownItem[]> = {};
+            const detailMap = detailTally.get(mk);
+            if (detailMap) {
+              for (const [catName, items] of detailMap.entries()) {
+                billsByCategory[catName] = [...items].sort((a, b) => b.amount - a.amount);
+              }
+            }
+
+            return { month: mk, label: toMonthLabel(mk), total, categories, houseTotal, houseCategories, billsByCategory };
           });
 
           set({ months, isLoading: false });
