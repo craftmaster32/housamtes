@@ -32,7 +32,7 @@ interface RecurringBillsStore {
   error: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addBill: (bill: Omit<RecurringBill, 'id' | 'createdAt'>, houseId: string) => Promise<void>;
+  addBill: (bill: Omit<RecurringBill, 'id' | 'createdAt'>, houseId: string) => Promise<RecurringBill>;
   deleteBill: (id: string) => Promise<void>;
   logPayment: (payment: Omit<HouseholdPayment, 'id'>, houseId: string) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
@@ -92,7 +92,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
       unsubscribe: (): void => {
         if (_channel) { supabase.removeChannel(_channel); _channel = null; }
       },
-      addBill: async (data, houseId): Promise<void> => {
+      addBill: async (data, houseId): Promise<RecurringBill> => {
         const { data: inserted, error } = await supabase
           .from('recurring_bills')
           .insert({
@@ -118,6 +118,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           nextDueDate: inserted.next_due_date ?? undefined,
         };
         set({ bills: [...get().bills, bill] });
+        return bill;
       },
       deleteBill: async (id): Promise<void> => {
         const { error } = await supabase.from('recurring_bills').delete().eq('id', id);
