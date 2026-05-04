@@ -10,8 +10,13 @@ export const CATEGORY_META: Record<string, { icon: string; color: string }> = {
   electricity:    { icon: '⚡', color: '#F59E0B' },
   water:          { icon: '💧', color: '#3B6FBF' },
   internet:       { icon: '📶', color: '#06B6D4' },
+  gas:            { icon: '🔥', color: '#EF4444' },
+  tax:            { icon: '🏛️', color: '#6366F1' },
+  taxes:          { icon: '🏛️', color: '#6366F1' },
+  insurance:      { icon: '🛡️', color: '#7C3AED' },
+  arnona:         { icon: '🏛️', color: '#6366F1' },
   groceries:      { icon: '🛒', color: '#4FB071' },
-  shopping:       { icon: '🛒', color: '#4FB071' },
+  shopping:       { icon: '🛍️', color: '#10B981' },
   'outside food': { icon: '🍕', color: '#E0B24D' },
   food:           { icon: '🍕', color: '#E0B24D' },
   transport:      { icon: '🚗', color: '#64748B' },
@@ -55,6 +60,9 @@ interface SpendingStore {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+type Frequency = 'monthly' | 'bimonthly' | 'quarterly';
+const FREQ_MONTHS: Record<Frequency, number> = { monthly: 1, bimonthly: 2, quarterly: 3 };
+
 function toMonthKey(dateStr: string): string {
   return dateStr.slice(0, 7);
 }
@@ -73,6 +81,32 @@ function lastNMonths(n: number): string[] {
     result.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
   return result;
+}
+
+// Splits a recurring payment across the months it covers.
+// e.g. bimonthly payment paid on 2026-05-10 covers Apr + May → share = 0.5 each.
+function paymentMonthShares(paidAt: string, frequency: Frequency): Array<{ monthKey: string; share: number }> {
+  const n = FREQ_MONTHS[frequency];
+  const paid = new Date(paidAt + 'T00:00:00');
+  const result: Array<{ monthKey: string; share: number }> = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(paid.getFullYear(), paid.getMonth() - i, 1);
+    result.push({
+      monthKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      share: 1 / n,
+    });
+  }
+  return result;
+}
+
+function addToTally(
+  tally: Map<string, Map<string, number>>,
+  monthKey: string,
+  cat: string,
+  amount: number,
+): void {
+  if (!tally.has(monthKey)) tally.set(monthKey, new Map());
+  tally.get(monthKey)!.set(cat, (tally.get(monthKey)!.get(cat) ?? 0) + amount);
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────────
@@ -109,54 +143,52 @@ export const useSpendingStore = create<SpendingStore>()(
               .gte('date', sixMonthsAgo),
             supabase
               .from('household_payments')
-              .select('id, amount, paid_at, recurring_bills(name, assigned_to)')
+              .select('id, amount, paid_at, recurring_bills(name, assigned_to, frequency)')
               .eq('house_id', houseId)
               .gte('paid_at', sixMonthsAgo),
           ]);
           if (billsRes.error) throw billsRes.error;
           if (paymentsRes.error) throw paymentsRes.error;
 
-          // ── User tally: logged-in user's proportional share ────────────────
-          const tally = new Map<string, Map<string, number>>();
-
-          for (const b of billsRes.data ?? []) {
-            const splits: string[] = Array.isArray(b.split_between) ? b.split_between : [];
-            if (!splits.includes(userName)) continue;
-            const share = b.amount / (splits.length || 1);
-            const mk = toMonthKey(b.date);
-            const cat = (b.category as string | null)?.toLowerCase() ?? 'other';
-            if (!tally.has(mk)) tally.set(mk, new Map());
-            tally.get(mk)!.set(cat, (tally.get(mk)!.get(cat) ?? 0) + share);
-          }
-
-          for (const p of paymentsRes.data ?? []) {
-            const rbRaw = p.recurring_bills;
-            const rb = (Array.isArray(rbRaw) ? rbRaw[0] : rbRaw) as { name: string; assigned_to: string } | null;
-            if (!rb || rb.assigned_to !== userName) continue;
-            const mk = toMonthKey(p.paid_at);
-            const cat = rb.name.toLowerCase();
-            if (!tally.has(mk)) tally.set(mk, new Map());
-            tally.get(mk)!.set(cat, (tally.get(mk)!.get(cat) ?? 0) + Number(p.amount));
-          }
-
-          // ── House tally: full house spending ──────────────────────────────
+          const tally      = new Map<string, Map<string, number>>();
           const houseTally = new Map<string, Map<string, number>>();
 
+          // ── One-off bills ──────────────────────────────────────────────────
           for (const b of billsRes.data ?? []) {
-            const mk = toMonthKey(b.date);
+            const splits: string[] = Array.isArray(b.split_between) ? b.split_between : [];
+            const mk  = toMonthKey(b.date);
             const cat = (b.category as string | null)?.toLowerCase() ?? 'other';
-            if (!houseTally.has(mk)) houseTally.set(mk, new Map());
-            houseTally.get(mk)!.set(cat, (houseTally.get(mk)!.get(cat) ?? 0) + Number(b.amount));
+            const amt = Number(b.amount);
+
+            addToTally(houseTally, mk, cat, amt);
+            if (splits.includes(userName)) {
+              addToTally(tally, mk, cat, amt / (splits.length || 1));
+            }
           }
 
+          // ── Recurring payments — split proportionally across covered months ─
           for (const p of paymentsRes.data ?? []) {
             const rbRaw = p.recurring_bills;
-            const rb = (Array.isArray(rbRaw) ? rbRaw[0] : rbRaw) as { name: string; assigned_to: string } | null;
+            const rb = (Array.isArray(rbRaw) ? rbRaw[0] : rbRaw) as {
+              name: string;
+              assigned_to: string;
+              frequency: string;
+            } | null;
             if (!rb) continue;
-            const mk = toMonthKey(p.paid_at);
-            const cat = rb.name.toLowerCase();
-            if (!houseTally.has(mk)) houseTally.set(mk, new Map());
-            houseTally.get(mk)!.set(cat, (houseTally.get(mk)!.get(cat) ?? 0) + Number(p.amount));
+
+            const freq: Frequency = rb.frequency in FREQ_MONTHS
+              ? (rb.frequency as Frequency)
+              : 'monthly';
+            const cat    = rb.name.toLowerCase();
+            const shares = paymentMonthShares(p.paid_at, freq);
+
+            for (const { monthKey, share } of shares) {
+              const sliceAmt = Number(p.amount) * share;
+              addToTally(houseTally, monthKey, cat, sliceAmt);
+              if (rb.assigned_to === userName) {
+                addToTally(tally, monthKey, cat, sliceAmt);
+              }
+            }
           }
 
           // ── Build MonthSpend[] ─────────────────────────────────────────────
