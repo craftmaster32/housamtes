@@ -1,5 +1,5 @@
-import { useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, FlatList } from 'react-native';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Pressable, ActivityIndicator, SectionList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -11,9 +11,22 @@ import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 const BAR_MAX_H = 56;
+
+// Categories treated as fixed house expenses
+const HOUSE_BILL_CATS = new Set([
+  'rent', 'electricity', 'water', 'internet', 'gas', 'tax', 'taxes',
+  'insurance', 'rates', 'council', 'body corporate', 'strata', 'mortgage',
+  'arnona', 'municipal', 'phone', 'building', 'maintenance',
+]);
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function isHouseCat(name: string): boolean {
+  return HOUSE_BILL_CATS.has(name.toLowerCase());
+}
 
 function fmtFull(n: number, sym: string): string {
   return `${sym}${n.toFixed(2)}`;
@@ -27,6 +40,22 @@ function fmtShort(n: number, sym: string): string {
 function pctChange(current: number, previous: number): number | null {
   if (previous === 0) return null;
   return Math.round(((current - previous) / previous) * 100);
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface CategoryRowItem {
+  cat: CategorySpend;
+  myAmount: number;
+  prevHouseAmount: number;
+  sectionTotal: number;
+}
+
+interface SpendingSection {
+  title: string;
+  icon: string;
+  total: number;
+  data: CategoryRowItem[];
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -88,9 +117,7 @@ function OverviewCard({ current, previous, currency }: OverviewCardProps): React
   return (
     <View style={styles.overviewCard}>
       <Text style={styles.overviewMonth}>{current.label}</Text>
-
       <View style={styles.overviewRow}>
-        {/* House */}
         <View style={styles.overviewBlock}>
           <Text style={styles.overviewLbl}>House total</Text>
           <Text style={styles.overviewAmt}>{fmtFull(current.houseTotal, currency)}</Text>
@@ -103,10 +130,7 @@ function OverviewCard({ current, previous, currency }: OverviewCardProps): React
             </View>
           )}
         </View>
-
         <View style={styles.overviewDivider} />
-
-        {/* My share */}
         <View style={styles.overviewBlock}>
           <Text style={styles.overviewLbl}>Your share</Text>
           <Text style={styles.overviewAmt}>{fmtFull(current.total, currency)}</Text>
@@ -119,7 +143,6 @@ function OverviewCard({ current, previous, currency }: OverviewCardProps): React
           )}
         </View>
       </View>
-
       {previous && (
         <Text style={styles.overviewCompare}>
           Compared to {previous.label}: house was {fmtShort(previous.houseTotal, currency)}, your share was {fmtShort(previous.total, currency)}
@@ -132,36 +155,57 @@ function OverviewCard({ current, previous, currency }: OverviewCardProps): React
 interface MonthlyChartProps {
   months: MonthSpend[];
   currency: string;
+  selectedIdx: number;
+  onSelectMonth: (idx: number) => void;
 }
 
-function MonthlyChart({ months, currency }: MonthlyChartProps): React.JSX.Element {
+function MonthlyChart({ months, currency, selectedIdx, onSelectMonth }: MonthlyChartProps): React.JSX.Element {
+  // chartData is oldest → newest (left to right)
   const chartData = months.slice(0, 6).reverse();
   const maxHouse  = Math.max(...chartData.map((m) => m.houseTotal), 1);
-  const current   = months[0];
 
   return (
     <View style={styles.chartCard}>
       <View style={styles.chartCardDeco} />
       <View style={styles.chartPad}>
-        <Text style={styles.chartTitle}>MONTHLY TREND</Text>
+        <Text style={styles.chartTitle}>MONTHLY TREND — TAP A MONTH</Text>
         <View style={styles.barsRow}>
-          {chartData.map((m) => {
-            const isLatest  = m.month === current?.month;
-            const houseBarH = Math.max((m.houseTotal / maxHouse) * BAR_MAX_H, m.houseTotal > 0 ? 4 : 2);
+          {chartData.map((m, i) => {
+            // chartData[i] corresponds to months[chartData.length - 1 - i]
+            const monthsIdx  = chartData.length - 1 - i;
+            const isSelected = monthsIdx === selectedIdx;
+            const houseBarH  = Math.max((m.houseTotal / maxHouse) * BAR_MAX_H, m.houseTotal > 0 ? 4 : 2);
             const shareRatio = m.houseTotal > 0 ? m.total / m.houseTotal : 0;
             const shareBarH  = Math.round(houseBarH * shareRatio);
 
             return (
-              <View key={m.month} style={styles.barCol}>
-                <Text style={styles.barAmt}>{m.houseTotal > 0 ? fmtShort(m.houseTotal, currency) : ''}</Text>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { height: houseBarH }, isLatest && styles.barFillLatest]} />
+              <Pressable
+                key={m.month}
+                style={styles.barCol}
+                onPress={() => onSelectMonth(monthsIdx)}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`View spending for ${m.label}`}
+                accessibilityState={{ selected: isSelected }}
+              >
+                <Text style={[styles.barAmt, isSelected && styles.barAmtSelected]}>
+                  {m.houseTotal > 0 ? fmtShort(m.houseTotal, currency) : ''}
+                </Text>
+                <View style={[styles.barTrack, isSelected && styles.barTrackSelected]}>
+                  <View style={[
+                    styles.barFill,
+                    { height: houseBarH },
+                    isSelected && styles.barFillSelected,
+                  ]} />
                   {shareBarH > 0 && (
                     <View style={[styles.barShareFill, { height: shareBarH }]} />
                   )}
                 </View>
-                <Text style={styles.barLbl}>{m.label.split(' ')[0].slice(0, 3)}</Text>
-              </View>
+                <Text style={[styles.barLbl, isSelected && styles.barLblSelected]}>
+                  {m.label.split(' ')[0].slice(0, 3)}
+                </Text>
+                {isSelected && <View style={styles.barSelDot} />}
+              </Pressable>
             );
           })}
         </View>
@@ -180,21 +224,16 @@ function MonthlyChart({ months, currency }: MonthlyChartProps): React.JSX.Elemen
   );
 }
 
-interface CategoryRowItem {
-  cat: CategorySpend;
-  myAmount: number;
-  prevHouseAmount: number;
-}
-
 interface CategoryRowProps {
   item: CategoryRowItem;
   currency: string;
 }
 
 function CategoryRow({ item, currency }: CategoryRowProps): React.JSX.Element {
-  const { cat, myAmount, prevHouseAmount } = item;
-  const pct = pctChange(cat.amount, prevHouseAmount);
-  const isUp = pct !== null && pct > 0;
+  const { cat, myAmount, prevHouseAmount, sectionTotal } = item;
+  const pct          = pctChange(cat.amount, prevHouseAmount);
+  const isUp         = pct !== null && pct > 0;
+  const barPct       = sectionTotal > 0 ? Math.round((cat.amount / sectionTotal) * 100) : 0;
 
   return (
     <View style={styles.catRow}>
@@ -202,17 +241,42 @@ function CategoryRow({ item, currency }: CategoryRowProps): React.JSX.Element {
         <Text style={styles.catIconText}>{cat.icon}</Text>
       </View>
       <View style={styles.catInfo}>
-        <Text style={styles.catName}>{cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}</Text>
-        <Text style={styles.catSub}>
-          House: {fmtShort(cat.amount, currency)}
-          {myAmount > 0 ? `  ·  You: ${fmtShort(myAmount, currency)}` : ''}
-        </Text>
+        <View style={styles.catTopRow}>
+          <Text style={styles.catName}>{cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}</Text>
+          <View style={styles.catAmtGroup}>
+            <Text style={styles.catAmt}>{fmtFull(cat.amount, currency)}</Text>
+            {pct !== null && (
+              <Text style={[styles.catPct, { color: isUp ? colors.danger : colors.positive }]}>
+                {isUp ? '↑' : '↓'}{Math.abs(pct)}%
+              </Text>
+            )}
+          </View>
+        </View>
+        {/* Progress bar */}
+        <View style={styles.catBarTrack}>
+          <View style={[styles.catBarFill, { width: `${barPct}%` as `${number}%`, backgroundColor: cat.color }]} />
+        </View>
+        {myAmount > 0 && (
+          <Text style={styles.catMyShare}>Your share: {fmtFull(myAmount, currency)}</Text>
+        )}
       </View>
-      {pct !== null && (
-        <Text style={[styles.catPct, { color: isUp ? colors.danger : colors.positive }]}>
-          {isUp ? '↑' : '↓'} {Math.abs(pct)}%
-        </Text>
-      )}
+    </View>
+  );
+}
+
+interface SectionHeaderProps {
+  title: string;
+  icon: string;
+  total: number;
+  currency: string;
+}
+
+function SpendingSectionHeader({ title, icon, total, currency }: SectionHeaderProps): React.JSX.Element {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionHeaderIcon}>{icon}</Text>
+      <Text style={styles.sectionHeaderTitle}>{title}</Text>
+      <Text style={styles.sectionHeaderTotal}>{fmtFull(total, currency)}</Text>
     </View>
   );
 }
@@ -220,6 +284,8 @@ function CategoryRow({ item, currency }: CategoryRowProps): React.JSX.Element {
 // ── Main screen ────────────────────────────────────────────────────────────────
 
 export default function SpendingScreen(): React.JSX.Element {
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
   const profile        = useAuthStore((s) => s.profile);
   const houseId        = useAuthStore((s) => s.houseId);
   const months         = useSpendingStore((s) => s.months);
@@ -251,28 +317,75 @@ export default function SpendingScreen(): React.JSX.Element {
     void fetchInsight(houseId, userName, currency);
   }, [houseId, userName, currency, fetchInsight]);
 
-  const current  = months[0];
-  const previous = months[1];
+  const handleSelectMonth = useCallback((idx: number) => {
+    setSelectedIdx(idx);
+  }, []);
 
-  // Build category rows: house categories this month, with user's share and prev month delta
-  const categoryItems = useMemo((): CategoryRowItem[] => {
-    if (!current) return [];
-    return current.houseCategories.map((cat) => {
-      const myAmount = current.categories.find((c) => c.name === cat.name)?.amount ?? 0;
-      const prevHouseAmount = previous?.houseCategories.find((c) => c.name === cat.name)?.amount ?? 0;
-      return { cat, myAmount, prevHouseAmount };
-    });
-  }, [current, previous]);
+  const selectedMonth = months[selectedIdx];
+  const previousMonth = months[selectedIdx + 1];
 
-  const renderCategory = useCallback(({ item }: { item: CategoryRowItem }) => (
-    <CategoryRow item={item} currency={currency} />
-  ), [currency]);
+  const sections = useMemo((): SpendingSection[] => {
+    if (!selectedMonth) return [];
+
+    const houseBillCats = selectedMonth.houseCategories.filter((c) => isHouseCat(c.name));
+    const lifestyleCats = selectedMonth.houseCategories.filter((c) => !isHouseCat(c.name));
+    const houseBillTotal = houseBillCats.reduce((s, c) => s + c.amount, 0);
+    const lifestyleTotal  = lifestyleCats.reduce((s, c) => s + c.amount, 0);
+
+    function toCatRow(cat: CategorySpend, sectionTotal: number): CategoryRowItem {
+      const myAmount        = selectedMonth.categories.find((c) => c.name === cat.name)?.amount ?? 0;
+      const prevHouseAmount = previousMonth?.houseCategories.find((c) => c.name === cat.name)?.amount ?? 0;
+      return { cat, myAmount, prevHouseAmount, sectionTotal };
+    }
+
+    const result: SpendingSection[] = [];
+    if (houseBillCats.length > 0) {
+      result.push({
+        title: 'House Bills',
+        icon: '🏠',
+        total: houseBillTotal,
+        data: houseBillCats.map((c) => toCatRow(c, houseBillTotal)),
+      });
+    }
+    if (lifestyleCats.length > 0) {
+      result.push({
+        title: 'Lifestyle',
+        icon: '🛍️',
+        total: lifestyleTotal,
+        data: lifestyleCats.map((c) => toCatRow(c, lifestyleTotal)),
+      });
+    }
+    return result;
+  }, [selectedMonth, previousMonth]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: CategoryRowItem }) => <CategoryRow item={item} currency={currency} />,
+    [currency],
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: SpendingSection }) => (
+      <SpendingSectionHeader
+        title={section.title}
+        icon={section.icon}
+        total={section.total}
+        currency={currency}
+      />
+    ),
+    [currency],
+  );
 
   const keyExtractor = useCallback((item: CategoryRowItem) => item.cat.name, []);
 
-  const header = (
+  const pageHeader = (
     <View style={styles.header}>
-      <Pressable onPress={handleBack} style={styles.backBtn} accessible accessibilityRole="button" accessibilityLabel="Go back">
+      <Pressable
+        onPress={handleBack}
+        style={styles.backBtn}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+      >
         <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
       </Pressable>
       <Text style={styles.title}>Spending Analysis</Text>
@@ -283,7 +396,7 @@ export default function SpendingScreen(): React.JSX.Element {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        {header}
+        {pageHeader}
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -294,7 +407,7 @@ export default function SpendingScreen(): React.JSX.Element {
   if (error && months.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        {header}
+        {pageHeader}
         <View style={styles.centered}>
           <Text style={styles.errorTitle}>Could not load spending</Text>
           <Text style={styles.errorText}>{error}</Text>
@@ -312,44 +425,64 @@ export default function SpendingScreen(): React.JSX.Element {
     );
   }
 
+  const listHeader = (
+    <View style={styles.listHeaderWrap}>
+      <InsightCard insight={insight} isLoading={insightLoading} onRefresh={handleRefreshInsight} />
+
+      {months.some((m) => m.houseTotal > 0) && (
+        <MonthlyChart
+          months={months}
+          currency={currency}
+          selectedIdx={selectedIdx}
+          onSelectMonth={handleSelectMonth}
+        />
+      )}
+
+      {selectedIdx > 0 && (
+        <Pressable
+          style={styles.jumpBtn}
+          onPress={() => setSelectedIdx(0)}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Jump to current month"
+        >
+          <Ionicons name="arrow-forward-circle-outline" size={16} color={colors.primary} />
+          <Text style={styles.jumpBtnText}>Jump to current month</Text>
+        </Pressable>
+      )}
+
+      {selectedMonth && selectedMonth.houseTotal > 0 && (
+        <OverviewCard current={selectedMonth} previous={previousMonth} currency={currency} />
+      )}
+
+      {sections.length > 0 && (
+        <Text style={styles.breakdownTitle}>
+          {selectedMonth?.label ?? ''} breakdown
+        </Text>
+      )}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      {header}
-      <FlatList
-        data={categoryItems}
-        renderItem={renderCategory}
+      {pageHeader}
+      <SectionList<CategoryRowItem, SpendingSection>
+        sections={sections}
         keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
         contentContainerStyle={styles.scroll}
-        ListHeaderComponent={
-          <View style={styles.sections}>
-            {/* AI Insight */}
-            <InsightCard
-              insight={insight}
-              isLoading={insightLoading}
-              onRefresh={handleRefreshInsight}
-            />
-
-            {/* Overview */}
-            {current && current.houseTotal > 0 && (
-              <OverviewCard current={current} previous={previous} currency={currency} />
-            )}
-
-            {/* Monthly chart */}
-            {months.some((m) => m.houseTotal > 0) && (
-              <MonthlyChart months={months} currency={currency} />
-            )}
-
-            {/* Categories header */}
-            {categoryItems.length > 0 && (
-              <Text style={styles.sectionTitle}>Categories this month</Text>
-            )}
-          </View>
-        }
+        stickySectionHeadersEnabled={false}
+        ListHeaderComponent={listHeader}
         ListEmptyComponent={
-          !isLoading && current?.houseTotal === 0 ? (
+          !isLoading ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>No spending yet</Text>
-              <Text style={styles.emptyText}>{'Add some bills and they\'ll appear here.'}</Text>
+              <Text style={styles.emptyText}>
+                {selectedIdx === 0
+                  ? 'Add some bills and they\'ll appear here.'
+                  : `No spending recorded for ${selectedMonth?.label ?? 'this month'}.`}
+              </Text>
             </View>
           ) : null
         }
@@ -376,7 +509,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 17, ...font.bold, color: colors.textPrimary },
 
   scroll: { padding: sizes.lg, paddingBottom: 60 },
-  sections: { gap: sizes.md, marginBottom: sizes.md },
+  listHeaderWrap: { gap: sizes.md, marginBottom: sizes.sm },
 
   // AI Insight card
   insightCard: {
@@ -435,9 +568,10 @@ const styles = StyleSheet.create({
   },
   chartPad: { padding: 20, gap: 14 },
   chartTitle: { fontSize: 11, ...font.extrabold, color: colors.white, letterSpacing: 1.1, opacity: 0.88 },
-  barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 80 },
-  barCol: { flex: 1, alignItems: 'center', gap: 6, justifyContent: 'flex-end' },
-  barAmt: { fontSize: 10, ...font.bold, color: 'rgba(255,255,255,0.88)', textAlign: 'center' },
+  barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 100 },
+  barCol: { flex: 1, alignItems: 'center', gap: 5, justifyContent: 'flex-end' },
+  barAmt: { fontSize: 9, ...font.bold, color: 'rgba(255,255,255,0.65)', textAlign: 'center' },
+  barAmtSelected: { color: colors.white, fontSize: 10 },
   barTrack: {
     width: 18,
     height: BAR_MAX_H,
@@ -447,8 +581,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
+  barTrackSelected: { backgroundColor: 'rgba(255,255,255,0.22)' },
   barFill: { width: 18, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.30)' },
-  barFillLatest: { backgroundColor: colors.white },
+  barFillSelected: { backgroundColor: colors.white },
   barShareFill: {
     position: 'absolute',
     bottom: 0,
@@ -457,19 +592,52 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.56)',
     borderRadius: 999,
   },
-  barLbl: { fontSize: 10, ...font.regular, color: 'rgba(255,255,255,0.80)' },
+  barLbl: { fontSize: 10, ...font.regular, color: 'rgba(255,255,255,0.70)' },
+  barLblSelected: { color: colors.white, ...font.bold },
+  barSelDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.white,
+  },
   chartLegend: { flexDirection: 'row', gap: sizes.md },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { fontSize: 11, ...font.regular, color: 'rgba(255,255,255,0.80)' },
 
-  // Section title
-  sectionTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary },
+  // Jump-to-current button
+  jumpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-end',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.primary + '12',
+    borderRadius: 20,
+  },
+  jumpBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
+
+  // Breakdown title
+  breakdownTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary, marginTop: 4 },
+
+  // Section headers
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: sizes.sm,
+    paddingHorizontal: 2,
+    marginTop: sizes.sm,
+  },
+  sectionHeaderIcon: { fontSize: 16 },
+  sectionHeaderTitle: { flex: 1, fontSize: 14, ...font.bold, color: colors.textPrimary },
+  sectionHeaderTotal: { fontSize: 14, ...font.bold, color: colors.textSecondary },
 
   // Category rows
   catRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: sizes.sm,
     backgroundColor: colors.white,
     borderRadius: sizes.borderRadius,
@@ -483,12 +651,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 2,
   },
   catIconText: { fontSize: 20 },
-  catInfo: { flex: 1, gap: 2 },
-  catName: { fontSize: 14, ...font.semibold, color: colors.textPrimary },
-  catSub: { fontSize: 12, ...font.regular, color: colors.textSecondary },
-  catPct: { fontSize: 13, ...font.bold },
+  catInfo: { flex: 1, gap: 4 },
+  catTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  catName: { fontSize: 14, ...font.semibold, color: colors.textPrimary, flex: 1 },
+  catAmtGroup: { alignItems: 'flex-end', gap: 1 },
+  catAmt: { fontSize: 14, ...font.bold, color: colors.textPrimary },
+  catPct: { fontSize: 11, ...font.bold },
+  catBarTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    overflow: 'hidden',
+  },
+  catBarFill: { height: 4, borderRadius: 2 },
+  catMyShare: { fontSize: 12, ...font.regular, color: colors.textSecondary },
 
   // States
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: sizes.sm, padding: sizes.lg },
@@ -497,6 +676,12 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
   errorTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary, textAlign: 'center' },
   errorText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
-  retryBtn: { marginTop: sizes.sm, backgroundColor: colors.primary, borderRadius: sizes.borderRadius, paddingHorizontal: sizes.lg, paddingVertical: sizes.sm },
+  retryBtn: {
+    marginTop: sizes.sm,
+    backgroundColor: colors.primary,
+    borderRadius: sizes.borderRadius,
+    paddingHorizontal: sizes.lg,
+    paddingVertical: sizes.sm,
+  },
   retryBtnText: { fontSize: sizes.fontSm, ...font.semibold, color: colors.white },
 });
