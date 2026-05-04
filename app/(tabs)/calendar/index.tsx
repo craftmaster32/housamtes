@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert, Keyboard } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -152,6 +152,11 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
     setError('');
   }, [visible, editingEvent, initialDate]);
 
+  const handleClose = useCallback((): void => {
+    Keyboard.dismiss();
+    onClose();
+  }, [onClose]);
+
   const handleSave = useCallback(async (): Promise<void> => {
     if (!title.trim()) { setError('Enter an event name'); return; }
     if (!date) { setError('Pick a date'); return; }
@@ -192,19 +197,29 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
           createdBy: profile?.id,
         }).catch(() => {});
       }
-      onClose();
+      handleClose();
     } catch {
       setError('Could not save event. Try again.');
     } finally {
       setSaving(false);
     }
-  }, [title, date, showEndDate, endDate, startTime, endTime, notes, recurrence, showRecEnd, recurrenceEnd, editingEvent, addEvent, editEvent, profile, houseId, syncHouseEvent, onClose]);
+  }, [title, date, showEndDate, endDate, startTime, endTime, notes, recurrence, showRecEnd, recurrenceEnd, editingEvent, addEvent, editEvent, profile, houseId, syncHouseEvent, handleClose]);
+
+  const handleModalShow = useCallback((): void => {
+    Keyboard.dismiss();
+  }, []);
 
   const isEditing = !!editingEvent;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={formStyles.backdrop} onPress={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+      onShow={handleModalShow}
+    >
+      <Pressable style={formStyles.backdrop} onPress={handleClose}>
         <Pressable style={formStyles.sheet} onPress={() => {}}>
           <View style={formStyles.handle} />
           <Text style={formStyles.title}>{isEditing ? 'Edit Event' : 'Add Event'}</Text>
@@ -221,6 +236,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
               onChangeText={(v) => { setTitle(v); setError(''); }}
               placeholder="e.g. House meeting, Inspection…"
               placeholderTextColor={colors.textSecondary}
+              autoFocus={false}
               returnKeyType="done"
               onSubmitEditing={handleSave}
               accessibilityLabel="Event name"
@@ -271,6 +287,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
               onChangeText={setNotes}
               placeholder="Any extra details…"
               placeholderTextColor={colors.textSecondary}
+              autoFocus={false}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
@@ -332,7 +349,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
           </ScrollView>
 
           <View style={formStyles.btns}>
-            <Pressable style={formStyles.btnOutline} onPress={onClose} accessibilityRole="button">
+            <Pressable style={formStyles.btnOutline} onPress={handleClose} accessibilityRole="button">
               <Text style={formStyles.btnOutlineText}>Cancel</Text>
             </Pressable>
             <Pressable
