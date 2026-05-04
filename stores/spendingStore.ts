@@ -324,7 +324,7 @@ export const useSpendingStore = create<SpendingStore>()(
           state.insight
         ) return;
 
-        set({ insightLoading: true, insightError: null });
+        set({ insightLoading: true, insightError: null, insight: null });
         try {
           const { data, error } = await supabase.functions.invoke('spending-analysis', {
             body: { months: state.months.slice(0, 3), userName, currency },
@@ -344,6 +344,7 @@ export const useSpendingStore = create<SpendingStore>()(
           const localMessage = err instanceof Error ? err.message : null;
           captureError(err, { store: 'spending', action: 'fetchInsight', houseId });
           set({
+            insight: null,
             insightLoading: false,
             insightError: toFriendlyInsightError(serverMessage ?? localMessage),
           });
