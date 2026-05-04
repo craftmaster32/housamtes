@@ -197,7 +197,6 @@ function ChoreCard(): React.JSX.Element {
 function ParkingCard(): React.JSX.Element {
   const current = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
-  const approveReservation = useParkingStore((s) => s.approveReservation);
   const claim = useParkingStore((s) => s.claim);
   const release = useParkingStore((s) => s.release);
   const profile = useAuthStore((s) => s.profile);
@@ -224,10 +223,6 @@ function ParkingCard(): React.JSX.Element {
   const handleRelease = useCallback(async (): Promise<void> => {
     await release(houseId ?? '').catch(() => {});
   }, [release, houseId]);
-
-  const handleApprove = useCallback(async (id: string): Promise<void> => {
-    await approveReservation(id, houseId ?? '').catch(() => {});
-  }, [approveReservation, houseId]);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
@@ -258,7 +253,7 @@ function ParkingCard(): React.JSX.Element {
           ? `In use for ${parkingAge(current!.startTime)}`
           : `Used by ${resolveName(current!.occupant, housemates)} · ${parkingAge(current!.startTime)}`}
       </Text>
-      {/* Pending requests from others — show approve button */}
+      {/* Pending requests — tap the card to vote */}
       {pendingFromOthers.map((r) => (
         <View key={r.id} style={styles.parkingPendingRow}>
           <View style={styles.parkingPendingInfo}>
@@ -267,26 +262,21 @@ function ParkingCard(): React.JSX.Element {
               {resolveName(r.requestedBy, housemates)} wants {r.date}{r.startTime ? ` at ${r.startTime}` : ''}
             </Text>
           </View>
-          <Pressable
-            style={styles.approveBtn}
-            onPress={(e) => { e.stopPropagation?.(); handleApprove(r.id); }}
-            accessibilityRole="button"
-            accessibilityLabel={`Approve parking request from ${resolveName(r.requestedBy, housemates)}`}
-          >
-            <Text style={styles.approveBtnText}>Approve</Text>
-          </Pressable>
+          <View style={styles.approveBtn}>
+            <Text style={styles.approveBtnText}>Vote</Text>
+          </View>
         </View>
       ))}
       {/* My own reservation status */}
       {myReservation && pendingFromOthers.length === 0 && (
-        <View style={[styles.parkingReservationRow, { backgroundColor: myReservation.status === 'approved' ? colors.positive + '14' : '#FFF3CD' }]}>
+        <View style={[styles.parkingReservationRow, { backgroundColor: myReservation.status === 'approved' ? colors.positive + '14' : myReservation.status === 'rejected' ? colors.negative + '14' : '#FFF3CD' }]}>
           <Ionicons
-            name={myReservation.status === 'approved' ? 'checkmark-circle-outline' : 'time-outline'}
+            name={myReservation.status === 'approved' ? 'checkmark-circle-outline' : myReservation.status === 'rejected' ? 'close-circle-outline' : 'time-outline'}
             size={14}
-            color={myReservation.status === 'approved' ? colors.positive : '#856404'}
+            color={myReservation.status === 'approved' ? colors.positive : myReservation.status === 'rejected' ? colors.negative : '#856404'}
           />
-          <Text style={[styles.parkingReservationText, { color: myReservation.status === 'approved' ? colors.positive : '#856404' }]}>
-            {myReservation.status === 'approved' ? 'Your spot confirmed' : 'Your request pending'}
+          <Text style={[styles.parkingReservationText, { color: myReservation.status === 'approved' ? colors.positive : myReservation.status === 'rejected' ? colors.negative : '#856404' }]}>
+            {myReservation.status === 'approved' ? 'Your spot confirmed' : myReservation.status === 'rejected' ? 'Request rejected' : 'Your request pending'}
             {' · '}{myReservation.date}{myReservation.startTime ? ` at ${myReservation.startTime}` : ''}
           </Text>
         </View>

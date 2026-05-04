@@ -45,6 +45,7 @@ function reservation(overrides: Partial<ParkingReservation> = {}): ParkingReserv
     note: '',
     status: 'pending',
     createdAt: '2026-04-18T10:00:00Z',
+    votes: [],
     ...overrides,
   };
 }
@@ -316,29 +317,17 @@ describe('parkingStore — checkReservationAutoApply', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 6. approveReservation — ⚠️ BUG: no error handling
+// 6. voteOnReservation
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('parkingStore — approveReservation', () => {
-  it('updates reservation status to approved on success', async () => {
-    useParkingStore.setState({ reservations: [reservation({ id: 'r1', status: 'pending' })] });
-    mockFrom.mockReturnValue(ok());
-
-    await useParkingStore.getState().approveReservation('r1', 'house-1');
-
-    expect(useParkingStore.getState().reservations[0].status).toBe('approved');
-  });
-
-  it('throws and leaves state as pending when DB update fails', async () => {
-    // Error guard added: `const { error } = await ...` + `if (error) throw`.
+describe('parkingStore — voteOnReservation', () => {
+  it('throws when upsert fails', async () => {
     useParkingStore.setState({ reservations: [reservation({ id: 'r1', status: 'pending' })] });
     mockFrom.mockReturnValue(fail('permission denied'));
 
     await expect(
-      useParkingStore.getState().approveReservation('r1', 'house-1')
-    ).rejects.toThrow('Could not approve the reservation. Please try again.');
-
-    expect(useParkingStore.getState().reservations[0].status).toBe('pending'); // unchanged
+      useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1')
+    ).rejects.toThrow('Could not save your vote. Please try again.');
   });
 });
 
