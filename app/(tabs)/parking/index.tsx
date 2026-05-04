@@ -22,6 +22,7 @@ import {
   type ParkingReservation,
   type ParkingSession,
   type ParkingVote,
+  type ParkingVoteChoice,
 } from '@stores/parkingStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore, type Housemate } from '@stores/housematesStore';
@@ -435,15 +436,11 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [cancelReservation, houseId, removeCalendarEvent, t]);
 
-  const handleVote = useCallback(async (id: string, vote: 'approve' | 'reject'): Promise<void> => {
+  const handleVote = useCallback(async (id: string, vote: ParkingVoteChoice): Promise<void> => {
     const reservation = reservations.find((r) => r.id === id);
     if (!reservation) return;
-    // All housemates except the requester must vote
-    const otherMemberIds = housemates
-      .filter((h) => h.id !== reservation.requestedBy)
-      .map((h) => h.id);
     try {
-      const resultStatus = await voteOnReservation(id, vote, houseId ?? '', otherMemberIds);
+      const resultStatus = await voteOnReservation(id, vote, houseId ?? '');
       if (resultStatus === 'approved') {
         syncParkingApproved({
           id: reservation.id,

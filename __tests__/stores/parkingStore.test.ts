@@ -326,7 +326,7 @@ describe('parkingStore — voteOnReservation', () => {
     mockFrom.mockReturnValue(fail('permission denied'));
 
     await expect(
-      useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1', ['u2'])
+      useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1')
     ).rejects.toThrow('Could not save your vote. Please try again.');
   });
 });
