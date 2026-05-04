@@ -15,11 +15,24 @@ import {
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { DateInput } from '@components/shared/DateInput';
+import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
+
+const BILL_ICON_LABELS: Record<string, string> = {
+  '🏛️': 'Tax',
+  '⚡': 'Electric',
+  '💧': 'Water',
+  '🔥': 'Gas',
+  '📶': 'Internet',
+  '🏢': 'Building',
+  '🏠': 'Rent',
+  '🧾': 'Other',
+  '🌡️': 'Heating',
+  '♻️': 'Waste',
+};
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -90,6 +103,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const [date, setDate] = useState(todayStr);
   const [note, setNote] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [showLogDatePicker, setShowLogDatePicker] = useState(false);
 
   const last = getLastPayment(bill.id, payments);
   const nextDue = getNextDueDate(bill, payments);
@@ -168,8 +182,23 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
               placeholder={t('bills.household_amount')}
               placeholderTextColor={colors.textDisabled}
             />
-            <DateInput value={date} onChange={setDate} style={styles.logDateInput} />
+            <Pressable
+              style={styles.dateTrigger}
+              onPress={() => setShowLogDatePicker(true)}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Select payment date"
+            >
+              <Ionicons name="calendar-outline" size={15} color={colors.primary} />
+              <Text style={styles.dateTriggerText}>{formatDate(date)}</Text>
+            </Pressable>
           </View>
+          <DatePickerModal
+            visible={showLogDatePicker}
+            value={date}
+            onSelect={(val) => { setDate(val); setShowLogDatePicker(false); }}
+            onClose={() => setShowLogDatePicker(false)}
+          />
           <TextInput
             style={styles.logNoteInput}
             value={note}
@@ -206,21 +235,41 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
 
 function AddBillForm({ allPeople, onClose }: { allPeople: string[]; onClose: () => void }): React.JSX.Element {
   const { t } = useTranslation();
-  const addBill = useRecurringBillsStore((s) => s.addBill);
-  const houseId = useAuthStore((s) => s.houseId);
+  const addBill    = useRecurringBillsStore((s) => s.addBill);
+  const logPayment = useRecurringBillsStore((s) => s.logPayment);
+  const houseId    = useAuthStore((s) => s.houseId);
   const [name, setName] = useState('');
   const [assignedTo, setAssignedTo] = useState(allPeople[0] ?? '');
   const [frequency, setFrequency] = useState<BillFrequency>('monthly');
   const [typicalAmount, setTypicalAmount] = useState('');
   const [icon, setIcon] = useState(BILL_ICONS[0]);
+  const [lastPaidDate, setLastPaidDate] = useState('');
+  const [showAddDatePicker, setShowAddDatePicker] = useState(false);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
-    if (!name.trim() || !typicalAmount || !houseId) return;
+    if (!name.trim()) { setError('Please enter a bill name.'); return; }
     const amt = parseFloat(typicalAmount);
-    if (isNaN(amt) || amt <= 0) return;
-    await addBill({ name: name.trim(), assignedTo, frequency, typicalAmount: amt, icon }, houseId);
-    onClose();
-  }, [name, assignedTo, frequency, typicalAmount, icon, addBill, houseId, onClose]);
+    if (!typicalAmount || isNaN(amt) || amt <= 0) { setError('Please enter a valid amount.'); return; }
+    if (!houseId) return;
+    try {
+      setSaving(true);
+      const newBill = await addBill(
+        { name: name.trim(), assignedTo, frequency, typicalAmount: amt, icon },
+        houseId,
+      );
+      // Auto-log the first payment so spending analysis accounts for all covered months
+      if (lastPaidDate) {
+        await logPayment({ billId: newBill.id, amount: amt, paidAt: lastPaidDate, note: '' }, houseId);
+      }
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the bill. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [name, assignedTo, frequency, typicalAmount, icon, lastPaidDate, addBill, logPayment, houseId, onClose]);
 
   return (
     <View style={styles.addForm}>
@@ -234,8 +283,15 @@ function AddBillForm({ allPeople, onClose }: { allPeople: string[]; onClose: () 
             key={ic}
             style={[styles.iconChip, icon === ic && styles.iconChipActive]}
             onPress={() => setIcon(ic)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={BILL_ICON_LABELS[ic] ?? ic}
+            accessibilityState={{ selected: icon === ic }}
           >
-            <Text style={styles.iconChipText}>{ic}</Text>
+            <Text style={styles.iconChipEmoji}>{ic}</Text>
+            <Text style={[styles.iconChipLabel, icon === ic && styles.iconChipLabelActive]}>
+              {BILL_ICON_LABELS[ic] ?? ''}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -290,15 +346,42 @@ function AddBillForm({ allPeople, onClose }: { allPeople: string[]; onClose: () 
         placeholderTextColor={colors.textDisabled}
       />
 
+      {/* Last paid date */}
+      <Text style={styles.fieldLabel}>Last paid date (optional)</Text>
+      <Text style={styles.fieldHint}>
+        When did you last pay this? {"We'll"} track the next due date and add it to your spending history.
+      </Text>
+      <Pressable
+        style={styles.dateTrigger}
+        onPress={() => setShowAddDatePicker(true)}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel="Select last paid date"
+      >
+        <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+        <Text style={lastPaidDate ? styles.dateTriggerText : styles.dateTriggerPlaceholder}>
+          {lastPaidDate ? formatDate(lastPaidDate) : 'Tap to select date'}
+        </Text>
+      </Pressable>
+      <DatePickerModal
+        visible={showAddDatePicker}
+        value={lastPaidDate}
+        onSelect={(val) => { setLastPaidDate(val); setShowAddDatePicker(false); }}
+        onClose={() => setShowAddDatePicker(false)}
+      />
+
+      {!!error && <Text style={styles.formError}>{error}</Text>}
+
       <View style={styles.addFormActions}>
         <Pressable style={styles.cancelBtn} onPress={onClose}>
           <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
         </Pressable>
         <Pressable
-          style={[styles.saveBtn, (!name.trim() || !typicalAmount) && styles.saveBtnDisabled]}
+          style={[styles.saveBtn, (saving || !name.trim() || !typicalAmount) && styles.saveBtnDisabled]}
           onPress={handleSave}
+          disabled={saving}
         >
-          <Text style={styles.saveBtnText}>{t('bills.household_add_bill')}</Text>
+          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : t('bills.household_add_bill')}</Text>
         </Pressable>
       </View>
     </View>
@@ -314,7 +397,7 @@ export function HouseholdTab(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const allPeople = [profile?.name ?? '', ...housemates.map((h) => h.name)].filter(Boolean);
+  const allPeople = [...new Set([profile?.name ?? '', ...housemates.map((h) => h.name)])].filter(Boolean);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -381,7 +464,6 @@ const styles = StyleSheet.create({
   logForm: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: sizes.sm, gap: sizes.sm },
   logRow: { flexDirection: 'row', gap: sizes.sm },
   logAmountInput: { flex: 1, backgroundColor: colors.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: colors.textPrimary },
-  logDateInput: { flex: 1 },
   logNoteInput: { backgroundColor: colors.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontSm, color: colors.textPrimary },
   savePaymentBtn: { backgroundColor: colors.primary, borderRadius: sizes.borderRadius, paddingVertical: sizes.sm, alignItems: 'center' },
   savePaymentBtnText: { color: colors.white, fontWeight: '700', fontSize: sizes.fontMd },
@@ -399,9 +481,21 @@ const styles = StyleSheet.create({
   addFormTitle: { fontSize: sizes.fontMd, fontWeight: '700', color: colors.textPrimary, marginBottom: sizes.xs },
   fieldLabel: { fontSize: sizes.fontXs, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
   iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  iconChip: { width: 40, height: 40, borderRadius: sizes.borderRadiusSm, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+  iconChip: { width: 56, height: 56, borderRadius: sizes.borderRadiusSm, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent', gap: 2 },
   iconChipActive: { borderColor: colors.primary, backgroundColor: colors.primary + '12' },
-  iconChipText: { fontSize: 20 },
+  iconChipEmoji: { fontSize: 20 },
+  iconChipLabel: { fontSize: 9, color: colors.textSecondary, textAlign: 'center' },
+  iconChipLabelActive: { color: colors.primary },
+  fieldHint: { fontSize: 11, color: colors.textDisabled, marginTop: -2 },
+  dateTrigger: {
+    flexDirection: 'row', alignItems: 'center', gap: sizes.sm,
+    backgroundColor: colors.background, borderRadius: sizes.borderRadiusSm,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, minHeight: 44,
+  },
+  dateTriggerText: { flex: 1, fontSize: sizes.fontSm, color: colors.textPrimary },
+  dateTriggerPlaceholder: { flex: 1, fontSize: sizes.fontSm, color: colors.textDisabled },
+  formError: { fontSize: sizes.fontSm, color: colors.negative, marginTop: 2 },
   addInput: { backgroundColor: colors.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: colors.textPrimary },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
   chip: { paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
