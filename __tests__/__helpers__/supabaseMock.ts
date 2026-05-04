@@ -31,7 +31,7 @@ export function dbResult(result: { data: unknown; error: unknown }): Record<stri
   };
 
   // Every chainable method returns the same chain object.
-  for (const m of ['select', 'eq', 'neq', 'or', 'order', 'limit', 'update', 'delete', 'upsert']) {
+  for (const m of ['select', 'eq', 'neq', 'or', 'order', 'limit', 'gte', 'update', 'delete', 'upsert']) {
     chain[m] = jest.fn(() => chain);
   }
 

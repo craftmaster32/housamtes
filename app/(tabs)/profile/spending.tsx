@@ -65,11 +65,12 @@ interface SpendingSection {
 
 interface InsightCardProps {
   insight: string | null;
+  error: string | null;
   isLoading: boolean;
   onRefresh: () => void;
 }
 
-function InsightCard({ insight, isLoading, onRefresh }: InsightCardProps): React.JSX.Element {
+function InsightCard({ insight, error, isLoading, onRefresh }: InsightCardProps): React.JSX.Element {
   return (
     <View style={styles.insightCard}>
       <View style={styles.insightCardDeco} />
@@ -94,8 +95,8 @@ function InsightCard({ insight, isLoading, onRefresh }: InsightCardProps): React
         {insight ? (
           <Text style={styles.insightCardText}>{insight}</Text>
         ) : (
-          <Text style={styles.insightCardEmpty}>
-            {isLoading ? 'Generating insight…' : 'No insight yet — add some bills first.'}
+          <Text style={[styles.insightCardEmpty, error ? styles.insightCardError : null]}>
+            {isLoading ? 'Generating insight…' : error ?? 'No insight yet — add some bills first.'}
           </Text>
         )}
       </View>
@@ -328,6 +329,7 @@ export default function SpendingScreen(): React.JSX.Element {
   const isLoading      = useSpendingStore((s) => s.isLoading);
   const error          = useSpendingStore((s) => s.error);
   const insight        = useSpendingStore((s) => s.insight);
+  const insightError   = useSpendingStore((s) => s.insightError);
   const insightLoading = useSpendingStore((s) => s.insightLoading);
   const load           = useSpendingStore((s) => s.load);
   const fetchInsight   = useSpendingStore((s) => s.fetchInsight);
@@ -352,7 +354,7 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const handleRefreshInsight = useCallback(() => {
     if (!houseId) return;
-    useSpendingStore.setState({ insight: null, insightMonth: null });
+    useSpendingStore.setState({ insight: null, insightError: null, insightMonth: null });
     void fetchInsight(houseId, userName, currency);
   }, [houseId, userName, currency, fetchInsight]);
 
@@ -485,7 +487,12 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const listHeader = (
     <View style={styles.listHeaderWrap}>
-      <InsightCard insight={insight} isLoading={insightLoading} onRefresh={handleRefreshInsight} />
+      <InsightCard
+        insight={insight}
+        error={insightError}
+        isLoading={insightLoading}
+        onRefresh={handleRefreshInsight}
+      />
 
       {months.some((m) => m.houseTotal > 0) && (
         <MonthlyChart
@@ -590,6 +597,7 @@ const styles = StyleSheet.create({
   refreshBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   insightCardText: { fontSize: 14, ...font.regular, color: colors.white, lineHeight: 21 },
   insightCardEmpty: { fontSize: 13, ...font.regular, color: 'rgba(255,255,255,0.60)', fontStyle: 'italic' },
+  insightCardError: { color: 'rgba(255,255,255,0.84)', fontStyle: 'normal' },
 
   // Overview card
   overviewCard: {
