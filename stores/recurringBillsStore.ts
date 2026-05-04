@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { parseISO, addMonths, format } from 'date-fns';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
@@ -173,9 +174,7 @@ export function getLastPayment(billId: string, payments: HouseholdPayment[]): Ho
 export function getNextDueDate(bill: RecurringBill, payments: HouseholdPayment[]): string | null {
   const last = getLastPayment(bill.id, payments);
   if (last) {
-    const d = new Date(last.paidAt + 'T00:00:00');
-    d.setMonth(d.getMonth() + FREQUENCY_MONTHS[bill.frequency]);
-    return d.toISOString().split('T')[0];
+    return format(addMonths(parseISO(last.paidAt), FREQUENCY_MONTHS[bill.frequency]), 'yyyy-MM-dd');
   }
   return bill.nextDueDate ?? null;
 }
