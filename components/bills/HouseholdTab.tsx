@@ -14,6 +14,7 @@ import {
 } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import { useSettingsStore } from '@stores/settingsStore';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { colors } from '@constants/colors';
@@ -95,6 +96,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const deleteBill = useRecurringBillsStore((s) => s.deleteBill);
   const deletePayment = useRecurringBillsStore((s) => s.deletePayment);
   const houseId = useAuthStore((s) => s.houseId);
+  const housemates = useHousematesStore((s) => s.housemates);
   const currency = useSettingsStore((s) => s.currency);
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -131,7 +133,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           <Text style={styles.billName}>{bill.name}</Text>
           <View style={styles.billMeta}>
             <View style={styles.metaChip}>
-              <Text style={styles.metaChipText}>{bill.assignedTo}</Text>
+              <Text style={styles.metaChipText}>{resolveName(bill.assignedTo, housemates)}</Text>
             </View>
             <View style={styles.metaChip}>
               <Text style={styles.metaChipText}>{t(`bills.freq_${bill.frequency}`)}</Text>
@@ -233,13 +235,15 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
 
 // ── Add bill form ─────────────────────────────────────────────────────────────
 
-function AddBillForm({ allPeople, onClose }: { allPeople: string[]; onClose: () => void }): React.JSX.Element {
+interface PersonOption { id: string; name: string; }
+
+function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () => void }): React.JSX.Element {
   const { t } = useTranslation();
   const addBill    = useRecurringBillsStore((s) => s.addBill);
   const logPayment = useRecurringBillsStore((s) => s.logPayment);
   const houseId    = useAuthStore((s) => s.houseId);
   const [name, setName] = useState('');
-  const [assignedTo, setAssignedTo] = useState(allPeople[0] ?? '');
+  const [assignedTo, setAssignedTo] = useState(people[0]?.id ?? '');
   const [frequency, setFrequency] = useState<BillFrequency>('monthly');
   const [typicalAmount, setTypicalAmount] = useState('');
   const [icon, setIcon] = useState(BILL_ICONS[0]);
@@ -310,13 +314,13 @@ function AddBillForm({ allPeople, onClose }: { allPeople: string[]; onClose: () 
       {/* Assigned to */}
       <Text style={styles.fieldLabel}>{t('bills.household_who_pays')}</Text>
       <View style={styles.chipRow}>
-        {allPeople.map((p) => (
+        {people.map((p) => (
           <Pressable
-            key={p}
-            style={[styles.chip, assignedTo === p && styles.chipActive]}
-            onPress={() => setAssignedTo(p)}
+            key={p.id}
+            style={[styles.chip, assignedTo === p.id && styles.chipActive]}
+            onPress={() => setAssignedTo(p.id)}
           >
-            <Text style={[styles.chipText, assignedTo === p && styles.chipTextActive]}>{p}</Text>
+            <Text style={[styles.chipText, assignedTo === p.id && styles.chipTextActive]}>{p.name}</Text>
           </Pressable>
         ))}
       </View>
@@ -397,7 +401,11 @@ export function HouseholdTab(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const allPeople = [...new Set([profile?.name ?? '', ...housemates.map((h) => h.name)])].filter(Boolean);
+  const allPeople = [
+    profile ? { id: profile.id, name: profile.name ?? '' } : null,
+    ...housemates.map((h) => ({ id: h.id, name: h.name })),
+  ].filter((p): p is { id: string; name: string } => Boolean(p?.id && p?.name))
+   .filter((p, i, arr) => arr.findIndex((q) => q.id === p.id) === i);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -413,7 +421,7 @@ export function HouseholdTab(): React.JSX.Element {
       {bills.map((bill) => <BillCard key={bill.id} bill={bill} />)}
 
       {showAddForm ? (
-        <AddBillForm allPeople={allPeople} onClose={() => setShowAddForm(false)} />
+        <AddBillForm people={allPeople} onClose={() => setShowAddForm(false)} />
       ) : (
         <Pressable style={styles.addBillBtn} onPress={() => setShowAddForm(true)}>
           <Text style={styles.addBillBtnText}>{t('bills.household_add_recurring')}</Text>
