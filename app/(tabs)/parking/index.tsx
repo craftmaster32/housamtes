@@ -197,8 +197,10 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
               onPress={handleApprove}
               style={[styles.voteBtn, myVote?.vote === 'approve' && styles.voteBtnApproveActive]}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessible
               accessibilityRole="button"
               accessibilityLabel="Approve parking request"
+              accessibilityState={{ selected: myVote?.vote === 'approve' }}
             >
               <Ionicons
                 name="checkmark"
@@ -210,8 +212,10 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
               onPress={handleReject}
               style={[styles.voteBtn, myVote?.vote === 'reject' && styles.voteBtnRejectActive]}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessible
               accessibilityRole="button"
               accessibilityLabel="Reject parking request"
+              accessibilityState={{ selected: myVote?.vote === 'reject' }}
             >
               <Ionicons
                 name="close"
@@ -395,7 +399,7 @@ export default function ParkingScreen(): React.JSX.Element {
     const prevMap = prevStatusMapRef.current;
     for (const r of reservations) {
       const prev = prevMap.get(r.id);
-      if (prev === 'pending' && r.status !== 'pending' && r.requestedBy === myId) {
+      if ((prev === undefined || prev === 'pending') && r.status !== 'pending' && r.requestedBy === myId) {
         if (r.status === 'approved') {
           syncParkingApproved({
             id: r.id,
@@ -455,7 +459,7 @@ export default function ParkingScreen(): React.JSX.Element {
       await cancelReservation(id, houseId ?? '');
       removeCalendarEvent(`pk-${id}`).catch(() => {});
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.failed_release'));
+      setError(err instanceof Error ? err.message : t('parking.failed_cancel'));
     }
   }, [cancelReservation, houseId, removeCalendarEvent, t]);
 

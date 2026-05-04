@@ -330,6 +330,7 @@
     "history": "היסטוריה",
     "error_vote_failed": "לא ניתן לשמור את ההצבעה",
     "error_clear_failed": "לא ניתן למחוק את הפריט",
+    "failed_cancel": "ביטול ההזמנה נכשל",
     "failed_claim": "תפיסת החניה נכשלה",
     "failed_release": "שחרור החניה נכשל",
     "failed_reservation": "הוספת ההזמנה נכשלה"
