@@ -323,7 +323,11 @@
     "no_reservations": "אין הזמנות עדיין.",
     "pending": "ממתין",
     "approved": "אושר",
+    "rejected": "נדחה",
     "approve": "אשר",
+    "free": "פנוי",
+    "taken": "תפוס",
+    "history": "היסטוריה",
     "failed_claim": "תפיסת החניה נכשלה",
     "failed_release": "שחרור החניה נכשל",
     "failed_reservation": "הוספת ההזמנה נכשלה"

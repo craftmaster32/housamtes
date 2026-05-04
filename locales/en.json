@@ -325,7 +325,11 @@
     "no_reservations": "No reservations yet.",
     "pending": "Pending",
     "approved": "Approved",
+    "rejected": "Rejected",
     "approve": "Approve",
+    "free": "Free",
+    "taken": "Taken",
+    "history": "History",
     "failed_claim": "Failed to claim spot",
     "failed_release": "Failed to release spot",
     "failed_reservation": "Failed to add reservation"

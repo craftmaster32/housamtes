@@ -255,10 +255,11 @@ export const useParkingStore = create<ParkingStore>()(
         const userId = sessionData.session?.user.id ?? '';
         if (!userId) throw new Error('Not signed in');
 
-        // Guard: only allow voting on pending reservations
+        // Guard: only allow voting on pending reservations; requester cannot vote on their own request
         const localReservation = get().reservations.find((r) => r.id === reservationId);
         if (!localReservation) throw new Error('Reservation not found');
         if (localReservation.status !== 'pending') throw new Error('This request is no longer pending');
+        if (userId === localReservation.requestedBy) throw new Error('You cannot vote on your own request');
 
         const { error: voteError } = await supabase
           .from('parking_reservation_votes')
@@ -349,6 +350,12 @@ export const useParkingStore = create<ParkingStore>()(
         return statusWasUpdated ? newStatus : 'pending';
       },
       clearHistoryItem: async (id): Promise<void> => {
+        const reservation = get().reservations.find((r) => r.id === id);
+        if (!reservation) throw new Error('Reservation not found');
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        if (reservation.date >= todayStr) throw new Error('Cannot clear a future or current reservation');
+
         const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
         if (error) {
           captureError(error, { context: 'clear-history-item', id });

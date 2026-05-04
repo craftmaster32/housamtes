@@ -324,7 +324,11 @@
     "no_reservations": "Sin reservas aún.",
     "pending": "Pendiente",
     "approved": "Aprobada",
+    "rejected": "Rechazada",
     "approve": "Aprobar",
+    "free": "Libre",
+    "taken": "Ocupada",
+    "history": "Historial",
     "failed_claim": "No se pudo ocupar la plaza",
     "failed_release": "No se pudo liberar la plaza",
     "failed_reservation": "No se pudo agregar la reserva"

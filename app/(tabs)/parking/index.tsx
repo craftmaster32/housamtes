@@ -49,16 +49,34 @@ function todayString(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// ── Vote status row ────────────────────────────────────────────────────────────
-function VoteRow({
-  votes,
-  housemates,
-  requestedBy,
-}: {
+// ── Component prop interfaces ──────────────────────────────────────────────────
+export interface VoteRowProps {
   votes: ParkingVote[];
   housemates: Housemate[];
   requestedBy: string;
-}): React.JSX.Element {
+}
+
+export interface ReservationCardProps {
+  item: ParkingReservation;
+  currentUserId: string;
+  onCancel: (id: string) => void;
+  onVote: (id: string, vote: ParkingVoteChoice) => void;
+  onClear: (id: string) => void;
+  isHistory: boolean;
+}
+
+export interface ReserveModalProps {
+  visible: boolean;
+  onClose: () => void;
+  myId: string;
+  myName: string;
+  houseId: string;
+  reservations: ParkingReservation[];
+  current: ParkingSession | null;
+}
+
+// ── Vote status row ────────────────────────────────────────────────────────────
+function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.Element {
   const voters = housemates.filter((h) => h.id !== requestedBy);
   if (voters.length === 0) return <View />;
 
@@ -92,21 +110,7 @@ function VoteRow({
 }
 
 // ── Reservation card ───────────────────────────────────────────────────────────
-function ReservationCard({
-  item,
-  currentUserId,
-  onCancel,
-  onVote,
-  onClear,
-  isHistory,
-}: {
-  item: ParkingReservation;
-  currentUserId: string;
-  onCancel: (id: string) => void;
-  onVote: (id: string, vote: 'approve' | 'reject') => void;
-  onClear: (id: string) => void;
-  isHistory: boolean;
-}): React.JSX.Element {
+function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHistory }: ReservationCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
   const isOwn = item.requestedBy === currentUserId;
@@ -123,8 +127,13 @@ function ReservationCard({
   const statusLabel = approved
     ? t('parking.approved')
     : rejected
-    ? 'Rejected'
+    ? t('parking.rejected')
     : t('parking.pending');
+
+  const handleCancel  = useCallback(() => onCancel(item.id),            [onCancel, item.id]);
+  const handleClear   = useCallback(() => onClear(item.id),             [onClear,  item.id]);
+  const handleApprove = useCallback(() => onVote(item.id, 'approve'),   [onVote,   item.id]);
+  const handleReject  = useCallback(() => onVote(item.id, 'reject'),    [onVote,   item.id]);
 
   const timeLabel = item.startTime
     ? ` · ${item.startTime}${item.endTime ? `–${item.endTime}` : ''}`
@@ -159,8 +168,9 @@ function ReservationCard({
       <View style={styles.resActions}>
         {isOwn && isPending && (
           <Pressable
-            onPress={() => onCancel(item.id)}
+            onPress={handleCancel}
             style={styles.iconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel="Cancel reservation"
           >
@@ -170,8 +180,9 @@ function ReservationCard({
 
         {isHistory && (
           <Pressable
-            onPress={() => onClear(item.id)}
+            onPress={handleClear}
             style={styles.iconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel="Clear from history"
           >
@@ -182,8 +193,9 @@ function ReservationCard({
         {canVote && (
           <View style={styles.voteBtns}>
             <Pressable
-              onPress={() => onVote(item.id, 'approve')}
+              onPress={handleApprove}
               style={[styles.voteBtn, myVote?.vote === 'approve' && styles.voteBtnApproveActive]}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessibilityRole="button"
               accessibilityLabel="Approve parking request"
             >
@@ -194,8 +206,9 @@ function ReservationCard({
               />
             </Pressable>
             <Pressable
-              onPress={() => onVote(item.id, 'reject')}
+              onPress={handleReject}
               style={[styles.voteBtn, myVote?.vote === 'reject' && styles.voteBtnRejectActive]}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessibilityRole="button"
               accessibilityLabel="Reject parking request"
             >
@@ -213,23 +226,7 @@ function ReservationCard({
 }
 
 // ── Reserve modal ──────────────────────────────────────────────────────────────
-function ReserveModal({
-  visible,
-  onClose,
-  myId,
-  myName,
-  houseId,
-  reservations,
-  current,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  myId: string;
-  myName: string;
-  houseId: string;
-  reservations: ParkingReservation[];
-  current: ParkingSession | null;
-}): React.JSX.Element {
+function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, current }: ReserveModalProps): React.JSX.Element {
   const { t } = useTranslation();
   const addReservation = useParkingStore((s) => s.addReservation);
   const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
@@ -471,7 +468,7 @@ export default function ParkingScreen(): React.JSX.Element {
     if (item._k === 'hist-header') {
       return (
         <View style={styles.historyHeaderRow}>
-          <Text style={styles.eyebrow}>History</Text>
+          <Text style={styles.eyebrow}>{t('parking.history')}</Text>
           <View style={styles.countPill}>
             <Text style={styles.countPillText}>{item.count}</Text>
           </View>
@@ -488,7 +485,7 @@ export default function ParkingScreen(): React.JSX.Element {
         isHistory={item.isHistory}
       />
     );
-  }, [myId, handleCancel, handleVote, handleClear]);
+  }, [myId, handleCancel, handleVote, handleClear, t]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -522,7 +519,7 @@ export default function ParkingScreen(): React.JSX.Element {
                   color={isFree ? colors.positive : colors.negative}
                 />
                 <Text style={[styles.statusLabel, { color: isFree ? colors.positive : colors.negative }]}>
-                  {isFree ? 'Free' : 'Taken'}
+                  {isFree ? t('parking.free') : t('parking.taken')}
                 </Text>
               </View>
 
