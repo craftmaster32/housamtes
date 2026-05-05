@@ -178,9 +178,11 @@ interface MonthlyChartProps {
   selectedIdx: number;
   onSelectMonth: (idx: number) => void;
   viewMode: ViewMode;
+  onSetHouseView: () => void;
+  onSetPersonalView: () => void;
 }
 
-function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode }: MonthlyChartProps): React.JSX.Element {
+function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, onSetHouseView, onSetPersonalView }: MonthlyChartProps): React.JSX.Element {
   const chartData  = months.slice(0, 6).reverse();
   const isPersonal = viewMode === 'personal';
   const maxVal     = Math.max(...chartData.map((m) => isPersonal ? m.total : m.houseTotal), 1);
@@ -189,6 +191,31 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode }
     <View style={styles.chartCard}>
       <View style={styles.chartCardDeco} />
       <View style={styles.chartPad}>
+        {/* Segment control */}
+        <View style={styles.chartSegment}>
+          <Pressable
+            style={[styles.chartSegBtn, !isPersonal && styles.chartSegBtnActive]}
+            onPress={onSetHouseView}
+            accessible
+            accessibilityRole="tab"
+            accessibilityState={{ selected: !isPersonal }}
+            accessibilityLabel="Show all house spending"
+          >
+            <Ionicons name="home-outline" size={14} color={!isPersonal ? colors.primary : 'rgba(255,255,255,0.70)'} />
+            <Text style={[styles.chartSegText, !isPersonal && styles.chartSegTextActive]}>House</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.chartSegBtn, isPersonal && styles.chartSegBtnActive]}
+            onPress={onSetPersonalView}
+            accessible
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isPersonal }}
+            accessibilityLabel="Show my personal spending"
+          >
+            <Ionicons name="person-outline" size={14} color={isPersonal ? colors.primary : 'rgba(255,255,255,0.70)'} />
+            <Text style={[styles.chartSegText, isPersonal && styles.chartSegTextActive]}>Personal</Text>
+          </Pressable>
+        </View>
         <Text style={styles.chartTitle}>MONTHLY TREND — TAP A MONTH</Text>
         <View style={styles.barsRow}>
           {chartData.map((m, i) => {
@@ -552,36 +579,6 @@ export default function SpendingScreen(): React.JSX.Element {
         onRefresh={handleRefreshInsight}
       />
 
-      {/* Toggle controls chart, overview, and breakdown */}
-      <View style={styles.viewToggleWrap}>
-        <View style={styles.viewToggle}>
-          <Pressable
-            style={[styles.viewToggleBtn, viewMode === 'house' && styles.viewToggleBtnActive]}
-            onPress={handleSetHouseView}
-            accessible
-            accessibilityRole="tab"
-            accessibilityState={{ selected: viewMode === 'house' }}
-            accessibilityLabel="Show all house spending"
-          >
-            <Text style={[styles.viewToggleBtnText, viewMode === 'house' && styles.viewToggleBtnTextActive]}>
-              House
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.viewToggleBtn, viewMode === 'personal' && styles.viewToggleBtnActive]}
-            onPress={handleSetPersonalView}
-            accessible
-            accessibilityRole="tab"
-            accessibilityState={{ selected: viewMode === 'personal' }}
-            accessibilityLabel="Show my personal spending"
-          >
-            <Text style={[styles.viewToggleBtnText, viewMode === 'personal' && styles.viewToggleBtnTextActive]}>
-              Personal
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-
       {months.some((m) => (viewMode === 'house' ? m.houseTotal : m.total) > 0) && (
         <MonthlyChart
           months={months}
@@ -589,6 +586,8 @@ export default function SpendingScreen(): React.JSX.Element {
           selectedIdx={selectedIdx}
           onSelectMonth={handleSelectMonth}
           viewMode={viewMode}
+          onSetHouseView={handleSetHouseView}
+          onSetPersonalView={handleSetPersonalView}
         />
       )}
 
@@ -775,26 +774,26 @@ const styles = StyleSheet.create({
   jumpBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
 
   breakdownTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary, marginTop: 4 },
-  viewToggleWrap: { alignItems: 'flex-end' },
-  viewToggle: {
+  chartSegment: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceSecondary,
-    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 12,
     padding: 3,
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginBottom: 6,
   },
-  viewToggleBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    justifyContent: 'center',
+  chartSegBtn: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    borderRadius: 10,
     minHeight: 44,
   },
-  viewToggleBtnActive: { backgroundColor: colors.primary },
-  viewToggleBtnText: { fontSize: 13, ...font.semibold, color: colors.textSecondary },
-  viewToggleBtnTextActive: { color: colors.white },
+  chartSegBtnActive: { backgroundColor: colors.white },
+  chartSegText: { fontSize: 13, ...font.semibold, color: 'rgba(255,255,255,0.75)' },
+  chartSegTextActive: { color: colors.primary },
 
   // Section headers
   sectionHeader: {
