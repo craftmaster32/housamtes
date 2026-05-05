@@ -83,10 +83,11 @@ export function ProfilePopup(): React.JSX.Element {
       {isOpen && (
         <Pressable
           style={StyleSheet.absoluteFill}
-          onPress={close}
-          accessible
+          onPress={handleHapticClose}
+          accessible={true}
           accessibilityRole="button"
           accessibilityLabel="Close profile menu"
+          accessibilityState={{ expanded: true }}
         />
       )}
 
@@ -134,8 +135,10 @@ export function ProfilePopup(): React.JSX.Element {
             <Pressable
               style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
               onPress={item.href ? handleHapticClose : item.onPress}
+              accessible={true}
               accessibilityRole="button"
               accessibilityLabel={item.label}
+              accessibilityState={{ disabled: false, selected: false }}
             >
               <Ionicons
                 name={item.icon}
