@@ -19,6 +19,16 @@ export interface Proposal {
   votes: Vote[];
 }
 
+export type ProposalResult = 'passed' | 'rejected' | 'blocked';
+
+export interface ProposalVoteSummary {
+  yesVotes: number;
+  noVotes: number;
+  totalVoted: number;
+  result: ProposalResult;
+  votes: Vote[];
+}
+
 interface VotingStore {
   proposals: Proposal[];
   isLoading: boolean;
@@ -32,6 +42,31 @@ interface VotingStore {
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+
+export function summarizeProposalVotes(votes: Vote[]): ProposalVoteSummary {
+  const voteByPerson = new Map<string, Vote['choice']>();
+
+  for (const vote of votes) {
+    voteByPerson.set(vote.person, vote.choice);
+  }
+
+  const currentVotes = Array.from(voteByPerson.entries()).map(([person, choice]) => ({
+    person,
+    choice,
+  }));
+  const yesVotes = currentVotes.filter((vote) => vote.choice === 'yes').length;
+  const noVotes = currentVotes.filter((vote) => vote.choice === 'no').length;
+  const result: ProposalResult =
+    yesVotes > noVotes ? 'passed' : noVotes > yesVotes ? 'rejected' : 'blocked';
+
+  return {
+    yesVotes,
+    noVotes,
+    totalVoted: currentVotes.length,
+    result,
+    votes: currentVotes,
+  };
+}
 
 export const useVotingStore = create<VotingStore>()(
   devtools(

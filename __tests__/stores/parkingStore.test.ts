@@ -17,7 +17,12 @@
  *  ⚠️  addReservation: conflict check is client-side only — stale local state can miss conflicts
  */
 
-import { isDateConflict, useParkingStore, type ParkingReservation } from '../../stores/parkingStore';
+import {
+  isDateConflict,
+  tallyParkingReservationVotes,
+  useParkingStore,
+  type ParkingReservation,
+} from '../../stores/parkingStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
@@ -321,6 +326,50 @@ describe('parkingStore — checkReservationAutoApply', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('parkingStore — voteOnReservation', () => {
+  it('keeps a request pending after one reject while another voter has not voted', async () => {
+    useParkingStore.setState({
+      reservations: [reservation({ id: 'r1', requestedBy: 'requester', status: 'pending' })],
+    });
+    mockFrom
+      .mockReturnValueOnce(ok())
+      .mockReturnValueOnce(ok([{ user_id: 'u1', vote: 'reject' }]))
+      .mockReturnValueOnce(ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }]));
+
+    const status = await useParkingStore.getState().voteOnReservation('r1', 'reject', 'house-1');
+
+    expect(status).toBe('pending');
+    expect(useParkingStore.getState().reservations[0]).toMatchObject({
+      status: 'pending',
+      votes: [{ userId: 'u1', vote: 'reject' }],
+    });
+    expect(mockFrom).toHaveBeenCalledTimes(3);
+  });
+
+  it('approves after everyone votes and approve has the higher count', async () => {
+    useParkingStore.setState({
+      reservations: [reservation({ id: 'r1', requestedBy: 'requester', status: 'pending' })],
+    });
+    mockFrom
+      .mockReturnValueOnce(ok())
+      .mockReturnValueOnce(ok([
+        { user_id: 'u1', vote: 'approve' },
+        { user_id: 'u2', vote: 'reject' },
+        { user_id: 'u3', vote: 'approve' },
+      ]))
+      .mockReturnValueOnce(ok([
+        { user_id: 'requester' },
+        { user_id: 'u1' },
+        { user_id: 'u2' },
+        { user_id: 'u3' },
+      ]))
+      .mockReturnValueOnce(ok([{ id: 'r1' }]));
+
+    const status = await useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1');
+
+    expect(status).toBe('approved');
+    expect(useParkingStore.getState().reservations[0].status).toBe('approved');
+  });
+
   it('throws when upsert fails', async () => {
     useParkingStore.setState({ reservations: [reservation({ id: 'r1', status: 'pending' })] });
     mockFrom.mockReturnValue(fail('permission denied'));
@@ -328,6 +377,42 @@ describe('parkingStore — voteOnReservation', () => {
     await expect(
       useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1')
     ).rejects.toThrow('Could not save your vote. Please try again.');
+  });
+});
+
+describe('tallyParkingReservationVotes', () => {
+  it('counts only one current vote per member', () => {
+    const tally = tallyParkingReservationVotes(
+      [
+        { userId: 'u1', vote: 'approve' },
+        { userId: 'u1', vote: 'reject' },
+      ],
+      ['u1']
+    );
+
+    expect(tally.approveCount).toBe(0);
+    expect(tally.rejectCount).toBe(1);
+    expect(tally.status).toBe('rejected');
+  });
+
+  it('stays pending until every eligible voter has voted', () => {
+    const tally = tallyParkingReservationVotes([{ userId: 'u1', vote: 'reject' }], ['u1', 'u2']);
+
+    expect(tally.hasEveryoneVoted).toBe(false);
+    expect(tally.status).toBe('pending');
+  });
+
+  it('uses the higher count after every eligible voter has voted', () => {
+    const tally = tallyParkingReservationVotes(
+      [
+        { userId: 'u1', vote: 'approve' },
+        { userId: 'u2', vote: 'reject' },
+        { userId: 'u3', vote: 'approve' },
+      ],
+      ['u1', 'u2', 'u3']
+    );
+
+    expect(tally.status).toBe('approved');
   });
 });
 
