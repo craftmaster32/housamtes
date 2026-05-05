@@ -7,7 +7,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
-import { router } from 'expo-router';
+import { router, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useBillsStore, calculateAllNetBalances, calculateSimplifiedBalancesForUser, type Bill } from '@stores/billsStore';
@@ -874,19 +874,20 @@ function FloatingChatBubble(): React.JSX.Element {
   const c           = useColors();
   const unreadCount = useChatStore((s) => s.unreadCount);
   return (
-    <Pressable
-      style={({ pressed }) => [styles.chatBubble, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.9 : 1 }] }]}
-      onPress={() => router.push('/(tabs)/more/chat')}
-      accessibilityRole="button"
-      accessibilityLabel={`House chat${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
-    >
-      <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
-      {unreadCount > 0 && (
-        <View style={[styles.chatBubbleBadge, { borderColor: c.background }]}>
-          <Text style={styles.chatBubbleBadgeText}>{unreadCount > 9 ? '9+' : String(unreadCount)}</Text>
-        </View>
-      )}
-    </Pressable>
+    <Link asChild href="/(tabs)/more/chat">
+      <Pressable
+        style={({ pressed }) => [styles.chatBubble, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.9 : 1 }] }]}
+        accessibilityRole="button"
+        accessibilityLabel={`House chat${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+      >
+        <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
+        {unreadCount > 0 && (
+          <View style={[styles.chatBubbleBadge, { borderColor: c.background }]}>
+            <Text style={styles.chatBubbleBadgeText}>{unreadCount > 9 ? '9+' : String(unreadCount)}</Text>
+          </View>
+        )}
+      </Pressable>
+    </Link>
   );
 }
 
@@ -918,37 +919,40 @@ export default function DashboardScreen(): React.JSX.Element {
               {houseName ? <Text style={[styles.greetingSub, { color: c.textSecondary }]}>{houseName}</Text> : null}
             </View>
             <View style={styles.heroRight}>
-              <Pressable
-                style={({ pressed }) => [styles.heroAvatar, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.92 : 1 }] }]}
-                onPress={() => router.push('/(tabs)/profile')}
-                accessibilityRole="button"
-                accessibilityLabel="Open profile"
-              >
-                <Text style={styles.heroAvatarText}>{initials}</Text>
-              </Pressable>
+              <Link asChild href="/(tabs)/profile">
+                <Pressable
+                  style={({ pressed }) => [styles.heroAvatar, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.92 : 1 }] }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open profile"
+                >
+                  <Text style={styles.heroAvatarText}>{initials}</Text>
+                </Pressable>
+              </Link>
             </View>
           </Animated.View>
 
           {/* Quick actions */}
           <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.quickActions}>
-            <Pressable
-              style={({ pressed }) => [styles.quickBtn, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 }]}
-              onPress={() => router.push('/(tabs)/bills/add')}
-              accessibilityRole="button"
-              accessibilityLabel="Add new expense"
-            >
-              <Ionicons name="add" size={16} color="#fff" />
-              <Text style={styles.quickBtnText}>Expense</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.quickBtnOutline, { borderColor: c.border, backgroundColor: c.surface, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 }]}
-              onPress={() => router.push('/(tabs)/bills?openRecurring=1')}
-              accessibilityRole="button"
-              accessibilityLabel="Add house bill"
-            >
-              <Ionicons name="home-outline" size={16} color={c.primary} />
-              <Text style={[styles.quickBtnOutlineText, { color: c.primary }]}>House Bill</Text>
-            </Pressable>
+            <Link asChild href="/(tabs)/bills/add">
+              <Pressable
+                style={({ pressed }) => [styles.quickBtn, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Add new expense"
+              >
+                <Ionicons name="add" size={16} color="#fff" />
+                <Text style={styles.quickBtnText}>Expense</Text>
+              </Pressable>
+            </Link>
+            <Link asChild href="/(tabs)/bills?openRecurring=1">
+              <Pressable
+                style={({ pressed }) => [styles.quickBtnOutline, { borderColor: c.border, backgroundColor: c.surface, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Add house bill"
+              >
+                <Ionicons name="home-outline" size={16} color={c.primary} />
+                <Text style={[styles.quickBtnOutlineText, { color: c.primary }]}>House Bill</Text>
+              </Pressable>
+            </Link>
           </Animated.View>
 
           {/* ── Balance Hero ──────────────────────────────────────────── */}

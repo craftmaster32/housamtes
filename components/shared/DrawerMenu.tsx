@@ -209,6 +209,10 @@ export function DrawerMenu(): React.JSX.Element {
                 pressed && { opacity: 0.85 },
               ]}
               onPress={() => navigate('/(tabs)/profile')}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={`${profile?.name ?? 'Profile'}, view profile`}
+              accessibilityState={{ selected: false }}
             >
               <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) }]}>
                 {profile?.avatarUrl
@@ -241,6 +245,10 @@ export function DrawerMenu(): React.JSX.Element {
                     pressed && !active && { backgroundColor: c.primary + '0A', transform: [{ scale: 0.98 }] },
                   ]}
                   onPress={() => navigate(item.route, item.badgeKey ?? item.featureKey as BadgeFeature | undefined)}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(item.labelKey)}
+                  accessibilityState={{ selected: active }}
                 >
                   <Ionicons
                     name={active ? item.iconActive : item.icon}
@@ -280,6 +288,10 @@ export function DrawerMenu(): React.JSX.Element {
                     pressed && !active && { backgroundColor: c.primary + '0A', transform: [{ scale: 0.98 }] },
                   ]}
                   onPress={() => navigate(item.route, item.featureKey as BadgeFeature | undefined)}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(item.labelKey)}
+                  accessibilityState={{ selected: active }}
                 >
                   <Ionicons
                     name={active ? item.iconActive : item.icon}
@@ -306,6 +318,10 @@ export function DrawerMenu(): React.JSX.Element {
             <Pressable
               style={({ pressed }) => [styles.navItem, pressed && { opacity: 0.65 }]}
               onPress={handleLogout}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.sign_out')}
+              accessibilityState={{ selected: false }}
             >
               <Ionicons name="log-out-outline" size={20} color={c.negative} style={styles.navIconEl} />
               <Text style={[styles.navLabel, { color: c.negative }]}>{t('profile.sign_out')}</Text>
