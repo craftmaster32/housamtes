@@ -1,11 +1,12 @@
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
-import { router, usePathname } from 'expo-router';
+import { Link, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useMorePopupStore } from '@stores/morePopupStore';
+import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useBadgeStore, countNewSimple } from '@stores/badgeStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useColors } from '@hooks/useColors';
@@ -31,7 +32,9 @@ export function BottomTabBar(): React.JSX.Element {
   const c        = useColors();
   const insets   = useSafeAreaInsets();
   const pathname = usePathname();
-  const openMore = useMorePopupStore((s) => s.open);
+  const openMore    = useMorePopupStore((s) => s.open);
+  const closeMore   = useMorePopupStore((s) => s.close);
+  const closeProfile = useProfilePopupStore((s) => s.close);
 
   const bills    = useBillsStore((s) => s.bills);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
@@ -42,19 +45,23 @@ export function BottomTabBar(): React.JSX.Element {
     return pathname.includes(`/${id}`);
   }, [pathname]);
 
-  const handleTab = useCallback((tab: TabItem): void => {
+  const handleNavTabPress = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (tab.id === 'more') {
-      openMore();
-    } else {
-      router.push(tab.route as Parameters<typeof router.push>[0]);
-    }
-  }, [openMore]);
+    closeMore();
+    closeProfile();
+  }, [closeMore, closeProfile]);
 
-  const handleAdd = useCallback((): void => {
+  const handleMorePress = useCallback((): void => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    closeProfile();
+    openMore();
+  }, [openMore, closeProfile]);
+
+  const handleAddPress = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    router.push('/(tabs)/bills/add');
-  }, []);
+    closeMore();
+    closeProfile();
+  }, [closeMore, closeProfile]);
 
   const bg = c.background;
   const borderColor = c.border;
@@ -69,53 +76,59 @@ export function BottomTabBar(): React.JSX.Element {
         const active = isActive(tab.id);
         const badge  = tab.id === 'bills' ? billBadge : 0;
         return (
-          <Pressable
-            key={tab.id}
-            style={styles.tab}
-            onPress={() => handleTab(tab)}
-            accessibilityRole="tab"
-            accessibilityLabel={tab.label}
-            accessibilityState={{ selected: active }}
-          >
-            <View style={styles.tabIconWrap}>
-              <Ionicons
-                name={active ? tab.iconActive : tab.icon}
-                size={22}
-                color={active ? c.primary : c.textSecondary}
-              />
-              {badge > 0 && (
-                <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
-                  <Text style={[styles.badgeText, { color: c.white }]}>{badge > 9 ? '9+' : String(badge)}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.label, { color: active ? c.primary : c.textSecondary }, active && styles.labelActive]}>
-              {tab.label}
-            </Text>
-          </Pressable>
+          <Link key={tab.id} asChild href={tab.route as Parameters<typeof Link>[0]['href']}>
+            <Pressable
+              style={styles.tab}
+              onPress={handleNavTabPress}
+              accessible={true}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: active }}
+            >
+              <View style={styles.tabIconWrap}>
+                <Ionicons
+                  name={active ? tab.iconActive : tab.icon}
+                  size={22}
+                  color={active ? c.primary : c.textSecondary}
+                />
+                {badge > 0 && (
+                  <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
+                    <Text style={[styles.badgeText, { color: c.white }]}>{badge > 9 ? '9+' : String(badge)}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.label, { color: active ? c.primary : c.textSecondary }, active && styles.labelActive]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          </Link>
         );
       })}
 
       {/* Center + button */}
       <View style={styles.centerWrap}>
-        <Pressable
-          style={[styles.addBtn, { backgroundColor: c.surface }]}
-          onPress={handleAdd}
-          accessibilityRole="button"
-          accessibilityLabel="Add new expense"
-        >
-          <Ionicons name="add" size={28} color={c.primary} />
-        </Pressable>
+        <Link asChild href="/(tabs)/bills/add">
+          <Pressable
+            style={[styles.addBtn, { backgroundColor: c.surface }]}
+            onPress={handleAddPress}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Add new expense"
+            accessibilityState={{ disabled: false }}
+          >
+            <Ionicons name="add" size={28} color={c.primary} />
+          </Pressable>
+        </Link>
       </View>
 
-      {/* Right two tabs */}
+      {/* Right two tabs — Parking uses Link, More opens a popup */}
       {TABS.slice(2).map((tab) => {
         const active = isActive(tab.id);
-        return (
+        const inner = (
           <Pressable
-            key={tab.id}
             style={styles.tab}
-            onPress={() => handleTab(tab)}
+            onPress={tab.id === 'more' ? handleMorePress : handleNavTabPress}
+            accessible={true}
             accessibilityRole="tab"
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: active }}
@@ -129,6 +142,13 @@ export function BottomTabBar(): React.JSX.Element {
               {tab.label}
             </Text>
           </Pressable>
+        );
+        return tab.id === 'more' ? (
+          <React.Fragment key={tab.id}>{inner}</React.Fragment>
+        ) : (
+          <Link key={tab.id} asChild href={tab.route as Parameters<typeof Link>[0]['href']}>
+            {inner}
+          </Link>
         );
       })}
     </View>
