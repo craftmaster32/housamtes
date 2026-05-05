@@ -110,36 +110,47 @@ interface OverviewCardProps {
   current: MonthSpend;
   previous: MonthSpend | undefined;
   currency: string;
+  viewMode: ViewMode;
 }
 
-function OverviewCard({ current, previous, currency }: OverviewCardProps): React.JSX.Element {
-  const diff = previous ? current.houseTotal - previous.houseTotal : null;
-  const pct  = previous ? pctChange(current.houseTotal, previous.houseTotal) : null;
-  const isUp = diff !== null && diff > 0;
-  const sharePct = current.houseTotal > 0
+function OverviewCard({ current, previous, currency, viewMode }: OverviewCardProps): React.JSX.Element {
+  const isPersonal   = viewMode === 'personal';
+  const houseDiff    = previous ? current.houseTotal - previous.houseTotal : null;
+  const housePct     = previous ? pctChange(current.houseTotal, previous.houseTotal) : null;
+  const personalDiff = previous ? current.total - previous.total : null;
+  const personalPct  = previous ? pctChange(current.total, previous.total) : null;
+  const sharePct     = current.houseTotal > 0
     ? Math.round((current.total / current.houseTotal) * 100)
     : 0;
+
+  const primaryDiff  = isPersonal ? personalDiff : houseDiff;
+  const primaryPct   = isPersonal ? personalPct  : housePct;
+  const isUp         = primaryDiff !== null && primaryDiff > 0;
 
   return (
     <View style={styles.overviewCard}>
       <Text style={styles.overviewMonth}>{current.label}</Text>
       <View style={styles.overviewRow}>
         <View style={styles.overviewBlock}>
-          <Text style={styles.overviewLbl}>House total</Text>
-          <Text style={styles.overviewAmt}>{fmtFull(current.houseTotal, currency)}</Text>
-          {diff !== null && (
+          <Text style={styles.overviewLbl}>{isPersonal ? 'My spending' : 'House total'}</Text>
+          <Text style={styles.overviewAmt}>
+            {fmtFull(isPersonal ? current.total : current.houseTotal, currency)}
+          </Text>
+          {primaryDiff !== null && (
             <View style={[styles.overviewBadge, { backgroundColor: isUp ? colors.danger + '18' : colors.positive + '18' }]}>
               <Text style={[styles.overviewBadgeText, { color: isUp ? colors.danger : colors.positive }]}>
-                {isUp ? '↑' : '↓'} {fmtShort(Math.abs(diff), currency)}
-                {pct !== null ? `  ${Math.abs(pct)}%` : ''}
+                {isUp ? '↑' : '↓'} {fmtShort(Math.abs(primaryDiff), currency)}
+                {primaryPct !== null ? `  ${Math.abs(primaryPct)}%` : ''}
               </Text>
             </View>
           )}
         </View>
         <View style={styles.overviewDivider} />
         <View style={styles.overviewBlock}>
-          <Text style={styles.overviewLbl}>Your share</Text>
-          <Text style={styles.overviewAmt}>{fmtFull(current.total, currency)}</Text>
+          <Text style={styles.overviewLbl}>{isPersonal ? 'House total' : 'Your share'}</Text>
+          <Text style={styles.overviewAmt}>
+            {fmtFull(isPersonal ? current.houseTotal : current.total, currency)}
+          </Text>
           {sharePct > 0 && (
             <View style={[styles.overviewBadge, { backgroundColor: colors.primary + '12' }]}>
               <Text style={[styles.overviewBadgeText, { color: colors.primary }]}>
@@ -151,7 +162,10 @@ function OverviewCard({ current, previous, currency }: OverviewCardProps): React
       </View>
       {previous && (
         <Text style={styles.overviewCompare}>
-          Compared to {previous.label}: house was {fmtShort(previous.houseTotal, currency)}, your share was {fmtShort(previous.total, currency)}
+          {isPersonal
+            ? `Compared to ${previous.label}: you spent ${fmtShort(previous.total, currency)}, house was ${fmtShort(previous.houseTotal, currency)}`
+            : `Compared to ${previous.label}: house was ${fmtShort(previous.houseTotal, currency)}, your share was ${fmtShort(previous.total, currency)}`
+          }
         </Text>
       )}
     </View>
@@ -163,12 +177,13 @@ interface MonthlyChartProps {
   currency: string;
   selectedIdx: number;
   onSelectMonth: (idx: number) => void;
+  viewMode: ViewMode;
 }
 
-function MonthlyChart({ months, currency, selectedIdx, onSelectMonth }: MonthlyChartProps): React.JSX.Element {
-  // chartData is oldest → newest (left to right)
-  const chartData = months.slice(0, 6).reverse();
-  const maxHouse  = Math.max(...chartData.map((m) => m.houseTotal), 1);
+function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode }: MonthlyChartProps): React.JSX.Element {
+  const chartData  = months.slice(0, 6).reverse();
+  const isPersonal = viewMode === 'personal';
+  const maxVal     = Math.max(...chartData.map((m) => isPersonal ? m.total : m.houseTotal), 1);
 
   return (
     <View style={styles.chartCard}>
@@ -177,12 +192,13 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth }: MonthlyC
         <Text style={styles.chartTitle}>MONTHLY TREND — TAP A MONTH</Text>
         <View style={styles.barsRow}>
           {chartData.map((m, i) => {
-            // chartData[i] corresponds to months[chartData.length - 1 - i]
             const monthsIdx  = chartData.length - 1 - i;
             const isSelected = monthsIdx === selectedIdx;
-            const houseBarH  = Math.max((m.houseTotal / maxHouse) * BAR_MAX_H, m.houseTotal > 0 ? 4 : 2);
-            const shareRatio = m.houseTotal > 0 ? m.total / m.houseTotal : 0;
-            const shareBarH  = Math.round(houseBarH * shareRatio);
+            const mainVal    = isPersonal ? m.total : m.houseTotal;
+            const barH       = Math.max((mainVal / maxVal) * BAR_MAX_H, mainVal > 0 ? 4 : 2);
+            const shareBarH  = !isPersonal && m.houseTotal > 0
+              ? Math.round(barH * (m.total / m.houseTotal))
+              : 0;
 
             return (
               <Pressable
@@ -195,12 +211,12 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth }: MonthlyC
                 accessibilityState={{ selected: isSelected }}
               >
                 <Text style={[styles.barAmt, isSelected && styles.barAmtSelected]}>
-                  {m.houseTotal > 0 ? fmtShort(m.houseTotal, currency) : ''}
+                  {mainVal > 0 ? fmtShort(mainVal, currency) : ''}
                 </Text>
                 <View style={[styles.barTrack, isSelected && styles.barTrackSelected]}>
                   <View style={[
                     styles.barFill,
-                    { height: houseBarH },
+                    { height: barH },
                     isSelected && styles.barFillSelected,
                   ]} />
                   {shareBarH > 0 && (
@@ -216,14 +232,23 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth }: MonthlyC
           })}
         </View>
         <View style={styles.chartLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: colors.white }]} />
-            <Text style={styles.legendText}>House</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: 'rgba(255,255,255,0.38)' }]} />
-            <Text style={styles.legendText}>Your share</Text>
-          </View>
+          {isPersonal ? (
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.white }]} />
+              <Text style={styles.legendText}>Personal</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.white }]} />
+                <Text style={styles.legendText}>House</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: 'rgba(255,255,255,0.38)' }]} />
+                <Text style={styles.legendText}>Your share</Text>
+              </View>
+            </>
+          )}
         </View>
       </View>
     </View>
@@ -527,12 +552,43 @@ export default function SpendingScreen(): React.JSX.Element {
         onRefresh={handleRefreshInsight}
       />
 
-      {months.some((m) => m.houseTotal > 0) && (
+      {/* Toggle controls chart, overview, and breakdown */}
+      <View style={styles.viewToggleWrap}>
+        <View style={styles.viewToggle}>
+          <Pressable
+            style={[styles.viewToggleBtn, viewMode === 'house' && styles.viewToggleBtnActive]}
+            onPress={handleSetHouseView}
+            accessible
+            accessibilityRole="tab"
+            accessibilityState={{ selected: viewMode === 'house' }}
+            accessibilityLabel="Show all house spending"
+          >
+            <Text style={[styles.viewToggleBtnText, viewMode === 'house' && styles.viewToggleBtnTextActive]}>
+              House
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.viewToggleBtn, viewMode === 'personal' && styles.viewToggleBtnActive]}
+            onPress={handleSetPersonalView}
+            accessible
+            accessibilityRole="tab"
+            accessibilityState={{ selected: viewMode === 'personal' }}
+            accessibilityLabel="Show my personal spending"
+          >
+            <Text style={[styles.viewToggleBtnText, viewMode === 'personal' && styles.viewToggleBtnTextActive]}>
+              Personal
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {months.some((m) => (viewMode === 'house' ? m.houseTotal : m.total) > 0) && (
         <MonthlyChart
           months={months}
           currency={currency}
           selectedIdx={selectedIdx}
           onSelectMonth={handleSelectMonth}
+          viewMode={viewMode}
         />
       )}
 
@@ -549,40 +605,14 @@ export default function SpendingScreen(): React.JSX.Element {
         </Pressable>
       )}
 
-      {selectedMonth && selectedMonth.houseTotal > 0 && (
-        <OverviewCard current={selectedMonth} previous={previousMonth} currency={currency} />
+      {selectedMonth && (viewMode === 'house' ? selectedMonth.houseTotal : selectedMonth.total) > 0 && (
+        <OverviewCard current={selectedMonth} previous={previousMonth} currency={currency} viewMode={viewMode} />
       )}
 
       {sections.length > 0 && (
-        <View style={styles.breakdownHeader}>
-          <Text style={styles.breakdownTitle}>
-            {selectedMonth?.label ?? ''} breakdown
-          </Text>
-          <View style={styles.viewToggle}>
-            <Pressable
-              style={[styles.viewToggleBtn, viewMode === 'house' && styles.viewToggleBtnActive]}
-              onPress={handleSetHouseView}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: viewMode === 'house' }}
-              accessibilityLabel="Show all house spending"
-            >
-              <Text style={[styles.viewToggleBtnText, viewMode === 'house' && styles.viewToggleBtnTextActive]}>
-                House
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.viewToggleBtn, viewMode === 'personal' && styles.viewToggleBtnActive]}
-              onPress={handleSetPersonalView}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: viewMode === 'personal' }}
-              accessibilityLabel="Show my personal spending"
-            >
-              <Text style={[styles.viewToggleBtnText, viewMode === 'personal' && styles.viewToggleBtnTextActive]}>
-                Personal
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+        <Text style={styles.breakdownTitle}>
+          {selectedMonth?.label ?? ''} breakdown
+        </Text>
       )}
     </View>
   );
@@ -744,14 +774,8 @@ const styles = StyleSheet.create({
   },
   jumpBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
 
-  // Breakdown header with toggle
-  breakdownHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  breakdownTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary },
+  breakdownTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary, marginTop: 4 },
+  viewToggleWrap: { alignItems: 'flex-end' },
   viewToggle: {
     flexDirection: 'row',
     backgroundColor: colors.surfaceSecondary,
