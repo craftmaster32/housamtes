@@ -46,6 +46,8 @@ function pctChange(current: number, previous: number): number | null {
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+type ViewMode = 'house' | 'personal';
+
 interface CategoryRowItem {
   cat: CategorySpend;
   myAmount: number;
@@ -287,9 +289,10 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
         {isExpanded && drillDownItems.length > 0 && (
           <View style={styles.drillDown}>
             {drillDownItems.map((d) => d.type === 'bill' ? (
-              <Link key={d.id} href={`/(tabs)/bills/${d.id}` as never} asChild>
+              <Link key={d.id} href={{ pathname: '/(tabs)/bills/[id]', params: { id: d.id } }} asChild>
                 <Pressable
                   style={styles.drillDownRow}
+                  hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
                   accessible
                   accessibilityRole="link"
                   accessibilityLabel={`Open bill: ${d.title}`}
@@ -336,7 +339,7 @@ function SpendingSectionHeader({ title, icon, total, currency }: SectionHeaderPr
 export default function SpendingScreen(): React.JSX.Element {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'house' | 'personal'>('house');
+  const [viewMode, setViewMode] = useState<ViewMode>('house');
 
   const profile        = useAuthStore((s) => s.profile);
   const houseId        = useAuthStore((s) => s.houseId);
@@ -382,12 +385,12 @@ export default function SpendingScreen(): React.JSX.Element {
     setExpandedCategory((prev) => prev === name ? null : name);
   }, []);
 
-  const handleSetHouseView = useCallback(() => {
+  const handleSetHouseView = useCallback((): void => {
     setViewMode('house');
     setExpandedCategory(null);
   }, []);
 
-  const handleSetPersonalView = useCallback(() => {
+  const handleSetPersonalView = useCallback((): void => {
     setViewMode('personal');
     setExpandedCategory(null);
   }, []);
@@ -826,7 +829,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(0,0,0,0.08)',
     gap: 6,
   },
-  drillDownRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  drillDownRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingVertical: 4 },
   drillDownType: { width: 14, fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
   drillDownTitle: { flex: 1, fontSize: 13, ...font.regular, color: colors.textSecondary },
   drillDownAmt: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
