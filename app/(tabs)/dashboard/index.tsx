@@ -16,7 +16,6 @@ import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBill
 import { useParkingStore } from '@stores/parkingStore';
 import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
 import { useChoresStore, type Chore } from '@stores/choresStore';
-import { useChatStore } from '@stores/chatStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useEventsStore } from '@stores/eventsStore';
 import { useHousematesStore, type Housemate } from '@stores/housematesStore';
@@ -872,29 +871,6 @@ function ActivityFeed(): React.JSX.Element {
   );
 }
 
-// ── Floating Chat Bubble ──────────────────────────────────────────────────────
-function FloatingChatBubble(): React.JSX.Element {
-  const c           = useColors();
-  const unreadCount = useChatStore((s) => s.unreadCount);
-  return (
-    <Link asChild href="/(tabs)/more/chat">
-      <Pressable
-        style={({ pressed }) => [styles.chatBubble, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.9 : 1 }] }]}
-        accessible={true}
-        accessibilityRole="button"
-        accessibilityLabel={unreadCount > 0 ? `House chat, ${unreadCount} unread` : 'House chat'}
-        accessibilityState={{ selected: false }}
-      >
-        <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
-        {unreadCount > 0 && (
-          <View style={[styles.chatBubbleBadge, { backgroundColor: c.danger }]}>
-            <Text style={styles.chatBubbleBadgeText}>{unreadCount > 9 ? '9+' : String(unreadCount)}</Text>
-          </View>
-        )}
-      </Pressable>
-    </Link>
-  );
-}
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function DashboardScreen(): React.JSX.Element {
@@ -1035,9 +1011,7 @@ export default function DashboardScreen(): React.JSX.Element {
             </View>
           </Animated.View>
 
-          <View style={styles.bottomPad} />
         </ScrollView>
-        <FloatingChatBubble />
       </View>
     </SafeAreaView>
   );
@@ -1207,36 +1181,6 @@ const styles = StyleSheet.create({
   activityText: { fontSize: 13, ...font.regular, lineHeight: 18 },
   activityTime: { fontSize: 11, ...font.regular },
 
-  // ── Floating chat bubble
-
-  bottomPad: { height: 40 },
-  chatBubble: {
-    position: 'absolute',
-    bottom: 20,
-    right: 16,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#4F78B6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  chatBubbleBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 3,
-  },
-  chatBubbleBadgeText: { color: '#fff', fontSize: 9, ...font.bold },
 
   // ── Mini Calendar
   calHeader: { gap: 6 },
