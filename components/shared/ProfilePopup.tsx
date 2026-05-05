@@ -39,15 +39,13 @@ export function ProfilePopup(): React.JSX.Element {
   const initial = (profile?.name || user?.email || '?')[0]?.toUpperCase() ?? '?';
 
   const handleSignOut = useCallback(async (): Promise<void> => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    close();
     try {
       await signOut();
       router.replace('/(auth)/welcome');
     } catch {
       Alert.alert('Sign out failed', 'Could not sign you out. Please try again.');
     }
-  }, [close, signOut]);
+  }, [signOut]);
 
   const MENU_ITEMS = useMemo((): MenuItem[] => [
     { icon: 'person-outline',   label: 'View Profile', href: '/(tabs)/profile' },

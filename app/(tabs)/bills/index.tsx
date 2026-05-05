@@ -298,16 +298,18 @@ export default function BillsScreen(): React.JSX.Element {
         <View style={styles.centered}>
           <Ionicons name="alert-circle-outline" size={40} color={c.negative} />
           <Text style={[styles.emptyTitle, { color: c.textPrimary, marginTop: 12 }]}>
-            {'Couldn\'t load bills'}
+            {t('bills.load_error')}
           </Text>
           <Text style={[styles.emptyText, { color: c.textSecondary }]}>{error}</Text>
           <Pressable
             style={[styles.addBtn, { backgroundColor: c.primary, marginTop: 16 }]}
             onPress={() => loadBills(houseId)}
+            accessible={true}
             accessibilityRole="button"
-            accessibilityLabel="Retry loading bills"
+            accessibilityLabel={t('bills.retry')}
+            accessibilityState={{ disabled: false }}
           >
-            <Text style={styles.addBtnText}>Try again</Text>
+            <Text style={styles.addBtnText}>{t('bills.retry')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>

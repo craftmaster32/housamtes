@@ -304,7 +304,9 @@
     "cat_other": "Otro",
     "pick_date": "Elegir fecha",
     "prev_month": "Mes anterior",
-    "next_month": "Mes siguiente"
+    "next_month": "Mes siguiente",
+    "load_error": "No se pudieron cargar los gastos",
+    "retry": "Intentar de nuevo"
   },
   "parking": {
     "title": "Estacionamiento",
