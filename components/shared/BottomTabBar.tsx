@@ -52,7 +52,7 @@ export function BottomTabBar(): React.JSX.Element {
     if (tab.id === 'more') {
       openMore();
     } else {
-      router.push(tab.route as Parameters<typeof router.push>[0]);
+      router.navigate(tab.route as Parameters<typeof router.navigate>[0]);
     }
   }, [openMore, closeMore, closeProfile]);
 
