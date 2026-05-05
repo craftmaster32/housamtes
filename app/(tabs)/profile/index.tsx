@@ -696,7 +696,7 @@ export default function ProfileScreen(): React.JSX.Element {
         {
           text: 'Delete My Account',
           style: 'destructive',
-          onPress: () => {
+          onPress: (): void => {
             Alert.alert(
               'Are you sure?',
               'Your account will be permanently deleted. You will lose access immediately.',
