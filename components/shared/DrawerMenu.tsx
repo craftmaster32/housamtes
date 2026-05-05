@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimensions } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimensions, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname, Link } from 'expo-router';
@@ -173,9 +173,14 @@ export function DrawerMenu(): React.JSX.Element {
   }, [close, markSeen]);
 
   const handleLogout = useCallback(async () => {
-    close();
-    await signOut();
-    router.replace('/(auth)/welcome');
+    try {
+      await signOut();
+      router.replace('/(auth)/welcome');
+    } catch {
+      Alert.alert('Sign out failed', 'Could not sign you out. Please try again.');
+    } finally {
+      close();
+    }
   }, [close, signOut]);
 
   const initial = (profile?.name ?? user?.email ?? '?')[0].toUpperCase();
@@ -223,7 +228,7 @@ export function DrawerMenu(): React.JSX.Element {
             >
               <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) }]}>
                 {profile?.avatarUrl
-                  ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
+                  ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" accessibilityLabel={`${profile?.name ?? 'User'}'s avatar`} />
                   : <Text style={[styles.avatarText, { color: c.white }]}>{initial}</Text>
                 }
               </View>
