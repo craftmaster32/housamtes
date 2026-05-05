@@ -24,6 +24,7 @@ import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { font } from '@constants/typography';
 import { useColors } from '@hooks/useColors';
+import { SpendingCard } from '@components/profile/SpendingCard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string): string {
@@ -894,6 +895,7 @@ function FloatingChatBubble(): React.JSX.Element {
 export default function DashboardScreen(): React.JSX.Element {
   const c          = useColors();
   const profile    = useAuthStore((s) => s.profile);
+  const houseId    = useAuthStore((s) => s.houseId);
   const houseName  = useHousematesStore((s) => s.houseName);
   const isEnabled  = useSettingsStore((s) => s.isEnabled);
   const { width }  = useWindowDimensions();
@@ -930,7 +932,7 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* Quick actions */}
-          <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.quickActions}>
+          <Animated.View entering={FadeInDown.delay(60).duration(450)} style={styles.quickActions}>
             <Pressable
               style={({ pressed }) => [styles.quickBtn, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 }]}
               onPress={() => router.push('/(tabs)/bills/add')}
@@ -955,6 +957,12 @@ export default function DashboardScreen(): React.JSX.Element {
           <Animated.View entering={FadeInDown.delay(120).duration(450)} style={styles.row}>
             <BalanceHeroCard />
           </Animated.View>
+
+          {houseId && profile?.name && (
+            <Animated.View entering={FadeInDown.delay(150).duration(450)} style={styles.row}>
+              <SpendingCard houseId={houseId} userName={profile.name} />
+            </Animated.View>
+          )}
 
           {/* ── Today at home ─────────────────────────────────────────── */}
           {(isEnabled('parking') || isEnabled('chores') || isEnabled('grocery')) && (
