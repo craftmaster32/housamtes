@@ -88,19 +88,7 @@ export function ProfilePopup(): React.JSX.Element {
   const dropdownTop = insets.top + 62;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
-      {/* Tap-away backdrop — invisible, only mounts when open */}
-      {isOpen && (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={close}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel="Close profile menu"
-          accessibilityState={{ expanded: true }}
-        />
-      )}
-
+    <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'box-none' : 'none'}>
       <Animated.View
         style={[
           styles.panel,
