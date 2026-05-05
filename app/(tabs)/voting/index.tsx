@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
-import { useVotingStore, type Proposal } from '@stores/votingStore';
+import { summarizeProposalVotes, useVotingStore, type Proposal } from '@stores/votingStore';
 import { resolveName } from '@utils/housemates';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -35,11 +35,12 @@ function ProposalCard({
   const remove = useVotingStore((s) => s.remove);
   const [voteError, setVoteError] = useState<string | null>(null);
 
-  const yesVotes = proposal.votes.filter((v) => v.choice === 'yes').length;
-  const noVotes = proposal.votes.filter((v) => v.choice === 'no').length;
-  const myVote = proposal.votes.find((v) => v.person === myId)?.choice ?? null;
-  const totalVoted = proposal.votes.length;
-  const allVotedYes = yesVotes === totalPeople;
+  const voteSummary = summarizeProposalVotes(proposal.votes);
+  const yesVotes = voteSummary.yesVotes;
+  const noVotes = voteSummary.noVotes;
+  const myVote = voteSummary.votes.find((v) => v.person === myId)?.choice ?? null;
+  const totalVoted = voteSummary.totalVoted;
+  const allVotedYes = totalVoted === totalPeople && yesVotes === totalPeople;
 
   const handleVote = useCallback(
     (choice: 'yes' | 'no') => {
@@ -51,13 +52,7 @@ function ProposalCard({
     [proposal.id, myId, castVote]
   );
 
-  const result = !proposal.isOpen
-    ? yesVotes === totalPeople
-      ? 'passed'
-      : noVotes > totalPeople / 2
-      ? 'rejected'
-      : 'blocked'
-    : null;
+  const result = !proposal.isOpen ? voteSummary.result : null;
 
   const resultColor =
     result === 'passed' ? colors.positive :
@@ -122,7 +117,7 @@ function ProposalCard({
       {/* Voter status — who voted what, who's still pending */}
       <View style={styles.voterList}>
         {housemates.map((hm) => {
-          const vote = proposal.votes.find((v) => v.person === hm.id);
+          const vote = voteSummary.votes.find((v) => v.person === hm.id);
           return (
             <View key={hm.id} style={styles.voterRow}>
               <Text style={styles.voterName}>{hm.name}</Text>

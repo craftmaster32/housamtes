@@ -19,6 +19,15 @@ export interface ParkingVote {
   vote: ParkingVoteChoice;
 }
 
+export interface ParkingVoteTally {
+  approveCount: number;
+  rejectCount: number;
+  votedCount: number;
+  eligibleVoterCount: number;
+  hasEveryoneVoted: boolean;
+  status: ParkingReservationStatus;
+}
+
 export interface ParkingReservation {
   id: string;
   requestedBy: string; // user UUID
@@ -56,6 +65,42 @@ interface ParkingStore {
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+
+export function tallyParkingReservationVotes(
+  votes: ParkingVote[],
+  eligibleVoterIds: string[]
+): ParkingVoteTally {
+  const eligibleVoters = new Set(eligibleVoterIds);
+  const voteByUser = new Map<string, ParkingVoteChoice>();
+
+  for (const vote of votes) {
+    if (eligibleVoters.has(vote.userId)) {
+      voteByUser.set(vote.userId, vote.vote);
+    }
+  }
+
+  const currentVotes = Array.from(voteByUser.values());
+  const approveCount = currentVotes.filter((vote) => vote === 'approve').length;
+  const rejectCount = currentVotes.filter((vote) => vote === 'reject').length;
+  const hasEveryoneVoted =
+    eligibleVoterIds.length > 0 && eligibleVoterIds.every((id) => voteByUser.has(id));
+
+  let status: ParkingReservationStatus = 'pending';
+  if (hasEveryoneVoted && approveCount > rejectCount) {
+    status = 'approved';
+  } else if (hasEveryoneVoted && rejectCount > approveCount) {
+    status = 'rejected';
+  }
+
+  return {
+    approveCount,
+    rejectCount,
+    votedCount: voteByUser.size,
+    eligibleVoterCount: eligibleVoterIds.length,
+    hasEveryoneVoted,
+    status,
+  };
+}
 
 export function isDateConflict(
   date: string,
@@ -291,22 +336,13 @@ export const useParkingStore = create<ParkingStore>()(
           throw new Error('Could not read house members. Please try again.');
         }
 
-        // All members except the requester must vote
-        const voterIds = (memberRows ?? [])
-          .map((m: { user_id: string }) => m.user_id)
-          .filter((id: string) => id !== localReservation.requestedBy);
-
-        const votes = allVotes ?? [];
-        const anyRejected = votes.some((v) => v.vote === 'reject');
-        const votedIds = new Set(votes.map((v) => v.user_id));
-        const allVoted = voterIds.length > 0 && voterIds.every((id: string) => votedIds.has(id));
-
-        let newStatus: ParkingReservationStatus = 'pending';
-        if (anyRejected) {
-          newStatus = 'rejected';
-        } else if (allVoted) {
-          newStatus = 'approved';
-        }
+        const voterIds = ((memberRows ?? []) as { user_id: string }[])
+          .map((m) => m.user_id)
+          .filter((id) => id !== localReservation.requestedBy);
+        const votes = ((allVotes ?? []) as { user_id: string; vote: ParkingVoteChoice }[]).map(
+          (row) => ({ userId: row.user_id, vote: row.vote })
+        );
+        const newStatus = tallyParkingReservationVotes(votes, voterIds).status;
 
         let statusWasUpdated = false;
         if (newStatus !== 'pending') {

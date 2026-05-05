@@ -15,7 +15,7 @@
  *  ✓   addProposal throws and leaves state unchanged on DB error
  */
 
-import { useVotingStore, type Proposal } from '../../stores/votingStore';
+import { summarizeProposalVotes, useVotingStore, type Proposal } from '../../stores/votingStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
@@ -48,6 +48,43 @@ function proposal(overrides: Partial<Proposal> = {}): Proposal {
 beforeEach(() => {
   useVotingStore.setState({ proposals: [], isLoading: false });
   jest.clearAllMocks();
+});
+
+describe('summarizeProposalVotes', () => {
+  it('passes a closed vote when yes has the higher count', () => {
+    const summary = summarizeProposalVotes([
+      { person: 'Alice', choice: 'yes' },
+      { person: 'Bob', choice: 'yes' },
+      { person: 'Carol', choice: 'no' },
+    ]);
+
+    expect(summary.yesVotes).toBe(2);
+    expect(summary.noVotes).toBe(1);
+    expect(summary.result).toBe('passed');
+  });
+
+  it('rejects a closed vote when no has the higher count', () => {
+    const summary = summarizeProposalVotes([
+      { person: 'Alice', choice: 'yes' },
+      { person: 'Bob', choice: 'no' },
+      { person: 'Carol', choice: 'no' },
+    ]);
+
+    expect(summary.result).toBe('rejected');
+  });
+
+  it('keeps only the latest vote from each person', () => {
+    const summary = summarizeProposalVotes([
+      { person: 'Alice', choice: 'yes' },
+      { person: 'Alice', choice: 'no' },
+      { person: 'Bob', choice: 'yes' },
+    ]);
+
+    expect(summary.totalVoted).toBe(2);
+    expect(summary.yesVotes).toBe(1);
+    expect(summary.noVotes).toBe(1);
+    expect(summary.result).toBe('blocked');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
