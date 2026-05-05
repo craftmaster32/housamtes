@@ -22,6 +22,8 @@ interface MenuItem {
   danger?: boolean;
 }
 
+export interface Props {}
+
 export function ProfilePopup(): React.JSX.Element {
   const c       = useColors();
   const insets  = useSafeAreaInsets();
@@ -31,7 +33,6 @@ export function ProfilePopup(): React.JSX.Element {
   const user    = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
 
-  // Guard against empty string — `??` keeps '' which gives undefined at [0]
   const initial = (profile?.name || user?.email || '?')[0]?.toUpperCase() ?? '?';
 
   const handleHapticClose = useCallback((): void => {
@@ -60,62 +61,96 @@ export function ProfilePopup(): React.JSX.Element {
 
   useEffect(() => {
     if (isOpen) {
-      Animated.spring(anim, { toValue: 1, useNativeDriver: true, tension: 68, friction: 12 }).start();
+      Animated.spring(anim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 14,
+      }).start();
     } else {
-      Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+      Animated.timing(anim, { toValue: 0, duration: 150, useNativeDriver: true }).start();
     }
   }, [isOpen, anim]);
 
-  const backdropOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5], extrapolate: 'clamp' });
-  const translateY      = anim.interpolate({ inputRange: [0, 1], outputRange: [300, 0],  extrapolate: 'clamp' });
+  const opacity    = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 1],    extrapolate: 'clamp' });
+  const scale      = anim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1], extrapolate: 'clamp' });
+  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0],   extrapolate: 'clamp' });
+
+  // Drop just below the avatar in the top-right corner
+  const dropdownTop = insets.top + 62;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
-      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+      {/* Tap-away backdrop — invisible, only mounts when open */}
+      {isOpen && (
         <Pressable
           style={StyleSheet.absoluteFill}
-          onPress={close}
-          accessible
+          onPress={handleHapticClose}
+          accessible={true}
           accessibilityRole="button"
           accessibilityLabel="Close profile menu"
+          accessibilityState={{ expanded: true }}
         />
-      </Animated.View>
+      )}
 
-      <Animated.View style={[
-        styles.panel,
-        { backgroundColor: c.surface, paddingBottom: Math.max(insets.bottom, 16), transform: [{ translateY }] },
-      ]}>
-        {/* Handle */}
-        <View style={styles.handleWrap}>
-          <View style={[styles.handle, { backgroundColor: c.border }]} />
-        </View>
-
-        {/* Profile identity */}
-        <View style={[styles.identity, { borderBottomColor: c.border }]}>
-          <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) }]}>
+      <Animated.View
+        style={[
+          styles.panel,
+          {
+            backgroundColor: c.surface,
+            top: dropdownTop,
+            opacity,
+            transform: [{ scale }, { translateY }],
+          },
+        ]}
+        pointerEvents={isOpen ? 'auto' : 'none'}
+      >
+        {/* Compact user identity header */}
+        <View style={[styles.header, { borderBottomColor: c.border }]}>
+          <View style={[
+            styles.avatar,
+            { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) },
+          ]}>
             {profile?.avatarUrl
-              ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" accessibilityLabel={`${profile?.name ?? 'User'}'s avatar`} />
+              ? <Image
+                  source={{ uri: profile.avatarUrl }}
+                  style={styles.avatarImg}
+                  contentFit="cover"
+                  accessibilityLabel={`${profile?.name ?? 'User'}'s avatar`}
+                />
               : <Text style={[styles.avatarInitial, { color: c.white }]}>{initial}</Text>
             }
           </View>
-          <View style={styles.identityText}>
-            <Text style={[styles.identityName, { color: c.textPrimary }]}>{profile?.name ?? 'You'}</Text>
-            <Text style={[styles.identityEmail, { color: c.textSecondary }]} numberOfLines={1}>{user?.email ?? ''}</Text>
+          <View style={styles.headerText}>
+            <Text style={[styles.headerName, { color: c.textPrimary }]} numberOfLines={1}>
+              {profile?.name ?? 'You'}
+            </Text>
+            <Text style={[styles.headerEmail, { color: c.textSecondary }]} numberOfLines={1}>
+              {user?.email ?? ''}
+            </Text>
           </View>
         </View>
 
-        {/* Menu items */}
+        {/* Menu rows */}
         {MENU_ITEMS.map((item) => {
           const row = (
             <Pressable
-              style={({ pressed }) => [styles.row, pressed && { opacity: 0.65 }]}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={item.href ? handleHapticClose : item.onPress}
+              accessible={true}
               accessibilityRole="button"
               accessibilityLabel={item.label}
+              accessibilityState={{ disabled: false, selected: false }}
             >
-              <Ionicons name={item.icon} size={20} color={item.danger ? c.negative : c.textSecondary} style={styles.rowIcon} />
-              <Text style={[styles.rowLabel, { color: item.danger ? c.negative : c.textPrimary }]}>{item.label}</Text>
-              {!item.danger && <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />}
+              <Ionicons
+                name={item.icon}
+                size={18}
+                color={item.danger ? c.negative : c.textSecondary}
+                style={styles.rowIcon}
+              />
+              <Text style={[styles.rowLabel, { color: item.danger ? c.negative : c.textPrimary }]}>
+                {item.label}
+              </Text>
             </Pressable>
           );
           return item.href ? (
@@ -132,55 +167,50 @@ export function ProfilePopup(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000',
-  },
   panel: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopLeftRadius: sizes.borderRadiusXl,
-    borderTopRightRadius: sizes.borderRadiusXl,
-    paddingHorizontal: sizes.md,
-    paddingTop: sizes.xs,
+    right: 16,
+    width: 220,
+    borderRadius: sizes.borderRadiusLg,
+    paddingVertical: sizes.xs,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
     elevation: 24,
   },
-  handleWrap: { alignItems: 'center', paddingVertical: sizes.sm },
-  handle: { width: 36, height: 4, borderRadius: 2 },
-  identity: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: sizes.md,
-    paddingVertical: sizes.md,
-    marginBottom: sizes.sm,
+    gap: sizes.sm,
+    paddingHorizontal: sizes.md,
+    paddingTop: sizes.sm + 2,
+    paddingBottom: sizes.sm + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: sizes.xs,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  avatarImg: { width: 48, height: 48 },
-  avatarInitial: { fontSize: 20, ...font.bold },
-  identityText: { flex: 1 },
-  identityName: { fontSize: sizes.fontMd, ...font.semibold },
-  identityEmail: { fontSize: sizes.fontXs, ...font.regular, marginTop: 2 },
+  avatarImg:     { width: 36, height: 36 },
+  avatarInitial: { fontSize: 15, ...font.bold },
+  headerText:    { flex: 1 },
+  headerName:    { fontSize: sizes.fontSm, ...font.semibold },
+  headerEmail:   { fontSize: sizes.fontXs, ...font.regular, marginTop: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: sizes.md,
-    gap: sizes.md,
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
+    gap: sizes.sm,
     minHeight: sizes.touchTarget,
   },
-  rowIcon: { width: 24, textAlign: 'center' },
-  rowLabel: { flex: 1, fontSize: sizes.fontMd, ...font.medium },
+  rowPressed: { opacity: 0.6 },
+  rowIcon:    { width: 20, textAlign: 'center' },
+  rowLabel:   { flex: 1, fontSize: sizes.fontSm, ...font.medium },
 });

@@ -261,11 +261,11 @@ export default function RootLayout(): React.JSX.Element | null {
 
   // Stack must always render — navigation happens via useEffect above
   return (
-    <GestureHandlerRootView style={styles.gestureRoot}>
+    <GestureHandlerRootView style={[styles.gestureRoot, { backgroundColor: c.background }]}>
     <PaperProvider theme={paperTheme}>
       <StatusBar style="light" />
       <ErrorBoundary>
-        <View style={[styles.root, { direction: getIsRTL(language) ? 'rtl' : 'ltr' }]} {...backSwipe.panHandlers}>
+        <View style={[styles.root, { direction: getIsRTL(language) ? 'rtl' : 'ltr', backgroundColor: c.background }]} {...backSwipe.panHandlers}>
           {showChrome && <TopBar />}
           <View style={styles.content}>
             <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
