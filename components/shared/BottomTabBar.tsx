@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useMorePopupStore } from '@stores/morePopupStore';
+import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useBadgeStore, countNewSimple } from '@stores/badgeStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useColors } from '@hooks/useColors';
@@ -31,7 +32,9 @@ export function BottomTabBar(): React.JSX.Element {
   const c        = useColors();
   const insets   = useSafeAreaInsets();
   const pathname = usePathname();
-  const openMore = useMorePopupStore((s) => s.open);
+  const openMore    = useMorePopupStore((s) => s.open);
+  const closeMore   = useMorePopupStore((s) => s.close);
+  const closeProfile = useProfilePopupStore((s) => s.close);
 
   const bills    = useBillsStore((s) => s.bills);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
@@ -44,17 +47,21 @@ export function BottomTabBar(): React.JSX.Element {
 
   const handleTab = useCallback((tab: TabItem): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    closeMore();
+    closeProfile();
     if (tab.id === 'more') {
       openMore();
     } else {
       router.push(tab.route as Parameters<typeof router.push>[0]);
     }
-  }, [openMore]);
+  }, [openMore, closeMore, closeProfile]);
 
   const handleAdd = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    closeMore();
+    closeProfile();
     router.push('/(tabs)/bills/add');
-  }, []);
+  }, [closeMore, closeProfile]);
 
   const bg = c.background;
   const borderColor = c.border;
