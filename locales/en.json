@@ -305,7 +305,9 @@
     "cat_other": "Other",
     "pick_date": "Pick date",
     "prev_month": "Previous month",
-    "next_month": "Next month"
+    "next_month": "Next month",
+    "load_error": "Couldn't load bills",
+    "retry": "Try again"
   },
   "parking": {
     "title": "Parking",

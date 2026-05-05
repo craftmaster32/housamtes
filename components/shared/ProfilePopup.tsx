@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, Animated, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Image } from 'expo-image';
-import { router, Link, usePathname } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,27 +38,32 @@ export function ProfilePopup(): React.JSX.Element {
 
   const initial = (profile?.name || user?.email || '?')[0]?.toUpperCase() ?? '?';
 
-  const handleHapticClose = useCallback((): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    close();
-  }, [close]);
-
   const handleSignOut = useCallback(async (): Promise<void> => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    close();
     try {
       await signOut();
       router.replace('/(auth)/welcome');
     } catch {
       Alert.alert('Sign out failed', 'Could not sign you out. Please try again.');
     }
-  }, [close, signOut]);
+  }, [signOut]);
 
   const MENU_ITEMS = useMemo((): MenuItem[] => [
     { icon: 'person-outline',   label: 'View Profile', href: '/(tabs)/profile' },
     { icon: 'settings-outline', label: 'Settings',     href: '/(tabs)/more/settings' },
     { icon: 'log-out-outline',  label: 'Sign out',     onPress: handleSignOut, danger: true },
   ], [handleSignOut]);
+
+  const handleMenuPress = useCallback((item: MenuItem): void => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    close();
+    if (item.href) {
+      router.push(item.href as Parameters<typeof router.push>[0]);
+    } else if (item.onPress) {
+      Promise.resolve(item.onPress()).catch(() => {
+        Alert.alert('Action failed', 'Something went wrong. Please try again.');
+      });
+    }
+  }, [close]);
 
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -88,7 +93,7 @@ export function ProfilePopup(): React.JSX.Element {
       {isOpen && (
         <Pressable
           style={StyleSheet.absoluteFill}
-          onPress={handleHapticClose}
+          onPress={close}
           accessible={true}
           accessibilityRole="button"
           accessibilityLabel="Close profile menu"
@@ -135,35 +140,27 @@ export function ProfilePopup(): React.JSX.Element {
         </View>
 
         {/* Menu rows */}
-        {MENU_ITEMS.map((item) => {
-          const row = (
-            <Pressable
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-              onPress={item.href ? handleHapticClose : item.onPress}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel={item.label}
-              accessibilityState={{ disabled: false, selected: false }}
-            >
-              <Ionicons
-                name={item.icon}
-                size={18}
-                color={item.danger ? c.negative : c.textSecondary}
-                style={styles.rowIcon}
-              />
-              <Text style={[styles.rowLabel, { color: item.danger ? c.negative : c.textPrimary }]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-          return item.href ? (
-            <Link key={item.label} asChild href={item.href as Parameters<typeof router.push>[0]}>
-              {row}
-            </Link>
-          ) : (
-            <View key={item.label}>{row}</View>
-          );
-        })}
+        {MENU_ITEMS.map((item) => (
+          <Pressable
+            key={item.label}
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            onPress={() => handleMenuPress(item)}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={item.label}
+            accessibilityState={{ disabled: false, selected: false }}
+          >
+            <Ionicons
+              name={item.icon}
+              size={18}
+              color={item.danger ? c.negative : c.textSecondary}
+              style={styles.rowIcon}
+            />
+            <Text style={[styles.rowLabel, { color: item.danger ? c.negative : c.textPrimary }]}>
+              {item.label}
+            </Text>
+          </Pressable>
+        ))}
       </Animated.View>
     </View>
   );

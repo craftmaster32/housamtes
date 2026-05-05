@@ -303,7 +303,9 @@
     "cat_other": "אחר",
     "pick_date": "בחר תאריך",
     "prev_month": "חודש קודם",
-    "next_month": "חודש הבא"
+    "next_month": "חודש הבא",
+    "load_error": "לא ניתן לטעון חשבונות",
+    "retry": "נסה שוב"
   },
   "parking": {
     "title": "חניה",
