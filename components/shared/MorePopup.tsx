@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -48,6 +48,9 @@ export function MorePopup(): React.JSX.Element {
   const insets  = useSafeAreaInsets();
   const isOpen  = useMorePopupStore((s) => s.isOpen);
   const close   = useMorePopupStore((s) => s.close);
+  const pathname = usePathname();
+
+  useEffect(() => { close(); }, [pathname, close]);
 
   const settingsFeatures = useSettingsStore((s) => s.features);
   const permissions      = useAuthStore((s) => s.permissions);

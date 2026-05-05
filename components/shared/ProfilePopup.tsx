@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, Animated, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Image } from 'expo-image';
-import { router, Link } from 'expo-router';
+import { router, Link, usePathname } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +29,9 @@ export function ProfilePopup(): React.JSX.Element {
   const insets  = useSafeAreaInsets();
   const isOpen  = useProfilePopupStore((s) => s.isOpen);
   const close   = useProfilePopupStore((s) => s.close);
+  const pathname = usePathname();
+
+  useEffect(() => { close(); }, [pathname, close]);
   const profile = useAuthStore((s) => s.profile);
   const user    = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
