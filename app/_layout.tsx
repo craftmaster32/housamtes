@@ -22,7 +22,8 @@ import { useVotingStore } from '@stores/votingStore';
 import { useNotificationStore } from '@stores/notificationStore';
 import { useConditionStore } from '@stores/conditionStore';
 import { TopBar } from '@components/shared/TopBar';
-import { DrawerMenu } from '@components/shared/DrawerMenu';
+import { MorePopup } from '@components/shared/MorePopup';
+import { ProfilePopup } from '@components/shared/ProfilePopup';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
 import { darkColors } from '@constants/colors';
@@ -270,7 +271,8 @@ export default function RootLayout(): React.JSX.Element | null {
             <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
           </View>
           {showChrome && <BottomTabBar />}
-          {showChrome && <DrawerMenu />}
+          {showChrome && <MorePopup />}
+          {showChrome && <ProfilePopup />}
           {(isLoading || !fontsLoaded) && (
             <View style={styles.splash}>
               <ActivityIndicator size="large" color={darkColors.primary} />

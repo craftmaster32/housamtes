@@ -10,14 +10,11 @@ import { useDrawerStore } from '@stores/drawerStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { useChatStore } from '@stores/chatStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore, countNew, countNewSimple, type BadgeFeature } from '@stores/badgeStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useGroceryStore } from '@stores/groceryStore';
 import { useChoresStore } from '@stores/choresStore';
-import { useVotingStore } from '@stores/votingStore';
-import { useMaintenanceStore } from '@stores/maintenanceStore';
 import { useBillsStore } from '@stores/billsStore';
 import { isRTL } from '@lib/i18n';
 import { useColors } from '@hooks/useColors';
@@ -45,14 +42,6 @@ const MAIN_NAV: NavItem[] = [
   { icon: 'checkmark-done-outline', iconActive: 'checkmark-done', labelKey: 'nav.chores', route: '/(tabs)/chores', featureKey: 'chores' },
 ];
 
-const MORE_NAV: NavItem[] = [
-  { icon: 'calendar-outline', iconActive: 'calendar', labelKey: 'nav.calendar', route: '/(tabs)/calendar' },
-  { icon: 'chatbubbles-outline', iconActive: 'chatbubbles', labelKey: 'nav.chat', route: '/(tabs)/more/chat', featureKey: 'chat' },
-  { icon: 'images-outline', iconActive: 'images', labelKey: 'nav.photos', route: '/(tabs)/photos' },
-  { icon: 'people-outline', iconActive: 'people', labelKey: 'nav.housemates', route: '/(tabs)/bills/setup' },
-  { icon: 'hand-left-outline', iconActive: 'hand-left', labelKey: 'nav.votes', route: '/(tabs)/voting', featureKey: 'voting' },
-  { icon: 'construct-outline', iconActive: 'construct', labelKey: 'nav.property', route: '/(tabs)/property', featureKey: 'maintenance' },
-];
 
 
 export function DrawerMenu(): React.JSX.Element {
@@ -68,7 +57,6 @@ export function DrawerMenu(): React.JSX.Element {
   const houseName      = useHousematesStore((s) => s.houseName);
   const settingsFeatures = useSettingsStore((s) => s.features);
   const permissions    = useAuthStore((s) => s.permissions);
-  const unreadCount    = useChatStore((s) => s.unreadCount);
   const pathname       = usePathname();
 
   const lastSeen          = useBadgeStore((s) => s.lastSeen);
@@ -77,8 +65,6 @@ export function DrawerMenu(): React.JSX.Element {
   const parkingReservations = useParkingStore((s) => s.reservations);
   const groceryItems      = useGroceryStore((s) => s.items);
   const chores            = useChoresStore((s) => s.chores);
-  const proposals         = useVotingStore((s) => s.proposals);
-  const maintenanceItems  = useMaintenanceStore((s) => s.requests);
   const bills             = useBillsStore((s) => s.bills);
 
   type GenericItem = { createdAt: string; [k: string]: unknown };
@@ -87,8 +73,6 @@ export function DrawerMenu(): React.JSX.Element {
     grocery:     countNew(groceryItems.filter((i) => !i.isChecked) as unknown as GenericItem[], lastSeen.grocery, myId, 'addedBy'),
     chores:      countNewSimple(chores.filter((ch) => !ch.isComplete), lastSeen.chores),
     bills:       countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills),
-    voting:      countNew(proposals.filter((p) => p.isOpen) as unknown as GenericItem[], lastSeen.voting, myId, 'createdBy'),
-    maintenance: countNewSimple(maintenanceItems.filter((m) => m.status === 'open'), lastSeen.maintenance),
   };
 
   const filterNav = useCallback(
@@ -242,7 +226,11 @@ export function DrawerMenu(): React.JSX.Element {
             </Pressable>
             </Link>
 
-            <View style={[styles.divider, { backgroundColor: c.border }]} />
+            {/* App branding */}
+            <View style={[styles.brandRow, { borderBottomColor: c.border }]}>
+              <Ionicons name="home" size={13} color={c.primary} />
+              <Text style={[styles.brandName, { color: c.textSecondary }]}>HouseMates</Text>
+            </View>
 
             {/* Main navigation */}
             {filterNav(MAIN_NAV).map((item) => {
@@ -258,50 +246,6 @@ export function DrawerMenu(): React.JSX.Element {
                     pressed && !active && { backgroundColor: c.primary + '0A', transform: [{ scale: 0.98 }] },
                   ]}
                   onPress={() => handleNav(item.badgeKey ?? item.featureKey as BadgeFeature | undefined)}
-                  accessible={true}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(item.labelKey)}
-                  accessibilityState={{ selected: active }}
-                >
-                  <Ionicons
-                    name={active ? item.iconActive : item.icon}
-                    size={20}
-                    color={active ? c.primary : c.textSecondary}
-                    style={styles.navIconEl}
-                  />
-                  <Text style={[styles.navLabel, { color: active ? c.primary : c.textPrimary }, active && styles.navLabelActive]}>
-                    {t(item.labelKey)}
-                  </Text>
-                  {count > 0 && !active && (
-                    <View style={[styles.badge, { backgroundColor: c.danger }]}>
-                      <Text style={[styles.badgeText, { color: c.white }]}>{count > 99 ? '99+' : count}</Text>
-                    </View>
-                  )}
-                  {active && <View style={[styles.activeIndicator, { backgroundColor: c.primary }, isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR]} />}
-                </Pressable>
-                </Link>
-              );
-            })}
-
-            <View style={[styles.divider, { backgroundColor: c.border }]} />
-
-            {/* More section */}
-            <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>{t('nav.house_section')}</Text>
-            {filterNav(MORE_NAV).map((item) => {
-              const active     = isActive(item.route);
-              const isChatItem = item.route === '/(tabs)/more/chat';
-              const count      = isChatItem
-                ? unreadCount
-                : (item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0);
-              return (
-                <Link key={item.route} asChild href={item.route as Parameters<typeof router.push>[0]}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.navItem,
-                    active && { backgroundColor: c.primary + '14' },
-                    pressed && !active && { backgroundColor: c.primary + '0A', transform: [{ scale: 0.98 }] },
-                  ]}
-                  onPress={() => handleNav(item.featureKey as BadgeFeature | undefined)}
                   accessible={true}
                   accessibilityRole="button"
                   accessibilityLabel={t(item.labelKey)}
@@ -391,7 +335,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: sizes.md,
     padding: sizes.lg,
-    paddingTop: sizes.xl,
+    paddingTop: sizes.xl + 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   avatar: {
@@ -409,7 +353,21 @@ const styles = StyleSheet.create({
   profileSub:  { fontSize: 13, ...font.medium, marginTop: 2 },
   divider: {
     height: StyleSheet.hairlineWidth,
-    marginVertical: sizes.xs,
+    marginVertical: sizes.sm,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  brandName: {
+    fontSize: sizes.fontXxs,
+    ...font.semibold,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
   },
   sectionLabel: {
     fontSize: 11,
@@ -429,7 +387,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderRadius: sizes.borderRadius,
     borderCurve: 'continuous',
-    marginVertical: 1,
+    marginVertical: 2,
   } as never,
   navIconEl: { width: 28, textAlign: 'center' },
   navLabel: {
