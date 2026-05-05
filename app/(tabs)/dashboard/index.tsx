@@ -883,6 +883,7 @@ function FloatingChatBubble(): React.JSX.Element {
         accessible={true}
         accessibilityRole="button"
         accessibilityLabel={unreadCount > 0 ? `House chat, ${unreadCount} unread` : 'House chat'}
+        accessibilityState={{ selected: false }}
       >
         <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
         {unreadCount > 0 && (
@@ -935,6 +936,7 @@ export default function DashboardScreen(): React.JSX.Element {
                 accessible={true}
                 accessibilityRole="button"
                 accessibilityLabel="Open profile menu"
+                accessibilityState={{ selected: false }}
               >
                 {profile?.avatarUrl
                   ? <Image source={{ uri: profile.avatarUrl }} style={styles.heroAvatarImg} contentFit="cover" accessibilityLabel={`${profile.name ?? 'User'}'s avatar`} />
