@@ -22,6 +22,8 @@ interface MenuItem {
   danger?: boolean;
 }
 
+export interface Props {}
+
 export function ProfilePopup(): React.JSX.Element {
   const c       = useColors();
   const insets  = useSafeAreaInsets();
@@ -133,7 +135,7 @@ export function ProfilePopup(): React.JSX.Element {
         {MENU_ITEMS.map((item) => {
           const row = (
             <Pressable
-              style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={item.href ? handleHapticClose : item.onPress}
               accessible={true}
               accessibilityRole="button"
@@ -208,6 +210,7 @@ const styles = StyleSheet.create({
     gap: sizes.sm,
     minHeight: sizes.touchTarget,
   },
-  rowIcon:  { width: 20, textAlign: 'center' },
-  rowLabel: { flex: 1, fontSize: sizes.fontSm, ...font.medium },
+  rowPressed: { opacity: 0.6 },
+  rowIcon:    { width: 20, textAlign: 'center' },
+  rowLabel:   { flex: 1, fontSize: sizes.fontSm, ...font.medium },
 });
