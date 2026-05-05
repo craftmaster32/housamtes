@@ -38,7 +38,7 @@ function ProposalCard({
   const voteSummary = summarizeProposalVotes(proposal.votes);
   const yesVotes = voteSummary.yesVotes;
   const noVotes = voteSummary.noVotes;
-  const myVote = [...voteSummary.votes].reverse().find((v) => v.person === myId)?.choice ?? null;
+  const myVote = voteSummary.votes.find((v) => v.person === myId)?.choice ?? null;
   const totalVoted = voteSummary.totalVoted;
   const allVotedYes = totalVoted === totalPeople && yesVotes === totalPeople;
 
