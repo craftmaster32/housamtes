@@ -23,8 +23,9 @@ import { useNotificationStore } from '@stores/notificationStore';
 import { useConditionStore } from '@stores/conditionStore';
 import { TopBar } from '@components/shared/TopBar';
 import { DrawerMenu } from '@components/shared/DrawerMenu';
+import { BottomTabBar } from '@components/shared/BottomTabBar';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
-import { colors } from '@constants/colors';
+import { darkColors } from '@constants/colors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
@@ -36,10 +37,10 @@ const theme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-    primary: colors.primary,
-    secondary: colors.primaryLight,
-    background: colors.background,
-    surface: colors.surface,
+    primary: darkColors.primary,
+    secondary: darkColors.primaryLight,
+    background: darkColors.background,
+    surface: darkColors.surface,
   },
   fonts: configureFonts({ config: fontConfig }),
 };
@@ -259,17 +260,18 @@ export default function RootLayout(): React.JSX.Element | null {
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
     <PaperProvider theme={theme}>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
       <ErrorBoundary>
         <View style={[styles.root, { direction: getIsRTL(language) ? 'rtl' : 'ltr' }]} {...backSwipe.panHandlers}>
           {showChrome && <TopBar />}
           <View style={styles.content}>
             <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
           </View>
+          {showChrome && <BottomTabBar />}
           {showChrome && <DrawerMenu />}
           {(isLoading || !fontsLoaded) && (
             <View style={styles.splash}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ActivityIndicator size="large" color={darkColors.primary} />
             </View>
           )}
         </View>
@@ -283,5 +285,5 @@ const styles = StyleSheet.create({
   gestureRoot: { flex: 1 },
   root: { flex: 1 },
   content: { flex: 1 },
-  splash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  splash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: darkColors.background },
 });
