@@ -85,7 +85,7 @@ export function BottomTabBar(): React.JSX.Element {
               />
               {badge > 0 && (
                 <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
-                  <Text style={styles.badgeText}>{badge > 9 ? '9+' : String(badge)}</Text>
+                  <Text style={[styles.badgeText, { color: c.white }]}>{badge > 9 ? '9+' : String(badge)}</Text>
                 </View>
               )}
             </View>
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
     borderWidth: 1.5,
   },
-  badgeText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+  badgeText: { fontSize: 9, fontWeight: '800' },
 
   // Center + button
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },

@@ -75,11 +75,13 @@ function catIconMeta(category: string | null): { name: string; color: string; bg
 }
 
 // ── Widget Card wrapper ───────────────────────────────────────────────────────
-function WidgetCard({ children, style, onPress }: {
+export interface WidgetCardProps {
   children: React.ReactNode;
   style?: object;
   onPress?: () => void;
-}): React.JSX.Element {
+}
+
+function WidgetCard({ children, style, onPress }: WidgetCardProps): React.JSX.Element {
   const c = useColors();
   const cardStyle = [styles.card, { backgroundColor: c.surface, borderColor: c.border }, style];
   if (onPress) {
@@ -1020,7 +1022,7 @@ const styles = StyleSheet.create({
   heroAvatarText: { fontSize: 18, ...font.bold, color: '#fff' },
 
   quickActions: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  quickBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, boxShadow: '0 4px 12px rgba(79,120,182,0.25)' } as never,
+  quickBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, shadowColor: '#4F78B6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 6 },
   quickBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
   quickBtnOutline: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1 },
   quickBtnOutlineText: { fontSize: 14, ...font.semibold },
@@ -1032,8 +1034,12 @@ const styles = StyleSheet.create({
     gap: 8,
     overflow: 'hidden',
     backgroundColor: '#1A3578',
-    boxShadow: '0 8px 24px rgba(30,53,120,0.5)',
-  } as never,
+    shadowColor: '#1E3578',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 12,
+  },
   balanceHeroDeco: {
     position: 'absolute', top: -40, right: -30,
     width: 160, height: 160, borderRadius: 80,

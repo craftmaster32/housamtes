@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
@@ -34,21 +35,21 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
   const profile  = useAuthStore((s) => s.profile);
   const pathname = usePathname();
 
+  const handleBack = useCallback((): void => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (router.canGoBack()) router.back();
+    else router.push('/(tabs)/dashboard');
+  }, []);
+
+  const handleProfilePress = useCallback((): void => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    router.push('/(tabs)/profile');
+  }, []);
+
   // Hide on main tab screens — each screen handles its own header
   if (isMainTabRoute(pathname)) return null;
 
   const isDashboard = pathname.includes('/dashboard');
-
-  const handleBack = (): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (router.canGoBack()) router.back();
-    else router.push('/(tabs)/dashboard');
-  };
-
-  const handleProfilePress = (): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    router.push('/(tabs)/profile');
-  };
 
   const initial = profile?.name ? profile.name[0].toUpperCase() : '?';
 

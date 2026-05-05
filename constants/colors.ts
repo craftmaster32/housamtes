@@ -1,7 +1,7 @@
 // Design tokens — light + dark palettes
 // `colors` is kept as an alias for lightColors so existing screens don't break.
 
-export type ColorPalette = {
+export interface ColorPalette {
   primary: string; primaryLight: string; primaryDark: string;
   success: string; warning: string; danger: string; info: string;
   white: string; black: string;
@@ -12,7 +12,7 @@ export type ColorPalette = {
   accent: string; accentForeground: string;
   positive: string; negative: string;
   avatar: string[];
-};
+}
 
 export const lightColors: ColorPalette = {
   // Brand

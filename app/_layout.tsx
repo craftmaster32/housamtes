@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, PanResponder, AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
@@ -26,6 +26,7 @@ import { DrawerMenu } from '@components/shared/DrawerMenu';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
 import { darkColors } from '@constants/colors';
+import { useColors } from '@hooks/useColors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
@@ -33,21 +34,22 @@ import { registerWebPush } from '@lib/webPush';
 
 const fontConfig = { fontFamily: 'Inter_400Regular' };
 
-const theme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: darkColors.primary,
-    secondary: darkColors.primaryLight,
-    background: darkColors.background,
-    surface: darkColors.surface,
-  },
-  fonts: configureFonts({ config: fontConfig }),
-};
-
 initErrorTracking();
 
 export default function RootLayout(): React.JSX.Element | null {
+  const c = useColors();
+  const paperTheme = useMemo(() => ({
+    ...MD3LightTheme,
+    colors: {
+      ...MD3LightTheme.colors,
+      primary: c.primary,
+      secondary: c.primaryLight,
+      background: c.background,
+      surface: c.surface,
+    },
+    fonts: configureFonts({ config: fontConfig }),
+  }), [c]);
+
   const [i18nReady, setI18nReady] = useState(false);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
   const language = useLanguageStore((s) => s.language);
@@ -259,7 +261,7 @@ export default function RootLayout(): React.JSX.Element | null {
   // Stack must always render — navigation happens via useEffect above
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
-    <PaperProvider theme={theme}>
+    <PaperProvider theme={paperTheme}>
       <StatusBar style="light" />
       <ErrorBoundary>
         <View style={[styles.root, { direction: getIsRTL(language) ? 'rtl' : 'ltr' }]} {...backSwipe.panHandlers}>
