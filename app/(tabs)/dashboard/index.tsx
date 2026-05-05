@@ -23,6 +23,7 @@ import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { font } from '@constants/typography';
 import { useColors } from '@hooks/useColors';
+import { SpendingCard } from '@components/profile/SpendingCard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string): string {
@@ -888,6 +889,7 @@ function FloatingChatBubble(): React.JSX.Element {
 export default function DashboardScreen(): React.JSX.Element {
   const c          = useColors();
   const profile    = useAuthStore((s) => s.profile);
+  const houseId    = useAuthStore((s) => s.houseId);
   const houseName  = useHousematesStore((s) => s.houseName);
   const isEnabled  = useSettingsStore((s) => s.isEnabled);
   const { width }  = useWindowDimensions();
@@ -939,6 +941,12 @@ export default function DashboardScreen(): React.JSX.Element {
           <View style={styles.row}>
             <BalanceHeroCard />
           </View>
+
+          {houseId && profile?.name && (
+            <View style={styles.row}>
+              <SpendingCard houseId={houseId} userName={profile.name} />
+            </View>
+          )}
 
           {/* ── Today at home ─────────────────────────────────────────── */}
           {(isEnabled('parking') || isEnabled('chores') || isEnabled('grocery')) && (
