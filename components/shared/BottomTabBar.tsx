@@ -99,7 +99,7 @@ export function BottomTabBar(): React.JSX.Element {
       {/* Center + button */}
       <View style={styles.centerWrap}>
         <Pressable
-          style={[styles.addBtn, { boxShadow: '0 4px 16px rgba(79,120,182,0.35)' } as never]}
+          style={[styles.addBtn, { backgroundColor: c.surface }]}
           onPress={handleAdd}
           accessibilityRole="button"
           accessibilityLabel="Add new expense"
@@ -172,9 +172,13 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    shadowColor: '#4F78B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

@@ -157,14 +157,11 @@ export const useSettingsStore = create<SettingsStore>()(
         storage: createJSONStorage(() => AsyncStorage),
         version: 3,
         migrate: (state: unknown, fromVersion: number): SettingsStore => {
-          const s = state as SettingsStore;
-          if (fromVersion < 3 && !s.theme) {
-            return { ...s, theme: 'dark' };
-          }
+          let next = { ...(state as SettingsStore) };
           if (fromVersion < 2) {
-            const hasGroceryDraft = s.features?.some((f) => f.key === 'grocery_draft');
+            const hasGroceryDraft = next.features?.some((f) => f.key === 'grocery_draft');
             if (!hasGroceryDraft) {
-              const groceryIndex = s.features?.findIndex((f) => f.key === 'grocery') ?? -1;
+              const groceryIndex = next.features?.findIndex((f) => f.key === 'grocery') ?? -1;
               const entry: FeatureConfig = {
                 key: 'grocery_draft',
                 label: 'Grocery Draft Mode',
@@ -172,12 +169,15 @@ export const useSettingsStore = create<SettingsStore>()(
                 description: 'Privately compose your shopping list before sharing it with the house',
                 enabled: true,
               };
-              const features = [...(s.features ?? [])];
+              const features = [...(next.features ?? [])];
               features.splice(groceryIndex + 1, 0, entry);
-              return { ...s, features };
+              next = { ...next, features };
             }
           }
-          return s;
+          if (fromVersion < 3 && !next.theme) {
+            next = { ...next, theme: 'dark' };
+          }
+          return next;
         },
       }
     ),

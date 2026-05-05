@@ -198,7 +198,7 @@ function TodayAtHome(): React.JSX.Element {
               {isFree ? 'Free' : 'In use'}
             </Text>
             <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {isFree ? 'Available' : `by ${resolveName(current!.occupant, housemates).split(' ')[0]}`}
+              {isFree ? 'Available' : `by ${resolveName(current?.occupant ?? '', housemates).split(' ')[0]}`}
             </Text>
           </Pressable>
         )}
@@ -418,7 +418,7 @@ function ParkingCard(): React.JSX.Element {
         {current && !isFree && <Text style={[styles.parkingAge, { color: c.textSecondary }]}>{parkingAge(current.startTime)}</Text>}
       </View>
       <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-        {isFree ? 'No one is using the spot' : isMine ? `In use for ${parkingAge(current!.startTime)}` : `Used by ${resolveName(current!.occupant, housemates)} · ${parkingAge(current!.startTime)}`}
+        {isFree ? 'No one is using the spot' : isMine ? `In use for ${parkingAge(current?.startTime ?? '')}` : `Used by ${resolveName(current?.occupant ?? '', housemates)} · ${parkingAge(current?.startTime ?? '')}`}
       </Text>
       {pendingFromOthers.map((r) => (
         <View key={r.id} style={[styles.parkingPendingRow, { backgroundColor: '#2A1A00' }]}>
