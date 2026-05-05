@@ -1,4 +1,5 @@
-import { View, StyleSheet, Pressable } from 'react-native';
+import { useCallback } from 'react';
+import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
@@ -8,180 +9,139 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useDrawerStore } from '@stores/drawerStore';
 import { useAuthStore } from '@stores/authStore';
-import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
-import { useParkingStore } from '@stores/parkingStore';
-import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
-import { useVotingStore } from '@stores/votingStore';
-import { useMaintenanceStore } from '@stores/maintenanceStore';
-import { useBillsStore } from '@stores/billsStore';
-import { colors } from '@constants/colors';
-import { sizes } from '@constants/sizes';
+import { useColors } from '@hooks/useColors';
 import { font } from '@constants/typography';
+import { sizes } from '@constants/sizes';
 
-export function TopBar(): React.JSX.Element {
-  const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const toggle = useDrawerStore((s) => s.toggle);
-  const profile = useAuthStore((s) => s.profile);
+// Routes where the TopBar is hidden (these screens manage their own headers)
+const MAIN_TAB_ROUTES = [
+  '/dashboard', '/bills', '/parking', '/grocery',
+  '/chores', '/profile', '/calendar', '/voting', '/photos', '/property',
+];
+
+function isMainTabRoute(pathname: string): boolean {
+  return MAIN_TAB_ROUTES.some((r) => pathname.endsWith(r) || pathname.includes(`${r}/index`));
+}
+
+interface TopBarProps {
+  scrollY?: Animated.Value;
+}
+
+export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null {
+  const { t }    = useTranslation();
+  const c        = useColors();
+  const insets   = useSafeAreaInsets();
+  const toggle   = useDrawerStore((s) => s.toggle);
+  const profile  = useAuthStore((s) => s.profile);
   const pathname = usePathname();
-  const isDashboard = pathname.includes('/dashboard');
 
-  // Badge counts — same logic as DrawerMenu
-  const lastSeen          = useBadgeStore((s) => s.lastSeen);
-  const myId              = profile?.id ?? '';
-  const parkingReservations = useParkingStore((s) => s.reservations);
-  const groceryItems      = useGroceryStore((s) => s.items);
-  const chores            = useChoresStore((s) => s.chores);
-  const proposals         = useVotingStore((s) => s.proposals);
-  const maintenanceItems  = useMaintenanceStore((s) => s.requests);
-  const bills             = useBillsStore((s) => s.bills);
-
-  type GenericItem = Array<{ createdAt: string; [k: string]: unknown }>;
-  // Cast to the generic shape that countNew / countNewSimple expect
-  const totalBadge =
-    countNew(parkingReservations as unknown as GenericItem, lastSeen.parking, myId, 'occupant') +
-    countNew((groceryItems.filter((i) => !i.isChecked)) as unknown as GenericItem, lastSeen.grocery, myId, 'addedBy') +
-    countNewSimple(chores.filter((c) => !c.isComplete), lastSeen.chores) +
-    countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills) +
-    countNew((proposals.filter((p) => p.isOpen)) as unknown as GenericItem, lastSeen.voting, myId, 'createdBy') +
-    countNewSimple(maintenanceItems.filter((m) => m.status === 'open'), lastSeen.maintenance);
-
-  const handleMenuPress = (): void => {
+  const handleBack = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    toggle();
-  };
+    if (router.canGoBack()) router.back();
+    else router.push('/(tabs)/dashboard');
+  }, []);
 
-  const handleProfilePress = (): void => {
+  const handleProfilePress = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     router.push('/(tabs)/profile');
-  };
+  }, []);
 
-  const handleBack = (): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.push('/(tabs)/dashboard');
-    }
-  };
+  // Hide on main tab screens — each screen handles its own header
+  if (isMainTabRoute(pathname)) return null;
+
+  const isDashboard = pathname.includes('/dashboard');
 
   const initial = profile?.name ? profile.name[0].toUpperCase() : '?';
 
-  return (
-    <View style={[styles.bar, { paddingTop: insets.top + sizes.sm }]}>
-      <Pressable
-        style={styles.menuBtn}
-        onPress={handleMenuPress}
-        accessibilityRole="button"
-        accessibilityLabel={t('settings.open_menu')}
-        accessible={true}
-      >
-        <View style={styles.hamburger}>
-          <View style={[styles.line, styles.lineTop]} />
-          <View style={[styles.line, styles.lineMid]} />
-          <View style={[styles.line, styles.lineBot]} />
-        </View>
-        {totalBadge > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{totalBadge > 99 ? '99+' : String(totalBadge)}</Text>
-          </View>
-        )}
-      </Pressable>
+  // Collapse animation — opacity tied to scrollY when provided
+  const opacity = scrollY
+    ? scrollY.interpolate({ inputRange: [0, 60], outputRange: [1, 0], extrapolate: 'clamp' })
+    : 1;
 
-      {!isDashboard && (
+  const barStyle = [
+    styles.bar,
+    {
+      paddingTop: insets.top + sizes.sm,
+      backgroundColor: c.surface,
+      borderBottomColor: c.border,
+    },
+    scrollY ? { opacity } : undefined,
+  ];
+
+  return (
+    <Animated.View style={barStyle}>
+      {/* Left: hamburger (opens drawer) or back button */}
+      {isDashboard ? (
         <Pressable
-          style={styles.backBtn}
+          style={styles.iconBtn}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); toggle(); }}
+          accessibilityRole="button"
+          accessibilityLabel={t('settings.open_menu')}
+        >
+          <View style={styles.hamburger}>
+            <View style={[styles.line, { backgroundColor: c.textPrimary }, styles.lineTop]} />
+            <View style={[styles.line, { backgroundColor: c.textPrimary }, styles.lineMid]} />
+            <View style={[styles.line, { backgroundColor: c.textPrimary }, styles.lineBot]} />
+          </View>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={styles.iconBtn}
           onPress={handleBack}
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          accessible={true}
         >
-          <Ionicons name="arrow-back" size={20} color={colors.primary} />
+          <Ionicons name="chevron-back" size={24} color={c.primary} />
         </Pressable>
       )}
 
-      <Text style={styles.appName}>HouseMates</Text>
+      <Text style={[styles.appName, { color: c.primary }]}>HouseMates</Text>
 
+      {/* Right: avatar */}
       <Pressable
-        style={styles.avatarBtn}
+        style={styles.iconBtn}
         onPress={handleProfilePress}
         accessibilityRole="button"
         accessibilityLabel="Open profile"
-        accessible={true}
       >
-        <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? colors.primary) }]}>
+        <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) }]}>
           {profile?.avatarUrl
             ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
             : <Text style={styles.avatarText}>{initial}</Text>
           }
         </View>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: colors.white,
     flexDirection: 'row',
     alignItems: 'center',
     gap: sizes.sm,
     paddingHorizontal: sizes.md,
     paddingBottom: 14,
-    boxShadow: '0 1px 0 rgba(0,0,0,0.06)',
-  } as never,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   appName: {
     flex: 1,
     fontSize: 20,
     ...font.extrabold,
-    color: colors.primary,
     letterSpacing: -0.8,
+    textAlign: 'center',
   },
-  menuBtn: {
+  iconBtn: {
     width: sizes.touchTarget,
-    height: sizes.touchTarget,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  backBtn: {
-    width: 36,
     height: sizes.touchTarget,
     justifyContent: 'center',
     alignItems: 'center',
   },
   hamburger: { gap: 5, alignItems: 'flex-start' },
-  line: { height: 2, backgroundColor: colors.primary, borderRadius: 2 },
+  line: { height: 2, borderRadius: 2 },
   lineTop: { width: 22 },
   lineMid: { width: 14 },
   lineBot: { width: 22 },
-  badge: {
-    position: 'absolute',
-    top: 4,
-    right: 2,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.danger,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: colors.white,
-  },
-  badgeText: {
-    color: colors.white,
-    fontSize: 10,
-    ...font.bold,
-    lineHeight: 13,
-  },
-  avatarBtn: {
-    width: sizes.touchTarget,
-    height: sizes.touchTarget,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   avatar: {
     width: 34,
     height: 34,
@@ -191,9 +151,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImg: { width: 34, height: 34 },
-  avatarText: {
-    color: colors.white,
-    fontSize: 14,
-    ...font.bold,
-  },
+  avatarText: { color: '#fff', fontSize: 14, ...font.bold },
 });

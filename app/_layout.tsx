@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, PanResponder, AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
@@ -23,8 +23,10 @@ import { useNotificationStore } from '@stores/notificationStore';
 import { useConditionStore } from '@stores/conditionStore';
 import { TopBar } from '@components/shared/TopBar';
 import { DrawerMenu } from '@components/shared/DrawerMenu';
+import { BottomTabBar } from '@components/shared/BottomTabBar';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
-import { colors } from '@constants/colors';
+import { darkColors } from '@constants/colors';
+import { useColors } from '@hooks/useColors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
@@ -32,21 +34,22 @@ import { registerWebPush } from '@lib/webPush';
 
 const fontConfig = { fontFamily: 'Inter_400Regular' };
 
-const theme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: colors.primary,
-    secondary: colors.primaryLight,
-    background: colors.background,
-    surface: colors.surface,
-  },
-  fonts: configureFonts({ config: fontConfig }),
-};
-
 initErrorTracking();
 
 export default function RootLayout(): React.JSX.Element | null {
+  const c = useColors();
+  const paperTheme = useMemo(() => ({
+    ...MD3LightTheme,
+    colors: {
+      ...MD3LightTheme.colors,
+      primary: c.primary,
+      secondary: c.primaryLight,
+      background: c.background,
+      surface: c.surface,
+    },
+    fonts: configureFonts({ config: fontConfig }),
+  }), [c]);
+
   const [i18nReady, setI18nReady] = useState(false);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
   const language = useLanguageStore((s) => s.language);
@@ -258,18 +261,19 @@ export default function RootLayout(): React.JSX.Element | null {
   // Stack must always render — navigation happens via useEffect above
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
-    <PaperProvider theme={theme}>
-      <StatusBar style="auto" />
+    <PaperProvider theme={paperTheme}>
+      <StatusBar style="light" />
       <ErrorBoundary>
         <View style={[styles.root, { direction: getIsRTL(language) ? 'rtl' : 'ltr' }]} {...backSwipe.panHandlers}>
           {showChrome && <TopBar />}
           <View style={styles.content}>
             <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
           </View>
+          {showChrome && <BottomTabBar />}
           {showChrome && <DrawerMenu />}
           {(isLoading || !fontsLoaded) && (
             <View style={styles.splash}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ActivityIndicator size="large" color={darkColors.primary} />
             </View>
           )}
         </View>
@@ -283,5 +287,5 @@ const styles = StyleSheet.create({
   gestureRoot: { flex: 1 },
   root: { flex: 1 },
   content: { flex: 1 },
-  splash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  splash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: darkColors.background },
 });

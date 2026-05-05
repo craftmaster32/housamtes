@@ -1,5 +1,20 @@
-// Design tokens — pulled from Banani/Figma export (single source of truth)
-export const colors = {
+// Design tokens — light + dark palettes
+// `colors` is kept as an alias for lightColors so existing screens don't break.
+
+export interface ColorPalette {
+  primary: string; primaryLight: string; primaryDark: string;
+  success: string; warning: string; danger: string; info: string;
+  white: string; black: string;
+  background: string; surface: string; surfaceSecondary: string;
+  border: string; borderLight: string;
+  textPrimary: string; textSecondary: string; textTertiary: string; textDisabled: string;
+  secondary: string; secondaryForeground: string;
+  accent: string; accentForeground: string;
+  positive: string; negative: string;
+  avatar: string[];
+}
+
+export const lightColors: ColorPalette = {
   // Brand
   primary:       '#3B6FBF',
   primaryLight:  '#5B8FD6',
@@ -14,21 +29,21 @@ export const colors = {
   // Neutrals
   white:            '#FFFFFF',
   black:            '#000000',
-  background:       '#F6F2EA',   // --background
-  surface:          '#FFFFFF',   // --card
-  surfaceSecondary: '#F3ECE5',   // --muted
-  border:           'rgba(0,0,0,0.08)',  // --border (very subtle)
+  background:       '#F6F2EA',
+  surface:          '#FFFFFF',
+  surfaceSecondary: '#F3ECE5',
+  border:           'rgba(0,0,0,0.08)',
   borderLight:      'rgba(0,0,0,0.05)',
-  textPrimary:      '#23323E',   // --foreground
-  textSecondary:    '#8D8F8F',   // --muted-foreground
+  textPrimary:      '#23323E',
+  textSecondary:    '#8D8F8F',
   textTertiary:     '#AEAEB2',
   textDisabled:     '#C7C7CC',
 
-  // Secondary palette (badges, highlights)
-  secondary:           '#EAF3FF',  // --secondary
-  secondaryForeground: '#274056',  // --secondary-foreground
-  accent:              '#D6E9FF',  // --accent
-  accentForeground:    '#12324A',  // --accent-foreground
+  // Secondary palette
+  secondary:           '#EAF3FF',
+  secondaryForeground: '#274056',
+  accent:              '#D6E9FF',
+  accentForeground:    '#12324A',
 
   // Aliases
   positive: '#4FB071',
@@ -36,4 +51,47 @@ export const colors = {
 
   // Avatar palette
   avatar: ['#3B6FBF', '#FF2D55', '#E0B24D', '#4FB071', '#007AFF', '#AF52DE'],
-} as const;
+};
+
+export const darkColors: ColorPalette = {
+  // Brand — slightly brighter to pop on dark backgrounds
+  primary:       '#4F78B6',
+  primaryLight:  '#6B92CC',
+  primaryDark:   '#3A61A0',
+
+  // Semantic
+  success:  '#4FB071',
+  warning:  '#E0B24D',
+  danger:   '#D9534F',
+  info:     '#4F78B6',
+
+  // Neutrals
+  white:            '#FFFFFF',
+  black:            '#000000',
+  background:       '#0D1421',
+  surface:          '#182035',
+  surfaceSecondary: '#0F1829',
+  border:           'rgba(255,255,255,0.08)',
+  borderLight:      'rgba(255,255,255,0.05)',
+  textPrimary:      '#FFFFFF',
+  textSecondary:    '#7B8DB0',
+  textTertiary:     '#4D5F80',
+  textDisabled:     '#3A4A65',
+
+  // Secondary palette
+  secondary:           '#1A2A48',
+  secondaryForeground: '#8AABDE',
+  accent:              '#1A3570',
+  accentForeground:    '#90B8E8',
+
+  // Aliases
+  positive: '#4FB071',
+  negative: '#D9534F',
+
+  // Avatar palette (same — these are identity colors)
+  avatar: ['#3B6FBF', '#FF2D55', '#E0B24D', '#4FB071', '#007AFF', '#AF52DE'],
+};
+
+// Backward-compat alias — existing screens that import `colors` get light theme.
+// Screens being converted to dark should import `useColors()` from `@hooks/useColors`.
+export const colors = lightColors;
