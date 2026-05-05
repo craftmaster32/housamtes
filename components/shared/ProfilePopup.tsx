@@ -1,8 +1,8 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, Animated, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, Link } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +17,8 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 interface MenuItem {
   icon: IoniconName;
   label: string;
-  onPress: () => void;
+  href?: string;
+  onPress?: () => Promise<void> | void;
   danger?: boolean;
 }
 
@@ -30,12 +31,12 @@ export function ProfilePopup(): React.JSX.Element {
   const user    = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
 
-  const initial = (profile?.name ?? user?.email ?? '?')[0].toUpperCase();
+  // Guard against empty string — `??` keeps '' which gives undefined at [0]
+  const initial = (profile?.name || user?.email || '?')[0]?.toUpperCase() ?? '?';
 
-  const handleNav = useCallback((route: string): void => {
+  const handleHapticClose = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     close();
-    router.push(route as Parameters<typeof router.push>[0]);
   }, [close]);
 
   const handleSignOut = useCallback(async (): Promise<void> => {
@@ -49,11 +50,11 @@ export function ProfilePopup(): React.JSX.Element {
     }
   }, [close, signOut]);
 
-  const MENU_ITEMS: MenuItem[] = [
-    { icon: 'person-outline',   label: 'View Profile', onPress: () => handleNav('/(tabs)/profile') },
-    { icon: 'settings-outline', label: 'Settings',     onPress: () => handleNav('/(tabs)/more/settings') },
+  const MENU_ITEMS = useMemo((): MenuItem[] => [
+    { icon: 'person-outline',   label: 'View Profile', href: '/(tabs)/profile' },
+    { icon: 'settings-outline', label: 'Settings',     href: '/(tabs)/more/settings' },
     { icon: 'log-out-outline',  label: 'Sign out',     onPress: handleSignOut, danger: true },
-  ];
+  ], [handleSignOut]);
 
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -104,19 +105,27 @@ export function ProfilePopup(): React.JSX.Element {
         </View>
 
         {/* Menu items */}
-        {MENU_ITEMS.map((item) => (
-          <Pressable
-            key={item.label}
-            style={({ pressed }) => [styles.row, pressed && { opacity: 0.65 }]}
-            onPress={item.onPress}
-            accessibilityRole="button"
-            accessibilityLabel={item.label}
-          >
-            <Ionicons name={item.icon} size={20} color={item.danger ? c.negative : c.textSecondary} style={styles.rowIcon} />
-            <Text style={[styles.rowLabel, { color: item.danger ? c.negative : c.textPrimary }]}>{item.label}</Text>
-            {!item.danger && <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />}
-          </Pressable>
-        ))}
+        {MENU_ITEMS.map((item) => {
+          const row = (
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed && { opacity: 0.65 }]}
+              onPress={item.href ? handleHapticClose : item.onPress}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+            >
+              <Ionicons name={item.icon} size={20} color={item.danger ? c.negative : c.textSecondary} style={styles.rowIcon} />
+              <Text style={[styles.rowLabel, { color: item.danger ? c.negative : c.textPrimary }]}>{item.label}</Text>
+              {!item.danger && <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />}
+            </Pressable>
+          );
+          return item.href ? (
+            <Link key={item.label} asChild href={item.href as Parameters<typeof router.push>[0]}>
+              {row}
+            </Link>
+          ) : (
+            <View key={item.label}>{row}</View>
+          );
+        })}
       </Animated.View>
     </View>
   );

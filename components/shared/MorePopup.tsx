@@ -34,6 +34,7 @@ const POPUP_NAV: NavItem[] = [
   { icon: 'checkmark-done-outline', iconActive: 'checkmark-done', labelKey: 'nav.chores',     route: '/(tabs)/chores',        featureKey: 'chores' },
   { icon: 'calendar-outline',       iconActive: 'calendar',       labelKey: 'nav.calendar',   route: '/(tabs)/calendar' },
   { icon: 'images-outline',         iconActive: 'images',         labelKey: 'nav.photos',     route: '/(tabs)/photos' },
+  // Housemates are managed inside the bills/setup flow by design — no dedicated route exists.
   { icon: 'people-outline',         iconActive: 'people',         labelKey: 'nav.housemates', route: '/(tabs)/bills/setup' },
   { icon: 'hand-left-outline',      iconActive: 'hand-left',      labelKey: 'nav.votes',      route: '/(tabs)/voting',        featureKey: 'voting' },
   { icon: 'construct-outline',      iconActive: 'construct',      labelKey: 'nav.property',   route: '/(tabs)/property',      featureKey: 'maintenance' },

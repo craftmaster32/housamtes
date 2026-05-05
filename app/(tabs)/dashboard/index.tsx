@@ -1055,8 +1055,8 @@ const styles = StyleSheet.create({
   heroDate: { fontSize: 13, ...font.regular },
   greeting: { fontSize: 26, ...font.extrabold, letterSpacing: -0.6, marginTop: 2 },
   greetingSub: { fontSize: 13, ...font.regular, marginTop: 2 },
-  heroAvatar: { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  heroAvatarImg: { width: 42, height: 42 },
+  heroAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  heroAvatarImg: { width: 44, height: 44 },
   heroAvatarText: { fontSize: 18, ...font.bold, color: '#fff' },
 
   quickActions: { flexDirection: 'row', gap: 10, marginBottom: 12 },
