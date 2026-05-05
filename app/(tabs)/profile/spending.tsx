@@ -558,6 +558,7 @@ export default function SpendingScreen(): React.JSX.Element {
           <Pressable
             style={[styles.viewToggleBtn, viewMode === 'house' && styles.viewToggleBtnActive]}
             onPress={handleSetHouseView}
+            accessible
             accessibilityRole="tab"
             accessibilityState={{ selected: viewMode === 'house' }}
             accessibilityLabel="Show all house spending"
@@ -569,6 +570,7 @@ export default function SpendingScreen(): React.JSX.Element {
           <Pressable
             style={[styles.viewToggleBtn, viewMode === 'personal' && styles.viewToggleBtnActive]}
             onPress={handleSetPersonalView}
+            accessible
             accessibilityRole="tab"
             accessibilityState={{ selected: viewMode === 'personal' }}
             accessibilityLabel="Show my personal spending"
