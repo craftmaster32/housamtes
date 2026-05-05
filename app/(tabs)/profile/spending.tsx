@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, SectionList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useSpendingStore, type CategorySpend, type MonthSpend, type DrillDownItem } from '@stores/spendingStore';
@@ -45,6 +45,8 @@ function pctChange(current: number, previous: number): number | null {
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+
+type ViewMode = 'house' | 'personal';
 
 interface CategoryRowItem {
   cat: CategorySpend;
@@ -108,36 +110,47 @@ interface OverviewCardProps {
   current: MonthSpend;
   previous: MonthSpend | undefined;
   currency: string;
+  viewMode: ViewMode;
 }
 
-function OverviewCard({ current, previous, currency }: OverviewCardProps): React.JSX.Element {
-  const diff = previous ? current.houseTotal - previous.houseTotal : null;
-  const pct  = previous ? pctChange(current.houseTotal, previous.houseTotal) : null;
-  const isUp = diff !== null && diff > 0;
-  const sharePct = current.houseTotal > 0
+function OverviewCard({ current, previous, currency, viewMode }: OverviewCardProps): React.JSX.Element {
+  const isPersonal   = viewMode === 'personal';
+  const houseDiff    = previous ? current.houseTotal - previous.houseTotal : null;
+  const housePct     = previous ? pctChange(current.houseTotal, previous.houseTotal) : null;
+  const personalDiff = previous ? current.total - previous.total : null;
+  const personalPct  = previous ? pctChange(current.total, previous.total) : null;
+  const sharePct     = current.houseTotal > 0
     ? Math.round((current.total / current.houseTotal) * 100)
     : 0;
+
+  const primaryDiff  = isPersonal ? personalDiff : houseDiff;
+  const primaryPct   = isPersonal ? personalPct  : housePct;
+  const isUp         = primaryDiff !== null && primaryDiff > 0;
 
   return (
     <View style={styles.overviewCard}>
       <Text style={styles.overviewMonth}>{current.label}</Text>
       <View style={styles.overviewRow}>
         <View style={styles.overviewBlock}>
-          <Text style={styles.overviewLbl}>House total</Text>
-          <Text style={styles.overviewAmt}>{fmtFull(current.houseTotal, currency)}</Text>
-          {diff !== null && (
+          <Text style={styles.overviewLbl}>{isPersonal ? 'My spending' : 'House total'}</Text>
+          <Text style={styles.overviewAmt}>
+            {fmtFull(isPersonal ? current.total : current.houseTotal, currency)}
+          </Text>
+          {primaryDiff !== null && (
             <View style={[styles.overviewBadge, { backgroundColor: isUp ? colors.danger + '18' : colors.positive + '18' }]}>
               <Text style={[styles.overviewBadgeText, { color: isUp ? colors.danger : colors.positive }]}>
-                {isUp ? '↑' : '↓'} {fmtShort(Math.abs(diff), currency)}
-                {pct !== null ? `  ${Math.abs(pct)}%` : ''}
+                {isUp ? '↑' : '↓'} {fmtShort(Math.abs(primaryDiff), currency)}
+                {primaryPct !== null ? `  ${Math.abs(primaryPct)}%` : ''}
               </Text>
             </View>
           )}
         </View>
         <View style={styles.overviewDivider} />
         <View style={styles.overviewBlock}>
-          <Text style={styles.overviewLbl}>Your share</Text>
-          <Text style={styles.overviewAmt}>{fmtFull(current.total, currency)}</Text>
+          <Text style={styles.overviewLbl}>{isPersonal ? 'House total' : 'Your share'}</Text>
+          <Text style={styles.overviewAmt}>
+            {fmtFull(isPersonal ? current.houseTotal : current.total, currency)}
+          </Text>
           {sharePct > 0 && (
             <View style={[styles.overviewBadge, { backgroundColor: colors.primary + '12' }]}>
               <Text style={[styles.overviewBadgeText, { color: colors.primary }]}>
@@ -149,7 +162,10 @@ function OverviewCard({ current, previous, currency }: OverviewCardProps): React
       </View>
       {previous && (
         <Text style={styles.overviewCompare}>
-          Compared to {previous.label}: house was {fmtShort(previous.houseTotal, currency)}, your share was {fmtShort(previous.total, currency)}
+          {isPersonal
+            ? `Compared to ${previous.label}: you spent ${fmtShort(previous.total, currency)}, house was ${fmtShort(previous.houseTotal, currency)}`
+            : `Compared to ${previous.label}: house was ${fmtShort(previous.houseTotal, currency)}, your share was ${fmtShort(previous.total, currency)}`
+          }
         </Text>
       )}
     </View>
@@ -161,26 +177,55 @@ interface MonthlyChartProps {
   currency: string;
   selectedIdx: number;
   onSelectMonth: (idx: number) => void;
+  viewMode: ViewMode;
+  onSetHouseView: () => void;
+  onSetPersonalView: () => void;
 }
 
-function MonthlyChart({ months, currency, selectedIdx, onSelectMonth }: MonthlyChartProps): React.JSX.Element {
-  // chartData is oldest → newest (left to right)
-  const chartData = months.slice(0, 6).reverse();
-  const maxHouse  = Math.max(...chartData.map((m) => m.houseTotal), 1);
+function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, onSetHouseView, onSetPersonalView }: MonthlyChartProps): React.JSX.Element {
+  const chartData  = months.slice(0, 6).reverse();
+  const isPersonal = viewMode === 'personal';
+  const maxVal     = Math.max(...chartData.map((m) => isPersonal ? m.total : m.houseTotal), 1);
 
   return (
     <View style={styles.chartCard}>
       <View style={styles.chartCardDeco} />
       <View style={styles.chartPad}>
+        {/* Segment control */}
+        <View style={styles.chartSegment}>
+          <Pressable
+            style={[styles.chartSegBtn, !isPersonal && styles.chartSegBtnActive]}
+            onPress={onSetHouseView}
+            accessible
+            accessibilityRole="tab"
+            accessibilityState={{ selected: !isPersonal }}
+            accessibilityLabel="Show all house spending"
+          >
+            <Ionicons name="home-outline" size={14} color={!isPersonal ? colors.primary : 'rgba(255,255,255,0.70)'} />
+            <Text style={[styles.chartSegText, !isPersonal && styles.chartSegTextActive]}>House</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.chartSegBtn, isPersonal && styles.chartSegBtnActive]}
+            onPress={onSetPersonalView}
+            accessible
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isPersonal }}
+            accessibilityLabel="Show my personal spending"
+          >
+            <Ionicons name="person-outline" size={14} color={isPersonal ? colors.primary : 'rgba(255,255,255,0.70)'} />
+            <Text style={[styles.chartSegText, isPersonal && styles.chartSegTextActive]}>Personal</Text>
+          </Pressable>
+        </View>
         <Text style={styles.chartTitle}>MONTHLY TREND — TAP A MONTH</Text>
         <View style={styles.barsRow}>
           {chartData.map((m, i) => {
-            // chartData[i] corresponds to months[chartData.length - 1 - i]
             const monthsIdx  = chartData.length - 1 - i;
             const isSelected = monthsIdx === selectedIdx;
-            const houseBarH  = Math.max((m.houseTotal / maxHouse) * BAR_MAX_H, m.houseTotal > 0 ? 4 : 2);
-            const shareRatio = m.houseTotal > 0 ? m.total / m.houseTotal : 0;
-            const shareBarH  = Math.round(houseBarH * shareRatio);
+            const mainVal    = isPersonal ? m.total : m.houseTotal;
+            const barH       = Math.max((mainVal / maxVal) * BAR_MAX_H, mainVal > 0 ? 4 : 2);
+            const shareBarH  = !isPersonal && m.houseTotal > 0
+              ? Math.round(barH * (m.total / m.houseTotal))
+              : 0;
 
             return (
               <Pressable
@@ -193,12 +238,12 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth }: MonthlyC
                 accessibilityState={{ selected: isSelected }}
               >
                 <Text style={[styles.barAmt, isSelected && styles.barAmtSelected]}>
-                  {m.houseTotal > 0 ? fmtShort(m.houseTotal, currency) : ''}
+                  {mainVal > 0 ? fmtShort(mainVal, currency) : ''}
                 </Text>
                 <View style={[styles.barTrack, isSelected && styles.barTrackSelected]}>
                   <View style={[
                     styles.barFill,
-                    { height: houseBarH },
+                    { height: barH },
                     isSelected && styles.barFillSelected,
                   ]} />
                   {shareBarH > 0 && (
@@ -214,14 +259,23 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth }: MonthlyC
           })}
         </View>
         <View style={styles.chartLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: colors.white }]} />
-            <Text style={styles.legendText}>House</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: 'rgba(255,255,255,0.38)' }]} />
-            <Text style={styles.legendText}>Your share</Text>
-          </View>
+          {isPersonal ? (
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.white }]} />
+              <Text style={styles.legendText}>Personal</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.white }]} />
+                <Text style={styles.legendText}>House</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: 'rgba(255,255,255,0.38)' }]} />
+                <Text style={styles.legendText}>Your share</Text>
+              </View>
+            </>
+          )}
         </View>
       </View>
     </View>
@@ -286,9 +340,24 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
         )}
         {isExpanded && drillDownItems.length > 0 && (
           <View style={styles.drillDown}>
-            {drillDownItems.map((d) => (
-              <View key={d.id} style={styles.drillDownRow}>
-                <Text style={styles.drillDownType}>{d.type === 'recurring' ? '↻' : '·'}</Text>
+            {drillDownItems.map((d) => d.type === 'bill' ? (
+              <Link key={d.id} href={{ pathname: '/(tabs)/bills/[id]', params: { id: d.id } }} asChild>
+                <Pressable
+                  style={styles.drillDownRow}
+                  hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
+                  accessible
+                  accessibilityRole="link"
+                  accessibilityLabel={`Open bill: ${d.title}`}
+                >
+                  <Text style={styles.drillDownType}>·</Text>
+                  <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
+                  <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
+                  <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+                </Pressable>
+              </Link>
+            ) : (
+              <View key={d.id} style={styles.drillDownRow} accessible accessibilityRole="none">
+                <Text style={styles.drillDownType}>↻</Text>
                 <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
                 <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
               </View>
@@ -322,6 +391,7 @@ function SpendingSectionHeader({ title, icon, total, currency }: SectionHeaderPr
 export default function SpendingScreen(): React.JSX.Element {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('house');
 
   const profile        = useAuthStore((s) => s.profile);
   const houseId        = useAuthStore((s) => s.houseId);
@@ -367,20 +437,35 @@ export default function SpendingScreen(): React.JSX.Element {
     setExpandedCategory((prev) => prev === name ? null : name);
   }, []);
 
+  const handleSetHouseView = useCallback((): void => {
+    setViewMode('house');
+    setExpandedCategory(null);
+  }, []);
+
+  const handleSetPersonalView = useCallback((): void => {
+    setViewMode('personal');
+    setExpandedCategory(null);
+  }, []);
+
   const selectedMonth = months[selectedIdx];
   const previousMonth = months[selectedIdx + 1];
 
   const sections = useMemo((): SpendingSection[] => {
     if (!selectedMonth) return [];
 
-    const houseBillCats = selectedMonth.houseCategories.filter((c) => isHouseCat(c.name));
-    const lifestyleCats = selectedMonth.houseCategories.filter((c) => !isHouseCat(c.name));
+    const sourceCats    = viewMode === 'house' ? selectedMonth.houseCategories : selectedMonth.categories;
+    const prevCats      = viewMode === 'house' ? previousMonth?.houseCategories : previousMonth?.categories;
+
+    const houseBillCats = sourceCats.filter((c) => isHouseCat(c.name));
+    const lifestyleCats = sourceCats.filter((c) => !isHouseCat(c.name));
     const houseBillTotal = houseBillCats.reduce((s, c) => s + c.amount, 0);
     const lifestyleTotal  = lifestyleCats.reduce((s, c) => s + c.amount, 0);
 
     function toCatRow(cat: CategorySpend, sectionTotal: number): CategoryRowItem {
-      const myAmount        = selectedMonth.categories.find((c) => c.name === cat.name)?.amount ?? 0;
-      const prevHouseAmount = previousMonth?.houseCategories.find((c) => c.name === cat.name)?.amount ?? 0;
+      const myAmount = viewMode === 'house'
+        ? (selectedMonth.categories.find((c) => c.name === cat.name)?.amount ?? 0)
+        : 0;
+      const prevHouseAmount = prevCats?.find((c) => c.name === cat.name)?.amount ?? 0;
       const drillDownItems  = selectedMonth.billsByCategory[cat.name] ?? [];
       return { cat, myAmount, prevHouseAmount, sectionTotal, drillDownItems };
     }
@@ -403,7 +488,7 @@ export default function SpendingScreen(): React.JSX.Element {
       });
     }
     return result;
-  }, [selectedMonth, previousMonth]);
+  }, [selectedMonth, previousMonth, viewMode]);
 
   const renderItem = useCallback(
     ({ item }: { item: CategoryRowItem }) => (
@@ -494,12 +579,15 @@ export default function SpendingScreen(): React.JSX.Element {
         onRefresh={handleRefreshInsight}
       />
 
-      {months.some((m) => m.houseTotal > 0) && (
+      {months.some((m) => (viewMode === 'house' ? m.houseTotal : m.total) > 0) && (
         <MonthlyChart
           months={months}
           currency={currency}
           selectedIdx={selectedIdx}
           onSelectMonth={handleSelectMonth}
+          viewMode={viewMode}
+          onSetHouseView={handleSetHouseView}
+          onSetPersonalView={handleSetPersonalView}
         />
       )}
 
@@ -516,8 +604,8 @@ export default function SpendingScreen(): React.JSX.Element {
         </Pressable>
       )}
 
-      {selectedMonth && selectedMonth.houseTotal > 0 && (
-        <OverviewCard current={selectedMonth} previous={previousMonth} currency={currency} />
+      {selectedMonth && (viewMode === 'house' ? selectedMonth.houseTotal : selectedMonth.total) > 0 && (
+        <OverviewCard current={selectedMonth} previous={previousMonth} currency={currency} viewMode={viewMode} />
       )}
 
       {sections.length > 0 && (
@@ -685,8 +773,27 @@ const styles = StyleSheet.create({
   },
   jumpBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
 
-  // Breakdown title
   breakdownTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary, marginTop: 4 },
+  chartSegment: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 6,
+  },
+  chartSegBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    borderRadius: 10,
+    minHeight: 44,
+  },
+  chartSegBtnActive: { backgroundColor: colors.white },
+  chartSegText: { fontSize: 13, ...font.semibold, color: 'rgba(255,255,255,0.75)' },
+  chartSegTextActive: { color: colors.primary },
 
   // Section headers
   sectionHeader: {
@@ -745,7 +852,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(0,0,0,0.08)',
     gap: 6,
   },
-  drillDownRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  drillDownRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingVertical: 4 },
   drillDownType: { width: 14, fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
   drillDownTitle: { flex: 1, fontSize: 13, ...font.regular, color: colors.textSecondary },
   drillDownAmt: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
