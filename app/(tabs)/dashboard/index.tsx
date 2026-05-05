@@ -880,6 +880,7 @@ function FloatingChatBubble(): React.JSX.Element {
     <Link asChild href="/(tabs)/more/chat">
       <Pressable
         style={({ pressed }) => [styles.chatBubble, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.9 : 1 }] }]}
+        accessible={true}
         accessibilityRole="button"
         accessibilityLabel={unreadCount > 0 ? `House chat, ${unreadCount} unread` : 'House chat'}
       >
@@ -931,11 +932,12 @@ export default function DashboardScreen(): React.JSX.Element {
                   { backgroundColor: profile?.avatarUrl ? 'transparent' : c.primary, transform: [{ scale: pressed ? 0.92 : 1 }] },
                 ]}
                 onPress={openProfile}
+                accessible={true}
                 accessibilityRole="button"
                 accessibilityLabel="Open profile menu"
               >
                 {profile?.avatarUrl
-                  ? <Image source={{ uri: profile.avatarUrl }} style={styles.heroAvatarImg} contentFit="cover" />
+                  ? <Image source={{ uri: profile.avatarUrl }} style={styles.heroAvatarImg} contentFit="cover" accessibilityLabel={`${profile.name ?? 'User'}'s avatar`} />
                   : <Text style={styles.heroAvatarText}>{initials}</Text>
                 }
               </Pressable>
