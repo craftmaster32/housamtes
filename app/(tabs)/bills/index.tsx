@@ -223,7 +223,10 @@ export default function BillsScreen(): React.JSX.Element {
 
   const bills      = useBillsStore((s) => s.bills);
   const isLoading  = useBillsStore((s) => s.isLoading);
+  const error      = useBillsStore((s) => s.error);
+  const loadBills  = useBillsStore((s) => s.load);
   const profile    = useAuthStore((s) => s.profile);
+  const houseId    = useAuthStore((s) => s.houseId) ?? '';
   const currency   = useSettingsStore((s) => s.currency);
   const housemates = useHousematesStore((s) => s.housemates);
   const housemateById = useMemo(() => new Map(housemates.map((h) => [h.id, h])), [housemates]);
@@ -284,6 +287,28 @@ export default function BillsScreen(): React.JSX.Element {
       <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={c.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
+        <View style={styles.centered}>
+          <Ionicons name="alert-circle-outline" size={40} color={c.negative} />
+          <Text style={[styles.emptyTitle, { color: c.textPrimary, marginTop: 12 }]}>
+            {'Couldn\'t load bills'}
+          </Text>
+          <Text style={[styles.emptyText, { color: c.textSecondary }]}>{error}</Text>
+          <Pressable
+            style={[styles.addBtn, { backgroundColor: c.primary, marginTop: 16 }]}
+            onPress={() => loadBills(houseId)}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading bills"
+          >
+            <Text style={styles.addBtnText}>Try again</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -351,8 +376,10 @@ export default function BillsScreen(): React.JSX.Element {
             pressed && { opacity: 0.85 },
           ]}
           onPress={() => setShowSettle((v) => !v)}
+          accessible={true}
           accessibilityRole="button"
           accessibilityLabel="Toggle settle up"
+          accessibilityState={{ expanded: showSettle }}
         >
           <View style={styles.settleCardHeader}>
             <View style={[styles.settleIconWrap, { backgroundColor: c.positive + '18' }]}>
@@ -406,7 +433,9 @@ export default function BillsScreen(): React.JSX.Element {
             pressed && filter !== 'one-off' && { opacity: 0.7 },
           ]}
           onPress={() => setFilter('one-off')}
+          accessible={true}
           accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'one-off' }}
         >
           <Ionicons name="receipt-outline" size={14} color={filter === 'one-off' ? '#fff' : c.textSecondary} />
           <Text style={[styles.filterTabText, { color: filter === 'one-off' ? '#fff' : c.textSecondary }, filter === 'one-off' && styles.filterTabTextActive]}>
@@ -425,7 +454,9 @@ export default function BillsScreen(): React.JSX.Element {
             pressed && filter !== 'recurring' && { opacity: 0.7 },
           ]}
           onPress={() => setFilter('recurring')}
+          accessible={true}
           accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'recurring' }}
         >
           <Ionicons name="repeat-outline" size={14} color={filter === 'recurring' ? '#fff' : c.textSecondary} />
           <Text style={[styles.filterTabText, { color: filter === 'recurring' ? '#fff' : c.textSecondary }, filter === 'recurring' && styles.filterTabTextActive]}>
@@ -603,7 +634,7 @@ const styles = StyleSheet.create({
   hmName:      { fontSize: 13, ...font.semibold, textAlign: 'center' },
   hmStatus:    { fontSize: 11, ...font.regular, textAlign: 'center' },
   hmAmount:    { fontSize: 14, ...font.extrabold, textAlign: 'center' },
-  hmBtn:       { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, marginTop: 4 },
+  hmBtn:       { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, marginTop: 4, minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
   hmBtnText:   { fontSize: 12, ...font.semibold },
 
   // ── Filter tabs
@@ -614,7 +645,7 @@ const styles = StyleSheet.create({
   },
   filterTab: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 10, borderRadius: 11,
+    gap: 6, paddingVertical: 10, borderRadius: 11, minHeight: 44,
   },
   filterTabText:       { fontSize: 13, ...font.semibold },
   filterTabTextActive: { color: '#fff' },
