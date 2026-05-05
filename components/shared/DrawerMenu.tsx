@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
-import { router, usePathname } from 'expo-router';
+import { router, usePathname, Link } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -166,11 +166,10 @@ export function DrawerMenu(): React.JSX.Element {
     return pathname.includes(segment) && segment !== '';
   }, [pathname]);
 
-  const navigate = useCallback((route: string, badgeFeature?: BadgeFeature) => {
+  const handleNav = useCallback((badgeFeature?: BadgeFeature) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     close();
     if (badgeFeature) markSeen(badgeFeature).catch(() => {});
-    router.push(route as Parameters<typeof router.push>[0]);
   }, [close, markSeen]);
 
   const handleLogout = useCallback(async () => {
@@ -190,7 +189,14 @@ export function DrawerMenu(): React.JSX.Element {
       <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
         {/* Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={close} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={close}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Close drawer"
+            accessibilityState={{ expanded: true }}
+          />
         </Animated.View>
 
         {/* Drawer panel */}
@@ -202,13 +208,14 @@ export function DrawerMenu(): React.JSX.Element {
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
 
             {/* Profile header */}
+            <Link asChild href="/(tabs)/profile">
             <Pressable
               style={({ pressed }) => [
                 styles.profileSection,
                 { backgroundColor: c.primary + '18', borderBottomColor: c.primary + '25' },
-                pressed && { opacity: 0.85 },
+                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
               ]}
-              onPress={() => navigate('/(tabs)/profile')}
+              onPress={() => handleNav()}
               accessible={true}
               accessibilityRole="button"
               accessibilityLabel={`${profile?.name ?? 'Profile'}, view profile`}
@@ -228,6 +235,7 @@ export function DrawerMenu(): React.JSX.Element {
               </View>
               <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
             </Pressable>
+            </Link>
 
             <View style={[styles.divider, { backgroundColor: c.border }]} />
 
@@ -237,14 +245,14 @@ export function DrawerMenu(): React.JSX.Element {
               const badgeKey = item.badgeKey ?? item.featureKey;
               const count    = badgeKey ? (badgeCounts[badgeKey] ?? 0) : 0;
               return (
+                <Link key={item.route} asChild href={item.route as Parameters<typeof router.push>[0]}>
                 <Pressable
-                  key={item.route}
                   style={({ pressed }) => [
                     styles.navItem,
                     active && { backgroundColor: c.primary + '14' },
                     pressed && !active && { backgroundColor: c.primary + '0A', transform: [{ scale: 0.98 }] },
                   ]}
-                  onPress={() => navigate(item.route, item.badgeKey ?? item.featureKey as BadgeFeature | undefined)}
+                  onPress={() => handleNav(item.badgeKey ?? item.featureKey as BadgeFeature | undefined)}
                   accessible={true}
                   accessibilityRole="button"
                   accessibilityLabel={t(item.labelKey)}
@@ -266,6 +274,7 @@ export function DrawerMenu(): React.JSX.Element {
                   )}
                   {active && <View style={[styles.activeIndicator, { backgroundColor: c.primary }, isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR]} />}
                 </Pressable>
+                </Link>
               );
             })}
 
@@ -280,14 +289,14 @@ export function DrawerMenu(): React.JSX.Element {
                 ? unreadCount
                 : (item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0);
               return (
+                <Link key={item.route} asChild href={item.route as Parameters<typeof router.push>[0]}>
                 <Pressable
-                  key={item.route}
                   style={({ pressed }) => [
                     styles.navItem,
                     active && { backgroundColor: c.primary + '14' },
                     pressed && !active && { backgroundColor: c.primary + '0A', transform: [{ scale: 0.98 }] },
                   ]}
-                  onPress={() => navigate(item.route, item.featureKey as BadgeFeature | undefined)}
+                  onPress={() => handleNav(item.featureKey as BadgeFeature | undefined)}
                   accessible={true}
                   accessibilityRole="button"
                   accessibilityLabel={t(item.labelKey)}
@@ -309,6 +318,7 @@ export function DrawerMenu(): React.JSX.Element {
                   )}
                   {active && <View style={[styles.activeIndicator, { backgroundColor: c.primary }, isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR]} />}
                 </Pressable>
+                </Link>
               );
             })}
 
