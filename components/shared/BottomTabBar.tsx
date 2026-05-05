@@ -80,6 +80,7 @@ export function BottomTabBar(): React.JSX.Element {
             <Pressable
               style={styles.tab}
               onPress={handleNavTabPress}
+              accessible={true}
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
@@ -110,8 +111,10 @@ export function BottomTabBar(): React.JSX.Element {
           <Pressable
             style={[styles.addBtn, { backgroundColor: c.surface }]}
             onPress={handleAddPress}
+            accessible={true}
             accessibilityRole="button"
             accessibilityLabel="Add new expense"
+            accessibilityState={{ disabled: false }}
           >
             <Ionicons name="add" size={28} color={c.primary} />
           </Pressable>
@@ -125,6 +128,7 @@ export function BottomTabBar(): React.JSX.Element {
           <Pressable
             style={styles.tab}
             onPress={tab.id === 'more' ? handleMorePress : handleNavTabPress}
+            accessible={true}
             accessibilityRole="tab"
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: active }}
