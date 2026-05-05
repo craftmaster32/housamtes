@@ -5,9 +5,8 @@ import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { useDrawerStore } from '@stores/drawerStore';
+import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
 import { font } from '@constants/typography';
@@ -28,11 +27,10 @@ interface TopBarProps {
 }
 
 export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null {
-  const { t }    = useTranslation();
   const c        = useColors();
   const insets   = useSafeAreaInsets();
-  const toggle   = useDrawerStore((s) => s.toggle);
-  const profile  = useAuthStore((s) => s.profile);
+  const openProfile = useProfilePopupStore((s) => s.open);
+  const profile     = useAuthStore((s) => s.profile);
   const pathname = usePathname();
 
   const handleBack = useCallback((): void => {
@@ -43,13 +41,11 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
 
   const handleProfilePress = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    router.push('/(tabs)/profile');
-  }, []);
+    openProfile();
+  }, [openProfile]);
 
   // Hide on main tab screens — each screen handles its own header
   if (isMainTabRoute(pathname)) return null;
-
-  const isDashboard = pathname.includes('/dashboard');
 
   const initial = profile?.name ? profile.name[0].toUpperCase() : '?';
 
@@ -70,30 +66,15 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
 
   return (
     <Animated.View style={barStyle}>
-      {/* Left: hamburger (opens drawer) or back button */}
-      {isDashboard ? (
-        <Pressable
-          style={styles.iconBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); toggle(); }}
-          accessibilityRole="button"
-          accessibilityLabel={t('settings.open_menu')}
-        >
-          <View style={styles.hamburger}>
-            <View style={[styles.line, { backgroundColor: c.textPrimary }, styles.lineTop]} />
-            <View style={[styles.line, { backgroundColor: c.textPrimary }, styles.lineMid]} />
-            <View style={[styles.line, { backgroundColor: c.textPrimary }, styles.lineBot]} />
-          </View>
-        </Pressable>
-      ) : (
-        <Pressable
-          style={styles.iconBtn}
-          onPress={handleBack}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={24} color={c.primary} />
-        </Pressable>
-      )}
+      {/* Left: back button */}
+      <Pressable
+        style={styles.iconBtn}
+        onPress={handleBack}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+      >
+        <Ionicons name="chevron-back" size={24} color={c.primary} />
+      </Pressable>
 
       <Text style={[styles.appName, { color: c.primary }]}>HouseMates</Text>
 
@@ -137,11 +118,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  hamburger: { gap: 5, alignItems: 'flex-start' },
-  line: { height: 2, borderRadius: 2 },
-  lineTop: { width: 22 },
-  lineMid: { width: 14 },
-  lineBot: { width: 22 },
   avatar: {
     width: 34,
     height: 34,

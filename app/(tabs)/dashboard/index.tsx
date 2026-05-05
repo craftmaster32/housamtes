@@ -7,6 +7,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
+import { Image } from 'expo-image';
 import { router, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
@@ -22,6 +23,7 @@ import { useHousematesStore, type Housemate } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
+import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { font } from '@constants/typography';
 import { useColors } from '@hooks/useColors';
 import { SpendingCard } from '@components/profile/SpendingCard';
@@ -879,11 +881,11 @@ function FloatingChatBubble(): React.JSX.Element {
       <Pressable
         style={({ pressed }) => [styles.chatBubble, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.9 : 1 }] }]}
         accessibilityRole="button"
-        accessibilityLabel={`House chat${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+        accessibilityLabel={unreadCount > 0 ? `House chat, ${unreadCount} unread` : 'House chat'}
       >
-        <Ionicons name="chatbubble-ellipses" size={22} color="#fff" />
+        <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
         {unreadCount > 0 && (
-          <View style={[styles.chatBubbleBadge, { borderColor: c.background }]}>
+          <View style={[styles.chatBubbleBadge, { backgroundColor: c.danger }]}>
             <Text style={styles.chatBubbleBadgeText}>{unreadCount > 9 ? '9+' : String(unreadCount)}</Text>
           </View>
         )}
@@ -900,6 +902,8 @@ export default function DashboardScreen(): React.JSX.Element {
   const houseName  = useHousematesStore((s) => s.houseName);
   const isEnabled  = useSettingsStore((s) => s.isEnabled);
   const { width }  = useWindowDimensions();
+
+  const openProfile  = useProfilePopupStore((s) => s.open);
 
   const isWide = width >= 680;
   const myName = profile?.name ?? 'there';
@@ -921,15 +925,20 @@ export default function DashboardScreen(): React.JSX.Element {
               {houseName ? <Text style={[styles.greetingSub, { color: c.textSecondary }]}>{houseName}</Text> : null}
             </View>
             <View style={styles.heroRight}>
-              <Link asChild href="/(tabs)/profile">
-                <Pressable
-                  style={({ pressed }) => [styles.heroAvatar, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.92 : 1 }] }]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open profile"
-                >
-                  <Text style={styles.heroAvatarText}>{initials}</Text>
-                </Pressable>
-              </Link>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.heroAvatar,
+                  { backgroundColor: profile?.avatarUrl ? 'transparent' : c.primary, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                ]}
+                onPress={openProfile}
+                accessibilityRole="button"
+                accessibilityLabel="Open profile menu"
+              >
+                {profile?.avatarUrl
+                  ? <Image source={{ uri: profile.avatarUrl }} style={styles.heroAvatarImg} contentFit="cover" />
+                  : <Text style={styles.heroAvatarText}>{initials}</Text>
+                }
+              </Pressable>
             </View>
           </Animated.View>
 
@@ -1046,7 +1055,8 @@ const styles = StyleSheet.create({
   heroDate: { fontSize: 13, ...font.regular },
   greeting: { fontSize: 26, ...font.extrabold, letterSpacing: -0.6, marginTop: 2 },
   greetingSub: { fontSize: 13, ...font.regular, marginTop: 2 },
-  heroAvatar: { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center' },
+  heroAvatar: { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  heroAvatarImg: { width: 42, height: 42 },
   heroAvatarText: { fontSize: 18, ...font.bold, color: '#fff' },
 
   quickActions: { flexDirection: 'row', gap: 10, marginBottom: 12 },
@@ -1194,11 +1204,35 @@ const styles = StyleSheet.create({
   activityTime: { fontSize: 11, ...font.regular },
 
   // ── Floating chat bubble
-  chatBubble: { position: 'absolute', bottom: 20, right: 16, width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', boxShadow: '0 4px 16px rgba(79,120,182,0.4)' } as never,
-  chatBubbleBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#D9534F', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4, borderWidth: 2 },
-  chatBubbleBadgeText: { color: '#fff', fontSize: 10, ...font.bold },
 
   bottomPad: { height: 40 },
+  chatBubble: {
+    position: 'absolute',
+    bottom: 20,
+    right: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#4F78B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  chatBubbleBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  chatBubbleBadgeText: { color: '#fff', fontSize: 9, ...font.bold },
 
   // ── Mini Calendar
   calHeader: { gap: 6 },

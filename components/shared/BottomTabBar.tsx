@@ -5,7 +5,7 @@ import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useDrawerStore } from '@stores/drawerStore';
+import { useMorePopupStore } from '@stores/morePopupStore';
 import { useBadgeStore, countNewSimple } from '@stores/badgeStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useColors } from '@hooks/useColors';
@@ -31,7 +31,7 @@ export function BottomTabBar(): React.JSX.Element {
   const c        = useColors();
   const insets   = useSafeAreaInsets();
   const pathname = usePathname();
-  const open     = useDrawerStore((s) => s.open);
+  const openMore = useMorePopupStore((s) => s.open);
 
   const bills    = useBillsStore((s) => s.bills);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
@@ -45,11 +45,11 @@ export function BottomTabBar(): React.JSX.Element {
   const handleTab = useCallback((tab: TabItem): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (tab.id === 'more') {
-      open();
+      openMore();
     } else {
       router.push(tab.route as Parameters<typeof router.push>[0]);
     }
-  }, [open]);
+  }, [openMore]);
 
   const handleAdd = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
