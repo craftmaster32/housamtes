@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, SectionList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useSpendingStore, type CategorySpend, type MonthSpend, type DrillDownItem } from '@stores/spendingStore';
@@ -45,6 +45,8 @@ function pctChange(current: number, previous: number): number | null {
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+
+type ViewMode = 'house' | 'personal';
 
 interface CategoryRowItem {
   cat: CategorySpend;
@@ -286,9 +288,24 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
         )}
         {isExpanded && drillDownItems.length > 0 && (
           <View style={styles.drillDown}>
-            {drillDownItems.map((d) => (
-              <View key={d.id} style={styles.drillDownRow}>
-                <Text style={styles.drillDownType}>{d.type === 'recurring' ? '↻' : '·'}</Text>
+            {drillDownItems.map((d) => d.type === 'bill' ? (
+              <Link key={d.id} href={{ pathname: '/(tabs)/bills/[id]', params: { id: d.id } }} asChild>
+                <Pressable
+                  style={styles.drillDownRow}
+                  hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
+                  accessible
+                  accessibilityRole="link"
+                  accessibilityLabel={`Open bill: ${d.title}`}
+                >
+                  <Text style={styles.drillDownType}>·</Text>
+                  <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
+                  <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
+                  <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+                </Pressable>
+              </Link>
+            ) : (
+              <View key={d.id} style={styles.drillDownRow} accessible accessibilityRole="none">
+                <Text style={styles.drillDownType}>↻</Text>
                 <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
                 <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
               </View>
@@ -322,6 +339,7 @@ function SpendingSectionHeader({ title, icon, total, currency }: SectionHeaderPr
 export default function SpendingScreen(): React.JSX.Element {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('house');
 
   const profile        = useAuthStore((s) => s.profile);
   const houseId        = useAuthStore((s) => s.houseId);
@@ -367,20 +385,35 @@ export default function SpendingScreen(): React.JSX.Element {
     setExpandedCategory((prev) => prev === name ? null : name);
   }, []);
 
+  const handleSetHouseView = useCallback((): void => {
+    setViewMode('house');
+    setExpandedCategory(null);
+  }, []);
+
+  const handleSetPersonalView = useCallback((): void => {
+    setViewMode('personal');
+    setExpandedCategory(null);
+  }, []);
+
   const selectedMonth = months[selectedIdx];
   const previousMonth = months[selectedIdx + 1];
 
   const sections = useMemo((): SpendingSection[] => {
     if (!selectedMonth) return [];
 
-    const houseBillCats = selectedMonth.houseCategories.filter((c) => isHouseCat(c.name));
-    const lifestyleCats = selectedMonth.houseCategories.filter((c) => !isHouseCat(c.name));
+    const sourceCats    = viewMode === 'house' ? selectedMonth.houseCategories : selectedMonth.categories;
+    const prevCats      = viewMode === 'house' ? previousMonth?.houseCategories : previousMonth?.categories;
+
+    const houseBillCats = sourceCats.filter((c) => isHouseCat(c.name));
+    const lifestyleCats = sourceCats.filter((c) => !isHouseCat(c.name));
     const houseBillTotal = houseBillCats.reduce((s, c) => s + c.amount, 0);
     const lifestyleTotal  = lifestyleCats.reduce((s, c) => s + c.amount, 0);
 
     function toCatRow(cat: CategorySpend, sectionTotal: number): CategoryRowItem {
-      const myAmount        = selectedMonth.categories.find((c) => c.name === cat.name)?.amount ?? 0;
-      const prevHouseAmount = previousMonth?.houseCategories.find((c) => c.name === cat.name)?.amount ?? 0;
+      const myAmount = viewMode === 'house'
+        ? (selectedMonth.categories.find((c) => c.name === cat.name)?.amount ?? 0)
+        : 0;
+      const prevHouseAmount = prevCats?.find((c) => c.name === cat.name)?.amount ?? 0;
       const drillDownItems  = selectedMonth.billsByCategory[cat.name] ?? [];
       return { cat, myAmount, prevHouseAmount, sectionTotal, drillDownItems };
     }
@@ -403,7 +436,7 @@ export default function SpendingScreen(): React.JSX.Element {
       });
     }
     return result;
-  }, [selectedMonth, previousMonth]);
+  }, [selectedMonth, previousMonth, viewMode]);
 
   const renderItem = useCallback(
     ({ item }: { item: CategoryRowItem }) => (
@@ -521,9 +554,35 @@ export default function SpendingScreen(): React.JSX.Element {
       )}
 
       {sections.length > 0 && (
-        <Text style={styles.breakdownTitle}>
-          {selectedMonth?.label ?? ''} breakdown
-        </Text>
+        <View style={styles.breakdownHeader}>
+          <Text style={styles.breakdownTitle}>
+            {selectedMonth?.label ?? ''} breakdown
+          </Text>
+          <View style={styles.viewToggle}>
+            <Pressable
+              style={[styles.viewToggleBtn, viewMode === 'house' && styles.viewToggleBtnActive]}
+              onPress={handleSetHouseView}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: viewMode === 'house' }}
+              accessibilityLabel="Show all house spending"
+            >
+              <Text style={[styles.viewToggleBtnText, viewMode === 'house' && styles.viewToggleBtnTextActive]}>
+                House
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.viewToggleBtn, viewMode === 'personal' && styles.viewToggleBtnActive]}
+              onPress={handleSetPersonalView}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: viewMode === 'personal' }}
+              accessibilityLabel="Show my personal spending"
+            >
+              <Text style={[styles.viewToggleBtnText, viewMode === 'personal' && styles.viewToggleBtnTextActive]}>
+                Personal
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -685,8 +744,33 @@ const styles = StyleSheet.create({
   },
   jumpBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
 
-  // Breakdown title
-  breakdownTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary, marginTop: 4 },
+  // Breakdown header with toggle
+  breakdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  breakdownTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary },
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: 10,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  viewToggleBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 44,
+  },
+  viewToggleBtnActive: { backgroundColor: colors.primary },
+  viewToggleBtnText: { fontSize: 13, ...font.semibold, color: colors.textSecondary },
+  viewToggleBtnTextActive: { color: colors.white },
 
   // Section headers
   sectionHeader: {
@@ -745,7 +829,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(0,0,0,0.08)',
     gap: 6,
   },
-  drillDownRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  drillDownRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingVertical: 4 },
   drillDownType: { width: 14, fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
   drillDownTitle: { flex: 1, fontSize: 13, ...font.regular, color: colors.textSecondary },
   drillDownAmt: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
