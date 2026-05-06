@@ -24,6 +24,7 @@ import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { font } from '@constants/typography';
+import { sizes } from '@constants/sizes';
 import { useColors } from '@hooks/useColors';
 import { SpendingCard } from '@components/profile/SpendingCard';
 
@@ -1023,7 +1024,7 @@ export default function DashboardScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
+  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: sizes.bottomTabContentPadding },
   scrollWide: { paddingHorizontal: 24 },
 
   // ── Hero

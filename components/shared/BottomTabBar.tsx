@@ -10,6 +10,7 @@ import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useBadgeStore, countNewSimple } from '@stores/badgeStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useColors } from '@hooks/useColors';
+import { sizes } from '@constants/sizes';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -152,6 +153,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 10,
+    minHeight: sizes.bottomTabBarHeight,
   },
   tab: {
     flex: 1,

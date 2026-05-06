@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import type { ViewStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -19,6 +20,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+const webFixedOverlay = { position: 'fixed' } as unknown as ViewStyle;
 
 interface NavItem {
   icon: IoniconName;
@@ -113,7 +115,10 @@ export function MorePopup(): React.JSX.Element {
   const visibleItems = filterNav(POPUP_NAV);
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
+    <View
+      style={[styles.overlay, process.env.EXPO_OS === 'web' && webFixedOverlay]}
+      pointerEvents={isOpen ? 'auto' : 'none'}
+    >
       {panelMounted && (
         <>
           {/* Backdrop */}
@@ -180,6 +185,10 @@ export function MorePopup(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 30,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000',
