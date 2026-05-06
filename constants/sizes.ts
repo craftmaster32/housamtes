@@ -11,6 +11,10 @@ export const sizes = {
   // Touch targets — Apple requires minimum 44x44pt
   touchTarget: 44,
 
+  // Bottom navigation
+  bottomTabBarHeight: 92,
+  bottomTabContentPadding: 112,
+
   // Border radius
   borderRadius: 12,
   borderRadiusSm: 8,

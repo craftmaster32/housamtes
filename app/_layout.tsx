@@ -287,7 +287,7 @@ export default function RootLayout(): React.JSX.Element | null {
 
 const styles = StyleSheet.create({
   gestureRoot: { flex: 1 },
-  root: { flex: 1 },
-  content: { flex: 1 },
+  root: { flex: 1, overflow: 'hidden' },
+  content: { flex: 1, minHeight: 0 },
   splash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: darkColors.background },
 });

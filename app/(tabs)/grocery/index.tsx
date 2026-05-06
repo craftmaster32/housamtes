@@ -22,6 +22,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
+import { sizes } from '@constants/sizes';
 
 // ── Banani design tokens ────────────────────────────────────────────────────────
 const SURFACE_BG   = 'rgba(251,248,245,0.96)';
@@ -1016,5 +1017,5 @@ const styles = StyleSheet.create({
   shopperBadge:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.7)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 },
   shopperBadgeText: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
 
-  bottomPad: { height: 40 },
+  bottomPad: { height: sizes.bottomTabContentPadding },
 });
