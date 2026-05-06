@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
+import type { ViewStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +14,7 @@ import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+const webFixedTabBar = { position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 20 } as unknown as ViewStyle;
 
 interface TabItem {
   id: string;
@@ -66,11 +68,13 @@ export function BottomTabBar(): React.JSX.Element {
 
   const bg          = c.background;
   const borderColor = c.border;
+  const bottomInset = Math.max(insets.bottom, 12);
 
   return (
     <View style={[
       styles.container,
-      { backgroundColor: bg, borderTopColor: borderColor, paddingBottom: insets.bottom || 12 },
+      process.env.EXPO_OS === 'web' && webFixedTabBar,
+      { backgroundColor: bg, borderTopColor: borderColor, paddingBottom: bottomInset },
     ]}>
       {/* Left two tabs */}
       {TABS.slice(0, 2).map((tab) => {

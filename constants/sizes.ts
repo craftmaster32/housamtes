@@ -12,8 +12,8 @@ export const sizes = {
   touchTarget: 44,
 
   // Bottom navigation
-  bottomTabBarHeight: 92,
-  bottomTabContentPadding: 112,
+  bottomTabBarHeight: 104,
+  bottomTabContentPadding: 40,
 
   // Border radius
   borderRadius: 12,

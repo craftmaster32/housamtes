@@ -27,6 +27,7 @@ import { ProfilePopup } from '@components/shared/ProfilePopup';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
 import { darkColors } from '@constants/colors';
+import { sizes } from '@constants/sizes';
 import { useColors } from '@hooks/useColors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
@@ -240,6 +241,7 @@ export default function RootLayout(): React.JSX.Element | null {
   ]);
 
   const showChrome = !!user && !!houseId;
+  const usesFixedBottomTab = process.env.EXPO_OS === 'web';
 
   // Swipe-back gesture: zone starts from 22–70 px from left edge (distinct from drawer open zone at 0–22 px)
   const backSwipe = useRef(
@@ -270,6 +272,7 @@ export default function RootLayout(): React.JSX.Element | null {
           <View style={styles.content}>
             <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
           </View>
+          {showChrome && usesFixedBottomTab && <View style={styles.webBottomTabSpacer} />}
           {showChrome && <BottomTabBar />}
           {showChrome && <MorePopup />}
           {showChrome && <ProfilePopup />}
@@ -289,5 +292,6 @@ const styles = StyleSheet.create({
   gestureRoot: { flex: 1 },
   root: { flex: 1, overflow: 'hidden' },
   content: { flex: 1, minHeight: 0 },
+  webBottomTabSpacer: { height: sizes.bottomTabBarHeight },
   splash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: darkColors.background },
 });
