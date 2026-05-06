@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
@@ -83,13 +83,17 @@ export function MorePopup(): React.JSX.Element {
     [settingsFeatures, permissions]
   );
 
+  const [panelMounted, setPanelMounted] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (isOpen) {
+      setPanelMounted(true);
       Animated.spring(anim, { toValue: 1, useNativeDriver: true, tension: 68, friction: 12 }).start();
     } else {
-      Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+      Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start(
+        ({ finished }) => { if (finished) setPanelMounted(false); }
+      );
     }
   }, [isOpen, anim]);
 
@@ -108,61 +112,65 @@ export function MorePopup(): React.JSX.Element {
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
-      {/* Backdrop */}
-      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={close}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Close menu"
-        />
-      </Animated.View>
+      {panelMounted && (
+        <>
+          {/* Backdrop */}
+          <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={close}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Close menu"
+            />
+          </Animated.View>
 
-      {/* Sliding panel */}
-      <Animated.View style={[
-        styles.panel,
-        { backgroundColor: c.surface, paddingBottom: Math.max(insets.bottom, 16), transform: [{ translateY }] },
-      ]}>
-        {/* Drag handle */}
-        <View style={styles.handleWrap}>
-          <View style={[styles.handle, { backgroundColor: c.border }]} />
-        </View>
+          {/* Sliding panel */}
+          <Animated.View style={[
+            styles.panel,
+            { backgroundColor: c.surface, paddingBottom: Math.max(insets.bottom, 16), transform: [{ translateY }] },
+          ]}>
+            {/* Drag handle */}
+            <View style={styles.handleWrap}>
+              <View style={[styles.handle, { backgroundColor: c.border }]} />
+            </View>
 
-        {/* Section label */}
-        <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>{t('nav.house_section')}</Text>
+            {/* Section label */}
+            <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>{t('nav.house_section')}</Text>
 
-        {/* 3-column grid */}
-        <View style={styles.grid}>
-          {visibleItems.map((item) => {
-            const count = item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0;
+            {/* 3-column grid */}
+            <View style={styles.grid}>
+              {visibleItems.map((item) => {
+                const count = item.featureKey ? (badgeCounts[item.featureKey] ?? 0) : 0;
 
-            return (
-              <Pressable
-                key={item.route}
-                style={({ pressed }) => [styles.gridItem, pressed && styles.gridItemPressed]}
-                onPress={() => handleNav(item)}
-                accessibilityRole="button"
-                accessibilityLabel={t(item.labelKey)}
-              >
-                <View style={[styles.iconWrap, { backgroundColor: c.primary + '14' }]}>
-                  <Ionicons name={item.icon} size={22} color={c.primary} />
-                  {count > 0 && (
-                    <View style={[styles.badge, { backgroundColor: c.danger }]}>
-                      <Text style={[styles.badgeText, { color: c.white }]}>
-                        {count > 9 ? '9+' : String(count)}
-                      </Text>
+                return (
+                  <Pressable
+                    key={item.route}
+                    style={({ pressed }) => [styles.gridItem, pressed && styles.gridItemPressed]}
+                    onPress={() => handleNav(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(item.labelKey)}
+                  >
+                    <View style={[styles.iconWrap, { backgroundColor: c.primary + '14' }]}>
+                      <Ionicons name={item.icon} size={22} color={c.primary} />
+                      {count > 0 && (
+                        <View style={[styles.badge, { backgroundColor: c.danger }]}>
+                          <Text style={[styles.badgeText, { color: c.white }]}>
+                            {count > 9 ? '9+' : String(count)}
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </View>
-                <Text style={[styles.gridLabel, { color: c.textPrimary }]} numberOfLines={1}>
-                  {t(item.labelKey)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </Animated.View>
+                    <Text style={[styles.gridLabel, { color: c.textPrimary }]} numberOfLines={1}>
+                      {t(item.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Animated.View>
+        </>
+      )}
     </View>
   );
 }
