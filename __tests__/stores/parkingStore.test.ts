@@ -55,9 +55,15 @@ function reservation(overrides: Partial<ParkingReservation> = {}): ParkingReserv
   };
 }
 
+function localDateStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 beforeEach(() => {
   useParkingStore.setState({ current: null, reservations: [], isLoading: false });
   jest.clearAllMocks();
+  mockFrom.mockReset();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -278,7 +284,7 @@ describe('parkingStore — checkReservationAutoApply', () => {
     useParkingStore.setState({
       current: null,
       // status is 'pending' — not 'approved'
-      reservations: [reservation({ status: 'pending', date: new Date().toISOString().slice(0, 10) })],
+      reservations: [reservation({ status: 'pending', date: localDateStr() })],
     });
 
     await useParkingStore.getState().checkReservationAutoApply('house-1');
@@ -287,7 +293,7 @@ describe('parkingStore — checkReservationAutoApply', () => {
   });
 
   it('aborts auto-claim when server confirms an active session already exists', async () => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localDateStr();
     useParkingStore.setState({
       current: null,
       reservations: [reservation({ status: 'approved', date: todayStr, startTime: '00:00', endTime: '23:59' })],
@@ -303,7 +309,7 @@ describe('parkingStore — checkReservationAutoApply', () => {
   });
 
   it('auto-claims parking when reservation is due and spot is free', async () => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localDateStr();
     useParkingStore.setState({
       current: null,
       reservations: [
