@@ -100,6 +100,8 @@ export function MorePopup(): React.JSX.Element {
   const backdropOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5], extrapolate: 'clamp' });
   const translateY      = anim.interpolate({ inputRange: [0, 1], outputRange: [420, 0],  extrapolate: 'clamp' });
 
+  const handleClose = useCallback((): void => { close(); }, [close]);
+
   const handleNav = useCallback((item: NavItem): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     close();
@@ -118,7 +120,7 @@ export function MorePopup(): React.JSX.Element {
           <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
             <Pressable
               style={StyleSheet.absoluteFill}
-              onPress={close}
+              onPress={handleClose}
               accessible
               accessibilityRole="button"
               accessibilityLabel="Close menu"
@@ -148,8 +150,10 @@ export function MorePopup(): React.JSX.Element {
                     key={item.route}
                     style={({ pressed }) => [styles.gridItem, pressed && styles.gridItemPressed]}
                     onPress={() => handleNav(item)}
+                    accessible={true}
                     accessibilityRole="button"
                     accessibilityLabel={t(item.labelKey)}
+                    accessibilityState={{ disabled: false }}
                   >
                     <View style={[styles.iconWrap, { backgroundColor: c.primary + '14' }]}>
                       <Ionicons name={item.icon} size={22} color={c.primary} />
