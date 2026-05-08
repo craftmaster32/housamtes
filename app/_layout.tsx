@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, PanResponder, AppState } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, PanResponder, AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { initErrorTracking } from '@lib/errorTracking';
@@ -35,7 +35,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { registerWebPush } from '@lib/webPush';
 
 const fontConfig = { fontFamily: 'Inter_400Regular' };
-const usesFixedBottomTab = process.env.EXPO_OS === 'web';
+const usesFixedBottomTab = Platform.OS === 'web';
 
 initErrorTracking();
 
