@@ -35,6 +35,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { registerWebPush } from '@lib/webPush';
 
 const fontConfig = { fontFamily: 'Inter_400Regular' };
+const usesFixedBottomTab = process.env.EXPO_OS === 'web';
 
 initErrorTracking();
 
@@ -241,7 +242,6 @@ export default function RootLayout(): React.JSX.Element | null {
   ]);
 
   const showChrome = !!user && !!houseId;
-  const usesFixedBottomTab = process.env.EXPO_OS === 'web';
 
   // Swipe-back gesture: zone starts from 22–70 px from left edge (distinct from drawer open zone at 0–22 px)
   const backSwipe = useRef(
