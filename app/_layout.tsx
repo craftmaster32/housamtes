@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, PanResponder, AppState } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, PanResponder, AppState, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { initErrorTracking } from '@lib/errorTracking';
@@ -27,6 +27,7 @@ import { ProfilePopup } from '@components/shared/ProfilePopup';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
 import { darkColors } from '@constants/colors';
+import { sizes } from '@constants/sizes';
 import { useColors } from '@hooks/useColors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
@@ -34,6 +35,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { registerWebPush } from '@lib/webPush';
 
 const fontConfig = { fontFamily: 'Inter_400Regular' };
+const usesFixedBottomTab = Platform.OS === 'web';
 
 initErrorTracking();
 
@@ -270,6 +272,7 @@ export default function RootLayout(): React.JSX.Element | null {
           <View style={styles.content}>
             <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
           </View>
+          {showChrome && usesFixedBottomTab && <View style={styles.webBottomTabSpacer} />}
           {showChrome && <BottomTabBar />}
           {showChrome && <MorePopup />}
           {showChrome && <ProfilePopup />}
@@ -289,5 +292,6 @@ const styles = StyleSheet.create({
   gestureRoot: { flex: 1 },
   root: { flex: 1, overflow: 'hidden' },
   content: { flex: 1, minHeight: 0 },
+  webBottomTabSpacer: { height: sizes.bottomTabBarHeight },
   splash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: darkColors.background },
 });
