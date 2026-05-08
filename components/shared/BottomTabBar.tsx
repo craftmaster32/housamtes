@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,13 +13,6 @@ import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-const bottomTabPlatformStyles = StyleSheet.create({
-  webFixedTabBar: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20 },
-});
-const webFixedTabBar = Platform.select({
-  web: bottomTabPlatformStyles.webFixedTabBar,
-  default: undefined,
-});
 
 interface TabItem {
   id: string;
@@ -78,9 +71,8 @@ export function BottomTabBar(): React.JSX.Element {
   return (
     <View style={[
       styles.container,
-      webFixedTabBar,
       { backgroundColor: bg, borderTopColor: borderColor, paddingBottom: bottomInset },
-    ]}>
+    ]} testID="bottom-tab-bar">
       {/* Left two tabs */}
       {TABS.slice(0, 2).map((tab) => {
         const active = isActive(tab.id);
