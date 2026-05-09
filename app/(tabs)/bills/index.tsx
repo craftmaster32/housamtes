@@ -9,7 +9,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import {
   useBillsStore, calculateAllNetBalances, calculateSimplifiedBalancesForUser, settleDebts, type Bill,
 } from '@stores/billsStore';
@@ -315,7 +314,7 @@ export default function BillsScreen(): React.JSX.Element {
     <View style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}>
 
       {/* ── Page header ─────────────────────────────────────────── */}
-      <Animated.View entering={FadeIn.duration(350)} style={styles.pageHeader}>
+      <View style={styles.pageHeader}>
         <View>
           <Text style={[styles.pageTitle, { color: c.textPrimary }]}>Bills</Text>
           <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{'Expenses & balances'}</Text>
@@ -332,13 +331,10 @@ export default function BillsScreen(): React.JSX.Element {
           <Ionicons name="add" size={18} color="#fff" />
           <Text style={styles.addBtnText}>{t('bills.add_expense')}</Text>
         </Pressable>
-      </Animated.View>
+      </View>
 
       {/* ── Balance stats ────────────────────────────────────────── */}
-      <Animated.View
-        entering={FadeInDown.delay(60).duration(400)}
-        style={[styles.balanceCard, { backgroundColor: c.surface, borderColor: c.border }]}
-      >
+      <View style={[styles.balanceCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={styles.balanceStat}>
           <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>Owed to you</Text>
           <Text style={[styles.balanceStatNum, { color: totalOwed > 0 ? c.positive : c.textPrimary }]}>
@@ -362,10 +358,10 @@ export default function BillsScreen(): React.JSX.Element {
             {formatFull(totalOwe, currencyCode)}
           </Text>
         </View>
-      </Animated.View>
+      </View>
 
       {/* ── Settle Up collapsible ────────────────────────────────── */}
-      <Animated.View entering={FadeInDown.delay(110).duration(400)}>
+      <View>
         <Pressable
           style={({ pressed }) => [
             styles.settleCard,
@@ -395,11 +391,11 @@ export default function BillsScreen(): React.JSX.Element {
             </View>
           )}
         </Pressable>
-      </Animated.View>
+      </View>
 
       {/* ── Housemate balances ────────────────────────────────────── */}
       {hmBalances.length > 0 && (
-        <Animated.View entering={FadeInDown.delay(160).duration(400)} style={styles.section}>
+        <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>HOUSEMATE BALANCES</Text>
             <Pressable onPress={() => router.push('/(tabs)/bills/setup')} accessibilityRole="button">
@@ -415,14 +411,11 @@ export default function BillsScreen(): React.JSX.Element {
               <HousemateCard key={item.person} item={item} />
             ))}
           </ScrollView>
-        </Animated.View>
+        </View>
       )}
 
       {/* ── Bill type filter ──────────────────────────────────────── */}
-      <Animated.View
-        entering={FadeInDown.delay(200).duration(400)}
-        style={[styles.filterRow, { backgroundColor: c.surfaceSecondary, borderColor: c.border }]}
-      >
+      <View style={[styles.filterRow, { backgroundColor: c.surfaceSecondary, borderColor: c.border }]}>
         <Pressable
           style={({ pressed }) => [
             styles.filterTab,
@@ -460,7 +453,7 @@ export default function BillsScreen(): React.JSX.Element {
             Recurring bills
           </Text>
         </Pressable>
-      </Animated.View>
+      </View>
 
       {/* Recurring household bills */}
       {filter === 'recurring' && (
