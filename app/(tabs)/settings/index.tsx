@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import { useSettingsStore, CURRENCIES } from '@stores/settingsStore';
+import { useSettingsStore, CURRENCIES, type ThemeMode } from '@stores/settingsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
@@ -21,6 +21,8 @@ export default function SettingsScreen(): React.JSX.Element {
   const toggleFeature = useSettingsStore((s) => s.toggleFeature);
   const currency = useSettingsStore((s) => s.currency);
   const setCurrency = useSettingsStore((s) => s.setCurrency);
+  const themeMode = useSettingsStore((s) => s.themeMode);
+  const setThemeMode = useSettingsStore((s) => s.setThemeMode);
   const leaveHouse = useAuthStore((s) => s.leaveHouse);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
@@ -108,6 +110,35 @@ export default function SettingsScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.intro}>{t('settings.features_intro')}</Text>
+
+        {/* ── Appearance (temporary toggle — replaced by Batch 6 picker) ── */}
+        <Text style={styles.sectionLabel}>APPEARANCE</Text>
+        <View style={styles.card}>
+          {(['system', 'light', 'dark'] as ThemeMode[]).map((mode, index, arr) => (
+            <Pressable
+              key={mode}
+              style={[styles.row, index < arr.length - 1 && styles.rowBorder]}
+              onPress={() => setThemeMode(mode)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: themeMode === mode }}
+            >
+              <Ionicons
+                name={mode === 'dark' ? 'moon-outline' : mode === 'light' ? 'sunny-outline' : 'phone-portrait-outline'}
+                size={22}
+                color={themeMode === mode ? colors.primary : colors.textSecondary}
+                style={styles.iconNative}
+              />
+              <View style={styles.info}>
+                <Text style={[styles.label, themeMode === mode && { color: colors.primary }]}>
+                  {mode === 'system' ? 'System default' : mode === 'light' ? 'Light' : 'Dark'}
+                </Text>
+              </View>
+              {themeMode === mode && (
+                <Ionicons name="checkmark" size={20} color={colors.primary} />
+              )}
+            </Pressable>
+          ))}
+        </View>
 
         {/* ── Currency ── */}
         <Text style={styles.sectionLabel}>CURRENCY</Text>

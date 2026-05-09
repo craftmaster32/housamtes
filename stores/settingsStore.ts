@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { type CurrencyCode, currencyFromSymbol } from '@constants/currencies';
+
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 export interface FeatureConfig {
   key: string;
@@ -92,14 +95,19 @@ export type AppTheme = 'dark' | 'light';
 interface SettingsStore {
   features: FeatureConfig[];
   dashboardWidgets: string[];
+  /** @deprecated use currencyCode instead */
   currency: string;
+  currencyCode: CurrencyCode;
   showRecurringBillsOnCalendar: boolean;
   theme: AppTheme;
+  themeMode: ThemeMode;
   toggleFeature: (key: string) => void;
   toggleDashboardWidget: (key: string) => void;
   setCurrency: (currency: string) => void;
+  setCurrencyCode: (code: CurrencyCode) => void;
   toggleShowRecurringBillsOnCalendar: () => void;
   setTheme: (theme: AppTheme) => void;
+  setThemeMode: (mode: ThemeMode) => void;
   isEnabled: (key: string) => boolean;
   isDashboardWidget: (key: string) => boolean;
 }
@@ -111,8 +119,10 @@ export const useSettingsStore = create<SettingsStore>()(
         features: DEFAULT_FEATURES,
         dashboardWidgets: ALL_FEATURE_KEYS,
         currency: '₪',
+        currencyCode: 'ILS' as CurrencyCode,
         showRecurringBillsOnCalendar: true,
         theme: 'dark' as AppTheme,
+        themeMode: 'system' as ThemeMode,
 
         toggleFeature: (key: string): void => {
           set((s) => ({
@@ -123,7 +133,15 @@ export const useSettingsStore = create<SettingsStore>()(
         },
 
         setCurrency: (currency: string): void => {
-          set({ currency });
+          set({ currency, currencyCode: currencyFromSymbol(currency) });
+        },
+
+        setCurrencyCode: (code: CurrencyCode): void => {
+          set({ currencyCode: code });
+        },
+
+        setThemeMode: (mode: ThemeMode): void => {
+          set({ themeMode: mode });
         },
 
         toggleShowRecurringBillsOnCalendar: (): void => {
@@ -155,7 +173,7 @@ export const useSettingsStore = create<SettingsStore>()(
       {
         name: 'housemates-settings',
         storage: createJSONStorage(() => AsyncStorage),
-        version: 3,
+        version: 4,
         migrate: (state: unknown, fromVersion: number): SettingsStore => {
           let next = { ...(state as SettingsStore) };
           if (fromVersion < 2) {
@@ -176,6 +194,14 @@ export const useSettingsStore = create<SettingsStore>()(
           }
           if (fromVersion < 3 && !next.theme) {
             next = { ...next, theme: 'dark' };
+          }
+          if (fromVersion < 4) {
+            if (!next.currencyCode) {
+              next = { ...next, currencyCode: currencyFromSymbol(next.currency) };
+            }
+            if (!next.themeMode) {
+              next = { ...next, themeMode: 'system' };
+            }
           }
           return next;
         },

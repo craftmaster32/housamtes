@@ -43,6 +43,7 @@
     ".expo/types/**/*.d.ts"
   ],
   "exclude": [
-    "supabase/functions"
+    "supabase/functions",
+    "HouseMates Design System (2)"
   ]
 }

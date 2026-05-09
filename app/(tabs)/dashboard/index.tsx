@@ -25,7 +25,8 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
-import { useColors } from '@hooks/useColors';
+import { useThemedColors } from '@constants/colors';
+import { formatFull } from '@constants/currencies';
 import { SpendingCard } from '@components/profile/SpendingCard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -86,7 +87,7 @@ export interface WidgetCardProps {
 }
 
 function WidgetCard({ children, style, onPress }: WidgetCardProps): React.JSX.Element {
-  const c = useColors();
+  const c = useThemedColors();
   const cardStyle = [styles.card, { backgroundColor: c.surface, borderColor: c.border }, style];
   if (onPress) {
     return (
@@ -100,7 +101,7 @@ function WidgetCard({ children, style, onPress }: WidgetCardProps): React.JSX.El
 
 // ── Balance Hero Card ─────────────────────────────────────────────────────────
 function BalanceHeroCard(): React.JSX.Element {
-  const currency = useSettingsStore((s) => s.currency);
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
   const bills = useBillsStore((s) => s.bills);
   const profile = useAuthStore((s) => s.profile);
   const lastSeen = useBadgeStore((s) => s.lastSeen);
@@ -125,7 +126,7 @@ function BalanceHeroCard(): React.JSX.Element {
       style={styles.balanceHero}
       onPress={() => router.push('/(tabs)/bills')}
       accessibilityRole="button"
-      accessibilityLabel={`Balance: ${isOwed ? 'you are owed' : 'you owe'} ${currency}${Math.abs(netAmount).toFixed(2)}`}
+      accessibilityLabel={`Balance: ${isOwed ? 'you are owed' : 'you owe'} ${formatFull(Math.abs(netAmount), currencyCode)}`}
     >
       {/* Decorative circle */}
       <View style={styles.balanceHeroDeco} />
@@ -147,7 +148,7 @@ function BalanceHeroCard(): React.JSX.Element {
       </View>
 
       <Text style={styles.balanceHeroAmt}>
-        {currency}{Math.abs(netAmount).toFixed(2)}
+        {formatFull(Math.abs(netAmount), currencyCode)}
       </Text>
 
       {balances.length > 0 && (
@@ -174,7 +175,7 @@ function BalanceHeroCard(): React.JSX.Element {
 
 // ── Today at Home ─────────────────────────────────────────────────────────────
 function TodayAtHome(): React.JSX.Element {
-  const c         = useColors();
+  const c         = useThemedColors();
   const current   = useParkingStore((s) => s.current);
   const chores    = useChoresStore((s) => s.chores);
   const items     = useGroceryStore((s) => s.items);
@@ -249,10 +250,10 @@ function TodayAtHome(): React.JSX.Element {
 
 // ── Recent Expenses ───────────────────────────────────────────────────────────
 function RecentExpenses(): React.JSX.Element {
-  const c          = useColors();
+  const c          = useThemedColors();
   const bills      = useBillsStore((s) => s.bills);
-  const currency   = useSettingsStore((s) => s.currency);
-  const housemates = useHousematesStore((s) => s.housemates);
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
+  const housemates   = useHousematesStore((s) => s.housemates);
 
   const recent = useMemo(
     () => [...bills]
@@ -295,13 +296,13 @@ function RecentExpenses(): React.JSX.Element {
                 </View>
                 <View style={styles.recentRight}>
                   <Text style={[styles.recentAmt, { color: c.textPrimary }]}>
-                    {currency}{bill.amount.toFixed(2)}
+                    {formatFull(bill.amount, currencyCode)}
                   </Text>
                   <View style={[
                     styles.recentBadge,
-                    { backgroundColor: bill.settled ? '#0A2418' : c.surfaceSecondary },
+                    { backgroundColor: bill.settled ? c.positive + '18' : c.surfaceSecondary },
                   ]}>
-                    <Text style={[styles.recentBadgeText, { color: bill.settled ? '#4FB071' : c.textSecondary }]}>
+                    <Text style={[styles.recentBadgeText, { color: bill.settled ? c.positive : c.textSecondary }]}>
                       {bill.settled ? 'Settled' : 'Pending'}
                     </Text>
                   </View>
@@ -317,7 +318,7 @@ function RecentExpenses(): React.JSX.Element {
 
 // ── Chore Card ────────────────────────────────────────────────────────────────
 function ChoreCard(): React.JSX.Element {
-  const c          = useColors();
+  const c          = useThemedColors();
   const chores     = useChoresStore((s) => s.chores);
   const toggleChore = useChoresStore((s) => s.toggleChore);
   const profile    = useAuthStore((s) => s.profile);
@@ -378,7 +379,7 @@ function ChoreCard(): React.JSX.Element {
 
 // ── Parking Card ──────────────────────────────────────────────────────────────
 function ParkingCard(): React.JSX.Element {
-  const c            = useColors();
+  const c            = useThemedColors();
   const current      = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
   const claim        = useParkingStore((s) => s.claim);
@@ -481,7 +482,7 @@ interface GroceryWidgetRowProps {
 }
 
 function GroceryWidgetRow({ item, myId, onToggle, onDelete }: GroceryWidgetRowProps): React.JSX.Element {
-  const c         = useColors();
+  const c         = useThemedColors();
   const swipeRef  = useRef<Swipeable>(null);
   const canDelete = item.addedBy === myId;
 
@@ -516,7 +517,7 @@ function GroceryWidgetRow({ item, myId, onToggle, onDelete }: GroceryWidgetRowPr
 }
 
 function GroceryWidget(): React.JSX.Element {
-  const c                  = useColors();
+  const c                  = useThemedColors();
   const items              = useGroceryStore((s) => s.items);
   const addItem            = useGroceryStore((s) => s.addItem);
   const toggleItem         = useGroceryStore((s) => s.toggleItem);
@@ -616,7 +617,7 @@ function GroceryWidget(): React.JSX.Element {
 
 // ── Votes Widget ──────────────────────────────────────────────────────────────
 function VotesWidget(): React.JSX.Element {
-  const c          = useColors();
+  const c          = useThemedColors();
   const proposals  = useVotingStore((s) => s.proposals);
   const profile    = useAuthStore((s) => s.profile);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -696,7 +697,7 @@ function toYMD(d: Date): string {
 }
 
 function MiniCalendarWidget(): React.JSX.Element {
-  const c                  = useColors();
+  const c                  = useThemedColors();
   const events             = useEventsStore((s) => s.events);
   const reservations       = useParkingStore((s) => s.reservations);
   const recurringBills     = useRecurringBillsStore((s) => s.bills);
@@ -834,7 +835,7 @@ function buildActivityEvents(bills: Bill[], groceryItems: GroceryItem[], chores:
 }
 
 function ActivityFeed(): React.JSX.Element {
-  const c            = useColors();
+  const c            = useThemedColors();
   const bills        = useBillsStore((s) => s.bills);
   const groceryItems = useGroceryStore((s) => s.items);
   const chores       = useChoresStore((s) => s.chores);
@@ -875,7 +876,7 @@ function ActivityFeed(): React.JSX.Element {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function DashboardScreen(): React.JSX.Element {
-  const c          = useColors();
+  const c          = useThemedColors();
   const profile    = useAuthStore((s) => s.profile);
   const houseId    = useAuthStore((s) => s.houseId);
   const houseName  = useHousematesStore((s) => s.houseName);
