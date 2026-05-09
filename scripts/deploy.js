@@ -15,10 +15,12 @@ execSync('npx expo export --platform web', { cwd: root, stdio: 'inherit' });
 
 // 2. Copy web/manifest.json into dist so PWA standalone mode works
 const webManifest = path.join(root, 'web', 'manifest.json');
-if (fs.existsSync(webManifest)) {
-  fs.copyFileSync(webManifest, path.join(distDir, 'manifest.json'));
-  console.log('✓ manifest.json copied to dist');
+if (!fs.existsSync(webManifest)) {
+  console.error(`✖ web/manifest.json not found at ${webManifest} — aborting deployment`);
+  process.exit(1);
 }
+fs.copyFileSync(webManifest, path.join(distDir, 'manifest.json'));
+console.log('✓ manifest.json copied to dist');
 
 // 3. Fix Ionicons for web
 //    - Copy the font to /fonts/ionicons.ttf (clean path, no node_modules)
