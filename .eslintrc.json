@@ -25,5 +25,11 @@
   },
   "settings": {
     "react": { "version": "detect" }
-  }
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**"],
+      "env": { "node": true }
+    }
+  ]
 }

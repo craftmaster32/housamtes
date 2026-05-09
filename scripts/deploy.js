@@ -13,7 +13,16 @@ if (fs.existsSync(distDir)) fs.rmSync(distDir, { recursive: true, force: true })
 console.log('\n▶ Building web app...');
 execSync('npx expo export --platform web', { cwd: root, stdio: 'inherit' });
 
-// 2. Fix Ionicons for web
+// 2. Copy web/manifest.json into dist so PWA standalone mode works
+const webManifest = path.join(root, 'web', 'manifest.json');
+if (!fs.existsSync(webManifest)) {
+  console.error(`✖ web/manifest.json not found at ${webManifest} — aborting deployment`);
+  process.exit(1);
+}
+fs.copyFileSync(webManifest, path.join(distDir, 'manifest.json'));
+console.log('✓ manifest.json copied to dist');
+
+// 3. Fix Ionicons for web
 //    - Copy the font to /fonts/ionicons.ttf (clean path, no node_modules)
 //    - Base64-encode it into a standalone /fonts/ionicons.css file
 //    - Link that CSS from every HTML file (one cached download, works in all browsers)
@@ -73,7 +82,7 @@ if (!ioniconsAsset) {
   console.log(`✓ Ionicons embedded as base64 (${kb} KB) + fallback /fonts/ionicons.ttf`);
 }
 
-// 3. Write vercel.json into dist so routing works correctly
+// 4. Write vercel.json into dist so routing works correctly
 //    SPA mode: every URL must fall through to index.html
 const vercelConfig = {
   headers: [
@@ -100,7 +109,20 @@ fs.writeFileSync(
 );
 console.log('\n✓ vercel.json written');
 
-// 4b. Copy the .vercel project link from root into dist
+// 4b. Add manifest.json to Vercel headers so it's served with correct content-type
+vercelConfig.headers.push({
+  source: '/manifest.json',
+  headers: [
+    { key: 'Content-Type', value: 'application/manifest+json' },
+    { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+  ],
+});
+fs.writeFileSync(
+  path.join(distDir, 'vercel.json'),
+  JSON.stringify(vercelConfig, null, 2)
+);
+
+// 4c. Copy the .vercel project link from root into dist
 if (fs.existsSync(rootVercel)) {
   if (fs.existsSync(distVercel)) fs.rmSync(distVercel, { recursive: true });
   fs.cpSync(rootVercel, distVercel, { recursive: true });
@@ -110,6 +132,7 @@ if (fs.existsSync(rootVercel)) {
 }
 
 // 5. Deploy
+
 console.log('\n▶ Deploying to Vercel...');
 execSync('vercel --prod --yes', { cwd: distDir, stdio: 'inherit' });
 
