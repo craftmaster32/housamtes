@@ -1,12 +1,12 @@
-import { useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList, Switch, Alert } from 'react-native';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, StyleSheet, FlatList, Switch, Alert, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore, type Housemate, type MemberPermissions, type MemberRole } from '@stores/housematesStore';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
@@ -22,6 +22,37 @@ const PERMISSION_LABELS: Array<{ key: keyof MemberPermissions; label: string; ic
   { key: 'condition',   label: 'Property Condition',  icon: '📋' },
 ];
 
+const makeStyles = (C: ColorTokens) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: C.background },
+    flex: { flex: 1 },
+    list: { padding: sizes.lg, paddingBottom: 60, gap: 0 },
+
+    screenTitle: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5, marginBottom: 6 },
+    screenSub:   { fontSize: 14, ...font.regular, color: C.textSecondary, lineHeight: 20, marginBottom: sizes.lg },
+
+    memberCard: {
+      backgroundColor: C.surface, borderRadius: sizes.borderRadiusLg,
+      borderWidth: 1, borderColor: C.border, overflow: 'hidden',
+    },
+    memberHeader: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
+    memberAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+    memberAvatarImg: { width: 44, height: 44 },
+    memberAvatarText: { color: '#FFF', fontSize: 18, ...font.bold },
+    memberMeta:   { flex: 1 },
+    memberName:   { fontSize: 16, ...font.semibold, color: C.textPrimary },
+    memberRole:   { fontSize: 13, ...font.regular, color: C.textSecondary, marginTop: 1 },
+    changeRoleBtn:     { paddingHorizontal: 8, paddingVertical: 4 },
+    changeRoleBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
+
+    permWrap:  { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.border, paddingHorizontal: sizes.md, paddingBottom: sizes.md, paddingTop: sizes.sm, gap: 2 },
+    permTitle: { fontSize: 12, ...font.bold, color: C.textSecondary, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: sizes.sm },
+    permRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+    permIcon:  { fontSize: 16, width: 28 },
+    permLabel: { flex: 1, fontSize: 14, ...font.regular, color: C.textPrimary },
+    permNote:  { fontSize: 13, ...font.regular, color: C.textSecondary, padding: sizes.md, paddingTop: 0, fontStyle: 'italic' },
+
+    empty: { textAlign: 'center', color: C.textSecondary, fontSize: 14, paddingVertical: 24 },
+});
 
 // ── Member card ───────────────────────────────────────────────────────────────
 function MemberCard({
@@ -37,11 +68,12 @@ function MemberCard({
   onTogglePermission: (memberId: string, key: keyof MemberPermissions, value: boolean) => void;
   onChangeRole: (member: Housemate) => void;
 }): React.JSX.Element {
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const roleLabel = member.role === 'owner' ? '👑 Owner' : member.role === 'admin' ? '🛡 Admin' : 'Member';
 
   return (
     <View style={styles.memberCard}>
-      {/* Header */}
       <View style={styles.memberHeader}>
         <View style={[styles.memberAvatar, { backgroundColor: member.avatarUrl ? 'transparent' : member.color }]}>
           {member.avatarUrl
@@ -62,7 +94,6 @@ function MemberCard({
         )}
       </View>
 
-      {/* Permission toggles */}
       {canEdit && !isMe && (
         <View style={styles.permWrap}>
           <Text style={styles.permTitle}>What can {member.name} see?</Text>
@@ -73,8 +104,8 @@ function MemberCard({
               <Switch
                 value={member.permissions[key]}
                 onValueChange={(v) => onTogglePermission(member.memberId, key, v)}
-                trackColor={{ false: colors.border, true: colors.primary + '80' }}
-                thumbColor={member.permissions[key] ? colors.primary : colors.textDisabled}
+                trackColor={{ false: C.border, true: C.primary + '80' }}
+                thumbColor={member.permissions[key] ? C.primary : C.textDisabled}
               />
             </View>
           ))}
@@ -97,6 +128,13 @@ export default function MembersScreen(): React.JSX.Element {
   const load       = useHousematesStore((s) => s.load);
   const updatePermissions = useHousematesStore((s) => s.updatePermissions);
   const updateRole = useHousematesStore((s) => s.updateRole);
+
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   useEffect(() => {
     if (houseId) load(houseId);
@@ -132,65 +170,34 @@ export default function MembersScreen(): React.JSX.Element {
   const canEdit = myRole === 'owner' || myRole === 'admin';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <FlatList
-        data={housemates}
-        keyExtractor={(h) => h.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          <View>
-            <Text style={styles.screenTitle}>Member Permissions</Text>
-            <Text style={styles.screenSub}>
-              Control what each housemate can access in HouseMates. Owners and admins always have full access.
-            </Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <MemberCard
-            member={item}
-            isMe={item.id === myUserId}
-            canEdit={canEdit}
-            onTogglePermission={handleToggle}
-            onChangeRole={handleChangeRole}
-          />
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: sizes.md }} />}
-        ListEmptyComponent={<Text style={styles.empty}>No members found.</Text>}
-      />
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+        <FlatList
+          data={housemates}
+          keyExtractor={(h) => h.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            <View>
+              <Text style={styles.screenTitle}>Member Permissions</Text>
+              <Text style={styles.screenSub}>
+                Control what each housemate can access in HouseMates. Owners and admins always have full access.
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <MemberCard
+              member={item}
+              isMe={item.id === myUserId}
+              canEdit={canEdit}
+              onTogglePermission={handleToggle}
+              onChangeRole={handleChangeRole}
+            />
+          )}
+          ItemSeparatorComponent={() => <View style={{ height: sizes.md }} />}
+          ListEmptyComponent={<Text style={styles.empty}>No members found.</Text>}
+        />
+      </Animated.View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  list:      { padding: sizes.lg, paddingBottom: 60, gap: 0 },
-
-  screenTitle: { fontSize: 24, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5, marginBottom: 6 },
-  screenSub:   { fontSize: 14, ...font.regular, color: colors.textSecondary, lineHeight: 20, marginBottom: sizes.lg },
-
-  // Member card
-  memberCard: {
-    backgroundColor: colors.surface, borderRadius: sizes.borderRadiusLg,
-    borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
-  },
-  memberHeader: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
-  memberAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  memberAvatarImg: { width: 44, height: 44 },
-  memberAvatarText: { color: '#FFF', fontSize: 18, ...font.bold },
-  memberMeta:   { flex: 1 },
-  memberName:   { fontSize: 16, ...font.semibold, color: colors.textPrimary },
-  memberRole:   { fontSize: 13, ...font.regular, color: colors.textSecondary, marginTop: 1 },
-  changeRoleBtn:     { paddingHorizontal: 8, paddingVertical: 4 },
-  changeRoleBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
-
-  // Permissions
-  permWrap:  { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingHorizontal: sizes.md, paddingBottom: sizes.md, paddingTop: sizes.sm, gap: 2 },
-  permTitle: { fontSize: 12, ...font.bold, color: colors.textSecondary, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: sizes.sm },
-  permRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  permIcon:  { fontSize: 16, width: 28 },
-  permLabel: { flex: 1, fontSize: 14, ...font.regular, color: colors.textPrimary },
-  permNote:  { fontSize: 13, ...font.regular, color: colors.textSecondary, padding: sizes.md, paddingTop: 0, fontStyle: 'italic' },
-
-  empty: { textAlign: 'center', color: colors.textSecondary, fontSize: 14, paddingVertical: 24 },
-});

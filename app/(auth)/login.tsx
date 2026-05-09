@@ -1,12 +1,12 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@stores/authStore';
 import { signInSchema } from '@utils/validation';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
@@ -24,6 +24,13 @@ export default function LoginScreen(): React.JSX.Element {
   const isLoading = useAuthStore((s) => s.isLoading);
   const passwordRef = useRef<RNTextInput>(null);
   const lockoutTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   useEffect(() => {
     return (): void => {
@@ -72,155 +79,160 @@ export default function LoginScreen(): React.JSX.Element {
   }, [email, password, signIn, failedAttempts, lockoutRemaining, startLockout]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Back button */}
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Text style={styles.backBtnText}>←</Text>
-        </Pressable>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+        <View style={styles.content}>
+          {/* Back button */}
+          <Pressable
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Text style={styles.backBtnText}>←</Text>
+          </Pressable>
 
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to HouseMates</Text>
+          <View style={styles.header}>
+            <Text style={styles.title}>Welcome back</Text>
+            <Text style={styles.subtitle}>Sign in to HouseMates</Text>
+          </View>
+
+          <TextInput
+            label="Email"
+            value={email}
+            onChangeText={(t) => { setEmail(t); setError(''); }}
+            mode="outlined"
+            style={styles.input}
+            autoFocus
+            keyboardType="email-address"
+            autoCapitalize="none"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            error={!!error}
+          />
+
+          <TextInput
+            ref={passwordRef}
+            label="Password"
+            value={password}
+            onChangeText={(t) => { setPassword(t); setError(''); }}
+            mode="outlined"
+            style={styles.input}
+            secureTextEntry={!showPassword}
+            returnKeyType="go"
+            onSubmitEditing={handleLogin}
+            right={
+              <TextInput.Icon
+                icon={showPassword ? 'eye-off' : 'eye'}
+                onPress={() => setShowPassword((v) => !v)}
+              />
+            }
+            error={!!error}
+          />
+
+          {!!error && <Text style={styles.error}>{error}</Text>}
+
+          <Button
+            mode="contained"
+            onPress={handleLogin}
+            loading={isLoading}
+            disabled={isLoading || lockoutRemaining > 0}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
+            buttonColor={C.primary}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={lockoutRemaining > 0 ? `Locked out, wait ${lockoutRemaining} seconds` : 'Sign in'}
+          >
+            {lockoutRemaining > 0 ? `Try again in ${lockoutRemaining}s` : 'Sign in'}
+          </Button>
+
+          <Pressable
+            style={styles.forgotBtn}
+            onPress={() => router.push('/(auth)/forgot-password')}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Forgot password"
+          >
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </Pressable>
         </View>
-
-        <TextInput
-          label="Email"
-          value={email}
-          onChangeText={(t) => { setEmail(t); setError(''); }}
-          mode="outlined"
-          style={styles.input}
-          autoFocus
-          keyboardType="email-address"
-          autoCapitalize="none"
-          returnKeyType="next"
-          onSubmitEditing={() => passwordRef.current?.focus()}
-          error={!!error}
-        />
-
-        <TextInput
-          ref={passwordRef}
-          label="Password"
-          value={password}
-          onChangeText={(t) => { setPassword(t); setError(''); }}
-          mode="outlined"
-          style={styles.input}
-          secureTextEntry={!showPassword}
-          returnKeyType="go"
-          onSubmitEditing={handleLogin}
-          right={
-            <TextInput.Icon
-              icon={showPassword ? 'eye-off' : 'eye'}
-              onPress={() => setShowPassword((v) => !v)}
-            />
-          }
-          error={!!error}
-        />
-
-        {!!error && <Text style={styles.error}>{error}</Text>}
-
-        <Button
-          mode="contained"
-          onPress={handleLogin}
-          loading={isLoading}
-          disabled={isLoading || lockoutRemaining > 0}
-          style={styles.button}
-          contentStyle={styles.buttonContent}
-          labelStyle={styles.buttonLabel}
-          buttonColor={colors.primary}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={lockoutRemaining > 0 ? `Locked out, wait ${lockoutRemaining} seconds` : 'Sign in'}
-        >
-          {lockoutRemaining > 0 ? `Try again in ${lockoutRemaining}s` : 'Sign in'}
-        </Button>
-
-        <Pressable
-          style={styles.forgotBtn}
-          onPress={() => router.push('/(auth)/forgot-password')}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel="Forgot password"
-        >
-          <Text style={styles.forgotText}>Forgot password?</Text>
-        </Pressable>
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: sizes.lg,
-    paddingTop: sizes.sm,
-    gap: sizes.md,
-  },
-  backBtn: {
-    width: sizes.touchTarget,
-    height: sizes.touchTarget,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    marginBottom: sizes.xs,
-  },
-  backBtnText: {
-    fontSize: 24,
-    ...font.regular,
-    color: colors.textPrimary,
-  },
-  header: {
-    gap: 4,
-    marginBottom: sizes.xs,
-  },
-  title: {
-    fontSize: 28,
-    ...font.extrabold,
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 15,
-    ...font.medium,
-    color: colors.textSecondary,
-  },
-  input: {
-    backgroundColor: colors.white,
-  },
-  error: {
-    ...font.regular,
-    color: colors.danger,
-    fontSize: sizes.fontSm,
-  },
-  button: {
-    borderRadius: 14,
-    marginTop: sizes.sm,
-  },
-  buttonContent: {
-    height: 52,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    ...font.semibold,
-    letterSpacing: 0.2,
-  },
-  forgotBtn: {
-    alignSelf: 'center',
-    paddingVertical: sizes.sm,
-    paddingHorizontal: sizes.md,
-  },
-  forgotText: {
-    fontSize: 15,
-    ...font.medium,
-    color: colors.primary,
-  },
-});
+function makeStyles(C: ColorTokens) {
+  return StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: C.surface,
+    },
+    flex: { flex: 1 },
+    content: {
+      flex: 1,
+      paddingHorizontal: sizes.lg,
+      paddingTop: sizes.sm,
+      gap: sizes.md,
+    },
+    backBtn: {
+      width: sizes.touchTarget,
+      height: sizes.touchTarget,
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+      marginBottom: sizes.xs,
+    },
+    backBtnText: {
+      fontSize: 24,
+      ...font.regular,
+      color: C.textPrimary,
+    },
+    header: {
+      gap: 4,
+      marginBottom: sizes.xs,
+    },
+    title: {
+      fontSize: 28,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: 15,
+      ...font.medium,
+      color: C.textSecondary,
+    },
+    input: {
+      backgroundColor: C.surface,
+    },
+    error: {
+      ...font.regular,
+      color: C.danger,
+      fontSize: sizes.fontSm,
+    },
+    button: {
+      borderRadius: 14,
+      marginTop: sizes.sm,
+    },
+    buttonContent: {
+      height: 52,
+    },
+    buttonLabel: {
+      fontSize: 16,
+      ...font.semibold,
+      letterSpacing: 0.2,
+    },
+    forgotBtn: {
+      alignSelf: 'center',
+      paddingVertical: sizes.sm,
+      paddingHorizontal: sizes.md,
+    },
+    forgotText: {
+      fontSize: 15,
+      ...font.medium,
+      color: C.primary,
+    },
+  });
+}

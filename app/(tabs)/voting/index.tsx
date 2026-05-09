@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { summarizeProposalVotes, useVotingStore, type Proposal } from '@stores/votingStore';
 import { resolveName } from '@utils/housemates';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
@@ -19,6 +19,88 @@ function timeAgo(iso: string): string {
   return `${days} days ago`;
 }
 
+const makeStyles = (C: ColorTokens) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: C.background },
+    flex: { flex: 1 },
+    scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+
+    pageHeader: { marginBottom: sizes.xs },
+    heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    headingSub: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, marginTop: 2 },
+
+    addBtn: { borderWidth: 2, borderColor: C.primary + '40', borderStyle: 'dashed', borderRadius: 14, paddingVertical: sizes.md, alignItems: 'center' },
+    addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
+
+    card: { backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, gap: sizes.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    cardClosed: { opacity: 0.75 },
+    cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
+    cardInfo: { flex: 1, gap: 2 },
+    cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
+    cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
+    cardDescription: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, lineHeight: 20 },
+    openBadge: { backgroundColor: C.primary + '15', borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 3 },
+    openBadgeText: { fontSize: sizes.fontXs, color: C.primary, ...font.bold },
+    resultBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 3 },
+    resultBadgeText: { fontSize: sizes.fontXs, ...font.bold },
+    removeBtn: { padding: 4 },
+    removeBtnText: { color: C.textDisabled, fontSize: sizes.fontSm },
+
+    tallyRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, height: 32 },
+    tallyItem: { width: 32, alignItems: 'center', gap: 1 },
+    tallyNum: { fontSize: sizes.fontLg, ...font.extrabold, lineHeight: 22 },
+    tallyLabel: { fontSize: 10, color: C.textSecondary, ...font.semibold },
+    tallyBar: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: C.border, flexDirection: 'row' },
+    tallyFillYes: { backgroundColor: C.positive, minWidth: 1 },
+    tallyFillNo: { backgroundColor: C.negative, minWidth: 1 },
+    tallyMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
+
+    voteRow: { flexDirection: 'row', gap: sizes.sm, flexWrap: 'wrap' },
+    voteBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadiusFull, borderWidth: 2 },
+    voteBtnYes: { borderColor: C.positive, backgroundColor: C.surface },
+    voteBtnYesActive: { backgroundColor: C.positive },
+    voteBtnNo: { borderColor: C.negative, backgroundColor: C.surface },
+    voteBtnNoActive: { backgroundColor: C.negative },
+    voteBtnText: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary },
+    voteBtnTextActive: { color: '#fff' },
+    closeBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: C.border },
+    closeBtnText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.regular },
+    closeResultBtn: { borderRadius: 12, paddingVertical: sizes.sm, paddingHorizontal: sizes.md, alignItems: 'center' },
+    closeResultBtnPositive: { backgroundColor: C.positive },
+    closeResultBtnText: { color: '#fff', fontSize: sizes.fontSm, ...font.bold },
+    voteErrorText: { color: C.danger, fontSize: sizes.fontXs, ...font.regular },
+
+    voterList: { gap: 6 },
+    voterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    voterName: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
+    voterChip: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 2, backgroundColor: C.border + '60' },
+    voterChipYes: { backgroundColor: C.positive + '18' },
+    voterChipNo: { backgroundColor: C.negative + '18' },
+    voterChipText: { fontSize: sizes.fontXs, ...font.semibold },
+
+    form: { backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, gap: sizes.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
+    fieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+    input: { backgroundColor: C.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: C.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: C.textPrimary, ...font.regular },
+    inputMultiline: { height: 80, textAlignVertical: 'top' },
+    formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
+    cancelBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+    cancelBtnText: { color: C.textSecondary, ...font.medium },
+    saveBtn: { backgroundColor: C.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
+    saveBtnDisabled: { backgroundColor: C.textDisabled },
+    saveBtnText: { color: '#fff', ...font.semibold },
+    saveError: { color: C.danger, fontSize: 13, ...font.regular },
+
+    closedToggle: { paddingVertical: sizes.sm, alignItems: 'center' },
+    closedToggleText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.medium },
+
+    emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
+    emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
+    emptyText: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, textAlign: 'center' },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    errorBanner: { backgroundColor: C.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: C.danger + '40' },
+    errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.danger },
+});
+
 function ProposalCard({
   proposal,
   myId,
@@ -29,6 +111,8 @@ function ProposalCard({
   totalPeople: number;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const housemates = useHousematesStore((s) => s.housemates);
   const castVote = useVotingStore((s) => s.castVote);
   const closeProposal = useVotingStore((s) => s.closeProposal);
@@ -55,10 +139,10 @@ function ProposalCard({
   const result = !proposal.isOpen ? voteSummary.result : null;
 
   const resultColor =
-    result === 'passed' ? colors.positive :
-    result === 'rejected' ? colors.negative :
-    result === 'blocked' ? colors.warning :
-    colors.textSecondary;
+    result === 'passed' ? C.positive :
+    result === 'rejected' ? C.negative :
+    result === 'blocked' ? C.warning :
+    C.textSecondary;
 
   return (
     <View style={[styles.card, !proposal.isOpen && styles.cardClosed]}>
@@ -91,10 +175,9 @@ function ProposalCard({
         <Text style={styles.cardDescription}>{proposal.description}</Text>
       ) : null}
 
-      {/* Vote tally */}
       <View style={styles.tallyRow}>
         <View style={styles.tallyItem}>
-          <Text style={[styles.tallyNum, { color: colors.positive }]}>{yesVotes}</Text>
+          <Text style={[styles.tallyNum, { color: C.positive }]}>{yesVotes}</Text>
           <Text style={styles.tallyLabel}>Yes</Text>
         </View>
         <View style={styles.tallyBar}>
@@ -104,17 +187,16 @@ function ProposalCard({
           {totalVoted > 0 && noVotes > 0 && (
             <View style={[styles.tallyFillNo, { flex: noVotes }]} />
           )}
-          {totalVoted === 0 && <View style={{ flex: 1, backgroundColor: colors.border, borderRadius: 4 }} />}
+          {totalVoted === 0 && <View style={{ flex: 1, backgroundColor: C.border, borderRadius: 4 }} />}
         </View>
         <View style={styles.tallyItem}>
-          <Text style={[styles.tallyNum, { color: colors.negative }]}>{noVotes}</Text>
+          <Text style={[styles.tallyNum, { color: C.negative }]}>{noVotes}</Text>
           <Text style={styles.tallyLabel}>No</Text>
         </View>
       </View>
 
       <Text style={styles.tallyMeta}>{t('voting.voted_count', { voted: totalVoted, total: totalPeople })}</Text>
 
-      {/* Voter status — who voted what, who's still pending */}
       <View style={styles.voterList}>
         {housemates.map((hm) => {
           const vote = voteSummary.votes.find((v) => v.person === hm.id);
@@ -123,17 +205,17 @@ function ProposalCard({
               <Text style={styles.voterName}>{hm.name}</Text>
               {vote?.choice === 'yes' && (
                 <View style={[styles.voterChip, styles.voterChipYes]}>
-                  <Text style={[styles.voterChipText, { color: colors.positive }]}>{t('voting.yes')}</Text>
+                  <Text style={[styles.voterChipText, { color: C.positive }]}>{t('voting.yes')}</Text>
                 </View>
               )}
               {vote?.choice === 'no' && (
                 <View style={[styles.voterChip, styles.voterChipNo]}>
-                  <Text style={[styles.voterChipText, { color: colors.negative }]}>{t('voting.no')}</Text>
+                  <Text style={[styles.voterChipText, { color: C.negative }]}>{t('voting.no')}</Text>
                 </View>
               )}
               {!vote && (
                 <View style={styles.voterChip}>
-                  <Text style={[styles.voterChipText, { color: colors.textDisabled }]}>{t('voting.waiting')}</Text>
+                  <Text style={[styles.voterChipText, { color: C.textDisabled }]}>{t('voting.waiting')}</Text>
                 </View>
               )}
             </View>
@@ -141,7 +223,6 @@ function ProposalCard({
         })}
       </View>
 
-      {/* Voting buttons — only if open */}
       {proposal.isOpen && (
         <>
           <View style={styles.voteRow}>
@@ -192,6 +273,8 @@ function ProposalCard({
 
 function AddProposalForm({ onClose, createdBy, houseId }: { onClose: () => void; createdBy: string; houseId: string }): React.JSX.Element {
   const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const addProposal = useVotingStore((s) => s.addProposal);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -221,7 +304,7 @@ function AddProposalForm({ onClose, createdBy, houseId }: { onClose: () => void;
         value={title}
         onChangeText={setTitle}
         placeholder={t('voting.proposal_placeholder')}
-        placeholderTextColor={colors.textDisabled}
+        placeholderTextColor={C.textDisabled}
       />
 
       <Text style={styles.fieldLabel}>{t('voting.context_label')}</Text>
@@ -230,7 +313,7 @@ function AddProposalForm({ onClose, createdBy, houseId }: { onClose: () => void;
         value={description}
         onChangeText={setDescription}
         placeholder={t('voting.context_placeholder')}
-        placeholderTextColor={colors.textDisabled}
+        placeholderTextColor={C.textDisabled}
         multiline
         numberOfLines={3}
       />
@@ -264,6 +347,13 @@ export default function VotingScreen(): React.JSX.Element {
   const [showForm, setShowForm] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
 
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
+
   const myId = profile?.id ?? '';
   const totalPeople = Math.max(1, housemates.length);
 
@@ -272,7 +362,7 @@ export default function VotingScreen(): React.JSX.Element {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.root}>
         <View style={styles.centered}>
           <Text style={styles.emptyText}>{t('common.loading')}</Text>
         </View>
@@ -281,134 +371,55 @@ export default function VotingScreen(): React.JSX.Element {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+    <SafeAreaView style={styles.root}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+        <ScrollView contentContainerStyle={styles.scroll}>
 
-        {!!error && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{error}</Text>
+          {!!error && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
+          )}
+
+          <View style={styles.pageHeader}>
+            <Text style={styles.heading}>{t('voting.title')}</Text>
+            <Text style={styles.headingSub}>{t('voting.subtitle')}</Text>
           </View>
-        )}
 
-        <View style={styles.pageHeader}>
-          <Text style={styles.heading}>{t('voting.title')}</Text>
-          <Text style={styles.headingSub}>{t('voting.subtitle')}</Text>
-        </View>
-
-        {showForm ? (
-          <AddProposalForm onClose={() => setShowForm(false)} createdBy={myId} houseId={houseId ?? ''} />
-        ) : (
-          <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
-            <Text style={styles.addBtnText}>{t('voting.new_proposal')}</Text>
-          </Pressable>
-        )}
-
-        {open.length === 0 && !showForm && (
-          <View style={styles.emptySection}>
-            <Text style={styles.emptyTitle}>{t('voting.no_open')}</Text>
-            <Text style={styles.emptyText}>{t('voting.no_open_hint')}</Text>
-          </View>
-        )}
-
-        {open.map((p) => (
-          <ProposalCard key={p.id} proposal={p} myId={myId} totalPeople={totalPeople} />
-        ))}
-
-        {closed.length > 0 && (
-          <>
-            <Pressable style={styles.closedToggle} onPress={() => setShowClosed((v) => !v)}>
-              <Text style={styles.closedToggleText}>
-                {showClosed ? '▲' : '▼'} {t('voting.past_votes')} ({closed.length})
-              </Text>
+          {showForm ? (
+            <AddProposalForm onClose={() => setShowForm(false)} createdBy={myId} houseId={houseId ?? ''} />
+          ) : (
+            <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
+              <Text style={styles.addBtnText}>{t('voting.new_proposal')}</Text>
             </Pressable>
-            {showClosed && closed.map((p) => (
-              <ProposalCard key={p.id} proposal={p} myId={myId} totalPeople={totalPeople} />
-            ))}
-          </>
-        )}
+          )}
 
-      </ScrollView>
+          {open.length === 0 && !showForm && (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptyTitle}>{t('voting.no_open')}</Text>
+              <Text style={styles.emptyText}>{t('voting.no_open_hint')}</Text>
+            </View>
+          )}
+
+          {open.map((p) => (
+            <ProposalCard key={p.id} proposal={p} myId={myId} totalPeople={totalPeople} />
+          ))}
+
+          {closed.length > 0 && (
+            <>
+              <Pressable style={styles.closedToggle} onPress={() => setShowClosed((v) => !v)}>
+                <Text style={styles.closedToggleText}>
+                  {showClosed ? '▲' : '▼'} {t('voting.past_votes')} ({closed.length})
+                </Text>
+              </Pressable>
+              {showClosed && closed.map((p) => (
+                <ProposalCard key={p.id} proposal={p} myId={myId} totalPeople={totalPeople} />
+              ))}
+            </>
+          )}
+
+        </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
-
-  pageHeader: { marginBottom: sizes.xs },
-  heading: { fontSize: 26, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
-  headingSub: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, marginTop: 2 },
-
-  addBtn: { borderWidth: 2, borderColor: colors.primary + '40', borderStyle: 'dashed', borderRadius: 14, paddingVertical: sizes.md, alignItems: 'center' },
-  addBtnText: { color: colors.primary, ...font.semibold, fontSize: sizes.fontMd },
-
-  card: { backgroundColor: colors.white, borderRadius: 16, padding: sizes.md, gap: sizes.sm, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' } as never,
-  cardClosed: { opacity: 0.75 },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-  cardInfo: { flex: 1, gap: 2 },
-  cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
-  cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
-  cardDescription: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, lineHeight: 20 },
-  openBadge: { backgroundColor: colors.primary + '15', borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 3 },
-  openBadgeText: { fontSize: sizes.fontXs, color: colors.primary, ...font.bold },
-  resultBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 3 },
-  resultBadgeText: { fontSize: sizes.fontXs, ...font.bold },
-  removeBtn: { padding: 4 },
-  removeBtnText: { color: colors.textDisabled, fontSize: sizes.fontSm },
-
-  tallyRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, height: 32 },
-  tallyItem: { width: 32, alignItems: 'center', gap: 1 },
-  tallyNum: { fontSize: sizes.fontLg, ...font.extrabold, lineHeight: 22 },
-  tallyLabel: { fontSize: 10, color: colors.textSecondary, ...font.semibold },
-  tallyBar: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: colors.border, flexDirection: 'row' },
-  tallyFillYes: { backgroundColor: colors.positive, minWidth: 1 },
-  tallyFillNo: { backgroundColor: colors.negative, minWidth: 1 },
-  tallyMeta: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
-
-  voteRow: { flexDirection: 'row', gap: sizes.sm, flexWrap: 'wrap' },
-  voteBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadiusFull, borderWidth: 2 },
-  voteBtnYes: { borderColor: colors.positive, backgroundColor: colors.white },
-  voteBtnYesActive: { backgroundColor: colors.positive },
-  voteBtnNo: { borderColor: colors.negative, backgroundColor: colors.white },
-  voteBtnNoActive: { backgroundColor: colors.negative },
-  voteBtnText: { fontSize: sizes.fontSm, ...font.bold, color: colors.textPrimary },
-  voteBtnTextActive: { color: colors.white },
-  closeBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: colors.border },
-  closeBtnText: { color: colors.textSecondary, fontSize: sizes.fontSm, ...font.regular },
-  closeResultBtn: { borderRadius: 12, paddingVertical: sizes.sm, paddingHorizontal: sizes.md, alignItems: 'center' },
-  closeResultBtnPositive: { backgroundColor: colors.positive },
-  closeResultBtnText: { color: colors.white, fontSize: sizes.fontSm, ...font.bold },
-  voteErrorText: { color: colors.danger, fontSize: sizes.fontXs, ...font.regular },
-
-  voterList: { gap: 6 },
-  voterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  voterName: { fontSize: sizes.fontSm, ...font.medium, color: colors.textPrimary },
-  voterChip: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 2, backgroundColor: colors.border + '60' },
-  voterChipYes: { backgroundColor: colors.positive + '18' },
-  voterChipNo: { backgroundColor: colors.negative + '18' },
-  voterChipText: { fontSize: sizes.fontXs, ...font.semibold },
-
-  form: { backgroundColor: colors.white, borderRadius: 16, padding: sizes.md, gap: sizes.sm, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' } as never,
-  formTitle: { fontSize: 17, ...font.bold, color: colors.textPrimary, marginBottom: sizes.xs },
-  fieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
-  input: { backgroundColor: colors.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: colors.textPrimary, ...font.regular },
-  inputMultiline: { height: 80, textAlignVertical: 'top' },
-  formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
-  cancelBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-  cancelBtnText: { color: colors.textSecondary, ...font.medium },
-  saveBtn: { backgroundColor: colors.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
-  saveBtnDisabled: { backgroundColor: colors.textDisabled },
-  saveBtnText: { color: colors.white, ...font.semibold },
-  saveError: { color: colors.danger, fontSize: 13, ...font.regular },
-
-  closedToggle: { paddingVertical: sizes.sm, alignItems: 'center' },
-  closedToggleText: { color: colors.textSecondary, fontSize: sizes.fontSm, ...font.medium },
-
-  emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
-  emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
-  emptyText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  errorBanner: { backgroundColor: colors.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.danger + '40' },
-  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.danger },
-});

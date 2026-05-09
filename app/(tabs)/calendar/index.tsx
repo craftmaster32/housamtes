@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert, Keyboard } from 'react-native';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert, Keyboard, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +17,7 @@ import { openGoogleCalendar, downloadIcs } from '@utils/calendarWeb';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { addWeeks, addMonths, addYears } from 'date-fns';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
@@ -105,6 +105,9 @@ const RECURRENCE_OPTIONS: Array<{ label: string; value: EventRecurrence | '' }> 
 ];
 
 function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFormModalProps): React.JSX.Element {
+  const C = useThemedColors();
+  const formStyles = useMemo(() => makeFormStyles(C), [C]);
+
   const addEvent       = useEventsStore((s) => s.addEvent);
   const editEvent      = useEventsStore((s) => s.editEvent);
   const profile        = useAuthStore((s) => s.profile);
@@ -235,7 +238,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
               value={title}
               onChangeText={(v) => { setTitle(v); setError(''); }}
               placeholder="e.g. House meeting, Inspection…"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={C.textSecondary}
               autoFocus={false}
               returnKeyType="done"
               onSubmitEditing={handleSave}
@@ -269,7 +272,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                 accessibilityLabel="Add end date"
                 accessibilityHint="Make this a multi-day event"
               >
-                <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
+                <Ionicons name="add-circle-outline" size={17} color={C.primary} />
                 <Text style={formStyles.addToggleText}>Add end date</Text>
               </Pressable>
             )}
@@ -286,7 +289,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
               value={notes}
               onChangeText={setNotes}
               placeholder="Any extra details…"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={C.textSecondary}
               autoFocus={false}
               multiline
               numberOfLines={3}
@@ -337,7 +340,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                     accessibilityLabel="Set repeat end date"
                     accessibilityHint="Choose when this event stops repeating"
                   >
-                    <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
+                    <Ionicons name="add-circle-outline" size={17} color={C.primary} />
                     <Text style={formStyles.addToggleText}>Set an end date for repeating</Text>
                   </Pressable>
                 )}
@@ -378,29 +381,31 @@ function DayCell({
   events: Array<{ title: string; color: string }>;
   onPress: () => void;
 }): React.JSX.Element {
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
-    <Pressable style={styles.dayCell} onPress={onPress}>
+    <Pressable style={s.dayCell} onPress={onPress}>
       <View style={[
-        styles.dayInner,
-        isSelected && styles.daySelected,
-        isToday && !isSelected && styles.dayToday,
+        s.dayInner,
+        isSelected && s.daySelected,
+        isToday && !isSelected && s.dayToday,
       ]}>
         <Text style={[
-          styles.dayNum,
-          !isCurrentMonth && styles.dayNumFaint,
-          isSelected && styles.dayNumSelected,
-          isToday && !isSelected && styles.dayNumToday,
+          s.dayNum,
+          !isCurrentMonth && s.dayNumFaint,
+          isSelected && s.dayNumSelected,
+          isToday && !isSelected && s.dayNumToday,
         ]}>
           {day.getDate()}
         </Text>
       </View>
       {dayEvents.slice(0, 2).map((ev, i) => (
-        <View key={i} style={[styles.eventChip, { backgroundColor: ev.color }]}>
-          <Text style={styles.eventChipText} numberOfLines={1}>{ev.title}</Text>
+        <View key={i} style={[s.eventChip, { backgroundColor: ev.color }]}>
+          <Text style={s.eventChipText} numberOfLines={1}>{ev.title}</Text>
         </View>
       ))}
       {dayEvents.length > 2 && (
-        <Text style={styles.moreChip}>+{dayEvents.length - 2}</Text>
+        <Text style={s.moreChip}>+{dayEvents.length - 2}</Text>
       )}
     </Pressable>
   );
@@ -427,6 +432,13 @@ export default function CalendarScreen(): React.JSX.Element {
   const syncParkingApproved = useCalendarSyncStore((s) => s.syncParkingApproved);
   const syncParkingPending  = useCalendarSyncStore((s) => s.syncParkingPending);
   const connect             = useCalendarSyncStore((s) => s.connect);
+
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   const today = new Date();
   const [viewYear, setViewYear]   = useState(today.getFullYear());
@@ -616,6 +628,7 @@ export default function CalendarScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {!!storeError && (
@@ -641,11 +654,11 @@ export default function CalendarScreen(): React.JSX.Element {
         {/* Month nav */}
         <View style={styles.monthHeader}>
           <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button">
-            <Ionicons name="chevron-back" size={18} color={colors.primary} />
+            <Ionicons name="chevron-back" size={18} color={C.primary} />
           </Pressable>
           <Text style={styles.monthTitle}>{MONTHS[viewMonth]} {viewYear}</Text>
           <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button">
-            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+            <Ionicons name="chevron-forward" size={18} color={C.primary} />
           </Pressable>
         </View>
 
@@ -697,7 +710,7 @@ export default function CalendarScreen(): React.JSX.Element {
                 : new Date(selectedDate + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
             </Text>
             <Pressable style={styles.addDayBtn} onPress={handleOpenAdd} accessibilityRole="button">
-              <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+              <Ionicons name="add-circle-outline" size={18} color={C.primary} />
               <Text style={styles.addDayBtnText}>Add</Text>
             </Pressable>
           </View>
@@ -761,7 +774,7 @@ export default function CalendarScreen(): React.JSX.Element {
                             accessibilityRole="button"
                             accessibilityLabel="Add to Google Calendar"
                           >
-                            <Ionicons name="logo-google" size={16} color={colors.textSecondary} />
+                            <Ionicons name="logo-google" size={16} color={C.textSecondary} />
                           </Pressable>
                           <Pressable
                             style={styles.iconBtn}
@@ -769,7 +782,7 @@ export default function CalendarScreen(): React.JSX.Element {
                             accessibilityRole="button"
                             accessibilityLabel="Download .ics file"
                           >
-                            <Ionicons name="download-outline" size={16} color={colors.textSecondary} />
+                            <Ionicons name="download-outline" size={16} color={C.textSecondary} />
                           </Pressable>
                         </>
                       ) : showSyncBtn && !hideSyncBtn ? (
@@ -782,7 +795,7 @@ export default function CalendarScreen(): React.JSX.Element {
                           <Ionicons
                             name={alreadySynced ? 'checkmark-circle' : 'calendar-outline'}
                             size={18}
-                            color={alreadySynced ? colors.positive : colors.textSecondary}
+                            color={alreadySynced ? C.positive : C.textSecondary}
                           />
                         </Pressable>
                       ) : null}
@@ -794,7 +807,7 @@ export default function CalendarScreen(): React.JSX.Element {
                             accessibilityRole="button"
                             accessibilityLabel="Edit event"
                           >
-                            <Ionicons name="pencil-outline" size={16} color={colors.primary} />
+                            <Ionicons name="pencil-outline" size={16} color={C.primary} />
                           </Pressable>
                           <Pressable
                             style={styles.iconBtn}
@@ -805,7 +818,7 @@ export default function CalendarScreen(): React.JSX.Element {
                             accessibilityRole="button"
                             accessibilityLabel="Delete event"
                           >
-                            <Ionicons name="trash-outline" size={16} color={colors.negative} />
+                            <Ionicons name="trash-outline" size={16} color={C.negative} />
                           </Pressable>
                         </>
                       )}
@@ -819,6 +832,7 @@ export default function CalendarScreen(): React.JSX.Element {
         </View>
 
       </ScrollView>
+      </Animated.View>
 
       <EventFormModal
         visible={showForm}
@@ -831,112 +845,121 @@ export default function CalendarScreen(): React.JSX.Element {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll: { padding: sizes.md, paddingBottom: 60, gap: sizes.md },
+function makeStyles(C: ColorTokens) {
+  return StyleSheet.create({
+    flex:      { flex: 1 },
+    container: { flex: 1, backgroundColor: C.background },
+    scroll: { padding: sizes.md, paddingBottom: 60, gap: sizes.md },
 
-  pageHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingTop: 4 },
-  pageTitle: { fontSize: 28, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.8 },
-  pageSubtitle: { fontSize: 13, ...font.regular, color: colors.textSecondary, marginTop: 2 },
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.primary, paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12,
-    boxShadow: '0 4px 14px rgba(79,120,182,0.25)',
-  } as never,
-  addBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
+    pageHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingTop: 4 },
+    pageTitle: { fontSize: 28, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.8 },
+    pageSubtitle: { fontSize: 13, ...font.regular, color: C.textSecondary, marginTop: 2 },
+    addBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: C.primary, paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    addBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
 
-  monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: sizes.xs },
-  monthTitle: { fontSize: 20, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
-  navBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20, backgroundColor: colors.surfaceSecondary },
+    monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: sizes.xs },
+    monthTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    navBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20, backgroundColor: C.surfaceSecondary },
 
-  calCard: { backgroundColor: colors.white, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: colors.border, padding: sizes.sm, overflow: 'hidden' },
-  weekRow: { flexDirection: 'row', marginBottom: 4 },
-  weekDay: { flex: 1, textAlign: 'center', fontSize: 10, ...font.bold, color: colors.textSecondary, letterSpacing: 0.5, paddingVertical: 4 },
-  gridRow: { flexDirection: 'row' },
+    calCard: { backgroundColor: C.surface, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: C.border, padding: sizes.sm, overflow: 'hidden' },
+    weekRow: { flexDirection: 'row', marginBottom: 4 },
+    weekDay: { flex: 1, textAlign: 'center', fontSize: 10, ...font.bold, color: C.textSecondary, letterSpacing: 0.5, paddingVertical: 4 },
+    gridRow: { flexDirection: 'row' },
 
-  dayCell: { flex: 1, alignItems: 'stretch', paddingVertical: 2, paddingHorizontal: 1, minHeight: 52 },
-  dayInner: { width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 2 },
-  daySelected: { backgroundColor: colors.primary },
-  dayToday: { backgroundColor: colors.primary + '20' },
-  dayNum: { fontSize: 12, ...font.medium, color: colors.textPrimary },
-  dayNumFaint: { color: colors.textDisabled },
-  dayNumSelected: { color: colors.white, ...font.bold },
-  dayNumToday: { color: colors.primary, ...font.bold },
+    dayCell: { flex: 1, alignItems: 'stretch', paddingVertical: 2, paddingHorizontal: 1, minHeight: 52 },
+    dayInner: { width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 2 },
+    daySelected: { backgroundColor: C.primary },
+    dayToday: { backgroundColor: C.primary + '20' },
+    dayNum: { fontSize: 12, ...font.medium, color: C.textPrimary },
+    dayNumFaint: { color: C.textDisabled },
+    dayNumSelected: { color: '#fff', ...font.bold },
+    dayNumToday: { color: C.primary, ...font.bold },
 
-  eventChip: { borderRadius: 3, paddingHorizontal: 3, paddingVertical: 1, marginBottom: 1 },
-  eventChipText: { fontSize: 8, ...font.semibold, color: '#fff', lineHeight: 11 },
-  moreChip: { fontSize: 8, ...font.regular, color: colors.textSecondary, paddingHorizontal: 3 },
+    eventChip: { borderRadius: 3, paddingHorizontal: 3, paddingVertical: 1, marginBottom: 1 },
+    eventChipText: { fontSize: 8, ...font.semibold, color: '#fff', lineHeight: 11 },
+    moreChip: { fontSize: 8, ...font.regular, color: C.textSecondary, paddingHorizontal: 3 },
 
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, backgroundColor: colors.white, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: colors.border, padding: sizes.md },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 12, ...font.medium, color: colors.textSecondary },
+    legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, backgroundColor: C.surface, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: C.border, padding: sizes.md },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    legendDot: { width: 8, height: 8, borderRadius: 4 },
+    legendLabel: { fontSize: 12, ...font.medium, color: C.textSecondary },
 
-  eventsSection: { backgroundColor: colors.white, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: colors.border, padding: sizes.md, gap: sizes.sm },
-  eventsSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  eventsSectionTitle: { fontSize: 15, ...font.bold, color: colors.textPrimary },
-  addDayBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  addDayBtnText: { fontSize: 14, ...font.semibold, color: colors.primary },
-  emptyDay: { paddingVertical: sizes.lg, alignItems: 'center' },
-  emptyDayText: { color: colors.textSecondary, fontSize: 14, ...font.regular, textAlign: 'center' },
+    eventsSection: { backgroundColor: C.surface, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: C.border, padding: sizes.md, gap: sizes.sm },
+    eventsSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+    eventsSectionTitle: { fontSize: 15, ...font.bold, color: C.textPrimary },
+    addDayBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    addDayBtnText: { fontSize: 14, ...font.semibold, color: C.primary },
+    emptyDay: { paddingVertical: sizes.lg, alignItems: 'center' },
+    emptyDayText: { color: C.textSecondary, fontSize: 14, ...font.regular, textAlign: 'center' },
 
-  eventRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: colors.background, borderRadius: 10, padding: sizes.sm },
-  eventRowPersonal: { opacity: 0.75 },
-  eventIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-  eventIcon: { fontSize: 18 },
-  eventInfo: { flex: 1, gap: 2 },
-  eventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  eventTitle: { fontSize: 14, ...font.semibold, color: colors.textPrimary, flexShrink: 1 },
-  recurrenceBadge: { backgroundColor: '#6366f120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  recurrenceBadgeText: { fontSize: 10, ...font.semibold, color: '#6366f1' },
-  eventTime: { fontSize: 12, ...font.semibold, color: colors.primary },
-  eventDetail: { fontSize: 12, ...font.regular, color: colors.textSecondary },
-  eventNotes: { fontSize: 12, ...font.regular, color: colors.textSecondary, fontStyle: 'italic' },
-  eventRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
-  typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  typeBadgeText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
-  iconBtn: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+    eventRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: C.background, borderRadius: 10, padding: sizes.sm },
+    eventRowPersonal: { opacity: 0.75 },
+    eventIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+    eventIcon: { fontSize: 18 },
+    eventInfo: { flex: 1, gap: 2 },
+    eventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+    eventTitle: { fontSize: 14, ...font.semibold, color: C.textPrimary, flexShrink: 1 },
+    recurrenceBadge: { backgroundColor: '#6366f120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    recurrenceBadgeText: { fontSize: 10, ...font.semibold, color: '#6366f1' },
+    eventTime: { fontSize: 12, ...font.semibold, color: C.primary },
+    eventDetail: { fontSize: 12, ...font.regular, color: C.textSecondary },
+    eventNotes: { fontSize: 12, ...font.regular, color: C.textSecondary, fontStyle: 'italic' },
+    eventRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
+    typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+    typeBadgeText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
+    iconBtn: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
 
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  errorBanner: { backgroundColor: colors.negative + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.negative + '40' },
-  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.negative },
-});
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    errorBanner: { backgroundColor: C.negative + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: C.negative + '40' },
+    errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.negative },
+  });
+}
 
-const formStyles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40, gap: 12,
-    maxHeight: '94%',
-  },
-  scroll: { flexGrow: 0 },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 4 },
-  title: { fontSize: 20, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
-  label: { fontSize: 13, ...font.semibold, color: colors.textPrimary, marginBottom: 6 },
-  labelGap: { marginTop: 14 },
-  optional: { ...font.regular, color: colors.textSecondary },
-  input: {
-    borderWidth: 1.5, borderColor: colors.border, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, ...font.regular, color: colors.textPrimary,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  notesInput: { minHeight: 80, paddingTop: 12 },
-  addToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.secondary },
-  addToggleText: { fontSize: 14, ...font.medium, color: colors.primary },
-  clearLink: { alignSelf: 'flex-start', marginTop: 6 },
-  clearLinkText: { fontSize: 12, ...font.regular, color: colors.textSecondary, textDecorationLine: 'underline' },
-  chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surfaceSecondary },
-  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 14, ...font.semibold, color: colors.textSecondary },
-  chipTextSelected: { color: colors.white },
-  errorText: { fontSize: 13, ...font.regular, color: colors.negative },
-  btns: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  btnOutline: { flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center' },
-  btnOutlineText: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
-  btnPrimary: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },
-  btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-  btnDisabled: { opacity: 0.6 },
-});
+function makeFormStyles(C: ColorTokens) {
+  return StyleSheet.create({
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    sheet: {
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      padding: 24, paddingBottom: 40, gap: 12,
+      maxHeight: '94%',
+    },
+    scroll: { flexGrow: 0 },
+    handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 4 },
+    title: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    label: { fontSize: 13, ...font.semibold, color: C.textPrimary, marginBottom: 6 },
+    labelGap: { marginTop: 14 },
+    optional: { ...font.regular, color: C.textSecondary },
+    input: {
+      borderWidth: 1.5, borderColor: C.border, borderRadius: 12,
+      paddingHorizontal: 14, paddingVertical: 12,
+      fontSize: 15, ...font.regular, color: C.textPrimary,
+      backgroundColor: C.surfaceSecondary,
+    },
+    notesInput: { minHeight: 80, paddingTop: 12 },
+    addToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: C.primary, backgroundColor: C.secondary },
+    addToggleText: { fontSize: 14, ...font.medium, color: C.primary },
+    clearLink: { alignSelf: 'flex-start', marginTop: 6 },
+    clearLinkText: { fontSize: 12, ...font.regular, color: C.textSecondary, textDecorationLine: 'underline' },
+    chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+    chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.surfaceSecondary },
+    chipSelected: { backgroundColor: C.primary, borderColor: C.primary },
+    chipText: { fontSize: 14, ...font.semibold, color: C.textSecondary },
+    chipTextSelected: { color: '#fff' },
+    errorText: { fontSize: 13, ...font.regular, color: C.negative },
+    btns: { flexDirection: 'row', gap: 10, marginTop: 4 },
+    btnOutline: { flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, alignItems: 'center' },
+    btnOutlineText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    btnPrimary: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: C.primary, alignItems: 'center' },
+    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+    btnDisabled: { opacity: 0.6 },
+  });
+}

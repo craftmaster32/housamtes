@@ -25,7 +25,9 @@
       "Bash(npm run:*)",
       "Bash(grep -v \"^\\\\s*$\")",
       "Bash(node scripts/deploy.js)",
-      "Bash(ls c:/homeapp/node_modules/@expo/vector-icons/*.js)"
+      "Bash(ls c:/homeapp/node_modules/@expo/vector-icons/*.js)",
+      "PowerShell(\"deleted\")",
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"shared household management mobile app dark modern\" --design-system -p \"HouseMates\" -f markdown)"
     ]
   }
 }

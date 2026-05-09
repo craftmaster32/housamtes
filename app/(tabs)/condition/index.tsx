@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +18,7 @@ import {
 } from '@stores/conditionStore';
 import { DateInput } from '@components/shared/DateInput';
 import { PhotoPicker } from '@components/shared/PhotoPicker';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
@@ -33,9 +33,91 @@ function getAreaIcon(area: string): string {
   return PRESET_AREAS.find((a) => a.label === area)?.icon ?? '📝';
 }
 
+const makeStyles = (C: ColorTokens) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: C.background },
+    flex: { flex: 1 },
+    scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+
+    pageHeader: { marginBottom: sizes.xs },
+    heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    headingSub: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, marginTop: 2 },
+
+    statsStrip: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    statItem: { flex: 1, alignItems: 'center', gap: 2 },
+    statNum: { fontSize: sizes.fontLg, ...font.extrabold, color: C.textPrimary },
+    statLbl: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
+    statDivider: { width: 1, backgroundColor: C.border, marginHorizontal: sizes.xs },
+
+    addBtn: { borderWidth: 2, borderColor: C.primary + '40', borderStyle: 'dashed', borderRadius: 14, paddingVertical: sizes.md, alignItems: 'center' },
+    addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
+
+    filterBar: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
+    filterChip: { paddingHorizontal: sizes.md, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+    filterChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    filterChipText: { fontSize: sizes.fontSm, ...font.semibold, color: C.textSecondary },
+    filterChipTextActive: { color: '#fff' },
+
+    areaGroup: { gap: 6 },
+    areaGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs, paddingVertical: 4 },
+    areaGroupIcon: { fontSize: 18 },
+    areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary, flex: 1 },
+    condDot: { width: 10, height: 10, borderRadius: 5 },
+
+    entryCard: { backgroundColor: C.surface, borderRadius: 12, padding: sizes.sm, gap: sizes.xs, marginLeft: sizes.md, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    entryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
+    entryMeta: { flex: 1, gap: 3 },
+    entryBadgeRow: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
+    typeBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
+    typeBadgeText: { fontSize: 11, ...font.bold },
+    condBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
+    condBadgeText: { fontSize: 11, ...font.bold },
+    entryDate: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
+    entryDescription: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, lineHeight: 18, marginLeft: sizes.lg + sizes.sm },
+    photoRow: { marginLeft: sizes.lg + sizes.sm, marginTop: 2 },
+    photoThumb: { width: 80, height: 80, borderRadius: sizes.borderRadiusSm, marginRight: sizes.xs, borderWidth: 1, borderColor: C.border },
+    removeBtn: { padding: 4 },
+    removeBtnText: { color: C.textDisabled, fontSize: sizes.fontXs },
+
+    form: { backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, gap: sizes.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
+    fieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+    chip: { paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+    chipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    chipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
+    chipTextActive: { color: '#fff' },
+    areaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+    areaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+    areaChipActive: { backgroundColor: C.primary + '12', borderColor: C.primary },
+    areaChipIcon: { fontSize: 14 },
+    areaChipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
+    areaChipTextActive: { color: C.primary, ...font.bold },
+    condChip: { paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 2, backgroundColor: C.surface },
+    condChipText: { fontSize: sizes.fontSm, ...font.semibold, color: C.textPrimary },
+    condChipTextActive: { color: '#fff' },
+    input: { backgroundColor: C.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: C.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: C.textPrimary, ...font.regular },
+    inputMultiline: { height: 80, textAlignVertical: 'top' },
+    saveError: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
+    formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
+    cancelBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+    cancelBtnText: { color: C.textSecondary, ...font.medium },
+    saveBtn: { backgroundColor: C.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
+    saveBtnDisabled: { backgroundColor: C.textDisabled },
+    saveBtnText: { color: '#fff', ...font.semibold },
+
+    emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
+    emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
+    emptyText: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, textAlign: 'center', lineHeight: 20 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    errorBanner: { backgroundColor: C.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: C.danger + '40' },
+    errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.danger },
+});
+
 // ── Entry card ────────────────────────────────────────────────────────────────
 
 function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const remove = useConditionStore((s) => s.remove);
   const housemates = useHousematesStore((s) => s.housemates);
   const cond = CONDITION_CONFIG[entry.condition];
@@ -81,6 +163,8 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
 
 function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; recordedBy: string; houseId: string }): React.JSX.Element {
   const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const add = useConditionStore((s) => s.add);
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -114,7 +198,6 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
     <View style={styles.form}>
       <Text style={styles.formTitle}>{t('condition.log_condition')}</Text>
 
-      {/* Entry type */}
       <Text style={styles.fieldLabel}>{t('condition.type')}</Text>
       <View style={styles.chipRow}>
         {(Object.keys(ENTRY_TYPE_CONFIG) as EntryType[]).map((t) => (
@@ -130,7 +213,6 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
         ))}
       </View>
 
-      {/* Area */}
       <Text style={styles.fieldLabel}>{t('condition.room_area')}</Text>
       <View style={styles.areaGrid}>
         {PRESET_AREAS.map((a) => (
@@ -159,12 +241,11 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
           value={customArea}
           onChangeText={setCustomArea}
           placeholder={t('condition.room_placeholder')}
-          placeholderTextColor={colors.textDisabled}
+          placeholderTextColor={C.textDisabled}
           autoFocus
         />
       )}
 
-      {/* Condition */}
       <Text style={styles.fieldLabel}>{t('condition.condition_label')}</Text>
       <View style={styles.chipRow}>
         {(Object.keys(CONDITION_CONFIG) as ConditionLevel[]).map((c) => {
@@ -183,18 +264,16 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
         })}
       </View>
 
-      {/* Date */}
       <Text style={styles.fieldLabel}>{t('condition.date')}</Text>
       <DateInput value={date} onChange={setDate} />
 
-      {/* Description */}
       <Text style={styles.fieldLabel}>{t('condition.notes')}</Text>
       <TextInput
         style={[styles.input, styles.inputMultiline]}
         value={description}
         onChangeText={setDescription}
         placeholder={t('condition.notes_placeholder')}
-        placeholderTextColor={colors.textDisabled}
+        placeholderTextColor={C.textDisabled}
         multiline
         numberOfLines={3}
       />
@@ -232,12 +311,18 @@ export default function ConditionScreen(): React.JSX.Element {
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
 
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
+
   const filtered = useMemo(() =>
     filter === 'all' ? entries : entries.filter((e) => e.type === filter),
     [entries, filter]
   );
 
-  // Group by area, preserving chronological order within each area
   const grouped = useMemo(() => {
     const map = new Map<string, ConditionEntry[]>();
     for (const e of filtered) {
@@ -252,7 +337,7 @@ export default function ConditionScreen(): React.JSX.Element {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.root}>
         <View style={styles.centered}>
           <Text style={styles.emptyText}>{t('common.loading')}</Text>
         </View>
@@ -268,168 +353,86 @@ export default function ConditionScreen(): React.JSX.Element {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+    <SafeAreaView style={styles.root}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+        <ScrollView contentContainerStyle={styles.scroll}>
 
-        {!!error && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{error}</Text>
+          {!!error && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
+          )}
+
+          <View style={styles.pageHeader}>
+            <Text style={styles.heading}>{t('condition.title')}</Text>
+            <Text style={styles.headingSub}>{t('condition.subtitle')}</Text>
           </View>
-        )}
 
-        <View style={styles.pageHeader}>
-          <Text style={styles.heading}>{t('condition.title')}</Text>
-          <Text style={styles.headingSub}>{t('condition.subtitle')}</Text>
-        </View>
-
-        {/* Stats strip */}
-        {totalEntries > 0 && (
-          <View style={styles.statsStrip}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{totalEntries}</Text>
-              <Text style={styles.statLbl}>{t('condition.records')}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{grouped.length}</Text>
-              <Text style={styles.statLbl}>{t('condition.areas')}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statNum, { color: hasDamage ? colors.danger : colors.positive }]}>
-                {hasDamage ? '⚠️' : '✓'}
-              </Text>
-              <Text style={styles.statLbl}>{hasDamage ? t('condition.issues_found') : t('condition.all_good')}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Add / form */}
-        {showForm ? (
-          <AddEntryForm onClose={() => setShowForm(false)} recordedBy={profile?.id ?? ''} houseId={houseId ?? ''} />
-        ) : (
-          <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
-            <Text style={styles.addBtnText}>{t('condition.add_record')}</Text>
-          </Pressable>
-        )}
-
-        {/* Filter bar */}
-        {totalEntries > 0 && (
-          <View style={styles.filterBar}>
-            {FILTERS.map((f) => (
-              <Pressable
-                key={f.key}
-                style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
-                onPress={() => setFilter(f.key)}
-              >
-                <Text style={[styles.filterChipText, filter === f.key && styles.filterChipTextActive]}>
-                  {f.label}
+          {totalEntries > 0 && (
+            <View style={styles.statsStrip}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNum}>{totalEntries}</Text>
+                <Text style={styles.statLbl}>{t('condition.records')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNum}>{grouped.length}</Text>
+                <Text style={styles.statLbl}>{t('condition.areas')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={[styles.statNum, { color: hasDamage ? C.danger : C.positive }]}>
+                  {hasDamage ? '⚠️' : '✓'}
                 </Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        {/* Empty */}
-        {totalEntries === 0 && !showForm && (
-          <View style={styles.emptySection}>
-            <Text style={styles.emptyTitle}>{t('condition.no_records')}</Text>
-            <Text style={styles.emptyText}>{t('condition.no_records_hint')}</Text>
-          </View>
-        )}
-
-        {/* Grouped entries */}
-        {grouped.map(([area, areaEntries]) => (
-          <View key={area} style={styles.areaGroup}>
-            <View style={styles.areaGroupHeader}>
-              <Text style={styles.areaGroupIcon}>{getAreaIcon(area)}</Text>
-              <Text style={styles.areaGroupName}>{area}</Text>
-              <View style={[styles.condDot, { backgroundColor: CONDITION_CONFIG[areaEntries[0].condition].color }]} />
+                <Text style={styles.statLbl}>{hasDamage ? t('condition.issues_found') : t('condition.all_good')}</Text>
+              </View>
             </View>
-            {areaEntries.map((e) => <EntryCard key={e.id} entry={e} />)}
-          </View>
-        ))}
+          )}
 
-      </ScrollView>
+          {showForm ? (
+            <AddEntryForm onClose={() => setShowForm(false)} recordedBy={profile?.id ?? ''} houseId={houseId ?? ''} />
+          ) : (
+            <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
+              <Text style={styles.addBtnText}>{t('condition.add_record')}</Text>
+            </Pressable>
+          )}
+
+          {totalEntries > 0 && (
+            <View style={styles.filterBar}>
+              {FILTERS.map((f) => (
+                <Pressable
+                  key={f.key}
+                  style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
+                  onPress={() => setFilter(f.key)}
+                >
+                  <Text style={[styles.filterChipText, filter === f.key && styles.filterChipTextActive]}>
+                    {f.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {totalEntries === 0 && !showForm && (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptyTitle}>{t('condition.no_records')}</Text>
+              <Text style={styles.emptyText}>{t('condition.no_records_hint')}</Text>
+            </View>
+          )}
+
+          {grouped.map(([area, areaEntries]) => (
+            <View key={area} style={styles.areaGroup}>
+              <View style={styles.areaGroupHeader}>
+                <Text style={styles.areaGroupIcon}>{getAreaIcon(area)}</Text>
+                <Text style={styles.areaGroupName}>{area}</Text>
+                <View style={[styles.condDot, { backgroundColor: CONDITION_CONFIG[areaEntries[0].condition].color }]} />
+              </View>
+              {areaEntries.map((e) => <EntryCard key={e.id} entry={e} />)}
+            </View>
+          ))}
+
+        </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
-
-  pageHeader: { marginBottom: sizes.xs },
-  heading: { fontSize: 26, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
-  headingSub: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, marginTop: 2 },
-
-  statsStrip: { flexDirection: 'row', backgroundColor: colors.white, borderRadius: 16, padding: sizes.md, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' } as never,
-  statItem: { flex: 1, alignItems: 'center', gap: 2 },
-  statNum: { fontSize: sizes.fontLg, ...font.extrabold, color: colors.textPrimary },
-  statLbl: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
-  statDivider: { width: 1, backgroundColor: colors.border, marginHorizontal: sizes.xs },
-
-  addBtn: { borderWidth: 2, borderColor: colors.primary + '40', borderStyle: 'dashed', borderRadius: 14, paddingVertical: sizes.md, alignItems: 'center' },
-  addBtnText: { color: colors.primary, ...font.semibold, fontSize: sizes.fontMd },
-
-  filterBar: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
-  filterChip: { paddingHorizontal: sizes.md, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterChipText: { fontSize: sizes.fontSm, ...font.semibold, color: colors.textSecondary },
-  filterChipTextActive: { color: colors.white },
-
-  areaGroup: { gap: 6 },
-  areaGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs, paddingVertical: 4 },
-  areaGroupIcon: { fontSize: 18 },
-  areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: colors.textPrimary, flex: 1 },
-  condDot: { width: 10, height: 10, borderRadius: 5 },
-
-  entryCard: { backgroundColor: colors.white, borderRadius: 12, padding: sizes.sm, gap: sizes.xs, marginLeft: sizes.md, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' } as never,
-  entryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-  entryMeta: { flex: 1, gap: 3 },
-  entryBadgeRow: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
-  typeBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
-  typeBadgeText: { fontSize: 11, ...font.bold },
-  condBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
-  condBadgeText: { fontSize: 11, ...font.bold },
-  entryDate: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
-  entryDescription: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, lineHeight: 18, marginLeft: sizes.lg + sizes.sm },
-  photoRow: { marginLeft: sizes.lg + sizes.sm, marginTop: 2 },
-  photoThumb: { width: 80, height: 80, borderRadius: sizes.borderRadiusSm, marginRight: sizes.xs, borderWidth: 1, borderColor: colors.border },
-  removeBtn: { padding: 4 },
-  removeBtnText: { color: colors.textDisabled, fontSize: sizes.fontXs },
-
-  form: { backgroundColor: colors.white, borderRadius: 16, padding: sizes.md, gap: sizes.sm, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' } as never,
-  formTitle: { fontSize: 17, ...font.bold, color: colors.textPrimary, marginBottom: sizes.xs },
-  fieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  chip: { paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: sizes.fontSm, ...font.medium, color: colors.textPrimary },
-  chipTextActive: { color: colors.white },
-  areaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  areaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  areaChipActive: { backgroundColor: colors.primary + '12', borderColor: colors.primary },
-  areaChipIcon: { fontSize: 14 },
-  areaChipText: { fontSize: sizes.fontSm, ...font.medium, color: colors.textPrimary },
-  areaChipTextActive: { color: colors.primary, ...font.bold },
-  condChip: { paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 2, backgroundColor: colors.white },
-  condChipText: { fontSize: sizes.fontSm, ...font.semibold, color: colors.textPrimary },
-  condChipTextActive: { color: colors.white },
-  input: { backgroundColor: colors.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: colors.textPrimary, ...font.regular },
-  inputMultiline: { height: 80, textAlignVertical: 'top' },
-  saveError: { color: colors.danger, fontSize: sizes.fontSm, ...font.regular },
-  formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
-  cancelBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-  cancelBtnText: { color: colors.textSecondary, ...font.medium },
-  saveBtn: { backgroundColor: colors.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
-  saveBtnDisabled: { backgroundColor: colors.textDisabled },
-  saveBtnText: { color: colors.white, ...font.semibold },
-
-  emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
-  emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
-  emptyText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  errorBanner: { backgroundColor: colors.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.danger + '40' },
-  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.danger },
-});

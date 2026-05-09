@@ -8,6 +8,7 @@ import {
   Platform,
   SectionList,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
@@ -21,6 +22,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
@@ -79,10 +81,10 @@ function UserAvatar({ userId, size = 24 }: { userId: string; size?: number }): R
   const avatarUrl = housemate?.avatarUrl;
   const displayName = housemate?.name ?? '?';
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : avatarColor(displayName) }]}>
+    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : avatarColor(displayName), justifyContent: 'center', alignItems: 'center', flexShrink: 0 }]}>
       {avatarUrl
         ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" />
-        : <Text style={[styles.avatarText, { fontSize: Math.round(size * 0.44) }]}>{displayName[0].toUpperCase()}</Text>
+        : <Text style={[{ color: '#fff', ...font.bold, fontSize: Math.round(size * 0.44) }]}>{displayName[0].toUpperCase()}</Text>
       }
     </View>
   );
@@ -101,6 +103,7 @@ interface ItemRowProps {
 }
 
 function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrement, onDecrement, onUpdate }: ItemRowProps): React.JSX.Element {
+  const C = useThemedColors();
   const qtyNum    = parseInt(item.quantity, 10);
   const hasCount  = !isNaN(qtyNum) && qtyNum > 1;
   const bought    = item.boughtCount ?? 0;
@@ -174,21 +177,23 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
     }
   }, [editName, editQty, item.id, onUpdate, isSaving]);
 
+  const rowStyles = useMemo(() => makeStyles(C), [C]);
+
   // ── Edit mode ────────────────────────────────────────────────────────────────
   if (isEditing) {
     return (
       <View>
-        <View style={[styles.groceryItem, styles.groceryItemEditing]}>
+        <View style={[rowStyles.groceryItem, rowStyles.groceryItemEditing]}>
           <TextInput
             value={editName}
             onChangeText={handleEditNameChange}
-            style={styles.editNameInput}
+            style={rowStyles.editNameInput}
             autoFocus
             returnKeyType="done"
             blurOnSubmit={false}
             onSubmitEditing={saveEdit}
             placeholder="Item name"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={C.textSecondary}
             accessible
             accessibilityRole="text"
             accessibilityLabel="Item name, edit"
@@ -197,27 +202,27 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
           <TextInput
             value={editQty}
             onChangeText={handleEditQtyChange}
-            style={styles.editQtyInput}
+            style={rowStyles.editQtyInput}
             keyboardType="default"
             returnKeyType="done"
             blurOnSubmit={false}
             onSubmitEditing={saveEdit}
             placeholder="Qty"
-            placeholderTextColor={colors.textSecondary}
+            placeholderTextColor={C.textSecondary}
             accessible
             accessibilityRole="text"
             accessibilityLabel="Quantity, edit"
             accessibilityHint="Type a new quantity"
           />
-          <Pressable onPress={saveEdit} style={styles.editActionBtn} accessibilityRole="button" accessibilityLabel="Save changes">
-            <Ionicons name="checkmark" size={20} color={colors.positive} />
+          <Pressable onPress={saveEdit} style={rowStyles.editActionBtn} accessibilityRole="button" accessibilityLabel="Save changes">
+            <Ionicons name="checkmark" size={20} color={C.positive} />
           </Pressable>
-          <Pressable onPress={cancelEdit} style={styles.editActionBtn} accessibilityRole="button" accessibilityLabel="Cancel edit">
-            <Ionicons name="close" size={20} color={colors.textSecondary} />
+          <Pressable onPress={cancelEdit} style={rowStyles.editActionBtn} accessibilityRole="button" accessibilityLabel="Cancel edit">
+            <Ionicons name="close" size={20} color={C.textSecondary} />
           </Pressable>
         </View>
         {!!saveError && (
-          <Text style={styles.inlineError}>{saveError}</Text>
+          <Text style={rowStyles.inlineError}>{saveError}</Text>
         )}
       </View>
     );
@@ -225,58 +230,58 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
 
   return (
     <Pressable
-      style={[styles.groceryItem, item.isChecked && styles.groceryItemDone, item.isPersonal && !item.isDraft && styles.groceryItemPersonal]}
+      style={[rowStyles.groceryItem, item.isChecked && rowStyles.groceryItemDone, item.isPersonal && !item.isDraft && rowStyles.groceryItemPersonal]}
       onPress={handleTap}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.isChecked }}
       accessibilityLabel={isDuplicate ? `${item.name}, already on shared list` : item.name}
     >
       {hasCount ? (
-        <View style={styles.counter}>
+        <View style={rowStyles.counter}>
           <Pressable
             accessible
             onPress={handleDecrement}
-            style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]}
+            style={[rowStyles.ctrBtn, bought === 0 && rowStyles.ctrBtnOff]}
             accessibilityRole="button"
             accessibilityLabel={`Decrease ${item.name}`}
             accessibilityState={{ disabled: bought === 0 }}
           >
-            <Text style={styles.ctrBtnText}>−</Text>
+            <Text style={rowStyles.ctrBtnText}>−</Text>
           </Pressable>
-          <Text style={styles.ctrText}>{bought}/{qtyNum}</Text>
+          <Text style={rowStyles.ctrText}>{bought}/{qtyNum}</Text>
           <Pressable
             accessible
             onPress={handleIncrement}
-            style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]}
+            style={[rowStyles.ctrBtn, bought >= qtyNum && rowStyles.ctrBtnOff]}
             accessibilityRole="button"
             accessibilityLabel={`Increase ${item.name}`}
             accessibilityState={{ disabled: bought >= qtyNum }}
           >
-            <Text style={styles.ctrBtnText}>+</Text>
+            <Text style={rowStyles.ctrBtnText}>+</Text>
           </Pressable>
         </View>
       ) : (
         <Ionicons
           name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
           size={24}
-          color={item.isChecked ? colors.positive : colors.border}
+          color={item.isChecked ? C.positive : C.border}
         />
       )}
-      <View style={styles.itemDetails}>
-        <View style={styles.itemNameWrap}>
-          <Text style={[styles.itemName, item.isChecked && styles.itemNameDone]} numberOfLines={1}>
+      <View style={rowStyles.itemDetails}>
+        <View style={rowStyles.itemNameWrap}>
+          <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]} numberOfLines={1}>
             {item.name}
           </Text>
           {!!item.quantity && (
-            <View style={styles.itemQty}>
-              <Text style={styles.itemQtyText}>{hasCount ? `x${qtyNum}` : item.quantity}</Text>
+            <View style={rowStyles.itemQty}>
+              <Text style={rowStyles.itemQtyText}>{hasCount ? `x${qtyNum}` : item.quantity}</Text>
             </View>
           )}
         </View>
-        <View style={styles.itemActions}>
+        <View style={rowStyles.itemActions}>
           {isDuplicate && (
-            <View style={styles.duplicateBadge} accessibilityLabel="Already on shared list">
-              <Text style={styles.duplicateBadgeText}>⚠️ on list</Text>
+            <View style={rowStyles.duplicateBadge} accessibilityLabel="Already on shared list">
+              <Text style={rowStyles.duplicateBadgeText}>⚠️ on list</Text>
             </View>
           )}
           {item.isPersonal && !item.isDraft
@@ -286,21 +291,21 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
           {canEdit && (
             <Pressable
               onPress={startEdit}
-              style={styles.editBtn}
+              style={rowStyles.editBtn}
               accessibilityRole="button"
               accessibilityLabel={`Edit ${item.name}`}
             >
-              <Ionicons name="pencil-outline" size={15} color={colors.textSecondary} />
+              <Ionicons name="pencil-outline" size={15} color={C.textSecondary} />
             </Pressable>
           )}
           {canEdit && (
             <Pressable
               onPress={handleDelete}
-              style={styles.deleteBtn}
+              style={rowStyles.deleteBtn}
               accessibilityRole="button"
               accessibilityLabel={`Delete ${item.name}`}
             >
-              <Ionicons name="trash-outline" size={17} color={colors.textSecondary} />
+              <Ionicons name="trash-outline" size={17} color={C.textSecondary} />
             </Pressable>
           )}
         </View>
@@ -311,10 +316,14 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
 
 // ── Stable list separators (module-level so SectionList never sees new refs) ──
 function ItemSeparator(): React.JSX.Element {
-  return <View style={styles.itemSep} />;
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
+  return <View style={s.itemSep} />;
 }
 function SectionSeparator(): React.JSX.Element {
-  return <View style={styles.sectionSep} />;
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
+  return <View style={s.sectionSep} />;
 }
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
@@ -353,6 +362,13 @@ export default function GroceryScreen(): React.JSX.Element {
   const [isPublishing, setIsPublishing] = useState(false);
 
   const inputRef = useRef<TextInput>(null);
+
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   // Restore persisted add-mode preference
   useEffect((): void | (() => void) => {
@@ -547,7 +563,7 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
       );
     },
-    [handlePublishDraft, isPublishing, myId]
+    [handlePublishDraft, isPublishing, myId, styles]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
@@ -609,7 +625,8 @@ export default function GroceryScreen(): React.JSX.Element {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.root} edges={['top']}>
+        <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
@@ -654,7 +671,7 @@ export default function GroceryScreen(): React.JSX.Element {
                 </View>
                 {draftEnabled && effectiveMode === 'draft' && (
                   <View style={styles.draftHint}>
-                    <Ionicons name="pencil-outline" size={12} color={colors.textSecondary} />
+                    <Ionicons name="pencil-outline" size={12} color={C.textSecondary} />
                     <Text style={styles.draftHintText}>Saves to your draft</Text>
                   </View>
                 )}
@@ -671,7 +688,7 @@ export default function GroceryScreen(): React.JSX.Element {
                     value={itemName}
                     onChangeText={handleItemNameChange}
                     placeholder={t('grocery.item_placeholder')}
-                    placeholderTextColor={colors.textSecondary}
+                    placeholderTextColor={C.textSecondary}
                     style={styles.addInput}
                     returnKeyType="done"
                     blurOnSubmit={false}
@@ -722,7 +739,7 @@ export default function GroceryScreen(): React.JSX.Element {
                       value={customQty}
                       onChangeText={setCustomQty}
                       placeholder="e.g. 6"
-                      placeholderTextColor={colors.textSecondary}
+                      placeholderTextColor={C.textSecondary}
                       keyboardType="number-pad"
                       style={styles.formQty}
                       autoFocus
@@ -774,7 +791,7 @@ export default function GroceryScreen(): React.JSX.Element {
                   accessibilityState={{ disabled: false }}
                 >
                   <View style={styles.clearBarLeft}>
-                    <Ionicons name="checkmark-done-outline" size={16} color={colors.positive} />
+                    <Ionicons name="checkmark-done-outline" size={16} color={C.positive} />
                     <Text style={styles.clearBarCount}>{t('grocery.checked_count', { count: checked.length })}</Text>
                   </View>
                   <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
@@ -798,224 +815,256 @@ export default function GroceryScreen(): React.JSX.Element {
             </View>
           }
         />
+        </Animated.View>
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  flex:        { flex: 1 },
-  container:   { flex: 1, backgroundColor: colors.background },
-  listContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+function makeStyles(C: ColorTokens) {
+  return StyleSheet.create({
+    flex:        { flex: 1 },
+    root:        { flex: 1, backgroundColor: C.background },
+    listContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
 
-  // ── Hero card
-  headerCard: {
-    backgroundColor: SURFACE_BG,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 20,
-    gap: 16,
-    marginBottom: 24,
-    boxShadow: '0 8px 24px rgba(44,51,61,0.05)',
-  } as never,
-  headerCopy: { gap: 6 },
+    // ── Hero card
+    headerCard: {
+      backgroundColor: SURFACE_BG,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: C.border,
+      padding: 20,
+      gap: 16,
+      marginBottom: 24,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    headerCopy: { gap: 6 },
 
-  // Typography
-  titleHero: { fontSize: 26, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.78, lineHeight: 31 },
-  titleLg:   { fontSize: 18, ...font.bold, color: colors.textPrimary, letterSpacing: -0.36, textAlign: 'center' },
-  textBase:  { fontSize: 15, ...font.regular, color: colors.textSecondary, lineHeight: 22 },
-  textSm:    { fontSize: 13, ...font.regular, color: colors.textSecondary, lineHeight: 18, textAlign: 'center' },
-  eyebrow:   { fontSize: 12, ...font.bold, color: colors.textSecondary, letterSpacing: 0.72, textTransform: 'uppercase' },
+    // Typography
+    titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78, lineHeight: 31 },
+    titleLg:   { fontSize: 18, ...font.bold, color: C.textPrimary, letterSpacing: -0.36, textAlign: 'center' },
+    textBase:  { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
+    textSm:    { fontSize: 13, ...font.regular, color: C.textSecondary, lineHeight: 18, textAlign: 'center' },
+    eyebrow:   { fontSize: 12, ...font.bold, color: C.textSecondary, letterSpacing: 0.72, textTransform: 'uppercase' },
 
-  // ── Add mode toggle
-  modeToggle: { flexDirection: 'row', gap: 6 },
-  modeBtn: {
-    flex: 1, minHeight: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border,
-  },
-  modeBtnOn:           { backgroundColor: colors.primary, borderColor: colors.primary },
-  modeBtnPersonal:     { backgroundColor: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.4)' },
-  modeBtnText:         { fontSize: 13, ...font.semibold, color: colors.textSecondary },
-  modeBtnTextOn:       { color: '#FFFFFF' },
-  modeBtnTextPersonal: { color: 'rgb(76,29,149)' },
+    // ── Add mode toggle
+    modeToggle: { flexDirection: 'row', gap: 6 },
+    modeBtn: {
+      flex: 1, minHeight: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
+      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
+    },
+    modeBtnOn:           { backgroundColor: C.primary, borderColor: C.primary },
+    modeBtnPersonal:     { backgroundColor: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.4)' },
+    modeBtnText:         { fontSize: 13, ...font.semibold, color: C.textSecondary },
+    modeBtnTextOn:       { color: '#FFFFFF' },
+    modeBtnTextPersonal: { color: 'rgb(76,29,149)' },
 
-  // ── Draft hint
-  draftHint:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -8 },
-  draftHintText: { fontSize: 12, ...font.regular, color: colors.textSecondary },
+    // ── Draft hint
+    draftHint:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -8 },
+    draftHintText: { fontSize: 12, ...font.regular, color: C.textSecondary },
 
-  // ── Inline add row
-  addRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderRadius: 12, borderWidth: 1, borderColor: colors.border,
-    backgroundColor: '#FBFAF8', paddingRight: 6, paddingLeft: 4,
-    height: 50,
-  },
-  addRowPersonal: { borderColor: 'rgba(139,92,246,0.4)', backgroundColor: 'rgba(245,240,255,0.6)' },
-  addInput: {
-    flex: 1, height: '100%', paddingHorizontal: 10,
-    fontSize: 15, ...font.regular, color: colors.textPrimary,
-  },
-  addBtn: {
-    width: 44, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: colors.primary,
-    boxShadow: '0 4px 12px rgba(79,120,182,0.22)',
-  } as never,
-  addBtnOff:      { backgroundColor: colors.textDisabled, boxShadow: 'none' } as never,
-  addBtnPersonal: { backgroundColor: 'rgb(124,58,237)' },
-  addBtnText:     { fontSize: 22, ...font.bold, color: '#FFFFFF', lineHeight: 26 },
+    // ── Inline add row
+    addRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      borderRadius: 12, borderWidth: 1, borderColor: C.border,
+      backgroundColor: '#FBFAF8', paddingRight: 6, paddingLeft: 4,
+      height: 50,
+    },
+    addRowPersonal: { borderColor: 'rgba(139,92,246,0.4)', backgroundColor: 'rgba(245,240,255,0.6)' },
+    addInput: {
+      flex: 1, height: '100%', paddingHorizontal: 10,
+      fontSize: 15, ...font.regular, color: C.textPrimary,
+    },
+    addBtn: {
+      width: 44, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
+      backgroundColor: C.primary,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    addBtnOff:      { backgroundColor: C.textDisabled },
+    addBtnPersonal: { backgroundColor: 'rgb(124,58,237)' },
+    addBtnText:     { fontSize: 22, ...font.bold, color: '#FFFFFF', lineHeight: 26 },
 
-  // ── Primary button (shopping run)
-  btnPrimary: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    minHeight: 48, paddingHorizontal: 18, borderRadius: 10,
-    backgroundColor: colors.primary,
-    boxShadow: '0 8px 16px rgba(79,120,182,0.18)',
-  } as never,
-  btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#FFFFFF' },
-  btnFull:        { alignSelf: 'stretch' },
-  btnDanger:      { backgroundColor: colors.danger, boxShadow: '0 8px 16px rgba(217,83,79,0.22)' } as never,
+    // ── Primary button (shopping run)
+    btnPrimary: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      minHeight: 48, paddingHorizontal: 18, borderRadius: 10,
+      backgroundColor: C.primary,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#FFFFFF' },
+    btnFull:        { alignSelf: 'stretch' },
+    btnDanger:      { backgroundColor: C.danger },
 
-  // ── Qty selector
-  qtyRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  qtyLabel:   { fontSize: 13, ...font.semibold, color: colors.textSecondary },
-  qtyPresets: { flexDirection: 'row', gap: 6 },
-  qtyBtn: {
-    minWidth: 36, height: 36, borderRadius: 9999, justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: 10, backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  qtyBtnOn:     { backgroundColor: colors.primary, borderColor: colors.primary },
-  qtyBtnText:   { fontSize: 14, ...font.semibold, color: colors.textPrimary },
-  qtyBtnTextOn: { color: '#FFFFFF' },
-  formQty: {
-    flex: 1, height: 36, backgroundColor: '#FBFAF8', borderRadius: 10,
-    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10,
-    fontSize: 15, ...font.regular, color: colors.textPrimary, textAlign: 'center',
-  },
+    // ── Qty selector
+    qtyRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+    qtyLabel:   { fontSize: 13, ...font.semibold, color: C.textSecondary },
+    qtyPresets: { flexDirection: 'row', gap: 6 },
+    qtyBtn: {
+      minWidth: 36, height: 36, borderRadius: 9999, justifyContent: 'center', alignItems: 'center',
+      paddingHorizontal: 10, backgroundColor: C.surfaceSecondary,
+      borderWidth: 1, borderColor: C.border,
+    },
+    qtyBtnOn:     { backgroundColor: C.primary, borderColor: C.primary },
+    qtyBtnText:   { fontSize: 14, ...font.semibold, color: C.textPrimary },
+    qtyBtnTextOn: { color: '#FFFFFF' },
+    formQty: {
+      flex: 1, height: 36, backgroundColor: '#FBFAF8', borderRadius: 10,
+      borderWidth: 1, borderColor: C.border, paddingHorizontal: 10,
+      fontSize: 15, ...font.regular, color: C.textPrimary, textAlign: 'center',
+    },
 
-  // ── Quick add (inside header card)
-  quickAddLabel: { marginBottom: 8 },
-  quickAdds:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  quickAddBtn: {
-    paddingVertical: 7, paddingHorizontal: 12,
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: 9999, boxShadow: '0 2px 8px rgba(44,51,61,0.02)',
-  } as never,
-  quickAddText: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
+    // ── Quick add (inside header card)
+    quickAddLabel: { marginBottom: 8 },
+    quickAdds:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    quickAddBtn: {
+      paddingVertical: 7, paddingHorizontal: 12,
+      backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+      borderRadius: 9999,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    quickAddText: { fontSize: 13, ...font.semibold, color: C.textPrimary },
 
-  // ── Section header
-  catTitle:         { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
-  catTitlePersonal: { backgroundColor: PERSONAL_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: PERSONAL_BORDER },
-  catTitleDraftRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 4, gap: 8 },
-  catTitleFlex:         { flex: 1 },
-  catTitleIcon:         { fontSize: 15 },
-  catTitleText:         { fontSize: 14, ...font.bold, color: colors.textPrimary },
-  catTitleTextDraft:    { color: 'rgb(133,77,14)' },
-  catTitleTextPersonal: { color: 'rgb(76,29,149)' },
+    // ── Section header
+    catTitle:         { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
+    catTitlePersonal: { backgroundColor: PERSONAL_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: PERSONAL_BORDER },
+    catTitleDraftRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 4, gap: 8 },
+    catTitleFlex:         { flex: 1 },
+    catTitleIcon:         { fontSize: 15 },
+    catTitleText:         { fontSize: 14, ...font.bold, color: C.textPrimary },
+    catTitleTextDraft:    { color: 'rgb(133,77,14)' },
+    catTitleTextPersonal: { color: 'rgb(76,29,149)' },
 
-  // ── Publish draft icon button
-  draftPublishBtn:    { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  draftPublishBtnOff: { opacity: 0.35 },
+    // ── Publish draft icon button
+    draftPublishBtn:    { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    draftPublishBtnOff: { opacity: 0.35 },
 
-  // ── Grocery item
-  groceryItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderRadius: 14, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border,
-    boxShadow: '0 4px 16px rgba(44,51,61,0.02)',
-  } as never,
-  groceryItemDone:     { opacity: 0.5, borderColor: 'transparent', boxShadow: 'none' } as never,
-  groceryItemPersonal: { backgroundColor: 'rgba(245,240,255,0.7)', borderColor: 'rgba(139,92,246,0.2)' },
-  groceryItemEditing:  { backgroundColor: '#FAFAF8', borderColor: colors.primary, gap: 8 },
+    // ── Grocery item
+    groceryItem: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      paddingHorizontal: 14, paddingVertical: 12,
+      borderRadius: 14, backgroundColor: C.surface,
+      borderWidth: 1, borderColor: C.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    groceryItemDone:     { opacity: 0.5, borderColor: 'transparent' },
+    groceryItemPersonal: { backgroundColor: 'rgba(245,240,255,0.7)', borderColor: 'rgba(139,92,246,0.2)' },
+    groceryItemEditing:  { backgroundColor: '#FAFAF8', borderColor: C.primary, gap: 8 },
 
-  // ── Duplicate warning badge
-  duplicateBadge: {
-    backgroundColor: 'rgba(234,179,8,0.15)', borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(234,179,8,0.4)',
-  },
-  duplicateBadgeText: { fontSize: 11, ...font.semibold, color: 'rgb(133,77,14)' },
-  itemSep:             { height: 8 },
-  sectionSep:          { height: 8 },
+    // ── Duplicate warning badge
+    duplicateBadge: {
+      backgroundColor: 'rgba(234,179,8,0.15)', borderRadius: 6,
+      paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(234,179,8,0.4)',
+    },
+    duplicateBadgeText: { fontSize: 11, ...font.semibold, color: 'rgb(133,77,14)' },
+    itemSep:             { height: 8 },
+    sectionSep:          { height: 8 },
 
-  itemDetails:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minWidth: 0 },
-  itemNameWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
-  itemName:     { fontSize: 15, ...font.semibold, color: colors.textPrimary, flexShrink: 1 },
-  itemNameDone: { textDecorationLine: 'line-through', color: colors.textSecondary },
-  itemQty:      { backgroundColor: colors.secondary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexShrink: 0 },
-  itemQtyText:  { fontSize: 12, ...font.bold, color: colors.textSecondary },
-  itemActions:  { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
-  editBtn:      { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  deleteBtn:    { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    itemDetails:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minWidth: 0 },
+    itemNameWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
+    itemName:     { fontSize: 15, ...font.semibold, color: C.textPrimary, flexShrink: 1 },
+    itemNameDone: { textDecorationLine: 'line-through', color: C.textSecondary },
+    itemQty:      { backgroundColor: C.secondary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexShrink: 0 },
+    itemQtyText:  { fontSize: 12, ...font.bold, color: C.textSecondary },
+    itemActions:  { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
+    editBtn:      { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    deleteBtn:    { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
 
-  // ── Inline edit mode
-  editNameInput: {
-    flex: 1, height: 44, paddingHorizontal: 10, borderRadius: 8,
-    backgroundColor: '#FBFAF8', borderWidth: 1, borderColor: colors.primary,
-    fontSize: 15, ...font.regular, color: colors.textPrimary,
-  },
-  editQtyInput: {
-    width: 60, height: 44, paddingHorizontal: 8, borderRadius: 8,
-    backgroundColor: '#FBFAF8', borderWidth: 1, borderColor: colors.border,
-    fontSize: 14, ...font.regular, color: colors.textPrimary, textAlign: 'center',
-  },
-  editActionBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  inlineError:   { fontSize: 12, color: '#D94F4F', paddingTop: 4, paddingHorizontal: 4 },
+    // ── Inline edit mode
+    editNameInput: {
+      flex: 1, height: 44, paddingHorizontal: 10, borderRadius: 8,
+      backgroundColor: '#FBFAF8', borderWidth: 1, borderColor: C.primary,
+      fontSize: 15, ...font.regular, color: C.textPrimary,
+    },
+    editQtyInput: {
+      width: 60, height: 44, paddingHorizontal: 8, borderRadius: 8,
+      backgroundColor: '#FBFAF8', borderWidth: 1, borderColor: C.border,
+      fontSize: 14, ...font.regular, color: C.textPrimary, textAlign: 'center',
+    },
+    editActionBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    inlineError:   { fontSize: 12, color: '#D94F4F', paddingTop: 4, paddingHorizontal: 4 },
 
-  counter:    { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
-  ctrBtn:     { minWidth: 44, minHeight: 44, borderRadius: 22, backgroundColor: colors.surfaceSecondary, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
-  ctrBtnOff:  { opacity: 0.3 },
-  ctrBtnText: { fontSize: 16, ...font.bold, color: colors.primary, lineHeight: 20 },
-  ctrText:    { fontSize: 14, ...font.bold, color: colors.textPrimary, minWidth: 32, textAlign: 'center' },
+    counter:    { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+    ctrBtn:     { minWidth: 44, minHeight: 44, borderRadius: 22, backgroundColor: C.surfaceSecondary, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.border },
+    ctrBtnOff:  { opacity: 0.3 },
+    ctrBtnText: { fontSize: 16, ...font.bold, color: C.primary, lineHeight: 20 },
+    ctrText:    { fontSize: 14, ...font.bold, color: C.textPrimary, minWidth: 32, textAlign: 'center' },
 
-  avatar:     { justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  avatarText: { color: '#FFFFFF', ...font.bold },
+    avatar:     { justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+    avatarText: { color: '#FFFFFF', ...font.bold },
 
-  loadingIndicator: { marginBottom: 8 },
-  errorBanner: {
-    backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 8,
-  },
-  errorBannerText: { fontSize: 13, color: '#D94F4F' },
+    loadingIndicator: { marginBottom: 8 },
+    errorBanner: {
+      backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 8,
+    },
+    errorBannerText: { fontSize: 13, color: '#D94F4F' },
 
-  emptyWrap:  { alignItems: 'center', paddingVertical: 48, gap: 8 },
-  emptyIcon:  { fontSize: 44 },
-  emptyTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary },
-  emptyText:  { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
+    emptyWrap:  { alignItems: 'center', paddingVertical: 48, gap: 8 },
+    emptyIcon:  { fontSize: 44 },
+    emptyTitle: { fontSize: 16, ...font.bold, color: C.textPrimary },
+    emptyText:  { fontSize: 14, ...font.regular, color: C.textSecondary, textAlign: 'center' },
 
-  // ── Clear checked bar
-  clearBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 14, paddingVertical: 12, minHeight: 44,
-    borderRadius: 12, marginBottom: 12,
-    backgroundColor: 'rgba(34,197,94,0.08)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)',
-  },
-  clearBarLeft:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  clearBarCount:  { fontSize: 14, ...font.semibold, color: colors.positive },
-  clearBarAction: { fontSize: 13, ...font.semibold, color: colors.positive },
+    // ── Clear checked bar
+    clearBar: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 14, paddingVertical: 12, minHeight: 44,
+      borderRadius: 12, marginBottom: 12,
+      backgroundColor: 'rgba(34,197,94,0.08)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.25)',
+    },
+    clearBarLeft:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    clearBarCount:  { fontSize: 14, ...font.semibold, color: C.positive },
+    clearBarAction: { fontSize: 13, ...font.semibold, color: C.positive },
 
-  // ── Footer
-  footer: { gap: 20 },
+    // ── Footer
+    footer: { gap: 20 },
 
-  // ── Shopping run card
-  shoppingRunCard: {
-    paddingVertical: 24, paddingHorizontal: 20, borderRadius: 20,
-    backgroundColor: SHOP_CARD_BG, borderWidth: 1, borderColor: SHOP_BORDER,
-    alignItems: 'center', gap: 14,
-    boxShadow: '0 12px 32px rgba(44,51,61,0.04)',
-  } as never,
-  shoppingRunCardActive: { backgroundColor: SHOP_ACTIVE_BG, borderColor: SHOP_ACTIVE_BORDER },
-  shoppingIcon: {
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center',
-    boxShadow: '0 8px 20px rgba(44,51,61,0.06)',
-  } as never,
-  shoppingIconActive: { backgroundColor: 'rgba(220,255,230,0.9)' },
-  shoppingIconText: { fontSize: 26 },
-  shoppingCopy:     { alignItems: 'center', gap: 4, paddingHorizontal: 8 },
-  shopperBadge:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.7)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 },
-  shopperBadgeText: { fontSize: 13, ...font.semibold, color: colors.textPrimary },
+    // ── Shopping run card
+    shoppingRunCard: {
+      paddingVertical: 24, paddingHorizontal: 20, borderRadius: 20,
+      backgroundColor: SHOP_CARD_BG, borderWidth: 1, borderColor: SHOP_BORDER,
+      alignItems: 'center', gap: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    shoppingRunCardActive: { backgroundColor: SHOP_ACTIVE_BG, borderColor: SHOP_ACTIVE_BORDER },
+    shoppingIcon: {
+      width: 56, height: 56, borderRadius: 28,
+      backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    shoppingIconActive: { backgroundColor: 'rgba(220,255,230,0.9)' },
+    shoppingIconText: { fontSize: 26 },
+    shoppingCopy:     { alignItems: 'center', gap: 4, paddingHorizontal: 8 },
+    shopperBadge:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.7)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 },
+    shopperBadgeText: { fontSize: 13, ...font.semibold, color: C.textPrimary },
 
-  bottomPad: { height: sizes.bottomTabContentPadding },
-});
+    bottomPad: { height: sizes.bottomTabContentPadding },
+  });
+}
