@@ -2,7 +2,7 @@
 // Small status / category pill. Theme-aware tint + foreground.
 
 import { ReactNode } from 'react';
-import { View, Text, ViewStyle, StyleProp } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemedColors } from '@constants/colors';
 import { type } from '@constants/typography';
@@ -36,16 +36,8 @@ export function Pill({ children, tone = 'neutral', size = 'sm', icon, style }: P
   return (
     <View
       style={[
-        {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 4,
-          alignSelf: 'flex-start',
-          backgroundColor: palette.bg,
-          paddingHorizontal: px,
-          paddingVertical: py,
-          borderRadius: 999,
-        } as ViewStyle,
+        styles.container,
+        { backgroundColor: palette.bg, paddingHorizontal: px, paddingVertical: py },
         style,
       ]}
     >
@@ -56,3 +48,13 @@ export function Pill({ children, tone = 'neutral', size = 'sm', icon, style }: P
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+  } as ViewStyle,
+});

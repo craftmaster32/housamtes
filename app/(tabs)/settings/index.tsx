@@ -23,6 +23,9 @@ export default function SettingsScreen(): React.JSX.Element {
   const setCurrency = useSettingsStore((s) => s.setCurrency);
   const themeMode = useSettingsStore((s) => s.themeMode);
   const setThemeMode = useSettingsStore((s) => s.setThemeMode);
+  const handleSelectMode = useCallback((mode: ThemeMode) => (): void => {
+    setThemeMode(mode);
+  }, [setThemeMode]);
   const leaveHouse = useAuthStore((s) => s.leaveHouse);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
@@ -118,7 +121,7 @@ export default function SettingsScreen(): React.JSX.Element {
             <Pressable
               key={mode}
               style={[styles.row, index < arr.length - 1 && styles.rowBorder]}
-              onPress={() => setThemeMode(mode)}
+              onPress={handleSelectMode(mode)}
               accessibilityRole="button"
               accessibilityState={{ selected: themeMode === mode }}
             >

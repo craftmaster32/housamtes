@@ -11,7 +11,7 @@ import { type } from '@constants/typography';
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
-const HEIGHTS: Record<Size, number> = { sm: 36, md: 44, lg: 52 };
+const HEIGHTS: Record<Size, number> = { sm: 44, md: 44, lg: 52 };
 const PADDING_X: Record<Size, number> = { sm: 14, md: 18, lg: 22 };
 
 interface Props {

@@ -9,7 +9,7 @@ import { useThemedColors } from '@constants/colors';
 import { type } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
-interface Props {
+export interface Props {
   title: string;
   back?: boolean;
   onBack?: () => void;

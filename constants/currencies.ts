@@ -80,6 +80,7 @@ export function formatFull(amount: number, code: CurrencyCode | string): string 
 /** "₪1.2k" / "₪540" — for tight chart labels and badges. */
 export function formatShort(amount: number, code: CurrencyCode | string): string {
   const cur = getCurrency(code);
+  if (!Number.isFinite(amount)) return `${cur.symbol}0`;
   if (Math.abs(amount) >= 1000) {
     return `${cur.symbol}${(amount / 1000).toFixed(1)}k`;
   }

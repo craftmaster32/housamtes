@@ -1,7 +1,7 @@
 // components/ui/EmptyState.tsx
 // Consistent empty + loading + error states. One component, three modes.
 
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemedColors } from '@constants/colors';
 import { type } from '@constants/typography';
@@ -26,36 +26,49 @@ export function EmptyState({
   const tint = mode === 'error' ? C.danger : C.textTertiary;
 
   return (
-    <View style={{ alignItems: 'center', paddingVertical: sizes.xl, paddingHorizontal: sizes.lg, gap: sizes.sm }}>
+    <View style={styles.container}>
       {mode === 'loading' ? (
         <ActivityIndicator color={C.primary} />
       ) : (
         icon && (
-          <View
-            style={{
-              width: 56, height: 56, borderRadius: 28,
-              backgroundColor: tint + '14',
-              justifyContent: 'center', alignItems: 'center',
-              marginBottom: 4,
-            }}
-          >
+          <View style={[styles.iconWrap, { backgroundColor: tint + '14' }]}>
             <Ionicons name={icon} size={26} color={tint} />
           </View>
         )
       )}
-      <Text style={[type.subtitle, { color: C.textPrimary, textAlign: 'center' }]}>
+      <Text style={[type.subtitle, styles.title, { color: C.textPrimary }]}>
         {title}
       </Text>
       {message && (
-        <Text style={[type.bodyMd, { color: C.textSecondary, textAlign: 'center', maxWidth: 280 }]}>
+        <Text style={[type.bodyMd, styles.message, { color: C.textSecondary }]}>
           {message}
         </Text>
       )}
       {actionLabel && onAction && (
-        <View style={{ marginTop: sizes.sm }}>
+        <View style={styles.actionWrap}>
           <Button onPress={onAction}>{actionLabel}</Button>
         </View>
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    paddingVertical: sizes.xl,
+    paddingHorizontal: sizes.lg,
+    gap: sizes.sm,
+  },
+  iconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  title:      { textAlign: 'center' },
+  message:    { textAlign: 'center', maxWidth: 280 },
+  actionWrap: { marginTop: sizes.sm },
+});
