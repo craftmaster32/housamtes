@@ -310,10 +310,9 @@ export default function BillsScreen(): React.JSX.Element {
     );
   }
 
-  const ListHeader = (
-    <View style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}>
-
-      {/* ── Page header ─────────────────────────────────────────── */}
+  // Sticky top bar — always visible above the scroll area
+  const topBar = (
+    <View style={[styles.topBar, isWide && styles.topBarWide]}>
       <View style={styles.pageHeader}>
         <View>
           <Text style={[styles.pageTitle, { color: c.textPrimary }]}>Bills</Text>
@@ -332,6 +331,51 @@ export default function BillsScreen(): React.JSX.Element {
           <Text style={styles.addBtnText}>{t('bills.add_expense')}</Text>
         </Pressable>
       </View>
+
+      <View style={[styles.filterRow, { backgroundColor: c.surfaceSecondary, borderColor: c.border }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.filterTab,
+            filter === 'one-off' && { backgroundColor: c.primary },
+            pressed && filter !== 'one-off' && { opacity: 0.7 },
+          ]}
+          onPress={() => setFilter('one-off')}
+          accessible={true}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'one-off' }}
+        >
+          <Ionicons name="receipt-outline" size={14} color={filter === 'one-off' ? '#fff' : c.textSecondary} />
+          <Text style={[styles.filterTabText, { color: filter === 'one-off' ? '#fff' : c.textSecondary }, filter === 'one-off' && styles.filterTabTextActive]}>
+            One-off expenses
+          </Text>
+          {bills.length > 0 && filter === 'one-off' && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{bills.length}</Text>
+            </View>
+          )}
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.filterTab,
+            filter === 'recurring' && { backgroundColor: c.primary },
+            pressed && filter !== 'recurring' && { opacity: 0.7 },
+          ]}
+          onPress={() => setFilter('recurring')}
+          accessible={true}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: filter === 'recurring' }}
+        >
+          <Ionicons name="repeat-outline" size={14} color={filter === 'recurring' ? '#fff' : c.textSecondary} />
+          <Text style={[styles.filterTabText, { color: filter === 'recurring' ? '#fff' : c.textSecondary }, filter === 'recurring' && styles.filterTabTextActive]}>
+            Recurring bills
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const ListHeader = (
+    <View style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}>
 
       {/* ── Balance stats ────────────────────────────────────────── */}
       <View style={[styles.balanceCard, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -414,47 +458,6 @@ export default function BillsScreen(): React.JSX.Element {
         </View>
       )}
 
-      {/* ── Bill type filter ──────────────────────────────────────── */}
-      <View style={[styles.filterRow, { backgroundColor: c.surfaceSecondary, borderColor: c.border }]}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.filterTab,
-            filter === 'one-off' && { backgroundColor: c.primary },
-            pressed && filter !== 'one-off' && { opacity: 0.7 },
-          ]}
-          onPress={() => setFilter('one-off')}
-          accessible={true}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: filter === 'one-off' }}
-        >
-          <Ionicons name="receipt-outline" size={14} color={filter === 'one-off' ? '#fff' : c.textSecondary} />
-          <Text style={[styles.filterTabText, { color: filter === 'one-off' ? '#fff' : c.textSecondary }, filter === 'one-off' && styles.filterTabTextActive]}>
-            One-off expenses
-          </Text>
-          {bills.length > 0 && filter === 'one-off' && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{bills.length}</Text>
-            </View>
-          )}
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            styles.filterTab,
-            filter === 'recurring' && { backgroundColor: c.primary },
-            pressed && filter !== 'recurring' && { opacity: 0.7 },
-          ]}
-          onPress={() => setFilter('recurring')}
-          accessible={true}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: filter === 'recurring' }}
-        >
-          <Ionicons name="repeat-outline" size={14} color={filter === 'recurring' ? '#fff' : c.textSecondary} />
-          <Text style={[styles.filterTabText, { color: filter === 'recurring' ? '#fff' : c.textSecondary }, filter === 'recurring' && styles.filterTabTextActive]}>
-            Recurring bills
-          </Text>
-        </Pressable>
-      </View>
-
       {/* Recurring household bills */}
       {filter === 'recurring' && (
         <View style={styles.householdWrap}>
@@ -477,6 +480,7 @@ export default function BillsScreen(): React.JSX.Element {
   if (filter === 'recurring') {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
+        {topBar}
         <ScrollView
           style={styles.flex}
           showsVerticalScrollIndicator={false}
@@ -491,6 +495,7 @@ export default function BillsScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
+      {topBar}
       <SectionList<Bill>
         style={styles.flex}
         sections={billSections}
@@ -528,7 +533,9 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'web' ? sizes.bottomTabBarHeight : sizes.bottomTabContentPadding,
   },
 
-  listHeaderWrap:     { paddingHorizontal: 16, paddingTop: 8, gap: 14 },
+  topBar:         { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4, gap: 12 },
+  topBarWide:     { paddingHorizontal: 24 },
+  listHeaderWrap:     { paddingHorizontal: 16, paddingTop: 12, gap: 14 },
   listHeaderWrapWide: { paddingHorizontal: 24 },
 
   // ── Page header
@@ -536,7 +543,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingTop: 4,
   },
   pageTitle:    { fontSize: 28, ...font.extrabold, letterSpacing: -0.8 },
   pageSubtitle: { fontSize: 13, ...font.regular, marginTop: 2 },
