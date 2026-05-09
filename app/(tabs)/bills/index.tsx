@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, SectionList, ScrollView, StyleSheet, Pressable,
-  useWindowDimensions,
+  useWindowDimensions, Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
@@ -25,6 +25,7 @@ import { formatFull } from '@constants/currencies';
 import { Pill } from '@components/ui';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
+import { sizes } from '@constants/sizes';
 
 type BillFilter = 'recurring' | 'one-off';
 
@@ -484,6 +485,7 @@ export default function BillsScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         <ScrollView
+          style={styles.flex}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
@@ -497,6 +499,7 @@ export default function BillsScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <SectionList<Bill>
+        style={styles.flex}
         sections={billSections}
         keyExtractor={(item) => item.id}
         renderItem={renderBill}
@@ -526,8 +529,11 @@ export default function BillsScreen(): React.JSX.Element {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container:    { flex: 1 },
+  flex:         { flex: 1 },
   centered:     { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  listContent:  { paddingBottom: 52 },
+  listContent:  {
+    paddingBottom: Platform.OS === 'web' ? sizes.bottomTabBarHeight : sizes.bottomTabContentPadding,
+  },
 
   listHeaderWrap:     { paddingHorizontal: 16, paddingTop: 8, gap: 14 },
   listHeaderWrapWide: { paddingHorizontal: 24 },
