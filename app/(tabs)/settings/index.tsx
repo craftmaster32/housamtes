@@ -115,11 +115,12 @@ export default function SettingsScreen(): React.JSX.Element {
         <Text style={styles.intro}>{t('settings.features_intro')}</Text>
 
         {/* ── Appearance (temporary toggle — replaced by Batch 6 picker) ── */}
-        <Text style={styles.sectionLabel}>APPEARANCE</Text>
+        <Text style={styles.sectionLabel}>{t('settings.appearance')}</Text>
         <View style={styles.card}>
           {(['system', 'light', 'dark'] as ThemeMode[]).map((mode, index, arr) => (
             <Pressable
               key={mode}
+              accessible
               style={[styles.row, index < arr.length - 1 && styles.rowBorder]}
               onPress={handleSelectMode(mode)}
               accessibilityRole="button"
@@ -132,8 +133,8 @@ export default function SettingsScreen(): React.JSX.Element {
                 style={styles.iconNative}
               />
               <View style={styles.info}>
-                <Text style={[styles.label, themeMode === mode && { color: colors.primary }]}>
-                  {mode === 'system' ? 'System default' : mode === 'light' ? 'Light' : 'Dark'}
+                <Text style={[styles.label, themeMode === mode && styles.selectedLabel]}>
+                  {mode === 'system' ? t('settings.appearance_system') : mode === 'light' ? t('settings.appearance_light') : t('settings.appearance_dark')}
                 </Text>
               </View>
               {themeMode === mode && (
@@ -411,6 +412,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     ...font.semibold,
   },
+  selectedLabel: { color: colors.primary },
   description: {
     fontSize: 13,
     color: colors.textSecondary,
