@@ -93,5 +93,34 @@ export const darkColors: ColorPalette = {
 };
 
 // Backward-compat alias — existing screens that import `colors` get light theme.
-// Screens being converted to dark should import `useColors()` from `@hooks/useColors`.
+// Screens being converted to dark should import `useThemedColors()`.
 export const colors = lightColors;
+
+// ── Design-system v2 additions ──────────────────────────────────────────────
+import { useColorScheme } from 'react-native';
+import { useSettingsStore } from '@stores/settingsStore';
+
+export type ColorTokens = ColorPalette;
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+/** Pure helper — resolve ThemeMode + OS scheme into a concrete palette. */
+export function resolvePalette(
+  mode: ThemeMode,
+  systemScheme: 'light' | 'dark' | null
+): ColorPalette {
+  const effective = mode === 'system' ? (systemScheme ?? 'light') : mode;
+  return effective === 'dark' ? darkColors : lightColors;
+}
+
+/**
+ * Hook — returns the active palette based on the user's saved themeMode and
+ * the OS colour scheme. Use this in any screen opting into dark-mode support.
+ * Falls back to 'system' when themeMode hasn't been written to the store yet.
+ */
+export function useThemedColors(): ColorPalette {
+  const system = useColorScheme();
+  const mode = useSettingsStore(
+    (s) => (s as { themeMode?: ThemeMode }).themeMode ?? 'system'
+  );
+  return resolvePalette(mode, system ?? null);
+}

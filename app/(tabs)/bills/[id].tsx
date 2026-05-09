@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
-import { Text, TextInput, Button } from 'react-native-paper';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +12,9 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { resolveName } from '@utils/housemates';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { formatFull } from '@constants/currencies';
+import { Button, EmptyState, Pill } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
@@ -40,6 +42,8 @@ function formatDisplayDate(iso: string, locale: string): string {
 
 export default function BillDetailScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
   const isLoading = useBillsStore((s) => s.isLoading);
@@ -50,7 +54,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
   const canDelete = role === 'owner' || role === 'admin';
-  const currency = useSettingsStore((s) => s.currency);
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
   const housemates = useHousematesStore((s) => s.housemates);
   const markSeen = useBadgeStore((s) => s.markSeen);
 
@@ -123,17 +127,13 @@ export default function BillDetailScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          {isLoading
-            ? <ActivityIndicator size="large" color="#4F78B6" />
-            : (
-              <>
-                <Text style={styles.emptyText}>{t('bills.bill_not_found')}</Text>
-                <Pressable onPress={() => router.replace('/(tabs)/bills')}>
-                  <Text style={styles.linkText}>{t('bills.back_to_bills')}</Text>
-                </Pressable>
-              </>
-            )
-          }
+          <EmptyState
+            mode={isLoading ? 'loading' : 'empty'}
+            icon="receipt-outline"
+            title={isLoading ? 'Loading…' : t('bills.bill_not_found')}
+            actionLabel={isLoading ? undefined : t('bills.back_to_bills')}
+            onAction={isLoading ? undefined : () => router.replace('/(tabs)/bills')}
+          />
         </View>
       </SafeAreaView>
     );
@@ -158,14 +158,12 @@ export default function BillDetailScreen(): React.JSX.Element {
 
         {/* Status banner */}
         {bill.settled && (
-          <View style={styles.settledBanner}>
-            <Text style={styles.settledBannerText}>
-              ✓ {t('bills.settled_by_on', {
-                name: bill.settledBy ? resolveName(bill.settledBy, housemates) : '',
-                date: bill.settledAt ? new Date(bill.settledAt).toLocaleDateString() : '',
-              })}
-            </Text>
-          </View>
+          <Pill tone="success" size="md" icon="checkmark-circle-outline">
+            {t('bills.settled_by_on', {
+              name: bill.settledBy ? resolveName(bill.settledBy, housemates) : '',
+              date: bill.settledAt ? new Date(bill.settledAt).toLocaleDateString() : '',
+            })}
+          </Pill>
         )}
 
         {/* Detail / Edit form */}
@@ -197,9 +195,9 @@ export default function BillDetailScreen(): React.JSX.Element {
                 accessibilityLabel={t('bills.pick_date')}
                 accessibilityState={{ expanded: showDatePicker }}
               >
-                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+                <Ionicons name="calendar-outline" size={18} color={C.primary} />
                 <Text style={styles.dateTriggerText}>{formatDisplayDate(date, i18n.language)}</Text>
-                <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
+                <Ionicons name="chevron-down" size={16} color={C.textSecondary} />
               </Pressable>
             </View>
             <TextInput
@@ -228,7 +226,7 @@ export default function BillDetailScreen(): React.JSX.Element {
                       accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
                       accessibilityState={{ selected }}
                     >
-                      <Ionicons name={icon} size={15} color={selected ? colors.white : colors.primary} />
+                      <Ionicons name={icon} size={15} color={selected ? C.white : C.primary} />
                       <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
                         {t(`bills.cat_${cat.toLowerCase()}`)}
                       </Text>
@@ -239,16 +237,16 @@ export default function BillDetailScreen(): React.JSX.Element {
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
             <View style={styles.editButtons}>
-              <Button mode="contained" onPress={handleSaveEdit} loading={isSaving} disabled={isSaving} style={styles.saveBtn}>
+              <Button variant="primary" onPress={handleSaveEdit} loading={isSaving} disabled={isSaving} style={styles.saveBtn}>
                 {t('common.save')}
               </Button>
-              <Button mode="text" onPress={() => { setIsEditing(false); setError(''); }}>{t('common.cancel')}</Button>
+              <Button variant="ghost" onPress={() => { setIsEditing(false); setError(''); }}>{t('common.cancel')}</Button>
             </View>
           </View>
         ) : (
           <View style={styles.card}>
             <Text style={styles.billTitle}>{bill.title}</Text>
-            <Text style={styles.billAmount}>{currency}{bill.amount.toFixed(2)}</Text>
+            <Text style={styles.billAmount}>{formatFull(bill.amount, currencyCode)}</Text>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.category')}</Text>
               <Text style={styles.metaValue}>{bill.category}</Text>
@@ -275,13 +273,13 @@ export default function BillDetailScreen(): React.JSX.Element {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>{t('bills.split_breakdown')}</Text>
             <Text style={styles.splitTotal}>
-              {t('bills.total')} {currency}{bill.amount.toFixed(2)} · {isCustomSplit ? t('bills.custom_split') : `${t('bills.equal_split')} ${bill.splitBetween.length}`}
+              {t('bills.total')} {formatFull(bill.amount, currencyCode)} · {isCustomSplit ? t('bills.custom_split') : `${t('bills.equal_split')} ${bill.splitBetween.length}`}
             </Text>
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>
                 <View style={styles.splitDot} />
                 <Text style={styles.splitPerson}>{resolveName(person, housemates)}</Text>
-                <Text style={styles.splitAmount}>{currency}{getPersonShare(bill, person).toFixed(2)}</Text>
+                <Text style={styles.splitAmount}>{formatFull(getPersonShare(bill, person), currencyCode)}</Text>
               </View>
             ))}
           </View>
@@ -290,13 +288,13 @@ export default function BillDetailScreen(): React.JSX.Element {
         {/* Actions */}
         {!isEditing && !bill.settled && (
           <Button
-            mode="contained"
+            variant="primary"
             onPress={handleSettle}
             loading={isSettling}
             disabled={isSettling}
-            style={styles.settleBtn}
-            contentStyle={{ height: 52 }}
-            buttonColor={colors.positive}
+            fullWidth
+            size="lg"
+            style={[styles.settleBtn, { backgroundColor: C.positive }]}
           >
             {t('bills.mark_settled')}
           </Button>
@@ -304,11 +302,11 @@ export default function BillDetailScreen(): React.JSX.Element {
 
         {!isEditing && canDelete && (
           <Button
-            mode="outlined"
+            variant="danger"
             onPress={handleDelete}
+            fullWidth
+            size="lg"
             style={styles.deleteBtn}
-            contentStyle={{ height: 52 }}
-            textColor={colors.danger}
           >
             {t('bills.delete_bill')}
           </Button>
@@ -327,59 +325,49 @@ export default function BillDetailScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const makeStyles = (C: ColorTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.background },
   content: { padding: sizes.lg, gap: sizes.md, paddingBottom: sizes.xxl },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: sizes.md },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: sizes.xs },
   backBtn: { padding: 4 },
-  backText: { color: colors.primary, fontSize: 15, ...font.medium },
-  editText: { color: colors.primary, fontSize: 15, ...font.medium },
-  settledBanner: {
-    backgroundColor: colors.positive + '20',
-    borderRadius: 12,
-    padding: sizes.sm,
-    alignItems: 'center',
-  },
-  settledBannerText: { color: colors.positive, ...font.semibold, fontSize: 14 },
+  backText: { color: C.primary, fontSize: 15, ...font.medium },
+  editText: { color: C.primary, fontSize: 15, ...font.medium },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: sizes.lg,
     gap: sizes.sm,
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
   } as never,
-  billTitle: { fontSize: 22, ...font.bold, color: colors.textPrimary, letterSpacing: -0.3 },
-  billAmount: { fontSize: 34, ...font.extrabold, color: colors.primary, letterSpacing: -1 },
+  billTitle: { fontSize: 22, ...font.bold, color: C.textPrimary, letterSpacing: -0.3 },
+  billAmount: { fontSize: 34, ...font.extrabold, color: C.primary, letterSpacing: -1 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 2 },
-  metaLabel: { color: colors.textSecondary, fontSize: 14, ...font.regular },
-  metaValue: { color: colors.textPrimary, fontSize: 14, ...font.semibold, flexShrink: 1, textAlign: 'right' },
-  sectionTitle: { color: colors.textPrimary, ...font.bold, fontSize: 15, marginBottom: sizes.xs },
-  splitTotal: { color: colors.textSecondary, fontSize: 14, ...font.regular },
+  metaLabel: { color: C.textSecondary, fontSize: 14, ...font.regular },
+  metaValue: { color: C.textPrimary, fontSize: 14, ...font.semibold, flexShrink: 1, textAlign: 'right' },
+  sectionTitle: { color: C.textPrimary, ...font.bold, fontSize: 15, marginBottom: sizes.xs },
+  splitTotal: { color: C.textSecondary, fontSize: 14, ...font.regular },
   splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: 4 },
-  splitDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  splitPerson: { flex: 1, color: colors.textPrimary, fontSize: 15, ...font.medium },
-  splitAmount: { color: colors.primary, fontSize: 15, ...font.semibold },
-  input: { backgroundColor: colors.white },
+  splitDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
+  splitPerson: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
+  splitAmount: { color: C.primary, fontSize: 15, ...font.semibold },
+  input: { backgroundColor: C.surface },
   dateField: { gap: 4 },
-  dateFieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginLeft: 4 },
+  dateFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginLeft: 4 },
   dateTrigger: {
     flexDirection: 'row', alignItems: 'center', gap: sizes.sm,
-    backgroundColor: colors.white, borderRadius: 4, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: C.surface, borderRadius: 4, borderWidth: 1, borderColor: C.border,
     paddingHorizontal: 14, paddingVertical: 14, minHeight: 56,
   },
-  dateTriggerText: { flex: 1, fontSize: 15, ...font.regular, color: colors.textPrimary },
+  dateTriggerText: { flex: 1, fontSize: 15, ...font.regular, color: C.textPrimary },
   editButtons: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center', marginTop: sizes.xs },
   saveBtn: { borderRadius: 14 },
   settleBtn: { borderRadius: 14 },
-  deleteBtn: { borderRadius: 14, borderColor: colors.danger },
-  error: { color: colors.danger, fontSize: sizes.fontSm, ...font.regular },
-  emptyText: { color: colors.textSecondary, fontSize: 15, ...font.regular },
-  linkText: { color: colors.primary, fontSize: 15, ...font.medium },
+  deleteBtn: { borderRadius: 14 },
+  error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
 
-  // Category selector
   categoryField: { gap: 4 },
-  categoryFieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginLeft: 4 },
+  categoryFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginLeft: 4 },
   categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
   catChip: {
     flexDirection: 'row',
@@ -390,10 +378,10 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: sizes.borderRadiusFull,
     borderWidth: 1.5,
-    borderColor: colors.primary + '55',
-    backgroundColor: colors.primary + '08',
+    borderColor: C.primary + '55',
+    backgroundColor: C.primary + '08',
   },
-  catChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  catChipText: { color: colors.primary, fontSize: 13, ...font.semibold },
-  catChipTextSelected: { color: colors.white },
+  catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
+  catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
+  catChipTextSelected: { color: C.white },
 });

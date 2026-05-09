@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, SectionList, ScrollView, StyleSheet, Pressable,
-  ActivityIndicator, useWindowDimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
@@ -20,7 +20,10 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { resolveName } from '@utils/housemates';
 import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { useBadgeStore } from '@stores/badgeStore';
-import { useColors } from '@hooks/useColors';
+import { useThemedColors } from '@constants/colors';
+import { formatFull } from '@constants/currencies';
+import { Pill } from '@components/ui';
+import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 
 type BillFilter = 'recurring' | 'one-off';
@@ -63,9 +66,9 @@ function formatDateLabel(dateStr: string): string {
 interface HousemateBalance { person: string; name: string; amount: number; color: string; avatarUrl?: string }
 
 function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element {
-  const c        = useColors();
-  const currency = useSettingsStore((s) => s.currency);
-  const owesMe   = item.amount > 0;
+  const c            = useThemedColors();
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
+  const owesMe       = item.amount > 0;
   const initial  = item.name[0]?.toUpperCase() ?? '?';
   return (
     <View style={[styles.hmCard, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -80,7 +83,7 @@ function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element 
         {owesMe ? 'Owes you' : 'You owe'}
       </Text>
       <Text style={[styles.hmAmount, { color: owesMe ? c.positive : c.negative }]}>
-        {currency}{Math.abs(item.amount).toFixed(2)}
+        {formatFull(Math.abs(item.amount), currencyCode)}
       </Text>
       <Pressable
         style={({ pressed }) => [
@@ -100,8 +103,8 @@ function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element 
 
 // ── Bill row card ─────────────────────────────────────────────────────────────
 function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
-  const c        = useColors();
-  const currency = useSettingsStore((s) => s.currency);
+  const c            = useThemedColors();
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
   const housemates = useHousematesStore((s) => s.housemates);
   const share    = bill.amount / Math.max(bill.splitBetween.length, 1);
   const icon     = getCategoryIcon(bill.category ?? '');
@@ -135,17 +138,15 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
           {bill.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          Paid by {resolveName(bill.paidBy, housemates)} · {currency}{share.toFixed(2)} each
+          Paid by {resolveName(bill.paidBy, housemates)} · {formatFull(share, currencyCode)} each
         </Text>
       </View>
       <View style={styles.billRight}>
         {bill.settled && (
-          <View style={[styles.settledBadge, { backgroundColor: c.positive + '18' }]}>
-            <Text style={[styles.settledBadgeText, { color: c.positive }]}>✓ Settled</Text>
-          </View>
+          <Pill tone="success" style={styles.settledBadge}>✓ Settled</Pill>
         )}
         <Text style={[styles.billAmount, { color: bill.settled ? c.textSecondary : c.textPrimary }]}>
-          {currency}{bill.amount.toFixed(2)}
+          {formatFull(bill.amount, currencyCode)}
         </Text>
         <Ionicons name="chevron-forward" size={14} color={c.textSecondary} />
       </View>
@@ -155,8 +156,8 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
 
 // ── Settle Up panel ───────────────────────────────────────────────────────────
 function SettleUpPanel(): React.JSX.Element {
-  const c          = useColors();
-  const currency   = useSettingsStore((s) => s.currency);
+  const c            = useThemedColors();
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
   const bills      = useBillsStore((s) => s.bills);
   const housemates = useHousematesStore((s) => s.housemates);
   const avatarById = new Map(housemates.map((h) => [h.id, h.avatarUrl]));
@@ -203,7 +204,7 @@ function SettleUpPanel(): React.JSX.Element {
               }
             </View>
             <Text style={[styles.settleName, { color: c.textPrimary }]}>{toName}</Text>
-            <Text style={[styles.settleAmt, { color: c.textPrimary }]}>{currency}{s.amount.toFixed(2)}</Text>
+            <Text style={[styles.settleAmt, { color: c.textPrimary }]}>{formatFull(s.amount, currencyCode)}</Text>
           </View>
         );
       })}
@@ -213,7 +214,7 @@ function SettleUpPanel(): React.JSX.Element {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function BillsScreen(): React.JSX.Element {
-  const c          = useColors();
+  const c          = useThemedColors();
   const { t }      = useTranslation();
   const { width }  = useWindowDimensions();
   const isWide     = width >= 680;
@@ -227,8 +228,8 @@ export default function BillsScreen(): React.JSX.Element {
   const loadBills  = useBillsStore((s) => s.load);
   const profile    = useAuthStore((s) => s.profile);
   const houseId    = useAuthStore((s) => s.houseId) ?? '';
-  const currency   = useSettingsStore((s) => s.currency);
-  const housemates = useHousematesStore((s) => s.housemates);
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
+  const housemates   = useHousematesStore((s) => s.housemates);
   const housemateById = useMemo(() => new Map(housemates.map((h) => [h.id, h])), [housemates]);
 
   const [filter, setFilter]     = useState<BillFilter>('one-off');
@@ -286,7 +287,7 @@ export default function BillsScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={c.primary} />
+          <EmptyState mode="loading" title="Loading bills…" />
         </View>
       </SafeAreaView>
     );
@@ -296,21 +297,14 @@ export default function BillsScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         <View style={styles.centered}>
-          <Ionicons name="alert-circle-outline" size={40} color={c.negative} />
-          <Text style={[styles.emptyTitle, { color: c.textPrimary, marginTop: 12 }]}>
-            {t('bills.load_error')}
-          </Text>
-          <Text style={[styles.emptyText, { color: c.textSecondary }]}>{error}</Text>
-          <Pressable
-            style={[styles.addBtn, { backgroundColor: c.primary, marginTop: 16 }]}
-            onPress={() => loadBills(houseId)}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel={t('bills.retry')}
-            accessibilityState={{ disabled: false }}
-          >
-            <Text style={styles.addBtnText}>{t('bills.retry')}</Text>
-          </Pressable>
+          <EmptyState
+            mode="error"
+            icon="alert-circle-outline"
+            title={t('bills.load_error')}
+            message={error}
+            actionLabel={t('bills.retry')}
+            onAction={() => loadBills(houseId)}
+          />
         </View>
       </SafeAreaView>
     );
@@ -347,14 +341,14 @@ export default function BillsScreen(): React.JSX.Element {
         <View style={styles.balanceStat}>
           <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>Owed to you</Text>
           <Text style={[styles.balanceStatNum, { color: totalOwed > 0 ? c.positive : c.textPrimary }]}>
-            {currency}{totalOwed.toFixed(2)}
+            {formatFull(totalOwed, currencyCode)}
           </Text>
         </View>
         <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
         <View style={styles.balanceStat}>
           <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>Net balance</Text>
           <Text style={[styles.balanceStatNum, { color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textPrimary }]}>
-            {netBalance > 0 ? '+' : ''}{currency}{Math.abs(netBalance).toFixed(2)}
+            {netBalance > 0 ? '+' : ''}{formatFull(Math.abs(netBalance), currencyCode)}
           </Text>
           <Text style={[styles.balanceStatTag, { color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textSecondary }]}>
             {netBalance > 0 ? 'You are owed' : netBalance < 0 ? 'You owe' : 'All settled'}
@@ -364,7 +358,7 @@ export default function BillsScreen(): React.JSX.Element {
         <View style={styles.balanceStat}>
           <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>You owe</Text>
           <Text style={[styles.balanceStatNum, { color: totalOwe > 0 ? c.negative : c.textPrimary }]}>
-            {currency}{totalOwe.toFixed(2)}
+            {formatFull(totalOwe, currencyCode)}
           </Text>
         </View>
       </Animated.View>
@@ -518,13 +512,11 @@ export default function BillsScreen(): React.JSX.Element {
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         SectionSeparatorComponent={() => <View style={{ height: 4 }} />}
         ListEmptyComponent={
-          <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.emptyWrap}>
-            <View style={[styles.emptyIconWrap, { backgroundColor: c.surfaceSecondary }]}>
-              <Ionicons name="receipt-outline" size={32} color={c.textSecondary} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>No expenses yet</Text>
-            <Text style={[styles.emptyText, { color: c.textSecondary }]}>Tap Add Expense to record your first shared spend</Text>
-          </Animated.View>
+          <EmptyState
+            icon="receipt-outline"
+            title="No expenses yet"
+            message="Tap Add Expense to record your first shared spend"
+          />
         }
       />
     </SafeAreaView>

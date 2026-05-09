@@ -8,7 +8,6 @@ import {
   Modal,
   ScrollView,
   AppState,
-  ActivityIndicator,
   type AppStateStatus,
   type ListRenderItemInfo,
 } from 'react-native';
@@ -31,10 +30,9 @@ import { resolveName } from '@utils/housemates';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
-
-const SURFACE_BG = 'rgba(251,248,245,0.96)';
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -78,6 +76,8 @@ export interface ReserveModalProps {
 
 // ── Vote status row ────────────────────────────────────────────────────────────
 function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.Element {
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const voters = housemates.filter((h) => h.id !== requestedBy);
   if (voters.length === 0) return <View />;
 
@@ -113,18 +113,20 @@ function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.El
 // ── Reservation card ───────────────────────────────────────────────────────────
 function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHistory }: ReservationCardProps): React.JSX.Element {
   const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const housemates = useHousematesStore((s) => s.housemates);
   const isOwn = item.requestedBy === currentUserId;
   const isPending = item.status === 'pending';
   const approved = item.status === 'approved';
   const rejected = item.status === 'rejected';
 
-  const statusColor = approved ? colors.positive : rejected ? colors.danger : colors.warning;
+  const statusColor = approved ? C.positive : rejected ? C.danger : C.warning;
   const statusBg = approved
-    ? colors.positive + '20'
+    ? C.positive + '20'
     : rejected
-    ? colors.danger + '15'
-    : colors.warning + '20';
+    ? C.danger + '15'
+    : C.warning + '20';
   const statusLabel = approved
     ? t('parking.approved')
     : rejected
@@ -175,7 +177,7 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
             accessibilityRole="button"
             accessibilityLabel="Cancel reservation"
           >
-            <Ionicons name="close-circle-outline" size={20} color={colors.danger} />
+            <Ionicons name="close-circle-outline" size={20} color={C.danger} />
           </Pressable>
         )}
 
@@ -187,7 +189,7 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
             accessibilityRole="button"
             accessibilityLabel="Clear from history"
           >
-            <Ionicons name="trash-outline" size={18} color={colors.textSecondary} />
+            <Ionicons name="trash-outline" size={18} color={C.textSecondary} />
           </Pressable>
         )}
 
@@ -205,7 +207,7 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
               <Ionicons
                 name="checkmark"
                 size={15}
-                color={myVote?.vote === 'approve' ? '#fff' : colors.positive}
+                color={myVote?.vote === 'approve' ? '#fff' : C.positive}
               />
             </Pressable>
             <Pressable
@@ -220,7 +222,7 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
               <Ionicons
                 name="close"
                 size={15}
-                color={myVote?.vote === 'reject' ? '#fff' : colors.danger}
+                color={myVote?.vote === 'reject' ? '#fff' : C.danger}
               />
             </Pressable>
           </View>
@@ -233,6 +235,8 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
 // ── Reserve modal ──────────────────────────────────────────────────────────────
 function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, current }: ReserveModalProps): React.JSX.Element {
   const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const addReservation = useParkingStore((s) => s.addReservation);
   const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -304,7 +308,7 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
 
             {!!dateConflict && (
               <View style={styles.conflictBox}>
-                <Ionicons name="warning-outline" size={13} color={colors.warning} />
+                <Ionicons name="warning-outline" size={13} color={C.warning} />
                 <Text style={styles.conflictText}>{dateConflict}</Text>
               </View>
             )}
@@ -321,7 +325,7 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
               onChangeText={setNote}
               style={styles.fieldInput}
               placeholder={t('parking.note_placeholder')}
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={C.textSecondary}
             />
 
             {!!error && <Text style={styles.fieldError}>{error}</Text>}
@@ -354,6 +358,8 @@ type FlatItem =
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function ParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const isLoading = useParkingStore((s) => s.isLoading);
   const current = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
@@ -515,7 +521,7 @@ export default function ParkingScreen(): React.JSX.Element {
         isHistory={item.isHistory}
       />
     );
-  }, [myId, handleCancel, handleVote, handleClear, t]);
+  }, [myId, handleCancel, handleVote, handleClear, t, styles]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -542,13 +548,13 @@ export default function ParkingScreen(): React.JSX.Element {
                 </Text>
               </View>
 
-              <View style={[styles.statusCircle, { backgroundColor: isFree ? colors.positive + '18' : colors.negative + '18' }]}>
+              <View style={[styles.statusCircle, { backgroundColor: isFree ? C.positive + '18' : C.negative + '18' }]}>
                 <Ionicons
                   name={isFree ? 'car-outline' : 'car'}
                   size={38}
-                  color={isFree ? colors.positive : colors.negative}
+                  color={isFree ? C.positive : C.negative}
                 />
-                <Text style={[styles.statusLabel, { color: isFree ? colors.positive : colors.negative }]}>
+                <Text style={[styles.statusLabel, { color: isFree ? C.positive : C.negative }]}>
                   {isFree ? t('parking.free') : t('parking.taken')}
                 </Text>
               </View>
@@ -561,7 +567,7 @@ export default function ParkingScreen(): React.JSX.Element {
               )}
               {isMine && (
                 <Pressable style={styles.btnDanger} onPress={handleRelease} accessibilityRole="button">
-                  <Ionicons name="exit-outline" size={16} color={colors.danger} style={styles.btnIcon} />
+                  <Ionicons name="exit-outline" size={16} color={C.danger} style={styles.btnIcon} />
                   <Text style={styles.btnDangerText}>{t('parking.release')}</Text>
                 </Pressable>
               )}
@@ -569,20 +575,16 @@ export default function ParkingScreen(): React.JSX.Element {
 
             {!!error && (
               <View style={styles.errorBox}>
-                <Ionicons name="warning-outline" size={14} color={colors.danger} />
+                <Ionicons name="warning-outline" size={14} color={C.danger} />
                 <Text style={styles.errorText}>{error}</Text>
               </View>
-            )}
-
-            {isLoading && (
-              <ActivityIndicator size="small" color="#4F78B6" style={styles.loadingIndicator} />
             )}
 
             {/* ── Reservations section header ── */}
             <View style={styles.sectionHeader}>
               <Text style={styles.eyebrow}>{t('parking.reservations')}</Text>
               <Pressable onPress={() => setShowReserve(true)} style={styles.addBtn} accessibilityRole="button">
-                <Ionicons name="add" size={14} color={colors.primary} />
+                <Ionicons name="add" size={14} color={C.primary} />
                 <Text style={styles.addBtnText}>{t('parking.reserve')}</Text>
               </Pressable>
             </View>
@@ -599,15 +601,13 @@ export default function ParkingScreen(): React.JSX.Element {
         }
 
         ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="calendar-outline" size={36} color={colors.textSecondary} />
-            </View>
-            <Text style={styles.emptyTitle}>{t('parking.no_reservations')}</Text>
-            <Text style={styles.emptyText}>
-              Reserve ahead of time so housemates know when the spot is taken.
-            </Text>
-          </View>
+          isLoading
+            ? <EmptyState mode="loading" title="Loading…" />
+            : <EmptyState
+                icon="calendar-outline"
+                title={t('parking.no_reservations')}
+                message="Reserve ahead of time so housemates know when the spot is taken."
+              />
         }
       />
 
@@ -624,20 +624,24 @@ export default function ParkingScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const makeStyles = (C: ColorTokens) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.background },
   list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
   sep: { height: 8 },
 
   heroCard: {
-    backgroundColor: SURFACE_BG,
-    borderRadius: 20, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: C.surface,
+    borderRadius: 20, borderWidth: 1, borderColor: C.border,
     padding: 20, gap: 16, marginBottom: 24,
-    boxShadow: '0 8px 24px rgba(44,51,61,0.05)',
-  } as never,
+    shadowColor: '#2C333D',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 24,
+    elevation: 3,
+  },
   heroCopy: { gap: 6 },
-  titleHero: { fontSize: 26, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.78 },
-  textBase: { fontSize: 15, ...font.regular, color: colors.textSecondary, lineHeight: 22 },
+  titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
+  textBase: { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
 
   statusCircle: {
     alignSelf: 'center',
@@ -649,25 +653,29 @@ const styles = StyleSheet.create({
   btnPrimary: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     minHeight: 48, paddingHorizontal: 18, borderRadius: 10,
-    backgroundColor: colors.primary,
-    boxShadow: '0 8px 16px rgba(79,120,182,0.18)',
-  } as never,
+    backgroundColor: C.primary,
+    shadowColor: '#4F78B6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 6,
+  },
   btnDanger: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     minHeight: 48, paddingHorizontal: 18, borderRadius: 10,
-    backgroundColor: colors.danger + '15',
-    borderWidth: 1, borderColor: colors.danger + '30',
+    backgroundColor: C.danger + '15',
+    borderWidth: 1, borderColor: C.danger + '30',
   },
   btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-  btnDangerText: { fontSize: 15, ...font.semibold, color: colors.danger },
+  btnDangerText: { fontSize: 15, ...font.semibold, color: C.danger },
   btnIcon: { marginRight: 6 },
 
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.primary + '15',
+    backgroundColor: C.primary + '15',
     paddingVertical: 6, paddingHorizontal: 10, borderRadius: 9999,
   },
-  addBtnText: { fontSize: 13, ...font.semibold, color: colors.primary },
+  addBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
 
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -678,38 +686,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4, marginBottom: 12,
   },
   eyebrow: {
-    fontSize: 12, ...font.bold, color: colors.textSecondary,
+    fontSize: 12, ...font.bold, color: C.textSecondary,
     letterSpacing: 0.72, textTransform: 'uppercase',
   },
   countPill: {
     minHeight: 22, paddingHorizontal: 8, borderRadius: 9999,
-    backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: C.secondary, justifyContent: 'center', alignItems: 'center',
   },
-  countPillText: { fontSize: 11, ...font.bold, color: colors.secondaryForeground },
+  countPillText: { fontSize: 11, ...font.bold, color: C.secondaryForeground },
 
   historyHeaderRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 4, paddingTop: 16, paddingBottom: 8,
   },
 
-  // ── Reservation card
   resCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
     paddingHorizontal: 14, paddingVertical: 14,
-    borderRadius: 14, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border,
-    boxShadow: '0 4px 16px rgba(44,51,61,0.02)',
-  } as never,
+    borderRadius: 14, backgroundColor: C.surface,
+    borderWidth: 1, borderColor: C.border,
+    shadowColor: '#2C333D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 16,
+    elevation: 1,
+  },
   resCardDim: { opacity: 0.72 },
   resIconWrap: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: colors.surfaceSecondary,
+    backgroundColor: C.surfaceSecondary,
     justifyContent: 'center', alignItems: 'center', flexShrink: 0,
     marginTop: 2,
   },
   resInfo: { flex: 1, gap: 4 },
-  resDate: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
-  resBy: { fontSize: 13, ...font.regular, color: colors.textSecondary },
+  resDate: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+  resBy: { fontSize: 13, ...font.regular, color: C.textSecondary },
 
   badge: {
     alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2,
@@ -720,7 +731,6 @@ const styles = StyleSheet.create({
   resActions: { gap: 6, alignItems: 'center', paddingTop: 2 },
   iconBtn: { padding: 4 },
 
-  // ── Vote row (avatars + dots)
   voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   voteAvatarWrap: { position: 'relative', width: 28, height: 28 },
   voteAvatarCircle: {
@@ -732,77 +742,59 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: -1, right: -1,
     width: 13, height: 13, borderRadius: 7,
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1.5, borderColor: colors.surface,
+    borderWidth: 1.5, borderColor: C.surface,
   },
-  dotApprove: { backgroundColor: colors.positive },
-  dotReject:  { backgroundColor: colors.danger },
-  dotPending: { backgroundColor: colors.textSecondary + '80' },
+  dotApprove: { backgroundColor: C.positive },
+  dotReject:  { backgroundColor: C.danger },
+  dotPending: { backgroundColor: C.textSecondary + '80' },
 
-  // ── Vote buttons (Approve / Reject)
   voteBtns: { flexDirection: 'row', gap: 6 },
   voteBtn: {
     width: 32, height: 32, borderRadius: 9999,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceSecondary,
+    borderColor: C.border,
+    backgroundColor: C.surfaceSecondary,
   },
-  voteBtnApproveActive: {
-    backgroundColor: colors.positive,
-    borderColor: colors.positive,
-  },
-  voteBtnRejectActive: {
-    backgroundColor: colors.danger,
-    borderColor: colors.danger,
-  },
-
-  emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
-  emptyIconWrap: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: colors.surfaceSecondary,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  emptyTitle: { fontSize: 16, ...font.bold, color: colors.textPrimary },
-  emptyText: { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  voteBtnApproveActive: { backgroundColor: C.positive, borderColor: C.positive },
+  voteBtnRejectActive:  { backgroundColor: C.danger,   borderColor: C.danger },
 
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.danger + '15', borderRadius: 10,
+    backgroundColor: C.danger + '15', borderRadius: 10,
     padding: 12, marginBottom: 16,
   },
-  errorText: { fontSize: 13, ...font.regular, color: colors.danger, flex: 1 },
-  loadingIndicator: { marginBottom: 12 },
+  errorText: { fontSize: 13, ...font.regular, color: C.danger, flex: 1 },
 
-  // ── Reserve Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: colors.white,
+    backgroundColor: C.surface,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40, gap: 12,
     maxHeight: '90%',
   },
   modalScroll: { flexGrow: 0 },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 4 },
-  modalTitle: { fontSize: 20, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
-  fieldLabel: { fontSize: 13, ...font.semibold, color: colors.textPrimary, marginBottom: 6 },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 4 },
+  modalTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+  fieldLabel: { fontSize: 13, ...font.semibold, color: C.textPrimary, marginBottom: 6 },
   fieldInput: {
-    borderWidth: 1.5, borderColor: colors.border, borderRadius: 12,
+    borderWidth: 1.5, borderColor: C.border, borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, ...font.regular, color: colors.textPrimary,
-    backgroundColor: colors.surfaceSecondary,
+    fontSize: 15, ...font.regular, color: C.textPrimary,
+    backgroundColor: C.surfaceSecondary,
   },
-  fieldError: { fontSize: 13, ...font.regular, color: colors.negative },
+  fieldError: { fontSize: 13, ...font.regular, color: C.negative },
   conflictBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  conflictText: { fontSize: 13, ...font.medium, color: colors.warning, flex: 1 },
+  conflictText: { fontSize: 13, ...font.medium, color: C.warning, flex: 1 },
   modalBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
   modalBtnOutline: {
     flex: 1, paddingVertical: 14, borderRadius: 12,
-    borderWidth: 1.5, borderColor: colors.border, alignItems: 'center',
+    borderWidth: 1.5, borderColor: C.border, alignItems: 'center',
   },
-  modalBtnOutlineText: { fontSize: 15, ...font.semibold, color: colors.textPrimary },
+  modalBtnOutlineText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
   modalBtnPrimary: {
     flex: 1, paddingVertical: 14, borderRadius: 12,
-    backgroundColor: colors.primary, alignItems: 'center',
+    backgroundColor: C.primary, alignItems: 'center',
   },
   modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
 });
