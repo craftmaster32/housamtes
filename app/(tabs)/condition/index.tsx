@@ -75,7 +75,7 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     entryDescription: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, lineHeight: 18, marginLeft: sizes.lg + sizes.sm },
     photoRow: { marginLeft: sizes.lg + sizes.sm, marginTop: 2 },
     photoThumb: { width: 80, height: 80, borderRadius: sizes.borderRadiusSm, marginRight: sizes.xs, borderWidth: 1, borderColor: C.border },
-    removeBtn: { padding: 4 },
+    removeBtn: { padding: 8, minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
     removeBtnText: { color: C.textDisabled, fontSize: sizes.fontXs },
 
     form: { backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, gap: sizes.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
@@ -140,7 +140,14 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
             {formatDate(entry.date)} · by {resolveName(entry.recordedBy, housemates)}
           </Text>
         </View>
-        <Pressable onPress={() => remove(entry.id)} style={styles.removeBtn}>
+        <Pressable
+          onPress={() => remove(entry.id)}
+          style={styles.removeBtn}
+          hitSlop={8}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Remove entry"
+        >
           <Text style={styles.removeBtnText}>✕</Text>
         </Pressable>
       </View>
@@ -151,7 +158,7 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
       {entry.photos && entry.photos.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoRow}>
           {entry.photos.map((src, i) => (
-            <Image key={i} source={{ uri: src }} style={styles.photoThumb} />
+            <Image key={i} source={{ uri: src }} style={styles.photoThumb} accessibilityLabel={`Condition photo ${i + 1}`} />
           ))}
         </ScrollView>
       )}

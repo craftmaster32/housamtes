@@ -237,6 +237,13 @@ export default function PhotosScreen(): React.JSX.Element {
     ]);
   }, [remove, t]);
 
+  const onPickCamera = useCallback(() => pickImage(true), [pickImage]);
+  const onPickGallery = useCallback(() => pickImage(false), [pickImage]);
+  const handleSelectCategory = useCallback(
+    (key: PhotoCategory | 'general') => setSelectedCategory(key),
+    [setSelectedCategory]
+  );
+
   const renderPhoto = useCallback(
     ({ item }: { item: Photo }) => (
       <Pressable onPress={() => setViewPhoto(item)} style={styles.gridItem}>
@@ -260,10 +267,10 @@ export default function PhotosScreen(): React.JSX.Element {
         <View style={styles.pageHeader}>
           <Text style={styles.heading}>{t('photos.title')}</Text>
           <View style={styles.headerActions}>
-            <Pressable onPress={() => pickImage(true)} style={styles.headerBtn}>
+            <Pressable onPress={onPickCamera} style={styles.headerBtn}>
               <Text style={styles.headerBtnText}>📷</Text>
             </Pressable>
-            <Pressable onPress={() => pickImage(false)} style={styles.headerBtn}>
+            <Pressable onPress={onPickGallery} style={styles.headerBtn}>
               <Text style={styles.headerBtnText}>🖼️</Text>
             </Pressable>
           </View>
@@ -274,7 +281,7 @@ export default function PhotosScreen(): React.JSX.Element {
             <Pressable
               key={cat.key}
               style={[styles.catChip, selectedCategory === cat.key && styles.catChipActive]}
-              onPress={() => setSelectedCategory(cat.key)}
+              onPress={() => handleSelectCategory(cat.key)}
             >
               <Text style={[styles.catChipText, selectedCategory === cat.key && styles.catChipTextActive]}>
                 {cat.icon} {t(cat.labelKey)}
