@@ -264,7 +264,9 @@ export default function ChoresScreen(): React.JSX.Element {
                       key={opt.value}
                       style={[styles.chip, recurrence === opt.value && styles.chipActive]}
                       onPress={() => handleRecurrenceChange(opt.value)}
-                      accessibilityRole="button"
+                      accessible={true}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: recurrence === opt.value }}
                     >
                       <Text style={[styles.chipText, recurrence === opt.value && styles.chipTextActive]}>
                         {opt.label}
@@ -282,7 +284,9 @@ export default function ChoresScreen(): React.JSX.Element {
                           key={day}
                           style={[styles.weekDayChip, recurrenceDay === day && styles.weekDayChipActive]}
                           onPress={() => setRecurrenceDay(day)}
-                          accessibilityRole="button"
+                          accessible={true}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: recurrenceDay === day }}
                         >
                           <Text style={[styles.weekDayText, recurrenceDay === day && styles.weekDayTextActive]}>
                             {weekDayLabels[i].slice(0, 2)}
@@ -302,7 +306,9 @@ export default function ChoresScreen(): React.JSX.Element {
                           key={d}
                           style={[styles.monthDayChip, recurrenceDay === d && styles.monthDayChipActive]}
                           onPress={() => setRecurrenceDay(d)}
-                          accessibilityRole="button"
+                          accessible={true}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: recurrenceDay === d }}
                         >
                           <Text style={[styles.monthDayText, recurrenceDay === d && styles.monthDayTextActive]}>
                             {d}

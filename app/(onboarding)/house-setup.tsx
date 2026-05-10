@@ -37,6 +37,10 @@ export default function HouseSetupScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
+  const onBackPress = useCallback(() => { signOut(); }, [signOut]);
+  const onSelectCreate = useCallback(() => { setTab('create'); setError(''); }, [setTab, setError]);
+  const onSelectJoin = useCallback(() => { setTab('join'); setError(''); }, [setTab, setError]);
+
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_INTENT_KEY).then((intent) => {
       if (intent === 'join') {
@@ -148,7 +152,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
 
           <Pressable
             style={styles.backBtn}
-            onPress={() => signOut()}
+            onPress={onBackPress}
             accessible={true}
             accessibilityRole="button"
             accessibilityLabel="Back to login"
@@ -167,7 +171,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
           <View style={styles.tabs}>
             <Pressable
               style={[styles.tab, tab === 'create' && styles.tabActive]}
-              onPress={() => { setTab('create'); setError(''); }}
+              onPress={onSelectCreate}
               accessible={true}
               accessibilityRole="button"
               accessibilityLabel="Create house"
@@ -179,7 +183,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
             </Pressable>
             <Pressable
               style={[styles.tab, tab === 'join' && styles.tabActive]}
-              onPress={() => { setTab('join'); setError(''); }}
+              onPress={onSelectJoin}
               accessible={true}
               accessibilityRole="button"
               accessibilityLabel="Join house"
