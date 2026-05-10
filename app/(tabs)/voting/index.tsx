@@ -360,6 +360,10 @@ export default function VotingScreen(): React.JSX.Element {
   const open = proposals.filter((p) => p.isOpen);
   const closed = proposals.filter((p) => !p.isOpen);
 
+  const handleCloseForm = useCallback(() => setShowForm(false), [setShowForm]);
+  const handleOpenForm = useCallback(() => setShowForm(true), [setShowForm]);
+  const toggleShowClosed = useCallback(() => setShowClosed((v) => !v), [setShowClosed]);
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.root}>
@@ -387,9 +391,9 @@ export default function VotingScreen(): React.JSX.Element {
           </View>
 
           {showForm ? (
-            <AddProposalForm onClose={() => setShowForm(false)} createdBy={myId} houseId={houseId ?? ''} />
+            <AddProposalForm onClose={handleCloseForm} createdBy={myId} houseId={houseId ?? ''} />
           ) : (
-            <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
+            <Pressable style={styles.addBtn} onPress={handleOpenForm}>
               <Text style={styles.addBtnText}>{t('voting.new_proposal')}</Text>
             </Pressable>
           )}
@@ -407,7 +411,7 @@ export default function VotingScreen(): React.JSX.Element {
 
           {closed.length > 0 && (
             <>
-              <Pressable style={styles.closedToggle} onPress={() => setShowClosed((v) => !v)}>
+              <Pressable style={styles.closedToggle} onPress={toggleShowClosed}>
                 <Text style={styles.closedToggleText}>
                   {showClosed ? '▲' : '▼'} {t('voting.past_votes')} ({closed.length})
                 </Text>

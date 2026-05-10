@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,11 +40,13 @@ export default function TermsScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
+  const handleBackPress = useCallback(() => router.back(), []);
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
+          <Pressable onPress={handleBackPress} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
             <Text style={styles.backText}>← Back</Text>
           </Pressable>
           <Text style={styles.heading}>Terms of Service</Text>

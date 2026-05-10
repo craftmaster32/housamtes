@@ -125,13 +125,16 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
     updatePrefs(user.id, houseId, changes);
   }, [user, houseId, updatePrefs]);
 
+  const handleBack = useCallback(() => router.back(), []);
+  const handleSelectDay = useCallback((d: BillDueDays) => save({ billDueDaysBefore: d }), [save]);
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <ScrollView contentContainerStyle={styles.scroll}>
 
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Pressable onPress={handleBack} style={styles.backBtn}>
               <Text style={styles.backText}>{t('common.back')}</Text>
             </Pressable>
             <Text style={styles.heading}>{t('nav.settings')}</Text>
@@ -167,7 +170,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
                     <Pressable
                       key={d}
                       style={[styles.dayChip, prefs.billDueDaysBefore === d && styles.dayChipActive]}
-                      onPress={() => save({ billDueDaysBefore: d })}
+                      onPress={() => handleSelectDay(d)}
                       accessible
                       accessibilityRole="radio"
                       accessibilityState={{ selected: prefs.billDueDaysBefore === d }}
