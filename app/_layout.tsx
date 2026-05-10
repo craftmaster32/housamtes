@@ -167,7 +167,7 @@ export default function RootLayout(): React.JSX.Element | null {
 
     if (!user && !inAuth) {
       router.replace('/(auth)/welcome');
-    } else if (user && needsTermsAcceptance && !inAuth) {
+    } else if (user && needsTermsAcceptance) {
       router.replace('/(auth)/accept-terms');
     } else if (user && !houseId && !inOnboarding) {
       // Only redirect to house-setup if user genuinely has no house
@@ -242,7 +242,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadVoting, loadCondition,
   ]);
 
-  const showChrome = !!user && !!houseId;
+  const showChrome = !!user && !!houseId && !needsTermsAcceptance;
 
   // Swipe-back gesture: zone starts from 22–70 px from left edge (distinct from drawer open zone at 0–22 px)
   const backSwipe = useRef(

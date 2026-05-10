@@ -562,13 +562,13 @@ async function resolveUploadData(
 
 async function hasCurrentConsent(userId: string): Promise<boolean> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_consents')
       .select('id')
       .eq('user_id', userId)
-      .eq('terms_version', CURRENT_TERMS_VERSION)
-      .maybeSingle();
-    return !!data;
+      .eq('terms_version', CURRENT_TERMS_VERSION);
+    if (error) throw error;
+    return Array.isArray(data) && data.length > 0;
   } catch {
     // If the check fails (network error etc.) require re-acceptance to be safe.
     return false;
