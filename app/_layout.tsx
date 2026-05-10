@@ -58,11 +58,18 @@ export default function RootLayout(): React.JSX.Element | null {
   useEffect(() => {
     getInitialLanguage().then((lang) => {
       setupI18n(lang);
-      // Sync the store so the language picker shows the right selection
       useLanguageStore.setState({ language: lang });
       setI18nReady(true);
     });
   }, [setLanguage]);
+
+  // Keep the browser document in sync with the active language on web
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = getIsRTL(language) ? 'rtl' : 'ltr';
+      document.documentElement.lang = language;
+    }
+  }, [language]);
 
   const [fontsLoaded] = useFonts({
     // eslint-disable-next-line @typescript-eslint/no-require-imports
