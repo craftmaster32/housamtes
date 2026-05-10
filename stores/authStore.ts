@@ -9,6 +9,7 @@ import { registerWebPush, unregisterWebPush } from '@lib/webPush';
 import type { User, Session } from '@supabase/supabase-js';
 
 const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
+const CURRENT_TERMS_VERSION = '2026-05-10';
 
 async function savePendingEmail(email: string): Promise<void> {
   try { await AsyncStorage.setItem(PENDING_EMAIL_KEY, email); } catch { /* non-fatal */ }
@@ -137,6 +138,7 @@ interface AuthStore {
   pendingEmail: string | null;
 
   isPasswordRecovery: boolean;
+  needsTermsAcceptance: boolean;
   initialize: () => Promise<void>;
   signUp: (email: string, password: string, name: string, avatarColor: string) => Promise<{ needsVerification: boolean }>;
   resendVerification: (email: string) => Promise<void>;
@@ -153,6 +155,7 @@ interface AuthStore {
   leaveHouse: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
+  acceptUpdatedTerms: () => Promise<void>;
   clearError: () => void;
   clearPasswordRecovery: () => void;
 }
@@ -172,6 +175,7 @@ export const useAuthStore = create<AuthStore>()(
       error: null,
       pendingEmail: null,
       isPasswordRecovery: false,
+      needsTermsAcceptance: false,
 
       initialize: async (): Promise<void> => {
         // Remove any previously attached AppState listener before re-attaching
@@ -208,12 +212,13 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           if (session?.user) {
-            const [profile, memberData] = await Promise.all([
+            const [profile, memberData, consentOk] = await Promise.all([
               fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
               fetchMemberData(session.user.id),
+              hasCurrentConsent(session.user.id),
             ]);
             identifyUser(session.user.id);
-            set({ user: session.user, session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions });
+            set({ user: session.user, session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, needsTermsAcceptance: !consentOk });
             if (memberData.houseId) {
               registerPushToken(session.user.id, memberData.houseId);
               registerWebPush(session.user.id, memberData.houseId);
@@ -242,12 +247,13 @@ export const useAuthStore = create<AuthStore>()(
             return;
           }
           if (session?.user) {
-            const [profile, memberData] = await Promise.all([
+            const [profile, memberData, consentOk] = await Promise.all([
               fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
               fetchMemberData(session.user.id),
+              hasCurrentConsent(session.user.id),
             ]);
             identifyUser(session.user.id);
-            set({ user: session.user, session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, isLoading: false });
+            set({ user: session.user, session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, needsTermsAcceptance: !consentOk, isLoading: false });
             if (memberData.houseId) {
               registerPushToken(session.user.id, memberData.houseId);
               registerWebPush(session.user.id, memberData.houseId);
@@ -277,7 +283,7 @@ export const useAuthStore = create<AuthStore>()(
             // Best-effort — failure here must not block account creation.
             supabase.from('user_consents').insert({
               user_id: data.user.id,
-              terms_version: '2026-04-25',
+              terms_version: CURRENT_TERMS_VERSION,
               platform: Platform.OS,
             }).then(({ error: consentErr }) => {
               if (consentErr) captureError(consentErr, { context: 'record-consent', userId: data.user?.id ?? '' });
@@ -312,12 +318,13 @@ export const useAuthStore = create<AuthStore>()(
           const { data, error } = await supabase.auth.signInWithPassword({ email, password });
           if (error) throw error;
           if (data.user) {
-            const [profile, memberData] = await Promise.all([
+            const [profile, memberData, consentOk] = await Promise.all([
               fetchProfile(data.user.id, data.user.user_metadata as Record<string, unknown>),
               fetchMemberData(data.user.id),
+              hasCurrentConsent(data.user.id),
             ]);
             clearPendingEmail().catch(() => {});
-            set({ user: data.user, session: data.session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, isLoading: false, pendingEmail: null });
+            set({ user: data.user, session: data.session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, needsTermsAcceptance: !consentOk, isLoading: false, pendingEmail: null });
             if (memberData.houseId) {
               registerPushToken(data.user.id, memberData.houseId);
               registerWebPush(data.user.id, memberData.houseId);
@@ -500,6 +507,23 @@ export const useAuthStore = create<AuthStore>()(
         set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
       },
 
+      acceptUpdatedTerms: async (): Promise<void> => {
+        const { user } = useAuthStore.getState();
+        if (!user) return;
+        set({ isLoading: true });
+        const { error } = await supabase.from('user_consents').insert({
+          user_id: user.id,
+          terms_version: CURRENT_TERMS_VERSION,
+          platform: Platform.OS,
+        });
+        if (error) {
+          captureError(error, { context: 'accept-updated-terms', userId: user.id });
+          set({ isLoading: false });
+          throw new Error('Could not record acceptance. Please try again.');
+        }
+        set({ needsTermsAcceptance: false, isLoading: false });
+      },
+
       clearError: (): void => {
         set({ error: null });
       },
@@ -534,6 +558,21 @@ async function resolveUploadData(
   const blob = await response.blob();
   const buffer = await blob.arrayBuffer();
   return { buffer, contentType: blob.type || mimeType };
+}
+
+async function hasCurrentConsent(userId: string): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from('user_consents')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('terms_version', CURRENT_TERMS_VERSION)
+      .maybeSingle();
+    return !!data;
+  } catch {
+    // If the check fails (network error etc.) require re-acceptance to be safe.
+    return false;
+  }
 }
 
 async function fetchProfile(
