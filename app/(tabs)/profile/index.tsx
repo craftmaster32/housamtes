@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, type GestureResponderEvent } from 'react-native';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, Animated, type GestureResponderEvent } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -14,7 +14,7 @@ import { useBillsStore } from '@stores/billsStore';
 import { useSpendingStore, CATEGORY_META } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { SpendingCard } from '@components/profile/SpendingCard';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import type { Bill } from '@stores/billsStore';
@@ -40,15 +40,17 @@ function billDayLabel(dateStr: string): 'today' | 'yesterday' | 'older' {
 function QuickAction({
   icon, label, onPress,
 }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; onPress: () => void }): React.JSX.Element {
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
     <Pressable
-      style={({ pressed }) => [styles.quickCard, pressed && styles.quickCardPressed]}
+      style={({ pressed }) => [s.quickCard, pressed && s.quickCardPressed]}
       onPress={onPress}
       accessible
       accessibilityRole="button"
     >
-      <Ionicons name={icon} size={22} color={colors.primary} />
-      <Text style={styles.quickLabel}>{label}</Text>
+      <Ionicons name={icon} size={22} color={C.primary} />
+      <Text style={s.quickLabel}>{label}</Text>
     </Pressable>
   );
 }
@@ -59,37 +61,41 @@ function ProfileRow({
   iconName: React.ComponentProps<typeof Ionicons>['name'];
   title: string; sub: string; onPress: () => void;
 }): React.JSX.Element {
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
   return (
     <Pressable
-      style={({ pressed }) => [styles.profileRow, pressed && styles.profileRowPressed]}
+      style={({ pressed }) => [s.profileRow, pressed && s.profileRowPressed]}
       onPress={onPress}
       accessible
       accessibilityRole="button"
     >
-      <View style={styles.profileRowIcon}>
-        <Ionicons name={iconName} size={18} color={colors.primary} />
+      <View style={s.profileRowIcon}>
+        <Ionicons name={iconName} size={18} color={C.primary} />
       </View>
-      <View style={styles.profileRowText}>
-        <Text style={styles.profileRowTitle}>{title}</Text>
-        <Text style={styles.profileRowSub}>{sub}</Text>
+      <View style={s.profileRowText}>
+        <Text style={s.profileRowTitle}>{title}</Text>
+        <Text style={s.profileRowSub}>{sub}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+      <Ionicons name="chevron-forward" size={18} color={C.textSecondary} />
     </Pressable>
   );
 }
 
 function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JSX.Element {
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
   const shown = housemates.slice(0, 4);
   return (
-    <View style={styles.avatarStack}>
+    <View style={s.avatarStack}>
       {shown.map((h, i) => (
         <View
           key={h.id}
-          style={[styles.stackAvatar, { backgroundColor: h.avatarUrl ? 'transparent' : h.color, marginLeft: i === 0 ? 0 : -10 }]}
+          style={[s.stackAvatar, { backgroundColor: h.avatarUrl ? 'transparent' : h.color, marginLeft: i === 0 ? 0 : -10 }]}
         >
           {h.avatarUrl
-            ? <Image source={{ uri: h.avatarUrl }} style={styles.stackAvatarImg} contentFit="cover" />
-            : <Text style={styles.stackAvatarText}>{h.name[0].toUpperCase()}</Text>
+            ? <Image source={{ uri: h.avatarUrl }} style={s.stackAvatarImg} contentFit="cover" accessibilityLabel={h.name} />
+            : <Text style={s.stackAvatarText}>{h.name[0].toUpperCase()}</Text>
           }
         </View>
       ))}
@@ -98,23 +104,25 @@ function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JS
 }
 
 function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): React.JSX.Element {
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
   const splits = bill.splitBetween.length || 1;
   const share  = bill.splitAmounts ? (bill.splitAmounts[userName] ?? bill.amount / splits) : bill.amount / splits;
   const isPayer = bill.paidBy === userName;
   const meta = CATEGORY_META[bill.category?.toLowerCase() ?? ''] ?? CATEGORY_META['other'];
-  const currency = useSettingsStore((s) => s.currency);
+  const currency = useSettingsStore((ss) => ss.currency);
   return (
-    <View style={styles.activityItem}>
-      <View style={[styles.activityIcon, { backgroundColor: meta.color + '20' }]}>
-        <Text style={styles.activityIconText}>{meta.icon}</Text>
+    <View style={s.activityItem}>
+      <View style={[s.activityIcon, { backgroundColor: meta.color + '20' }]}>
+        <Text style={s.activityIconText}>{meta.icon}</Text>
       </View>
-      <View style={styles.activityInfo}>
-        <Text style={styles.activityTitle} numberOfLines={1}>{bill.title}</Text>
-        <Text style={styles.activitySub}>{isPayer ? 'Paid by you' : `Paid by ${bill.paidBy}`}</Text>
+      <View style={s.activityInfo}>
+        <Text style={s.activityTitle} numberOfLines={1}>{bill.title}</Text>
+        <Text style={s.activitySub}>{isPayer ? 'Paid by you' : `Paid by ${bill.paidBy}`}</Text>
       </View>
-      <View style={styles.activityAmt}>
-        <Text style={styles.activityAmtText}>-{currency}{share.toFixed(2)}</Text>
-        <Text style={styles.activityAmtSub}>Your share</Text>
+      <View style={s.activityAmt}>
+        <Text style={s.activityAmtText}>-{currency}{share.toFixed(2)}</Text>
+        <Text style={s.activityAmtSub}>Your share</Text>
       </View>
     </View>
   );
@@ -126,8 +134,10 @@ function PersonalDetailsForm({
 }: {
   currentName: string; currentEmail: string; onDone: () => void;
 }): React.JSX.Element {
-  const updateProfile = useAuthStore((s) => s.updateProfile);
-  const updateEmail   = useAuthStore((s) => s.updateEmail);
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
+  const updateProfile = useAuthStore((ss) => ss.updateProfile);
+  const updateEmail   = useAuthStore((ss) => ss.updateEmail);
   const [name, setName]       = useState(currentName);
   const [email, setEmail]     = useState(currentEmail);
   const [saving, setSaving]   = useState(false);
@@ -165,45 +175,45 @@ function PersonalDetailsForm({
   }, [name, email, currentName, currentEmail, updateProfile, updateEmail, onDone]);
 
   return (
-    <View style={styles.pwForm}>
+    <View style={s.pwForm}>
       <View>
-        <Text style={styles.detailsLabel}>Display name</Text>
+        <Text style={s.detailsLabel}>Display name</Text>
         <TextInput
-          style={styles.textInput}
+          style={s.textInput}
           value={name}
           onChangeText={(v) => { setName(v); setError(''); setSuccess(''); }}
           placeholder="Your name"
-          placeholderTextColor={colors.textDisabled}
+          placeholderTextColor={C.textDisabled}
           autoCapitalize="words"
         />
       </View>
       <View>
-        <Text style={styles.detailsLabel}>Email address</Text>
+        <Text style={s.detailsLabel}>Email address</Text>
         <TextInput
-          style={styles.textInput}
+          style={s.textInput}
           value={email}
           onChangeText={(v) => { setEmail(v); setError(''); setSuccess(''); }}
           placeholder="your@email.com"
-          placeholderTextColor={colors.textDisabled}
+          placeholderTextColor={C.textDisabled}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
         />
-        <Text style={styles.detailsHint}>Changing email sends a confirmation link to the new address.</Text>
+        <Text style={s.detailsHint}>Changing email sends a confirmation link to the new address.</Text>
       </View>
-      {!!error   && <Text style={styles.fieldError}>{error}</Text>}
-      {!!success && <Text style={styles.detailsSuccess}>{success}</Text>}
-      <View style={styles.pwBtns}>
+      {!!error   && <Text style={s.fieldError}>{error}</Text>}
+      {!!success && <Text style={s.detailsSuccess}>{success}</Text>}
+      <View style={s.pwBtns}>
         <Pressable
-          style={[styles.saveBtn, saving && styles.saveBtnOff]}
+          style={[s.saveBtn, saving && s.saveBtnOff]}
           onPress={handleSave}
           disabled={saving}
           accessibilityRole="button"
         >
-          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save changes'}</Text>
+          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save changes'}</Text>
         </Pressable>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={s.cancelText}>Cancel</Text>
         </Pressable>
       </View>
     </View>
@@ -212,7 +222,9 @@ function PersonalDetailsForm({
 
 // ── Change password form ───────────────────────────────────────────────────────
 function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Element {
-  const changePassword = useAuthStore((s) => s.changePassword);
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
+  const changePassword = useAuthStore((ss) => ss.changePassword);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword]         = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -238,25 +250,25 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
 
   if (success) {
     return (
-      <View style={styles.pwForm}>
-        <Text style={styles.detailsSuccess}>Password updated successfully.</Text>
+      <View style={s.pwForm}>
+        <Text style={s.detailsSuccess}>Password updated successfully.</Text>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={styles.cancelText}>Done</Text>
+          <Text style={s.cancelText}>Done</Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={styles.pwForm}>
+    <View style={s.pwForm}>
       <View>
-        <Text style={styles.detailsLabel}>Current password</Text>
+        <Text style={s.detailsLabel}>Current password</Text>
         <TextInput
-          style={styles.textInput}
+          style={s.textInput}
           value={currentPassword}
           onChangeText={(v) => { setCurrentPassword(v); setError(''); }}
           placeholder="Your current password"
-          placeholderTextColor={colors.textDisabled}
+          placeholderTextColor={C.textDisabled}
           secureTextEntry
           autoCapitalize="none"
           autoComplete="off"
@@ -264,51 +276,51 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
         />
       </View>
       <View>
-        <Text style={styles.detailsLabel}>New password</Text>
+        <Text style={s.detailsLabel}>New password</Text>
         <TextInput
-          style={styles.textInput}
+          style={s.textInput}
           value={newPassword}
           onChangeText={(v) => { setNewPassword(v); setError(''); }}
           placeholder="At least 8 characters"
-          placeholderTextColor={colors.textDisabled}
+          placeholderTextColor={C.textDisabled}
           secureTextEntry
           autoCapitalize="none"
           accessibilityLabel="New password"
         />
       </View>
       <View>
-        <Text style={styles.detailsLabel}>Confirm new password</Text>
+        <Text style={s.detailsLabel}>Confirm new password</Text>
         <TextInput
-          style={styles.textInput}
+          style={s.textInput}
           value={confirmPassword}
           onChangeText={(v) => { setConfirmPassword(v); setError(''); }}
           placeholder="Repeat new password"
-          placeholderTextColor={colors.textDisabled}
+          placeholderTextColor={C.textDisabled}
           secureTextEntry
           autoCapitalize="none"
           accessibilityLabel="Confirm new password"
         />
       </View>
-      {!!error && <Text style={styles.fieldError}>{error}</Text>}
-      <View style={styles.pwBtns}>
+      {!!error && <Text style={s.fieldError}>{error}</Text>}
+      <View style={s.pwBtns}>
         <Pressable
-          style={[styles.saveBtn, saving && styles.saveBtnOff]}
+          style={[s.saveBtn, saving && s.saveBtnOff]}
           onPress={handleSave}
           disabled={saving}
           accessibilityRole="button"
         >
-          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Update password'}</Text>
+          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Update password'}</Text>
         </Pressable>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={s.cancelText}>Cancel</Text>
         </Pressable>
       </View>
       <Pressable
         onPress={() => router.push('/(auth)/forgot-password')}
         accessibilityRole="button"
-        style={styles.forgotLink}
+        style={s.forgotLink}
       >
-        <Text style={styles.forgotLinkText}>Forgot your password?</Text>
+        <Text style={s.forgotLinkText}>Forgot your password?</Text>
       </Pressable>
     </View>
   );
@@ -326,6 +338,7 @@ function CropEditor({
   onConfirm: (originX: number, originY: number, cropSize: number) => void;
   onCancel: () => void;
 }): React.JSX.Element {
+  const C = useThemedColors();
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
@@ -433,6 +446,27 @@ function CropEditor({
     onConfirm(originX, originY, cropSz);
   }, [imgLeft, imgTop, dispFactor, imgW, imgH, onConfirm]);
 
+  const cedStyles = useMemo(() => StyleSheet.create({
+    wrapper: { alignItems: 'center', gap: sizes.md },
+    hint:    { fontSize: 13, ...font.regular, color: C.textSecondary },
+    frame: {
+      width: CROP_FRAME,
+      height: CROP_FRAME,
+      borderRadius: CROP_FRAME / 2,
+      overflow: 'hidden',
+      borderWidth: 3,
+      borderColor: C.primary,
+    },
+    zoomRow:     { flexDirection: 'row', alignItems: 'center', gap: sizes.xl },
+    zoomBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: C.primary + '15', justifyContent: 'center', alignItems: 'center' },
+    zoomBtnText: { fontSize: 26, color: C.primary, lineHeight: 30 },
+    zoomLabel:   { fontSize: 14, ...font.bold, color: C.textSecondary },
+    btnRow:      { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
+    confirmBtn:  { backgroundColor: C.primary, paddingVertical: 12, paddingHorizontal: sizes.xl, borderRadius: 10 },
+    confirmText: { color: '#fff', ...font.semibold, fontSize: 15 },
+    cancelText:  { color: C.textSecondary, fontSize: 14, ...font.regular },
+  }), [C]);
+
   return (
     <View style={cedStyles.wrapper}>
       <Text style={cedStyles.hint}>Drag · pinch to zoom</Text>
@@ -451,11 +485,11 @@ function CropEditor({
         />
       </View>
       <View style={cedStyles.zoomRow}>
-        <Pressable style={cedStyles.zoomBtn} onPress={() => setScale((s) => Math.max(1, parseFloat((s - 0.2).toFixed(1))))} accessibilityRole="button" accessibilityLabel="Zoom out">
+        <Pressable style={cedStyles.zoomBtn} onPress={() => setScale((ss) => Math.max(1, parseFloat((ss - 0.2).toFixed(1))))} accessibilityRole="button" accessibilityLabel="Zoom out">
           <Text style={cedStyles.zoomBtnText}>−</Text>
         </Pressable>
         <Text style={cedStyles.zoomLabel}>Zoom</Text>
-        <Pressable style={cedStyles.zoomBtn} onPress={() => setScale((s) => parseFloat((s + 0.2).toFixed(1)))} accessibilityRole="button" accessibilityLabel="Zoom in">
+        <Pressable style={cedStyles.zoomBtn} onPress={() => setScale((ss) => parseFloat((ss + 0.2).toFixed(1)))} accessibilityRole="button" accessibilityLabel="Zoom in">
           <Text style={cedStyles.zoomBtnText}>+</Text>
         </Pressable>
       </View>
@@ -470,27 +504,6 @@ function CropEditor({
     </View>
   );
 }
-
-const cedStyles = StyleSheet.create({
-  wrapper: { alignItems: 'center', gap: sizes.md },
-  hint:    { fontSize: 13, ...font.regular, color: colors.textSecondary },
-  frame: {
-    width: CROP_FRAME,
-    height: CROP_FRAME,
-    borderRadius: CROP_FRAME / 2,   // circular — matches avatar shape
-    overflow: 'hidden',
-    borderWidth: 3,
-    borderColor: colors.primary,
-  },
-  zoomRow:     { flexDirection: 'row', alignItems: 'center', gap: sizes.xl },
-  zoomBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary + '15', justifyContent: 'center', alignItems: 'center' },
-  zoomBtnText: { fontSize: 26, color: colors.primary, lineHeight: 30 },
-  zoomLabel:   { fontSize: 14, ...font.bold, color: colors.textSecondary },
-  btnRow:      { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
-  confirmBtn:  { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: sizes.xl, borderRadius: 10 },
-  confirmText: { color: colors.white, ...font.semibold, fontSize: 15 },
-  cancelText:  { color: colors.textSecondary, fontSize: 14, ...font.regular },
-});
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function ProfileScreen(): React.JSX.Element {
@@ -512,6 +525,13 @@ export default function ProfileScreen(): React.JSX.Element {
   const bills      = useBillsStore((s) => s.bills);
   const loadBills  = useBillsStore((s) => s.load);
   const months     = useSpendingStore((s) => s.months);
+
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   const [showDetailsForm, setShowDetailsForm]   = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -738,6 +758,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* ── Profile header ──────────────────────────────────────────── */}
@@ -752,7 +773,7 @@ export default function ProfileScreen(): React.JSX.Element {
             accessibilityLabel="Change cover photo"
           >
             {profile?.coverUrl
-              ? <Image source={{ uri: profile.coverUrl }} style={styles.coverImage} contentFit="cover" />
+              ? <Image source={{ uri: profile.coverUrl }} style={styles.coverImage} contentFit="cover" accessibilityLabel="Cover photo" />
               : (
                 <>
                   <View style={styles.decoCircleTL} />
@@ -762,11 +783,11 @@ export default function ProfileScreen(): React.JSX.Element {
             }
             {uploadingCover && (
               <View style={styles.coverOverlay}>
-                <ActivityIndicator color={colors.white} size="small" />
+                <ActivityIndicator color="#fff" size="small" />
               </View>
             )}
             <View style={styles.coverBadge}>
-              <Ionicons name="image-outline" size={12} color={colors.primary} />
+              <Ionicons name="image-outline" size={12} color={C.primary} />
             </View>
           </Pressable>
 
@@ -779,19 +800,19 @@ export default function ProfileScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel="Change profile photo"
           >
-            <View style={[styles.avatarRing, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? colors.primary) }]}>
+            <View style={[styles.avatarRing, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? C.primary) }]}>
               {profile?.avatarUrl
-                ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} contentFit="cover" />
+                ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} contentFit="cover" accessibilityLabel="Profile photo" />
                 : <Text style={styles.avatarInitial}>{initial}</Text>
               }
               {uploading && (
                 <View style={styles.avatarOverlay}>
-                  <ActivityIndicator color={colors.white} size="small" />
+                  <ActivityIndicator color="#fff" size="small" />
                 </View>
               )}
             </View>
             <View style={styles.avatarBadge}>
-              <Ionicons name="camera" size={12} color={colors.primary} />
+              <Ionicons name="camera" size={12} color={C.primary} />
             </View>
           </Pressable>
 
@@ -940,7 +961,7 @@ export default function ProfileScreen(): React.JSX.Element {
             <View style={styles.card}>
               <View style={styles.cardInnerRow}>
                 <Text style={styles.sectionTitle}>Recent activity</Text>
-                <Ionicons name="search-outline" size={20} color={colors.textSecondary} />
+                <Ionicons name="search-outline" size={20} color={C.textSecondary} />
               </View>
               {todayBills.length > 0 && (
                 <>
@@ -976,7 +997,7 @@ export default function ProfileScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('profile.sign_out')}
           >
-            <Ionicons name="log-out-outline" size={18} color={colors.negative} />
+            <Ionicons name="log-out-outline" size={18} color={C.negative} />
             <Text style={styles.signOutText}>{t('profile.sign_out')}</Text>
           </Pressable>
 
@@ -993,6 +1014,7 @@ export default function ProfileScreen(): React.JSX.Element {
           <Text style={styles.version}>{t('profile.footer')}</Text>
         </View>
       </ScrollView>
+      </Animated.View>
 
         {/* ── Crop editor modal (web only) ────────────────────────── */}
         <Modal visible={cropSource !== null} transparent animationType="fade">
@@ -1008,7 +1030,7 @@ export default function ProfileScreen(): React.JSX.Element {
               )}
               {uploading && (
                 <View style={styles.cropUploading}>
-                  <ActivityIndicator color={colors.primary} />
+                  <ActivityIndicator color={C.primary} />
                   <Text style={styles.cropUploadingText}>Uploading…</Text>
                 </View>
               )}
@@ -1020,319 +1042,322 @@ export default function ProfileScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll:    { paddingBottom: 80 },
-  content:   { paddingHorizontal: sizes.md, gap: sizes.md, paddingBottom: sizes.lg },
+function makeStyles(C: ColorTokens) {
+  return StyleSheet.create({
+    flex:      { flex: 1 },
+    container: { flex: 1, backgroundColor: C.background },
+    scroll:    { paddingBottom: 80 },
+    content:   { paddingHorizontal: sizes.md, gap: sizes.md, paddingBottom: sizes.lg },
 
-  // Profile header
-  profileHeader: {
-    alignItems: 'center',
-    paddingBottom: sizes.lg,
-    gap: sizes.xs,
-    position: 'relative',
-  },
-  // Cover photo
-  coverWrap: {
-    width: '100%',
-    height: 140,
-    backgroundColor: colors.secondary,
-    marginBottom: 52,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  coverOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  coverBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  decoCircleTL: {
-    position: 'absolute',
-    top: 30,
-    left: -20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    opacity: 0.15,
-  },
-  decoCircleTR: {
-    position: 'absolute',
-    top: 60,
-    right: 40,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.primary,
-    opacity: 0.15,
-  },
-  avatarWrap: { position: 'absolute', top: 90, alignSelf: 'center' },
-  avatarRing: {
-    width: 102,
-    height: 102,
-    borderRadius: 51,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.75)',
-    overflow: 'hidden',
-  },
-  avatarImage: { width: 96, height: 96 },
-  avatarOverlay: {
-    position: 'absolute',
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitial: { color: colors.white, fontSize: 40, ...font.bold },
-  avatarBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.secondary,
-    borderWidth: 2,
-    borderColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileName:  { fontSize: 28, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.56, marginTop: 4 },
-  profileEmail: { fontSize: 13, ...font.regular, color: colors.textSecondary },
-  profileSub:   { fontSize: 15, ...font.regular, color: colors.textSecondary },
+    // Profile header
+    profileHeader: {
+      alignItems: 'center',
+      paddingBottom: sizes.lg,
+      gap: sizes.xs,
+      position: 'relative',
+    },
+    // Cover photo
+    coverWrap: {
+      width: '100%',
+      height: 140,
+      backgroundColor: C.secondary,
+      marginBottom: 52,
+      position: 'relative',
+      overflow: 'hidden',
+    },
+    coverImage: {
+      width: '100%',
+      height: '100%',
+    },
+    coverOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    coverBadge: {
+      position: 'absolute',
+      bottom: 8,
+      right: 8,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    decoCircleTL: {
+      position: 'absolute',
+      top: 30,
+      left: -20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: C.primary,
+      opacity: 0.15,
+    },
+    decoCircleTR: {
+      position: 'absolute',
+      top: 60,
+      right: 40,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: C.primary,
+      opacity: 0.15,
+    },
+    avatarWrap: { position: 'absolute', top: 90, alignSelf: 'center' },
+    avatarRing: {
+      width: 102,
+      height: 102,
+      borderRadius: 51,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 3,
+      borderColor: 'rgba(255,255,255,0.75)',
+      overflow: 'hidden',
+    },
+    avatarImage: { width: 96, height: 96 },
+    avatarOverlay: {
+      position: 'absolute',
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    avatarInitial: { color: '#fff', fontSize: 40, ...font.bold },
+    avatarBadge: {
+      position: 'absolute',
+      bottom: 2,
+      right: 2,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: C.secondary,
+      borderWidth: 2,
+      borderColor: C.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    profileName:  { fontSize: 28, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.56, marginTop: 4 },
+    profileEmail: { fontSize: 13, ...font.regular, color: C.textSecondary },
+    profileSub:   { fontSize: 15, ...font.regular, color: C.textSecondary },
 
-  // Quick actions
-  quickRow: { flexDirection: 'row', gap: sizes.sm },
-  quickCard: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: sizes.md + 3,
-    alignItems: 'center',
-    gap: sizes.sm,
-  },
-  quickCardPressed: { opacity: 0.75 },
-  quickLabel: { fontSize: 12, ...font.bold, color: colors.textPrimary, textAlign: 'center' },
+    // Quick actions
+    quickRow: { flexDirection: 'row', gap: sizes.sm },
+    quickCard: {
+      flex: 1,
+      backgroundColor: C.surface,
+      borderRadius: sizes.borderRadius,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingVertical: sizes.md + 3,
+      alignItems: 'center',
+      gap: sizes.sm,
+    },
+    quickCardPressed: { opacity: 0.75 },
+    quickLabel: { fontSize: 12, ...font.bold, color: C.textPrimary, textAlign: 'center' },
 
-  // Section
-  section: { gap: sizes.sm },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: 18, ...font.extrabold, color: colors.textPrimary },
-  sectionAction: { fontSize: 13, ...font.bold, color: colors.primary },
+    // Section
+    section: { gap: sizes.sm },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    sectionTitle: { fontSize: 18, ...font.extrabold, color: C.textPrimary },
+    sectionAction: { fontSize: 13, ...font.bold, color: C.primary },
 
-  // Generic card
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: sizes.borderRadiusLg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: sizes.md,
-    gap: sizes.sm,
-  },
-  cardInnerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    // Generic card
+    card: {
+      backgroundColor: C.surface,
+      borderRadius: sizes.borderRadiusLg,
+      borderWidth: 1,
+      borderColor: C.border,
+      padding: sizes.md,
+      gap: sizes.sm,
+    },
+    cardInnerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
-  // Expense summary grid
-  expenseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.sm },
-  expenseCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: colors.secondary,
-    borderRadius: sizes.borderRadius,
-    padding: sizes.md,
-    gap: sizes.xs,
-  },
-  expenseIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  expenseIcon: { fontSize: 20 },
-  expenseName: { fontSize: 13, ...font.bold, color: colors.textSecondary },
-  expenseAmt:  { fontSize: 18, ...font.extrabold, color: colors.textPrimary },
+    // Expense summary grid
+    expenseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.sm },
+    expenseCard: {
+      flex: 1,
+      minWidth: '45%',
+      backgroundColor: C.secondary,
+      borderRadius: sizes.borderRadius,
+      padding: sizes.md,
+      gap: sizes.xs,
+    },
+    expenseIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 10,
+      backgroundColor: C.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    expenseIcon: { fontSize: 20 },
+    expenseName: { fontSize: 13, ...font.bold, color: C.textSecondary },
+    expenseAmt:  { fontSize: 18, ...font.extrabold, color: C.textPrimary },
 
-  // House section
-  houseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  houseInfo: { gap: 2 },
-  houseName: { fontSize: 15, ...font.extrabold, color: colors.textPrimary },
-  houseSub:  { fontSize: 13, ...font.bold, color: colors.textSecondary },
-  avatarStack: { flexDirection: 'row', alignItems: 'center' },
-  stackAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 2,
-    borderColor: colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  stackAvatarImg: { width: 34, height: 34 },
-  stackAvatarText: { color: colors.white, fontSize: 13, ...font.bold },
+    // House section
+    houseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    houseInfo: { gap: 2 },
+    houseName: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
+    houseSub:  { fontSize: 13, ...font.bold, color: C.textSecondary },
+    avatarStack: { flexDirection: 'row', alignItems: 'center' },
+    stackAvatar: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 2,
+      borderColor: '#fff',
+      justifyContent: 'center',
+      alignItems: 'center',
+      overflow: 'hidden',
+    },
+    stackAvatarImg: { width: 34, height: 34 },
+    stackAvatarText: { color: '#fff', fontSize: 13, ...font.bold },
 
-  // Profile row
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sizes.sm,
-    paddingVertical: sizes.sm,
-  },
-  profileRowPressed: { opacity: 0.7 },
-  profileRowIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: colors.secondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileRowText: { flex: 1 },
-  profileRowTitle: { fontSize: 15, ...font.extrabold, color: colors.textPrimary },
-  profileRowSub:   { fontSize: 13, ...font.regular, color: colors.textSecondary },
+    // Profile row
+    profileRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      paddingVertical: sizes.sm,
+    },
+    profileRowPressed: { opacity: 0.7 },
+    profileRowIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: C.secondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    profileRowText: { flex: 1 },
+    profileRowTitle: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
+    profileRowSub:   { fontSize: 13, ...font.regular, color: C.textSecondary },
 
-  rowDivider: { height: 1, backgroundColor: colors.border, marginLeft: 40 + sizes.sm },
+    rowDivider: { height: 1, backgroundColor: C.border, marginLeft: 40 + sizes.sm },
 
-  // Activity
-  dayLabel: {
-    fontSize: 13,
-    ...font.extrabold,
-    color: colors.textSecondary,
-    letterSpacing: 0.65,
-    textTransform: 'uppercase',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingBottom: sizes.xs,
-    marginTop: sizes.xs,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sizes.sm,
-    paddingVertical: sizes.sm,
-  },
-  activityIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  activityIconText: { fontSize: 20 },
-  activityInfo: { flex: 1 },
-  activityTitle: { fontSize: 15, ...font.extrabold, color: colors.textPrimary },
-  activitySub:   { fontSize: 13, ...font.regular, color: colors.textSecondary },
-  activityAmt:   { alignItems: 'flex-end' },
-  activityAmtText: { fontSize: 16, ...font.extrabold, color: colors.textPrimary },
-  activityAmtSub:  { fontSize: 12, ...font.regular, color: colors.textSecondary },
-  viewMoreBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingVertical: sizes.md,
-    alignItems: 'center',
-    marginTop: sizes.xs,
-  },
-  viewMoreBtnPressed: { opacity: 0.7 },
-  viewMoreText: { fontSize: 14, ...font.bold, color: colors.textPrimary },
+    // Activity
+    dayLabel: {
+      fontSize: 13,
+      ...font.extrabold,
+      color: C.textSecondary,
+      letterSpacing: 0.65,
+      textTransform: 'uppercase',
+      borderBottomWidth: 1,
+      borderBottomColor: C.border,
+      paddingBottom: sizes.xs,
+      marginTop: sizes.xs,
+    },
+    activityItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      paddingVertical: sizes.sm,
+    },
+    activityIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    activityIconText: { fontSize: 20 },
+    activityInfo: { flex: 1 },
+    activityTitle: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
+    activitySub:   { fontSize: 13, ...font.regular, color: C.textSecondary },
+    activityAmt:   { alignItems: 'flex-end' },
+    activityAmtText: { fontSize: 16, ...font.extrabold, color: C.textPrimary },
+    activityAmtSub:  { fontSize: 12, ...font.regular, color: C.textSecondary },
+    viewMoreBtn: {
+      borderWidth: 1,
+      borderColor: C.border,
+      borderRadius: 10,
+      paddingVertical: sizes.md,
+      alignItems: 'center',
+      marginTop: sizes.xs,
+    },
+    viewMoreBtnPressed: { opacity: 0.7 },
+    viewMoreText: { fontSize: 14, ...font.bold, color: C.textPrimary },
 
-  // Sign out
-  signOutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: sizes.sm,
-    paddingVertical: sizes.md,
-    borderRadius: sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: colors.negative + '30',
-    backgroundColor: colors.negative + '08',
-    marginTop: sizes.sm,
-  },
-  signOutBtnPressed: { opacity: 0.7 },
-  signOutText: { fontSize: 15, ...font.semibold, color: colors.negative },
+    // Sign out
+    signOutBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: sizes.sm,
+      paddingVertical: sizes.md,
+      borderRadius: sizes.borderRadius,
+      borderWidth: 1,
+      borderColor: C.negative + '30',
+      backgroundColor: C.negative + '08',
+      marginTop: sizes.sm,
+    },
+    signOutBtnPressed: { opacity: 0.7 },
+    signOutText: { fontSize: 15, ...font.semibold, color: C.negative },
 
-  // Password form
-  pwForm: { padding: sizes.sm, gap: sizes.sm },
-  textInput: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 12,
-    fontSize: 15,
-    ...font.regular,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  fieldError:     { color: colors.danger, fontSize: 13, ...font.regular },
-  detailsLabel:   { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginBottom: 4 },
-  detailsHint:    { fontSize: 11, ...font.regular, color: colors.textDisabled, marginTop: 4 },
-  detailsSuccess: { fontSize: 13, ...font.regular, color: colors.positive ?? '#16a34a' },
-  pwBtns:     { flexDirection: 'row', alignItems: 'center', gap: sizes.md, marginTop: sizes.xs },
-  saveBtn:    { backgroundColor: colors.primary, paddingVertical: 10, paddingHorizontal: sizes.lg, borderRadius: 10 },
-  saveBtnOff: { opacity: 0.6 },
-  saveBtnText:  { color: colors.white, ...font.semibold, fontSize: 14 },
-  cancelText:   { color: colors.textSecondary, fontSize: 14, ...font.regular },
+    // Password form
+    pwForm: { padding: sizes.sm, gap: sizes.sm },
+    textInput: {
+      backgroundColor: C.background,
+      borderRadius: 10,
+      paddingHorizontal: sizes.md,
+      paddingVertical: 12,
+      fontSize: 15,
+      ...font.regular,
+      color: C.textPrimary,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    fieldError:     { color: C.danger, fontSize: 13, ...font.regular },
+    detailsLabel:   { fontSize: 12, ...font.semibold, color: C.textSecondary, marginBottom: 4 },
+    detailsHint:    { fontSize: 11, ...font.regular, color: C.textDisabled, marginTop: 4 },
+    detailsSuccess: { fontSize: 13, ...font.regular, color: C.positive ?? '#16a34a' },
+    pwBtns:     { flexDirection: 'row', alignItems: 'center', gap: sizes.md, marginTop: sizes.xs },
+    saveBtn:    { backgroundColor: C.primary, paddingVertical: 10, paddingHorizontal: sizes.lg, borderRadius: 10 },
+    saveBtnOff: { opacity: 0.6 },
+    saveBtnText:  { color: '#fff', ...font.semibold, fontSize: 14 },
+    cancelText:   { color: C.textSecondary, fontSize: 14, ...font.regular },
 
-  deleteAccountBtn: {
-    alignItems: 'center',
-    paddingVertical: sizes.sm,
-    marginTop: sizes.xs,
-  },
-  deleteAccountText: {
-    fontSize: 13,
-    ...font.regular,
-    color: colors.textDisabled,
-    textDecorationLine: 'underline',
-  },
-  version: { color: colors.textDisabled, fontSize: 13, ...font.regular, textAlign: 'center', marginTop: sizes.sm },
-  forgotLink: { alignSelf: 'flex-start', marginTop: 2 },
-  forgotLinkText: { fontSize: 13, ...font.regular, color: colors.primary },
+    deleteAccountBtn: {
+      alignItems: 'center',
+      paddingVertical: sizes.sm,
+      marginTop: sizes.xs,
+    },
+    deleteAccountText: {
+      fontSize: 13,
+      ...font.regular,
+      color: C.textDisabled,
+      textDecorationLine: 'underline',
+    },
+    version: { color: C.textDisabled, fontSize: 13, ...font.regular, textAlign: 'center', marginTop: sizes.sm },
+    forgotLink: { alignSelf: 'flex-start', marginTop: 2 },
+    forgotLinkText: { fontSize: 13, ...font.regular, color: C.primary },
 
-  // Crop editor modal
-  cropOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: sizes.md,
-  },
-  cropModal: {
-    backgroundColor: colors.white,
-    borderRadius: sizes.borderRadiusLg,
-    padding: sizes.lg,
-    alignItems: 'center',
-    gap: sizes.md,
-    width: '100%',
-    maxWidth: 360,
-  },
-  cropTitle: { fontSize: 18, ...font.extrabold, color: colors.textPrimary },
-  cropUploading: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-  cropUploadingText: { fontSize: 14, ...font.regular, color: colors.textSecondary },
-});
+    // Crop editor modal
+    cropOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.85)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: sizes.md,
+    },
+    cropModal: {
+      backgroundColor: C.surface,
+      borderRadius: sizes.borderRadiusLg,
+      padding: sizes.lg,
+      alignItems: 'center',
+      gap: sizes.md,
+      width: '100%',
+      maxWidth: 360,
+    },
+    cropTitle: { fontSize: 18, ...font.extrabold, color: C.textPrimary },
+    cropUploading: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
+    cropUploadingText: { fontSize: 14, ...font.regular, color: C.textSecondary },
+  });
+}

@@ -84,6 +84,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
   const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
+  const handleBackToBills = useCallback((): void => { router.replace('/(tabs)/bills'); }, []);
 
   const handleSaveEdit = useCallback(async () => {
     const parsed = parseFloat(amount);
@@ -132,7 +133,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             icon="receipt-outline"
             title={isLoading ? 'Loading…' : t('bills.bill_not_found')}
             actionLabel={isLoading ? undefined : t('bills.back_to_bills')}
-            onAction={isLoading ? undefined : () => router.replace('/(tabs)/bills')}
+            onAction={isLoading ? undefined : handleBackToBills}
           />
         </View>
       </SafeAreaView>

@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,7 @@ import {
   NEXT_STATUS,
   type MaintenanceStatus,
 } from '@stores/maintenanceStore';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
@@ -28,7 +28,70 @@ function timeAgo(iso: string): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
+const makeStyles = (C: ColorTokens) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: C.background },
+    flex: { flex: 1 },
+    scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+
+    pageHeader: { marginBottom: sizes.xs },
+    heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    headingSub: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, marginTop: 2 },
+
+    addBtn: { borderWidth: 2, borderColor: C.primary + '40', borderStyle: 'dashed', borderRadius: 14, paddingVertical: sizes.md, alignItems: 'center' },
+    addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
+
+    card: { backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, gap: sizes.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    cardResolved: { opacity: 0.65 },
+    cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
+    cardIcon: { fontSize: 24, lineHeight: 30 },
+    cardInfo: { flex: 1, gap: 2 },
+    cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
+    cardTitleResolved: { textDecorationLine: 'line-through', color: C.textSecondary },
+    cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
+    removeBtn: { padding: 4 },
+    removeBtnText: { color: C.textDisabled, fontSize: sizes.fontSm },
+    cardDescription: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, lineHeight: 20 },
+    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
+    statusBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 4 },
+    statusText: { fontSize: sizes.fontXs, ...font.bold },
+    advanceBtn: { backgroundColor: C.primary + '15', borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.md, paddingVertical: 5 },
+    advanceBtnText: { color: C.primary, fontSize: sizes.fontSm, ...font.semibold },
+    reopenBtn: { borderWidth: 1, borderColor: C.border, borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.md, paddingVertical: 4 },
+    reopenBtnText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.regular },
+
+    form: { backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, gap: sizes.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
+    fieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+    chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+    chipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    chipIcon: { fontSize: 14 },
+    chipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
+    chipTextActive: { color: '#fff' },
+    input: { backgroundColor: C.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: C.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: C.textPrimary, ...font.regular },
+    inputMultiline: { height: 80, textAlignVertical: 'top' },
+    formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
+    cancelBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+    cancelBtnText: { color: C.textSecondary, ...font.medium },
+    saveBtn: { backgroundColor: C.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
+    saveBtnDisabled: { backgroundColor: C.textDisabled },
+    saveBtnText: { color: '#fff', ...font.semibold },
+    saveError: { color: C.danger, fontSize: 13, ...font.regular },
+
+    resolvedToggle: { paddingVertical: sizes.sm, alignItems: 'center' },
+    resolvedToggleText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.medium },
+
+    emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
+    emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
+    emptyText: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, textAlign: 'center' },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    errorBanner: { backgroundColor: C.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: C.danger + '40' },
+    errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.danger },
+});
+
 function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Element {
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const color = STATUS_COLORS[status];
   return (
     <View style={[styles.statusBadge, { backgroundColor: color + '18' }]}>
@@ -39,6 +102,8 @@ function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Eleme
 
 function RequestCard({ request, myId }: { request: ReturnType<typeof useMaintenanceStore.getState>['requests'][0]; myId: string }): React.JSX.Element {
   const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const housemates = useHousematesStore((s) => s.housemates);
   const updateStatus = useMaintenanceStore((s) => s.updateStatus);
   const remove = useMaintenanceStore((s) => s.remove);
@@ -94,6 +159,8 @@ function RequestCard({ request, myId }: { request: ReturnType<typeof useMaintena
 
 function AddRequestForm({ onClose, reportedBy, houseId }: { onClose: () => void; reportedBy: string; houseId: string }): React.JSX.Element {
   const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
   const add = useMaintenanceStore((s) => s.add);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -138,7 +205,7 @@ function AddRequestForm({ onClose, reportedBy, houseId }: { onClose: () => void;
         value={title}
         onChangeText={setTitle}
         placeholder={t('maintenance.issue_placeholder')}
-        placeholderTextColor={colors.textDisabled}
+        placeholderTextColor={C.textDisabled}
       />
 
       <Text style={styles.fieldLabel}>{t('maintenance.details_label')}</Text>
@@ -147,7 +214,7 @@ function AddRequestForm({ onClose, reportedBy, houseId }: { onClose: () => void;
         value={description}
         onChangeText={setDescription}
         placeholder={t('maintenance.details_placeholder')}
-        placeholderTextColor={colors.textDisabled}
+        placeholderTextColor={C.textDisabled}
         multiline
         numberOfLines={3}
       />
@@ -179,13 +246,20 @@ export default function MaintenanceScreen(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId);
   const [showForm, setShowForm] = useState(false);
 
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
+
   const open = requests.filter((r) => r.status !== 'resolved');
   const resolved = requests.filter((r) => r.status === 'resolved');
   const [showResolved, setShowResolved] = useState(false);
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.root}>
         <View style={styles.centered}>
           <Text style={styles.emptyText}>{t('common.loading')}</Text>
         </View>
@@ -194,109 +268,51 @@ export default function MaintenanceScreen(): React.JSX.Element {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+    <SafeAreaView style={styles.root}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+        <ScrollView contentContainerStyle={styles.scroll}>
 
-        {!!error && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{error}</Text>
+          {!!error && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
+          )}
+
+          <View style={styles.pageHeader}>
+            <Text style={styles.heading}>{t('maintenance.title')}</Text>
+            <Text style={styles.headingSub}>{t('maintenance.subtitle')}</Text>
           </View>
-        )}
 
-        <View style={styles.pageHeader}>
-          <Text style={styles.heading}>{t('maintenance.title')}</Text>
-          <Text style={styles.headingSub}>{t('maintenance.subtitle')}</Text>
-        </View>
-
-        {showForm ? (
-          <AddRequestForm onClose={() => setShowForm(false)} reportedBy={profile?.id ?? ''} houseId={houseId ?? ''} />
-        ) : (
-          <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
-            <Text style={styles.addBtnText}>{t('maintenance.log_new')}</Text>
-          </Pressable>
-        )}
-
-        {open.length === 0 && !showForm && (
-          <View style={styles.emptySection}>
-            <Text style={styles.emptyTitle}>{t('maintenance.no_open')}</Text>
-            <Text style={styles.emptyText}>{t('maintenance.no_open_hint')}</Text>
-          </View>
-        )}
-
-        {open.map((r) => <RequestCard key={r.id} request={r} myId={profile?.id ?? ''} />)}
-
-        {resolved.length > 0 && (
-          <>
-            <Pressable style={styles.resolvedToggle} onPress={() => setShowResolved((v) => !v)}>
-              <Text style={styles.resolvedToggleText}>
-                {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
-              </Text>
+          {showForm ? (
+            <AddRequestForm onClose={() => setShowForm(false)} reportedBy={profile?.id ?? ''} houseId={houseId ?? ''} />
+          ) : (
+            <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
+              <Text style={styles.addBtnText}>{t('maintenance.log_new')}</Text>
             </Pressable>
-            {showResolved && resolved.map((r) => <RequestCard key={r.id} request={r} myId={profile?.id ?? ''} />)}
-          </>
-        )}
+          )}
 
-      </ScrollView>
+          {open.length === 0 && !showForm && (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptyTitle}>{t('maintenance.no_open')}</Text>
+              <Text style={styles.emptyText}>{t('maintenance.no_open_hint')}</Text>
+            </View>
+          )}
+
+          {open.map((r) => <RequestCard key={r.id} request={r} myId={profile?.id ?? ''} />)}
+
+          {resolved.length > 0 && (
+            <>
+              <Pressable style={styles.resolvedToggle} onPress={() => setShowResolved((v) => !v)}>
+                <Text style={styles.resolvedToggleText}>
+                  {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
+                </Text>
+              </Pressable>
+              {showResolved && resolved.map((r) => <RequestCard key={r.id} request={r} myId={profile?.id ?? ''} />)}
+            </>
+          )}
+
+        </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
-
-  pageHeader: { marginBottom: sizes.xs },
-  heading: { fontSize: 26, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
-  headingSub: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, marginTop: 2 },
-
-  addBtn: { borderWidth: 2, borderColor: colors.primary + '40', borderStyle: 'dashed', borderRadius: 14, paddingVertical: sizes.md, alignItems: 'center' },
-  addBtnText: { color: colors.primary, ...font.semibold, fontSize: sizes.fontMd },
-
-  card: { backgroundColor: colors.white, borderRadius: 16, padding: sizes.md, gap: sizes.sm, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' } as never,
-  cardResolved: { opacity: 0.65 },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-  cardIcon: { fontSize: 24, lineHeight: 30 },
-  cardInfo: { flex: 1, gap: 2 },
-  cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
-  cardTitleResolved: { textDecorationLine: 'line-through', color: colors.textSecondary },
-  cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
-  removeBtn: { padding: 4 },
-  removeBtnText: { color: colors.textDisabled, fontSize: sizes.fontSm },
-  cardDescription: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, lineHeight: 20 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
-  statusBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 4 },
-  statusText: { fontSize: sizes.fontXs, ...font.bold },
-  advanceBtn: { backgroundColor: colors.primary + '15', borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.md, paddingVertical: 5 },
-  advanceBtnText: { color: colors.primary, fontSize: sizes.fontSm, ...font.semibold },
-  reopenBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.md, paddingVertical: 4 },
-  reopenBtnText: { color: colors.textSecondary, fontSize: sizes.fontSm, ...font.regular },
-
-  form: { backgroundColor: colors.white, borderRadius: 16, padding: sizes.md, gap: sizes.sm, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' } as never,
-  formTitle: { fontSize: 17, ...font.bold, color: colors.textPrimary, marginBottom: sizes.xs },
-  fieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipIcon: { fontSize: 14 },
-  chipText: { fontSize: sizes.fontSm, ...font.medium, color: colors.textPrimary },
-  chipTextActive: { color: colors.white },
-  input: { backgroundColor: colors.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: colors.textPrimary, ...font.regular },
-  inputMultiline: { height: 80, textAlignVertical: 'top' },
-  formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
-  cancelBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-  cancelBtnText: { color: colors.textSecondary, ...font.medium },
-  saveBtn: { backgroundColor: colors.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
-  saveBtnDisabled: { backgroundColor: colors.textDisabled },
-  saveBtnText: { color: colors.white, ...font.semibold },
-  saveError: { color: colors.danger, fontSize: 13, ...font.regular },
-
-  resolvedToggle: { paddingVertical: sizes.sm, alignItems: 'center' },
-  resolvedToggleText: { color: colors.textSecondary, fontSize: sizes.fontSm, ...font.medium },
-
-  emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
-  emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
-  emptyText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  errorBanner: { backgroundColor: colors.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: colors.danger + '40' },
-  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.danger },
-});

@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@stores/authStore';
 import { COLORS } from '@stores/housematesStore';
 import { supabase } from '@lib/supabase';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
@@ -29,6 +29,17 @@ export default function HouseSetupScreen(): React.JSX.Element {
   const setHouseId = useAuthStore((s) => s.setHouseId);
   const reloadMembership = useAuthStore((s) => s.reloadMembership);
   const signOut = useAuthStore((s) => s.signOut);
+
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
+
+  const onBackPress = useCallback(() => { signOut(); }, [signOut]);
+  const onSelectCreate = useCallback(() => { setTab('create'); setError(''); }, [setTab, setError]);
+  const onSelectJoin = useCallback(() => { setTab('join'); setError(''); }, [setTab, setError]);
 
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_INTENT_KEY).then((intent) => {
@@ -130,127 +141,129 @@ export default function HouseSetupScreen(): React.JSX.Element {
   }, [inviteCode, user, reloadMembership, t]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.logoRow}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>N</Text>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.logoRow}>
+            <View style={styles.logo}>
+              <Text style={styles.logoText}>N</Text>
+            </View>
           </View>
-        </View>
 
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => signOut()}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel="Back to login"
-        >
-          <Text style={styles.backBtnText}>← {t('house_setup.back_to_login')}</Text>
-        </Pressable>
-
-        <View style={styles.titleBlock}>
-          <Text style={styles.title}>{t('house_setup.title')}</Text>
-          <Text style={styles.subtitle}>
-            {t('house_setup.subtitle')}
-          </Text>
-        </View>
-
-        {/* Tab strip */}
-        <View style={styles.tabs}>
           <Pressable
-            style={[styles.tab, tab === 'create' && styles.tabActive]}
-            onPress={() => { setTab('create'); setError(''); }}
+            style={styles.backBtn}
+            onPress={onBackPress}
             accessible={true}
             accessibilityRole="button"
-            accessibilityLabel="Create house"
-            accessibilityState={{ selected: tab === 'create' }}
+            accessibilityLabel="Back to login"
           >
-            <Text style={[styles.tabLabel, tab === 'create' && styles.tabLabelActive]}>
-              {t('house_setup.create_house')}
-            </Text>
+            <Text style={styles.backBtnText}>← {t('house_setup.back_to_login')}</Text>
           </Pressable>
-          <Pressable
-            style={[styles.tab, tab === 'join' && styles.tabActive]}
-            onPress={() => { setTab('join'); setError(''); }}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Join house"
-            accessibilityState={{ selected: tab === 'join' }}
-          >
-            <Text style={[styles.tabLabel, tab === 'join' && styles.tabLabelActive]}>
-              {t('house_setup.join_house')}
-            </Text>
-          </Pressable>
-        </View>
 
-        {tab === 'create' ? (
-          <View style={styles.form}>
-            <TextInput
-              label={t('house_setup.house_name_placeholder')}
-              value={houseName}
-              onChangeText={(v) => { setHouseName(v); setError(''); }}
-              mode="outlined"
-              style={styles.input}
-              autoFocus
-              returnKeyType="go"
-              onSubmitEditing={handleCreate}
-              error={!!error}
-            />
-            {!!error && <Text style={styles.error}>{error}</Text>}
-            <Button
-              mode="contained"
-              onPress={handleCreate}
-              loading={isLoading}
-              disabled={isLoading}
-              style={styles.button}
-              contentStyle={styles.buttonContent}
-              labelStyle={styles.buttonLabel}
-              buttonColor={colors.primary}
-            >
-              {t('house_setup.create_house')}
-            </Button>
-          </View>
-        ) : (
-          <View style={styles.form}>
-            <Text style={styles.hint}>
-              {t('house_setup.invite_code_hint')}
+          <View style={styles.titleBlock}>
+            <Text style={styles.title}>{t('house_setup.title')}</Text>
+            <Text style={styles.subtitle}>
+              {t('house_setup.subtitle')}
             </Text>
-            <TextInput
-              label={t('house_setup.invite_code')}
-              value={inviteCode}
-              onChangeText={(v) => { setInviteCode(v.toUpperCase()); setError(''); }}
-              mode="outlined"
-              style={[styles.input, styles.codeInput]}
-              autoCapitalize="characters"
-              autoFocus
-              returnKeyType="go"
-              onSubmitEditing={handleJoin}
-              error={!!error}
-            />
-            {!!error && <Text style={styles.error}>{error}</Text>}
-            {assignedColor && (
-              <View style={styles.colorNotice}>
-                <View style={[styles.colorNoticeDot, { backgroundColor: assignedColor }]} />
-                <Text style={styles.colorNoticeText}>
-                  Your color was updated to avoid a clash with your new housemates. Change it anytime in Profile.
-                </Text>
-              </View>
-            )}
-            <Button
-              mode="contained"
-              onPress={handleJoin}
-              loading={isLoading}
-              disabled={isLoading}
-              style={styles.button}
-              contentStyle={styles.buttonContent}
-              labelStyle={styles.buttonLabel}
-              buttonColor={colors.primary}
-            >
-              {t('house_setup.join_house')}
-            </Button>
           </View>
-        )}
-      </ScrollView>
+
+          {/* Tab strip */}
+          <View style={styles.tabs}>
+            <Pressable
+              style={[styles.tab, tab === 'create' && styles.tabActive]}
+              onPress={onSelectCreate}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Create house"
+              accessibilityState={{ selected: tab === 'create' }}
+            >
+              <Text style={[styles.tabLabel, tab === 'create' && styles.tabLabelActive]}>
+                {t('house_setup.create_house')}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.tab, tab === 'join' && styles.tabActive]}
+              onPress={onSelectJoin}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Join house"
+              accessibilityState={{ selected: tab === 'join' }}
+            >
+              <Text style={[styles.tabLabel, tab === 'join' && styles.tabLabelActive]}>
+                {t('house_setup.join_house')}
+              </Text>
+            </Pressable>
+          </View>
+
+          {tab === 'create' ? (
+            <View style={styles.form}>
+              <TextInput
+                label={t('house_setup.house_name_placeholder')}
+                value={houseName}
+                onChangeText={(v) => { setHouseName(v); setError(''); }}
+                mode="outlined"
+                style={styles.input}
+                autoFocus
+                returnKeyType="go"
+                onSubmitEditing={handleCreate}
+                error={!!error}
+              />
+              {!!error && <Text style={styles.error}>{error}</Text>}
+              <Button
+                mode="contained"
+                onPress={handleCreate}
+                loading={isLoading}
+                disabled={isLoading}
+                style={styles.button}
+                contentStyle={styles.buttonContent}
+                labelStyle={styles.buttonLabel}
+                buttonColor={C.primary}
+              >
+                {t('house_setup.create_house')}
+              </Button>
+            </View>
+          ) : (
+            <View style={styles.form}>
+              <Text style={styles.hint}>
+                {t('house_setup.invite_code_hint')}
+              </Text>
+              <TextInput
+                label={t('house_setup.invite_code')}
+                value={inviteCode}
+                onChangeText={(v) => { setInviteCode(v.toUpperCase()); setError(''); }}
+                mode="outlined"
+                style={[styles.input, styles.codeInput]}
+                autoCapitalize="characters"
+                autoFocus
+                returnKeyType="go"
+                onSubmitEditing={handleJoin}
+                error={!!error}
+              />
+              {!!error && <Text style={styles.error}>{error}</Text>}
+              {assignedColor && (
+                <View style={styles.colorNotice}>
+                  <View style={[styles.colorNoticeDot, { backgroundColor: assignedColor }]} />
+                  <Text style={styles.colorNoticeText}>
+                    Your color was updated to avoid a clash with your new housemates. Change it anytime in Profile.
+                  </Text>
+                </View>
+              )}
+              <Button
+                mode="contained"
+                onPress={handleJoin}
+                loading={isLoading}
+                disabled={isLoading}
+                style={styles.button}
+                contentStyle={styles.buttonContent}
+                labelStyle={styles.buttonLabel}
+                buttonColor={C.primary}
+              >
+                {t('house_setup.join_house')}
+              </Button>
+            </View>
+          )}
+        </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -262,121 +275,132 @@ function generateCode(): string {
   return Array.from(bytes, (b) => chars[b % chars.length]).join('');
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.white },
-  content: {
-    paddingHorizontal: sizes.lg,
-    paddingBottom: sizes.xl,
-    gap: sizes.md,
-  },
-  logoRow: { alignItems: 'center', marginTop: sizes.xl },
-  logo: {
-    width: 64,
-    height: 64,
-    borderRadius: sizes.borderRadiusLg,
-    borderCurve: 'continuous',
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    boxShadow: '0 4px 16px rgba(88,86,214,0.28)',
-  } as never,
-  logoText: {
-    fontSize: 32,
-    ...font.extrabold,
-    color: colors.white,
-  },
-  backBtn: {
-    paddingVertical: sizes.sm,
-    alignSelf: 'flex-start',
-  },
-  backBtnText: {
-    fontSize: 14,
-    ...font.medium,
-    color: colors.textSecondary,
-  },
-  titleBlock: { gap: 6, marginBottom: sizes.xs },
-  title: {
-    fontSize: 28,
-    ...font.extrabold,
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 15,
-    ...font.regular,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  tabs: {
-    flexDirection: 'row',
-    gap: sizes.sm,
-    backgroundColor: colors.background,
-    borderRadius: sizes.borderRadiusFull,
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: sizes.borderRadiusFull,
-    alignItems: 'center',
-  },
-  tabActive: {
-    backgroundColor: colors.primary,
-    boxShadow: '0 2px 8px rgba(88,86,214,0.20)',
-  } as never,
-  tabLabel: {
-    fontSize: 14,
-    ...font.semibold,
-    color: colors.textSecondary,
-  },
-  tabLabelActive: {
-    color: colors.white,
-  },
-  form: { gap: sizes.sm, marginTop: sizes.xs },
-  hint: {
-    fontSize: sizes.fontSm,
-    ...font.regular,
-    color: colors.textSecondary,
-  },
-  input: { backgroundColor: colors.white },
-  codeInput: { letterSpacing: 4, fontSize: sizes.fontXl },
-  error: {
-    fontSize: sizes.fontSm,
-    ...font.regular,
-    color: colors.danger,
-  },
-  colorNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sizes.sm,
-    backgroundColor: colors.primary + '12',
-    borderRadius: 10,
-    padding: sizes.sm,
-  },
-  colorNoticeDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    flexShrink: 0,
-  },
-  colorNoticeText: {
-    flex: 1,
-    fontSize: 13,
-    ...font.regular,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  button: {
-    marginTop: sizes.sm,
-    borderRadius: 14,
-  },
-  buttonContent: {
-    height: 52,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    ...font.semibold,
-    letterSpacing: 0.2,
-  },
-});
+function makeStyles(C: ColorTokens) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: C.surface },
+    flex: { flex: 1 },
+    content: {
+      paddingHorizontal: sizes.lg,
+      paddingBottom: sizes.xl,
+      gap: sizes.md,
+    },
+    logoRow: { alignItems: 'center', marginTop: sizes.xl },
+    logo: {
+      width: 64,
+      height: 64,
+      borderRadius: sizes.borderRadiusLg,
+      borderCurve: 'continuous',
+      backgroundColor: C.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    } as never,
+    logoText: {
+      fontSize: 32,
+      ...font.extrabold,
+      color: '#fff',
+    },
+    backBtn: {
+      paddingVertical: sizes.sm,
+      alignSelf: 'flex-start',
+    },
+    backBtnText: {
+      fontSize: 14,
+      ...font.medium,
+      color: C.textSecondary,
+    },
+    titleBlock: { gap: 6, marginBottom: sizes.xs },
+    title: {
+      fontSize: 28,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.5,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: 15,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+    },
+    tabs: {
+      flexDirection: 'row',
+      gap: sizes.sm,
+      backgroundColor: C.background,
+      borderRadius: sizes.borderRadiusFull,
+      padding: 4,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: sizes.borderRadiusFull,
+      alignItems: 'center',
+    },
+    tabActive: {
+      backgroundColor: C.primary,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    tabLabel: {
+      fontSize: 14,
+      ...font.semibold,
+      color: C.textSecondary,
+    },
+    tabLabelActive: {
+      color: '#fff',
+    },
+    form: { gap: sizes.sm, marginTop: sizes.xs },
+    hint: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+    },
+    input: { backgroundColor: C.surface },
+    codeInput: { letterSpacing: 4, fontSize: sizes.fontXl },
+    error: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.danger,
+    },
+    colorNotice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      backgroundColor: C.primary + '12',
+      borderRadius: 10,
+      padding: sizes.sm,
+    },
+    colorNoticeDot: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      flexShrink: 0,
+    },
+    colorNoticeText: {
+      flex: 1,
+      fontSize: 13,
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: 18,
+    },
+    button: {
+      marginTop: sizes.sm,
+      borderRadius: 14,
+    },
+    buttonContent: {
+      height: 52,
+    },
+    buttonLabel: {
+      fontSize: 16,
+      ...font.semibold,
+      letterSpacing: 0.2,
+    },
+  });
+}

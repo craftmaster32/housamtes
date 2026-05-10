@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Pressable, Modal, Dimensions, Alert } from 'react-native';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { View, StyleSheet, FlatList, Pressable, Modal, Dimensions, Alert, Animated } from 'react-native';
 import { Text, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { usePhotoStore, PHOTO_CATEGORIES, type Photo, type PhotoCategory } from '@stores/photoStore';
 import { useAuthStore } from '@stores/authStore';
 import { captureError } from '@lib/errorTracking';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
@@ -17,6 +17,96 @@ const GRID_COLS = 3;
 const GRID_ITEM = (SCREEN_WIDTH - sizes.lg * 2 - sizes.xs * (GRID_COLS - 1)) / GRID_COLS;
 
 const MAX_PHOTOS = 50;
+
+const makeStyles = (C: ColorTokens) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: C.background },
+    flex: { flex: 1 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    pageHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: sizes.lg,
+      paddingTop: sizes.md,
+      paddingBottom: sizes.sm,
+    },
+    heading: { fontSize: 26, ...font.extrabold, letterSpacing: -0.5, color: C.textPrimary },
+    headerActions: { flexDirection: 'row', gap: sizes.sm },
+    headerBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: C.primary + '15',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    headerBtnText: { fontSize: 20 },
+    categoryRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: sizes.lg,
+      gap: sizes.xs,
+      marginBottom: sizes.sm,
+    },
+    catChip: {
+      paddingVertical: 4,
+      paddingHorizontal: sizes.sm,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+    },
+    catChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    catChipText: { fontSize: 13, ...font.medium, color: C.textPrimary },
+    catChipTextActive: { color: '#fff' },
+    error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular, paddingHorizontal: sizes.lg, marginBottom: sizes.xs },
+    grid: { paddingHorizontal: sizes.lg, paddingBottom: 40 },
+    gridRow: { gap: sizes.xs, marginBottom: sizes.xs },
+    gridItem: { width: GRID_ITEM, height: GRID_ITEM, borderRadius: 10, overflow: 'hidden', borderCurve: 'continuous' } as never,
+    gridImage: { width: '100%', height: '100%' },
+    emptyState: { alignItems: 'center', paddingTop: sizes.xxl, gap: sizes.sm },
+    emptyIcon: { fontSize: 48 },
+    emptyTitle: { fontSize: 17, ...font.bold, color: C.textPrimary },
+    emptyText: { fontSize: 14, ...font.regular, color: C.textSecondary, textAlign: 'center', paddingHorizontal: sizes.lg },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalCard: {
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: sizes.lg,
+      gap: sizes.md,
+      paddingBottom: sizes.xxl,
+    },
+    modalTitle: { fontSize: 18, ...font.bold, color: C.textPrimary },
+    previewImage: { width: '100%', height: 200, borderRadius: 12 },
+    input: { backgroundColor: C.surface },
+    label: { color: C.textPrimary, ...font.semibold, fontSize: sizes.fontSm, marginBottom: -sizes.xs },
+    catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+    modalActions: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center' },
+    uploadBtn: { borderRadius: 14 },
+    viewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center' },
+    viewerClose: {
+      position: 'absolute',
+      top: 60,
+      right: sizes.lg,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10,
+    },
+    viewerCloseText: { color: '#fff', fontSize: 18, ...font.bold },
+    viewerImage: { width: '100%', height: '70%' },
+    viewerMeta: { padding: sizes.lg, gap: sizes.sm, alignItems: 'center' },
+    viewerCaption: { color: '#fff', fontSize: 15, ...font.medium, textAlign: 'center' },
+    viewerInfo: { color: 'rgba(255,255,255,0.6)', fontSize: 13, ...font.regular },
+    deleteBtn: { marginTop: sizes.sm, padding: sizes.sm },
+    deleteBtnText: { color: C.danger, fontSize: 14, ...font.semibold },
+    reportBtn: { marginTop: sizes.sm, padding: sizes.sm },
+    reportBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, ...font.regular, textDecorationLine: 'underline' },
+});
 
 export default function PhotosScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -28,6 +118,13 @@ export default function PhotosScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
   const houseId = useAuthStore((s) => s.houseId);
+
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   // Lazy-load: photos are not loaded at startup, load when this screen opens
   useEffect(() => {
@@ -140,240 +237,155 @@ export default function PhotosScreen(): React.JSX.Element {
     ]);
   }, [remove, t]);
 
+  const onPickCamera = useCallback(() => pickImage(true), [pickImage]);
+  const onPickGallery = useCallback(() => pickImage(false), [pickImage]);
+  const handleSelectCategory = useCallback(
+    (key: PhotoCategory | 'general') => setSelectedCategory(key),
+    [setSelectedCategory]
+  );
+
   const renderPhoto = useCallback(
     ({ item }: { item: Photo }) => (
       <Pressable onPress={() => setViewPhoto(item)} style={styles.gridItem}>
         <Image source={{ uri: item.url }} style={styles.gridImage} contentFit="cover" />
       </Pressable>
     ),
-    []
+    [styles]
   );
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>
+      <SafeAreaView style={styles.root}>
+        <View style={styles.centered}><ActivityIndicator color={C.primary} /></View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.pageHeader}>
-        <Text style={styles.heading}>{t('photos.title')}</Text>
-        <View style={styles.headerActions}>
-          <Pressable onPress={() => pickImage(true)} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>📷</Text>
-          </Pressable>
-          <Pressable onPress={() => pickImage(false)} style={styles.headerBtn}>
-            <Text style={styles.headerBtnText}>🖼️</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {/* Category filter */}
-      <View style={styles.categoryRow}>
-        {PHOTO_CATEGORIES.map((cat) => (
-          <Pressable
-            key={cat.key}
-            style={[styles.catChip, selectedCategory === cat.key && styles.catChipActive]}
-            onPress={() => setSelectedCategory(cat.key)}
-          >
-            <Text style={[styles.catChipText, selectedCategory === cat.key && styles.catChipTextActive]}>
-              {cat.icon} {t(cat.labelKey)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {!!error && (
-        <Text style={styles.error}>{error}</Text>
-      )}
-
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={renderPhoto}
-        numColumns={GRID_COLS}
-        contentContainerStyle={styles.grid}
-        columnWrapperStyle={styles.gridRow}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📷</Text>
-            <Text style={styles.emptyTitle}>{t('photos.no_photos')}</Text>
-            <Text style={styles.emptyText}>{t('photos.no_photos_hint')}</Text>
-          </View>
-        }
-      />
-
-      {/* Upload modal */}
-      <Modal visible={showUploadModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('photos.add_photo')}</Text>
-            {!!pickedUri && (
-              <Image source={{ uri: pickedUri }} style={styles.previewImage} contentFit="cover" />
-            )}
-            <TextInput
-              label={t('photos.caption_placeholder')}
-              value={caption}
-              onChangeText={setCaption}
-              mode="outlined"
-              style={styles.input}
-            />
-            <Text style={styles.label}>{t('photos.category')}</Text>
-            <View style={styles.catRow}>
-              {PHOTO_CATEGORIES.filter((c) => c.key !== 'general').map((cat) => (
-                <Pressable
-                  key={cat.key}
-                  style={[styles.catChip, uploadCategory === cat.key && styles.catChipActive]}
-                  onPress={() => setUploadCategory(cat.key)}
-                >
-                  <Text style={[styles.catChipText, uploadCategory === cat.key && styles.catChipTextActive]}>
-                    {cat.icon} {t(cat.labelKey)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.modalActions}>
-              <Button
-                mode="contained"
-                onPress={handleUpload}
-                loading={isUploading}
-                disabled={isUploading}
-                style={styles.uploadBtn}
-              >
-                {t('photos.upload')}
-              </Button>
-              <Button mode="text" onPress={() => { setShowUploadModal(false); setCaption(''); setPickedUri(null); }}>
-                {t('common.cancel')}
-              </Button>
-            </View>
+    <SafeAreaView style={styles.root}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+        <View style={styles.pageHeader}>
+          <Text style={styles.heading}>{t('photos.title')}</Text>
+          <View style={styles.headerActions}>
+            <Pressable onPress={onPickCamera} style={styles.headerBtn}>
+              <Text style={styles.headerBtnText}>📷</Text>
+            </Pressable>
+            <Pressable onPress={onPickGallery} style={styles.headerBtn}>
+              <Text style={styles.headerBtnText}>🖼️</Text>
+            </Pressable>
           </View>
         </View>
-      </Modal>
 
-      {/* Full-screen viewer */}
-      <Modal visible={!!viewPhoto} transparent animationType="fade">
-        <View style={styles.viewerOverlay}>
-          <Pressable style={styles.viewerClose} onPress={() => setViewPhoto(null)}>
-            <Text style={styles.viewerCloseText}>✕</Text>
-          </Pressable>
-          {viewPhoto && (
-            <>
-              <Image source={{ uri: viewPhoto.url }} style={styles.viewerImage} contentFit="contain" />
-              <View style={styles.viewerMeta}>
-                {viewPhoto.caption ? (
-                  <Text style={styles.viewerCaption}>{viewPhoto.caption}</Text>
-                ) : null}
-                <Text style={styles.viewerInfo}>
-                  {viewPhoto.uploadedBy} · {new Date(viewPhoto.createdAt).toLocaleDateString()}
-                </Text>
-                {viewPhoto.userId === user?.id ? (
-                  <Pressable onPress={() => handleDelete(viewPhoto)} style={styles.deleteBtn}>
-                    <Text style={styles.deleteBtnText}>{t('photos.delete_photo')}</Text>
+        <View style={styles.categoryRow}>
+          {PHOTO_CATEGORIES.map((cat) => (
+            <Pressable
+              key={cat.key}
+              style={[styles.catChip, selectedCategory === cat.key && styles.catChipActive]}
+              onPress={() => handleSelectCategory(cat.key)}
+            >
+              <Text style={[styles.catChipText, selectedCategory === cat.key && styles.catChipTextActive]}>
+                {cat.icon} {t(cat.labelKey)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {!!error && (
+          <Text style={styles.error}>{error}</Text>
+        )}
+
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          renderItem={renderPhoto}
+          numColumns={GRID_COLS}
+          contentContainerStyle={styles.grid}
+          columnWrapperStyle={styles.gridRow}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>📷</Text>
+              <Text style={styles.emptyTitle}>{t('photos.no_photos')}</Text>
+              <Text style={styles.emptyText}>{t('photos.no_photos_hint')}</Text>
+            </View>
+          }
+        />
+
+        <Modal visible={showUploadModal} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>{t('photos.add_photo')}</Text>
+              {!!pickedUri && (
+                <Image source={{ uri: pickedUri }} style={styles.previewImage} contentFit="cover" />
+              )}
+              <TextInput
+                label={t('photos.caption_placeholder')}
+                value={caption}
+                onChangeText={setCaption}
+                mode="outlined"
+                style={styles.input}
+              />
+              <Text style={styles.label}>{t('photos.category')}</Text>
+              <View style={styles.catRow}>
+                {PHOTO_CATEGORIES.filter((c) => c.key !== 'general').map((cat) => (
+                  <Pressable
+                    key={cat.key}
+                    style={[styles.catChip, uploadCategory === cat.key && styles.catChipActive]}
+                    onPress={() => setUploadCategory(cat.key)}
+                  >
+                    <Text style={[styles.catChipText, uploadCategory === cat.key && styles.catChipTextActive]}>
+                      {cat.icon} {t(cat.labelKey)}
+                    </Text>
                   </Pressable>
-                ) : (
-                  <Pressable onPress={() => handleReport(viewPhoto)} style={styles.reportBtn}>
-                    <Text style={styles.reportBtnText}>Report photo</Text>
-                  </Pressable>
-                )}
+                ))}
               </View>
-            </>
-          )}
-        </View>
-      </Modal>
+              <View style={styles.modalActions}>
+                <Button
+                  mode="contained"
+                  onPress={handleUpload}
+                  loading={isUploading}
+                  disabled={isUploading}
+                  style={styles.uploadBtn}
+                >
+                  {t('photos.upload')}
+                </Button>
+                <Button mode="text" onPress={() => { setShowUploadModal(false); setCaption(''); setPickedUri(null); }}>
+                  {t('common.cancel')}
+                </Button>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={!!viewPhoto} transparent animationType="fade">
+          <View style={styles.viewerOverlay}>
+            <Pressable style={styles.viewerClose} onPress={() => setViewPhoto(null)}>
+              <Text style={styles.viewerCloseText}>✕</Text>
+            </Pressable>
+            {viewPhoto && (
+              <>
+                <Image source={{ uri: viewPhoto.url }} style={styles.viewerImage} contentFit="contain" />
+                <View style={styles.viewerMeta}>
+                  {viewPhoto.caption ? (
+                    <Text style={styles.viewerCaption}>{viewPhoto.caption}</Text>
+                  ) : null}
+                  <Text style={styles.viewerInfo}>
+                    {viewPhoto.uploadedBy} · {new Date(viewPhoto.createdAt).toLocaleDateString()}
+                  </Text>
+                  {viewPhoto.userId === user?.id ? (
+                    <Pressable onPress={() => handleDelete(viewPhoto)} style={styles.deleteBtn}>
+                      <Text style={styles.deleteBtnText}>{t('photos.delete_photo')}</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable onPress={() => handleReport(viewPhoto)} style={styles.reportBtn}>
+                      <Text style={styles.reportBtnText}>Report photo</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </>
+            )}
+          </View>
+        </Modal>
+      </Animated.View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  pageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: sizes.lg,
-    paddingTop: sizes.md,
-    paddingBottom: sizes.sm,
-  },
-  heading: { fontSize: 26, ...font.extrabold, letterSpacing: -0.5, color: colors.textPrimary },
-  headerActions: { flexDirection: 'row', gap: sizes.sm },
-  headerBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerBtnText: { fontSize: 20 },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: sizes.lg,
-    gap: sizes.xs,
-    marginBottom: sizes.sm,
-  },
-  catChip: {
-    paddingVertical: 4,
-    paddingHorizontal: sizes.sm,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  catChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  catChipText: { fontSize: 13, ...font.medium, color: colors.textPrimary },
-  catChipTextActive: { color: colors.white },
-  error: { color: colors.danger, fontSize: sizes.fontSm, ...font.regular, paddingHorizontal: sizes.lg, marginBottom: sizes.xs },
-  grid: { paddingHorizontal: sizes.lg, paddingBottom: 40 },
-  gridRow: { gap: sizes.xs, marginBottom: sizes.xs },
-  gridItem: { width: GRID_ITEM, height: GRID_ITEM, borderRadius: 10, overflow: 'hidden', borderCurve: 'continuous' } as never,
-  gridImage: { width: '100%', height: '100%' },
-  emptyState: { alignItems: 'center', paddingTop: sizes.xxl, gap: sizes.sm },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { fontSize: 17, ...font.bold, color: colors.textPrimary },
-  emptyText: { fontSize: 14, ...font.regular, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: sizes.lg },
-  // Upload modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalCard: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: sizes.lg,
-    gap: sizes.md,
-    paddingBottom: sizes.xxl,
-  },
-  modalTitle: { fontSize: 18, ...font.bold, color: colors.textPrimary },
-  previewImage: { width: '100%', height: 200, borderRadius: 12 },
-  input: { backgroundColor: colors.white },
-  label: { color: colors.textPrimary, ...font.semibold, fontSize: sizes.fontSm, marginBottom: -sizes.xs },
-  catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  modalActions: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center' },
-  uploadBtn: { borderRadius: 14 },
-  // Viewer
-  viewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center' },
-  viewerClose: {
-    position: 'absolute',
-    top: 60,
-    right: sizes.lg,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  viewerCloseText: { color: colors.white, fontSize: 18, ...font.bold },
-  viewerImage: { width: '100%', height: '70%' },
-  viewerMeta: { padding: sizes.lg, gap: sizes.sm, alignItems: 'center' },
-  viewerCaption: { color: colors.white, fontSize: 15, ...font.medium, textAlign: 'center' },
-  viewerInfo: { color: 'rgba(255,255,255,0.6)', fontSize: 13, ...font.regular },
-  deleteBtn: { marginTop: sizes.sm, padding: sizes.sm },
-  deleteBtnText: { color: colors.danger, fontSize: 14, ...font.semibold },
-  reportBtn: { marginTop: sizes.sm, padding: sizes.sm },
-  reportBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, ...font.regular, textDecorationLine: 'underline' },
-});

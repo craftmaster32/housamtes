@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signUpSchema } from '@utils/validation';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
@@ -28,6 +28,13 @@ export default function SignupScreen(): React.JSX.Element {
   const isLoading = useAuthStore((s) => s.isLoading);
   const emailRef = useRef<RNTextInput>(null);
   const passwordRef = useRef<RNTextInput>(null);
+
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   const handleSignup = useCallback(async () => {
     if (!confirmedAge) {
@@ -56,276 +63,285 @@ export default function SignupScreen(): React.JSX.Element {
   }, [name, email, password, selectedColor, confirmedAge, agreedToTerms, signUp, t]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Back button */}
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Text style={styles.backBtnText}>←</Text>
-        </Pressable>
+    <SafeAreaView style={styles.root} edges={['top']}>
+      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {/* Back button */}
+          <Pressable
+            style={styles.backBtn}
+            onPress={() => router.back()}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Text style={styles.backBtnText}>←</Text>
+          </Pressable>
 
-        <View style={styles.header}>
-          <Text style={styles.title}>{t('auth.create_account')}</Text>
-          <Text style={styles.subtitle}>{t('auth.create_account_subtitle')}</Text>
-        </View>
+          <View style={styles.header}>
+            <Text style={styles.title}>{t('auth.create_account')}</Text>
+            <Text style={styles.subtitle}>{t('auth.create_account_subtitle')}</Text>
+          </View>
 
-        <TextInput
-          label={t('auth.your_name')}
-          value={name}
-          onChangeText={(v) => { setName(v); setError(''); }}
-          mode="outlined"
-          style={styles.input}
-          autoFocus
-          returnKeyType="next"
-          onSubmitEditing={() => emailRef.current?.focus()}
-          error={!!error}
-        />
+          <TextInput
+            label={t('auth.your_name')}
+            value={name}
+            onChangeText={(v) => { setName(v); setError(''); }}
+            mode="outlined"
+            style={styles.input}
+            autoFocus
+            returnKeyType="next"
+            onSubmitEditing={() => emailRef.current?.focus()}
+            error={!!error}
+          />
 
-        <TextInput
-          ref={emailRef}
-          label={t('auth.email')}
-          value={email}
-          onChangeText={(v) => { setEmail(v); setError(''); }}
-          mode="outlined"
-          style={styles.input}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          returnKeyType="next"
-          onSubmitEditing={() => passwordRef.current?.focus()}
-          error={!!error}
-        />
+          <TextInput
+            ref={emailRef}
+            label={t('auth.email')}
+            value={email}
+            onChangeText={(v) => { setEmail(v); setError(''); }}
+            mode="outlined"
+            style={styles.input}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            error={!!error}
+          />
 
-        <TextInput
-          ref={passwordRef}
-          label={t('auth.password')}
-          value={password}
-          onChangeText={(v) => { setPassword(v); setError(''); }}
-          mode="outlined"
-          style={styles.input}
-          secureTextEntry={!showPassword}
-          returnKeyType="go"
-          onSubmitEditing={handleSignup}
-          right={
-            <TextInput.Icon
-              icon={showPassword ? 'eye-off' : 'eye'}
-              onPress={() => setShowPassword((v) => !v)}
-            />
-          }
-          error={!!error}
-        />
+          <TextInput
+            ref={passwordRef}
+            label={t('auth.password')}
+            value={password}
+            onChangeText={(v) => { setPassword(v); setError(''); }}
+            mode="outlined"
+            style={styles.input}
+            secureTextEntry={!showPassword}
+            returnKeyType="go"
+            onSubmitEditing={handleSignup}
+            right={
+              <TextInput.Icon
+                icon={showPassword ? 'eye-off' : 'eye'}
+                onPress={() => setShowPassword((v) => !v)}
+              />
+            }
+            error={!!error}
+          />
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
+          {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <Text style={styles.colorLabel}>{t('auth.pick_colour')}</Text>
-        <View style={styles.colorRow}>
-          {AVATAR_COLORS.map((c) => (
-            <Pressable
-              key={c}
-              onPress={() => setSelectedColor(c)}
-              accessible
-              accessibilityRole="radio"
-              accessibilityLabel={`Color ${c}`}
-              accessibilityState={{ checked: selectedColor === c }}
-            >
-              <View
-                style={[
-                  styles.colorDot,
-                  { backgroundColor: c },
-                  selectedColor === c && styles.colorDotSelected,
-                ]}
+          <Text style={styles.colorLabel}>{t('auth.pick_colour')}</Text>
+          <View style={styles.colorRow}>
+            {AVATAR_COLORS.map((c) => (
+              <Pressable
+                key={c}
+                onPress={() => setSelectedColor(c)}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={`Color ${c}`}
+                accessibilityState={{ checked: selectedColor === c }}
               >
-                {selectedColor === c && (
-                  <Text style={styles.colorCheck}>✓</Text>
-                )}
-              </View>
-            </Pressable>
-          ))}
-        </View>
-
-        <Pressable
-          style={styles.termsRow}
-          onPress={() => { setConfirmedAge((v) => !v); setError(''); }}
-          accessible
-          accessibilityRole="checkbox"
-          accessibilityLabel="I confirm I am 18 or older"
-          accessibilityState={{ checked: confirmedAge }}
-        >
-          <View style={[styles.checkbox, confirmedAge && styles.checkboxChecked]}>
-            {confirmedAge && <Ionicons name="checkmark" size={14} color={colors.white} />}
+                <View
+                  style={[
+                    styles.colorDot,
+                    { backgroundColor: c },
+                    selectedColor === c && styles.colorDotSelected,
+                  ]}
+                >
+                  {selectedColor === c && (
+                    <Text style={styles.colorCheck}>✓</Text>
+                  )}
+                </View>
+              </Pressable>
+            ))}
           </View>
-          <Text style={styles.termsText}>I confirm I am 18 years of age or older</Text>
-        </Pressable>
 
-        <Pressable
-          style={styles.termsRow}
-          onPress={() => { setAgreedToTerms((v) => !v); setError(''); }}
-          accessible
-          accessibilityRole="checkbox"
-          accessibilityLabel="I agree to the Terms of Service and Privacy Policy"
-          accessibilityState={{ checked: agreedToTerms }}
-        >
-          <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
-            {agreedToTerms && <Ionicons name="checkmark" size={14} color={colors.white} />}
-          </View>
-          <Text style={styles.termsText}>
-            {'I agree to the '}
-            <Text
-              style={styles.termsLink}
-              onPress={() => router.push('/(tabs)/settings/terms')}
-              accessibilityRole="link"
-            >
-              Terms of Service
-            </Text>
-            {' and '}
-            <Text
-              style={styles.termsLink}
-              onPress={() => router.push('/(tabs)/settings/privacy-policy')}
-              accessibilityRole="link"
-            >
-              Privacy Policy
-            </Text>
-          </Text>
-        </Pressable>
+          <Pressable
+            style={styles.termsRow}
+            onPress={() => { setConfirmedAge((v) => !v); setError(''); }}
+            accessible
+            accessibilityRole="checkbox"
+            accessibilityLabel="I confirm I am 18 or older"
+            accessibilityState={{ checked: confirmedAge }}
+          >
+            <View style={[styles.checkbox, confirmedAge && styles.checkboxChecked]}>
+              {confirmedAge && <Ionicons name="checkmark" size={14} color={'#fff'} />}
+            </View>
+            <Text style={styles.termsText}>I confirm I am 18 years of age or older</Text>
+          </Pressable>
 
-        <Button
-          mode="contained"
-          onPress={handleSignup}
-          loading={isLoading}
-          disabled={isLoading || !confirmedAge || !agreedToTerms}
-          style={styles.button}
-          contentStyle={styles.buttonContent}
-          labelStyle={styles.buttonLabel}
-          buttonColor={colors.primary}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel="Create account"
-        >
-          {t('auth.create_account')}
-        </Button>
-      </ScrollView>
+          <Pressable
+            style={styles.termsRow}
+            onPress={() => { setAgreedToTerms((v) => !v); setError(''); }}
+            accessible
+            accessibilityRole="checkbox"
+            accessibilityLabel="I agree to the Terms of Service and Privacy Policy"
+            accessibilityState={{ checked: agreedToTerms }}
+          >
+            <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
+              {agreedToTerms && <Ionicons name="checkmark" size={14} color={'#fff'} />}
+            </View>
+            <Text style={styles.termsText}>
+              {'I agree to the '}
+              <Text
+                style={styles.termsLink}
+                onPress={() => router.push('/(tabs)/settings/terms')}
+                accessibilityRole="link"
+              >
+                Terms of Service
+              </Text>
+              {' and '}
+              <Text
+                style={styles.termsLink}
+                onPress={() => router.push('/(tabs)/settings/privacy-policy')}
+                accessibilityRole="link"
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </Pressable>
+
+          <Button
+            mode="contained"
+            onPress={handleSignup}
+            loading={isLoading}
+            disabled={isLoading || !confirmedAge || !agreedToTerms}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
+            buttonColor={C.primary}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Create account"
+          >
+            {t('auth.create_account')}
+          </Button>
+        </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  content: {
-    paddingHorizontal: sizes.lg,
-    paddingTop: sizes.sm,
-    paddingBottom: sizes.xl,
-    gap: sizes.md,
-  },
-  backBtn: {
-    width: sizes.touchTarget,
-    height: sizes.touchTarget,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    marginBottom: sizes.xs,
-  },
-  backBtnText: {
-    fontSize: 24,
-    ...font.regular,
-    color: colors.textPrimary,
-  },
-  header: {
-    gap: 4,
-    marginBottom: sizes.xs,
-  },
-  title: {
-    fontSize: 28,
-    ...font.extrabold,
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 15,
-    ...font.medium,
-    color: colors.textSecondary,
-  },
-  input: {
-    backgroundColor: colors.white,
-  },
-  error: {
-    ...font.regular,
-    color: colors.danger,
-    fontSize: sizes.fontSm,
-  },
-  colorLabel: {
-    ...font.semibold,
-    fontSize: sizes.fontSm,
-    color: colors.textPrimary,
-    marginTop: sizes.xs,
-  },
-  colorRow: {
-    flexDirection: 'row',
-    gap: sizes.sm,
-  },
-  colorDot: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  colorDotSelected: {
-    boxShadow: '0 0 0 3px rgba(0,0,0,0.15)',
-  } as never,
-  colorCheck: {
-    fontSize: 20,
-    ...font.bold,
-    color: colors.white,
-  },
-  termsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: sizes.sm,
-    marginTop: sizes.xs,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-    marginTop: 1,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 13,
-    ...font.regular,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  termsLink: {
-    color: colors.primary,
-    ...font.semibold,
-  },
-  button: {
-    borderRadius: 14,
-    marginTop: sizes.sm,
-  },
-  buttonContent: {
-    height: 52,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    ...font.semibold,
-    letterSpacing: 0.2,
-  },
-});
+function makeStyles(C: ColorTokens) {
+  return StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: C.surface,
+    },
+    flex: { flex: 1 },
+    content: {
+      paddingHorizontal: sizes.lg,
+      paddingTop: sizes.sm,
+      paddingBottom: sizes.xl,
+      gap: sizes.md,
+    },
+    backBtn: {
+      width: sizes.touchTarget,
+      height: sizes.touchTarget,
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+      marginBottom: sizes.xs,
+    },
+    backBtnText: {
+      fontSize: 24,
+      ...font.regular,
+      color: C.textPrimary,
+    },
+    header: {
+      gap: 4,
+      marginBottom: sizes.xs,
+    },
+    title: {
+      fontSize: 28,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: 15,
+      ...font.medium,
+      color: C.textSecondary,
+    },
+    input: {
+      backgroundColor: C.surface,
+    },
+    error: {
+      ...font.regular,
+      color: C.danger,
+      fontSize: sizes.fontSm,
+    },
+    colorLabel: {
+      ...font.semibold,
+      fontSize: sizes.fontSm,
+      color: C.textPrimary,
+      marginTop: sizes.xs,
+    },
+    colorRow: {
+      flexDirection: 'row',
+      gap: sizes.sm,
+    },
+    colorDot: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    colorDotSelected: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    colorCheck: {
+      fontSize: 20,
+      ...font.bold,
+      color: '#fff',
+    },
+    termsRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: sizes.sm,
+      marginTop: sizes.xs,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexShrink: 0,
+      marginTop: 1,
+    },
+    checkboxChecked: {
+      backgroundColor: C.primary,
+      borderColor: C.primary,
+    },
+    termsText: {
+      flex: 1,
+      fontSize: 13,
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: 20,
+    },
+    termsLink: {
+      color: C.primary,
+      ...font.semibold,
+    },
+    button: {
+      borderRadius: 14,
+      marginTop: sizes.sm,
+    },
+    buttonContent: {
+      height: 52,
+    },
+    buttonLabel: {
+      fontSize: 16,
+      ...font.semibold,
+      letterSpacing: 0.2,
+    },
+  });
+}
