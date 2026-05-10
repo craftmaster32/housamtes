@@ -30,6 +30,12 @@ export const useLanguageStore = create<LanguageStore>()(
           I18nManager.forceRTL(nextRTL);
           I18nManager.allowRTL(nextRTL);
         }
+
+        // Update browser document direction immediately on language switch (web only)
+        if (typeof document !== 'undefined') {
+          document.documentElement.dir = nextRTL ? 'rtl' : 'ltr';
+          document.documentElement.lang = lang;
+        }
       },
     }),
     { name: 'language-store' }
