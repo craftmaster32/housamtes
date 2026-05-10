@@ -12,7 +12,6 @@ import { resolveName } from '@utils/housemates';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 
-const SURFACE_BG = 'rgba(251,248,245,0.96)';
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 
@@ -254,6 +253,8 @@ export default function ChoresScreen(): React.JSX.Element {
                   style={styles.formInput}
                   returnKeyType="done"
                   onSubmitEditing={handleAdd}
+                  accessibilityLabel="Chore name"
+                  accessibilityHint="Enter the name of the chore and press done to add"
                 />
 
                 {/* Recurrence */}
@@ -393,7 +394,7 @@ function makeStyles(C: ColorTokens) {
     sep: { height: 8 },
 
     heroCard: {
-      backgroundColor: SURFACE_BG,
+      backgroundColor: C.surface,
       borderRadius: 20, borderWidth: 1, borderColor: C.border,
       padding: 20, gap: 14, marginBottom: 24,
       shadowColor: '#000',
@@ -436,16 +437,16 @@ function makeStyles(C: ColorTokens) {
     daySection: { gap: 8 },
     weekDayRow: { flexDirection: 'row', gap: 6 },
     weekDayChip: {
-      width: 38, height: 38, borderRadius: 19,
+      width: 44, height: 44, borderRadius: 22,
       backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
       justifyContent: 'center', alignItems: 'center',
     },
     weekDayChipActive: { backgroundColor: C.primary, borderColor: C.primary },
     weekDayText: { fontSize: 12, ...font.bold, color: C.textSecondary },
     weekDayTextActive: { color: '#fff' },
-    monthDayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    monthDayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
     monthDayChip: {
-      width: 34, height: 34, borderRadius: 17,
+      width: 44, height: 44, borderRadius: 22,
       backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
       justifyContent: 'center', alignItems: 'center',
     },
@@ -490,7 +491,7 @@ function makeStyles(C: ColorTokens) {
       shadowRadius: 8,
       elevation: 2,
     },
-    choreRowDone: { backgroundColor: 'rgba(251,248,245,0.4)', borderColor: 'transparent' },
+    choreRowDone: { backgroundColor: C.surfaceSecondary, borderColor: 'transparent' },
     checkBtn: { flexShrink: 0 },
     choreInfo: { flex: 1, gap: 4 },
     choreName: { fontSize: 15, ...font.semibold, color: C.textPrimary },
