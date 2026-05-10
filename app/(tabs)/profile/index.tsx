@@ -94,7 +94,7 @@ function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JS
           style={[s.stackAvatar, { backgroundColor: h.avatarUrl ? 'transparent' : h.color, marginLeft: i === 0 ? 0 : -10 }]}
         >
           {h.avatarUrl
-            ? <Image source={{ uri: h.avatarUrl }} style={s.stackAvatarImg} contentFit="cover" />
+            ? <Image source={{ uri: h.avatarUrl }} style={s.stackAvatarImg} contentFit="cover" accessibilityLabel={h.name} />
             : <Text style={s.stackAvatarText}>{h.name[0].toUpperCase()}</Text>
           }
         </View>
@@ -773,7 +773,7 @@ export default function ProfileScreen(): React.JSX.Element {
             accessibilityLabel="Change cover photo"
           >
             {profile?.coverUrl
-              ? <Image source={{ uri: profile.coverUrl }} style={styles.coverImage} contentFit="cover" />
+              ? <Image source={{ uri: profile.coverUrl }} style={styles.coverImage} contentFit="cover" accessibilityLabel="Cover photo" />
               : (
                 <>
                   <View style={styles.decoCircleTL} />
@@ -802,7 +802,7 @@ export default function ProfileScreen(): React.JSX.Element {
           >
             <View style={[styles.avatarRing, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? C.primary) }]}>
               {profile?.avatarUrl
-                ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} contentFit="cover" />
+                ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} contentFit="cover" accessibilityLabel="Profile photo" />
                 : <Text style={styles.avatarInitial}>{initial}</Text>
               }
               {uploading && (
