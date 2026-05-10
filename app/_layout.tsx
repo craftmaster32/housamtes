@@ -84,6 +84,7 @@ export default function RootLayout(): React.JSX.Element | null {
   const houseId = useAuthStore((s) => s.houseId);
   const isLoading = useAuthStore((s) => s.isLoading);
   const isPasswordRecovery = useAuthStore((s) => s.isPasswordRecovery);
+  const needsTermsAcceptance = useAuthStore((s) => s.needsTermsAcceptance);
   // Guard: track whether auth has been stable (not loading) for at least one render
   // so we never redirect mid-initialization when houseId hasn't loaded yet
   const [authStable, setAuthStable] = useState(false);
@@ -166,6 +167,8 @@ export default function RootLayout(): React.JSX.Element | null {
 
     if (!user && !inAuth) {
       router.replace('/(auth)/welcome');
+    } else if (user && needsTermsAcceptance) {
+      router.replace('/(auth)/accept-terms');
     } else if (user && !houseId && !inOnboarding) {
       // Only redirect to house-setup if user genuinely has no house
       // (authStable ensures initialize() has already fetched from Supabase)
@@ -173,7 +176,7 @@ export default function RootLayout(): React.JSX.Element | null {
     } else if (user && houseId && !inTabs) {
       router.replace('/(tabs)/dashboard');
     }
-  }, [user, houseId, authStable, segmentsKey, currentScreen, isPasswordRecovery]);
+  }, [user, houseId, authStable, segmentsKey, currentScreen, isPasswordRecovery, needsTermsAcceptance]);
 
   useEffect(() => {
     if (!houseId) return;
@@ -239,7 +242,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadVoting, loadCondition,
   ]);
 
-  const showChrome = !!user && !!houseId;
+  const showChrome = !!user && !!houseId && !needsTermsAcceptance;
 
   // Swipe-back gesture: zone starts from 22–70 px from left edge (distinct from drawer open zone at 0–22 px)
   const backSwipe = useRef(

@@ -184,7 +184,7 @@ export default function SignupScreen(): React.JSX.Element {
               {'I agree to the '}
               <Text
                 style={styles.termsLink}
-                onPress={() => router.push('/(tabs)/settings/terms')}
+                onPress={() => router.push('/(auth)/terms')}
                 accessibilityRole="link"
               >
                 Terms of Service
@@ -192,7 +192,7 @@ export default function SignupScreen(): React.JSX.Element {
               {' and '}
               <Text
                 style={styles.termsLink}
-                onPress={() => router.push('/(tabs)/settings/privacy-policy')}
+                onPress={() => router.push('/(auth)/privacy-policy')}
                 accessibilityRole="link"
               >
                 Privacy Policy
