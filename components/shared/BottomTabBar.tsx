@@ -5,7 +5,6 @@ import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useTranslation } from 'react-i18next';
 import { useMorePopupStore } from '@stores/morePopupStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useBadgeStore, countNewSimple } from '@stores/badgeStore';
@@ -31,15 +30,7 @@ const TABS: TabItem[] = [
 ];
 
 export function BottomTabBar(): React.JSX.Element {
-  const { t }    = useTranslation();
   const c        = useColors();
-
-  const tabLabels: Record<string, string> = {
-    dashboard: t('nav.dashboard'),
-    bills:     t('nav.bills'),
-    parking:   t('nav.parking'),
-    more:      t('nav.more'),
-  };
   const insets   = useSafeAreaInsets();
   const pathname = usePathname();
   const openMore     = useMorePopupStore((s) => s.open);
@@ -93,7 +84,7 @@ export function BottomTabBar(): React.JSX.Element {
             onPress={() => handleTab(tab)}
             accessible={true}
             accessibilityRole="tab"
-            accessibilityLabel={tabLabels[tab.id]}
+            accessibilityLabel={tab.label}
             accessibilityState={{ selected: active }}
           >
             <View style={styles.tabIconWrap}>
@@ -109,7 +100,7 @@ export function BottomTabBar(): React.JSX.Element {
               )}
             </View>
             <Text style={[styles.label, { color: active ? c.primary : c.textSecondary }, active && styles.labelActive]}>
-              {tabLabels[tab.id]}
+              {tab.label}
             </Text>
           </Pressable>
         );
@@ -139,7 +130,7 @@ export function BottomTabBar(): React.JSX.Element {
             onPress={() => handleTab(tab)}
             accessible={true}
             accessibilityRole="tab"
-            accessibilityLabel={tabLabels[tab.id]}
+            accessibilityLabel={tab.label}
             accessibilityState={{ selected: active }}
           >
             <Ionicons
@@ -148,7 +139,7 @@ export function BottomTabBar(): React.JSX.Element {
               color={active ? c.primary : c.textSecondary}
             />
             <Text style={[styles.label, { color: active ? c.primary : c.textSecondary }, active && styles.labelActive]}>
-              {tabLabels[tab.id]}
+              {tab.label}
             </Text>
           </Pressable>
         );

@@ -6,7 +6,6 @@ import { router, usePathname } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
@@ -26,7 +25,6 @@ interface MenuItem {
 export interface Props {}
 
 export function ProfilePopup(): React.JSX.Element {
-  const { t }   = useTranslation();
   const c       = useColors();
   const insets  = useSafeAreaInsets();
   const isOpen  = useProfilePopupStore((s) => s.isOpen);
@@ -50,10 +48,10 @@ export function ProfilePopup(): React.JSX.Element {
   }, [signOut]);
 
   const MENU_ITEMS = useMemo((): MenuItem[] => [
-    { icon: 'person-outline',   label: t('nav.profile'),      href: '/(tabs)/profile' },
-    { icon: 'settings-outline', label: t('nav.settings'),     href: '/(tabs)/more/settings' },
-    { icon: 'log-out-outline',  label: t('profile.sign_out'), onPress: handleSignOut, danger: true },
-  ], [t, handleSignOut]);
+    { icon: 'person-outline',   label: 'View Profile', href: '/(tabs)/profile' },
+    { icon: 'settings-outline', label: 'Settings',     href: '/(tabs)/more/settings' },
+    { icon: 'log-out-outline',  label: 'Sign out',     onPress: handleSignOut, danger: true },
+  ], [handleSignOut]);
 
   const handleMenuPress = useCallback((item: MenuItem): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});

@@ -27,14 +27,14 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useThemedColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
-import { useTranslation } from 'react-i18next';
 import { SpendingCard } from '@components/profile/SpendingCard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function greetingText(name: string, t: (key: string) => string): string {
+function greetingText(name: string): string {
   const h = new Date().getHours();
-  const timeKey = h < 12 ? 'greeting_morning' : h < 18 ? 'greeting_afternoon' : 'greeting_evening';
-  return `${t(`dashboard.${timeKey}`)}, ${name}`;
+  if (h < 12) return `Good morning, ${name}`;
+  if (h < 18) return `Good afternoon, ${name}`;
+  return `Good evening, ${name}`;
 }
 
 function timeAgo(iso: string): string {
@@ -876,7 +876,6 @@ function ActivityFeed(): React.JSX.Element {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function DashboardScreen(): React.JSX.Element {
-  const { t }      = useTranslation();
   const c          = useThemedColors();
   const profile    = useAuthStore((s) => s.profile);
   const houseId    = useAuthStore((s) => s.houseId);
@@ -902,7 +901,7 @@ export default function DashboardScreen(): React.JSX.Element {
           <Animated.View entering={FadeIn.duration(400)} style={styles.hero}>
             <View style={styles.heroLeft}>
               <Text style={[styles.heroDate, { color: c.textSecondary }]}>{todayDateLabel()}</Text>
-              <Text style={[styles.greeting, { color: c.textPrimary }]}>{greetingText(myName, t)}</Text>
+              <Text style={[styles.greeting, { color: c.textPrimary }]}>{greetingText(myName)}</Text>
               {houseName ? <Text style={[styles.greetingSub, { color: c.textSecondary }]}>{houseName}</Text> : null}
             </View>
             <View style={styles.heroRight}>

@@ -66,13 +66,8 @@ export default function RootLayout(): React.JSX.Element | null {
   // Keep the browser document in sync with the active language on web
   useEffect(() => {
     if (typeof document !== 'undefined') {
-      const dir = getIsRTL(language) ? 'rtl' : 'ltr';
-      document.documentElement.dir = dir;
+      document.documentElement.dir = getIsRTL(language) ? 'rtl' : 'ltr';
       document.documentElement.lang = language;
-      // Force on body and the React root div so RN Web's containers inherit it
-      document.body.style.direction = dir;
-      const root = document.getElementById('root');
-      if (root) root.style.direction = dir;
     }
   }, [language]);
 
@@ -276,7 +271,7 @@ export default function RootLayout(): React.JSX.Element | null {
 
   // Stack must always render — navigation happens via useEffect above
   return (
-    <GestureHandlerRootView style={[styles.gestureRoot, { backgroundColor: c.background, direction: getIsRTL(language) ? 'rtl' : 'ltr' }]}>
+    <GestureHandlerRootView style={[styles.gestureRoot, { backgroundColor: c.background }]}>
     <PaperProvider theme={paperTheme}>
       <StatusBar style="light" />
       <ErrorBoundary>
