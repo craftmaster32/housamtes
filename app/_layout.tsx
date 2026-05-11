@@ -5,7 +5,7 @@ import * as Linking from 'expo-linking';
 import { initErrorTracking } from '@lib/errorTracking';
 import { Stack, router, useSegments } from 'expo-router';
 import { supabase } from '@lib/supabase';
-import { PaperProvider, MD3LightTheme, configureFonts } from 'react-native-paper';
+import { PaperProvider, MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { useAuthStore } from '@stores/authStore';
@@ -39,17 +39,24 @@ initErrorTracking();
 
 export default function RootLayout(): React.JSX.Element | null {
   const c = useColors();
-  const paperTheme = useMemo(() => ({
-    ...MD3LightTheme,
-    colors: {
-      ...MD3LightTheme.colors,
-      primary: c.primary,
-      secondary: c.primaryLight,
-      background: c.background,
-      surface: c.surface,
-    },
-    fonts: configureFonts({ config: fontConfig }),
-  }), [c]);
+  const paperTheme = useMemo(() => {
+    const isDark = c === darkColors;
+    const base = isDark ? MD3DarkTheme : MD3LightTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: c.primary,
+        secondary: c.primaryLight,
+        background: c.background,
+        surface: c.surface,
+        onSurface: c.textPrimary,
+        onBackground: c.textPrimary,
+        onSurfaceVariant: c.textSecondary,
+      },
+      fonts: configureFonts({ config: fontConfig }),
+    };
+  }, [c]);
 
   const [i18nReady, setI18nReady] = useState(false);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
