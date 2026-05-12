@@ -2,9 +2,11 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
-  ScrollView,
+  FlatList,
   Pressable,
   Modal,
+  Alert,
+  type ListRenderItemInfo,
 } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { Image } from 'expo-image';
@@ -101,14 +103,35 @@ export function PhotoUploadModal({
   }, []);
 
   const handleUpload = useCallback(async (): Promise<void> => {
-    await onUpload(caption, category);
-    reset();
-  }, [caption, category, onUpload, reset]);
+    try {
+      await onUpload(caption, category);
+      reset();
+    } catch (err) {
+      Alert.alert(
+        t('photos.upload_failed'),
+        err instanceof Error ? err.message : t('common.failed_try_again')
+      );
+    }
+  }, [caption, category, onUpload, reset, t]);
 
   const handleClose = useCallback((): void => {
     reset();
     onClose();
   }, [reset, onClose]);
+
+  const renderThumb = useCallback(
+    ({ item }: ListRenderItemInfo<ImagePickerAsset>) => (
+      <View style={styles.thumb}>
+        <Image
+          source={{ uri: item.uri }}
+          style={styles.thumbImg}
+          contentFit="cover"
+          accessibilityLabel={`Thumbnail: ${item.fileName ?? 'image'}`}
+        />
+      </View>
+    ),
+    [styles]
+  );
 
   const title =
     assets.length > 1
@@ -122,22 +145,20 @@ export function PhotoUploadModal({
           <Text style={styles.title}>{title}</Text>
 
           {assets.length > 1 ? (
-            <ScrollView
+            <FlatList
+              data={assets}
               horizontal
-              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item, i) => item.assetId ?? `asset-${i}`}
+              renderItem={renderThumb}
               contentContainerStyle={styles.thumbStrip}
-            >
-              {assets.map((asset, i) => (
-                <View key={i} style={styles.thumb}>
-                  <Image source={{ uri: asset.uri }} style={styles.thumbImg} contentFit="cover" />
-                </View>
-              ))}
-            </ScrollView>
+              showsHorizontalScrollIndicator={false}
+            />
           ) : assets.length === 1 ? (
             <Image
               source={{ uri: assets[0].uri }}
               style={styles.singlePreview}
               contentFit="cover"
+              accessibilityLabel={`Photo preview: ${assets[0].fileName ?? 'image'}`}
             />
           ) : null}
 

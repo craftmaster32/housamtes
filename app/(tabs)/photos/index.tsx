@@ -16,6 +16,7 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import { format, isToday, isYesterday } from 'date-fns';
+import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
 import { usePhotoStore, PHOTO_CATEGORIES, type Photo, type PhotoCategory } from '@stores/photoStore';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -30,8 +31,10 @@ const GRID_GAP = sizes.xs;
 const GRID_ITEM = (SW - sizes.lg * 2 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
 const MAX_PHOTOS = 50;
 
+const DATE_FNS_LOCALES = { en: enUS, es: dateFnsEs, he: dateFnsHe } as const;
+
 type PhotoRow = Photo[];
-type PhotoSection = { title: string; data: PhotoRow[] };
+interface PhotoSection { title: string; data: PhotoRow[] }
 
 const chunkRows = (photos: Photo[]): PhotoRow[] =>
   Array.from({ length: Math.ceil(photos.length / GRID_COLS) }, (_, i) =>
@@ -118,7 +121,7 @@ const makeStyles = (C: ColorTokens) =>
   });
 
 export default function PhotosScreen(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const photos = usePhotoStore((s) => s.photos);
   const isLoading = usePhotoStore((s) => s.isLoading);
   const upload = usePhotoStore((s) => s.upload);
@@ -152,6 +155,8 @@ export default function PhotosScreen(): React.JSX.Element {
   );
 
   const sections = useMemo<PhotoSection[]>(() => {
+    const dateFnsLocale =
+      DATE_FNS_LOCALES[i18n.language as keyof typeof DATE_FNS_LOCALES] ?? enUS;
     const groups = new Map<string, Photo[]>();
     for (const photo of filtered) {
       const d = new Date(photo.createdAt);
@@ -159,7 +164,7 @@ export default function PhotosScreen(): React.JSX.Element {
         ? t('photos.today')
         : isYesterday(d)
         ? t('photos.yesterday')
-        : format(d, 'MMMM yyyy');
+        : format(d, 'MMMM yyyy', { locale: dateFnsLocale });
       const arr = groups.get(label) ?? [];
       arr.push(photo);
       groups.set(label, arr);
@@ -168,7 +173,7 @@ export default function PhotosScreen(): React.JSX.Element {
       title,
       data: chunkRows(items),
     }));
-  }, [filtered, t]);
+  }, [filtered, t, i18n.language]);
 
   const counts = useMemo<Record<PhotoCategory | 'general', number>>(
     () => ({
@@ -181,32 +186,40 @@ export default function PhotosScreen(): React.JSX.Element {
   );
 
   const pickFromCamera = useCallback(async (): Promise<void> => {
-    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-    if (!granted) { setError(t('photos.permission_denied')); return; }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!result.canceled && result.assets[0]) {
-      setPickedAssets([result.assets[0]]);
+    try {
+      const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+      if (!granted) { setError(t('photos.permission_denied')); return; }
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+      if (!result.canceled && result.assets[0]) {
+        setPickedAssets([result.assets[0]]);
+      }
+    } catch {
+      setError(t('photos.camera_error'));
     }
   }, [t]);
 
   const pickFromLibrary = useCallback(async (): Promise<void> => {
-    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) { setError(t('photos.permission_denied')); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: 10,
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets.length > 0) {
-      setPickedAssets(result.assets);
+    try {
+      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!granted) { setError(t('photos.permission_denied')); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: 10,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        setPickedAssets(result.assets);
+      }
+    } catch {
+      setError(t('photos.library_error'));
     }
   }, [t]);
 
   const handleUpload = useCallback(
     async (caption: string, category: PhotoCategory): Promise<void> => {
       if (!pickedAssets.length || !user || !houseId || !profile) return;
-      if (photos.length >= MAX_PHOTOS) {
+      if (photos.length + pickedAssets.length > MAX_PHOTOS) {
         setError(t('photos.limit_title'));
         return;
       }
@@ -264,6 +277,14 @@ export default function PhotosScreen(): React.JSX.Element {
     },
     [filtered]
   );
+
+  const onSelectCategory = useCallback(
+    (key: PhotoCategory | 'general') => setSelectedCategory(key),
+    []
+  );
+
+  const onCloseViewer = useCallback(() => setViewIndex(-1), []);
+  const onClearPicked = useCallback(() => setPickedAssets([]), []);
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionListData<PhotoRow, PhotoSection> }) => (
@@ -349,7 +370,7 @@ export default function PhotosScreen(): React.JSX.Element {
               <Pressable
                 key={cat.key}
                 style={[styles.catChip, selectedCategory === cat.key && styles.catChipActive]}
-                onPress={() => setSelectedCategory(cat.key)}
+                onPress={() => onSelectCategory(cat.key)}
                 accessible
                 accessibilityRole="button"
               >
@@ -386,7 +407,7 @@ export default function PhotosScreen(): React.JSX.Element {
             initialIndex={viewIndex}
             currentUserId={user?.id}
             houseId={houseId}
-            onClose={() => setViewIndex(-1)}
+            onClose={onCloseViewer}
             onDelete={handleDelete}
           />
         )}
@@ -396,7 +417,7 @@ export default function PhotosScreen(): React.JSX.Element {
           assets={pickedAssets}
           isUploading={isUploading}
           progress={uploadProgress}
-          onClose={() => setPickedAssets([])}
+          onClose={onClearPicked}
           onUpload={handleUpload}
         />
       </View>

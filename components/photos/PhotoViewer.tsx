@@ -96,10 +96,15 @@ export function PhotoViewer({
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Photo>) => (
       <View style={styles.slide}>
-        <Image source={{ uri: item.url }} style={styles.image} contentFit="contain" />
+        <Image
+          source={{ uri: item.url }}
+          style={styles.image}
+          contentFit="contain"
+          accessibilityLabel={item.caption ?? t('photos.photo_by', { name: item.uploadedBy })}
+        />
       </View>
     ),
-    [styles]
+    [styles, t]
   );
 
   const getItemLayout = useCallback(
@@ -122,12 +127,12 @@ export function PhotoViewer({
   const handleReport = useCallback((): void => {
     if (!photo) return;
     Alert.alert(
-      'Report Photo',
-      `Report this photo by ${photo.uploadedBy} as inappropriate content?`,
+      t('photos.report_title'),
+      t('photos.report_message', { name: photo.uploadedBy }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Report',
+          text: t('photos.report_action'),
           style: 'destructive',
           onPress: (): void => {
             captureError(new Error('User photo report'), {
@@ -138,15 +143,20 @@ export function PhotoViewer({
               houseId: houseId ?? '',
             });
             Alert.alert(
-              'Report Submitted',
-              'Our team will review this within 48 hours.',
-              [{ text: 'OK' }]
+              t('photos.report_submitted_title'),
+              t('photos.report_submitted_message'),
+              [{ text: t('common.ok') }]
             );
           },
         },
       ]
     );
-  }, [photo, currentUserId, houseId]);
+  }, [photo, currentUserId, houseId, t]);
+
+  const handleDelete = useCallback(
+    () => { if (photo) onDelete(photo); },
+    [onDelete, photo]
+  );
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -157,7 +167,7 @@ export function PhotoViewer({
             onPress={onClose}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel={t('common.close')}
           >
             <Text style={styles.closeTxt}>✕</Text>
           </Pressable>
@@ -192,7 +202,7 @@ export function PhotoViewer({
             </Text>
             {photo.userId === currentUserId ? (
               <Pressable
-                onPress={() => onDelete(photo)}
+                onPress={handleDelete}
                 style={styles.deleteBtn}
                 accessible
                 accessibilityRole="button"
@@ -206,9 +216,9 @@ export function PhotoViewer({
                 style={styles.reportBtn}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel="Report photo"
+                accessibilityLabel={t('photos.report_title')}
               >
-                <Text style={styles.reportTxt}>Report photo</Text>
+                <Text style={styles.reportTxt}>{t('photos.report_action')}</Text>
               </Pressable>
             )}
           </View>

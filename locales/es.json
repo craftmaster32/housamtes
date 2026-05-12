@@ -490,7 +490,15 @@
     "today": "Hoy",
     "yesterday": "Ayer",
     "add_photos_count": "{{count}} fotos seleccionadas",
-    "uploading_progress": "Subiendo {{current}} de {{total}}…"
+    "uploading_progress": "Subiendo {{current}} de {{total}}…",
+    "camera_error": "No se puede abrir la cámara. Inténtalo de nuevo.",
+    "library_error": "No se puede abrir la biblioteca de fotos. Inténtalo de nuevo.",
+    "photo_by": "Foto de {{name}}",
+    "report_title": "Reportar foto",
+    "report_message": "¿Reportar esta foto de {{name}} como contenido inapropiado?",
+    "report_action": "Reportar",
+    "report_submitted_title": "Reporte enviado",
+    "report_submitted_message": "Nuestro equipo lo revisará en 48 horas."
   },
   "profile": {
     "account_section": "CUENTA",

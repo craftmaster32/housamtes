@@ -486,7 +486,15 @@
     "today": "היום",
     "yesterday": "אתמול",
     "add_photos_count": "{{count}} תמונות נבחרו",
-    "uploading_progress": "מעלה {{current}} מתוך {{total}}…"
+    "uploading_progress": "מעלה {{current}} מתוך {{total}}…",
+    "camera_error": "לא ניתן לפתוח את המצלמה. נסה שוב.",
+    "library_error": "לא ניתן לפתוח את ספריית התמונות. נסה שוב.",
+    "photo_by": "תמונה של {{name}}",
+    "report_title": "דיווח על תמונה",
+    "report_message": "לדווח על תמונה זו של {{name}} כתוכן לא הולם?",
+    "report_action": "דווח",
+    "report_submitted_title": "הדיווח נשלח",
+    "report_submitted_message": "הצוות שלנו יבדוק את הנושא תוך 48 שעות."
   },
   "profile": {
     "account_section": "חשבון",
