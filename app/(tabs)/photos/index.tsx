@@ -240,15 +240,16 @@ export default function PhotosScreen(): React.JSX.Element {
             houseId,
           });
         }
-        setPickedAssets([]);
       } catch (err) {
         setError(err instanceof Error ? err.message : t('photos.upload_failed'));
       } finally {
+        setPickedAssets([]);
+        await load(houseId);
         setIsUploading(false);
         setUploadProgress({ current: 0, total: 0 });
       }
     },
-    [pickedAssets, user, houseId, profile, photos.length, upload, t]
+    [pickedAssets, user, houseId, profile, photos.length, upload, load, t]
   );
 
   const handleDelete = useCallback(
