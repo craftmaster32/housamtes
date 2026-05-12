@@ -10,9 +10,10 @@ VALUES ('house-photos', 'house-photos', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Drop any pre-existing policies so this migration is idempotent
-DROP POLICY IF EXISTS "house members can upload to house-photos"  ON storage.objects;
-DROP POLICY IF EXISTS "house members can read from house-photos"  ON storage.objects;
-DROP POLICY IF EXISTS "house members can delete from house-photos" ON storage.objects;
+DROP POLICY IF EXISTS "house members can upload to house-photos"    ON storage.objects;
+DROP POLICY IF EXISTS "house members can read from house-photos"    ON storage.objects;
+DROP POLICY IF EXISTS "house members can delete from house-photos"  ON storage.objects;
+DROP POLICY IF EXISTS "house members cannot update house-photos"    ON storage.objects;
 
 -- INSERT: authenticated house member, uploading into their own house folder
 -- Path format: {house_id}/{timestamp}_{filename}
@@ -48,3 +49,10 @@ CREATE POLICY "house members can delete from house-photos"
       SELECT house_id FROM public.house_members WHERE user_id = auth.uid()
     )
   );
+
+-- UPDATE: explicitly blocked — files are write-once; use delete + re-upload instead
+CREATE POLICY "house members cannot update house-photos"
+  ON storage.objects FOR UPDATE
+  TO authenticated
+  USING (false)
+  WITH CHECK (false);
