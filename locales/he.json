@@ -272,6 +272,9 @@
     "household_no_bills": "אין חשבונות בית",
     "household_no_bills_hint": "הוסף חשבונות קבועים כדי להתחיל לעקוב אחרי תרומות.",
     "household_add_recurring": "+ הוסף חשבון קבוע",
+    "household_last_paid_label": "תאריך תשלום אחרון (אופציונלי)",
+    "household_last_paid_help": "מתי שילמת לאחרונה? נעקוב אחר תאריך הפירעון הבא ונוסיף לגיליון ההוצאות.",
+    "household_tap_select_date": "לחץ לבחירת תאריך",
     "settlement_title": "⚖️ מי חייב למי",
     "settlement_no_expenses": "אין הוצאות מתועדות עדיין.",
     "settlement_breakdown": "פירוט",
@@ -305,6 +308,7 @@
     "pick_date": "בחר תאריך",
     "prev_month": "חודש קודם",
     "next_month": "חודש הבא",
+    "add_expense": "הוסף הוצאה",
     "load_error": "לא ניתן לטעון חשבונות",
     "retry": "נסה שוב"
   },

@@ -62,45 +62,6 @@ function formatDateLabel(dateStr: string): string {
   });
 }
 
-// ── Housemate balance card ────────────────────────────────────────────────────
-interface HousemateBalance { person: string; name: string; amount: number; color: string; avatarUrl?: string }
-
-function HousemateCard({ item }: { item: HousemateBalance }): React.JSX.Element {
-  const c            = useThemedColors();
-  const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const owesMe       = item.amount > 0;
-  const initial  = item.name[0]?.toUpperCase() ?? '?';
-  return (
-    <View style={[styles.hmCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <View style={[styles.hmAvatar, { backgroundColor: item.avatarUrl ? 'transparent' : item.color + '22' }]}>
-        {item.avatarUrl
-          ? <Image source={{ uri: item.avatarUrl }} style={styles.hmAvatarImg} contentFit="cover" />
-          : <Text style={[styles.hmAvatarText, { color: item.color }]}>{initial}</Text>
-        }
-      </View>
-      <Text style={[styles.hmName, { color: c.textPrimary }]} numberOfLines={1}>{item.name}</Text>
-      <Text style={[styles.hmStatus, { color: owesMe ? c.positive : c.negative }]}>
-        {owesMe ? 'Owes you' : 'You owe'}
-      </Text>
-      <Text style={[styles.hmAmount, { color: owesMe ? c.positive : c.negative }]}>
-        {formatFull(Math.abs(item.amount), currencyCode)}
-      </Text>
-      <Pressable
-        style={({ pressed }) => [
-          styles.hmBtn,
-          { backgroundColor: owesMe ? c.positive + '18' : c.primary + '18', transform: [{ scale: pressed ? 0.96 : 1 }] },
-        ]}
-        onPress={() => router.push('/(tabs)/bills/setup')}
-        accessibilityRole="button"
-      >
-        <Text style={[styles.hmBtnText, { color: owesMe ? c.positive : c.primary }]}>
-          {owesMe ? 'Remind' : 'Settle'}
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
-
 // ── Bill row card ─────────────────────────────────────────────────────────────
 function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
   const c            = useThemedColors();
@@ -229,8 +190,6 @@ export default function BillsScreen(): React.JSX.Element {
   const profile    = useAuthStore((s) => s.profile);
   const houseId    = useAuthStore((s) => s.houseId) ?? '';
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const housemates   = useHousematesStore((s) => s.housemates);
-  const housemateById = useMemo(() => new Map(housemates.map((h) => [h.id, h])), [housemates]);
 
   const [filter, setFilter]     = useState<BillFilter>('one-off');
   const { openRecurring }       = useLocalSearchParams<{ openRecurring?: string }>();
@@ -254,15 +213,6 @@ export default function BillsScreen(): React.JSX.Element {
   const totalOwed  = sharedBalances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
   const totalOwe   = sharedBalances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
   const netBalance = totalOwed - totalOwe;
-
-  const COLORS = ['#6366f1', '#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
-  const hmBalances: HousemateBalance[] = sharedBalances.map((b, i) => ({
-    person:   b.person,
-    name:     resolveName(b.person, housemates),
-    amount:   b.amount,
-    color:    housemateById.get(b.person)?.color ?? COLORS[i % COLORS.length],
-    avatarUrl: housemateById.get(b.person)?.avatarUrl,
-  }));
 
   const billSections = useMemo(() => {
     const sorted = [...bills].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
@@ -437,27 +387,6 @@ export default function BillsScreen(): React.JSX.Element {
         </Pressable>
       </View>
 
-      {/* ── Housemate balances ────────────────────────────────────── */}
-      {hmBalances.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>HOUSEMATE BALANCES</Text>
-            <Pressable onPress={() => router.push('/(tabs)/bills/setup')} accessibilityRole="button">
-              <Text style={[styles.seeAll, { color: c.primary }]}>Manage</Text>
-            </Pressable>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.hmScrollContent}
-          >
-            {hmBalances.map((item) => (
-              <HousemateCard key={item.person} item={item} />
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
       {/* Recurring household bills */}
       {filter === 'recurring' && (
         <View style={styles.householdWrap}>
@@ -608,33 +537,6 @@ const styles = StyleSheet.create({
   settleName:       { fontSize: 13, ...font.semibold },
   settleArrow:      { marginHorizontal: 2 },
   settleAmt:        { marginLeft: 'auto' as never, fontSize: 14, ...font.bold },
-
-  // ── Section / labels
-  section:          { gap: 10 },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionLabel:     { fontSize: 11, ...font.bold, letterSpacing: 0.8, textTransform: 'uppercase' },
-  seeAll:           { fontSize: 13, ...font.semibold },
-
-  // ── Housemate cards
-  hmScrollContent: { gap: 10, paddingBottom: 4 },
-  hmCard: {
-    width: 130,
-    borderRadius: 16, borderWidth: 1,
-    padding: 14, gap: 4, alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  hmAvatar:    { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 2, overflow: 'hidden' },
-  hmAvatarImg: { width: 44, height: 44 },
-  hmAvatarText: { fontSize: 18, ...font.bold },
-  hmName:      { fontSize: 13, ...font.semibold, textAlign: 'center' },
-  hmStatus:    { fontSize: 11, ...font.regular, textAlign: 'center' },
-  hmAmount:    { fontSize: 14, ...font.extrabold, textAlign: 'center' },
-  hmBtn:       { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, marginTop: 4, minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
-  hmBtnText:   { fontSize: 12, ...font.semibold },
 
   // ── Filter tabs
   filterRow: {

@@ -273,6 +273,9 @@
     "household_no_bills": "No household bills set up",
     "household_no_bills_hint": "Add your recurring bills to start tracking contributions.",
     "household_add_recurring": "+ Add recurring bill",
+    "household_last_paid_label": "Last paid date (optional)",
+    "household_last_paid_help": "When did you last pay this? We'll track the next due date and add it to your spending history.",
+    "household_tap_select_date": "Tap to select date",
     "settlement_title": "⚖️ Who owes who",
     "settlement_no_expenses": "No expenses logged yet.",
     "settlement_breakdown": "Breakdown",
@@ -306,6 +309,7 @@
     "pick_date": "Pick date",
     "prev_month": "Previous month",
     "next_month": "Next month",
+    "add_expense": "Add expense",
     "load_error": "Couldn't load bills",
     "retry": "Try again"
   },
