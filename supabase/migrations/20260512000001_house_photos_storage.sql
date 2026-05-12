@@ -68,8 +68,9 @@ CREATE POLICY "house members can delete from house-photos"
   );
 
 -- UPDATE: explicitly blocked — files are write-once; use delete + re-upload instead
+-- AS RESTRICTIVE means this veto cannot be overridden by any future permissive policy
 CREATE POLICY "house members cannot update house-photos"
-  ON storage.objects FOR UPDATE
+  ON storage.objects AS RESTRICTIVE FOR UPDATE
   TO authenticated
   USING (false)
   WITH CHECK (false);
