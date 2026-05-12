@@ -3,11 +3,20 @@
 -- ============================================================
 -- The photos table has RLS but the storage bucket was never
 -- provisioned, causing every upload to fail with a storage error.
+--
+-- Object key format: {house_id}/{timestamp}_{filename}
+--   house_id  — standard UUID  [0-9a-f-]{36}
+--   timestamp — Date.now() ms  [0-9]{13,}
+--   filename  — original file name
 
--- Create the bucket (public so getPublicUrl works without auth tokens)
+-- Create or converge the bucket to the expected configuration.
+-- DO UPDATE ensures a pre-existing misconfigured bucket (e.g. public=false)
+-- is corrected rather than silently left as-is.
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('house-photos', 'house-photos', true)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE
+  SET name   = EXCLUDED.name,
+      public = EXCLUDED.public;
 
 -- Drop any pre-existing policies so this migration is idempotent
 DROP POLICY IF EXISTS "house members can upload to house-photos"    ON storage.objects;
@@ -15,15 +24,21 @@ DROP POLICY IF EXISTS "house members can read from house-photos"    ON storage.o
 DROP POLICY IF EXISTS "house members can delete from house-photos"  ON storage.objects;
 DROP POLICY IF EXISTS "house members cannot update house-photos"    ON storage.objects;
 
--- INSERT: authenticated house member, uploading into their own house folder
--- Path format: {house_id}/{timestamp}_{filename}
+-- Shared key-format predicate (used in all three permissive policies):
+--   1. Regex guard rejects malformed keys before any further evaluation,
+--      avoiding cast errors on unexpected input.
+--   2. Text comparison avoids the runtime error that ::uuid throws on
+--      non-UUID first segments.
+
+-- INSERT: authenticated house member uploading into their own house folder
 CREATE POLICY "house members can upload to house-photos"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (
     bucket_id = 'house-photos'
-    AND split_part(name, '/', 1)::uuid IN (
-      SELECT house_id FROM public.house_members WHERE user_id = auth.uid()
+    AND name ~ '^[0-9a-f-]{36}/[0-9]{13,}_.+$'
+    AND split_part(name, '/', 1) IN (
+      SELECT house_id::text FROM public.house_members WHERE user_id = auth.uid()
     )
   );
 
@@ -33,8 +48,9 @@ CREATE POLICY "house members can read from house-photos"
   TO authenticated
   USING (
     bucket_id = 'house-photos'
-    AND split_part(name, '/', 1)::uuid IN (
-      SELECT house_id FROM public.house_members WHERE user_id = auth.uid()
+    AND name ~ '^[0-9a-f-]{36}/[0-9]{13,}_.+$'
+    AND split_part(name, '/', 1) IN (
+      SELECT house_id::text FROM public.house_members WHERE user_id = auth.uid()
     )
   );
 
@@ -45,8 +61,9 @@ CREATE POLICY "house members can delete from house-photos"
   TO authenticated
   USING (
     bucket_id = 'house-photos'
-    AND split_part(name, '/', 1)::uuid IN (
-      SELECT house_id FROM public.house_members WHERE user_id = auth.uid()
+    AND name ~ '^[0-9a-f-]{36}/[0-9]{13,}_.+$'
+    AND split_part(name, '/', 1) IN (
+      SELECT house_id::text FROM public.house_members WHERE user_id = auth.uid()
     )
   );
 
