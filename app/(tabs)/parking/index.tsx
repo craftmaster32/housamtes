@@ -58,6 +58,7 @@ export interface VoteRowProps {
 export interface ReservationCardProps {
   item: ParkingReservation;
   currentUserId: string;
+  isAdmin: boolean;
   onCancel: (id: string) => void;
   onVote: (id: string, vote: ParkingVoteChoice) => void;
   onClear: (id: string) => void;
@@ -111,7 +112,7 @@ function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.El
 }
 
 // ── Reservation card ───────────────────────────────────────────────────────────
-function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHistory }: ReservationCardProps): React.JSX.Element {
+function ReservationCard({ item, currentUserId, isAdmin, onCancel, onVote, onClear, isHistory }: ReservationCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -144,6 +145,9 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
 
   const myVote = item.votes.find((v) => v.userId === currentUserId);
   const canVote = !isOwn && isPending;
+  // Admin can cancel any upcoming (non-history) reservation they don't own
+  const canAdminCancel = isAdmin && !isOwn && !isHistory && (isPending || approved);
+  const showOwnCancel = isOwn && isPending;
 
   return (
     <View style={[styles.resCard, isHistory && styles.resCardDim]}>
@@ -169,7 +173,7 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
       </View>
 
       <View style={styles.resActions}>
-        {isOwn && isPending && (
+        {showOwnCancel && (
           <Pressable
             onPress={handleCancel}
             style={styles.iconBtn}
@@ -178,6 +182,18 @@ function ReservationCard({ item, currentUserId, onCancel, onVote, onClear, isHis
             accessibilityLabel="Cancel reservation"
           >
             <Ionicons name="close-circle-outline" size={20} color={C.danger} />
+          </Pressable>
+        )}
+
+        {canAdminCancel && (
+          <Pressable
+            onPress={handleCancel}
+            style={styles.iconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Admin: cancel this reservation"
+          >
+            <Ionicons name="shield-outline" size={20} color={C.warning} />
           </Pressable>
         )}
 
@@ -372,6 +388,7 @@ export default function ParkingScreen(): React.JSX.Element {
 
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
+  const role = useAuthStore((s) => s.role);
   const housemates = useHousematesStore((s) => s.housemates);
   const syncParkingApproved = useCalendarSyncStore((s) => s.syncParkingApproved);
   const removeCalendarEvent = useCalendarSyncStore((s) => s.removeCalendarEvent);
@@ -380,6 +397,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const myName = profile?.name ?? '';
   const isMine = current?.occupant === myId;
   const isFree = !current;
+  const isAdmin = role === 'owner' || role === 'admin';
 
   const [showReserve, setShowReserve] = useState(false);
   const [error, setError] = useState('');
@@ -515,13 +533,14 @@ export default function ParkingScreen(): React.JSX.Element {
       <ReservationCard
         item={item.res}
         currentUserId={myId}
+        isAdmin={isAdmin}
         onCancel={handleCancel}
         onVote={handleVote}
         onClear={handleClear}
         isHistory={item.isHistory}
       />
     );
-  }, [myId, handleCancel, handleVote, handleClear, t, styles]);
+  }, [myId, isAdmin, handleCancel, handleVote, handleClear, t, styles]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -569,6 +588,12 @@ export default function ParkingScreen(): React.JSX.Element {
                 <Pressable style={styles.btnDanger} onPress={handleRelease} accessibilityRole="button">
                   <Ionicons name="exit-outline" size={16} color={C.danger} style={styles.btnIcon} />
                   <Text style={styles.btnDangerText}>{t('parking.release')}</Text>
+                </Pressable>
+              )}
+              {!isFree && !isMine && isAdmin && (
+                <Pressable style={styles.btnAdminRelease} onPress={handleRelease} accessibilityRole="button" accessibilityLabel="Admin: free the parking spot">
+                  <Ionicons name="shield-outline" size={15} color={C.warning} style={styles.btnIcon} />
+                  <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
                 </Pressable>
               )}
             </View>
@@ -666,8 +691,15 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     backgroundColor: C.danger + '15',
     borderWidth: 1, borderColor: C.danger + '30',
   },
+  btnAdminRelease: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    minHeight: 44, paddingHorizontal: 16, borderRadius: 10,
+    backgroundColor: C.warning + '15',
+    borderWidth: 1, borderColor: C.warning + '40',
+  },
   btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
   btnDangerText: { fontSize: 15, ...font.semibold, color: C.danger },
+  btnAdminReleaseText: { fontSize: 14, ...font.semibold, color: C.warning },
   btnIcon: { marginRight: 6 },
 
   addBtn: {
