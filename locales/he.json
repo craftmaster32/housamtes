@@ -482,7 +482,11 @@
     "cat_all": "הכל",
     "cat_receipts": "קבלות",
     "cat_damage": "נזק",
-    "cat_memories": "זיכרונות"
+    "cat_memories": "זיכרונות",
+    "today": "היום",
+    "yesterday": "אתמול",
+    "add_photos_count": "{{count}} תמונות נבחרו",
+    "uploading_progress": "מעלה {{current}} מתוך {{total}}…"
   },
   "profile": {
     "account_section": "חשבון",

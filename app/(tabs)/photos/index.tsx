@@ -1,28 +1,49 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, StyleSheet, FlatList, Pressable, Modal, Dimensions, Alert, Animated } from 'react-native';
-import { Text, TextInput, Button, ActivityIndicator } from 'react-native-paper';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  SectionList,
+  Pressable,
+  Dimensions,
+  Alert,
+  type SectionListData,
+  type ListRenderItemInfo,
+} from 'react-native';
+import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import type { ImagePickerAsset } from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
+import { Image } from 'expo-image';
+import { format, isToday, isYesterday } from 'date-fns';
 import { usePhotoStore, PHOTO_CATEGORIES, type Photo, type PhotoCategory } from '@stores/photoStore';
 import { useAuthStore } from '@stores/authStore';
-import { captureError } from '@lib/errorTracking';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { PhotoViewer } from '@components/photos/PhotoViewer';
+import { PhotoUploadModal } from '@components/photos/PhotoUploadModal';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const { width: SW } = Dimensions.get('window');
 const GRID_COLS = 3;
-const GRID_ITEM = (SCREEN_WIDTH - sizes.lg * 2 - sizes.xs * (GRID_COLS - 1)) / GRID_COLS;
-
+const GRID_GAP = sizes.xs;
+const GRID_ITEM = (SW - sizes.lg * 2 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
 const MAX_PHOTOS = 50;
 
-const makeStyles = (C: ColorTokens) => StyleSheet.create({
+type PhotoRow = Photo[];
+type PhotoSection = { title: string; data: PhotoRow[] };
+
+const chunkRows = (photos: Photo[]): PhotoRow[] =>
+  Array.from({ length: Math.ceil(photos.length / GRID_COLS) }, (_, i) =>
+    photos.slice(i * GRID_COLS, i * GRID_COLS + GRID_COLS)
+  );
+
+const makeStyles = (C: ColorTokens) =>
+  StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    pageHeader: {
+    header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -59,54 +80,42 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     catChipActive: { backgroundColor: C.primary, borderColor: C.primary },
     catChipText: { fontSize: 13, ...font.medium, color: C.textPrimary },
     catChipTextActive: { color: '#fff' },
-    error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular, paddingHorizontal: sizes.lg, marginBottom: sizes.xs },
-    grid: { paddingHorizontal: sizes.lg, paddingBottom: 40 },
-    gridRow: { gap: sizes.xs, marginBottom: sizes.xs },
-    gridItem: { width: GRID_ITEM, height: GRID_ITEM, borderRadius: 10, overflow: 'hidden', borderCurve: 'continuous' } as never,
-    gridImage: { width: '100%', height: '100%' },
+    error: {
+      color: C.danger,
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      paddingHorizontal: sizes.lg,
+      marginBottom: sizes.xs,
+    },
+    listContent: { paddingHorizontal: sizes.lg, paddingBottom: 40 },
+    sectionHeader: { paddingTop: sizes.sm, paddingBottom: sizes.xs },
+    sectionTitle: {
+      fontSize: 12,
+      ...font.semibold,
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    gridRow: { flexDirection: 'row', gap: GRID_GAP, marginBottom: GRID_GAP },
+    gridItem: {
+      width: GRID_ITEM,
+      height: GRID_ITEM,
+      borderRadius: 10,
+      overflow: 'hidden',
+      borderCurve: 'continuous',
+    } as never,
+    gridImg: { width: '100%', height: '100%' },
     emptyState: { alignItems: 'center', paddingTop: sizes.xxl, gap: sizes.sm },
     emptyIcon: { fontSize: 48 },
     emptyTitle: { fontSize: 17, ...font.bold, color: C.textPrimary },
-    emptyText: { fontSize: 14, ...font.regular, color: C.textSecondary, textAlign: 'center', paddingHorizontal: sizes.lg },
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalCard: {
-      backgroundColor: C.surface,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: sizes.lg,
-      gap: sizes.md,
-      paddingBottom: sizes.xxl,
+    emptyText: {
+      fontSize: 14,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: sizes.lg,
     },
-    modalTitle: { fontSize: 18, ...font.bold, color: C.textPrimary },
-    previewImage: { width: '100%', height: 200, borderRadius: 12 },
-    input: { backgroundColor: C.surface },
-    label: { color: C.textPrimary, ...font.semibold, fontSize: sizes.fontSm, marginBottom: -sizes.xs },
-    catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-    modalActions: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center' },
-    uploadBtn: { borderRadius: 14 },
-    viewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center' },
-    viewerClose: {
-      position: 'absolute',
-      top: 60,
-      right: sizes.lg,
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 10,
-    },
-    viewerCloseText: { color: '#fff', fontSize: 18, ...font.bold },
-    viewerImage: { width: '100%', height: '70%' },
-    viewerMeta: { padding: sizes.lg, gap: sizes.sm, alignItems: 'center' },
-    viewerCaption: { color: '#fff', fontSize: 15, ...font.medium, textAlign: 'center' },
-    viewerInfo: { color: 'rgba(255,255,255,0.6)', fontSize: 13, ...font.regular },
-    deleteBtn: { marginTop: sizes.sm, padding: sizes.sm },
-    deleteBtnText: { color: C.danger, fontSize: 14, ...font.semibold },
-    reportBtn: { marginTop: sizes.sm, padding: sizes.sm },
-    reportBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, ...font.regular, textDecorationLine: 'underline' },
-});
+  });
 
 export default function PhotosScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -121,271 +130,276 @@ export default function PhotosScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
-  // Lazy-load: photos are not loaded at startup, load when this screen opens
   useEffect(() => {
     if (houseId) load(houseId);
     return (): void => { usePhotoStore.getState().unsubscribe(); };
   }, [houseId, load]);
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory | 'general'>('general');
-  const [uploadCategory, setUploadCategory] = useState<PhotoCategory>('general');
-  const [caption, setCaption] = useState('');
+  const [viewIndex, setViewIndex] = useState(-1);
+  const [pickedAssets, setPickedAssets] = useState<ImagePickerAsset[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [viewPhoto, setViewPhoto] = useState<Photo | null>(null);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [pickedUri, setPickedUri] = useState<string | null>(null);
-  const [pickedFileName, setPickedFileName] = useState('');
-  const [pickedMime, setPickedMime] = useState('image/jpeg');
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState('');
 
-  const filtered = selectedCategory === 'general'
-    ? photos
-    : photos.filter((p) => p.category === selectedCategory);
+  const filtered = useMemo(
+    () =>
+      selectedCategory === 'general'
+        ? photos
+        : photos.filter((p) => p.category === selectedCategory),
+    [photos, selectedCategory]
+  );
 
-  const pickImage = useCallback(async (fromCamera: boolean) => {
-    const permFn = fromCamera ? ImagePicker.requestCameraPermissionsAsync : ImagePicker.requestMediaLibraryPermissionsAsync;
-    const { granted } = await permFn();
+  const sections = useMemo<PhotoSection[]>(() => {
+    const groups = new Map<string, Photo[]>();
+    for (const photo of filtered) {
+      const d = new Date(photo.createdAt);
+      const label = isToday(d)
+        ? t('photos.today')
+        : isYesterday(d)
+        ? t('photos.yesterday')
+        : format(d, 'MMMM yyyy');
+      const arr = groups.get(label) ?? [];
+      arr.push(photo);
+      groups.set(label, arr);
+    }
+    return Array.from(groups.entries()).map(([title, items]) => ({
+      title,
+      data: chunkRows(items),
+    }));
+  }, [filtered, t]);
+
+  const counts = useMemo<Record<PhotoCategory | 'general', number>>(
+    () => ({
+      general: photos.length,
+      receipts: photos.filter((p) => p.category === 'receipts').length,
+      damage: photos.filter((p) => p.category === 'damage').length,
+      memories: photos.filter((p) => p.category === 'memories').length,
+    }),
+    [photos]
+  );
+
+  const pickFromCamera = useCallback(async (): Promise<void> => {
+    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
     if (!granted) { setError(t('photos.permission_denied')); return; }
-
-    const result = fromCamera
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setPickedUri(asset.uri);
-      setPickedFileName(asset.fileName ?? `photo_${Date.now()}.jpg`);
-      setPickedMime(asset.mimeType ?? 'image/jpeg');
-      setShowUploadModal(true);
+      setPickedAssets([result.assets[0]]);
     }
   }, [t]);
 
-  const handleUpload = useCallback(async () => {
-    if (!pickedUri || !user || !houseId || !profile) return;
-    if (photos.length >= MAX_PHOTOS) {
-      setError(t('photos.limit_title'));
-      return;
+  const pickFromLibrary = useCallback(async (): Promise<void> => {
+    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!granted) { setError(t('photos.permission_denied')); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      setPickedAssets(result.assets);
     }
-    try {
+  }, [t]);
+
+  const handleUpload = useCallback(
+    async (caption: string, category: PhotoCategory): Promise<void> => {
+      if (!pickedAssets.length || !user || !houseId || !profile) return;
+      if (photos.length >= MAX_PHOTOS) {
+        setError(t('photos.limit_title'));
+        return;
+      }
       setIsUploading(true);
-      await upload({
-        localUri: pickedUri,
-        fileName: pickedFileName,
-        mimeType: pickedMime,
-        caption,
-        category: uploadCategory,
-        uploadedBy: profile.name,
-        userId: user.id,
-        houseId,
-      });
-      setShowUploadModal(false);
-      setCaption('');
-      setPickedUri(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('photos.upload_failed'));
-    } finally {
-      setIsUploading(false);
-    }
-  }, [pickedUri, pickedFileName, pickedMime, caption, uploadCategory, user, houseId, profile, photos.length, upload, t]);
-
-  const handleReport = useCallback((photo: Photo): void => {
-    Alert.alert(
-      'Report Photo',
-      `Report this photo by ${photo.uploadedBy} as inappropriate, harmful, or illegal content?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Report',
-          style: 'destructive',
-          onPress: (): void => {
-            captureError(new Error('User photo report'), {
-              type: 'photo_report',
-              reportedPhotoId: photo.id,
-              reportedUploader: photo.uploadedBy,
-              reporterUserId: user?.id ?? '',
-              houseId: houseId ?? '',
-            });
-            Alert.alert(
-              'Report Submitted',
-              'Thank you. Your report has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app.',
-              [{ text: 'OK' }]
-            );
-          },
-        },
-      ]
-    );
-  }, [user?.id, houseId]);
-
-  const handleDelete = useCallback((photo: Photo) => {
-    Alert.alert(t('photos.delete_photo'), t('photos.delete_confirm'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'), style: 'destructive',
-        onPress: async (): Promise<void> => {
-          const url = photo.url;
-          const match = url.match(/house-photos\/(.+)$/);
-          const path = match ? decodeURIComponent(match[1]) : '';
-          await remove(photo.id, path);
-          setViewPhoto(null);
-        },
-      },
-    ]);
-  }, [remove, t]);
-
-  const onPickCamera = useCallback(() => pickImage(true), [pickImage]);
-  const onPickGallery = useCallback(() => pickImage(false), [pickImage]);
-  const handleSelectCategory = useCallback(
-    (key: PhotoCategory | 'general') => setSelectedCategory(key),
-    [setSelectedCategory]
+      setUploadProgress({ current: 0, total: pickedAssets.length });
+      try {
+        for (let i = 0; i < pickedAssets.length; i++) {
+          setUploadProgress({ current: i + 1, total: pickedAssets.length });
+          const asset = pickedAssets[i];
+          await upload({
+            localUri: asset.uri,
+            fileName: asset.fileName ?? `photo_${Date.now()}.jpg`,
+            mimeType: asset.mimeType ?? 'image/jpeg',
+            caption,
+            category,
+            uploadedBy: profile.name,
+            userId: user.id,
+            houseId,
+          });
+        }
+        setPickedAssets([]);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('photos.upload_failed'));
+      } finally {
+        setIsUploading(false);
+        setUploadProgress({ current: 0, total: 0 });
+      }
+    },
+    [pickedAssets, user, houseId, profile, photos.length, upload, t]
   );
 
-  const renderPhoto = useCallback(
-    ({ item }: { item: Photo }) => (
-      <Pressable onPress={() => setViewPhoto(item)} style={styles.gridItem}>
-        <Image source={{ uri: item.url }} style={styles.gridImage} contentFit="cover" />
-      </Pressable>
+  const handleDelete = useCallback(
+    (photo: Photo): void => {
+      Alert.alert(t('photos.delete_photo'), t('photos.delete_confirm'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async (): Promise<void> => {
+            const match = photo.url.match(/house-photos\/(.+)$/);
+            const path = match ? decodeURIComponent(match[1]) : '';
+            await remove(photo.id, path);
+            setViewIndex(-1);
+          },
+        },
+      ]);
+    },
+    [remove, t]
+  );
+
+  const handlePhotoPress = useCallback(
+    (photo: Photo): void => {
+      const idx = filtered.findIndex((p) => p.id === photo.id);
+      setViewIndex(idx);
+    },
+    [filtered]
+  );
+
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: SectionListData<PhotoRow, PhotoSection> }) => (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{section.title}</Text>
+      </View>
     ),
     [styles]
+  );
+
+  const renderRow = useCallback(
+    ({ item }: ListRenderItemInfo<PhotoRow>) => (
+      <View style={styles.gridRow}>
+        {item.map((photo) => (
+          <Pressable
+            key={photo.id}
+            style={styles.gridItem}
+            onPress={() => handlePhotoPress(photo)}
+            accessible
+            accessibilityRole="imagebutton"
+            accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
+          >
+            <Image source={{ uri: photo.url }} style={styles.gridImg} contentFit="cover" />
+          </Pressable>
+        ))}
+      </View>
+    ),
+    [styles, handlePhotoPress]
+  );
+
+  const EmptyComponent = useMemo(
+    () => (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyIcon}>📷</Text>
+        <Text style={styles.emptyTitle}>{t('photos.no_photos')}</Text>
+        <Text style={styles.emptyText}>{t('photos.no_photos_hint')}</Text>
+      </View>
+    ),
+    [styles, t]
   );
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.root}>
-        <View style={styles.centered}><ActivityIndicator color={C.primary} /></View>
+        <View style={styles.centered}>
+          <ActivityIndicator color={C.primary} />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.root}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-        <View style={styles.pageHeader}>
+      <View style={styles.flex}>
+        <View style={styles.header}>
           <Text style={styles.heading}>{t('photos.title')}</Text>
           <View style={styles.headerActions}>
-            <Pressable onPress={onPickCamera} style={styles.headerBtn}>
+            <Pressable
+              onPress={pickFromCamera}
+              style={styles.headerBtn}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Take photo"
+            >
               <Text style={styles.headerBtnText}>📷</Text>
             </Pressable>
-            <Pressable onPress={onPickGallery} style={styles.headerBtn}>
+            <Pressable
+              onPress={pickFromLibrary}
+              style={styles.headerBtn}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Choose from library"
+            >
               <Text style={styles.headerBtnText}>🖼️</Text>
             </Pressable>
           </View>
         </View>
 
         <View style={styles.categoryRow}>
-          {PHOTO_CATEGORIES.map((cat) => (
-            <Pressable
-              key={cat.key}
-              style={[styles.catChip, selectedCategory === cat.key && styles.catChipActive]}
-              onPress={() => handleSelectCategory(cat.key)}
-            >
-              <Text style={[styles.catChipText, selectedCategory === cat.key && styles.catChipTextActive]}>
-                {cat.icon} {t(cat.labelKey)}
-              </Text>
-            </Pressable>
-          ))}
+          {PHOTO_CATEGORIES.map((cat) => {
+            const count = counts[cat.key];
+            return (
+              <Pressable
+                key={cat.key}
+                style={[styles.catChip, selectedCategory === cat.key && styles.catChipActive]}
+                onPress={() => setSelectedCategory(cat.key)}
+                accessible
+                accessibilityRole="button"
+              >
+                <Text
+                  style={[
+                    styles.catChipText,
+                    selectedCategory === cat.key && styles.catChipTextActive,
+                  ]}
+                >
+                  {cat.icon} {t(cat.labelKey)}
+                  {count > 0 ? ` (${count})` : ''}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
-        {!!error && (
-          <Text style={styles.error}>{error}</Text>
-        )}
+        {!!error && <Text style={styles.error}>{error}</Text>}
 
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          renderItem={renderPhoto}
-          numColumns={GRID_COLS}
-          contentContainerStyle={styles.grid}
-          columnWrapperStyle={styles.gridRow}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📷</Text>
-              <Text style={styles.emptyTitle}>{t('photos.no_photos')}</Text>
-              <Text style={styles.emptyText}>{t('photos.no_photos_hint')}</Text>
-            </View>
-          }
+        <SectionList<PhotoRow, PhotoSection>
+          sections={sections}
+          keyExtractor={(row, i) => `${row[0]?.id ?? 'empty'}-${i}`}
+          renderItem={renderRow}
+          renderSectionHeader={renderSectionHeader}
+          contentContainerStyle={styles.listContent}
+          stickySectionHeadersEnabled={false}
+          ListEmptyComponent={EmptyComponent}
+          showsVerticalScrollIndicator={false}
         />
 
-        <Modal visible={showUploadModal} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>{t('photos.add_photo')}</Text>
-              {!!pickedUri && (
-                <Image source={{ uri: pickedUri }} style={styles.previewImage} contentFit="cover" />
-              )}
-              <TextInput
-                label={t('photos.caption_placeholder')}
-                value={caption}
-                onChangeText={setCaption}
-                mode="outlined"
-                style={styles.input}
-              />
-              <Text style={styles.label}>{t('photos.category')}</Text>
-              <View style={styles.catRow}>
-                {PHOTO_CATEGORIES.filter((c) => c.key !== 'general').map((cat) => (
-                  <Pressable
-                    key={cat.key}
-                    style={[styles.catChip, uploadCategory === cat.key && styles.catChipActive]}
-                    onPress={() => setUploadCategory(cat.key)}
-                  >
-                    <Text style={[styles.catChipText, uploadCategory === cat.key && styles.catChipTextActive]}>
-                      {cat.icon} {t(cat.labelKey)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View style={styles.modalActions}>
-                <Button
-                  mode="contained"
-                  onPress={handleUpload}
-                  loading={isUploading}
-                  disabled={isUploading}
-                  style={styles.uploadBtn}
-                >
-                  {t('photos.upload')}
-                </Button>
-                <Button mode="text" onPress={() => { setShowUploadModal(false); setCaption(''); setPickedUri(null); }}>
-                  {t('common.cancel')}
-                </Button>
-              </View>
-            </View>
-          </View>
-        </Modal>
+        {viewIndex >= 0 && (
+          <PhotoViewer
+            photos={filtered}
+            initialIndex={viewIndex}
+            currentUserId={user?.id}
+            houseId={houseId}
+            onClose={() => setViewIndex(-1)}
+            onDelete={handleDelete}
+          />
+        )}
 
-        <Modal visible={!!viewPhoto} transparent animationType="fade">
-          <View style={styles.viewerOverlay}>
-            <Pressable style={styles.viewerClose} onPress={() => setViewPhoto(null)}>
-              <Text style={styles.viewerCloseText}>✕</Text>
-            </Pressable>
-            {viewPhoto && (
-              <>
-                <Image source={{ uri: viewPhoto.url }} style={styles.viewerImage} contentFit="contain" />
-                <View style={styles.viewerMeta}>
-                  {viewPhoto.caption ? (
-                    <Text style={styles.viewerCaption}>{viewPhoto.caption}</Text>
-                  ) : null}
-                  <Text style={styles.viewerInfo}>
-                    {viewPhoto.uploadedBy} · {new Date(viewPhoto.createdAt).toLocaleDateString()}
-                  </Text>
-                  {viewPhoto.userId === user?.id ? (
-                    <Pressable onPress={() => handleDelete(viewPhoto)} style={styles.deleteBtn}>
-                      <Text style={styles.deleteBtnText}>{t('photos.delete_photo')}</Text>
-                    </Pressable>
-                  ) : (
-                    <Pressable onPress={() => handleReport(viewPhoto)} style={styles.reportBtn}>
-                      <Text style={styles.reportBtnText}>Report photo</Text>
-                    </Pressable>
-                  )}
-                </View>
-              </>
-            )}
-          </View>
-        </Modal>
-      </Animated.View>
+        <PhotoUploadModal
+          visible={pickedAssets.length > 0}
+          assets={pickedAssets}
+          isUploading={isUploading}
+          progress={uploadProgress}
+          onClose={() => setPickedAssets([])}
+          onUpload={handleUpload}
+        />
+      </View>
     </SafeAreaView>
   );
 }

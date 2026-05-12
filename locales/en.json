@@ -487,7 +487,11 @@
     "cat_all": "All",
     "cat_receipts": "Receipts",
     "cat_damage": "Damage",
-    "cat_memories": "Memories"
+    "cat_memories": "Memories",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "add_photos_count": "{{count}} photos selected",
+    "uploading_progress": "Uploading {{current}} of {{total}}…"
   },
   "profile": {
     "account_section": "ACCOUNT",

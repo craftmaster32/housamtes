@@ -486,7 +486,11 @@
     "cat_all": "Todo",
     "cat_receipts": "Recibos",
     "cat_damage": "Daño",
-    "cat_memories": "Recuerdos"
+    "cat_memories": "Recuerdos",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "add_photos_count": "{{count}} fotos seleccionadas",
+    "uploading_progress": "Subiendo {{current}} de {{total}}…"
   },
   "profile": {
     "account_section": "CUENTA",
