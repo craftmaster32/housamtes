@@ -130,6 +130,13 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     setNote('');
   }, [amount, date, note, bill.id, bill.typicalAmount, logPayment, houseId, todayStr]);
 
+  const handleDeleteBill    = useCallback(() => deleteBill(bill.id), [deleteBill, bill.id]);
+  const toggleLogging       = useCallback(() => setLogging((v) => !v), []);
+  const toggleShowHistory   = useCallback(() => setShowHistory((v) => !v), []);
+  const openLogDatePicker   = useCallback(() => setShowLogDatePicker(true), []);
+  const closeLogDatePicker  = useCallback(() => setShowLogDatePicker(false), []);
+  const handleLogDateSelect = useCallback((val: string) => { setDate(val); setShowLogDatePicker(false); }, []);
+
   return (
     <View style={[styles.billCard, { backgroundColor: c.surface, borderColor: c.border }]}>
       {/* Header row */}
@@ -147,7 +154,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             <Text style={[styles.typicalAmount, { color: c.textSecondary }]}>~{currency}{bill.typicalAmount}</Text>
           </View>
         </View>
-        <Pressable onPress={() => deleteBill(bill.id)} style={styles.deleteBtn} accessibilityRole="button" hitSlop={8}>
+        <Pressable onPress={handleDeleteBill} style={styles.deleteBtn} accessibilityRole="button" hitSlop={8}>
           <Ionicons name="close" size={16} color={c.textSecondary} />
         </Pressable>
       </View>
@@ -168,11 +175,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
 
       {/* Actions */}
       <View style={styles.billActions}>
-        <Pressable style={[styles.logBtn, { backgroundColor: c.primary + '20' }]} onPress={() => setLogging((v) => !v)}>
+        <Pressable style={[styles.logBtn, { backgroundColor: c.primary + '20' }]} onPress={toggleLogging}>
           <Text style={[styles.logBtnText, { color: c.primary }]}>{logging ? t('common.cancel') : t('bills.household_log_payment')}</Text>
         </Pressable>
         {billPayments.length > 0 && (
-          <Pressable onPress={() => setShowHistory((v) => !v)}>
+          <Pressable onPress={toggleShowHistory}>
             <Text style={[styles.historyLink, { color: c.textSecondary }]}>{showHistory ? t('bills.household_hide_history') : `${t('bills.household_history')} (${billPayments.length})`}</Text>
           </Pressable>
         )}
@@ -192,7 +199,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             />
             <Pressable
               style={[styles.dateTrigger, { backgroundColor: c.background, borderColor: c.border }]}
-              onPress={() => setShowLogDatePicker(true)}
+              onPress={openLogDatePicker}
               accessible
               accessibilityRole="button"
               accessibilityLabel="Select payment date"
@@ -204,8 +211,8 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           <DatePickerModal
             visible={showLogDatePicker}
             value={date}
-            onSelect={(val) => { setDate(val); setShowLogDatePicker(false); }}
-            onClose={() => setShowLogDatePicker(false)}
+            onSelect={handleLogDateSelect}
+            onClose={closeLogDatePicker}
           />
           <TextInput
             style={[styles.logNoteInput, { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary }]}
@@ -280,6 +287,10 @@ function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () 
       setSaving(false);
     }
   }, [name, assignedTo, frequency, typicalAmount, icon, lastPaidDate, addBill, logPayment, houseId, onClose]);
+
+  const openAddDatePicker   = useCallback(() => setShowAddDatePicker(true), []);
+  const closeAddDatePicker  = useCallback(() => setShowAddDatePicker(false), []);
+  const handleAddDateSelect = useCallback((val: string) => { setLastPaidDate(val); setShowAddDatePicker(false); }, []);
 
   return (
     <View style={[styles.addForm, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -369,27 +380,25 @@ function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () 
       />
 
       {/* Last paid date */}
-      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>Last paid date (optional)</Text>
-      <Text style={[styles.fieldHint, { color: c.textDisabled }]}>
-        When did you last pay this? {"We'll"} track the next due date and add it to your spending history.
-      </Text>
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{t('bills.household_last_paid_label')}</Text>
+      <Text style={[styles.fieldHint, { color: c.textDisabled }]}>{t('bills.household_last_paid_help')}</Text>
       <Pressable
         style={[styles.dateTrigger, { backgroundColor: c.background, borderColor: c.border }]}
-        onPress={() => setShowAddDatePicker(true)}
+        onPress={openAddDatePicker}
         accessible
         accessibilityRole="button"
         accessibilityLabel="Select last paid date"
       >
         <Ionicons name="calendar-outline" size={16} color={c.primary} />
-        <Text style={lastPaidDate ? [styles.dateTriggerText, { color: c.textPrimary }] : [styles.dateTriggerText, { color: c.textDisabled }]}>
-          {lastPaidDate ? formatDate(lastPaidDate) : 'Tap to select date'}
+        <Text style={[styles.dateTriggerText, { color: lastPaidDate ? c.textPrimary : c.textDisabled }]}>
+          {lastPaidDate ? formatDate(lastPaidDate) : t('bills.household_tap_select_date')}
         </Text>
       </Pressable>
       <DatePickerModal
         visible={showAddDatePicker}
         value={lastPaidDate}
-        onSelect={(val) => { setLastPaidDate(val); setShowAddDatePicker(false); }}
-        onClose={() => setShowAddDatePicker(false)}
+        onSelect={handleAddDateSelect}
+        onClose={closeAddDatePicker}
       />
 
       {!!error && <Text style={[styles.formError, { color: c.negative }]}>{error}</Text>}
@@ -420,6 +429,9 @@ export function HouseholdTab(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const [showAddForm, setShowAddForm] = useState(false);
 
+  const openAddForm  = useCallback(() => setShowAddForm(true), []);
+  const closeAddForm = useCallback(() => setShowAddForm(false), []);
+
   const allPeople = [
     profile ? { id: profile.id, name: profile.name ?? '' } : null,
     ...housemates.map((h) => ({ id: h.id, name: h.name })),
@@ -440,9 +452,9 @@ export function HouseholdTab(): React.JSX.Element {
       {bills.map((bill) => <BillCard key={bill.id} bill={bill} />)}
 
       {showAddForm ? (
-        <AddBillForm people={allPeople} onClose={() => setShowAddForm(false)} />
+        <AddBillForm people={allPeople} onClose={closeAddForm} />
       ) : (
-        <Pressable style={[styles.addBillBtn, { borderColor: c.border }]} onPress={() => setShowAddForm(true)}>
+        <Pressable style={[styles.addBillBtn, { borderColor: c.border }]} onPress={openAddForm}>
           <Text style={[styles.addBillBtnText, { color: c.primary }]}>{t('bills.household_add_recurring')}</Text>
         </Pressable>
       )}
