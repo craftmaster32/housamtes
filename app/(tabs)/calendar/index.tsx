@@ -906,7 +906,7 @@ function makeStyles(C: ColorTokens) {
     eventIcon: { fontSize: 18 },
     eventInfo: { flex: 1, gap: 2 },
     eventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-    eventTitle: { fontSize: 14, ...font.semibold, color: C.textPrimary, flexShrink: 1 },
+    eventTitle: { fontSize: 14, ...font.semibold, color: C.textPrimary, flex: 1 },
     recurrenceBadge: { backgroundColor: '#6366f120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     recurrenceBadgeText: { fontSize: 10, ...font.semibold, color: '#6366f1' },
     eventTime: { fontSize: 12, ...font.semibold, color: C.primary },
