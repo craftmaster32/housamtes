@@ -337,7 +337,8 @@
     "failed_cancel": "Failed to cancel reservation",
     "failed_claim": "Failed to claim spot",
     "failed_release": "Failed to release spot",
-    "failed_reservation": "Failed to add reservation"
+    "failed_reservation": "Failed to add reservation",
+    "admin_free_spot": "Free the spot"
   },
   "grocery": {
     "title": "Grocery List",

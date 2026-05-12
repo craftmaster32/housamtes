@@ -193,7 +193,7 @@ function ReservationCard({ item, currentUserId, isAdmin, onCancel, onVote, onCle
             accessibilityRole="button"
             accessibilityLabel="Admin: cancel this reservation"
           >
-            <Ionicons name="shield-outline" size={18} color={C.warning} />
+            <Ionicons name="shield-outline" size={20} color={C.warning} />
           </Pressable>
         )}
 
@@ -593,7 +593,7 @@ export default function ParkingScreen(): React.JSX.Element {
               {!isFree && !isMine && isAdmin && (
                 <Pressable style={styles.btnAdminRelease} onPress={handleRelease} accessibilityRole="button" accessibilityLabel="Admin: free the parking spot">
                   <Ionicons name="shield-outline" size={15} color={C.warning} style={styles.btnIcon} />
-                  <Text style={styles.btnAdminReleaseText}>Free the spot</Text>
+                  <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
                 </Pressable>
               )}
             </View>
