@@ -306,6 +306,7 @@
     "pick_date": "Pick date",
     "prev_month": "Previous month",
     "next_month": "Next month",
+    "add_expense": "Add expense",
     "load_error": "Couldn't load bills",
     "retry": "Try again"
   },

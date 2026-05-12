@@ -305,6 +305,7 @@
     "pick_date": "Elegir fecha",
     "prev_month": "Mes anterior",
     "next_month": "Mes siguiente",
+    "add_expense": "Agregar gasto",
     "load_error": "No se pudieron cargar los gastos",
     "retry": "Intentar de nuevo"
   },
