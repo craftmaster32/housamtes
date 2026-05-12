@@ -487,7 +487,20 @@
     "cat_all": "All",
     "cat_receipts": "Receipts",
     "cat_damage": "Damage",
-    "cat_memories": "Memories"
+    "cat_memories": "Memories",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "add_photos_count_one": "1 photo selected",
+    "add_photos_count_other": "{{count}} photos selected",
+    "uploading_progress": "Uploading {{current}} of {{total}}…",
+    "camera_error": "Unable to open camera. Please try again.",
+    "library_error": "Unable to open photo library. Please try again.",
+    "photo_by": "Photo by {{name}}",
+    "report_title": "Report Photo",
+    "report_message": "Report this photo by {{name}} as inappropriate content?",
+    "report_action": "Report",
+    "report_submitted_title": "Report Submitted",
+    "report_submitted_message": "Our team will review this within 48 hours."
   },
   "profile": {
     "account_section": "ACCOUNT",
