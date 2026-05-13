@@ -770,6 +770,7 @@ export default function CalendarScreen(): React.JSX.Element {
                         <>
                           <Pressable
                             style={styles.iconBtn}
+                            hitSlop={{ left: 7, right: 7 }}
                             onPress={() => openGoogleCalendar({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
                             accessibilityRole="button"
                             accessibilityLabel="Add to Google Calendar"
@@ -778,6 +779,7 @@ export default function CalendarScreen(): React.JSX.Element {
                           </Pressable>
                           <Pressable
                             style={styles.iconBtn}
+                            hitSlop={{ left: 7, right: 7 }}
                             onPress={() => downloadIcs({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
                             accessibilityRole="button"
                             accessibilityLabel="Download .ics file"
@@ -788,6 +790,7 @@ export default function CalendarScreen(): React.JSX.Element {
                       ) : showSyncBtn && !hideSyncBtn ? (
                         <Pressable
                           style={styles.iconBtn}
+                          hitSlop={{ left: 7, right: 7 }}
                           onPress={() => handleManualSync(item).catch(() => {})}
                           accessibilityRole="button"
                           accessibilityLabel={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
@@ -803,6 +806,7 @@ export default function CalendarScreen(): React.JSX.Element {
                         <>
                           <Pressable
                             style={styles.iconBtn}
+                            hitSlop={{ left: 7, right: 7 }}
                             onPress={() => handleEditEvent(item.sourceId)}
                             accessibilityRole="button"
                             accessibilityLabel="Edit event"
@@ -811,6 +815,7 @@ export default function CalendarScreen(): React.JSX.Element {
                           </Pressable>
                           <Pressable
                             style={styles.iconBtn}
+                            hitSlop={{ left: 7, right: 7 }}
                             onPress={async () => {
                               try { await removeEvent(item.sourceId); }
                               catch { Alert.alert('Error', 'Could not remove event. Try again.'); }
