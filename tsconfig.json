@@ -44,6 +44,7 @@
   ],
   "exclude": [
     "supabase/functions",
-    "HouseMates Design System (2)"
+    "HouseMates Design System (2)",
+    "handoff"
   ]
 }
