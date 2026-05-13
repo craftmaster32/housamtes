@@ -407,6 +407,7 @@ function ParkingCard(): React.JSX.Element {
   const isFree       = !current;
   const isMine       = current?.occupant === myId;
   const haptic       = useHaptic();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const lastSeen           = useBadgeStore((s) => s.lastSeen);
   const sortedReservations = [...reservations].sort((a, b) => a.date.localeCompare(b.date));
@@ -415,8 +416,27 @@ function ParkingCard(): React.JSX.Element {
   const pendingCount       = reservations.filter((r) => r.status === 'pending').length;
   const newReservations    = countNew(reservations as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.parking, myId, 'requestedBy');
 
-  const handleClaim   = useCallback(async (): Promise<void> => { haptic.success(); await claim(myId, myName, houseId ?? '').catch(() => {}); }, [claim, myId, myName, houseId, haptic]);
-  const handleRelease = useCallback(async (): Promise<void> => { haptic.warn(); await release(houseId ?? '').catch(() => {}); }, [release, houseId, haptic]);
+  const handleClaim = useCallback(async (): Promise<void> => {
+    setActionError(null);
+    try {
+      await claim(myId, myName, houseId ?? '');
+      haptic.success();
+    } catch {
+      haptic.error();
+      setActionError('Could not claim the spot. Please try again.');
+    }
+  }, [claim, myId, myName, houseId, haptic]);
+
+  const handleRelease = useCallback(async (): Promise<void> => {
+    setActionError(null);
+    try {
+      await release(houseId ?? '');
+      haptic.warn();
+    } catch {
+      haptic.error();
+      setActionError('Could not release the spot. Please try again.');
+    }
+  }, [release, houseId, haptic]);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
@@ -485,6 +505,7 @@ function ParkingCard(): React.JSX.Element {
           <Text style={[styles.releaseBtnText, { color: c.negative }]}>Release Spot</Text>
         </Pressable>
       )}
+      {!!actionError && <Text style={[styles.cardMuted, { color: c.negative }]}>{actionError}</Text>}
     </WidgetCard>
   );
 }
@@ -909,7 +930,15 @@ export default function DashboardScreen(): React.JSX.Element {
   const isWide = width >= 680;
   const myName = profile?.name ?? 'there';
   const initials = myName.charAt(0).toUpperCase();
-  const todayAtHomeFade = useFadeInUp(180);
+  const heroFade           = useFadeInUp(0);
+  const quickActionsFade   = useFadeInUp(60);
+  const balanceFade        = useFadeInUp(120);
+  const todayAtHomeFade    = useFadeInUp(180);
+  const recentExpensesFade = useFadeInUp(240);
+  const choreParkingFade   = useFadeInUp(300);
+  const groceryVotesFade   = useFadeInUp(360);
+  const calendarFade       = useFadeInUp(420);
+  const activityFade       = useFadeInUp(480);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
@@ -920,7 +949,7 @@ export default function DashboardScreen(): React.JSX.Element {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Hero greeting ─────────────────────────────────────────── */}
-          <Animated.View style={[styles.hero, useFadeInUp(0)]}>
+          <Animated.View style={[styles.hero, heroFade]}>
             <View style={styles.heroLeft}>
               <Text style={[styles.heroDate, { color: c.textSecondary }]}>{todayDateLabel()}</Text>
               <Text style={[styles.greeting, { color: c.textPrimary }]}>{greetingText(myName, t)}</Text>
@@ -947,7 +976,7 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* Quick actions */}
-          <Animated.View style={[styles.quickActions, useFadeInUp(60)]}>
+          <Animated.View style={[styles.quickActions, quickActionsFade]}>
             <Link asChild href="/(tabs)/bills/add">
               <Pressable
                 style={({ pressed }) => [styles.quickBtn, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 }]}
@@ -971,7 +1000,7 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* ── Balance Hero ──────────────────────────────────────────── */}
-          <Animated.View style={[styles.row, useFadeInUp(120)]}>
+          <Animated.View style={[styles.row, balanceFade]}>
             <BalanceHeroCard />
           </Animated.View>
 
@@ -989,12 +1018,12 @@ export default function DashboardScreen(): React.JSX.Element {
           )}
 
           {/* ── Recent expenses ───────────────────────────────────────── */}
-          <Animated.View style={[styles.row, useFadeInUp(240)]}>
+          <Animated.View style={[styles.row, recentExpensesFade]}>
             <RecentExpenses />
           </Animated.View>
 
           {/* ── Chore + Parking detail cards ──────────────────────────── */}
-          <Animated.View style={[styles.row, isWide && styles.rowWide, useFadeInUp(300)]}>
+          <Animated.View style={[styles.row, isWide && styles.rowWide, choreParkingFade]}>
             {isEnabled('chores') && (
               <View style={isWide ? styles.colHalf : styles.colFull}>
                 <ChoreCard />
@@ -1008,7 +1037,7 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* ── Grocery · Votes ───────────────────────────────────────── */}
-          <Animated.View style={[styles.row, isWide && styles.rowWide, useFadeInUp(360)]}>
+          <Animated.View style={[styles.row, isWide && styles.rowWide, groceryVotesFade]}>
             {isEnabled('grocery') && (
               <View style={isWide ? styles.colHalf : styles.colFull}>
                 <GroceryWidget />
@@ -1022,14 +1051,14 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* ── Calendar ──────────────────────────────────────────────── */}
-          <Animated.View style={[styles.row, useFadeInUp(420)]}>
+          <Animated.View style={[styles.row, calendarFade]}>
             <View style={styles.colFull}>
               <MiniCalendarWidget />
             </View>
           </Animated.View>
 
           {/* ── Activity feed ─────────────────────────────────────────── */}
-          <Animated.View style={[styles.row, useFadeInUp(480)]}>
+          <Animated.View style={[styles.row, activityFade]}>
             <View style={styles.colFull}>
               <ActivityFeed />
             </View>

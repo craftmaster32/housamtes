@@ -5,7 +5,7 @@
 // Pattern: keep animation *logic* here so screens only handle layout + data.
 // Every screen that uses these hooks gets a consistent feel for free.
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import {
   useSharedValue,
   useAnimatedStyle,
@@ -39,8 +39,6 @@ export const Springs = {
  *   const display = useCountUp(myShare, { formatter: (n) => formatFull(n, ccy) });
  *   <Text>{display}</Text>
  * ────────────────────────────────────────────────────────────────────────── */
-import { useState } from 'react';
-
 interface CountUpOptions {
   duration?: number;
   formatter?: (n: number) => string;
@@ -52,8 +50,8 @@ export function useCountUp(
   value: number,
   { duration = 700, formatter = (n): string => n.toFixed(0), skipOnMount = false }: CountUpOptions = {},
 ): string {
-  const [display, setDisplay] = useState(value);
   const fromRef = useRef(skipOnMount ? value : 0);
+  const [display, setDisplay] = useState(() => fromRef.current);
   const startRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const isFirst = useRef(true);
@@ -71,6 +69,9 @@ export function useCountUp(
     if (from === to) return;
     startRef.current = Date.now();
 
+    // Runs on the JS thread — fires every RAF. Adequate for a single hero number;
+    // a proper follow-up should drive this via a Reanimated shared value + JS-free
+    // text wrapper to avoid taxing the JS thread on low-end devices.
     const tick = (): void => {
       const elapsed = Date.now() - (startRef.current ?? 0);
       const t = Math.min(1, elapsed / duration);
@@ -121,8 +122,12 @@ export function usePressScale(target = 0.96): {
  * Spring fade-in + slide-up. Returns an animated style to apply on mount.
  * Use for staggered widget reveals on a screen.
  *
- *   const style = useFadeInUp(120);
- *   <Animated.View style={[styles.card, style]}>...</Animated.View>
+ * IMPORTANT: call at the top of the component and assign to a named const —
+ * do NOT inline inside JSX or inside conditionals. The hooks linter cannot
+ * detect misuse when inlined, so callers must follow this pattern:
+ *
+ *   const heroFade = useFadeInUp(0);
+ *   <Animated.View style={[styles.card, heroFade]}>...</Animated.View>
  * ────────────────────────────────────────────────────────────────────────── */
 export function useFadeInUp(delay = 0, distance = 12): ReturnType<typeof useAnimatedStyle> {
   const opacity = useSharedValue(0);
@@ -211,13 +216,13 @@ export function useHaptic(): {
   warn: () => void;
   error: () => void;
 } {
-  return {
+  return useMemo(() => ({
     tap:     (): void => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); },
     toggle:  (): void => { Haptics.selectionAsync().catch(() => {}); },
     success: (): void => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); },
     warn:    (): void => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}); },
     error:   (): void => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}); },
-  };
+  }), []);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
