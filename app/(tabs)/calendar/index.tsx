@@ -446,6 +446,7 @@ export default function CalendarScreen(): React.JSX.Element {
   const [selectedDate, setSelectedDate] = useState(toYMD(today));
   const [showForm, setShowForm]         = useState(false);
   const [editingEvent, setEditingEvent] = useState<HouseEvent | undefined>(undefined);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
   const [gridStart, gridEnd] = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1);
@@ -681,7 +682,7 @@ export default function CalendarScreen(): React.JSX.Element {
                     isSelected={ymd === selectedDate}
                     isCurrentMonth={day.getMonth() === viewMonth}
                     events={eventMap2[ymd] ?? []}
-                    onPress={() => setSelectedDate(ymd)}
+                    onPress={() => { setSelectedDate(ymd); setExpandedEventId(null); }}
                   />
                 );
               })}
@@ -741,24 +742,100 @@ export default function CalendarScreen(): React.JSX.Element {
                   ((item.type === 'parking' || item.type === 'parking-pending') && connected && autoSync.parking)
                 );
 
+                const isExpanded = expandedEventId === item.id;
+
                 return (
-                  <View style={[styles.eventRow, item.type === 'personal' && styles.eventRowPersonal]}>
+                  <Pressable
+                    style={[styles.eventRow, item.type === 'personal' && styles.eventRowPersonal]}
+                    onPress={() => setExpandedEventId(isExpanded ? null : item.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={isExpanded ? `Collapse ${item.title}` : `Expand ${item.title}`}
+                    accessibilityState={{ expanded: isExpanded }}
+                  >
                     <View style={[styles.eventIconWrap, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
                       <Text style={styles.eventIcon}>{TYPE_META[item.type].icon}</Text>
                     </View>
                     <View style={styles.eventInfo}>
                       <View style={styles.eventTitleRow}>
-                        <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
+                        <Text style={styles.eventTitle} numberOfLines={isExpanded ? 0 : 1}>{item.title}</Text>
                         {item.recurrence && (
                           <View style={styles.recurrenceBadge}>
                             <Text style={styles.recurrenceBadgeText}>↻ {item.recurrence}</Text>
                           </View>
                         )}
                       </View>
-                      {!!timeLabel && <Text style={styles.eventTime}>{timeLabel}</Text>}
-                      {!!dateRangeLabel && <Text style={styles.eventTime}>{dateRangeLabel}</Text>}
-                      {!!item.detail && <Text style={styles.eventDetail}>{item.detail}</Text>}
-                      {!!item.notes && <Text style={styles.eventNotes} numberOfLines={2}>{item.notes}</Text>}
+                      {isExpanded && !!timeLabel && <Text style={styles.eventTime}>{timeLabel}</Text>}
+                      {isExpanded && !!dateRangeLabel && <Text style={styles.eventTime}>{dateRangeLabel}</Text>}
+                      {isExpanded && !!item.detail && <Text style={styles.eventDetail}>{item.detail}</Text>}
+                      {isExpanded && !!item.notes && <Text style={styles.eventNotes}>{item.notes}</Text>}
+                      {isExpanded && (
+                        <View style={styles.eventActions}>
+                          {showSyncBtn && Platform.OS === 'web' ? (
+                            <>
+                              <Pressable
+                                style={styles.iconBtn}
+                                hitSlop={{ left: 7, right: 7 }}
+                                onPress={() => openGoogleCalendar({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
+                                accessibilityRole="button"
+                                accessibilityLabel="Add to Google Calendar"
+                              >
+                                <Ionicons name="logo-google" size={16} color={C.textSecondary} />
+                              </Pressable>
+                              <Pressable
+                                style={styles.iconBtn}
+                                hitSlop={{ left: 7, right: 7 }}
+                                onPress={() => downloadIcs({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
+                                accessibilityRole="button"
+                                accessibilityLabel="Download .ics file"
+                              >
+                                <Ionicons name="download-outline" size={16} color={C.textSecondary} />
+                              </Pressable>
+                            </>
+                          ) : showSyncBtn && !hideSyncBtn ? (
+                            <Pressable
+                              style={styles.iconBtn}
+                              hitSlop={{ left: 7, right: 7 }}
+                              onPress={async () => {
+                                try { await handleManualSync(item); }
+                                catch { Alert.alert('Sync failed', 'Could not add to your calendar. Please try again.'); }
+                              }}
+                              accessibilityRole="button"
+                              accessibilityLabel={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
+                            >
+                              <Ionicons
+                                name={alreadySynced ? 'checkmark-circle' : 'calendar-outline'}
+                                size={18}
+                                color={alreadySynced ? C.positive : C.textSecondary}
+                              />
+                            </Pressable>
+                          ) : null}
+                          {item.type === 'event' && (
+                            <>
+                              <Pressable
+                                style={styles.iconBtn}
+                                hitSlop={{ left: 7, right: 7 }}
+                                onPress={() => handleEditEvent(item.sourceId)}
+                                accessibilityRole="button"
+                                accessibilityLabel="Edit event"
+                              >
+                                <Ionicons name="pencil-outline" size={16} color={C.primary} />
+                              </Pressable>
+                              <Pressable
+                                style={styles.iconBtn}
+                                hitSlop={{ left: 7, right: 7 }}
+                                onPress={async () => {
+                                  try { await removeEvent(item.sourceId); }
+                                  catch { Alert.alert('Error', 'Could not remove event. Try again.'); }
+                                }}
+                                accessibilityRole="button"
+                                accessibilityLabel="Delete event"
+                              >
+                                <Ionicons name="trash-outline" size={16} color={C.negative} />
+                              </Pressable>
+                            </>
+                          )}
+                        </View>
+                      )}
                     </View>
                     <View style={styles.eventRight}>
                       <View style={[styles.typeBadge, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
@@ -766,69 +843,13 @@ export default function CalendarScreen(): React.JSX.Element {
                           {item.type === 'parking-pending' ? 'pending' : item.type}
                         </Text>
                       </View>
-                      {showSyncBtn && Platform.OS === 'web' ? (
-                        <>
-                          <Pressable
-                            style={styles.iconBtn}
-                            hitSlop={{ left: 7, right: 7 }}
-                            onPress={() => openGoogleCalendar({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
-                            accessibilityRole="button"
-                            accessibilityLabel="Add to Google Calendar"
-                          >
-                            <Ionicons name="logo-google" size={16} color={C.textSecondary} />
-                          </Pressable>
-                          <Pressable
-                            style={styles.iconBtn}
-                            hitSlop={{ left: 7, right: 7 }}
-                            onPress={() => downloadIcs({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
-                            accessibilityRole="button"
-                            accessibilityLabel="Download .ics file"
-                          >
-                            <Ionicons name="download-outline" size={16} color={C.textSecondary} />
-                          </Pressable>
-                        </>
-                      ) : showSyncBtn && !hideSyncBtn ? (
-                        <Pressable
-                          style={styles.iconBtn}
-                          hitSlop={{ left: 7, right: 7 }}
-                          onPress={() => handleManualSync(item).catch(() => {})}
-                          accessibilityRole="button"
-                          accessibilityLabel={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
-                        >
-                          <Ionicons
-                            name={alreadySynced ? 'checkmark-circle' : 'calendar-outline'}
-                            size={18}
-                            color={alreadySynced ? C.positive : C.textSecondary}
-                          />
-                        </Pressable>
-                      ) : null}
-                      {item.type === 'event' && (
-                        <>
-                          <Pressable
-                            style={styles.iconBtn}
-                            hitSlop={{ left: 7, right: 7 }}
-                            onPress={() => handleEditEvent(item.sourceId)}
-                            accessibilityRole="button"
-                            accessibilityLabel="Edit event"
-                          >
-                            <Ionicons name="pencil-outline" size={16} color={C.primary} />
-                          </Pressable>
-                          <Pressable
-                            style={styles.iconBtn}
-                            hitSlop={{ left: 7, right: 7 }}
-                            onPress={async () => {
-                              try { await removeEvent(item.sourceId); }
-                              catch { Alert.alert('Error', 'Could not remove event. Try again.'); }
-                            }}
-                            accessibilityRole="button"
-                            accessibilityLabel="Delete event"
-                          >
-                            <Ionicons name="trash-outline" size={16} color={C.negative} />
-                          </Pressable>
-                        </>
-                      )}
+                      <Ionicons
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={14}
+                        color={C.textSecondary}
+                      />
                     </View>
-                  </View>
+                  </Pressable>
                 );
               }}
               ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -917,7 +938,8 @@ function makeStyles(C: ColorTokens) {
     eventTime: { fontSize: 12, ...font.semibold, color: C.primary },
     eventDetail: { fontSize: 12, ...font.regular, color: C.textSecondary },
     eventNotes: { fontSize: 12, ...font.regular, color: C.textSecondary, fontStyle: 'italic' },
-    eventRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
+    eventRight: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2, flexShrink: 0 },
+    eventActions: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
     typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
     typeBadgeText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
     iconBtn: { width: 30, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
