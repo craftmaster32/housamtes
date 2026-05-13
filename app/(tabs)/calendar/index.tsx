@@ -770,6 +770,7 @@ export default function CalendarScreen(): React.JSX.Element {
                         <>
                           <Pressable
                             style={styles.iconBtn}
+                            hitSlop={{ left: 7, right: 7 }}
                             onPress={() => openGoogleCalendar({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
                             accessibilityRole="button"
                             accessibilityLabel="Add to Google Calendar"
@@ -778,6 +779,7 @@ export default function CalendarScreen(): React.JSX.Element {
                           </Pressable>
                           <Pressable
                             style={styles.iconBtn}
+                            hitSlop={{ left: 7, right: 7 }}
                             onPress={() => downloadIcs({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
                             accessibilityRole="button"
                             accessibilityLabel="Download .ics file"
@@ -788,6 +790,7 @@ export default function CalendarScreen(): React.JSX.Element {
                       ) : showSyncBtn && !hideSyncBtn ? (
                         <Pressable
                           style={styles.iconBtn}
+                          hitSlop={{ left: 7, right: 7 }}
                           onPress={() => handleManualSync(item).catch(() => {})}
                           accessibilityRole="button"
                           accessibilityLabel={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
@@ -803,6 +806,7 @@ export default function CalendarScreen(): React.JSX.Element {
                         <>
                           <Pressable
                             style={styles.iconBtn}
+                            hitSlop={{ left: 7, right: 7 }}
                             onPress={() => handleEditEvent(item.sourceId)}
                             accessibilityRole="button"
                             accessibilityLabel="Edit event"
@@ -811,6 +815,7 @@ export default function CalendarScreen(): React.JSX.Element {
                           </Pressable>
                           <Pressable
                             style={styles.iconBtn}
+                            hitSlop={{ left: 7, right: 7 }}
                             onPress={async () => {
                               try { await removeEvent(item.sourceId); }
                               catch { Alert.alert('Error', 'Could not remove event. Try again.'); }
@@ -904,7 +909,7 @@ function makeStyles(C: ColorTokens) {
     eventRowPersonal: { opacity: 0.75 },
     eventIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
     eventIcon: { fontSize: 18 },
-    eventInfo: { flex: 1, gap: 2 },
+    eventInfo: { flex: 1, gap: 2, minWidth: 0 },
     eventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
     eventTitle: { fontSize: 14, ...font.semibold, color: C.textPrimary, flex: 1 },
     recurrenceBadge: { backgroundColor: '#6366f120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
@@ -915,7 +920,7 @@ function makeStyles(C: ColorTokens) {
     eventRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 2 },
     typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
     typeBadgeText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
-    iconBtn: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+    iconBtn: { width: 30, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
 
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
     errorBanner: { backgroundColor: C.negative + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: C.negative + '40' },
