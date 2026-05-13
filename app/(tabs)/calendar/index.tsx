@@ -795,7 +795,10 @@ export default function CalendarScreen(): React.JSX.Element {
                             <Pressable
                               style={styles.iconBtn}
                               hitSlop={{ left: 7, right: 7 }}
-                              onPress={() => handleManualSync(item).catch(() => {})}
+                              onPress={async () => {
+                                try { await handleManualSync(item); }
+                                catch { Alert.alert('Sync failed', 'Could not add to your calendar. Please try again.'); }
+                              }}
                               accessibilityRole="button"
                               accessibilityLabel={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
                             >
