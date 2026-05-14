@@ -5,7 +5,7 @@
 // entrance, `useExpandable` on the edit form.
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
@@ -131,15 +131,27 @@ export default function BillDetailScreen(): React.JSX.Element {
     }
   }, [bill, profile, houseId, settleBill, t]);
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback((): void => {
     if (!bill) return;
-    try {
-      await deleteBill(bill.id, houseId ?? '');
-      router.replace('/(tabs)/bills');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete bill');
-    }
-  }, [bill, houseId, deleteBill]);
+    Alert.alert(
+      t('bills.delete_confirm_title'),
+      t('bills.delete_confirm_message', { title: bill.title }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('bills.delete_bill'), style: 'destructive',
+          onPress: async (): Promise<void> => {
+            try {
+              await deleteBill(bill.id, houseId ?? '');
+              router.replace('/(tabs)/bills');
+            } catch (err) {
+              setError(err instanceof Error ? err.message : t('bills.failed_delete'));
+            }
+          },
+        },
+      ],
+    );
+  }, [bill, houseId, deleteBill, t]);
 
   if (!bill) {
     return (
@@ -162,11 +174,27 @@ export default function BillDetailScreen(): React.JSX.Element {
   const icon = CATEGORY_ICONS[(bill.category ?? '').toLowerCase()] ?? 'receipt-outline';
 
   const editRight = !bill.settled && !isEditing ? (
-    <Pressable onPress={() => setIsEditing(true)} accessibilityRole="button" accessibilityLabel="Edit bill">
+    <Pressable
+      onPress={() => setIsEditing(true)}
+      style={{ minWidth: 44, minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' }}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={t('common.edit')}
+      accessibilityHint={t('common.edit_hint')}
+      accessibilityState={{ disabled: false }}
+    >
       <Text style={[type.label, { color: C.primary }]}>{t('common.edit')}</Text>
     </Pressable>
   ) : isEditing ? (
-    <Pressable onPress={() => { setIsEditing(false); setError(''); }} accessibilityRole="button" accessibilityLabel="Cancel edit">
+    <Pressable
+      onPress={() => { setIsEditing(false); setError(''); }}
+      style={{ minWidth: 44, minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' }}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={t('common.cancel')}
+      accessibilityHint={t('common.cancel_hint')}
+      accessibilityState={{ disabled: false }}
+    >
       <Text style={[type.label, { color: C.textSecondary }]}>{t('common.cancel')}</Text>
     </Pressable>
   ) : undefined;
@@ -213,6 +241,8 @@ export default function BillDetailScreen(): React.JSX.Element {
                 style={styles.input}
                 outlineColor={C.border}
                 activeOutlineColor={C.primary}
+                accessibilityLabel={t('bills.title_label')}
+                accessibilityHint={t('bills.title_hint')}
               />
               <TextInput
                 label={t('bills.amount_label')}
@@ -223,6 +253,8 @@ export default function BillDetailScreen(): React.JSX.Element {
                 keyboardType="decimal-pad"
                 outlineColor={C.border}
                 activeOutlineColor={C.primary}
+                accessibilityLabel={t('bills.amount_label')}
+                accessibilityHint={t('bills.amount_hint')}
               />
               <View style={styles.dateField}>
                 <Text style={[type.captionMed, { color: C.textSecondary, marginLeft: 4 }]}>{t('bills.date_label')}</Text>
@@ -249,6 +281,8 @@ export default function BillDetailScreen(): React.JSX.Element {
                 numberOfLines={2}
                 outlineColor={C.border}
                 activeOutlineColor={C.primary}
+                accessibilityLabel={t('bills.notes_label')}
+                accessibilityHint={t('bills.notes_hint')}
               />
               <View style={styles.categoryField}>
                 <Text style={[type.captionMed, { color: C.textSecondary, marginLeft: 4 }]}>{t('bills.category')}</Text>

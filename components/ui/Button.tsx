@@ -1,7 +1,7 @@
 // components/ui/Button.tsx
 // Theme-aware button — Reanimated spring press + optional haptic.
 
-import { ReactNode } from 'react';
+import { ReactNode, useCallback } from 'react';
 import { Pressable, Text, ViewStyle, StyleProp, ActivityIndicator } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,10 +52,10 @@ export function Button({
     <Ionicons name={icon} size={size === 'sm' ? 16 : 18} color={palette.fg} />
   ) : null;
 
-  const handlePress = (): void => {
+  const handlePress = useCallback((): void => {
     if (haptic) h[haptic]();
     onPress?.();
-  };
+  }, [haptic, h, onPress]);
 
   return (
     <Animated.View style={[press.animatedStyle, fullWidth && { alignSelf: 'stretch' }]}>

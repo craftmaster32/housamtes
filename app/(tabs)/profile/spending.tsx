@@ -1,13 +1,6 @@
-// app/(tabs)/profile/spending.v2.tsx
-// V2 Spending Analysis — drop-in replacement for the existing screen.
-// Same data contracts (useSpendingStore, useAuthStore, useSettingsStore).
-// Adds: dark theme support, Reanimated bar transitions, count-up amounts,
-// LayoutAnimation drill-downs, swipe-to-jump-month gesture, locale-aware
-// currency formatting via constants/currencies.
-//
-// To roll out, rename to `spending.tsx` to replace the existing screen.
-// All deps (Reanimated 3, Gesture Handler 2, Haptics) are already in the
-// project's package.json — no installs required.
+// app/(tabs)/profile/spending.tsx
+// Spending Analysis screen — dark theme, animated bars, count-up amounts,
+// swipe-to-change-month, LayoutAnimation drill-downs.
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
@@ -16,7 +9,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, withSpring,
+  useSharedValue, useAnimatedStyle, withTiming, withSpring, withRepeat,
   cancelAnimation, runOnJS, Easing,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -132,12 +125,11 @@ function InsightCard({ insight, isLoading, onRefresh, C }: InsightCardProps): Re
   useEffect(() => {
     if (isLoading) {
       rotation.value = 0;
-      rotation.value = withTiming(360, { duration: 900, easing: Easing.linear }, (finished) => {
-        if (finished && isLoading) {
-          // Loop while loading.
-          rotation.value = 0;
-        }
-      });
+      rotation.value = withRepeat(
+        withTiming(360, { duration: 900, easing: Easing.linear }),
+        -1,
+        false,
+      );
     } else {
       cancelAnimation(rotation);
       rotation.value = withTiming(0, { duration: 200 });
@@ -164,6 +156,7 @@ function InsightCard({ insight, isLoading, onRefresh, C }: InsightCardProps): Re
             onPress={onRefresh}
             disabled={isLoading}
             style={s.refreshBtn}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             accessible
             accessibilityRole="button"
             accessibilityLabel="Refresh insight"
@@ -484,14 +477,11 @@ export default function SpendingScreen(): React.JSX.Element {
   const load           = useSpendingStore((s) => s.load);
   const fetchInsight   = useSpendingStore((s) => s.fetchInsight);
 
-  // Settings store may store either legacy symbol or new `currencyCode`.
-  // Prefer the explicit code; fall back to symbol-derived default.
-  const settings = useSettingsStore() as unknown as {
-    currency?: string;
-    currencyCode?: CurrencyCode;
-  };
-  const currencyCode: CurrencyCode = settings.currencyCode
-    ?? (settings.currency ? deriveCodeFromSymbol(settings.currency) : 'ILS');
+  // Prefer the explicit currencyCode field; fall back to deriving from the
+  // legacy symbol string so this works before the Settings UI lands.
+  const storedCode    = useSettingsStore((s) => (s as unknown as { currencyCode?: CurrencyCode }).currencyCode);
+  const legacySymbol  = useSettingsStore((s) => (s as unknown as { currency?: string }).currency);
+  const currencyCode: CurrencyCode = storedCode ?? (legacySymbol ? deriveCodeFromSymbol(legacySymbol) : 'ILS');
   const currency = getCurrency(currencyCode);
 
   const userName = profile?.name ?? '';
@@ -528,34 +518,38 @@ export default function SpendingScreen(): React.JSX.Element {
     setExpandedCategory((prev) => prev === name ? null : name);
   }, []);
 
+  // navigateMonth reads selectedIdx directly so the setState updater stays pure
+  // (no side effects inside the updater — fixes Strict Mode double-invoke).
+  const navigateMonth = useCallback((direction: 'older' | 'newer'): void => {
+    const next = direction === 'older' ? selectedIdx + 1 : selectedIdx - 1;
+    if (next < 0 || next >= months.length) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedIdx(next);
+    setExpandedCategory(null);
+  }, [selectedIdx, months.length]);
+
+  // Keep a ref so the gesture memo (stable, deps=[]) always calls the latest
+  // navigateMonth without recreating the gesture on every month change.
+  const navigateMonthRef = useRef(navigateMonth);
+  useEffect(() => { navigateMonthRef.current = navigateMonth; }, [navigateMonth]);
+
   // Swipe-to-jump-month — horizontal swipes on the main list move between
   // months. Right swipe → older, left swipe → newer.
-  const swipeGesture = useMemo(() => Gesture.Pan()
-    .activeOffsetX([-20, 20])
-    .failOffsetY([-20, 20])
-    .onEnd((e) => {
-      'worklet';
-      const dx = e.translationX;
-      const vx = e.velocityX;
-      const fast = Math.abs(vx) > SWIPE_VELOCITY_THRESHOLD;
-      const far  = Math.abs(dx) > SWIPE_DISTANCE_THRESHOLD;
-      if (!fast && !far) return;
-
-      const direction: 'older' | 'newer' = dx < 0 ? 'newer' : 'older';
-      runOnJS(navigateMonth)(direction);
-    }),
+  const swipeGesture = useMemo(() => {
+    const dispatch = (direction: 'older' | 'newer'): void => navigateMonthRef.current(direction);
+    return Gesture.Pan()
+      .activeOffsetX([-20, 20])
+      .failOffsetY([-20, 20])
+      .onEnd((e) => {
+        'worklet';
+        const dx = e.translationX;
+        const vx = e.velocityX;
+        if (Math.abs(vx) <= SWIPE_VELOCITY_THRESHOLD && Math.abs(dx) <= SWIPE_DISTANCE_THRESHOLD) return;
+        const direction: 'older' | 'newer' = dx < 0 ? 'newer' : 'older';
+        runOnJS(dispatch)(direction);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  []);
-
-  const navigateMonth = useCallback((direction: 'older' | 'newer'): void => {
-    setSelectedIdx((prev) => {
-      const next = direction === 'older' ? prev + 1 : prev - 1;
-      if (next < 0 || next >= months.length) return prev;
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      return next;
-    });
-    setExpandedCategory(null);
-  }, [months.length]);
+  }, []);
 
   const selectedMonth = months[selectedIdx];
   const previousMonth = months[selectedIdx + 1];

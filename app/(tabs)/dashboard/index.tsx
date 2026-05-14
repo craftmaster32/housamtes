@@ -408,6 +408,7 @@ function ParkingCard(): React.JSX.Element {
   const isMine       = current?.occupant === myId;
   const haptic       = useHaptic();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const lastSeen           = useBadgeStore((s) => s.lastSeen);
   const sortedReservations = [...reservations].sort((a, b) => a.date.localeCompare(b.date));
@@ -417,26 +418,34 @@ function ParkingCard(): React.JSX.Element {
   const newReservations    = countNew(reservations as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.parking, myId, 'requestedBy');
 
   const handleClaim = useCallback(async (): Promise<void> => {
+    if (isSubmitting) return;
     setActionError(null);
+    setIsSubmitting(true);
     try {
       await claim(myId, myName, houseId ?? '');
       haptic.success();
     } catch {
       haptic.error();
       setActionError('Could not claim the spot. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [claim, myId, myName, houseId, haptic]);
+  }, [claim, myId, myName, houseId, haptic, isSubmitting]);
 
   const handleRelease = useCallback(async (): Promise<void> => {
+    if (isSubmitting) return;
     setActionError(null);
+    setIsSubmitting(true);
     try {
       await release(houseId ?? '');
       haptic.warn();
     } catch {
       haptic.error();
       setActionError('Could not release the spot. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [release, houseId, haptic]);
+  }, [release, houseId, haptic, isSubmitting]);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
@@ -494,13 +503,27 @@ function ParkingCard(): React.JSX.Element {
         </View>
       )}
       {isFree && (
-        <Pressable style={[styles.claimBtn, { backgroundColor: c.positive }]} onPress={(e) => { e.stopPropagation?.(); handleClaim(); }} accessibilityRole="button" accessibilityLabel="Claim parking spot">
+        <Pressable
+          style={[styles.claimBtn, { backgroundColor: c.positive, opacity: isSubmitting ? 0.5 : 1 }]}
+          onPress={(e) => { e.stopPropagation?.(); handleClaim(); }}
+          disabled={isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel="Claim parking spot"
+          accessibilityState={{ disabled: isSubmitting }}
+        >
           <Ionicons name="car" size={14} color="#fff" />
           <Text style={styles.claimBtnText}>Claim Spot</Text>
         </Pressable>
       )}
       {isMine && (
-        <Pressable style={[styles.releaseBtn, { borderColor: c.negative + '40' }]} onPress={(e) => { e.stopPropagation?.(); handleRelease(); }} accessibilityRole="button" accessibilityLabel="Release parking spot">
+        <Pressable
+          style={[styles.releaseBtn, { borderColor: c.negative + '40', opacity: isSubmitting ? 0.5 : 1 }]}
+          onPress={(e) => { e.stopPropagation?.(); handleRelease(); }}
+          disabled={isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel="Release parking spot"
+          accessibilityState={{ disabled: isSubmitting }}
+        >
           <Ionicons name="exit-outline" size={14} color={c.negative} />
           <Text style={[styles.releaseBtnText, { color: c.negative }]}>Release Spot</Text>
         </Pressable>
@@ -926,6 +949,7 @@ export default function DashboardScreen(): React.JSX.Element {
   const { width }  = useWindowDimensions();
 
   const openProfile  = useProfilePopupStore((s) => s.open);
+  const hasBills     = useBillsStore((s) => s.bills.length > 0);
 
   const isWide = width >= 680;
   const myName = profile?.name ?? 'there';
@@ -1018,9 +1042,11 @@ export default function DashboardScreen(): React.JSX.Element {
           )}
 
           {/* ── Recent expenses ───────────────────────────────────────── */}
-          <Animated.View style={[styles.row, recentExpensesFade]}>
-            <RecentExpenses />
-          </Animated.View>
+          {hasBills && (
+            <Animated.View style={[styles.row, recentExpensesFade]}>
+              <RecentExpenses />
+            </Animated.View>
+          )}
 
           {/* ── Chore + Parking detail cards ──────────────────────────── */}
           <Animated.View style={[styles.row, isWide && styles.rowWide, choreParkingFade]}>

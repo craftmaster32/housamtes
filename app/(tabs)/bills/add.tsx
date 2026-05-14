@@ -180,6 +180,7 @@ export default function AddBillScreen(): React.JSX.Element {
       router.replace('/(tabs)/bills');
     } catch {
       setError(t('bills.failed_save'));
+    } finally {
       setIsLoading(false);
     }
   }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, category, date, addBill, houseId, getCustomTotal, markSeen, haptic, resetForm, allIds, myId, t]);
@@ -214,6 +215,7 @@ export default function AddBillScreen(): React.JSX.Element {
               outlineColor={C.border}
               activeOutlineColor={C.primary}
               accessibilityLabel={t('bills.what_for')}
+              accessibilityHint={t('bills.what_for_hint')}
             />
           </Field>
 
@@ -229,6 +231,7 @@ export default function AddBillScreen(): React.JSX.Element {
               outlineColor={C.border}
               activeOutlineColor={C.primary}
               accessibilityLabel={t('bills.amount')}
+              accessibilityHint={t('bills.amount_hint')}
             />
           </Field>
 
@@ -320,6 +323,8 @@ export default function AddBillScreen(): React.JSX.Element {
                         placeholder="0.00"
                         dense
                         outlineColor={C.border}
+                        accessibilityLabel={t('bills.custom_amount_for', { name: housemates.find((h) => h.id === id)?.name ?? id })}
+                        accessibilityHint={t('bills.custom_amount_hint')}
                         activeOutlineColor={C.primary}
                       />
                     </View>

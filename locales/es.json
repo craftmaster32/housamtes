@@ -39,7 +39,9 @@
     "all": "Todos",
     "optional": "opcional",
     "new": "Nuevo",
-    "or": "o"
+    "or": "o",
+    "edit_hint": "Toca para editar este gasto",
+    "cancel_hint": "Toca para cancelar la edición"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -310,7 +312,16 @@
     "next_month": "Mes siguiente",
     "add_expense": "Agregar gasto",
     "load_error": "No se pudieron cargar los gastos",
-    "retry": "Intentar de nuevo"
+    "retry": "Intentar de nuevo",
+    "title_hint": "Introduce una breve descripción del gasto",
+    "amount_hint": "Introduce el importe total pagado",
+    "notes_hint": "Añade notas opcionales sobre este gasto",
+    "what_for_hint": "Introduce una breve descripción del gasto",
+    "custom_amount_for": "Importe para {{name}}",
+    "custom_amount_hint": "Introduce la parte correspondiente a esta persona",
+    "failed_delete": "Error al eliminar el gasto. Inténtalo de nuevo.",
+    "delete_confirm_title": "Eliminar gasto",
+    "delete_confirm_message": "¿Eliminar \"{{title}}\"? Esta acción no se puede deshacer."
   },
   "parking": {
     "title": "Estacionamiento",

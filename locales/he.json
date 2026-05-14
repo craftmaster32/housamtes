@@ -38,7 +38,9 @@
     "all": "הכל",
     "optional": "אופציונלי",
     "new": "חדש",
-    "or": "או"
+    "or": "או",
+    "edit_hint": "הקש כדי לערוך חשבון זה",
+    "cancel_hint": "הקש כדי לבטל את העריכה"
   },
   "nav": {
     "dashboard": "ראשי",
@@ -310,7 +312,16 @@
     "next_month": "חודש הבא",
     "add_expense": "הוסף הוצאה",
     "load_error": "לא ניתן לטעון חשבונות",
-    "retry": "נסה שוב"
+    "retry": "נסה שוב",
+    "title_hint": "הזן תיאור קצר של ההוצאה",
+    "amount_hint": "הזן את הסכום הכולל ששולם",
+    "notes_hint": "הוסף הערות אופציונליות להוצאה זו",
+    "what_for_hint": "הזן תיאור קצר של ההוצאה",
+    "custom_amount_for": "סכום עבור {{name}}",
+    "custom_amount_hint": "הזן את החלק של אדם זה מהסכום הכולל",
+    "failed_delete": "מחיקת החשבון נכשלה. נסה שוב.",
+    "delete_confirm_title": "מחיקת חשבון",
+    "delete_confirm_message": "למחוק את \"{{title}}\"? לא ניתן לבטל פעולה זו."
   },
   "parking": {
     "title": "חניה",
