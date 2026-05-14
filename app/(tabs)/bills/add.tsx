@@ -1,3 +1,10 @@
+// app/(tabs)/bills/add.tsx
+// Add expense — v2 redesign.
+// Same data flow as v1 (useBillsStore, useHousematesStore, useAuthStore,
+// useSettingsStore, useBadgeStore). New: dark theme via useThemedColors,
+// `type` ladder, `Header` UI primitive, animated press scale on every chip,
+// fade-up entrance, count-up "per person" preview, success haptic on save.
+
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
@@ -5,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import Animated from 'react-native-reanimated';
 import { useBillsStore, CATEGORIES } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
@@ -13,9 +21,10 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
-import { Button, EmptyState } from '@components/ui';
+import { Button, EmptyState, Header } from '@components/ui';
+import { type } from '@constants/typography';
 import { sizes } from '@constants/sizes';
-import { font } from '@constants/typography';
+import { useFadeInUp, usePressScale, useCountUp, useHaptic } from '@utils/animations';
 
 type SplitType = 'equal' | 'custom';
 
@@ -51,6 +60,7 @@ export default function AddBillScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const haptic = useHaptic();
   const housemates = useHousematesStore((state) => state.housemates);
   const housematesLoading = useHousematesStore((state) => state.isLoading);
   const addBill = useBillsStore((state) => state.addBill);
@@ -62,26 +72,29 @@ export default function AddBillScreen(): React.JSX.Element {
   const myId = profile?.id ?? '';
   const allIds = useMemo(() => housemates.map((h) => h.id), [housemates]);
 
-  // Refs keep the latest values accessible inside the stable useFocusEffect
+  // Refs keep latest values accessible inside the stable useFocusEffect
   // callback without making allIds/myId part of its dependency array — which
-  // would re-fire the effect (and wipe a draft) whenever housemates reload.
+  // would re-fire the effect and wipe the draft on every housemate reload.
   const allIdsRef = useRef(allIds);
   allIdsRef.current = allIds;
   const myIdRef = useRef(myId);
   myIdRef.current = myId;
 
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState('');
+  const [title, setTitle]                 = useState('');
+  const [amount, setAmount]               = useState('');
+  const [paidBy, setPaidBy]               = useState('');
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
-  const [category, setCategory] = useState(CATEGORIES[0]);
-  const [date, setDate] = useState(todayString);
+  const [category, setCategory]           = useState(CATEGORIES[0]);
+  const [date, setDate]                   = useState(todayString);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
-  const [splitType, setSplitType] = useState<SplitType>('equal');
+  const [splitType, setSplitType]         = useState<SplitType>('equal');
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading]         = useState(false);
+  const [error, setError]                 = useState('');
+
+  // Entry fade-up for the form.
+  const fadeStyle = useFadeInUp(0);
 
   const resetForm = useCallback((ids: string[], userId: string) => {
     setTitle('');
@@ -114,6 +127,13 @@ export default function AddBillScreen(): React.JSX.Element {
   }, []);
 
   const totalAmount = parseFloat(amount) || 0;
+  const perPerson   = selectedPeople.length > 0 ? totalAmount / selectedPeople.length : 0;
+
+  // Animated "per person" amount preview.
+  const displayPerPerson = useCountUp(perPerson, {
+    formatter: (n) => formatFull(n, currencyCode),
+    duration: 350,
+  });
 
   const getCustomTotal = useCallback((): number => {
     return selectedPeople.reduce(
@@ -154,6 +174,7 @@ export default function AddBillScreen(): React.JSX.Element {
         date,
       }, houseId ?? '');
       markSeen('bills').catch(() => {});
+      haptic.success();
       // Reset before navigating so stale state never persists on re-entry
       resetForm(allIds, myId);
       router.replace('/(tabs)/bills');
@@ -161,11 +182,12 @@ export default function AddBillScreen(): React.JSX.Element {
       setError(t('bills.failed_save'));
       setIsLoading(false);
     }
-  }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, category, date, addBill, houseId, getCustomTotal, markSeen, resetForm, allIds, myId, t]);
+  }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, category, date, addBill, houseId, getCustomTotal, markSeen, haptic, resetForm, allIds, myId, t]);
 
   if (housematesLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Header title={t('bills.add_title')} back />
         <View style={styles.centered}>
           <EmptyState mode="loading" title="Loading…" />
         </View>
@@ -173,228 +195,200 @@ export default function AddBillScreen(): React.JSX.Element {
     );
   }
 
+  const canSave = !isLoading && title.trim() && amount && paidBy && selectedPeople.length > 0;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <Header title={t('bills.add_title')} back />
+      <Animated.View style={[styles.flex, fadeStyle]}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← {t('common.back')}</Text>
-          </Pressable>
-          <Text style={styles.heading}>{t('bills.add_title')}</Text>
-        </View>
+          {/* ── Title ────────────────────────────────────────────── */}
+          <Field label={t('bills.what_for')} C={C}>
+            <TextInput
+              value={title}
+              onChangeText={(v) => { setTitle(v); setError(''); }}
+              mode="outlined"
+              style={styles.input}
+              placeholder={t('bills.what_for_placeholder')}
+              outlineColor={C.border}
+              activeOutlineColor={C.primary}
+              accessibilityLabel={t('bills.what_for')}
+            />
+          </Field>
 
-        {/* Title */}
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('bills.what_for')}</Text>
-          <TextInput
-            value={title}
-            onChangeText={(v) => { setTitle(v); setError(''); }}
-            mode="outlined"
-            style={styles.input}
-            placeholder={t('bills.what_for_placeholder')}
-            outlineColor={C.border}
-            activeOutlineColor={C.primary}
-            accessibilityLabel={t('bills.what_for')}
-            accessibilityHint={t('bills.what_for_placeholder')}
-          />
-        </View>
+          {/* ── Amount ───────────────────────────────────────────── */}
+          <Field label={t('bills.amount')} C={C}>
+            <TextInput
+              value={amount}
+              onChangeText={(v) => { setAmount(v); setError(''); }}
+              mode="outlined"
+              style={styles.input}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              outlineColor={C.border}
+              activeOutlineColor={C.primary}
+              accessibilityLabel={t('bills.amount')}
+            />
+          </Field>
 
-        {/* Amount */}
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('bills.amount')}</Text>
-          <TextInput
-            value={amount}
-            onChangeText={(v) => { setAmount(v); setError(''); }}
-            mode="outlined"
-            style={styles.input}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            outlineColor={C.border}
-            activeOutlineColor={C.primary}
-            accessibilityLabel={t('bills.amount')}
-            accessibilityHint={t('bills.enter_valid_amount')}
-          />
-        </View>
-
-        {/* Who paid */}
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('bills.who_paid')}</Text>
-          <View style={styles.chipRow}>
-            {housemates.map((h) => (
-              <Pressable
-                key={h.id}
-                style={[styles.chip, paidBy === h.id && styles.chipSelected]}
-                onPress={() => setPaidBy(h.id)}
-                accessible
-                accessibilityRole="radio"
-                accessibilityState={{ selected: paidBy === h.id }}
-              >
-                <Text style={[styles.chipText, paidBy === h.id && styles.chipTextSelected]}>
-                  {h.name}{h.id === myId ? ` (${t('common.me')})` : ''}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Split between */}
-        <View style={styles.field}>
-          <View style={styles.labelRow}>
-            <Text style={styles.label}>{t('bills.split_between')}</Text>
-            <Pressable onPress={() => setSelectedPeople(allIds)}>
-              <Text style={styles.selectAll}>{t('bills.select_all')}</Text>
-            </Pressable>
-          </View>
-          <View style={styles.chipRow}>
-            {housemates.map((h) => (
-              <Pressable
-                key={h.id}
-                style={[styles.chip, selectedPeople.includes(h.id) && styles.chipSelected]}
-                onPress={() => togglePerson(h.id)}
-                accessible
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: selectedPeople.includes(h.id) }}
-              >
-                <Text style={[styles.chipText, selectedPeople.includes(h.id) && styles.chipTextSelected]}>
-                  {h.name}{h.id === myId ? ` (${t('common.me')})` : ''}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          {selectedPeople.length > 0 && (
-            <Text style={styles.splitCount}>
-              {t('bills.selected_one', { count: selectedPeople.length })}
-            </Text>
-          )}
-        </View>
-
-        {/* How to split */}
-        {selectedPeople.length > 0 && (
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('bills.how_to_split')}</Text>
+          {/* ── Who paid ─────────────────────────────────────────── */}
+          <Field label={t('bills.who_paid')} C={C}>
             <View style={styles.chipRow}>
-              <Pressable
-                style={[styles.chip, splitType === 'equal' && styles.chipSelected]}
-                onPress={() => setSplitType('equal')}
-              >
-                <Text style={[styles.chipText, splitType === 'equal' && styles.chipTextSelected]}>
-                  {t('bills.equal')}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.chip, splitType === 'custom' && styles.chipSelected]}
-                onPress={() => setSplitType('custom')}
-              >
-                <Text style={[styles.chipText, splitType === 'custom' && styles.chipTextSelected]}>
-                  {t('bills.custom_amounts')}
-                </Text>
-              </Pressable>
+              {housemates.map((h) => (
+                <PersonChip
+                  key={h.id}
+                  selected={paidBy === h.id}
+                  onPress={() => setPaidBy(h.id)}
+                  label={`${h.name}${h.id === myId ? ` (${t('common.me')})` : ''}`}
+                  role="radio"
+                  C={C}
+                />
+              ))}
             </View>
+          </Field>
 
-            {splitType === 'equal' && totalAmount > 0 && (
-              <View style={styles.previewBox}>
-                <Text style={styles.previewText}>
-                  {formatFull(totalAmount / selectedPeople.length, currencyCode)} {t('bills.per_person')}
-                </Text>
-              </View>
+          {/* ── Split between ────────────────────────────────────── */}
+          <Field
+            label={t('bills.split_between')}
+            right={
+              <Pressable onPress={() => setSelectedPeople(allIds)} accessibilityRole="button">
+                <Text style={[type.labelSm, { color: C.primary }]}>{t('bills.select_all')}</Text>
+              </Pressable>
+            }
+            C={C}
+          >
+            <View style={styles.chipRow}>
+              {housemates.map((h) => (
+                <PersonChip
+                  key={h.id}
+                  selected={selectedPeople.includes(h.id)}
+                  onPress={() => togglePerson(h.id)}
+                  label={`${h.name}${h.id === myId ? ` (${t('common.me')})` : ''}`}
+                  role="checkbox"
+                  C={C}
+                />
+              ))}
+            </View>
+            {selectedPeople.length > 0 && (
+              <Text style={[type.caption, { color: C.textSecondary, marginTop: 4 }]}>
+                {t('bills.selected_one', { count: selectedPeople.length })}
+              </Text>
             )}
+          </Field>
 
-            {splitType === 'custom' && (
-              <View style={styles.customBox}>
-                {selectedPeople.map((id) => (
-                  <View key={id} style={styles.customRow}>
-                    <Text style={styles.customName}>{housemates.find((h) => h.id === id)?.name ?? id}</Text>
-                    <TextInput
-                      value={customAmounts[id] ?? ''}
-                      onChangeText={(v) => setPersonAmount(id, v)}
-                      mode="outlined"
-                      style={styles.customInput}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      dense
-                      outlineColor={C.border}
-                      activeOutlineColor={C.primary}
-                    />
-                  </View>
-                ))}
-                <View style={styles.customTotal}>
-                  <Text style={styles.customTotalLabel}>{t('bills.total_entered')}</Text>
-                  <Text style={[
-                    styles.customTotalValue,
-                    { color: Math.abs(getCustomTotal() - totalAmount) < 0.01 ? C.positive : C.danger },
-                  ]}>
-                    {formatFull(getCustomTotal(), currencyCode)} / {formatFull(totalAmount, currencyCode)}
+          {/* ── How to split ─────────────────────────────────────── */}
+          {selectedPeople.length > 0 && (
+            <Field label={t('bills.how_to_split')} C={C}>
+              <View style={styles.chipRow}>
+                <SplitTypeChip
+                  selected={splitType === 'equal'}
+                  onPress={() => setSplitType('equal')}
+                  label={t('bills.equal')}
+                  C={C}
+                />
+                <SplitTypeChip
+                  selected={splitType === 'custom'}
+                  onPress={() => setSplitType('custom')}
+                  label={t('bills.custom_amounts')}
+                  C={C}
+                />
+              </View>
+
+              {splitType === 'equal' && totalAmount > 0 && (
+                <View style={styles.previewBox}>
+                  <Ionicons name="people-outline" size={16} color={C.primary} />
+                  <Text style={[type.labelSm, { color: C.primary }]}>
+                    {displayPerPerson} {t('bills.per_person')}
                   </Text>
                 </View>
-              </View>
-            )}
-          </View>
-        )}
+              )}
 
-        {/* Category */}
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('bills.category')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-            {CATEGORIES.map((cat) => {
-              const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
-              const selected = category === cat;
-              return (
-                <Pressable
-                  key={cat}
-                  style={[styles.catChip, selected && styles.catChipSelected]}
-                  onPress={() => setCategory(cat)}
-                  accessible
-                  accessibilityRole="radio"
-                  accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
-                  accessibilityState={{ selected }}
-                >
-                  <Ionicons name={icon} size={15} color={selected ? C.white : C.primary} />
-                  <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
-                    {t(`bills.cat_${cat.toLowerCase()}`)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
+              {splitType === 'custom' && (
+                <View style={[styles.customBox, { backgroundColor: C.surface, borderColor: C.border }]}>
+                  {selectedPeople.map((id) => (
+                    <View key={id} style={styles.customRow}>
+                      <Text style={[type.bodyMdMed, { color: C.textPrimary, flex: 1 }]}>
+                        {housemates.find((h) => h.id === id)?.name ?? id}
+                      </Text>
+                      <TextInput
+                        value={customAmounts[id] ?? ''}
+                        onChangeText={(v) => setPersonAmount(id, v)}
+                        mode="outlined"
+                        style={styles.customInput}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        dense
+                        outlineColor={C.border}
+                        activeOutlineColor={C.primary}
+                      />
+                    </View>
+                  ))}
+                  <View style={[styles.customTotal, { borderTopColor: C.border }]}>
+                    <Text style={[type.bodyMdMed, { color: C.textSecondary }]}>{t('bills.total_entered')}</Text>
+                    <Text style={[type.amount, {
+                      color: Math.abs(getCustomTotal() - totalAmount) < 0.01 ? C.positive : C.danger,
+                    }]}>
+                      {formatFull(getCustomTotal(), currencyCode)} / {formatFull(totalAmount, currencyCode)}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </Field>
+          )}
 
-        {/* Date */}
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('bills.date')}</Text>
-          <Pressable
-            style={styles.dateTrigger}
-            onPress={() => setShowDatePicker(true)}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('bills.pick_date')}
-            accessibilityState={{ expanded: showDatePicker }}
+          {/* ── Category ─────────────────────────────────────────── */}
+          <Field label={t('bills.category')} C={C}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+              {CATEGORIES.map((cat) => {
+                const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
+                const selected = category === cat;
+                return (
+                  <CategoryChip
+                    key={cat}
+                    icon={icon}
+                    selected={selected}
+                    onPress={() => setCategory(cat)}
+                    label={t(`bills.cat_${cat.toLowerCase()}`)}
+                    C={C}
+                  />
+                );
+              })}
+            </ScrollView>
+          </Field>
+
+          {/* ── Date ─────────────────────────────────────────────── */}
+          <Field label={t('bills.date')} C={C}>
+            <DateTrigger
+              date={date}
+              onPress={() => setShowDatePicker(true)}
+              expanded={showDatePicker}
+              locale={i18n.language}
+              C={C}
+            />
+          </Field>
+
+          {!!error && (
+            <View style={[styles.errorBox, { backgroundColor: C.danger + '14' }]}>
+              <Ionicons name="warning-outline" size={16} color={C.danger} />
+              <Text style={[type.bodySm, { color: C.danger, flex: 1 }]}>{error}</Text>
+            </View>
+          )}
+
+          <Button
+            variant="primary"
+            onPress={handleSave}
+            loading={isLoading}
+            disabled={!canSave}
+            fullWidth
+            size="lg"
+            style={styles.saveBtn}
+            haptic={null /* save handler fires success haptic explicitly */}
           >
-            <Ionicons name="calendar-outline" size={18} color={C.primary} />
-            <Text style={styles.dateTriggerText}>{formatDisplayDate(date, i18n.language)}</Text>
-            <Ionicons name="chevron-down" size={16} color={C.textSecondary} />
-          </Pressable>
-        </View>
-
-        {!!error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-
-        <Button
-          variant="primary"
-          onPress={handleSave}
-          loading={isLoading}
-          disabled={isLoading || !title || !amount || !paidBy || selectedPeople.length === 0}
-          fullWidth
-          size="lg"
-          style={styles.saveBtn}
-        >
-          {t('bills.save_expense')}
-        </Button>
-      </ScrollView>
+            {t('bills.save_expense')}
+          </Button>
+        </ScrollView>
+      </Animated.View>
 
       <DatePickerModal
         visible={showDatePicker}
@@ -406,104 +400,199 @@ export default function AddBillScreen(): React.JSX.Element {
   );
 }
 
-const makeStyles = (C: ColorTokens) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content: { padding: sizes.lg, gap: sizes.md, paddingBottom: 60 },
+// ── Sub-components ──────────────────────────────────────────────────────────
 
-  header: { gap: 4, marginBottom: sizes.xs },
-  backBtn: { alignSelf: 'flex-start' },
-  backText: { color: C.primary, fontSize: 15, ...font.semibold },
-  heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+function Field({ label, right, children, C }: {
+  label: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+  C: ColorTokens;
+}): React.JSX.Element {
+  return (
+    <View style={{ gap: 8 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={[type.eyebrow, { color: C.textSecondary }]}>{label}</Text>
+        {right}
+      </View>
+      {children}
+    </View>
+  );
+}
 
-  field: { gap: sizes.xs },
-  label: { color: C.textPrimary, ...font.semibold, fontSize: 14 },
-  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  selectAll: { color: C.primary, fontSize: 13, ...font.semibold },
-  input: { backgroundColor: C.surface },
+function PersonChip({
+  selected, onPress, label, role, C,
+}: {
+  selected: boolean;
+  onPress: () => void;
+  label: string;
+  role: 'radio' | 'checkbox';
+  C: ColorTokens;
+}): React.JSX.Element {
+  const press = usePressScale(0.95);
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        style={[
+          {
+            paddingVertical: 9,
+            paddingHorizontal: 14,
+            borderRadius: 9999,
+            borderWidth: 1.5,
+            borderColor: selected ? C.primary : C.border,
+            backgroundColor: selected ? C.primary : C.surface,
+          },
+        ]}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        accessibilityRole={role}
+        accessibilityState={role === 'radio' ? { selected } : { checked: selected }}
+      >
+        <Text style={[type.labelSm, { color: selected ? '#fff' : C.textPrimary }]}>{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  chip: {
-    paddingVertical: 8,
-    paddingHorizontal: sizes.sm,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    backgroundColor: C.surface,
-  },
-  chipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-  chipText: { color: C.textPrimary, fontSize: 14, ...font.medium },
-  chipTextSelected: { color: C.white },
-  splitCount: { color: C.textSecondary, fontSize: 12, ...font.regular, marginTop: 2 },
+function SplitTypeChip({
+  selected, onPress, label, C,
+}: {
+  selected: boolean;
+  onPress: () => void;
+  label: string;
+  C: ColorTokens;
+}): React.JSX.Element {
+  const press = usePressScale(0.95);
+  return (
+    <Animated.View style={[{ flex: 1 }, press.animatedStyle]}>
+      <Pressable
+        style={[
+          {
+            paddingVertical: 11, paddingHorizontal: 14, minHeight: 44,
+            borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+            borderWidth: 1.5,
+            borderColor: selected ? C.primary : C.border,
+            backgroundColor: selected ? C.primary : C.surface,
+          },
+        ]}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        accessibilityRole="radio"
+        accessibilityState={{ selected }}
+      >
+        <Text style={[type.labelSm, { color: selected ? '#fff' : C.textPrimary }]}>{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
-  previewBox: {
-    backgroundColor: C.primary + '12',
-    borderRadius: 10,
-    padding: sizes.sm,
-    alignItems: 'center',
-    marginTop: sizes.xs,
-  },
-  previewText: { color: C.primary, ...font.semibold, fontSize: 15 },
+function CategoryChip({
+  icon, selected, onPress, label, C,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  selected: boolean;
+  onPress: () => void;
+  label: string;
+  C: ColorTokens;
+}): React.JSX.Element {
+  const press = usePressScale(0.93);
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        style={[
+          {
+            flexDirection: 'row', alignItems: 'center', gap: 5,
+            paddingVertical: 10, paddingHorizontal: 12, minHeight: 44,
+            borderRadius: 9999, borderWidth: 1.5,
+            borderColor: selected ? C.primary : C.primary + '55',
+            backgroundColor: selected ? C.primary : C.primary + '08',
+          },
+        ]}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        accessibilityRole="radio"
+        accessibilityLabel={label}
+        accessibilityState={{ selected }}
+      >
+        <Ionicons name={icon} size={15} color={selected ? '#fff' : C.primary} />
+        <Text style={[type.labelSm, { color: selected ? '#fff' : C.primary }]}>{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
-  customBox: {
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    padding: sizes.md,
-    gap: sizes.sm,
-    borderWidth: 1,
-    borderColor: C.border,
-    marginTop: sizes.xs,
-  },
-  customRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-  customName: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
-  customInput: { width: 110, backgroundColor: C.surface },
-  customTotal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: sizes.xs,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-  },
-  customTotalLabel: { color: C.textSecondary, fontSize: 14, ...font.medium },
-  customTotalValue: { fontSize: 14, ...font.semibold },
+function DateTrigger({
+  date, onPress, expanded, locale, C,
+}: {
+  date: string;
+  onPress: () => void;
+  expanded: boolean;
+  locale: string;
+  C: ColorTokens;
+}): React.JSX.Element {
+  const press = usePressScale(0.98);
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        style={[
+          {
+            flexDirection: 'row', alignItems: 'center', gap: 10,
+            backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+            borderRadius: 10, paddingHorizontal: 14, paddingVertical: 14, minHeight: 44,
+          },
+        ]}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+      >
+        <Ionicons name="calendar-outline" size={18} color={C.primary} />
+        <Text style={[type.bodyMd, { color: C.textPrimary, flex: 1 }]}>{formatDisplayDate(date, locale)}</Text>
+        <Ionicons name="chevron-down" size={16} color={C.textSecondary} />
+      </Pressable>
+    </Animated.View>
+  );
+}
 
-  categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
-  catChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    minHeight: 44,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 1.5,
-    borderColor: C.primary + '55',
-    backgroundColor: C.primary + '08',
-  },
-  catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-  catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
-  catChipTextSelected: { color: C.white },
+// ── Styles ──────────────────────────────────────────────────────────────────
+function makeStyles(C: ColorTokens) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    flex:      { flex: 1 },
+    centered:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    content:   { padding: sizes.lg, gap: sizes.lg, paddingBottom: 60 },
 
-  dateTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    minHeight: 44,
-  },
-  dateTriggerText: { flex: 1, fontSize: 15, ...font.medium, color: C.textPrimary },
+    input: { backgroundColor: C.surface },
 
-  errorBox: {
-    backgroundColor: C.danger + '12',
-    borderRadius: 10,
-    padding: sizes.md,
-  },
-  errorText: { color: C.danger, fontSize: 14, ...font.regular },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 
-  saveBtn: { marginTop: sizes.sm },
-});
+    previewBox: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: C.primary + '14',
+      borderRadius: 10, padding: sizes.sm, marginTop: 4,
+    },
+
+    customBox: {
+      borderRadius: 12, padding: sizes.md, gap: sizes.sm,
+      borderWidth: 1, marginTop: 4,
+    },
+    customRow:   { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
+    customInput: { width: 110, backgroundColor: C.surface },
+    customTotal: {
+      flexDirection: 'row', justifyContent: 'space-between',
+      paddingTop: sizes.xs, borderTopWidth: 1,
+    },
+
+    categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
+
+    errorBox: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      borderRadius: 10, padding: sizes.md,
+    },
+
+    saveBtn: { marginTop: sizes.sm },
+  });
+}
