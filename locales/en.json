@@ -39,7 +39,9 @@
     "all": "All",
     "optional": "optional",
     "new": "New",
-    "or": "or"
+    "or": "or",
+    "edit_hint": "Tap to edit this bill",
+    "cancel_hint": "Tap to cancel editing"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -311,7 +313,16 @@
     "next_month": "Next month",
     "add_expense": "Add expense",
     "load_error": "Couldn't load bills",
-    "retry": "Try again"
+    "retry": "Try again",
+    "title_hint": "Enter a short description of what this expense was for",
+    "amount_hint": "Enter the total amount paid",
+    "notes_hint": "Add any optional notes about this expense",
+    "what_for_hint": "Enter a short description of the expense",
+    "custom_amount_for": "Amount for {{name}}",
+    "custom_amount_hint": "Enter this person's share of the total",
+    "failed_delete": "Failed to delete bill. Try again.",
+    "delete_confirm_title": "Delete Bill",
+    "delete_confirm_message": "Delete \"{{title}}\"? This cannot be undone."
   },
   "parking": {
     "title": "Parking",

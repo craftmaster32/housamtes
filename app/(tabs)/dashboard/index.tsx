@@ -3,7 +3,8 @@ import {
   View, StyleSheet, ScrollView, Pressable, TextInput, FlatList,
   ActivityIndicator, useWindowDimensions,
 } from 'react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { useFadeInUp, useCountUp, useSpringBar, useHaptic, usePressScale } from '@utils/animations';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -88,12 +89,21 @@ export interface WidgetCardProps {
 
 function WidgetCard({ children, style, onPress }: WidgetCardProps): React.JSX.Element {
   const c = useThemedColors();
+  const press = usePressScale(0.97);
   const cardStyle = [styles.card, { backgroundColor: c.surface, borderColor: c.border }, style];
   if (onPress) {
     return (
-      <Pressable style={cardStyle} onPress={onPress} accessibilityRole="button">
-        {children}
-      </Pressable>
+      <Animated.View style={press.animatedStyle}>
+        <Pressable
+          style={cardStyle}
+          onPress={onPress}
+          onPressIn={press.onPressIn}
+          onPressOut={press.onPressOut}
+          accessibilityRole="button"
+        >
+          {children}
+        </Pressable>
+      </Animated.View>
     );
   }
   return <View style={cardStyle}>{children}</View>;
@@ -120,6 +130,10 @@ function BalanceHeroCard(): React.JSX.Element {
   const newBills  = countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills);
   const isOwed    = netAmount >= 0;
   const peopleCount = balances.length;
+  const displayAmount = useCountUp(Math.abs(netAmount), {
+    formatter: (n) => formatFull(n, currencyCode),
+    duration: 700,
+  });
 
   return (
     <Pressable
@@ -148,7 +162,7 @@ function BalanceHeroCard(): React.JSX.Element {
       </View>
 
       <Text style={styles.balanceHeroAmt}>
-        {formatFull(Math.abs(netAmount), currencyCode)}
+        {displayAmount}
       </Text>
 
       {balances.length > 0 && (
@@ -328,6 +342,7 @@ function ChoreCard(): React.JSX.Element {
   const pending    = chores.filter((ch) => !ch.isComplete);
   const done       = chores.filter((ch) => ch.isComplete);
   const newChores  = countNewSimple(pending, lastSeen.chores);
+  const haptic     = useHaptic();
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/chores')}>
@@ -353,7 +368,7 @@ function ChoreCard(): React.JSX.Element {
           </View>
           <Pressable
             style={[styles.doneBtn, { backgroundColor: c.positive + '18' }]}
-            onPress={(e) => { e.stopPropagation?.(); toggleChore(myChore.id); }}
+            onPress={(e) => { e.stopPropagation?.(); haptic.success(); toggleChore(myChore.id); }}
             accessibilityRole="button"
           >
             <Ionicons name="checkmark" size={14} color={c.positive} />
@@ -391,6 +406,9 @@ function ParkingCard(): React.JSX.Element {
   const myName       = profile?.name ?? '';
   const isFree       = !current;
   const isMine       = current?.occupant === myId;
+  const haptic       = useHaptic();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const lastSeen           = useBadgeStore((s) => s.lastSeen);
   const sortedReservations = [...reservations].sort((a, b) => a.date.localeCompare(b.date));
@@ -399,8 +417,35 @@ function ParkingCard(): React.JSX.Element {
   const pendingCount       = reservations.filter((r) => r.status === 'pending').length;
   const newReservations    = countNew(reservations as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.parking, myId, 'requestedBy');
 
-  const handleClaim   = useCallback(async (): Promise<void> => { await claim(myId, myName, houseId ?? '').catch(() => {}); }, [claim, myId, myName, houseId]);
-  const handleRelease = useCallback(async (): Promise<void> => { await release(houseId ?? '').catch(() => {}); }, [release, houseId]);
+  const handleClaim = useCallback(async (): Promise<void> => {
+    if (isSubmitting) return;
+    setActionError(null);
+    setIsSubmitting(true);
+    try {
+      await claim(myId, myName, houseId ?? '');
+      haptic.success();
+    } catch {
+      haptic.error();
+      setActionError('Could not claim the spot. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [claim, myId, myName, houseId, haptic, isSubmitting]);
+
+  const handleRelease = useCallback(async (): Promise<void> => {
+    if (isSubmitting) return;
+    setActionError(null);
+    setIsSubmitting(true);
+    try {
+      await release(houseId ?? '');
+      haptic.warn();
+    } catch {
+      haptic.error();
+      setActionError('Could not release the spot. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [release, houseId, haptic, isSubmitting]);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
@@ -458,17 +503,32 @@ function ParkingCard(): React.JSX.Element {
         </View>
       )}
       {isFree && (
-        <Pressable style={[styles.claimBtn, { backgroundColor: c.positive }]} onPress={(e) => { e.stopPropagation?.(); handleClaim(); }} accessibilityRole="button" accessibilityLabel="Claim parking spot">
+        <Pressable
+          style={[styles.claimBtn, { backgroundColor: c.positive, opacity: isSubmitting ? 0.5 : 1 }]}
+          onPress={(e) => { e.stopPropagation?.(); handleClaim(); }}
+          disabled={isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel="Claim parking spot"
+          accessibilityState={{ disabled: isSubmitting }}
+        >
           <Ionicons name="car" size={14} color="#fff" />
           <Text style={styles.claimBtnText}>Claim Spot</Text>
         </Pressable>
       )}
       {isMine && (
-        <Pressable style={[styles.releaseBtn, { borderColor: c.negative + '40' }]} onPress={(e) => { e.stopPropagation?.(); handleRelease(); }} accessibilityRole="button" accessibilityLabel="Release parking spot">
+        <Pressable
+          style={[styles.releaseBtn, { borderColor: c.negative + '40', opacity: isSubmitting ? 0.5 : 1 }]}
+          onPress={(e) => { e.stopPropagation?.(); handleRelease(); }}
+          disabled={isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel="Release parking spot"
+          accessibilityState={{ disabled: isSubmitting }}
+        >
           <Ionicons name="exit-outline" size={14} color={c.negative} />
           <Text style={[styles.releaseBtnText, { color: c.negative }]}>Release Spot</Text>
         </Pressable>
       )}
+      {!!actionError && <Text style={[styles.cardMuted, { color: c.negative }]}>{actionError}</Text>}
     </WidgetCard>
   );
 }
@@ -627,6 +687,14 @@ function VotesWidget(): React.JSX.Element {
   const active     = proposals.filter((p) => p.isOpen);
   const newVotes   = countNew(active as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.voting, myId, 'createdBy');
 
+  // Hoisted before early return so hooks are always called in the same order
+  const _top       = active[0] ?? null;
+  const yesCount   = _top ? _top.votes.filter((v) => v.choice === 'yes').length : 0;
+  const noCount    = _top ? _top.votes.filter((v) => v.choice === 'no').length : 0;
+  const totalVotes = yesCount + noCount;
+  const yesBar     = useSpringBar(yesCount, Math.max(1, totalVotes), { delay: 200 });
+  const noBar      = useSpringBar(noCount,  Math.max(1, totalVotes), { delay: 240 });
+
   if (active.length === 0) {
     return (
       <WidgetCard onPress={() => router.push('/(tabs)/voting')}>
@@ -641,13 +709,9 @@ function VotesWidget(): React.JSX.Element {
     );
   }
 
-  const top        = active[0];
-  const yesCount   = top.votes.filter((v) => v.choice === 'yes').length;
-  const noCount    = top.votes.filter((v) => v.choice === 'no').length;
-  const totalVotes = yesCount + noCount;
-  const yesWidth   = totalVotes > 0 ? (yesCount / totalVotes) * 100 : 0;
-  const myVote     = top.votes.find((v) => v.person === myId)?.choice ?? null;
-  const allVoted   = totalVotes >= totalPeople;
+  const top    = _top!;
+  const myVote = top.votes.find((v) => v.person === myId)?.choice ?? null;
+  const allVoted = totalVotes >= totalPeople;
 
   type BadgeState = { label: string; bg: string; color: string };
   const badge: BadgeState = ((): BadgeState => {
@@ -673,14 +737,14 @@ function VotesWidget(): React.JSX.Element {
       <View style={styles.voteBarRow}>
         <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>Yes</Text>
         <View style={[styles.voteTrack, { backgroundColor: c.surfaceSecondary }]}>
-          <View style={[styles.voteBar, { width: `${yesWidth}%` as `${number}%`, backgroundColor: '#7C4DFF' }]} />
+          <Animated.View style={[styles.voteBar, { backgroundColor: '#7C4DFF' }, yesBar.animatedStyle]} />
         </View>
         <Text style={[styles.voteCount, { color: c.textPrimary }]}>{yesCount}</Text>
       </View>
       <View style={styles.voteBarRow}>
         <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>No</Text>
         <View style={[styles.voteTrack, { backgroundColor: c.surfaceSecondary }]}>
-          <View style={[styles.voteBar, { width: `${100 - yesWidth}%` as `${number}%`, backgroundColor: c.border }]} />
+          <Animated.View style={[styles.voteBar, { backgroundColor: c.border }, noBar.animatedStyle]} />
         </View>
         <Text style={[styles.voteCount, { color: c.textPrimary }]}>{noCount}</Text>
       </View>
@@ -885,10 +949,20 @@ export default function DashboardScreen(): React.JSX.Element {
   const { width }  = useWindowDimensions();
 
   const openProfile  = useProfilePopupStore((s) => s.open);
+  const hasBills     = useBillsStore((s) => s.bills.length > 0);
 
   const isWide = width >= 680;
   const myName = profile?.name ?? 'there';
   const initials = myName.charAt(0).toUpperCase();
+  const heroFade           = useFadeInUp(0);
+  const quickActionsFade   = useFadeInUp(60);
+  const balanceFade        = useFadeInUp(120);
+  const todayAtHomeFade    = useFadeInUp(180);
+  const recentExpensesFade = useFadeInUp(240);
+  const choreParkingFade   = useFadeInUp(300);
+  const groceryVotesFade   = useFadeInUp(360);
+  const calendarFade       = useFadeInUp(420);
+  const activityFade       = useFadeInUp(480);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
@@ -899,7 +973,7 @@ export default function DashboardScreen(): React.JSX.Element {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Hero greeting ─────────────────────────────────────────── */}
-          <Animated.View entering={FadeIn.duration(400)} style={styles.hero}>
+          <Animated.View style={[styles.hero, heroFade]}>
             <View style={styles.heroLeft}>
               <Text style={[styles.heroDate, { color: c.textSecondary }]}>{todayDateLabel()}</Text>
               <Text style={[styles.greeting, { color: c.textPrimary }]}>{greetingText(myName, t)}</Text>
@@ -926,7 +1000,7 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* Quick actions */}
-          <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.quickActions}>
+          <Animated.View style={[styles.quickActions, quickActionsFade]}>
             <Link asChild href="/(tabs)/bills/add">
               <Pressable
                 style={({ pressed }) => [styles.quickBtn, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 }]}
@@ -950,7 +1024,7 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* ── Balance Hero ──────────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(120).duration(450)} style={styles.row}>
+          <Animated.View style={[styles.row, balanceFade]}>
             <BalanceHeroCard />
           </Animated.View>
 
@@ -962,18 +1036,20 @@ export default function DashboardScreen(): React.JSX.Element {
 
           {/* ── Today at home ─────────────────────────────────────────── */}
           {(isEnabled('parking') || isEnabled('chores') || isEnabled('grocery')) && (
-            <Animated.View entering={FadeInDown.delay(180).duration(450)} style={styles.row}>
+            <Animated.View style={[styles.row, todayAtHomeFade]}>
               <TodayAtHome />
             </Animated.View>
           )}
 
           {/* ── Recent expenses ───────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(240).duration(450)} style={styles.row}>
-            <RecentExpenses />
-          </Animated.View>
+          {hasBills && (
+            <Animated.View style={[styles.row, recentExpensesFade]}>
+              <RecentExpenses />
+            </Animated.View>
+          )}
 
           {/* ── Chore + Parking detail cards ──────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(300).duration(450)} style={[styles.row, isWide && styles.rowWide]}>
+          <Animated.View style={[styles.row, isWide && styles.rowWide, choreParkingFade]}>
             {isEnabled('chores') && (
               <View style={isWide ? styles.colHalf : styles.colFull}>
                 <ChoreCard />
@@ -987,7 +1063,7 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* ── Grocery · Votes ───────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(360).duration(450)} style={[styles.row, isWide && styles.rowWide]}>
+          <Animated.View style={[styles.row, isWide && styles.rowWide, groceryVotesFade]}>
             {isEnabled('grocery') && (
               <View style={isWide ? styles.colHalf : styles.colFull}>
                 <GroceryWidget />
@@ -1001,14 +1077,14 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* ── Calendar ──────────────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(420).duration(450)} style={styles.row}>
+          <Animated.View style={[styles.row, calendarFade]}>
             <View style={styles.colFull}>
               <MiniCalendarWidget />
             </View>
           </Animated.View>
 
           {/* ── Activity feed ─────────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(480).duration(450)} style={styles.row}>
+          <Animated.View style={[styles.row, activityFade]}>
             <View style={styles.colFull}>
               <ActivityFeed />
             </View>
