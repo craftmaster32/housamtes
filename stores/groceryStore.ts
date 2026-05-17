@@ -20,6 +20,7 @@ export interface GroceryItem {
   createdAt: string;
   isPersonal: boolean;
   isDraft: boolean;
+  comment?: string;
 }
 
 export interface ShoppingRun {
@@ -44,6 +45,7 @@ interface GroceryStore {
   unsubscribe: () => void;
   addItem: (name: string, quantity: string, addedByUserId: string, houseId: string, mode?: AddMode) => Promise<void>;
   updateItem: (id: string, name: string, quantity: string) => Promise<void>;
+  addComment: (id: string, comment: string) => Promise<void>;
   toggleItem: (id: string) => Promise<void>;
   incrementBought: (id: string) => Promise<void>;
   decrementBought: (id: string) => Promise<void>;
@@ -98,6 +100,7 @@ export const useGroceryStore = create<GroceryStore>()(
             createdAt: r.created_at,
             isPersonal: r.is_personal ?? false,
             isDraft: r.is_draft ?? false,
+            comment: r.comment ?? undefined,
           }));
           set({ items, isLoading: false, error: null });
         } catch (err) {
@@ -146,8 +149,15 @@ export const useGroceryStore = create<GroceryStore>()(
           createdAt: data.created_at,
           isPersonal: data.is_personal ?? false,
           isDraft: data.is_draft ?? false,
+          comment: data.comment ?? undefined,
         };
         set({ items: [item, ...get().items] });
+      },
+
+      addComment: async (id, comment): Promise<void> => {
+        const { error } = await supabase.from('grocery_items').update({ comment }).eq('id', id);
+        if (error) { captureError(error, { context: 'grocery-comment' }); throw new Error('Could not save note. Please try again.'); }
+        set({ items: get().items.map((i) => (i.id === id ? { ...i, comment } : i)) });
       },
 
       updateItem: async (id, name, quantity): Promise<void> => {
