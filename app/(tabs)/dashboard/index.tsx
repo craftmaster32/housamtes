@@ -30,6 +30,8 @@ import { useThemedColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { useTranslation } from 'react-i18next';
 import { SpendingCard } from '@components/profile/SpendingCard';
+import { UserAvatar } from '@components/shared/UserAvatar';
+import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string, t: (key: string) => string): string {
@@ -523,15 +525,21 @@ interface GroceryWidgetRowProps {
   myId: string;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onLongPress?: (item: GroceryItem) => void;
 }
 
-function GroceryWidgetRow({ item, myId, onToggle, onDelete }: GroceryWidgetRowProps): React.JSX.Element {
+function GroceryWidgetRow({ item, myId, onToggle, onDelete, onLongPress }: GroceryWidgetRowProps): React.JSX.Element {
   const c         = useThemedColors();
   const swipeRef  = useRef<Swipeable>(null);
   const canDelete = item.addedBy === myId;
 
-  const handleToggle = useCallback((): void => { swipeRef.current?.close(); onToggle(item.id); }, [item.id, onToggle]);
-  const handleDelete = useCallback((): void => { swipeRef.current?.close(); onDelete(item.id); }, [item.id, onDelete]);
+  const handleToggle    = useCallback((): void => { swipeRef.current?.close(); onToggle(item.id); }, [item.id, onToggle]);
+  const handleDelete    = useCallback((): void => { swipeRef.current?.close(); onDelete(item.id); }, [item.id, onDelete]);
+  const handleLongPress = useCallback((): void => {
+    if (!onLongPress) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    onLongPress(item);
+  }, [item, onLongPress]);
 
   const renderCheckAction = useCallback((): React.JSX.Element => (
     <Pressable accessible style={[styles.widgetSwipeCheck, item.isChecked && styles.widgetSwipeUncheck]} onPress={handleToggle} accessibilityRole="button" accessibilityLabel={item.isChecked ? 'Mark as needed' : 'Mark as done'}>
@@ -547,13 +555,25 @@ function GroceryWidgetRow({ item, myId, onToggle, onDelete }: GroceryWidgetRowPr
 
   return (
     <Swipeable ref={swipeRef} renderLeftActions={renderCheckAction} renderRightActions={canDelete ? renderDeleteAction : undefined} overshootLeft={false} overshootRight={false} friction={2}>
-      <Pressable style={[styles.groceryRow, { backgroundColor: c.surface }]} onPress={handleToggle} accessibilityRole="checkbox" accessibilityState={{ checked: item.isChecked }}>
+      <Pressable
+        style={[styles.groceryRow, { backgroundColor: c.surface }]}
+        onPress={handleToggle}
+        onLongPress={onLongPress ? handleLongPress : undefined}
+        delayLongPress={400}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: item.isChecked }}
+        accessibilityHint={onLongPress ? 'Long press for details and notes' : undefined}
+      >
         <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={item.isChecked ? c.positive : c.border} />
         <Text style={[styles.groceryItemText, { color: c.textPrimary }, item.isChecked && styles.groceryItemDone]}>
           {item.name}
         </Text>
         {item.quantity && item.quantity !== '1' && (
           <Text style={[styles.groceryQty, { color: c.textSecondary }]}>{item.quantity}</Text>
+        )}
+        <UserAvatar userId={item.addedBy} size={22} />
+        {!!item.comment && (
+          <Ionicons name="chatbubble-ellipses-outline" size={12} color={c.textSecondary} accessibilityLabel="Has a note" />
         )}
       </Pressable>
     </Swipeable>
@@ -567,6 +587,7 @@ function GroceryWidget(): React.JSX.Element {
   const toggleItem         = useGroceryStore((s) => s.toggleItem);
   const deleteItem         = useGroceryStore((s) => s.deleteItem);
   const publishDraftItems  = useGroceryStore((s) => s.publishDraftItems);
+  const addComment         = useGroceryStore((s) => s.addComment);
   const profile            = useAuthStore((s) => s.profile);
   const houseId            = useAuthStore((s) => s.houseId);
   const lastSeen           = useBadgeStore((s) => s.lastSeen);
@@ -578,6 +599,7 @@ function GroceryWidget(): React.JSX.Element {
   const [unit, setUnit]                 = useState('');
   const [addError, setAddError]         = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
 
   const myDraftItems  = useMemo(() => items.filter((i) => i.isDraft && i.addedBy === myId), [items, myId]);
   const sharedPending = useMemo(() => items.filter((i) => !i.isPersonal && !i.isChecked), [items]);
@@ -617,8 +639,11 @@ function GroceryWidget(): React.JSX.Element {
     finally { setIsPublishing(false); }
   }, [publishDraftItems, myId, isPublishing]);
 
-  const handleToggle = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
-  const handleDelete = useCallback((id: string): void => { deleteItem(id).catch(() => {}); }, [deleteItem]);
+  const handleToggle      = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
+  const handleDelete      = useCallback((id: string): void => { deleteItem(id).catch(() => {}); }, [deleteItem]);
+  const handleItemLongPress = useCallback((item: GroceryItem): void => { setSelectedItem(item); }, []);
+  const handleCloseModal    = useCallback((): void => { setSelectedItem(null); }, []);
+  const onSaveComment       = useCallback((id: string, comment: string): Promise<void> => addComment(id, comment), [addComment]);
 
   const draftHeader = myDraftItems.length > 0 ? (
     <>
@@ -628,12 +653,13 @@ function GroceryWidget(): React.JSX.Element {
           {isPublishing ? <ActivityIndicator size="small" color="#E0B24D" /> : <Ionicons name="checkmark-circle" size={22} color="#E0B24D" />}
         </Pressable>
       </View>
-      {myDraftItems.map((item) => (<GroceryWidgetRow key={item.id} item={item} myId={myId} onToggle={handleToggle} onDelete={handleDelete} />))}
+      {myDraftItems.map((item) => (<GroceryWidgetRow key={item.id} item={item} myId={myId} onToggle={handleToggle} onDelete={handleDelete} onLongPress={handleItemLongPress} />))}
       {sharedPending.length > 0 && <Text style={[styles.grocerySharedLabel, { color: c.textSecondary }]}>🏠 Shared</Text>}
     </>
   ) : null;
 
   return (
+    <>
     <WidgetCard>
       <View style={styles.cardHeader}>
         <View style={[styles.cardIconWrap, { backgroundColor: '#0A2418' }]}>
@@ -674,13 +700,21 @@ function GroceryWidget(): React.JSX.Element {
       <FlatList
         data={sharedPending}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <GroceryWidgetRow item={item} myId={myId} onToggle={handleToggle} onDelete={handleDelete} />}
+        renderItem={({ item }) => <GroceryWidgetRow item={item} myId={myId} onToggle={handleToggle} onDelete={handleDelete} onLongPress={handleItemLongPress} />}
         ListHeaderComponent={draftHeader}
         ListEmptyComponent={myDraftItems.length === 0 ? <Text style={[styles.cardMuted, { color: c.textSecondary }]}>List is empty — add something above</Text> : null}
         scrollEnabled={false}
         nestedScrollEnabled
       />
     </WidgetCard>
+    <GroceryItemDetailModal
+      item={selectedItem}
+      visible={!!selectedItem}
+      myId={myId}
+      onClose={handleCloseModal}
+      onSaveComment={onSaveComment}
+    />
+    </>
   );
 }
 

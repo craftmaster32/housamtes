@@ -9,10 +9,7 @@ import {
   SectionList,
   ActivityIndicator,
   Animated,
-  Modal,
 } from 'react-native';
-import { formatDistanceToNow } from 'date-fns';
-import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,10 +18,10 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGroceryStore, type GroceryItem, type AddMode } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
-import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { colors } from '@constants/colors';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { UserAvatar } from '@components/shared/UserAvatar';
+import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
@@ -62,32 +59,11 @@ function detectCategory(name: string): Category {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function avatarColor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return colors.avatar[Math.abs(h) % colors.avatar.length];
-}
-
 function elapsedLabel(startedAt: string): string {
   const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
   if (mins < 1) return 'Just started';
   if (mins < 60) return `${mins} min at the store`;
   return `${Math.floor(mins / 60)}h ${mins % 60}m at the store`;
-}
-
-// ── Avatar ─────────────────────────────────────────────────────────────────────
-function UserAvatar({ userId, size = 24 }: { userId: string; size?: number }): React.JSX.Element {
-  const housemate = useHousematesStore((s) => s.housemates.find((h) => h.id === userId));
-  const avatarUrl = housemate?.avatarUrl;
-  const displayName = housemate?.name ?? '?';
-  return (
-    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : avatarColor(displayName), justifyContent: 'center', alignItems: 'center', flexShrink: 0 }]}>
-      {avatarUrl
-        ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" />
-        : <Text style={[{ color: '#fff', ...font.bold, fontSize: Math.round(size * 0.44) }]}>{displayName[0].toUpperCase()}</Text>
-      }
-    </View>
-  );
 }
 
 // ── Item row ───────────────────────────────────────────────────────────────────
@@ -339,130 +315,6 @@ function SectionSeparator(): React.JSX.Element {
   return <View style={s.sectionSep} />;
 }
 
-// ── Item detail modal ──────────────────────────────────────────────────────────
-interface ItemDetailModalProps {
-  item: GroceryItem | null;
-  visible: boolean;
-  myId: string;
-  onClose: () => void;
-  onSaveComment: (id: string, comment: string) => Promise<void>;
-}
-
-function ItemDetailModal({ item, visible, myId, onClose, onSaveComment }: ItemDetailModalProps): React.JSX.Element {
-  const C = useThemedColors();
-  const s = useMemo(() => makeStyles(C), [C]);
-  const housemate = useHousematesStore((st) => st.housemates.find((h) => h.id === item?.addedBy));
-
-  const [comment, setComment]   = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setComment(item?.comment ?? '');
-    setSaveError(null);
-  }, [item]);
-
-  const handleCommentChange = useCallback((v: string): void => { setComment(v); setSaveError(null); }, []);
-
-  const handleSave = useCallback(async (): Promise<void> => {
-    if (!item || isSaving) return;
-    setIsSaving(true);
-    setSaveError(null);
-    try {
-      await onSaveComment(item.id, comment.trim());
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      onClose();
-    } catch {
-      setSaveError('Could not save note. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [item, comment, onSaveComment, onClose, isSaving]);
-
-  const addedByName = item
-    ? (item.addedBy === myId ? 'You' : (housemate?.name ?? 'Someone'))
-    : '';
-  const timeAgo = item
-    ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })
-    : '';
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} accessible={false} />
-        <View style={[s.modalSheet, { backgroundColor: C.surface }]}>
-          {item && (
-            <>
-              <View style={s.modalHeader}>
-                <Text style={[s.modalTitle, { color: C.textPrimary }]}>Item Details</Text>
-                <Pressable onPress={onClose} style={s.modalClose} accessibilityRole="button" accessibilityLabel="Close details">
-                  <Ionicons name="close" size={22} color={C.textSecondary} />
-                </Pressable>
-              </View>
-
-              <Text style={[s.modalItemName, { color: C.textPrimary }, item.isChecked && s.modalItemNameDone]}>
-                {item.name}
-              </Text>
-
-              <View style={s.modalMeta}>
-                {!!item.quantity && item.quantity !== '1' && (
-                  <View style={[s.modalQtyBadge, { backgroundColor: C.secondary }]}>
-                    <Text style={[s.modalQtyText, { color: C.textSecondary }]}>{item.quantity}</Text>
-                  </View>
-                )}
-                <UserAvatar userId={item.addedBy} size={20} />
-                <Text style={[s.modalMetaText, { color: C.textSecondary }]}>
-                  {addedByName} · {timeAgo}
-                </Text>
-              </View>
-
-              <View style={[s.modalCommentBox, { backgroundColor: C.surfaceSecondary, borderColor: C.border }]}>
-                <TextInput
-                  value={comment}
-                  onChangeText={handleCommentChange}
-                  placeholder="Add a note… (e.g. the one from Lidl)"
-                  placeholderTextColor={C.textSecondary}
-                  style={[s.modalCommentInput, { color: C.textPrimary }]}
-                  multiline
-                  numberOfLines={3}
-                  maxLength={200}
-                  textAlignVertical="top"
-                  accessible
-                  accessibilityRole="text"
-                  accessibilityLabel="Item note"
-                  accessibilityHint="Optional note about this item, up to 200 characters"
-                />
-              </View>
-              {!!saveError && <Text style={s.modalSaveError}>{saveError}</Text>}
-
-              <View style={s.modalActions}>
-                <Pressable
-                  onPress={onClose}
-                  style={[s.modalBtn, { borderColor: C.border }]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancel"
-                >
-                  <Text style={[s.modalBtnText, { color: C.textSecondary }]}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleSave}
-                  disabled={isSaving}
-                  style={[s.modalBtn, s.modalBtnPrimary, { backgroundColor: C.primary }, isSaving && s.modalBtnOff]}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isSaving }}
-                  accessibilityLabel="Save note"
-                >
-                  <Text style={[s.modalBtnText, s.modalBtnPrimaryText]}>{isSaving ? 'Saving…' : 'Save note'}</Text>
-                </Pressable>
-              </View>
-            </>
-          )}
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
 // ── Screen ─────────────────────────────────────────────────────────────────────
 interface GroceryItemWithMeta extends GroceryItem { isDuplicate?: boolean }
 interface SectionData { title: string; icon: string; data: GroceryItemWithMeta[]; sectionType: 'draft' | 'private' | 'shared' }
@@ -637,8 +489,9 @@ export default function GroceryScreen(): React.JSX.Element {
     setAddMode(safe);
     AsyncStorage.setItem(ADD_MODE_KEY, safe).catch(() => {});
   }, [draftEnabled]);
-  const handleSetShared  = useCallback((): void => handleSetMode(addMode === 'shared'  ? 'draft' : 'shared'),  [addMode, handleSetMode]);
-  const handleSetPrivate = useCallback((): void => handleSetMode(addMode === 'private' ? 'draft' : 'private'), [addMode, handleSetMode]);
+  const handleSetDraft   = useCallback((): void => handleSetMode('draft'),   [handleSetMode]);
+  const handleSetShared  = useCallback((): void => handleSetMode('shared'),  [handleSetMode]);
+  const handleSetPrivate = useCallback((): void => handleSetMode('private'), [handleSetMode]);
   const handleItemNameChange  = useCallback((v: string): void => { setItemName(v); setAddError(null); }, []);
   const handleAddPress        = useCallback((): void => { handleAdd(); }, [handleAdd]);
   const handleQtyPresetSelect = useCallback((p: string): void => { setShowCustomQty(false); setQty(p); }, []);
@@ -799,6 +652,16 @@ export default function GroceryScreen(): React.JSX.Element {
 
                 {/* ── Add mode toggle ──────────────────────────────── */}
                 <View style={styles.modeToggle}>
+                  {draftEnabled && (
+                    <Pressable
+                      style={[styles.modeBtn, effectiveMode === 'draft' && styles.modeBtnDraft]}
+                      onPress={handleSetDraft}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: effectiveMode === 'draft' }}
+                    >
+                      <Text style={[styles.modeBtnText, effectiveMode === 'draft' && styles.modeBtnTextDraft]}>📝 Draft</Text>
+                    </Pressable>
+                  )}
                   <Pressable
                     style={[styles.modeBtn, effectiveMode === 'shared' && styles.modeBtnOn]}
                     onPress={handleSetShared}
@@ -816,12 +679,6 @@ export default function GroceryScreen(): React.JSX.Element {
                     <Text style={[styles.modeBtnText, effectiveMode === 'private' && styles.modeBtnTextPersonal]}>🔒 Private</Text>
                   </Pressable>
                 </View>
-                {draftEnabled && effectiveMode === 'draft' && (
-                  <View style={styles.draftHint}>
-                    <Ionicons name="pencil-outline" size={12} color={C.textSecondary} />
-                    <Text style={styles.draftHintText}>Saves to your draft</Text>
-                  </View>
-                )}
 
                 {/* ── Inline add input ──────────────────────────────── */}
                 {!!addError && (
@@ -988,7 +845,7 @@ export default function GroceryScreen(): React.JSX.Element {
         </Animated.View>
       </SafeAreaView>
     </KeyboardAvoidingView>
-    <ItemDetailModal
+    <GroceryItemDetailModal
       item={selectedItem}
       visible={!!selectedItem}
       myId={myId}
@@ -1038,14 +895,12 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
     },
     modeBtnOn:           { backgroundColor: C.primary, borderColor: C.primary },
+    modeBtnDraft:        { backgroundColor: 'rgba(224,178,77,0.15)', borderColor: 'rgba(224,178,77,0.55)' },
     modeBtnPersonal:     { backgroundColor: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.4)' },
     modeBtnText:         { fontSize: 13, ...font.semibold, color: C.textSecondary },
     modeBtnTextOn:       { color: '#FFFFFF' },
+    modeBtnTextDraft:    { color: 'rgb(133,77,14)' },
     modeBtnTextPersonal: { color: 'rgb(76,29,149)' },
-
-    // ── Draft hint
-    draftHint:     { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: -8 },
-    draftHintText: { fontSize: 12, ...font.regular, color: C.textSecondary },
 
     // ── Inline add row
     addRow: {
@@ -1245,33 +1100,5 @@ function makeStyles(C: ColorTokens) {
     shopperBadgeText: { fontSize: 13, ...font.semibold, color: C.textPrimary },
 
     bottomPad: { height: sizes.bottomTabContentPadding },
-
-    // ── Item detail modal
-    modalOverlay:  { flex: 1, justifyContent: 'flex-end' },
-    modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-    modalSheet: {
-      borderTopLeftRadius: 24, borderTopRightRadius: 24,
-      padding: 24, paddingBottom: 44, gap: 16,
-      shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.12, shadowRadius: 16, elevation: 10,
-    },
-    modalHeader:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    modalTitle:          { fontSize: 18, ...font.bold, color: C.textPrimary },
-    modalClose:          { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-    modalItemName:       { fontSize: 22, ...font.bold, color: C.textPrimary, lineHeight: 30 },
-    modalItemNameDone:   { textDecorationLine: 'line-through', opacity: 0.5 },
-    modalMeta:           { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-    modalQtyBadge:       { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-    modalQtyText:        { fontSize: 13, ...font.bold },
-    modalMetaText:       { fontSize: 13, ...font.regular, color: C.textSecondary },
-    modalCommentBox:     { borderRadius: 12, borderWidth: 1, padding: 12 },
-    modalCommentInput:   { fontSize: 15, ...font.regular, color: C.textPrimary, minHeight: 72 },
-    modalSaveError:      { fontSize: 12, color: '#D94F4F' },
-    modalActions:        { flexDirection: 'row', gap: 10 },
-    modalBtn:            { flex: 1, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
-    modalBtnPrimary:     { borderWidth: 0 },
-    modalBtnOff:         { opacity: 0.5 },
-    modalBtnText:        { fontSize: 15, ...font.semibold },
-    modalBtnPrimaryText: { color: '#FFFFFF' },
   });
 }
