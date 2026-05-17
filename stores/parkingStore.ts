@@ -188,6 +188,9 @@ export const useParkingStore = create<ParkingStore>()(
       claim: async (userId, displayName, houseId): Promise<void> => {
         if (!userId) throw new Error('User ID is required to claim parking');
 
+        // Abort if initial load is still in flight — local state may be stale
+        if (get().isLoading) throw new Error('Still loading parking data, please try again');
+
         // Use already-loaded realtime state instead of a separate round-trip SELECT
         if (get().current) throw new Error('Parking spot is already taken');
 
@@ -242,17 +245,21 @@ export const useParkingStore = create<ParkingStore>()(
         const previous = get().current;
         if (!previous) return;
 
+        // Claim is still in flight — the DB row doesn't exist yet, so the UPDATE would be a no-op
+        if (previous.id === 'optimistic') throw new Error('Claim is still in progress, please wait a moment');
+
         // Optimistic update — feels instant, reverts on failure
         set({ current: null });
 
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from('parking_sessions')
           .update({ is_active: false })
           .eq('id', previous.id)
-          .eq('house_id', houseId);
-        if (error) {
+          .eq('house_id', houseId)
+          .select();
+        if (error || !updated?.length) {
           set({ current: previous });
-          captureError(error, { context: 'release-parking', houseId });
+          if (error) captureError(error, { context: 'release-parking', houseId });
           throw new Error('Could not release the parking spot. Please try again.');
         }
 
@@ -260,7 +267,7 @@ export const useParkingStore = create<ParkingStore>()(
         supabase.auth.getSession().then(({ data: sessionData }) => {
           const userId = sessionData.session?.user.id ?? '';
           if (userId) {
-            notifyHousemates({
+            return notifyHousemates({
               houseId,
               excludeUserId: userId,
               title: '🅿️ Parking free',
@@ -269,7 +276,7 @@ export const useParkingStore = create<ParkingStore>()(
               notificationType: 'parking_claimed',
             });
           }
-        }).catch(() => {});
+        }).catch((err) => captureError(err, { context: 'notify-release', houseId }));
       },
       addReservation: async (data, displayName, houseId): Promise<string> => {
         const conflict = get().reservations.find(
