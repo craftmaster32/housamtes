@@ -10,6 +10,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { router, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '@stores/authStore';
 import { useBillsStore, calculateAllNetBalances, calculateSimplifiedBalancesForUser, type Bill } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
@@ -175,17 +176,54 @@ function BalanceHeroCard(): React.JSX.Element {
 
 // ── Today at Home ─────────────────────────────────────────────────────────────
 function TodayAtHome(): React.JSX.Element {
-  const c         = useThemedColors();
-  const current   = useParkingStore((s) => s.current);
-  const chores    = useChoresStore((s) => s.chores);
-  const items     = useGroceryStore((s) => s.items);
+  const c          = useThemedColors();
+  const current    = useParkingStore((s) => s.current);
+  const claim      = useParkingStore((s) => s.claim);
+  const release    = useParkingStore((s) => s.release);
+  const chores     = useChoresStore((s) => s.chores);
+  const items      = useGroceryStore((s) => s.items);
   const housemates = useHousematesStore((s) => s.housemates);
-  const isEnabled = useSettingsStore((s) => s.isEnabled);
+  const isEnabled  = useSettingsStore((s) => s.isEnabled);
+  const profile    = useAuthStore((s) => s.profile);
+  const houseId    = useAuthStore((s) => s.houseId);
 
-  const isFree         = !current;
+  const myId   = profile?.id ?? '';
+  const myName = profile?.name ?? '';
+  const isFree = !current;
+  const isMine = current?.occupant === myId;
+
+  const [isParkingBusy, setIsParkingBusy] = useState(false);
+
   const pendingChores  = chores.filter((ch) => !ch.isComplete).length;
   const totalChores    = chores.length;
   const groceryPending = items.filter((i) => !i.isChecked && !i.isPersonal).length;
+
+  const handleParkingPress = useCallback(async (): Promise<void> => {
+    if (isParkingBusy) return;
+    if (!isFree && !isMine) { router.push('/(tabs)/parking'); return; }
+    setIsParkingBusy(true);
+    try {
+      if (isFree) {
+        await claim(myId, myName, houseId ?? '');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } else {
+        await release(houseId ?? '');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
+    } catch {
+      // store sets its own error state
+    } finally {
+      setIsParkingBusy(false);
+    }
+  }, [isParkingBusy, isFree, isMine, claim, release, myId, myName, houseId]);
+
+  const parkingSubLabel = isParkingBusy
+    ? '...'
+    : isFree
+    ? 'Tap to claim'
+    : isMine
+    ? 'Tap to release'
+    : `by ${resolveName(current?.occupant ?? '', housemates).split(' ')[0]}`;
 
   return (
     <View style={styles.todaySection}>
@@ -194,18 +232,24 @@ function TodayAtHome(): React.JSX.Element {
         {isEnabled('parking') && (
           <Pressable
             style={[styles.todayCard, { backgroundColor: c.surface, borderColor: c.border }]}
-            onPress={() => router.push('/(tabs)/parking')}
+            onPress={handleParkingPress}
+            disabled={isParkingBusy}
             accessibilityRole="button"
+            accessibilityLabel={isFree ? 'Claim parking spot' : isMine ? 'Release parking spot' : 'View parking'}
+            accessibilityState={{ busy: isParkingBusy }}
           >
             <View style={[styles.todayIconWrap, { backgroundColor: isFree ? '#0A2418' : '#2A0A0A' }]}>
-              <Ionicons name={isFree ? 'car-outline' : 'car'} size={20} color={isFree ? '#4FB071' : '#D9534F'} />
+              {isParkingBusy
+                ? <ActivityIndicator size="small" color={isFree ? '#4FB071' : '#D9534F'} />
+                : <Ionicons name={isFree ? 'car-outline' : 'car'} size={20} color={isFree ? '#4FB071' : '#D9534F'} />
+              }
             </View>
             <Text style={styles.todayCardCat}>PARKING</Text>
             <Text style={[styles.todayCardStatus, { color: c.textPrimary }]}>
               {isFree ? 'Free' : 'In use'}
             </Text>
-            <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {isFree ? 'Available' : `by ${resolveName(current?.occupant ?? '', housemates).split(' ')[0]}`}
+            <Text style={[styles.todayCardSub, { color: isFree || isMine ? c.primary : c.textSecondary }]}>
+              {parkingSubLabel}
             </Text>
           </Pressable>
         )}
