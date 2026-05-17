@@ -26,14 +26,11 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
-// ── Banani design tokens ────────────────────────────────────────────────────────
-const SURFACE_BG   = 'rgba(251,248,245,0.96)';
-const SHOP_CARD_BG = 'rgba(239,246,255,0.9)';
-const SHOP_BORDER  = 'rgba(191,219,254,0.7)';
-const SHOP_ACTIVE_BG  = 'rgba(235,255,240,0.95)';
+// ── Accent constants (decorative borders/tints only — never used as text backgrounds) ─
+const SHOP_BORDER        = 'rgba(191,219,254,0.7)';
 const SHOP_ACTIVE_BORDER = 'rgba(140,210,160,0.7)';
-const PERSONAL_BG    = 'rgba(245,240,255,0.6)';
-const PERSONAL_BORDER = 'rgba(167,139,250,0.35)';
+const PERSONAL_BG        = 'rgba(124,58,237,0.08)';
+const PERSONAL_BORDER    = 'rgba(167,139,250,0.35)';
 
 const ADD_MODE_KEY = 'grocery_add_mode';
 
@@ -830,7 +827,7 @@ function makeStyles(C: ColorTokens) {
 
     // ── Hero card
     headerCard: {
-      backgroundColor: SURFACE_BG,
+      backgroundColor: C.surface,
       borderRadius: 20,
       borderWidth: 1,
       borderColor: C.border,
@@ -872,7 +869,7 @@ function makeStyles(C: ColorTokens) {
     addRow: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
       borderRadius: 12, borderWidth: 1, borderColor: C.border,
-      backgroundColor: '#FBFAF8', paddingRight: 6, paddingLeft: 4,
+      backgroundColor: C.surfaceSecondary, paddingRight: 6, paddingLeft: 4,
       height: 50,
     },
     addRowPersonal: { borderColor: 'rgba(139,92,246,0.4)', backgroundColor: 'rgba(245,240,255,0.6)' },
@@ -921,7 +918,7 @@ function makeStyles(C: ColorTokens) {
     qtyBtnText:   { fontSize: 14, ...font.semibold, color: C.textPrimary },
     qtyBtnTextOn: { color: '#FFFFFF' },
     formQty: {
-      flex: 1, height: 36, backgroundColor: '#FBFAF8', borderRadius: 10,
+      flex: 1, height: 36, backgroundColor: C.surfaceSecondary, borderRadius: 10,
       borderWidth: 1, borderColor: C.border, paddingHorizontal: 10,
       fontSize: 15, ...font.regular, color: C.textPrimary, textAlign: 'center',
     },
@@ -968,8 +965,8 @@ function makeStyles(C: ColorTokens) {
       elevation: 2,
     },
     groceryItemDone:     { opacity: 0.5, borderColor: 'transparent' },
-    groceryItemPersonal: { backgroundColor: 'rgba(245,240,255,0.7)', borderColor: 'rgba(139,92,246,0.2)' },
-    groceryItemEditing:  { backgroundColor: '#FAFAF8', borderColor: C.primary, gap: 8 },
+    groceryItemPersonal: { backgroundColor: PERSONAL_BG, borderColor: PERSONAL_BORDER },
+    groceryItemEditing:  { backgroundColor: C.surface, borderColor: C.primary, gap: 8 },
 
     // ── Duplicate warning badge
     duplicateBadge: {
@@ -993,12 +990,12 @@ function makeStyles(C: ColorTokens) {
     // ── Inline edit mode
     editNameInput: {
       flex: 1, height: 44, paddingHorizontal: 10, borderRadius: 8,
-      backgroundColor: '#FBFAF8', borderWidth: 1, borderColor: C.primary,
+      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.primary,
       fontSize: 15, ...font.regular, color: C.textPrimary,
     },
     editQtyInput: {
       width: 60, height: 44, paddingHorizontal: 8, borderRadius: 8,
-      backgroundColor: '#FBFAF8', borderWidth: 1, borderColor: C.border,
+      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
       fontSize: 14, ...font.regular, color: C.textPrimary, textAlign: 'center',
     },
     editActionBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
@@ -1041,7 +1038,7 @@ function makeStyles(C: ColorTokens) {
     // ── Shopping run card
     shoppingRunCard: {
       paddingVertical: 24, paddingHorizontal: 20, borderRadius: 20,
-      backgroundColor: SHOP_CARD_BG, borderWidth: 1, borderColor: SHOP_BORDER,
+      backgroundColor: C.surface, borderWidth: 1, borderColor: SHOP_BORDER,
       alignItems: 'center', gap: 14,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -1049,7 +1046,7 @@ function makeStyles(C: ColorTokens) {
       shadowRadius: 8,
       elevation: 2,
     },
-    shoppingRunCardActive: { backgroundColor: SHOP_ACTIVE_BG, borderColor: SHOP_ACTIVE_BORDER },
+    shoppingRunCardActive: { backgroundColor: C.success + '12', borderColor: SHOP_ACTIVE_BORDER },
     shoppingIcon: {
       width: 56, height: 56, borderRadius: 28,
       backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center',
