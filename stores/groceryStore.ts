@@ -155,9 +155,14 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       addComment: async (id, comment): Promise<void> => {
-        const { error } = await supabase.from('grocery_items').update({ comment }).eq('id', id);
-        if (error) { captureError(error, { context: 'grocery-comment' }); throw new Error('Could not save note. Please try again.'); }
-        set({ items: get().items.map((i) => (i.id === id ? { ...i, comment } : i)) });
+        try {
+          const { error } = await supabase.from('grocery_items').update({ comment }).eq('id', id);
+          if (error) throw error;
+          set({ items: get().items.map((i) => (i.id === id ? { ...i, comment } : i)) });
+        } catch (err) {
+          captureError(err, { context: 'grocery-comment' });
+          throw new Error('Could not save note. Please try again.');
+        }
       },
 
       updateItem: async (id, name, quantity): Promise<void> => {

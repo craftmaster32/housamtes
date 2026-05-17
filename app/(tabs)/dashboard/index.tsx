@@ -586,10 +586,22 @@ function GroceryWidget(): React.JSX.Element {
 
   const handleUnitToggle = useCallback((u: string): void => { setUnit((prev) => (prev === u ? '' : u)); }, []);
 
+  const unitPressHandlers = useMemo(
+    () => (['ml', 'L', 'g', 'kg'] as const).reduce<Record<string, () => void>>(
+      (acc, u) => { acc[u] = (): void => handleUnitToggle(u); return acc; },
+      {}
+    ),
+    [handleUnitToggle]
+  );
+
   const handleAdd = useCallback(async (): Promise<void> => {
     const n = input.trim();
     if (!n) return;
     const numPart = qty.trim();
+    if (numPart && !/^\d+$/.test(numPart)) {
+      setAddError('Quantity must be a whole number.');
+      return;
+    }
     const quantityStr = numPart ? numPart + unit : unit ? `1${unit}` : '';
     try {
       await addItem(n, quantityStr, myId, houseId ?? '', draftEnabled ? 'draft' : 'shared');
@@ -650,8 +662,7 @@ function GroceryWidget(): React.JSX.Element {
           <Pressable
             key={u}
             style={[styles.groceryUnitBtn, { backgroundColor: unit === u ? c.primary : c.surfaceSecondary, borderColor: unit === u ? c.primary : c.border }]}
-            onPress={() => handleUnitToggle(u)}
-            hitSlop={4}
+            onPress={unitPressHandlers[u]}
             accessibilityRole="button"
             accessibilityState={{ selected: unit === u }}
             accessibilityLabel={`Unit ${u}`}
@@ -1226,7 +1237,7 @@ const styles = StyleSheet.create({
   groceryItemDone: { textDecorationLine: 'line-through' },
   groceryQty: { fontSize: 12, ...font.regular },
   groceryUnitRow: { flexDirection: 'row', gap: 6, paddingTop: 6 },
-  groceryUnitBtn: { minWidth: 36, height: 30, borderRadius: 9999, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 10, borderWidth: 1 },
+  groceryUnitBtn: { minWidth: 44, minHeight: 44, borderRadius: 9999, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12, borderWidth: 1 },
   groceryUnitBtnText: { fontSize: 12, ...font.semibold },
 
   // ── Votes widget
