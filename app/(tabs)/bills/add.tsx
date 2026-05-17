@@ -113,39 +113,14 @@ export default function AddBillScreen(): React.JSX.Element {
   const totalAmount = parseFloat(amount) || 0;
 
   const setPersonAmount = useCallback((id: string, value: string): void => {
-    const total = parseFloat(amount) || 0;
-    setCustomAmounts((prev) => {
-      const updated = { ...prev, [id]: value };
-      if (total > 0) {
-        const blanks = selectedPeople.filter((p) => p !== id && (!updated[p] || parseFloat(updated[p] ?? '0') === 0));
-        if (blanks.length === 1) {
-          const entered = selectedPeople
-            .filter((p) => p !== blanks[0])
-            .reduce((sum, p) => sum + (parseFloat(updated[p] ?? '0') || 0), 0);
-          const rem = Math.round((total - entered) * 100) / 100;
-          if (rem >= 0) updated[blanks[0]] = rem.toFixed(2);
-        }
-      }
-      return updated;
-    });
+    setCustomAmounts((prev) => ({ ...prev, [id]: value }));
     setError('');
-  }, [amount, selectedPeople]);
+  }, []);
 
   const setPersonPercent = useCallback((id: string, value: string): void => {
-    setPercentAmounts((prev) => {
-      const updated = { ...prev, [id]: value };
-      const blanks = selectedPeople.filter((p) => p !== id && (!updated[p] || parseFloat(updated[p] ?? '0') === 0));
-      if (blanks.length === 1) {
-        const entered = selectedPeople
-          .filter((p) => p !== blanks[0])
-          .reduce((sum, p) => sum + (parseFloat(updated[p] ?? '0') || 0), 0);
-        const rem = Math.round((100 - entered) * 10) / 10;
-        if (rem >= 0) updated[blanks[0]] = rem.toString();
-      }
-      return updated;
-    });
+    setPercentAmounts((prev) => ({ ...prev, [id]: value }));
     setError('');
-  }, [selectedPeople]);
+  }, []);
 
   const getCustomTotal = useCallback((): number => {
     return selectedPeople.reduce(
