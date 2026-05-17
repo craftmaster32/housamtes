@@ -187,52 +187,96 @@ export const useParkingStore = create<ParkingStore>()(
       },
       claim: async (userId, displayName, houseId): Promise<void> => {
         if (!userId) throw new Error('User ID is required to claim parking');
-        const { data: existing } = await supabase
-          .from('parking_sessions')
-          .select('id, occupant')
-          .eq('house_id', houseId)
-          .eq('is_active', true)
-          .maybeSingle();
-        if (existing) throw new Error('Parking spot is already taken');
 
-        const { data, error } = await supabase
-          .from('parking_sessions')
-          .insert({ house_id: houseId, occupant: userId, is_active: true })
-          .select()
-          .single();
-        if (error) { captureError(error, { context: 'claim-parking', houseId }); throw new Error('Could not claim the parking spot. Please try again.'); }
-        set({ current: { id: data.id, occupant: data.occupant, startTime: data.start_time } });
-        notifyHousemates({
-          houseId,
-          excludeUserId: userId,
-          title: '🚗 Parking claimed',
-          body: `${displayName} is using the parking spot`,
-          data: { screen: 'parking' },
-          notificationType: 'parking_claimed',
+        // Abort if initial load is still in flight — local state may be stale
+        if (get().isLoading) throw new Error('Still loading parking data, please try again');
+
+        // Use already-loaded realtime state instead of a separate round-trip SELECT
+        if (get().current) throw new Error('Parking spot is already taken');
+
+        // Block if another housemate has an approved reservation covering right now
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const conflictingReservation = get().reservations.find((r) => {
+          if (r.status !== 'approved' || r.date !== todayStr || r.requestedBy === userId) return false;
+          const start = r.startTime
+            ? parseInt(r.startTime.split(':')[0], 10) * 60 + parseInt(r.startTime.split(':')[1], 10)
+            : 0;
+          const end = r.endTime
+            ? parseInt(r.endTime.split(':')[0], 10) * 60 + parseInt(r.endTime.split(':')[1], 10)
+            : 24 * 60;
+          return nowMinutes >= start && nowMinutes < end;
         });
-      },
-      release: async (houseId: string): Promise<void> => {
-        const current = get().current;
-        if (!current) return;
-        const { error } = await supabase
-          .from('parking_sessions')
-          .update({ is_active: false })
-          .eq('id', current.id)
-          .eq('house_id', houseId);
-        if (error) { captureError(error, { context: 'release-parking', houseId }); throw new Error('Could not release the parking spot. Please try again.'); }
-        set({ current: null });
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user.id ?? '';
-        if (userId) {
+        if (conflictingReservation) {
+          throw new Error('The spot is reserved by a housemate right now');
+        }
+
+        // Optimistic update — feels instant, reverts on failure
+        const optimistic: ParkingSession = { id: 'optimistic', occupant: userId, startTime: now.toISOString() };
+        set({ current: optimistic });
+
+        try {
+          const { data, error } = await supabase
+            .from('parking_sessions')
+            .insert({ house_id: houseId, occupant: userId, is_active: true })
+            .select()
+            .single();
+          if (error) {
+            set({ current: null });
+            captureError(error, { context: 'claim-parking', houseId });
+            throw new Error('Could not claim the parking spot. Please try again.');
+          }
+          set({ current: { id: data.id, occupant: data.occupant, startTime: data.start_time } });
           notifyHousemates({
             houseId,
             excludeUserId: userId,
-            title: '🅿️ Parking free',
-            body: 'The parking spot is now free',
+            title: '🚗 Parking claimed',
+            body: `${displayName} is using the parking spot`,
             data: { screen: 'parking' },
             notificationType: 'parking_claimed',
           });
+        } catch (err) {
+          set({ current: null });
+          throw err;
         }
+      },
+      release: async (houseId: string): Promise<void> => {
+        const previous = get().current;
+        if (!previous) return;
+
+        // Claim is still in flight — the DB row doesn't exist yet, so the UPDATE would be a no-op
+        if (previous.id === 'optimistic') throw new Error('Claim is still in progress, please wait a moment');
+
+        // Optimistic update — feels instant, reverts on failure
+        set({ current: null });
+
+        const { data: updated, error } = await supabase
+          .from('parking_sessions')
+          .update({ is_active: false })
+          .eq('id', previous.id)
+          .eq('house_id', houseId)
+          .select();
+        if (error || !updated?.length) {
+          set({ current: previous });
+          if (error) captureError(error, { context: 'release-parking', houseId });
+          throw new Error('Could not release the parking spot. Please try again.');
+        }
+
+        // Notification fires in background — doesn't block the UI
+        supabase.auth.getSession().then(({ data: sessionData }) => {
+          const userId = sessionData.session?.user.id ?? '';
+          if (userId) {
+            return notifyHousemates({
+              houseId,
+              excludeUserId: userId,
+              title: '🅿️ Parking free',
+              body: 'The parking spot is now free',
+              data: { screen: 'parking' },
+              notificationType: 'parking_claimed',
+            });
+          }
+        }).catch((err) => captureError(err, { context: 'notify-release', houseId }));
       },
       addReservation: async (data, displayName, houseId): Promise<string> => {
         const conflict = get().reservations.find(
