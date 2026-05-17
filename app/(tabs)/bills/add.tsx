@@ -122,6 +122,8 @@ export default function AddBillScreen(): React.JSX.Element {
     );
   }, [selectedPeople, customAmounts]);
 
+  const customRemaining = totalAmount - getCustomTotal();
+
   const handleSave = useCallback(async () => {
     if (!title.trim()) { setError(t('bills.enter_title')); return; }
     const parsed = parseFloat(amount);
@@ -328,6 +330,16 @@ export default function AddBillScreen(): React.JSX.Element {
                     {formatFull(getCustomTotal(), currencyCode)} / {formatFull(totalAmount, currencyCode)}
                   </Text>
                 </View>
+                {totalAmount > 0 && (
+                  <View style={styles.customRemainingRow}>
+                    <Text style={styles.customTotalLabel}>Remaining</Text>
+                    <Text style={[styles.customTotalValue, { color: customRemaining < -0.01 ? C.danger : customRemaining < 0.01 ? C.positive : C.textPrimary }]}>
+                      {customRemaining < -0.01
+                        ? `Over by ${formatFull(-customRemaining, currencyCode)}`
+                        : formatFull(customRemaining, currencyCode)}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -464,8 +476,9 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: C.border,
   },
-  customTotalLabel: { color: C.textSecondary, fontSize: 14, ...font.medium },
-  customTotalValue: { fontSize: 14, ...font.semibold },
+  customTotalLabel:   { color: C.textSecondary, fontSize: 14, ...font.medium },
+  customTotalValue:   { fontSize: 14, ...font.semibold },
+  customRemainingRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
 
   categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
   catChip: {
