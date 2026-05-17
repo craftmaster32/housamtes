@@ -553,7 +553,7 @@ function GroceryWidgetRow({ item, myId, onToggle, onDelete }: GroceryWidgetRowPr
           {item.name}
         </Text>
         {item.quantity && item.quantity !== '1' && (
-          <Text style={[styles.groceryQty, { color: c.textSecondary }]}>×{item.quantity}</Text>
+          <Text style={[styles.groceryQty, { color: c.textSecondary }]}>{item.quantity}</Text>
         )}
       </Pressable>
     </Swipeable>
@@ -575,23 +575,39 @@ function GroceryWidget(): React.JSX.Element {
 
   const [input, setInput]               = useState('');
   const [qty, setQty]                   = useState('');
+  const [unit, setUnit]                 = useState('');
   const [addError, setAddError]         = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
 
   const myDraftItems  = useMemo(() => items.filter((i) => i.isDraft && i.addedBy === myId), [items, myId]);
-  const sharedPending = useMemo(() => items.filter((i) => !i.isPersonal && !i.isChecked).slice(0, 5), [items]);
-  const totalShared   = useMemo(() => items.filter((i) => !i.isPersonal && !i.isChecked).length, [items]);
+  const sharedPending = useMemo(() => items.filter((i) => !i.isPersonal && !i.isChecked), [items]);
 
   const newGrocery = countNew(items.filter((i) => !i.isChecked) as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.grocery, myId, 'addedBy');
+
+  const handleUnitToggle = useCallback((u: string): void => { setUnit((prev) => (prev === u ? '' : u)); }, []);
+
+  const unitPressHandlers = useMemo(
+    () => (['ml', 'L', 'g', 'kg'] as const).reduce<Record<string, () => void>>(
+      (acc, u) => { acc[u] = (): void => handleUnitToggle(u); return acc; },
+      {}
+    ),
+    [handleUnitToggle]
+  );
 
   const handleAdd = useCallback(async (): Promise<void> => {
     const n = input.trim();
     if (!n) return;
+    const numPart = qty.trim();
+    if (numPart && !/^\d+$/.test(numPart)) {
+      setAddError('Quantity must be a whole number.');
+      return;
+    }
+    const quantityStr = numPart ? numPart + unit : unit ? `1${unit}` : '';
     try {
-      await addItem(n, qty.trim(), myId, houseId ?? '', draftEnabled ? 'draft' : 'shared');
-      setInput(''); setQty(''); setAddError(null);
+      await addItem(n, quantityStr, myId, houseId ?? '', draftEnabled ? 'draft' : 'shared');
+      setInput(''); setQty(''); setUnit(''); setAddError(null);
     } catch { setAddError('Could not add item. Try again.'); }
-  }, [input, qty, addItem, myId, houseId, draftEnabled]);
+  }, [input, qty, unit, addItem, myId, houseId, draftEnabled]);
 
   const handlePublish = useCallback(async (): Promise<void> => {
     if (isPublishing || !myId) return;
@@ -641,6 +657,20 @@ function GroceryWidget(): React.JSX.Element {
         )}
       </View>
       {!!addError && <Text style={[styles.groceryAddError, { color: c.negative }]}>{addError}</Text>}
+      <View style={styles.groceryUnitRow}>
+        {(['ml', 'L', 'g', 'kg'] as const).map((u) => (
+          <Pressable
+            key={u}
+            style={[styles.groceryUnitBtn, { backgroundColor: unit === u ? c.primary : c.surfaceSecondary, borderColor: unit === u ? c.primary : c.border }]}
+            onPress={unitPressHandlers[u]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: unit === u }}
+            accessibilityLabel={`Unit ${u}`}
+          >
+            <Text style={[styles.groceryUnitBtnText, { color: unit === u ? '#fff' : c.textSecondary }]}>{u}</Text>
+          </Pressable>
+        ))}
+      </View>
       <FlatList
         data={sharedPending}
         keyExtractor={(item) => item.id}
@@ -650,11 +680,6 @@ function GroceryWidget(): React.JSX.Element {
         scrollEnabled={false}
         nestedScrollEnabled
       />
-      {totalShared > 5 && (
-        <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button">
-          <Text style={[styles.viewAll, { color: c.primary }]}>+{totalShared - 5} more items</Text>
-        </Pressable>
-      )}
     </WidgetCard>
   );
 }
@@ -1211,6 +1236,9 @@ const styles = StyleSheet.create({
   groceryItemText: { flex: 1, fontSize: 14, ...font.regular },
   groceryItemDone: { textDecorationLine: 'line-through' },
   groceryQty: { fontSize: 12, ...font.regular },
+  groceryUnitRow: { flexDirection: 'row', gap: 6, paddingTop: 6 },
+  groceryUnitBtn: { minWidth: 44, minHeight: 44, borderRadius: 9999, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12, borderWidth: 1 },
+  groceryUnitBtnText: { fontSize: 12, ...font.semibold },
 
   // ── Votes widget
   voteQuestion: { fontSize: 14, ...font.semibold, lineHeight: 20 },

@@ -9,7 +9,9 @@ import {
   SectionList,
   ActivityIndicator,
   Animated,
+  Modal,
 } from 'react-native';
+import { formatDistanceToNow } from 'date-fns';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,6 +38,7 @@ const ADD_MODE_KEY = 'grocery_add_mode';
 
 const QUICK_ADDS = ['Milk', 'Bread', 'Trash Bags', 'Coffee', 'Butter', 'Olive Oil'];
 const QTY_PRESETS = ['1', '2', '3'];
+const UNIT_OPTS = ['ml', 'L', 'g', 'kg'] as const;
 
 // ── Category detection ─────────────────────────────────────────────────────────
 interface Category { label: string; icon: string; order: number }
@@ -97,12 +100,14 @@ interface ItemRowProps {
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
   onUpdate: (id: string, name: string, quantity: string) => Promise<void>;
+  onLongPress: (item: GroceryItem) => void;
 }
 
-function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrement, onDecrement, onUpdate }: ItemRowProps): React.JSX.Element {
+function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrement, onDecrement, onUpdate, onLongPress }: ItemRowProps): React.JSX.Element {
   const C = useThemedColors();
-  const qtyNum    = parseInt(item.quantity, 10);
-  const hasCount  = !isNaN(qtyNum) && qtyNum > 1;
+  const isPlainInt = /^\d+$/.test(item.quantity.trim());
+  const qtyNum     = isPlainInt ? parseInt(item.quantity, 10) : NaN;
+  const hasCount   = isPlainInt && qtyNum > 1;
   const bought    = item.boughtCount ?? 0;
   const canEdit   = item.addedBy === myId;
 
@@ -157,6 +162,11 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
     setSaveError(null);
     setIsEditing(false);
   }, []);
+
+  const handleLongPress = useCallback((): void => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    onLongPress(item);
+  }, [item, onLongPress]);
 
   const saveEdit = useCallback(async (): Promise<void> => {
     const trimmed = editName.trim();
@@ -229,9 +239,12 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
     <Pressable
       style={[rowStyles.groceryItem, item.isChecked && rowStyles.groceryItemDone, item.isPersonal && !item.isDraft && rowStyles.groceryItemPersonal]}
       onPress={handleTap}
+      onLongPress={handleLongPress}
+      delayLongPress={400}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.isChecked }}
       accessibilityLabel={isDuplicate ? `${item.name}, already on shared list` : item.name}
+      accessibilityHint="Long press for details and notes"
     >
       {hasCount ? (
         <View style={rowStyles.counter}>
@@ -266,7 +279,7 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
       )}
       <View style={rowStyles.itemDetails}>
         <View style={rowStyles.itemNameWrap}>
-          <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]} numberOfLines={1}>
+          <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>
             {item.name}
           </Text>
           {!!item.quantity && (
@@ -280,6 +293,9 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
             <View style={rowStyles.duplicateBadge} accessibilityLabel="Already on shared list">
               <Text style={rowStyles.duplicateBadgeText}>⚠️ on list</Text>
             </View>
+          )}
+          {!!item.comment && (
+            <Ionicons name="chatbubble-ellipses-outline" size={14} color={C.textSecondary} accessibilityLabel="Has a note" />
           )}
           {item.isPersonal && !item.isDraft
             ? <Ionicons name="lock-closed" size={14} color="rgba(139,92,246,0.6)" />
@@ -323,6 +339,130 @@ function SectionSeparator(): React.JSX.Element {
   return <View style={s.sectionSep} />;
 }
 
+// ── Item detail modal ──────────────────────────────────────────────────────────
+interface ItemDetailModalProps {
+  item: GroceryItem | null;
+  visible: boolean;
+  myId: string;
+  onClose: () => void;
+  onSaveComment: (id: string, comment: string) => Promise<void>;
+}
+
+function ItemDetailModal({ item, visible, myId, onClose, onSaveComment }: ItemDetailModalProps): React.JSX.Element {
+  const C = useThemedColors();
+  const s = useMemo(() => makeStyles(C), [C]);
+  const housemate = useHousematesStore((st) => st.housemates.find((h) => h.id === item?.addedBy));
+
+  const [comment, setComment]   = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setComment(item?.comment ?? '');
+    setSaveError(null);
+  }, [item]);
+
+  const handleCommentChange = useCallback((v: string): void => { setComment(v); setSaveError(null); }, []);
+
+  const handleSave = useCallback(async (): Promise<void> => {
+    if (!item || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await onSaveComment(item.id, comment.trim());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      onClose();
+    } catch {
+      setSaveError('Could not save note. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [item, comment, onSaveComment, onClose, isSaving]);
+
+  const addedByName = item
+    ? (item.addedBy === myId ? 'You' : (housemate?.name ?? 'Someone'))
+    : '';
+  const timeAgo = item
+    ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })
+    : '';
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={s.modalBackdrop} onPress={onClose} accessible={false} />
+        <View style={[s.modalSheet, { backgroundColor: C.surface }]}>
+          {item && (
+            <>
+              <View style={s.modalHeader}>
+                <Text style={[s.modalTitle, { color: C.textPrimary }]}>Item Details</Text>
+                <Pressable onPress={onClose} style={s.modalClose} accessibilityRole="button" accessibilityLabel="Close details">
+                  <Ionicons name="close" size={22} color={C.textSecondary} />
+                </Pressable>
+              </View>
+
+              <Text style={[s.modalItemName, { color: C.textPrimary }, item.isChecked && s.modalItemNameDone]}>
+                {item.name}
+              </Text>
+
+              <View style={s.modalMeta}>
+                {!!item.quantity && item.quantity !== '1' && (
+                  <View style={[s.modalQtyBadge, { backgroundColor: C.secondary }]}>
+                    <Text style={[s.modalQtyText, { color: C.textSecondary }]}>{item.quantity}</Text>
+                  </View>
+                )}
+                <UserAvatar userId={item.addedBy} size={20} />
+                <Text style={[s.modalMetaText, { color: C.textSecondary }]}>
+                  {addedByName} · {timeAgo}
+                </Text>
+              </View>
+
+              <View style={[s.modalCommentBox, { backgroundColor: C.surfaceSecondary, borderColor: C.border }]}>
+                <TextInput
+                  value={comment}
+                  onChangeText={handleCommentChange}
+                  placeholder="Add a note… (e.g. the one from Lidl)"
+                  placeholderTextColor={C.textSecondary}
+                  style={[s.modalCommentInput, { color: C.textPrimary }]}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={200}
+                  textAlignVertical="top"
+                  accessible
+                  accessibilityRole="text"
+                  accessibilityLabel="Item note"
+                  accessibilityHint="Optional note about this item, up to 200 characters"
+                />
+              </View>
+              {!!saveError && <Text style={s.modalSaveError}>{saveError}</Text>}
+
+              <View style={s.modalActions}>
+                <Pressable
+                  onPress={onClose}
+                  style={[s.modalBtn, { borderColor: C.border }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel"
+                >
+                  <Text style={[s.modalBtnText, { color: C.textSecondary }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSave}
+                  disabled={isSaving}
+                  style={[s.modalBtn, s.modalBtnPrimary, { backgroundColor: C.primary }, isSaving && s.modalBtnOff]}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isSaving }}
+                  accessibilityLabel="Save note"
+                >
+                  <Text style={[s.modalBtnText, s.modalBtnPrimaryText]}>{isSaving ? 'Saving…' : 'Save note'}</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 // ── Screen ─────────────────────────────────────────────────────────────────────
 interface GroceryItemWithMeta extends GroceryItem { isDuplicate?: boolean }
 interface SectionData { title: string; icon: string; data: GroceryItemWithMeta[]; sectionType: 'draft' | 'private' | 'shared' }
@@ -340,6 +480,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const deleteItem   = useGroceryStore((s) => s.deleteItem);
   const clearChecked        = useGroceryStore((s) => s.clearChecked);
   const publishDraftItems   = useGroceryStore((s) => s.publishDraftItems);
+  const addComment          = useGroceryStore((s) => s.addComment);
   const activeRun    = useGroceryStore((s) => s.activeRun);
   const startRun     = useGroceryStore((s) => s.startRun);
   const endRun       = useGroceryStore((s) => s.endRun);
@@ -356,7 +497,9 @@ export default function GroceryScreen(): React.JSX.Element {
   const [isAdding, setIsAdding]         = useState(false);
   const [addMode, setAddMode]           = useState<AddMode>('draft');
   const [addError, setAddError]         = useState<string | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
+  const [isPublishing, setIsPublishing]   = useState(false);
+  const [unit, setUnit]                   = useState<string>('');
+  const [selectedItem, setSelectedItem]   = useState<GroceryItem | null>(null);
 
   const inputRef = useRef<TextInput>(null);
 
@@ -376,7 +519,7 @@ export default function GroceryScreen(): React.JSX.Element {
     }).catch(() => {});
   }, [draftEnabled]);
 
-  const resolvedQty = showCustomQty ? customQty : qty;
+  const resolvedQty = (showCustomQty ? customQty : qty) + unit;
   const effectiveMode: AddMode = !draftEnabled && addMode === 'draft' ? 'shared' : addMode;
 
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
@@ -436,6 +579,7 @@ export default function GroceryScreen(): React.JSX.Element {
       setQty('1');
       setCustomQty('');
       setShowCustomQty(false);
+      setUnit('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setTimeout(() => inputRef.current?.focus(), 50);
     } catch {
@@ -468,7 +612,10 @@ export default function GroceryScreen(): React.JSX.Element {
   const onInc       = useCallback((id: string): void => { incBought(id); }, [incBought]);
   const onDec       = useCallback((id: string): void => { decBought(id); }, [decBought]);
   const onUpdate    = useCallback((id: string, name: string, quantity: string): Promise<void> => updateItem(id, name, quantity), [updateItem]);
-  const handleClear   = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
+  const handleClear        = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
+  const handleLongPress    = useCallback((item: GroceryItem): void => { setSelectedItem(item); }, []);
+  const handleCloseModal   = useCallback((): void => { setSelectedItem(null); }, []);
+  const onSaveComment      = useCallback((id: string, comment: string): Promise<void> => addComment(id, comment), [addComment]);
 
   const handlePublishDraft = useCallback(async (): Promise<void> => {
     if (isPublishing || !myId) return;
@@ -496,6 +643,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleAddPress        = useCallback((): void => { handleAdd(); }, [handleAdd]);
   const handleQtyPresetSelect = useCallback((p: string): void => { setShowCustomQty(false); setQty(p); }, []);
   const handleToggleCustomQty = useCallback((): void => { setShowCustomQty(true); setQty(''); }, []);
+  const handleUnitToggle      = useCallback((u: string): void => { setUnit((prev) => (prev === u ? '' : u)); }, []);
   const handleQuickAdd        = useCallback((name: string): void => {
     Haptics.selectionAsync().catch(() => {});
     handleAdd(name);
@@ -512,9 +660,10 @@ export default function GroceryScreen(): React.JSX.Element {
         onIncrement={onInc}
         onDecrement={onDec}
         onUpdate={onUpdate}
+        onLongPress={handleLongPress}
       />
     ),
-    [myId, onToggle, onDelete, onInc, onDec, onUpdate]
+    [myId, onToggle, onDelete, onInc, onDec, onUpdate, handleLongPress]
   );
 
   const renderSectionHeader = useCallback(
@@ -621,6 +770,7 @@ export default function GroceryScreen(): React.JSX.Element {
   };
 
   return (
+    <>
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SafeAreaView style={styles.root} edges={['top']}>
         <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
@@ -748,6 +898,29 @@ export default function GroceryScreen(): React.JSX.Element {
                   )}
                 </View>
 
+                {/* ── Unit selector ─────────────────────────────────── */}
+                <View style={styles.qtyRow}>
+                  <Text style={styles.qtyLabel}>Unit</Text>
+                  <View style={styles.qtyPresets}>
+                    {UNIT_OPTS.map((u) => {
+                      const active = unit === u;
+                      return (
+                        <Pressable
+                          key={u}
+                          style={[styles.qtyBtn, active && styles.qtyBtnOn]}
+                          onPress={() => handleUnitToggle(u)}
+                          hitSlop={4}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                          accessibilityLabel={`Unit ${u}`}
+                        >
+                          <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>{u}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
                 {/* ── Quick Add ──────────────────────────────────────── */}
                 <View>
                   <Text style={[styles.eyebrow, styles.quickAddLabel]}>Quick Add</Text>
@@ -815,6 +988,14 @@ export default function GroceryScreen(): React.JSX.Element {
         </Animated.View>
       </SafeAreaView>
     </KeyboardAvoidingView>
+    <ItemDetailModal
+      item={selectedItem}
+      visible={!!selectedItem}
+      myId={myId}
+      onClose={handleCloseModal}
+      onSaveComment={onSaveComment}
+    />
+    </>
   );
 }
 
@@ -1064,5 +1245,33 @@ function makeStyles(C: ColorTokens) {
     shopperBadgeText: { fontSize: 13, ...font.semibold, color: C.textPrimary },
 
     bottomPad: { height: sizes.bottomTabContentPadding },
+
+    // ── Item detail modal
+    modalOverlay:  { flex: 1, justifyContent: 'flex-end' },
+    modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+    modalSheet: {
+      borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      padding: 24, paddingBottom: 44, gap: 16,
+      shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.12, shadowRadius: 16, elevation: 10,
+    },
+    modalHeader:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    modalTitle:          { fontSize: 18, ...font.bold, color: C.textPrimary },
+    modalClose:          { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    modalItemName:       { fontSize: 22, ...font.bold, color: C.textPrimary, lineHeight: 30 },
+    modalItemNameDone:   { textDecorationLine: 'line-through', opacity: 0.5 },
+    modalMeta:           { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+    modalQtyBadge:       { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+    modalQtyText:        { fontSize: 13, ...font.bold },
+    modalMetaText:       { fontSize: 13, ...font.regular, color: C.textSecondary },
+    modalCommentBox:     { borderRadius: 12, borderWidth: 1, padding: 12 },
+    modalCommentInput:   { fontSize: 15, ...font.regular, color: C.textPrimary, minHeight: 72 },
+    modalSaveError:      { fontSize: 12, color: '#D94F4F' },
+    modalActions:        { flexDirection: 'row', gap: 10 },
+    modalBtn:            { flex: 1, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+    modalBtnPrimary:     { borderWidth: 0 },
+    modalBtnOff:         { opacity: 0.5 },
+    modalBtnText:        { fontSize: 15, ...font.semibold },
+    modalBtnPrimaryText: { color: '#FFFFFF' },
   });
 }
