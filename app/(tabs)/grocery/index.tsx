@@ -820,6 +820,7 @@ export default function GroceryScreen(): React.JSX.Element {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 function makeStyles(C: ColorTokens) {
+  const successSubtle = C.success + '12';
   return StyleSheet.create({
     flex:        { flex: 1 },
     root:        { flex: 1, backgroundColor: C.background },
@@ -872,7 +873,7 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surfaceSecondary, paddingRight: 6, paddingLeft: 4,
       height: 50,
     },
-    addRowPersonal: { borderColor: 'rgba(139,92,246,0.4)', backgroundColor: 'rgba(245,240,255,0.6)' },
+    addRowPersonal: { borderColor: PERSONAL_BORDER, backgroundColor: PERSONAL_BG },
     addInput: {
       flex: 1, height: '100%', paddingHorizontal: 10,
       fontSize: 15, ...font.regular, color: C.textPrimary,
@@ -1046,7 +1047,7 @@ function makeStyles(C: ColorTokens) {
       shadowRadius: 8,
       elevation: 2,
     },
-    shoppingRunCardActive: { backgroundColor: C.success + '12', borderColor: SHOP_ACTIVE_BORDER },
+    shoppingRunCardActive: { backgroundColor: successSubtle, borderColor: SHOP_ACTIVE_BORDER },
     shoppingIcon: {
       width: 56, height: 56, borderRadius: 28,
       backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center',
