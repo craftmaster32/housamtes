@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -11,7 +11,7 @@ function nameToColor(name: string): string {
   return colors.avatar[Math.abs(h) % colors.avatar.length];
 }
 
-interface UserAvatarProps {
+export interface UserAvatarProps {
   userId: string;
   size?: number;
 }
@@ -21,11 +21,16 @@ export function UserAvatar({ userId, size = 24 }: UserAvatarProps): React.JSX.El
   const avatarUrl   = housemate?.avatarUrl ?? null;
   const displayName = housemate?.name ?? '?';
   return (
-    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : nameToColor(displayName), justifyContent: 'center', alignItems: 'center', flexShrink: 0 }]}>
+    <View style={[styles.container, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : nameToColor(displayName) }]}>
       {avatarUrl
-        ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" />
-        : <Text style={[{ color: '#fff', ...font.bold, fontSize: Math.round(size * 0.44) }]}>{displayName[0].toUpperCase()}</Text>
+        ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" accessibilityLabel={`${displayName} avatar`} />
+        : <Text style={[styles.initialText, { fontSize: Math.round(size * 0.44) }]}>{displayName[0].toUpperCase()}</Text>
       }
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container:   { justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  initialText: { color: '#fff', ...font.bold },
+});
