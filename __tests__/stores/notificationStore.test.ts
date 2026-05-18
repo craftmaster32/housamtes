@@ -36,6 +36,7 @@ const DEFAULT_PREFS = {
   notifyParkingReservation: true,
   notifyChoreOverdue: true,
   notifyChatMessage: true,
+  notifyGroceryShared: true,
 };
 
 beforeEach(() => {

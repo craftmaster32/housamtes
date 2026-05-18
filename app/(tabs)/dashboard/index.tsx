@@ -634,10 +634,10 @@ function GroceryWidget(): React.JSX.Element {
   const handlePublish = useCallback(async (): Promise<void> => {
     if (isPublishing || !myId) return;
     setAddError(null); setIsPublishing(true);
-    try { await publishDraftItems(myId); }
+    try { await publishDraftItems(myId, houseId ?? ''); }
     catch { setAddError('Could not share draft. Try again.'); }
     finally { setIsPublishing(false); }
-  }, [publishDraftItems, myId, isPublishing]);
+  }, [publishDraftItems, myId, houseId, isPublishing]);
 
   const handleToggle      = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
   const handleDelete      = useCallback((id: string): void => { deleteItem(id).catch(() => {}); }, [deleteItem]);
