@@ -325,12 +325,18 @@ export default function GroceryScreen(): React.JSX.Element {
     ]).then(([modeVal, draftVal]) => {
       if (modeVal === 'private') setAddMode('private');
       else if (modeVal === 'draft') {
-        // Legacy migration: 'draft' stored value → shared + draft toggle ON
+        // Legacy migration: stored 'draft' mode value → shared mode
         setAddMode('shared');
-        if (draftEnabled) setIsDraftOn(true);
       }
       // modeVal === 'shared' or null → default 'shared' already set
-      if (draftVal === 'true' && draftEnabled) setIsDraftOn(true);
+
+      // DRAFT_TOGGLE_KEY is authoritative when present; only fall back to
+      // legacy 'draft' mode inference when the key has never been written.
+      if (draftVal !== null) {
+        if (draftVal === 'true' && draftEnabled) setIsDraftOn(true);
+      } else if (modeVal === 'draft' && draftEnabled) {
+        setIsDraftOn(true);
+      }
     }).catch((err) => {
       console.warn('Failed to restore grocery preferences', err);
     });
@@ -553,6 +559,7 @@ export default function GroceryScreen(): React.JSX.Element {
 
   // ── Mode controls ─────────────────────────────────────────────────────────
   const handleSetShared  = useCallback((): void => {
+    setAddError(null);
     const prev = addMode;
     setAddMode('shared');
     AsyncStorage.setItem(ADD_MODE_KEY, 'shared').catch(() => {
@@ -561,6 +568,7 @@ export default function GroceryScreen(): React.JSX.Element {
     });
   }, [addMode]);
   const handleSetPrivate = useCallback((): void => {
+    setAddError(null);
     const prev = addMode;
     setAddMode('private');
     AsyncStorage.setItem(ADD_MODE_KEY, 'private').catch(() => {
@@ -569,6 +577,7 @@ export default function GroceryScreen(): React.JSX.Element {
     });
   }, [addMode]);
   const handleToggleDraft = useCallback((value: boolean): void => {
+    setAddError(null);
     setIsDraftOn(value);
     AsyncStorage.setItem(DRAFT_TOGGLE_KEY, String(value)).catch(() => {
       setIsDraftOn(!value);
