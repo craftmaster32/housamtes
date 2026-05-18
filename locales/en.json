@@ -311,7 +311,18 @@
     "next_month": "Next month",
     "add_expense": "Add expense",
     "load_error": "Couldn't load bills",
-    "retry": "Try again"
+    "retry": "Try again",
+    "by_percent": "By %",
+    "fill_remaining_equally": "Fill remaining equally",
+    "remaining": "Remaining",
+    "total_percent": "Total %",
+    "over_by_amount": "Over by {{amount}}",
+    "over_by_pct": "Over by {{pct}}%",
+    "pct_total_mismatch": "Percentages must add up to 100% (currently {{pct}}%)",
+    "amount_for": "Amount for {{name}}",
+    "amount_for_hint": "Enter this person's share of the bill",
+    "pct_for": "Percentage for {{name}}",
+    "pct_for_hint": "Enter this person's percentage share"
   },
   "parking": {
     "title": "Parking",

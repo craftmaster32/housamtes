@@ -137,6 +137,20 @@ export default function AddBillScreen(): React.JSX.Element {
   const customRemaining  = totalAmount - getCustomTotal();
   const percentRemaining = 100 - getPercentTotal();
 
+  const percentPreviewText = useMemo((): string => {
+    if (totalAmount <= 0 || Math.abs(getPercentTotal() - 100) >= 0.1) return '';
+    let running = 0;
+    return selectedPeople.map((id, i) => {
+      const pct  = parseFloat(percentAmounts[id] ?? '0') || 0;
+      const isLast = i === selectedPeople.length - 1;
+      const share  = isLast
+        ? Math.round((totalAmount - running) * 100) / 100
+        : Math.round((pct / 100) * totalAmount * 100) / 100;
+      if (!isLast) running += share;
+      return `${housemates.find((h) => h.id === id)?.name ?? id}: ${formatFull(share, currencyCode)}`;
+    }).join('  ·  ');
+  }, [totalAmount, selectedPeople, percentAmounts, housemates, currencyCode, getPercentTotal]);
+
   const fillEquallyCustom = useCallback((): void => {
     const blanks = selectedPeople.filter((id) => !customAmounts[id] || parseFloat(customAmounts[id] ?? '0') === 0);
     const targets = blanks.length > 0 ? blanks : selectedPeople;
@@ -198,7 +212,7 @@ export default function AddBillScreen(): React.JSX.Element {
     } else if (splitType === 'percentage') {
       const pctTotal = getPercentTotal();
       if (Math.abs(pctTotal - 100) > 0.1) {
-        setError(`Percentages must add up to 100% (currently ${pctTotal.toFixed(1)}%)`);
+        setError(t('bills.pct_total_mismatch', { pct: pctTotal.toFixed(1) }));
         return;
       }
       splitAmounts = {};
@@ -370,7 +384,7 @@ export default function AddBillScreen(): React.JSX.Element {
                 onPress={() => setSplitType('percentage')}
               >
                 <Text style={[styles.chipText, splitType === 'percentage' && styles.chipTextSelected]}>
-                  By %
+                  {t('bills.by_percent')}
                 </Text>
               </Pressable>
             </View>
@@ -385,26 +399,31 @@ export default function AddBillScreen(): React.JSX.Element {
 
             {splitType === 'custom' && (
               <View style={styles.customBox}>
-                {selectedPeople.map((id) => (
-                  <View key={id} style={styles.customRow}>
-                    <Text style={styles.customName}>{housemates.find((h) => h.id === id)?.name ?? id}</Text>
-                    <TextInput
-                      value={customAmounts[id] ?? ''}
-                      onChangeText={(v) => setPersonAmount(id, v)}
-                      mode="outlined"
-                      style={styles.customInput}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      dense
-                      outlineColor={C.border}
-                      activeOutlineColor={C.primary}
-                    />
-                  </View>
-                ))}
+                {selectedPeople.map((id) => {
+                  const name = housemates.find((h) => h.id === id)?.name ?? id;
+                  return (
+                    <View key={id} style={styles.customRow}>
+                      <Text style={styles.customName}>{name}</Text>
+                      <TextInput
+                        value={customAmounts[id] ?? ''}
+                        onChangeText={(v) => setPersonAmount(id, v)}
+                        mode="outlined"
+                        style={styles.customInput}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        dense
+                        outlineColor={C.border}
+                        activeOutlineColor={C.primary}
+                        accessibilityLabel={t('bills.amount_for', { name })}
+                        accessibilityHint={t('bills.amount_for_hint')}
+                      />
+                    </View>
+                  );
+                })}
                 {customRemaining > 0.01 && (
-                  <Pressable onPress={fillEquallyCustom} style={styles.fillBtn} accessibilityRole="button" accessibilityLabel="Fill remaining equally">
+                  <Pressable onPress={fillEquallyCustom} style={styles.fillBtn} accessibilityRole="button" accessibilityLabel={t('bills.fill_remaining_equally')}>
                     <Ionicons name="git-branch-outline" size={13} color={C.primary} />
-                    <Text style={styles.fillBtnText}>Fill remaining equally</Text>
+                    <Text style={styles.fillBtnText}>{t('bills.fill_remaining_equally')}</Text>
                   </Pressable>
                 )}
                 <View style={styles.customTotal}>
@@ -418,10 +437,10 @@ export default function AddBillScreen(): React.JSX.Element {
                 </View>
                 {totalAmount > 0 && (
                   <View style={styles.customRemainingRow}>
-                    <Text style={styles.customTotalLabel}>Remaining</Text>
+                    <Text style={styles.customTotalLabel}>{t('bills.remaining')}</Text>
                     <Text style={[styles.customTotalValue, { color: customRemaining < -0.01 ? C.danger : customRemaining < 0.01 ? C.positive : C.textPrimary }]}>
                       {customRemaining < -0.01
-                        ? `Over by ${formatFull(-customRemaining, currencyCode)}`
+                        ? t('bills.over_by_amount', { amount: formatFull(-customRemaining, currencyCode) })
                         : formatFull(customRemaining, currencyCode)}
                     </Text>
                   </View>
@@ -431,53 +450,53 @@ export default function AddBillScreen(): React.JSX.Element {
 
             {splitType === 'percentage' && (
               <View style={styles.customBox}>
-                {selectedPeople.map((id) => (
-                  <View key={id} style={styles.customRow}>
-                    <Text style={styles.customName}>{housemates.find((h) => h.id === id)?.name ?? id}</Text>
-                    <View style={styles.pctInputRow}>
-                      <TextInput
-                        value={percentAmounts[id] ?? ''}
-                        onChangeText={(v) => setPersonPercent(id, v)}
-                        mode="outlined"
-                        style={styles.customInput}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        dense
-                        outlineColor={C.border}
-                        activeOutlineColor={C.primary}
-                      />
-                      <Text style={styles.pctSymbol}>%</Text>
+                {selectedPeople.map((id) => {
+                  const name = housemates.find((h) => h.id === id)?.name ?? id;
+                  return (
+                    <View key={id} style={styles.customRow}>
+                      <Text style={styles.customName}>{name}</Text>
+                      <View style={styles.pctInputRow}>
+                        <TextInput
+                          value={percentAmounts[id] ?? ''}
+                          onChangeText={(v) => setPersonPercent(id, v)}
+                          mode="outlined"
+                          style={styles.customInput}
+                          keyboardType="decimal-pad"
+                          placeholder="0"
+                          dense
+                          outlineColor={C.border}
+                          activeOutlineColor={C.primary}
+                          accessibilityLabel={t('bills.pct_for', { name })}
+                          accessibilityHint={t('bills.pct_for_hint')}
+                        />
+                        <Text style={styles.pctSymbol}>%</Text>
+                      </View>
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
                 {percentRemaining > 0.1 && (
-                  <Pressable onPress={fillEquallyPercent} style={styles.fillBtn} accessibilityRole="button" accessibilityLabel="Fill remaining equally">
+                  <Pressable onPress={fillEquallyPercent} style={styles.fillBtn} accessibilityRole="button" accessibilityLabel={t('bills.fill_remaining_equally')}>
                     <Ionicons name="git-branch-outline" size={13} color={C.primary} />
-                    <Text style={styles.fillBtnText}>Fill remaining equally</Text>
+                    <Text style={styles.fillBtnText}>{t('bills.fill_remaining_equally')}</Text>
                   </Pressable>
                 )}
                 <View style={styles.customTotal}>
-                  <Text style={styles.customTotalLabel}>Total %</Text>
+                  <Text style={styles.customTotalLabel}>{t('bills.total_percent')}</Text>
                   <Text style={[styles.customTotalValue, { color: Math.abs(getPercentTotal() - 100) < 0.1 ? C.positive : C.danger }]}>
                     {getPercentTotal().toFixed(1)}% / 100%
                   </Text>
                 </View>
                 <View style={styles.customRemainingRow}>
-                  <Text style={styles.customTotalLabel}>Remaining</Text>
+                  <Text style={styles.customTotalLabel}>{t('bills.remaining')}</Text>
                   <Text style={[styles.customTotalValue, { color: percentRemaining < -0.1 ? C.danger : percentRemaining < 0.1 ? C.positive : C.textPrimary }]}>
                     {percentRemaining < -0.1
-                      ? `Over by ${(-percentRemaining).toFixed(1)}%`
+                      ? t('bills.over_by_pct', { pct: (-percentRemaining).toFixed(1) })
                       : `${percentRemaining.toFixed(1)}%`}
                   </Text>
                 </View>
-                {totalAmount > 0 && Math.abs(getPercentTotal() - 100) < 0.1 && (
+                {!!percentPreviewText && (
                   <View style={styles.previewBox}>
-                    <Text style={styles.previewText}>
-                      {selectedPeople.map((id) => {
-                        const pct = parseFloat(percentAmounts[id] ?? '0') || 0;
-                        return `${housemates.find((h) => h.id === id)?.name ?? id}: ${formatFull(Math.round(pct / 100 * totalAmount * 100) / 100, currencyCode)}`;
-                      }).join('  ·  ')}
-                    </Text>
+                    <Text style={styles.previewText}>{percentPreviewText}</Text>
                   </View>
                 )}
               </View>
