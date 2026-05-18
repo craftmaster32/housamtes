@@ -9,23 +9,29 @@ import {
   SectionList,
   ActivityIndicator,
   Animated,
+  BackHandler,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
+import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useGroceryStore, type GroceryItem, type AddMode } from '@stores/groceryStore';
+import { useGroceryStore, type GroceryItem, type AddMode, type GroceryList } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
+import { QuickAddSheet } from '@components/grocery/QuickAddSheet';
+import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
+import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareModal';
+import { SavedListsSection } from '@components/grocery/SavedListsSection';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
-// ── Accent constants (decorative borders/tints only — never used as text backgrounds) ─
+// ── Accent constants ───────────────────────────────────────────────────────────
 const SHOP_BORDER        = 'rgba(191,219,254,0.7)';
 const SHOP_ACTIVE_BORDER = 'rgba(140,210,160,0.7)';
 const PERSONAL_BG        = 'rgba(124,58,237,0.08)';
@@ -58,7 +64,6 @@ function detectCategory(name: string): Category {
   return RULES.find((r) => r.re.test(name))?.cat ?? OTHER_CAT;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
 function elapsedLabel(startedAt: string): string {
   const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
   if (mins < 1) return 'Just started';
@@ -93,10 +98,10 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
   const [isSaving, setIsSaving]     = useState(false);
   const [saveError, setSaveError]   = useState<string | null>(null);
 
+  const rowStyles = useMemo(() => makeStyles(C), [C]);
+
   const handleTap = useCallback((): void => {
-    if (!hasCount) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
+    if (!hasCount) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); }
     onToggle(item.id);
   }, [hasCount, item.id, onToggle]);
 
@@ -117,27 +122,14 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
     onIncrement(item.id);
   }, [bought, qtyNum, item.id, onIncrement]);
 
-  const handleEditNameChange = useCallback((v: string): void => {
-    setEditName(v);
-    setSaveError(null);
-  }, []);
-
-  const handleEditQtyChange = useCallback((v: string): void => {
-    setEditQty(v);
-    setSaveError(null);
-  }, []);
+  const handleEditNameChange = useCallback((v: string): void => { setEditName(v); setSaveError(null); }, []);
+  const handleEditQtyChange  = useCallback((v: string): void => { setEditQty(v); setSaveError(null); }, []);
 
   const startEdit = useCallback((): void => {
-    setEditName(item.name);
-    setEditQty(item.quantity);
-    setSaveError(null);
-    setIsEditing(true);
+    setEditName(item.name); setEditQty(item.quantity); setSaveError(null); setIsEditing(true);
   }, [item.name, item.quantity]);
 
-  const cancelEdit = useCallback((): void => {
-    setSaveError(null);
-    setIsEditing(false);
-  }, []);
+  const cancelEdit = useCallback((): void => { setSaveError(null); setIsEditing(false); }, []);
 
   const handleLongPress = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -147,8 +139,7 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
   const saveEdit = useCallback(async (): Promise<void> => {
     const trimmed = editName.trim();
     if (!trimmed || isSaving) return;
-    setIsSaving(true);
-    setSaveError(null);
+    setIsSaving(true); setSaveError(null);
     try {
       await onUpdate(item.id, trimmed, editQty.trim());
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -160,42 +151,21 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
     }
   }, [editName, editQty, item.id, onUpdate, isSaving]);
 
-  const rowStyles = useMemo(() => makeStyles(C), [C]);
-
-  // ── Edit mode ────────────────────────────────────────────────────────────────
   if (isEditing) {
     return (
       <View>
         <View style={[rowStyles.groceryItem, rowStyles.groceryItemEditing]}>
           <TextInput
-            value={editName}
-            onChangeText={handleEditNameChange}
-            style={rowStyles.editNameInput}
-            autoFocus
-            returnKeyType="done"
-            blurOnSubmit={false}
-            onSubmitEditing={saveEdit}
-            placeholder="Item name"
-            placeholderTextColor={C.textSecondary}
-            accessible
-            accessibilityRole="text"
-            accessibilityLabel="Item name, edit"
-            accessibilityHint="Type a new name for this item"
+            value={editName} onChangeText={handleEditNameChange} style={rowStyles.editNameInput}
+            autoFocus returnKeyType="done" blurOnSubmit={false} onSubmitEditing={saveEdit}
+            placeholder="Item name" placeholderTextColor={C.textSecondary}
+            accessible accessibilityRole="text" accessibilityLabel="Item name, edit"
           />
           <TextInput
-            value={editQty}
-            onChangeText={handleEditQtyChange}
-            style={rowStyles.editQtyInput}
-            keyboardType="default"
-            returnKeyType="done"
-            blurOnSubmit={false}
-            onSubmitEditing={saveEdit}
-            placeholder="Qty"
-            placeholderTextColor={C.textSecondary}
-            accessible
-            accessibilityRole="text"
-            accessibilityLabel="Quantity, edit"
-            accessibilityHint="Type a new quantity"
+            value={editQty} onChangeText={handleEditQtyChange} style={rowStyles.editQtyInput}
+            keyboardType="default" returnKeyType="done" blurOnSubmit={false} onSubmitEditing={saveEdit}
+            placeholder="Qty" placeholderTextColor={C.textSecondary}
+            accessible accessibilityRole="text" accessibilityLabel="Quantity, edit"
           />
           <Pressable onPress={saveEdit} style={rowStyles.editActionBtn} accessibilityRole="button" accessibilityLabel="Save changes">
             <Ionicons name="checkmark" size={20} color={C.positive} />
@@ -204,9 +174,7 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
             <Ionicons name="close" size={20} color={C.textSecondary} />
           </Pressable>
         </View>
-        {!!saveError && (
-          <Text style={rowStyles.inlineError}>{saveError}</Text>
-        )}
+        {!!saveError && <Text style={rowStyles.inlineError}>{saveError}</Text>}
       </View>
     );
   }
@@ -214,50 +182,29 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
   return (
     <Pressable
       style={[rowStyles.groceryItem, item.isChecked && rowStyles.groceryItemDone, item.isPersonal && !item.isDraft && rowStyles.groceryItemPersonal]}
-      onPress={handleTap}
-      onLongPress={handleLongPress}
-      delayLongPress={400}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: item.isChecked }}
+      onPress={handleTap} onLongPress={handleLongPress} delayLongPress={400}
+      accessibilityRole="checkbox" accessibilityState={{ checked: item.isChecked }}
       accessibilityLabel={isDuplicate ? `${item.name}, already on shared list` : item.name}
       accessibilityHint="Long press for details and notes"
     >
       {hasCount ? (
         <View style={rowStyles.counter}>
-          <Pressable
-            accessible
-            onPress={handleDecrement}
-            style={[rowStyles.ctrBtn, bought === 0 && rowStyles.ctrBtnOff]}
-            accessibilityRole="button"
-            accessibilityLabel={`Decrease ${item.name}`}
-            accessibilityState={{ disabled: bought === 0 }}
-          >
+          <Pressable accessible onPress={handleDecrement} style={[rowStyles.ctrBtn, bought === 0 && rowStyles.ctrBtnOff]}
+            accessibilityRole="button" accessibilityLabel={`Decrease ${item.name}`} accessibilityState={{ disabled: bought === 0 }}>
             <Text style={rowStyles.ctrBtnText}>−</Text>
           </Pressable>
           <Text style={rowStyles.ctrText}>{bought}/{qtyNum}</Text>
-          <Pressable
-            accessible
-            onPress={handleIncrement}
-            style={[rowStyles.ctrBtn, bought >= qtyNum && rowStyles.ctrBtnOff]}
-            accessibilityRole="button"
-            accessibilityLabel={`Increase ${item.name}`}
-            accessibilityState={{ disabled: bought >= qtyNum }}
-          >
+          <Pressable accessible onPress={handleIncrement} style={[rowStyles.ctrBtn, bought >= qtyNum && rowStyles.ctrBtnOff]}
+            accessibilityRole="button" accessibilityLabel={`Increase ${item.name}`} accessibilityState={{ disabled: bought >= qtyNum }}>
             <Text style={rowStyles.ctrBtnText}>+</Text>
           </Pressable>
         </View>
       ) : (
-        <Ionicons
-          name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-          size={24}
-          color={item.isChecked ? C.positive : C.border}
-        />
+        <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={item.isChecked ? C.positive : C.border} />
       )}
       <View style={rowStyles.itemDetails}>
         <View style={rowStyles.itemNameWrap}>
-          <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>
-            {item.name}
-          </Text>
+          <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>{item.name}</Text>
           {!!item.quantity && (
             <View style={rowStyles.itemQty}>
               <Text style={rowStyles.itemQtyText}>{hasCount ? `x${qtyNum}` : item.quantity}</Text>
@@ -270,30 +217,18 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
               <Text style={rowStyles.duplicateBadgeText}>⚠️ on list</Text>
             </View>
           )}
-          {!!item.comment && (
-            <Ionicons name="chatbubble-ellipses-outline" size={14} color={C.textSecondary} accessibilityLabel="Has a note" />
-          )}
+          {!!item.comment && <Ionicons name="chatbubble-ellipses-outline" size={14} color={C.textSecondary} accessibilityLabel="Has a note" />}
           {item.isPersonal && !item.isDraft
             ? <Ionicons name="lock-closed" size={14} color="rgba(139,92,246,0.6)" />
             : <UserAvatar userId={item.addedBy} size={22} />
           }
           {canEdit && (
-            <Pressable
-              onPress={startEdit}
-              style={rowStyles.editBtn}
-              accessibilityRole="button"
-              accessibilityLabel={`Edit ${item.name}`}
-            >
+            <Pressable onPress={startEdit} style={rowStyles.editBtn} accessibilityRole="button" accessibilityLabel={`Edit ${item.name}`}>
               <Ionicons name="pencil-outline" size={15} color={C.textSecondary} />
             </Pressable>
           )}
           {canEdit && (
-            <Pressable
-              onPress={handleDelete}
-              style={rowStyles.deleteBtn}
-              accessibilityRole="button"
-              accessibilityLabel={`Delete ${item.name}`}
-            >
+            <Pressable onPress={handleDelete} style={rowStyles.deleteBtn} accessibilityRole="button" accessibilityLabel={`Delete ${item.name}`}>
               <Ionicons name="trash-outline" size={17} color={C.textSecondary} />
             </Pressable>
           )}
@@ -303,7 +238,6 @@ function ItemRow({ item, myId, isDuplicate = false, onToggle, onDelete, onIncrem
   );
 }
 
-// ── Stable list separators (module-level so SectionList never sees new refs) ──
 function ItemSeparator(): React.JSX.Element {
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
@@ -321,21 +255,32 @@ interface SectionData { title: string; icon: string; data: GroceryItemWithMeta[]
 
 export default function GroceryScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const isLoading    = useGroceryStore((s) => s.isLoading);
-  const error        = useGroceryStore((s) => s.error);
-  const items        = useGroceryStore((s) => s.items);
-  const addItem      = useGroceryStore((s) => s.addItem);
-  const updateItem   = useGroceryStore((s) => s.updateItem);
-  const toggleItem   = useGroceryStore((s) => s.toggleItem);
-  const incBought    = useGroceryStore((s) => s.incrementBought);
-  const decBought    = useGroceryStore((s) => s.decrementBought);
-  const deleteItem   = useGroceryStore((s) => s.deleteItem);
-  const clearChecked        = useGroceryStore((s) => s.clearChecked);
-  const publishDraftItems   = useGroceryStore((s) => s.publishDraftItems);
-  const addComment          = useGroceryStore((s) => s.addComment);
-  const activeRun    = useGroceryStore((s) => s.activeRun);
-  const startRun     = useGroceryStore((s) => s.startRun);
-  const endRun       = useGroceryStore((s) => s.endRun);
+  const router = useRouter();
+
+  const isLoading              = useGroceryStore((s) => s.isLoading);
+  const error                  = useGroceryStore((s) => s.error);
+  const items                  = useGroceryStore((s) => s.items);
+  const addItem                = useGroceryStore((s) => s.addItem);
+  const updateItem             = useGroceryStore((s) => s.updateItem);
+  const toggleItem             = useGroceryStore((s) => s.toggleItem);
+  const incBought              = useGroceryStore((s) => s.incrementBought);
+  const decBought              = useGroceryStore((s) => s.decrementBought);
+  const deleteItem             = useGroceryStore((s) => s.deleteItem);
+  const clearChecked           = useGroceryStore((s) => s.clearChecked);
+  const publishDraftItems      = useGroceryStore((s) => s.publishDraftItems);
+  const addComment             = useGroceryStore((s) => s.addComment);
+  const activeRun              = useGroceryStore((s) => s.activeRun);
+  const startRun               = useGroceryStore((s) => s.startRun);
+  const endRun                 = useGroceryStore((s) => s.endRun);
+  const savedLists             = useGroceryStore((s) => s.savedLists);
+  const isLoadingLists         = useGroceryStore((s) => s.isLoadingLists);
+  const currentDraftSourceListId = useGroceryStore((s) => s.currentDraftSourceListId);
+  const fetchSavedLists        = useGroceryStore((s) => s.fetchSavedLists);
+  const createSavedList        = useGroceryStore((s) => s.createSavedList);
+  const updateSavedList        = useGroceryStore((s) => s.updateSavedList);
+  const deleteSavedList        = useGroceryStore((s) => s.deleteSavedList);
+  const loadListIntoDraft      = useGroceryStore((s) => s.loadListIntoDraft);
+
   const profile      = useAuthStore((s) => s.profile);
   const houseId      = useAuthStore((s) => s.houseId);
   const myId         = profile?.id ?? '';
@@ -346,18 +291,26 @@ export default function GroceryScreen(): React.JSX.Element {
   const [qty, setQty]                     = useState('1');
   const [showCustomQty, setShowCustomQty] = useState(false);
   const [customQty, setCustomQty]         = useState('');
-  const [isAdding, setIsAdding]         = useState(false);
-  const [addMode, setAddMode]           = useState<AddMode>('draft');
-  const [addError, setAddError]         = useState<string | null>(null);
+  const [isAdding, setIsAdding]           = useState(false);
+  const [addMode, setAddMode]             = useState<AddMode>('draft');
+  const [addError, setAddError]           = useState<string | null>(null);
   const [isPublishing, setIsPublishing]   = useState(false);
   const [unit, setUnit]                   = useState<string>('');
   const [selectedItem, setSelectedItem]   = useState<GroceryItem | null>(null);
 
-  const inputRef = useRef<TextInput>(null);
+  // ── New modal state ──────────────────────────────────────────────────────────
+  const [showQuickAdd, setShowQuickAdd]         = useState(false);
+  const [showSaveListModal, setShowSaveListModal] = useState(false);
+  const [saveListMode, setSaveListMode]           = useState<SaveListMode>('new');
+  const [pendingPublishedItems, setPendingPublishedItems] = useState<Array<{ name: string; quantity: string }>>([]);
+  const [showLeaveModal, setShowLeaveModal]       = useState(false);
+  const leaveWarningShownRef                      = useRef(false);
 
+  const inputRef = useRef<TextInput>(null);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
@@ -371,19 +324,56 @@ export default function GroceryScreen(): React.JSX.Element {
     }).catch(() => {});
   }, [draftEnabled]);
 
+  // Fetch saved lists on mount
+  useEffect((): void => {
+    if (houseId) { fetchSavedLists(houseId); }
+  }, [houseId, fetchSavedLists]);
+
+  // ── Leave-without-share detection ──────────────────────────────────────────
+  const myDraftItems = useMemo(
+    () => items.filter((i) => i.isDraft && i.addedBy === myId),
+    [items, myId]
+  );
+
+  // Reset warning flag when draft becomes empty (after sharing or manual delete)
+  useEffect((): void => {
+    if (myDraftItems.length === 0) { leaveWarningShownRef.current = false; }
+  }, [myDraftItems.length]);
+
+  // Show warning when screen loses focus with active draft items
+  useFocusEffect(
+    useCallback(() => {
+      return (): void => {
+        if (myDraftItems.length > 0 && !leaveWarningShownRef.current) {
+          leaveWarningShownRef.current = true;
+          setShowLeaveModal(true);
+        }
+      };
+    }, [myDraftItems])
+  );
+
+  // Android hardware back button — same logic
+  useEffect((): (() => void) => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (myDraftItems.length > 0 && !leaveWarningShownRef.current) {
+        leaveWarningShownRef.current = true;
+        setShowLeaveModal(true);
+        return true; // prevent default back
+      }
+      return false;
+    });
+    return (): void => sub.remove();
+  }, [myDraftItems]);
+
   const resolvedQty = (showCustomQty ? customQty : qty) + unit;
   const effectiveMode: AddMode = !draftEnabled && addMode === 'draft' ? 'shared' : addMode;
-
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
   const sections = useMemo((): SectionData[] => {
     const draftItems   = items.filter((i) => i.isDraft    && i.addedBy === myId);
     const privateItems = items.filter((i) => i.isPersonal && !i.isDraft && i.addedBy === myId);
     const sharedItems  = items.filter((i) => !i.isPersonal);
-
-    // Build a lowercase name set from shared items for duplicate detection in the draft
-    const sharedNames = new Set(sharedItems.map((i) => i.name.toLowerCase().trim()));
-
+    const sharedNames  = new Set(sharedItems.map((i) => i.name.toLowerCase().trim()));
     const result: SectionData[] = [];
 
     if (draftItems.length > 0) {
@@ -394,12 +384,10 @@ export default function GroceryScreen(): React.JSX.Element {
         data: draftItems.map((i) => ({ ...i, isDuplicate: sharedNames.has(i.name.toLowerCase().trim()) })),
       });
     }
-
     if (privateItems.length > 0) {
       result.push({ title: 'My Private List', icon: '🔒', sectionType: 'private', data: privateItems });
     }
 
-    // Shared categories — sorted by first-occurrence so most recently touched category floats up
     const firstIndex = new Map<string, number>();
     const map = new Map<string, SectionData>();
     for (let i = 0; i < sharedItems.length; i++) {
@@ -416,22 +404,16 @@ export default function GroceryScreen(): React.JSX.Element {
         (a, b) => (firstIndex.get(a.title) ?? 99) - (firstIndex.get(b.title) ?? 99)
       )
     );
-
     return result;
   }, [items, myId]);
 
   const handleAdd = useCallback(async (quick?: string): Promise<void> => {
     const n = quick ?? itemName.trim();
     if (!n || isAdding) return;
-    setIsAdding(true);
-    setAddError(null);
+    setIsAdding(true); setAddError(null);
     try {
       await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '', effectiveMode);
-      setItemName('');
-      setQty('1');
-      setCustomQty('');
-      setShowCustomQty(false);
-      setUnit('');
+      setItemName(''); setQty('1'); setCustomQty(''); setShowCustomQty(false); setUnit('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setTimeout(() => inputRef.current?.focus(), 50);
     } catch {
@@ -441,6 +423,101 @@ export default function GroceryScreen(): React.JSX.Element {
     }
   }, [itemName, resolvedQty, myId, houseId, addItem, isAdding, effectiveMode]);
 
+  const handlePublishDraft = useCallback(async (): Promise<void> => {
+    if (isPublishing || !myId || !houseId) return;
+
+    // Capture draft items before publishing (needed to save as a list)
+    const draftSnapshot = myDraftItems.map((i) => ({ name: i.name, quantity: i.quantity }));
+    if (draftSnapshot.length === 0) return;
+
+    setIsPublishing(true); setAddError(null);
+    try {
+      await publishDraftItems(myId, houseId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      leaveWarningShownRef.current = false;
+
+      // Show save/update modal
+      setPendingPublishedItems(draftSnapshot);
+      if (currentDraftSourceListId) {
+        setSaveListMode('update');
+      } else {
+        setSaveListMode('new');
+      }
+      setShowSaveListModal(true);
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Could not share your list. Please try again.');
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [publishDraftItems, myId, houseId, isPublishing, myDraftItems, currentDraftSourceListId]);
+
+  // ── Quick Share handlers ───────────────────────────────────────────────────
+  const handleOpenQuickAdd = useCallback((): void => {
+    Haptics.selectionAsync().catch(() => {});
+    setShowQuickAdd(true);
+  }, []);
+
+  const handleQuickShareItems = useCallback(async (shareItems: Array<{ name: string; quantity: string }>): Promise<void> => {
+    if (!houseId) return;
+    for (const item of shareItems) {
+      await addItem(item.name, item.quantity, myId, houseId, 'shared');
+    }
+  }, [addItem, myId, houseId]);
+
+  // ── Saved lists handlers ───────────────────────────────────────────────────
+  const handleLoadList = useCallback(async (list: GroceryList): Promise<void> => {
+    if (!houseId) return;
+    try {
+      await loadListIntoDraft(list, myId, houseId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } catch {
+      setAddError('Could not load the list. Please try again.');
+    }
+  }, [loadListIntoDraft, myId, houseId]);
+
+  const handleDeleteList = useCallback(async (listId: string): Promise<void> => {
+    try {
+      await deleteSavedList(listId);
+    } catch {
+      setAddError('Could not delete the list. Please try again.');
+    }
+  }, [deleteSavedList]);
+
+  // ── Save list modal handlers ───────────────────────────────────────────────
+  const handleSaveNew = useCallback(async (name: string, isPrivate: boolean): Promise<void> => {
+    if (!houseId) return;
+    await createSavedList(name, houseId, myId, pendingPublishedItems, isPrivate);
+    setPendingPublishedItems([]);
+  }, [createSavedList, houseId, myId, pendingPublishedItems]);
+
+  const handleUpdateList = useCallback(async (): Promise<void> => {
+    if (!currentDraftSourceListId) return;
+    await updateSavedList(currentDraftSourceListId, pendingPublishedItems);
+    setPendingPublishedItems([]);
+  }, [updateSavedList, currentDraftSourceListId, pendingPublishedItems]);
+
+  const handleSaveListSkip = useCallback((): void => {
+    setPendingPublishedItems([]);
+    setShowSaveListModal(false);
+  }, []);
+
+  const handleSaveListClose = useCallback((): void => {
+    setPendingPublishedItems([]);
+    setShowSaveListModal(false);
+  }, []);
+
+  // ── Leave modal handlers ───────────────────────────────────────────────────
+  const handleLeave = useCallback((): void => {
+    setShowLeaveModal(false);
+  }, []);
+
+  const handleStayAndShare = useCallback((): void => {
+    setShowLeaveModal(false);
+    leaveWarningShownRef.current = false;
+    router.push('/(tabs)/grocery');
+  }, [router]);
+
+  // ── Shopping run handlers ──────────────────────────────────────────────────
   const handleStartRun = useCallback(async (): Promise<void> => {
     try {
       await startRun(myId, myName);
@@ -464,27 +541,13 @@ export default function GroceryScreen(): React.JSX.Element {
   const onInc       = useCallback((id: string): void => { incBought(id); }, [incBought]);
   const onDec       = useCallback((id: string): void => { decBought(id); }, [decBought]);
   const onUpdate    = useCallback((id: string, name: string, quantity: string): Promise<void> => updateItem(id, name, quantity), [updateItem]);
-  const handleClear        = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
-  const handleLongPress    = useCallback((item: GroceryItem): void => { setSelectedItem(item); }, []);
-  const handleCloseModal   = useCallback((): void => { setSelectedItem(null); }, []);
-  const onSaveComment      = useCallback((id: string, comment: string): Promise<void> => addComment(id, comment), [addComment]);
+  const handleClear = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
+  const handleLongPress  = useCallback((item: GroceryItem): void => { setSelectedItem(item); }, []);
+  const handleCloseModal = useCallback((): void => { setSelectedItem(null); }, []);
+  const onSaveComment    = useCallback((id: string, comment: string): Promise<void> => addComment(id, comment), [addComment]);
 
-  const handlePublishDraft = useCallback(async (): Promise<void> => {
-    if (isPublishing || !myId) return;
-    setIsPublishing(true);
-    setAddError(null);
-    try {
-      await publishDraftItems(myId);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch (err) {
-      setAddError(err instanceof Error ? err.message : 'Could not share your list. Please try again.');
-    } finally {
-      setIsPublishing(false);
-    }
-  }, [publishDraftItems, myId, isPublishing]);
-
-  // ── Stable header-card handlers ────────────────────────────────────────────
-  const handleSetMode    = useCallback((mode: AddMode): void => {
+  // ── Mode controls ─────────────────────────────────────────────────────────
+  const handleSetMode = useCallback((mode: AddMode): void => {
     const safe: AddMode = mode === 'draft' && !draftEnabled ? 'shared' : mode;
     setAddMode(safe);
     AsyncStorage.setItem(ADD_MODE_KEY, safe).catch(() => {});
@@ -492,6 +555,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleSetDraft   = useCallback((): void => handleSetMode('draft'),   [handleSetMode]);
   const handleSetShared  = useCallback((): void => handleSetMode('shared'),  [handleSetMode]);
   const handleSetPrivate = useCallback((): void => handleSetMode('private'), [handleSetMode]);
+
   const handleItemNameChange  = useCallback((v: string): void => { setItemName(v); setAddError(null); }, []);
   const handleAddPress        = useCallback((): void => { handleAdd(); }, [handleAdd]);
   const handleQtyPresetSelect = useCallback((p: string): void => { setShowCustomQty(false); setQty(p); }, []);
@@ -505,15 +569,9 @@ export default function GroceryScreen(): React.JSX.Element {
   const renderItem = useCallback(
     ({ item }: { item: GroceryItemWithMeta }): React.JSX.Element => (
       <ItemRow
-        item={item}
-        myId={myId}
-        isDuplicate={item.isDuplicate}
-        onToggle={onToggle}
-        onDelete={onDelete}
-        onIncrement={onInc}
-        onDecrement={onDec}
-        onUpdate={onUpdate}
-        onLongPress={handleLongPress}
+        item={item} myId={myId} isDuplicate={item.isDuplicate}
+        onToggle={onToggle} onDelete={onDelete} onIncrement={onInc}
+        onDecrement={onDec} onUpdate={onUpdate} onLongPress={handleLongPress}
       />
     ),
     [myId, onToggle, onDelete, onInc, onDec, onUpdate, handleLongPress]
@@ -531,10 +589,8 @@ export default function GroceryScreen(): React.JSX.Element {
             </View>
             <Pressable
               style={[styles.draftPublishBtn, doneDisabled && styles.draftPublishBtnOff]}
-              onPress={handlePublishDraft}
-              disabled={doneDisabled}
-              accessible={true}
-              accessibilityRole="button"
+              onPress={handlePublishDraft} disabled={doneDisabled}
+              accessible accessibilityRole="button"
               accessibilityState={{ disabled: doneDisabled }}
               accessibilityLabel="Share draft with housemates"
               accessibilityHint="Adds all draft items to the shared grocery list"
@@ -567,7 +623,6 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
 
-  // ── Shopping run card ───────────────────────────────────────────────────────
   const ShoppingRunCard = (): React.JSX.Element => {
     if (activeRun && isMyRun) {
       return (
@@ -585,7 +640,6 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
       );
     }
-
     if (activeRun && !isMyRun) {
       return (
         <View style={[styles.shoppingRunCard, styles.shoppingRunCardActive]}>
@@ -603,7 +657,6 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
       );
     }
-
     return (
       <View style={styles.shoppingRunCard}>
         <View style={styles.shoppingIcon}>
@@ -611,9 +664,7 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
         <View style={styles.shoppingCopy}>
           <Text style={styles.titleLg}>Start a Shopping Run</Text>
-          <Text style={styles.textSm}>
-            {"Let your housemates know you're at the store so they can add last-minute items."}
-          </Text>
+          <Text style={styles.textSm}>{"Let your housemates know you're at the store so they can add last-minute items."}</Text>
         </View>
         <Pressable style={[styles.btnPrimary, styles.btnFull]} onPress={handleStartRun} accessibilityRole="button">
           <Text style={styles.btnPrimaryText}>{"I'm going shopping"}</Text>
@@ -622,236 +673,240 @@ export default function GroceryScreen(): React.JSX.Element {
     );
   };
 
+  // ── Saved list name for update modal ──────────────────────────────────────
+  const sourceListName = useMemo(
+    () => savedLists.find((l) => l.id === currentDraftSourceListId)?.name,
+    [savedLists, currentDraftSourceListId]
+  );
+
   return (
     <>
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={styles.root} edges={['top']}>
-        <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          renderSectionHeader={renderSectionHeader}
-          stickySectionHeadersEnabled={false}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={ItemSeparator}
-          SectionSeparatorComponent={SectionSeparator}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <SafeAreaView style={styles.root} edges={['top']}>
+          <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+            <SectionList
+              sections={sections}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              renderSectionHeader={renderSectionHeader}
+              stickySectionHeadersEnabled={false}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.listContent}
+              ItemSeparatorComponent={ItemSeparator}
+              SectionSeparatorComponent={SectionSeparator}
 
-          ListHeaderComponent={
-            <View>
-              {/* ── Hero card ─────────────────────────────────────────────── */}
-              <View style={styles.headerCard}>
-                <View style={styles.headerCopy}>
-                  <Text style={styles.titleHero}>Shared Groceries</Text>
-                  <Text style={styles.textBase}>
-                    Add things as you run out. Tick them off at the store.
-                  </Text>
-                </View>
-
-                {/* ── Add mode toggle ──────────────────────────────── */}
-                <View style={styles.modeToggle}>
-                  {draftEnabled && (
-                    <Pressable
-                      style={[styles.modeBtn, effectiveMode === 'draft' && styles.modeBtnDraft]}
-                      onPress={handleSetDraft}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: effectiveMode === 'draft' }}
-                    >
-                      <Text style={[styles.modeBtnText, effectiveMode === 'draft' && styles.modeBtnTextDraft]}>📝 Draft</Text>
-                    </Pressable>
-                  )}
-                  <Pressable
-                    style={[styles.modeBtn, effectiveMode === 'shared' && styles.modeBtnOn]}
-                    onPress={handleSetShared}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: effectiveMode === 'shared' }}
-                  >
-                    <Text style={[styles.modeBtnText, effectiveMode === 'shared' && styles.modeBtnTextOn]}>🏠 Shared</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.modeBtn, effectiveMode === 'private' && styles.modeBtnPersonal]}
-                    onPress={handleSetPrivate}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: effectiveMode === 'private' }}
-                  >
-                    <Text style={[styles.modeBtnText, effectiveMode === 'private' && styles.modeBtnTextPersonal]}>🔒 Private</Text>
-                  </Pressable>
-                </View>
-
-                {/* ── Inline add input ──────────────────────────────── */}
-                {!!addError && (
-                  <View style={styles.errorBanner}>
-                    <Text style={styles.errorBannerText}>{addError}</Text>
-                  </View>
-                )}
-                <View style={[styles.addRow, effectiveMode === 'private' && styles.addRowPersonal]}>
-                  <TextInput
-                    ref={inputRef}
-                    value={itemName}
-                    onChangeText={handleItemNameChange}
-                    placeholder={t('grocery.item_placeholder')}
-                    placeholderTextColor={C.textSecondary}
-                    style={styles.addInput}
-                    returnKeyType="done"
-                    blurOnSubmit={false}
-                    onSubmitEditing={handleAddPress}
-                    accessible
-                    accessibilityRole="search"
-                    accessibilityLabel="Add item name"
-                    accessibilityHint="Type a grocery item and press the plus button or return to add it"
-                  />
-                  <Pressable
-                    style={[styles.addBtn, (!itemName.trim() || isAdding) && styles.addBtnOff, effectiveMode === 'private' && styles.addBtnPersonal]}
-                    onPress={handleAddPress}
-                    disabled={!itemName.trim() || isAdding}
-                    accessibilityRole="button"
-                    accessibilityLabel="Add item"
-                  >
-                    <Text style={styles.addBtnText}>{isAdding ? '…' : '+'}</Text>
-                  </Pressable>
-                </View>
-
-                {/* ── Qty selector ───────────────────────────────────── */}
-                <View style={styles.qtyRow}>
-                  <Text style={styles.qtyLabel}>Qty</Text>
-                  <View style={styles.qtyPresets}>
-                    {QTY_PRESETS.map((p) => {
-                      const active = !showCustomQty && qty === p;
-                      return (
-                        <Pressable
-                          key={p}
-                          style={[styles.qtyBtn, active && styles.qtyBtnOn]}
-                          onPress={() => handleQtyPresetSelect(p)}
-                          hitSlop={4}
-                        >
-                          <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>{p}</Text>
-                        </Pressable>
-                      );
-                    })}
-                    <Pressable
-                      style={[styles.qtyBtn, showCustomQty && styles.qtyBtnOn]}
-                      onPress={handleToggleCustomQty}
-                      hitSlop={4}
-                    >
-                      <Text style={[styles.qtyBtnText, showCustomQty && styles.qtyBtnTextOn]}>✏️</Text>
-                    </Pressable>
-                  </View>
-                  {showCustomQty && (
-                    <TextInput
-                      value={customQty}
-                      onChangeText={setCustomQty}
-                      placeholder="e.g. 6"
-                      placeholderTextColor={C.textSecondary}
-                      keyboardType="number-pad"
-                      style={styles.formQty}
-                      autoFocus
-                      accessible
-                      accessibilityRole="text"
-                      accessibilityLabel="Custom quantity"
-                      accessibilityHint="Enter the number of items to add, for example six"
-                    />
-                  )}
-                </View>
-
-                {/* ── Unit selector ─────────────────────────────────── */}
-                <View style={styles.qtyRow}>
-                  <Text style={styles.qtyLabel}>Unit</Text>
-                  <View style={styles.qtyPresets}>
-                    {UNIT_OPTS.map((u) => {
-                      const active = unit === u;
-                      return (
-                        <Pressable
-                          key={u}
-                          style={[styles.qtyBtn, active && styles.qtyBtnOn]}
-                          onPress={() => handleUnitToggle(u)}
-                          hitSlop={4}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: active }}
-                          accessibilityLabel={`Unit ${u}`}
-                        >
-                          <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>{u}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                {/* ── Quick Add ──────────────────────────────────────── */}
+              ListHeaderComponent={
                 <View>
-                  <Text style={[styles.eyebrow, styles.quickAddLabel]}>Quick Add</Text>
-                  <View style={styles.quickAdds}>
-                    {QUICK_ADDS.map((qa) => (
+                  {/* ── Hero card ─────────────────────────────────────────── */}
+                  <View style={styles.headerCard}>
+                    <View style={styles.headerCopy}>
+                      <Text style={styles.titleHero}>Shared Groceries</Text>
+                      <Text style={styles.textBase}>Add things as you run out. Tick them off at the store.</Text>
+                    </View>
+
+                    {/* ── Add mode toggle ───────────────────────────────── */}
+                    <View style={styles.modeToggle}>
+                      {draftEnabled && (
+                        <Pressable
+                          style={[styles.modeBtn, effectiveMode === 'draft' && styles.modeBtnDraft]}
+                          onPress={handleSetDraft} accessibilityRole="button"
+                          accessibilityState={{ selected: effectiveMode === 'draft' }}
+                        >
+                          <Text style={[styles.modeBtnText, effectiveMode === 'draft' && styles.modeBtnTextDraft]}>📝 Draft</Text>
+                        </Pressable>
+                      )}
                       <Pressable
-                        key={qa}
-                        style={styles.quickAddBtn}
-                        onPress={() => handleQuickAdd(qa)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add ${qa}`}
+                        style={[styles.modeBtn, effectiveMode === 'shared' && styles.modeBtnOn]}
+                        onPress={handleSetShared} accessibilityRole="button"
+                        accessibilityState={{ selected: effectiveMode === 'shared' }}
                       >
-                        <Text style={styles.quickAddText}>+ {qa}</Text>
+                        <Text style={[styles.modeBtnText, effectiveMode === 'shared' && styles.modeBtnTextOn]}>🏠 Shared</Text>
                       </Pressable>
-                    ))}
+                      <Pressable
+                        style={[styles.modeBtn, effectiveMode === 'private' && styles.modeBtnPersonal]}
+                        onPress={handleSetPrivate} accessibilityRole="button"
+                        accessibilityState={{ selected: effectiveMode === 'private' }}
+                      >
+                        <Text style={[styles.modeBtnText, effectiveMode === 'private' && styles.modeBtnTextPersonal]}>🔒 Private</Text>
+                      </Pressable>
+                    </View>
+
+                    {/* ── Quick Share button ────────────────────────────── */}
+                    <Pressable
+                      style={styles.quickShareBtn}
+                      onPress={handleOpenQuickAdd}
+                      accessibilityRole="button"
+                      accessibilityLabel="Quick share — add items directly to the shared list"
+                    >
+                      <Ionicons name="flash" size={16} color={C.primary} />
+                      <Text style={styles.quickShareText}>Quick Share</Text>
+                      <Text style={styles.quickShareSub}>Straight to shared — no draft</Text>
+                    </Pressable>
+
+                    {/* ── Error banner ──────────────────────────────────── */}
+                    {!!addError && (
+                      <View style={styles.errorBanner}>
+                        <Text style={styles.errorBannerText}>{addError}</Text>
+                      </View>
+                    )}
+
+                    {/* ── Inline add input ──────────────────────────────── */}
+                    <View style={[styles.addRow, effectiveMode === 'private' && styles.addRowPersonal]}>
+                      <TextInput
+                        ref={inputRef} value={itemName} onChangeText={handleItemNameChange}
+                        placeholder={t('grocery.item_placeholder')} placeholderTextColor={C.textSecondary}
+                        style={styles.addInput} returnKeyType="done" blurOnSubmit={false}
+                        onSubmitEditing={handleAddPress}
+                        accessible accessibilityRole="search" accessibilityLabel="Add item name"
+                      />
+                      <Pressable
+                        style={[styles.addBtn, (!itemName.trim() || isAdding) && styles.addBtnOff, effectiveMode === 'private' && styles.addBtnPersonal]}
+                        onPress={handleAddPress} disabled={!itemName.trim() || isAdding}
+                        accessibilityRole="button" accessibilityLabel="Add item"
+                      >
+                        <Text style={styles.addBtnText}>{isAdding ? '…' : '+'}</Text>
+                      </Pressable>
+                    </View>
+
+                    {/* ── Qty selector ─────────────────────────────────── */}
+                    <View style={styles.qtyRow}>
+                      <Text style={styles.qtyLabel}>Qty</Text>
+                      <View style={styles.qtyPresets}>
+                        {QTY_PRESETS.map((p) => {
+                          const active = !showCustomQty && qty === p;
+                          return (
+                            <Pressable key={p} style={[styles.qtyBtn, active && styles.qtyBtnOn]}
+                              onPress={() => handleQtyPresetSelect(p)} hitSlop={4}>
+                              <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>{p}</Text>
+                            </Pressable>
+                          );
+                        })}
+                        <Pressable style={[styles.qtyBtn, showCustomQty && styles.qtyBtnOn]}
+                          onPress={handleToggleCustomQty} hitSlop={4}>
+                          <Text style={[styles.qtyBtnText, showCustomQty && styles.qtyBtnTextOn]}>✏️</Text>
+                        </Pressable>
+                      </View>
+                      {showCustomQty && (
+                        <TextInput value={customQty} onChangeText={setCustomQty} placeholder="e.g. 6"
+                          placeholderTextColor={C.textSecondary} keyboardType="number-pad" style={styles.formQty} autoFocus
+                          accessible accessibilityRole="text" accessibilityLabel="Custom quantity"
+                        />
+                      )}
+                    </View>
+
+                    {/* ── Unit selector ────────────────────────────────── */}
+                    <View style={styles.qtyRow}>
+                      <Text style={styles.qtyLabel}>Unit</Text>
+                      <View style={styles.qtyPresets}>
+                        {UNIT_OPTS.map((u) => {
+                          const active = unit === u;
+                          return (
+                            <Pressable key={u} style={[styles.qtyBtn, active && styles.qtyBtnOn]}
+                              onPress={() => handleUnitToggle(u)} hitSlop={4}
+                              accessibilityRole="button" accessibilityState={{ selected: active }} accessibilityLabel={`Unit ${u}`}>
+                              <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>{u}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    {/* ── Quick Add (to current mode) ───────────────────── */}
+                    <View>
+                      <Text style={[styles.eyebrow, styles.quickAddLabel]}>Quick Add</Text>
+                      <View style={styles.quickAdds}>
+                        {QUICK_ADDS.map((qa) => (
+                          <Pressable key={qa} style={styles.quickAddBtn} onPress={() => handleQuickAdd(qa)}
+                            accessibilityRole="button" accessibilityLabel={`Add ${qa}`}>
+                            <Text style={styles.quickAddText}>+ {qa}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
                   </View>
+
+                  {/* ── Saved Lists section ──────────────────────────────────── */}
+                  <SavedListsSection
+                    lists={savedLists}
+                    isLoading={isLoadingLists}
+                    myId={myId}
+                    hasDraftItems={myDraftItems.length > 0}
+                    onLoadList={handleLoadList}
+                    onDeleteList={handleDeleteList}
+                  />
+
+                  {/* ── Load / error states ─────────────────────────────────── */}
+                  {isLoading && items.length === 0 && (
+                    <ActivityIndicator size="small" color="#4F78B6" style={styles.loadingIndicator} />
+                  )}
+                  {!!error && (
+                    <View style={styles.errorBanner}>
+                      <Text style={styles.errorBannerText}>{error}</Text>
+                    </View>
+                  )}
+
+                  {/* ── Clear checked bar ───────────────────────────────────── */}
+                  {checked.length > 0 && (
+                    <Pressable accessible style={styles.clearBar} onPress={handleClear}
+                      accessibilityRole="button" accessibilityLabel={`Clear ${checked.length} checked items`}>
+                      <View style={styles.clearBarLeft}>
+                        <Ionicons name="checkmark-done-outline" size={16} color={C.positive} />
+                        <Text style={styles.clearBarCount}>{t('grocery.checked_count', { count: checked.length })}</Text>
+                      </View>
+                      <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
+                    </Pressable>
+                  )}
                 </View>
-              </View>
+              }
 
-              {/* ── Load / error states ──────────────────────────────────── */}
-              {isLoading && items.length === 0 && (
-                <ActivityIndicator size="small" color="#4F78B6" style={styles.loadingIndicator} />
-              )}
-              {!!error && (
-                <View style={styles.errorBanner}>
-                  <Text style={styles.errorBannerText}>{error}</Text>
+              ListEmptyComponent={
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyIcon}>🛒</Text>
+                  <Text style={styles.emptyTitle}>{t('grocery.empty')}</Text>
+                  <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
                 </View>
-              )}
+              }
 
-              {/* ── Clear checked bar ────────────────────────────────────── */}
-              {checked.length > 0 && (
-                <Pressable
-                  accessible
-                  style={styles.clearBar}
-                  onPress={handleClear}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Clear ${checked.length} checked items`}
-                  accessibilityState={{ disabled: false }}
-                >
-                  <View style={styles.clearBarLeft}>
-                    <Ionicons name="checkmark-done-outline" size={16} color={C.positive} />
-                    <Text style={styles.clearBarCount}>{t('grocery.checked_count', { count: checked.length })}</Text>
-                  </View>
-                  <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
-                </Pressable>
-              )}
-            </View>
-          }
+              ListFooterComponent={
+                <View style={styles.footer}>
+                  <ShoppingRunCard />
+                  <View style={styles.bottomPad} />
+                </View>
+              }
+            />
+          </Animated.View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
 
-          ListEmptyComponent={
-            <View style={styles.emptyWrap}>
-              <Text style={styles.emptyIcon}>🛒</Text>
-              <Text style={styles.emptyTitle}>{t('grocery.empty')}</Text>
-              <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
-            </View>
-          }
+      {/* ── Modals ─────────────────────────────────────────────────────────── */}
+      <GroceryItemDetailModal
+        item={selectedItem} visible={!!selectedItem}
+        myId={myId} onClose={handleCloseModal} onSaveComment={onSaveComment}
+      />
 
-          ListFooterComponent={
-            <View style={styles.footer}>
-              <ShoppingRunCard />
-              <View style={styles.bottomPad} />
-            </View>
-          }
-        />
-        </Animated.View>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
-    <GroceryItemDetailModal
-      item={selectedItem}
-      visible={!!selectedItem}
-      myId={myId}
-      onClose={handleCloseModal}
-      onSaveComment={onSaveComment}
-    />
+      <QuickAddSheet
+        visible={showQuickAdd}
+        onClose={() => setShowQuickAdd(false)}
+        onShareItems={handleQuickShareItems}
+      />
+
+      <SaveListModal
+        visible={showSaveListModal}
+        mode={saveListMode}
+        existingListName={sourceListName}
+        onSaveNew={handleSaveNew}
+        onUpdate={handleUpdateList}
+        onSkip={handleSaveListSkip}
+        onClose={handleSaveListClose}
+      />
+
+      <LeaveWithoutShareModal
+        visible={showLeaveModal}
+        draftCount={myDraftItems.length}
+        onLeave={handleLeave}
+        onStayAndShare={handleStayAndShare}
+      />
     </>
   );
 }
@@ -864,50 +919,44 @@ function makeStyles(C: ColorTokens) {
     root:        { flex: 1, backgroundColor: C.background },
     listContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
 
-    // ── Hero card
     headerCard: {
-      backgroundColor: C.surface,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: C.border,
-      padding: 20,
-      gap: 16,
-      marginBottom: 24,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      backgroundColor: C.surface, borderRadius: 20, borderWidth: 1, borderColor: C.border,
+      padding: 20, gap: 16, marginBottom: 16,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
     },
     headerCopy: { gap: 6 },
 
-    // Typography
     titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78, lineHeight: 31 },
     titleLg:   { fontSize: 18, ...font.bold, color: C.textPrimary, letterSpacing: -0.36, textAlign: 'center' },
     textBase:  { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
     textSm:    { fontSize: 13, ...font.regular, color: C.textSecondary, lineHeight: 18, textAlign: 'center' },
     eyebrow:   { fontSize: 12, ...font.bold, color: C.textSecondary, letterSpacing: 0.72, textTransform: 'uppercase' },
 
-    // ── Add mode toggle
-    modeToggle: { flexDirection: 'row', gap: 6 },
-    modeBtn: {
-      flex: 1, minHeight: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
-      backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
-    },
-    modeBtnOn:           { backgroundColor: C.primary, borderColor: C.primary },
-    modeBtnDraft:        { backgroundColor: 'rgba(224,178,77,0.15)', borderColor: 'rgba(224,178,77,0.55)' },
-    modeBtnPersonal:     { backgroundColor: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.4)' },
-    modeBtnText:         { fontSize: 13, ...font.semibold, color: C.textSecondary },
-    modeBtnTextOn:       { color: '#FFFFFF' },
-    modeBtnTextDraft:    { color: 'rgb(133,77,14)' },
-    modeBtnTextPersonal: { color: 'rgb(76,29,149)' },
+    modeToggle:           { flexDirection: 'row', gap: 6 },
+    modeBtn:              { flex: 1, minHeight: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border },
+    modeBtnOn:            { backgroundColor: C.primary, borderColor: C.primary },
+    modeBtnDraft:         { backgroundColor: 'rgba(224,178,77,0.15)', borderColor: 'rgba(224,178,77,0.55)' },
+    modeBtnPersonal:      { backgroundColor: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.4)' },
+    modeBtnText:          { fontSize: 13, ...font.semibold, color: C.textSecondary },
+    modeBtnTextOn:        { color: '#FFFFFF' },
+    modeBtnTextDraft:     { color: 'rgb(133,77,14)' },
+    modeBtnTextPersonal:  { color: 'rgb(76,29,149)' },
 
-    // ── Inline add row
+    // ── Quick Share button
+    quickShareBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      paddingHorizontal: 14, paddingVertical: 12, minHeight: 48,
+      borderRadius: 12, borderWidth: 1,
+      borderColor: C.primary + '50',
+      backgroundColor: C.primary + '0D',
+    },
+    quickShareText: { fontSize: 14, ...font.semibold, color: C.primary },
+    quickShareSub:  { fontSize: 12, ...font.regular, color: C.textSecondary, marginLeft: 'auto' },
+
     addRow: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
       borderRadius: 12, borderWidth: 1, borderColor: C.border,
-      backgroundColor: C.surfaceSecondary, paddingRight: 6, paddingLeft: 4,
-      height: 50,
+      backgroundColor: C.surfaceSecondary, paddingRight: 6, paddingLeft: 4, height: 50,
     },
     addRowPersonal: { borderColor: PERSONAL_BORDER, backgroundColor: PERSONAL_BG },
     addInput: {
@@ -917,39 +966,27 @@ function makeStyles(C: ColorTokens) {
     addBtn: {
       width: 44, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
       backgroundColor: C.primary,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
     },
     addBtnOff:      { backgroundColor: C.textDisabled },
     addBtnPersonal: { backgroundColor: 'rgb(124,58,237)' },
     addBtnText:     { fontSize: 22, ...font.bold, color: '#FFFFFF', lineHeight: 26 },
 
-    // ── Primary button (shopping run)
     btnPrimary: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-      minHeight: 48, paddingHorizontal: 18, borderRadius: 10,
-      backgroundColor: C.primary,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      minHeight: 48, paddingHorizontal: 18, borderRadius: 10, backgroundColor: C.primary,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
     },
     btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#FFFFFF' },
     btnFull:        { alignSelf: 'stretch' },
     btnDanger:      { backgroundColor: C.danger },
 
-    // ── Qty selector
     qtyRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
     qtyLabel:   { fontSize: 13, ...font.semibold, color: C.textSecondary },
     qtyPresets: { flexDirection: 'row', gap: 6 },
     qtyBtn: {
       minWidth: 36, height: 36, borderRadius: 9999, justifyContent: 'center', alignItems: 'center',
-      paddingHorizontal: 10, backgroundColor: C.surfaceSecondary,
-      borderWidth: 1, borderColor: C.border,
+      paddingHorizontal: 10, backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
     },
     qtyBtnOn:     { backgroundColor: C.primary, borderColor: C.primary },
     qtyBtnText:   { fontSize: 14, ...font.semibold, color: C.textPrimary },
@@ -960,24 +997,17 @@ function makeStyles(C: ColorTokens) {
       fontSize: 15, ...font.regular, color: C.textPrimary, textAlign: 'center',
     },
 
-    // ── Quick add (inside header card)
     quickAddLabel: { marginBottom: 8 },
     quickAdds:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     quickAddBtn: {
-      paddingVertical: 7, paddingHorizontal: 12,
-      backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
-      borderRadius: 9999,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      paddingVertical: 7, paddingHorizontal: 12, backgroundColor: C.surface,
+      borderWidth: 1, borderColor: C.border, borderRadius: 9999,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
     },
     quickAddText: { fontSize: 13, ...font.semibold, color: C.textPrimary },
 
-    // ── Section header
-    catTitle:         { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
-    catTitlePersonal: { backgroundColor: PERSONAL_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: PERSONAL_BORDER },
+    catTitle:             { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 4 },
+    catTitlePersonal:     { backgroundColor: PERSONAL_BG, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: PERSONAL_BORDER },
     catTitleDraftRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 4, gap: 8 },
     catTitleFlex:         { flex: 1 },
     catTitleIcon:         { fontSize: 15 },
@@ -985,27 +1015,19 @@ function makeStyles(C: ColorTokens) {
     catTitleTextDraft:    { color: 'rgb(133,77,14)' },
     catTitleTextPersonal: { color: 'rgb(76,29,149)' },
 
-    // ── Publish draft icon button
     draftPublishBtn:    { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     draftPublishBtnOff: { opacity: 0.35 },
 
-    // ── Grocery item
     groceryItem: {
       flexDirection: 'row', alignItems: 'center', gap: 12,
-      paddingHorizontal: 14, paddingVertical: 12,
-      borderRadius: 14, backgroundColor: C.surface,
-      borderWidth: 1, borderColor: C.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      paddingHorizontal: 14, paddingVertical: 12, borderRadius: 14,
+      backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
     },
     groceryItemDone:     { opacity: 0.5, borderColor: 'transparent' },
     groceryItemPersonal: { backgroundColor: PERSONAL_BG, borderColor: PERSONAL_BORDER },
     groceryItemEditing:  { backgroundColor: C.surface, borderColor: C.primary, gap: 8 },
 
-    // ── Duplicate warning badge
     duplicateBadge: {
       backgroundColor: 'rgba(234,179,8,0.15)', borderRadius: 6,
       paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: 'rgba(234,179,8,0.4)',
@@ -1024,7 +1046,6 @@ function makeStyles(C: ColorTokens) {
     editBtn:      { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     deleteBtn:    { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
 
-    // ── Inline edit mode
     editNameInput: {
       flex: 1, height: 44, paddingHorizontal: 10, borderRadius: 8,
       backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.primary,
@@ -1048,9 +1069,7 @@ function makeStyles(C: ColorTokens) {
     avatarText: { color: '#FFFFFF', ...font.bold },
 
     loadingIndicator: { marginBottom: 8 },
-    errorBanner: {
-      backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 8,
-    },
+    errorBanner: { backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 8 },
     errorBannerText: { fontSize: 13, color: '#D94F4F' },
 
     emptyWrap:  { alignItems: 'center', paddingVertical: 48, gap: 8 },
@@ -1058,7 +1077,6 @@ function makeStyles(C: ColorTokens) {
     emptyTitle: { fontSize: 16, ...font.bold, color: C.textPrimary },
     emptyText:  { fontSize: 14, ...font.regular, color: C.textSecondary, textAlign: 'center' },
 
-    // ── Clear checked bar
     clearBar: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       paddingHorizontal: 14, paddingVertical: 12, minHeight: 44,
@@ -1069,29 +1087,19 @@ function makeStyles(C: ColorTokens) {
     clearBarCount:  { fontSize: 14, ...font.semibold, color: C.positive },
     clearBarAction: { fontSize: 13, ...font.semibold, color: C.positive },
 
-    // ── Footer
     footer: { gap: 20 },
 
-    // ── Shopping run card
     shoppingRunCard: {
       paddingVertical: 24, paddingHorizontal: 20, borderRadius: 20,
       backgroundColor: C.surface, borderWidth: 1, borderColor: SHOP_BORDER,
       alignItems: 'center', gap: 14,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
     },
     shoppingRunCardActive: { backgroundColor: successSubtle, borderColor: SHOP_ACTIVE_BORDER },
     shoppingIcon: {
       width: 56, height: 56, borderRadius: 28,
       backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
     },
     shoppingIconActive: { backgroundColor: 'rgba(220,255,230,0.9)' },
     shoppingIconText: { fontSize: 26 },
