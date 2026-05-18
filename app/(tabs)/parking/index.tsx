@@ -480,7 +480,10 @@ export default function ParkingScreen(): React.JSX.Element {
   }, [release, houseId, t]);
 
   const handleReleaseOther = useCallback((): void => {
+    // Pin both values before the dialog opens so a realtime update can't
+    // change which session or name the confirmation refers to.
     const occupantName = resolveName(current?.occupant ?? '', housemates);
+    const pinnedHouseId = houseId ?? '';
     Alert.alert(
       'Free someone else\'s spot?',
       `${occupantName} claimed this spot — are you sure you want to free it?`,
@@ -491,7 +494,7 @@ export default function ParkingScreen(): React.JSX.Element {
           style: 'destructive',
           onPress: (): void => {
             setError('');
-            release(houseId ?? '').catch((err: unknown) => {
+            release(pinnedHouseId).catch((err: unknown) => {
               setError(err instanceof Error ? err.message : t('parking.failed_release'));
             });
           },
@@ -613,7 +616,14 @@ export default function ParkingScreen(): React.JSX.Element {
                 </Pressable>
               )}
               {!isFree && !isMine && (
-                <Pressable style={styles.btnAdminRelease} onPress={handleReleaseOther} accessibilityRole="button" accessibilityLabel="Free the parking spot">
+                <Pressable
+                  style={styles.btnAdminRelease}
+                  onPress={handleReleaseOther}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel="Free the parking spot"
+                  accessibilityState={{ disabled: false }}
+                >
                   <Ionicons name="exit-outline" size={15} color={C.warning} style={styles.btnIcon} />
                   <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
                 </Pressable>
