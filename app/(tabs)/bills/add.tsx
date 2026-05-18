@@ -17,7 +17,7 @@ import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
-type SplitType = 'equal' | 'custom';
+type SplitType = 'equal' | 'custom' | 'percentage';
 
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   rent: 'home-outline',
@@ -78,8 +78,9 @@ export default function AddBillScreen(): React.JSX.Element {
   const [date, setDate] = useState(todayString);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
-  const [splitType, setSplitType] = useState<SplitType>('equal');
-  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
+  const [splitType, setSplitType]     = useState<SplitType>('equal');
+  const [customAmounts, setCustomAmounts]   = useState<Record<string, string>>({});
+  const [percentAmounts, setPercentAmounts] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -92,6 +93,7 @@ export default function AddBillScreen(): React.JSX.Element {
     setDate(todayString());
     setSplitType('equal');
     setCustomAmounts({});
+    setPercentAmounts({});
     setIsLoading(false);
     setError('');
   }, []);
@@ -108,19 +110,86 @@ export default function AddBillScreen(): React.JSX.Element {
     );
   }, []);
 
-  const setPersonAmount = useCallback((id: string, value: string) => {
+  const totalAmount = parseFloat(amount) || 0;
+
+  const setPersonAmount = useCallback((id: string, value: string): void => {
     setCustomAmounts((prev) => ({ ...prev, [id]: value }));
     setError('');
   }, []);
 
-  const totalAmount = parseFloat(amount) || 0;
+  const setPersonPercent = useCallback((id: string, value: string): void => {
+    setPercentAmounts((prev) => ({ ...prev, [id]: value }));
+    setError('');
+  }, []);
 
   const getCustomTotal = useCallback((): number => {
     return selectedPeople.reduce(
-      (sum, id) => sum + (parseFloat(customAmounts[id] ?? '0') || 0),
-      0
+      (sum, id) => sum + (parseFloat(customAmounts[id] ?? '0') || 0), 0
     );
   }, [selectedPeople, customAmounts]);
+
+  const getPercentTotal = useCallback((): number => {
+    return selectedPeople.reduce(
+      (sum, id) => sum + (parseFloat(percentAmounts[id] ?? '0') || 0), 0
+    );
+  }, [selectedPeople, percentAmounts]);
+
+  const customRemaining  = totalAmount - getCustomTotal();
+  const percentRemaining = 100 - getPercentTotal();
+
+  const percentPreviewText = useMemo((): string => {
+    if (totalAmount <= 0 || Math.abs(getPercentTotal() - 100) >= 0.1) return '';
+    let running = 0;
+    return selectedPeople.map((id, i) => {
+      const pct  = parseFloat(percentAmounts[id] ?? '0') || 0;
+      const isLast = i === selectedPeople.length - 1;
+      const share  = isLast
+        ? Math.round((totalAmount - running) * 100) / 100
+        : Math.round((pct / 100) * totalAmount * 100) / 100;
+      if (!isLast) running += share;
+      return `${housemates.find((h) => h.id === id)?.name ?? id}: ${formatFull(share, currencyCode)}`;
+    }).join('  ·  ');
+  }, [totalAmount, selectedPeople, percentAmounts, housemates, currencyCode, getPercentTotal]);
+
+  const fillEquallyCustom = useCallback((): void => {
+    const blanks = selectedPeople.filter((id) => !customAmounts[id] || parseFloat(customAmounts[id] ?? '0') === 0);
+    const targets = blanks.length > 0 ? blanks : selectedPeople;
+    if (customRemaining < 0.01) return;
+    const per = customRemaining / targets.length;
+    let allocated = 0;
+    setCustomAmounts((prev) => {
+      const updated = { ...prev };
+      targets.forEach((id, i) => {
+        const isLast = i === targets.length - 1;
+        const share = isLast
+          ? Math.round((customRemaining - allocated) * 100) / 100
+          : Math.round(per * 100) / 100;
+        updated[id] = share.toFixed(2);
+        if (!isLast) allocated += share;
+      });
+      return updated;
+    });
+  }, [selectedPeople, customAmounts, customRemaining]);
+
+  const fillEquallyPercent = useCallback((): void => {
+    const blanks = selectedPeople.filter((id) => !percentAmounts[id] || parseFloat(percentAmounts[id] ?? '0') === 0);
+    const targets = blanks.length > 0 ? blanks : selectedPeople;
+    if (percentRemaining < 0.1) return;
+    const per = percentRemaining / targets.length;
+    let allocated = 0;
+    setPercentAmounts((prev) => {
+      const updated = { ...prev };
+      targets.forEach((id, i) => {
+        const isLast = i === targets.length - 1;
+        const share = isLast
+          ? Math.round((percentRemaining - allocated) * 10) / 10
+          : Math.round(per * 10) / 10;
+        updated[id] = share.toString();
+        if (!isLast) allocated += share;
+      });
+      return updated;
+    });
+  }, [selectedPeople, percentAmounts, percentRemaining]);
 
   const handleSave = useCallback(async () => {
     if (!title.trim()) { setError(t('bills.enter_title')); return; }
@@ -139,6 +208,25 @@ export default function AddBillScreen(): React.JSX.Element {
       splitAmounts = {};
       for (const id of selectedPeople) {
         splitAmounts[id] = parseFloat(customAmounts[id] ?? '0') || 0;
+      }
+    } else if (splitType === 'percentage') {
+      const pctTotal = getPercentTotal();
+      if (Math.abs(pctTotal - 100) > 0.1) {
+        setError(t('bills.pct_total_mismatch', { pct: pctTotal.toFixed(1) }));
+        return;
+      }
+      splitAmounts = {};
+      let running = 0;
+      for (let i = 0; i < selectedPeople.length; i++) {
+        const id = selectedPeople[i];
+        const pct = parseFloat(percentAmounts[id] ?? '0') || 0;
+        if (i === selectedPeople.length - 1) {
+          splitAmounts[id] = Math.round((parsed - running) * 100) / 100;
+        } else {
+          const share = Math.round((pct / 100) * parsed * 100) / 100;
+          splitAmounts[id] = share;
+          running += share;
+        }
       }
     }
 
@@ -161,7 +249,7 @@ export default function AddBillScreen(): React.JSX.Element {
       setError(t('bills.failed_save'));
       setIsLoading(false);
     }
-  }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, category, date, addBill, houseId, getCustomTotal, markSeen, resetForm, allIds, myId, t]);
+  }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, percentAmounts, category, date, addBill, houseId, getCustomTotal, getPercentTotal, markSeen, resetForm, allIds, myId, t]);
 
   if (housematesLoading) {
     return (
@@ -291,6 +379,14 @@ export default function AddBillScreen(): React.JSX.Element {
                   {t('bills.custom_amounts')}
                 </Text>
               </Pressable>
+              <Pressable
+                style={[styles.chip, splitType === 'percentage' && styles.chipSelected]}
+                onPress={() => setSplitType('percentage')}
+              >
+                <Text style={[styles.chipText, splitType === 'percentage' && styles.chipTextSelected]}>
+                  {t('bills.by_percent')}
+                </Text>
+              </Pressable>
             </View>
 
             {splitType === 'equal' && totalAmount > 0 && (
@@ -303,22 +399,33 @@ export default function AddBillScreen(): React.JSX.Element {
 
             {splitType === 'custom' && (
               <View style={styles.customBox}>
-                {selectedPeople.map((id) => (
-                  <View key={id} style={styles.customRow}>
-                    <Text style={styles.customName}>{housemates.find((h) => h.id === id)?.name ?? id}</Text>
-                    <TextInput
-                      value={customAmounts[id] ?? ''}
-                      onChangeText={(v) => setPersonAmount(id, v)}
-                      mode="outlined"
-                      style={styles.customInput}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      dense
-                      outlineColor={C.border}
-                      activeOutlineColor={C.primary}
-                    />
-                  </View>
-                ))}
+                {selectedPeople.map((id) => {
+                  const name = housemates.find((h) => h.id === id)?.name ?? id;
+                  return (
+                    <View key={id} style={styles.customRow}>
+                      <Text style={styles.customName}>{name}</Text>
+                      <TextInput
+                        value={customAmounts[id] ?? ''}
+                        onChangeText={(v) => setPersonAmount(id, v)}
+                        mode="outlined"
+                        style={styles.customInput}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        dense
+                        outlineColor={C.border}
+                        activeOutlineColor={C.primary}
+                        accessibilityLabel={t('bills.amount_for', { name })}
+                        accessibilityHint={t('bills.amount_for_hint')}
+                      />
+                    </View>
+                  );
+                })}
+                {customRemaining > 0.01 && (
+                  <Pressable onPress={fillEquallyCustom} style={styles.fillBtn} accessibilityRole="button" accessibilityLabel={t('bills.fill_remaining_equally')}>
+                    <Ionicons name="git-branch-outline" size={13} color={C.primary} />
+                    <Text style={styles.fillBtnText}>{t('bills.fill_remaining_equally')}</Text>
+                  </Pressable>
+                )}
                 <View style={styles.customTotal}>
                   <Text style={styles.customTotalLabel}>{t('bills.total_entered')}</Text>
                   <Text style={[
@@ -328,6 +435,70 @@ export default function AddBillScreen(): React.JSX.Element {
                     {formatFull(getCustomTotal(), currencyCode)} / {formatFull(totalAmount, currencyCode)}
                   </Text>
                 </View>
+                {totalAmount > 0 && (
+                  <View style={styles.customRemainingRow}>
+                    <Text style={styles.customTotalLabel}>{t('bills.remaining')}</Text>
+                    <Text style={[styles.customTotalValue, { color: customRemaining < -0.01 ? C.danger : customRemaining < 0.01 ? C.positive : C.textPrimary }]}>
+                      {customRemaining < -0.01
+                        ? t('bills.over_by_amount', { amount: formatFull(-customRemaining, currencyCode) })
+                        : formatFull(customRemaining, currencyCode)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {splitType === 'percentage' && (
+              <View style={styles.customBox}>
+                {selectedPeople.map((id) => {
+                  const name = housemates.find((h) => h.id === id)?.name ?? id;
+                  return (
+                    <View key={id} style={styles.customRow}>
+                      <Text style={styles.customName}>{name}</Text>
+                      <View style={styles.pctInputRow}>
+                        <TextInput
+                          value={percentAmounts[id] ?? ''}
+                          onChangeText={(v) => setPersonPercent(id, v)}
+                          mode="outlined"
+                          style={styles.customInput}
+                          keyboardType="decimal-pad"
+                          placeholder="0"
+                          dense
+                          outlineColor={C.border}
+                          activeOutlineColor={C.primary}
+                          accessibilityLabel={t('bills.pct_for', { name })}
+                          accessibilityHint={t('bills.pct_for_hint')}
+                        />
+                        <Text style={styles.pctSymbol}>%</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+                {percentRemaining > 0.1 && (
+                  <Pressable onPress={fillEquallyPercent} style={styles.fillBtn} accessibilityRole="button" accessibilityLabel={t('bills.fill_remaining_equally')}>
+                    <Ionicons name="git-branch-outline" size={13} color={C.primary} />
+                    <Text style={styles.fillBtnText}>{t('bills.fill_remaining_equally')}</Text>
+                  </Pressable>
+                )}
+                <View style={styles.customTotal}>
+                  <Text style={styles.customTotalLabel}>{t('bills.total_percent')}</Text>
+                  <Text style={[styles.customTotalValue, { color: Math.abs(getPercentTotal() - 100) < 0.1 ? C.positive : C.danger }]}>
+                    {getPercentTotal().toFixed(1)}% / 100%
+                  </Text>
+                </View>
+                <View style={styles.customRemainingRow}>
+                  <Text style={styles.customTotalLabel}>{t('bills.remaining')}</Text>
+                  <Text style={[styles.customTotalValue, { color: percentRemaining < -0.1 ? C.danger : percentRemaining < 0.1 ? C.positive : C.textPrimary }]}>
+                    {percentRemaining < -0.1
+                      ? t('bills.over_by_pct', { pct: (-percentRemaining).toFixed(1) })
+                      : `${percentRemaining.toFixed(1)}%`}
+                  </Text>
+                </View>
+                {!!percentPreviewText && (
+                  <View style={styles.previewBox}>
+                    <Text style={styles.previewText}>{percentPreviewText}</Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -464,8 +635,19 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: C.border,
   },
-  customTotalLabel: { color: C.textSecondary, fontSize: 14, ...font.medium },
-  customTotalValue: { fontSize: 14, ...font.semibold },
+  customTotalLabel:   { color: C.textSecondary, fontSize: 14, ...font.medium },
+  customTotalValue:   { fontSize: 14, ...font.semibold },
+  customRemainingRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
+  pctInputRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  pctSymbol:   { fontSize: 16, ...font.semibold, color: C.textPrimary },
+  fillBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 10,
+    borderRadius: 8, borderWidth: 1,
+    borderColor: C.primary + '40', backgroundColor: C.primary + '08',
+    minHeight: 44,
+  },
+  fillBtnText: { color: C.primary, fontSize: 13, ...font.semibold },
 
   categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
   catChip: {
