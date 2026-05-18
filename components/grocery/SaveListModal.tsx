@@ -135,7 +135,10 @@ export function SaveListModal({
                 returnKeyType="done"
                 autoFocus
                 accessible
+                accessibilityRole="text"
                 accessibilityLabel="List name"
+                accessibilityHint="Enter a name for your shopping list"
+                accessibilityState={{ disabled: false }}
               />
 
               <View style={styles.privateRow}>

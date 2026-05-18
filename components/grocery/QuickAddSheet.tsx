@@ -199,7 +199,7 @@ function makeStyles(C: ColorTokens) {
     header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
     title: { fontSize: 20, ...font.bold, color: C.textPrimary, letterSpacing: -0.4 },
     subtitle: { fontSize: 13, ...font.regular, color: C.textSecondary, marginTop: 2 },
-    closeBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+    closeBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     inputRow: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
       borderRadius: 12, borderWidth: 1, borderColor: C.border,
@@ -224,7 +224,7 @@ function makeStyles(C: ColorTokens) {
       marginBottom: 6,
     },
     stagedName: { flex: 1, fontSize: 14, ...font.semibold, color: C.textPrimary },
-    removeBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+    removeBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     footer: {},
     shareBtn: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

@@ -583,6 +583,8 @@
     "notify_chore_sub": "When a new chore is assigned",
     "notify_chat": "Chat messages",
     "notify_chat_sub": "When a housemate sends a message",
+    "notify_grocery_shared": "Grocery list shared",
+    "notify_grocery_shared_sub": "When a housemate shares their draft with the house",
     "language_section": "LANGUAGE",
     "language": "Language",
     "about_section": "ABOUT",

@@ -263,6 +263,7 @@ export const useGroceryStore = create<GroceryStore>()(
             .from('grocery_items')
             .update({ is_personal: false, is_draft: false, draft_expires_at: null })
             .in('id', draftIds)
+            .eq('house_id', houseId)
             .eq('added_by', userId)
             .eq('is_draft', true);
           if (error) {
@@ -363,7 +364,7 @@ export const useGroceryStore = create<GroceryStore>()(
           const { error: itemsError } = await supabase
             .from('grocery_list_items')
             .insert(items.map((item, i) => ({ list_id: listData.id, name: item.name, quantity: item.quantity, position: i })));
-          if (itemsError) { captureError(itemsError, { context: 'create-grocery-list-items' }); }
+          if (itemsError) { captureError(itemsError, { context: 'create-grocery-list-items' }); throw new Error('Could not save the list items. Please try again.'); }
         }
 
         const newList: GroceryList = {
@@ -380,15 +381,17 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       updateSavedList: async (listId, items): Promise<void> => {
-        // Replace all items on the saved list
-        await supabase.from('grocery_list_items').delete().eq('list_id', listId);
+        const { error: delError } = await supabase.from('grocery_list_items').delete().eq('list_id', listId);
+        if (delError) { captureError(delError, { context: 'update-grocery-list-delete' }); throw new Error('Could not update the list. Please try again.'); }
         if (items.length > 0) {
-          await supabase.from('grocery_list_items').insert(
+          const { error: insError } = await supabase.from('grocery_list_items').insert(
             items.map((item, i) => ({ list_id: listId, name: item.name, quantity: item.quantity, position: i }))
           );
+          if (insError) { captureError(insError, { context: 'update-grocery-list-insert' }); throw new Error('Could not update the list. Please try again.'); }
         }
         const now = new Date().toISOString();
-        await supabase.from('grocery_lists').update({ updated_at: now }).eq('id', listId);
+        const { error: updError } = await supabase.from('grocery_lists').update({ updated_at: now }).eq('id', listId);
+        if (updError) { captureError(updError, { context: 'update-grocery-list-timestamp' }); throw new Error('Could not update the list. Please try again.'); }
         set({
           savedLists: get().savedLists.map((l) =>
             l.id === listId
@@ -403,7 +406,8 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       deleteSavedList: async (listId: string): Promise<void> => {
-        await supabase.from('grocery_lists').delete().eq('id', listId);
+        const { error } = await supabase.from('grocery_lists').delete().eq('id', listId);
+        if (error) { captureError(error, { context: 'delete-grocery-list' }); throw new Error('Could not delete the list. Please try again.'); }
         set({ savedLists: get().savedLists.filter((l) => l.id !== listId) });
       },
 

@@ -181,10 +181,10 @@ function makeStyles(C: ColorTokens) {
     listName: { fontSize: 14, ...font.semibold, color: C.textPrimary, flexShrink: 1 },
     listMeta: { fontSize: 12, ...font.regular, color: C.textSecondary },
     listActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    iconBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+    iconBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     loadBtn: {
-      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-      backgroundColor: C.primary, minHeight: 32, justifyContent: 'center',
+      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8,
+      backgroundColor: C.primary, minHeight: 44, justifyContent: 'center',
     },
     loadBtnText: { fontSize: 13, ...font.semibold, color: '#fff' },
   });

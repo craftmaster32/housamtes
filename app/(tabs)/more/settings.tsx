@@ -590,8 +590,8 @@ export default function SettingsScreen(): React.JSX.Element {
             <RowDivider />
             <ToggleRow
               icon="🛒"
-              label="Grocery list shared"
-              sub="When a housemate shares their draft with the house"
+              label={t('settings.notify_grocery_shared')}
+              sub={t('settings.notify_grocery_shared_sub')}
               value={prefs.notifyGroceryShared}
               onToggle={(v) => toggle('notifyGroceryShared', v)}
             />

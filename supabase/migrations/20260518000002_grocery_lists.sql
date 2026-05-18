@@ -35,6 +35,10 @@ CREATE INDEX IF NOT EXISTS idx_grocery_lists_created_by
 CREATE INDEX IF NOT EXISTS idx_grocery_list_items_list_id
   ON grocery_list_items(list_id);
 
+-- Composite index to speed up the RLS predicates that filter by house_id + is_private
+CREATE INDEX IF NOT EXISTS idx_grocery_lists_house_private
+  ON grocery_lists(house_id, is_private);
+
 -- ── RLS ───────────────────────────────────────────────────────────────────────
 
 ALTER TABLE grocery_lists ENABLE ROW LEVEL SECURITY;
