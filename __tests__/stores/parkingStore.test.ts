@@ -105,21 +105,20 @@ describe('isDateConflict', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('parkingStore — claim', () => {
-  it('throws when another user already has an active session (server check)', async () => {
-    // First query (maybeSingle) returns an existing session
-    mockFrom.mockReturnValue(ok({ id: 'ps1', occupant: 'Bob' }));
+  it('throws when another user already has an active session (local state check)', async () => {
+    // Store uses already-loaded realtime state — no extra DB round-trip
+    useParkingStore.setState({ current: { id: 'ps1', occupant: 'Bob', startTime: '09:00' } });
 
     await expect(
       useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1')
     ).rejects.toThrow('Parking spot is already taken');
 
-    expect(useParkingStore.getState().current).toBeNull();
+    // State should be unchanged — Bob's session still active
+    expect(useParkingStore.getState().current).toMatchObject({ id: 'ps1', occupant: 'Bob' });
   });
 
   it('throws when the DB insert fails', async () => {
-    mockFrom
-      .mockReturnValueOnce(ok(null))                    // maybeSingle: no existing session
-      .mockReturnValueOnce(fail('unique constraint'));   // insert fails
+    mockFrom.mockReturnValue(fail('unique constraint'));  // insert fails
 
     await expect(
       useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1')
@@ -129,9 +128,7 @@ describe('parkingStore — claim', () => {
   });
 
   it('sets current session state on successful claim', async () => {
-    mockFrom
-      .mockReturnValueOnce(ok(null))  // no existing session
-      .mockReturnValueOnce(ok({ id: 'ps2', occupant: 'Alice', start_time: '09:00' })); // insert
+    mockFrom.mockReturnValue(ok({ id: 'ps2', occupant: 'Alice', start_time: '09:00' }));  // insert
 
     await useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1');
 
@@ -178,7 +175,7 @@ describe('parkingStore — release', () => {
 
   it('clears current session on successful release', async () => {
     useParkingStore.setState({ current: { id: 'ps1', occupant: 'Alice', startTime: '09:00' } });
-    mockFrom.mockReturnValue(ok());
+    mockFrom.mockReturnValue(ok([{ id: 'ps1' }]));  // update returns the affected row
 
     await useParkingStore.getState().release('house-1');
 
