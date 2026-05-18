@@ -55,6 +55,7 @@ CREATE POLICY "house members can read grocery lists" ON grocery_lists FOR SELECT
 CREATE POLICY "house members can create grocery lists" ON grocery_lists FOR INSERT
   WITH CHECK (
     house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid())
+    AND created_by = auth.uid()::text
   );
 
 -- Any house member can update public lists; only creator can update private
