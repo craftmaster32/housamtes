@@ -339,6 +339,7 @@ export default function GroceryScreen(): React.JSX.Element {
       }
     }).catch((err) => {
       console.warn('Failed to restore grocery preferences', err);
+      setAddError('Failed to restore your grocery preferences. Please try again.');
     });
   }, [draftEnabled]);
 
