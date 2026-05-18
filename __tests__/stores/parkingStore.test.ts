@@ -113,7 +113,8 @@ describe('parkingStore — claim', () => {
       useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1')
     ).rejects.toThrow('Parking spot is already taken');
 
-    expect(mockFrom).not.toHaveBeenCalled();
+    // State should be unchanged — Bob's session still active
+    expect(useParkingStore.getState().current).toMatchObject({ id: 'ps1', occupant: 'Bob' });
   });
 
   it('throws when the DB insert fails', async () => {

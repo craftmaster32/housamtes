@@ -316,7 +316,8 @@ export default function GroceryScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  // Restore persisted add-mode preference (run once on mount)
+  // Restore persisted add-mode preference. Depends on draftEnabled so it
+  // re-applies correctly if the feature flag hydrates after mount.
   useEffect((): void => {
     Promise.all([
       AsyncStorage.getItem(ADD_MODE_KEY),
@@ -330,9 +331,10 @@ export default function GroceryScreen(): React.JSX.Element {
       }
       // modeVal === 'shared' or null → default 'shared' already set
       if (draftVal === 'true' && draftEnabled) setIsDraftOn(true);
-    }).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    }).catch((err) => {
+      console.warn('Failed to restore grocery preferences', err);
+    });
+  }, [draftEnabled]);
 
   // Fetch saved lists on mount
   useEffect((): void => {
@@ -551,16 +553,27 @@ export default function GroceryScreen(): React.JSX.Element {
 
   // ── Mode controls ─────────────────────────────────────────────────────────
   const handleSetShared  = useCallback((): void => {
+    const prev = addMode;
     setAddMode('shared');
-    AsyncStorage.setItem(ADD_MODE_KEY, 'shared').catch(() => {});
-  }, []);
+    AsyncStorage.setItem(ADD_MODE_KEY, 'shared').catch(() => {
+      setAddMode(prev);
+      setAddError('Could not save your preference. Please try again.');
+    });
+  }, [addMode]);
   const handleSetPrivate = useCallback((): void => {
+    const prev = addMode;
     setAddMode('private');
-    AsyncStorage.setItem(ADD_MODE_KEY, 'private').catch(() => {});
-  }, []);
+    AsyncStorage.setItem(ADD_MODE_KEY, 'private').catch(() => {
+      setAddMode(prev);
+      setAddError('Could not save your preference. Please try again.');
+    });
+  }, [addMode]);
   const handleToggleDraft = useCallback((value: boolean): void => {
     setIsDraftOn(value);
-    AsyncStorage.setItem(DRAFT_TOGGLE_KEY, String(value)).catch(() => {});
+    AsyncStorage.setItem(DRAFT_TOGGLE_KEY, String(value)).catch(() => {
+      setIsDraftOn(!value);
+      setAddError('Could not save your preference. Please try again.');
+    });
   }, []);
 
   const handleItemNameChange  = useCallback((v: string): void => { setItemName(v); setAddError(null); }, []);
@@ -734,11 +747,7 @@ export default function GroceryScreen(): React.JSX.Element {
                     {addMode !== 'private' && draftEnabled && (
                       <View
                         style={[styles.draftToggleRow, isDraftOn && styles.draftToggleRowOn]}
-                        accessible
-                        accessibilityRole="switch"
-                        accessibilityState={{ checked: isDraftOn }}
-                        accessibilityLabel="Draft mode"
-                        accessibilityHint="When on, added items queue in a draft list you can review before sharing"
+                        accessible={false}
                       >
                         <View style={styles.draftToggleInfo}>
                           <Ionicons name="create-outline" size={16} color={isDraftOn ? 'rgb(133,77,14)' : C.textSecondary} />
@@ -755,6 +764,11 @@ export default function GroceryScreen(): React.JSX.Element {
                           trackColor={{ false: C.border, true: 'rgba(224,178,77,0.55)' }}
                           thumbColor={isDraftOn ? 'rgb(133,77,14)' : '#f4f3f4'}
                           ios_backgroundColor={C.border}
+                          accessible
+                          accessibilityRole="switch"
+                          accessibilityState={{ checked: isDraftOn }}
+                          accessibilityLabel="Draft mode"
+                          accessibilityHint="When on, added items queue in a draft list you can review before sharing"
                         />
                       </View>
                     )}
