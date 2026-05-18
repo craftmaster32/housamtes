@@ -7,6 +7,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  Alert,
   AppState,
   type AppStateStatus,
   type ListRenderItemInfo,
@@ -478,6 +479,27 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [release, houseId, t]);
 
+  const handleReleaseOther = useCallback((): void => {
+    const occupantName = resolveName(current?.occupant ?? '', housemates);
+    Alert.alert(
+      'Free someone else\'s spot?',
+      `${occupantName} claimed this spot — are you sure you want to free it?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, free it',
+          style: 'destructive',
+          onPress: (): void => {
+            setError('');
+            release(houseId ?? '').catch((err: unknown) => {
+              setError(err instanceof Error ? err.message : t('parking.failed_release'));
+            });
+          },
+        },
+      ]
+    );
+  }, [current, housemates, release, houseId, t]);
+
   const handleCancel = useCallback(async (id: string): Promise<void> => {
     try {
       await cancelReservation(id, houseId ?? '');
@@ -590,9 +612,9 @@ export default function ParkingScreen(): React.JSX.Element {
                   <Text style={styles.btnDangerText}>{t('parking.release')}</Text>
                 </Pressable>
               )}
-              {!isFree && !isMine && isAdmin && (
-                <Pressable style={styles.btnAdminRelease} onPress={handleRelease} accessibilityRole="button" accessibilityLabel="Admin: free the parking spot">
-                  <Ionicons name="shield-outline" size={15} color={C.warning} style={styles.btnIcon} />
+              {!isFree && !isMine && (
+                <Pressable style={styles.btnAdminRelease} onPress={handleReleaseOther} accessibilityRole="button" accessibilityLabel="Free the parking spot">
+                  <Ionicons name="exit-outline" size={15} color={C.warning} style={styles.btnIcon} />
                   <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
                 </Pressable>
               )}
