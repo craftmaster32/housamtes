@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Animated,
   BackHandler,
+  Switch,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +25,6 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
-import { QuickAddSheet } from '@components/grocery/QuickAddSheet';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareModal';
 import { SavedListsSection } from '@components/grocery/SavedListsSection';
@@ -38,6 +38,7 @@ const PERSONAL_BG        = 'rgba(124,58,237,0.08)';
 const PERSONAL_BORDER    = 'rgba(167,139,250,0.35)';
 
 const ADD_MODE_KEY = 'grocery_add_mode';
+const DRAFT_TOGGLE_KEY = 'grocery_draft_toggle';
 
 const QUICK_ADDS = ['Milk', 'Bread', 'Trash Bags', 'Coffee', 'Butter', 'Olive Oil'];
 const QTY_PRESETS = ['1', '2', '3'];
@@ -292,14 +293,14 @@ export default function GroceryScreen(): React.JSX.Element {
   const [showCustomQty, setShowCustomQty] = useState(false);
   const [customQty, setCustomQty]         = useState('');
   const [isAdding, setIsAdding]           = useState(false);
-  const [addMode, setAddMode]             = useState<AddMode>('draft');
+  const [addMode, setAddMode]             = useState<AddMode>('shared');
+  const [isDraftOn, setIsDraftOn]         = useState(false);
   const [addError, setAddError]           = useState<string | null>(null);
   const [isPublishing, setIsPublishing]   = useState(false);
   const [unit, setUnit]                   = useState<string>('');
   const [selectedItem, setSelectedItem]   = useState<GroceryItem | null>(null);
 
-  // ── New modal state ──────────────────────────────────────────────────────────
-  const [showQuickAdd, setShowQuickAdd]         = useState(false);
+  // ── Modal state ──────────────────────────────────────────────────────────────
   const [showSaveListModal, setShowSaveListModal] = useState(false);
   const [saveListMode, setSaveListMode]           = useState<SaveListMode>('new');
   const [pendingPublishedItems, setPendingPublishedItems] = useState<Array<{ name: string; quantity: string }>>([]);
@@ -315,14 +316,23 @@ export default function GroceryScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  // Restore persisted add-mode preference
-  useEffect((): void | (() => void) => {
-    AsyncStorage.getItem(ADD_MODE_KEY).then((v) => {
-      if (v === 'shared' || v === 'draft' || v === 'private') {
-        setAddMode(v === 'draft' && !draftEnabled ? 'shared' : v);
+  // Restore persisted add-mode preference (run once on mount)
+  useEffect((): void => {
+    Promise.all([
+      AsyncStorage.getItem(ADD_MODE_KEY),
+      AsyncStorage.getItem(DRAFT_TOGGLE_KEY),
+    ]).then(([modeVal, draftVal]) => {
+      if (modeVal === 'private') setAddMode('private');
+      else if (modeVal === 'draft') {
+        // Legacy migration: 'draft' stored value → shared + draft toggle ON
+        setAddMode('shared');
+        if (draftEnabled) setIsDraftOn(true);
       }
+      // modeVal === 'shared' or null → default 'shared' already set
+      if (draftVal === 'true' && draftEnabled) setIsDraftOn(true);
     }).catch(() => {});
-  }, [draftEnabled]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch saved lists on mount
   useEffect((): void => {
@@ -335,21 +345,27 @@ export default function GroceryScreen(): React.JSX.Element {
     [items, myId]
   );
 
+  // Keep a ref in sync so the focus effect never needs myDraftItems as a dep
+  const myDraftItemsRef = useRef(myDraftItems);
+  useEffect((): void => {
+    myDraftItemsRef.current = myDraftItems;
+  }, [myDraftItems]);
+
   // Reset warning flag when draft becomes empty (after sharing or manual delete)
   useEffect((): void => {
     if (myDraftItems.length === 0) { leaveWarningShownRef.current = false; }
   }, [myDraftItems.length]);
 
-  // Show warning when screen loses focus with active draft items
+  // Show warning ONLY when the screen actually loses focus (not on re-renders)
   useFocusEffect(
     useCallback(() => {
       return (): void => {
-        if (myDraftItems.length > 0 && !leaveWarningShownRef.current) {
+        if (myDraftItemsRef.current.length > 0 && !leaveWarningShownRef.current) {
           leaveWarningShownRef.current = true;
           setShowLeaveModal(true);
         }
       };
-    }, [myDraftItems])
+    }, []) // Empty deps — callback never recreated, cleanup runs only on real blur
   );
 
   // Android hardware back button — same logic
@@ -366,7 +382,7 @@ export default function GroceryScreen(): React.JSX.Element {
   }, [myDraftItems]);
 
   const resolvedQty = (showCustomQty ? customQty : qty) + unit;
-  const effectiveMode: AddMode = !draftEnabled && addMode === 'draft' ? 'shared' : addMode;
+  const effectiveMode: AddMode = addMode === 'private' ? 'private' : (draftEnabled && isDraftOn ? 'draft' : 'shared');
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
   const sections = useMemo((): SectionData[] => {
@@ -451,19 +467,6 @@ export default function GroceryScreen(): React.JSX.Element {
     }
   }, [publishDraftItems, myId, houseId, isPublishing, myDraftItems, currentDraftSourceListId]);
 
-  // ── Quick Share handlers ───────────────────────────────────────────────────
-  const handleOpenQuickAdd = useCallback((): void => {
-    Haptics.selectionAsync().catch(() => {});
-    setShowQuickAdd(true);
-  }, []);
-
-  const handleQuickShareItems = useCallback(async (shareItems: Array<{ name: string; quantity: string }>): Promise<void> => {
-    if (!houseId) return;
-    for (const item of shareItems) {
-      await addItem(item.name, item.quantity, myId, houseId, 'shared');
-    }
-  }, [addItem, myId, houseId]);
-
   // ── Saved lists handlers ───────────────────────────────────────────────────
   const handleLoadList = useCallback(async (list: GroceryList): Promise<void> => {
     if (!houseId) return;
@@ -547,14 +550,18 @@ export default function GroceryScreen(): React.JSX.Element {
   const onSaveComment    = useCallback((id: string, comment: string): Promise<void> => addComment(id, comment), [addComment]);
 
   // ── Mode controls ─────────────────────────────────────────────────────────
-  const handleSetMode = useCallback((mode: AddMode): void => {
-    const safe: AddMode = mode === 'draft' && !draftEnabled ? 'shared' : mode;
-    setAddMode(safe);
-    AsyncStorage.setItem(ADD_MODE_KEY, safe).catch(() => {});
-  }, [draftEnabled]);
-  const handleSetDraft   = useCallback((): void => handleSetMode('draft'),   [handleSetMode]);
-  const handleSetShared  = useCallback((): void => handleSetMode('shared'),  [handleSetMode]);
-  const handleSetPrivate = useCallback((): void => handleSetMode('private'), [handleSetMode]);
+  const handleSetShared  = useCallback((): void => {
+    setAddMode('shared');
+    AsyncStorage.setItem(ADD_MODE_KEY, 'shared').catch(() => {});
+  }, []);
+  const handleSetPrivate = useCallback((): void => {
+    setAddMode('private');
+    AsyncStorage.setItem(ADD_MODE_KEY, 'private').catch(() => {});
+  }, []);
+  const handleToggleDraft = useCallback((value: boolean): void => {
+    setIsDraftOn(value);
+    AsyncStorage.setItem(DRAFT_TOGGLE_KEY, String(value)).catch(() => {});
+  }, []);
 
   const handleItemNameChange  = useCallback((v: string): void => { setItemName(v); setAddError(null); }, []);
   const handleAddPress        = useCallback((): void => { handleAdd(); }, [handleAdd]);
@@ -705,44 +712,52 @@ export default function GroceryScreen(): React.JSX.Element {
                       <Text style={styles.textBase}>Add things as you run out. Tick them off at the store.</Text>
                     </View>
 
-                    {/* ── Add mode toggle ───────────────────────────────── */}
+                    {/* ── Add mode toggle: Shared | Private ────────────── */}
                     <View style={styles.modeToggle}>
-                      {draftEnabled && (
-                        <Pressable
-                          style={[styles.modeBtn, effectiveMode === 'draft' && styles.modeBtnDraft]}
-                          onPress={handleSetDraft} accessibilityRole="button"
-                          accessibilityState={{ selected: effectiveMode === 'draft' }}
-                        >
-                          <Text style={[styles.modeBtnText, effectiveMode === 'draft' && styles.modeBtnTextDraft]}>📝 Draft</Text>
-                        </Pressable>
-                      )}
                       <Pressable
-                        style={[styles.modeBtn, effectiveMode === 'shared' && styles.modeBtnOn]}
+                        style={[styles.modeBtn, addMode === 'shared' && styles.modeBtnOn]}
                         onPress={handleSetShared} accessibilityRole="button"
-                        accessibilityState={{ selected: effectiveMode === 'shared' }}
+                        accessibilityState={{ selected: addMode === 'shared' }}
                       >
-                        <Text style={[styles.modeBtnText, effectiveMode === 'shared' && styles.modeBtnTextOn]}>🏠 Shared</Text>
+                        <Text style={[styles.modeBtnText, addMode === 'shared' && styles.modeBtnTextOn]}>🏠 Shared</Text>
                       </Pressable>
                       <Pressable
-                        style={[styles.modeBtn, effectiveMode === 'private' && styles.modeBtnPersonal]}
+                        style={[styles.modeBtn, addMode === 'private' && styles.modeBtnPersonal]}
                         onPress={handleSetPrivate} accessibilityRole="button"
-                        accessibilityState={{ selected: effectiveMode === 'private' }}
+                        accessibilityState={{ selected: addMode === 'private' }}
                       >
-                        <Text style={[styles.modeBtnText, effectiveMode === 'private' && styles.modeBtnTextPersonal]}>🔒 Private</Text>
+                        <Text style={[styles.modeBtnText, addMode === 'private' && styles.modeBtnTextPersonal]}>🔒 Private</Text>
                       </Pressable>
                     </View>
 
-                    {/* ── Quick Share button ────────────────────────────── */}
-                    <Pressable
-                      style={styles.quickShareBtn}
-                      onPress={handleOpenQuickAdd}
-                      accessibilityRole="button"
-                      accessibilityLabel="Quick share — add items directly to the shared list"
-                    >
-                      <Ionicons name="flash" size={16} color={C.primary} />
-                      <Text style={styles.quickShareText}>Quick Share</Text>
-                      <Text style={styles.quickShareSub}>Straight to shared — no draft</Text>
-                    </Pressable>
+                    {/* ── Draft mode toggle (Shared only) ──────────────── */}
+                    {addMode !== 'private' && draftEnabled && (
+                      <View
+                        style={[styles.draftToggleRow, isDraftOn && styles.draftToggleRowOn]}
+                        accessible
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: isDraftOn }}
+                        accessibilityLabel="Draft mode"
+                        accessibilityHint="When on, added items queue in a draft list you can review before sharing"
+                      >
+                        <View style={styles.draftToggleInfo}>
+                          <Ionicons name="create-outline" size={16} color={isDraftOn ? 'rgb(133,77,14)' : C.textSecondary} />
+                          <View>
+                            <Text style={[styles.draftToggleLabel, isDraftOn && styles.draftToggleLabelOn]}>Draft mode</Text>
+                            <Text style={styles.draftToggleSub}>
+                              {isDraftOn ? 'Items queue here — tap ✓ to share with everyone' : 'Items go straight to the shared list'}
+                            </Text>
+                          </View>
+                        </View>
+                        <Switch
+                          value={isDraftOn}
+                          onValueChange={handleToggleDraft}
+                          trackColor={{ false: C.border, true: 'rgba(224,178,77,0.55)' }}
+                          thumbColor={isDraftOn ? 'rgb(133,77,14)' : '#f4f3f4'}
+                          ios_backgroundColor={C.border}
+                        />
+                      </View>
+                    )}
 
                     {/* ── Error banner ──────────────────────────────────── */}
                     {!!addError && (
@@ -885,12 +900,6 @@ export default function GroceryScreen(): React.JSX.Element {
         myId={myId} onClose={handleCloseModal} onSaveComment={onSaveComment}
       />
 
-      <QuickAddSheet
-        visible={showQuickAdd}
-        onClose={() => setShowQuickAdd(false)}
-        onShareItems={handleQuickShareItems}
-      />
-
       <SaveListModal
         visible={showSaveListModal}
         mode={saveListMode}
@@ -939,19 +948,23 @@ function makeStyles(C: ColorTokens) {
     modeBtnPersonal:      { backgroundColor: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.4)' },
     modeBtnText:          { fontSize: 13, ...font.semibold, color: C.textSecondary },
     modeBtnTextOn:        { color: '#FFFFFF' },
-    modeBtnTextDraft:     { color: 'rgb(133,77,14)' },
     modeBtnTextPersonal:  { color: 'rgb(76,29,149)' },
 
-    // ── Quick Share button
-    quickShareBtn: {
-      flexDirection: 'row', alignItems: 'center', gap: 8,
-      paddingHorizontal: 14, paddingVertical: 12, minHeight: 48,
-      borderRadius: 12, borderWidth: 1,
-      borderColor: C.primary + '50',
-      backgroundColor: C.primary + '0D',
+    // ── Draft mode toggle row
+    draftToggleRow: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 14, paddingVertical: 12, minHeight: 52,
+      borderRadius: 12, borderWidth: 1, borderColor: C.border,
+      backgroundColor: C.surfaceSecondary, gap: 12,
     },
-    quickShareText: { fontSize: 14, ...font.semibold, color: C.primary },
-    quickShareSub:  { fontSize: 12, ...font.regular, color: C.textSecondary, marginLeft: 'auto' },
+    draftToggleRowOn: {
+      borderColor: 'rgba(224,178,77,0.55)',
+      backgroundColor: 'rgba(224,178,77,0.08)',
+    },
+    draftToggleInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+    draftToggleLabel: { fontSize: 14, ...font.semibold, color: C.textPrimary },
+    draftToggleLabelOn: { color: 'rgb(133,77,14)' },
+    draftToggleSub: { fontSize: 12, ...font.regular, color: C.textSecondary, marginTop: 1 },
 
     addRow: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
