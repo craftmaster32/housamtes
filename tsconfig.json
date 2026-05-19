@@ -48,6 +48,9 @@
     "handoff",
     "handoff-spending",
     "handoff-bills",
-    "handoff-parking"
+    "handoff-parking",
+    "handoff-grocery",
+    "handoff-chores",
+    "handoff-calendar"
   ]
 }
