@@ -8,7 +8,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View, StyleSheet, FlatList, Pressable, TextInput, Modal, ScrollView,
-  AppState, type AppStateStatus, type ListRenderItemInfo,
+  Alert, AppState, type AppStateStatus, type ListRenderItemInfo,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -494,6 +494,34 @@ export default function ParkingScreen(): React.JSX.Element {
     catch (err) { setError(err instanceof Error ? err.message : t('parking.failed_release')); }
   }, [release, houseId, t, haptic]);
 
+  const handleReleaseOther = useCallback((): void => {
+    const pinnedSessionId = current?.id ?? '';
+    const occupantName   = resolveName(current?.occupant ?? '', housemates);
+    const pinnedHouseId  = houseId ?? '';
+    Alert.alert(
+      t('parking.free_others_title'),
+      t('parking.free_others_message', { occupantName }),
+      [
+        { text: t('parking.free_others_cancel'), style: 'cancel' },
+        {
+          text: t('parking.free_others_confirm'),
+          style: 'destructive',
+          onPress: (): void => {
+            if (useParkingStore.getState().current?.id !== pinnedSessionId) {
+              setError(t('parking.free_others_changed'));
+              return;
+            }
+            setError('');
+            haptic.warn();
+            release(pinnedHouseId).catch((err: unknown) => {
+              setError(err instanceof Error ? err.message : t('parking.failed_release'));
+            });
+          },
+        },
+      ]
+    );
+  }, [current, housemates, release, houseId, t, haptic]);
+
   const handleCancel = useCallback(async (id: string): Promise<void> => {
     try {
       haptic.warn();
@@ -616,8 +644,8 @@ export default function ParkingScreen(): React.JSX.Element {
                     {t('parking.release')}
                   </Button>
                 )}
-                {!isFree && !isMine && isAdmin && (
-                  <Button variant="secondary" onPress={handleRelease} fullWidth icon="shield-outline" haptic={null}
+                {!isFree && !isMine && (
+                  <Button variant="secondary" onPress={handleReleaseOther} fullWidth icon="exit-outline" haptic={null}
                     style={styles.heroBtnAdmin}>
                     {t('parking.admin_free_spot')}
                   </Button>

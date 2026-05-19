@@ -352,7 +352,12 @@
     "failed_claim": "תפיסת החניה נכשלה",
     "failed_release": "שחרור החניה נכשל",
     "failed_reservation": "הוספת ההזמנה נכשלה",
-    "admin_free_spot": "שחרר את החניה"
+    "admin_free_spot": "שחרר את החניה",
+    "free_others_title": "לשחרר חניה של מישהו אחר?",
+    "free_others_message": "{{occupantName}} תפס את החניה — האם אתה בטוח שברצונך לשחרר אותה?",
+    "free_others_confirm": "כן, שחרר",
+    "free_others_cancel": "ביטול",
+    "free_others_changed": "החניה השתנתה בזמן שאישרת — אנא נסה שנית."
   },
   "grocery": {
     "title": "רשימת קניות",

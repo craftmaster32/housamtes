@@ -352,7 +352,12 @@
     "failed_claim": "No se pudo ocupar la plaza",
     "failed_release": "No se pudo liberar la plaza",
     "failed_reservation": "No se pudo agregar la reserva",
-    "admin_free_spot": "Liberar la plaza"
+    "admin_free_spot": "Liberar la plaza",
+    "free_others_title": "¿Liberar la plaza de otra persona?",
+    "free_others_message": "{{occupantName}} ocupó esta plaza — ¿estás seguro de que quieres liberarla?",
+    "free_others_confirm": "Sí, liberar",
+    "free_others_cancel": "Cancelar",
+    "free_others_changed": "La plaza cambió mientras confirmabas — inténtalo de nuevo."
   },
   "grocery": {
     "title": "Lista de compras",

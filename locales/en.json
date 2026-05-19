@@ -364,7 +364,12 @@
     "failed_claim": "Failed to claim spot",
     "failed_release": "Failed to release spot",
     "failed_reservation": "Failed to add reservation",
-    "admin_free_spot": "Free the spot"
+    "admin_free_spot": "Free the spot",
+    "free_others_title": "Free someone else's spot?",
+    "free_others_message": "{{occupantName}} claimed this spot — are you sure you want to free it?",
+    "free_others_confirm": "Yes, free it",
+    "free_others_cancel": "Cancel",
+    "free_others_changed": "The spot changed while you were confirming — please try again."
   },
   "grocery": {
     "title": "Grocery List",
