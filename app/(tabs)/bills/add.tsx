@@ -451,6 +451,7 @@ function PersonChip({
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         accessibilityRole={role}
+        accessibilityLabel={label}
         accessibilityState={role === 'radio' ? { selected } : { checked: selected }}
       >
         <Text style={[type.labelSm, { color: selected ? '#fff' : C.textPrimary }]}>{label}</Text>

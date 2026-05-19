@@ -357,7 +357,13 @@
     "free_others_message": "{{occupantName}} תפס את החניה — האם אתה בטוח שברצונך לשחרר אותה?",
     "free_others_confirm": "כן, שחרר",
     "free_others_cancel": "ביטול",
-    "free_others_changed": "החניה השתנתה בזמן שאישרת — אנא נסה שנית."
+    "free_others_changed": "החניה השתנתה בזמן שאישרת — אנא נסה שנית.",
+    "spot_open": "חניה פנויה",
+    "your_car": "הרכב שלך",
+    "spot_open_hint": "תפוס לפני מישהו אחר.",
+    "claimed_at": "נתפסה ב-{{time}} · {{hours}} {{mins}}",
+    "parked_since": "חונה מאז {{time}} · {{hours}} {{mins}}",
+    "note_hint": "הוסף מידע שימושי לשאר בני הבית"
   },
   "grocery": {
     "title": "רשימת קניות",
@@ -395,6 +401,11 @@
     "every": "🔁 כל",
     "of_month": "לחודש",
     "failed_add": "הוספת המטלה נכשלה. נסה שוב.",
+    "every_day": "כל {{day}}",
+    "hero_subtitle": "מטלות הבית",
+    "empty": "אין מטלות עדיין",
+    "progress": "{{done}} מתוך {{total}} הושלמו",
+    "description": "הקצה מטלות, קח על עצמך ותסמן יחד.",
     "done_one": "{{count}} בוצעה",
     "done_other": "{{count}} בוצעו",
     "added": "נוסף"

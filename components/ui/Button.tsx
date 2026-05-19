@@ -15,7 +15,7 @@ type Size = 'sm' | 'md' | 'lg';
 const HEIGHTS: Record<Size, number> = { sm: 44, md: 44, lg: 52 };
 const PADDING_X: Record<Size, number> = { sm: 14, md: 18, lg: 22 };
 
-interface Props {
+export interface Props {
   children: ReactNode;
   onPress?: () => void;
   variant?: Variant;
@@ -63,6 +63,7 @@ export function Button({
         onPress={handlePress}
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
+        accessible
         disabled={isDisabled}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}

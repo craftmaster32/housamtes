@@ -81,7 +81,7 @@ function UserAvatar({ userId, size = 24 }: { userId: string; size?: number }): R
       justifyContent: 'center', alignItems: 'center', flexShrink: 0,
     }}>
       {avatarUrl
-        ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" />
+        ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" accessibilityLabel={`${displayName} avatar`} />
         : <Text style={{ color: '#fff', fontSize: Math.round(size * 0.44), fontWeight: '700' }}>
             {displayName[0].toUpperCase()}
           </Text>
@@ -446,7 +446,7 @@ export default function GroceryScreen(): React.JSX.Element {
     } finally {
       setIsPublishing(false);
     }
-  }, [publishDraftItems, myId, isPublishing]);
+  }, [publishDraftItems, myId, houseId, isPublishing]);
 
   // Header card handlers
   const handleSetMode = useCallback((mode: AddMode): void => {
@@ -790,6 +790,10 @@ function QtyChip({ label, active, onPress }: { label: string; active: boolean; o
         onPress={onPress}
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`Quantity ${label}`}
+        accessibilityState={{ selected: active }}
         style={{
           minWidth: 36, height: 36, borderRadius: 9999,
           paddingHorizontal: 10,

@@ -23,7 +23,7 @@ type Gap = 'none' | 'xs' | 'sm' | 'md' | 'lg';
 const PAD: Record<Pad, number> = { none: 0, sm: sizes.sm, md: sizes.md, lg: 20 };
 const GAP: Record<Gap, number> = { none: 0, xs: sizes.xs, sm: sizes.sm, md: sizes.md, lg: 20 };
 
-interface Props {
+export interface Props {
   children: ReactNode;
   tone?: CardTone;
   pad?: Pad;

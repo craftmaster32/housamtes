@@ -305,17 +305,12 @@ function BarColumn({
 }: BarColumnProps): React.JSX.Element {
   const houseH = useSharedValue(houseBarH);
   const shareH = useSharedValue(shareBarH);
-  const sel    = useSharedValue(isSelected ? 1 : 0);
   const s = makeStyles(C);
 
   useEffect(() => {
     houseH.value = withSpring(houseBarH, { damping: 14, stiffness: 120 });
     shareH.value = withSpring(shareBarH, { damping: 14, stiffness: 120 });
   }, [houseBarH, shareBarH, houseH, shareH]);
-
-  useEffect(() => {
-    sel.value = withTiming(isSelected ? 1 : 0, { duration: 250 });
-  }, [isSelected, sel]);
 
   const houseStyle = useAnimatedStyle(() => ({ height: houseH.value }));
   const shareStyle = useAnimatedStyle(() => ({ height: shareH.value }));

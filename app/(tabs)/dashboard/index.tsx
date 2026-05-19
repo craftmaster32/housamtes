@@ -414,7 +414,7 @@ function ChoreCard(): React.JSX.Element {
           </View>
           <Pressable
             style={[styles.doneBtn, { backgroundColor: c.positive + '18' }]}
-            onPress={(e) => { e.stopPropagation?.(); haptic.success(); toggleChore(myChore.id); }}
+            onPress={async (e) => { e.stopPropagation?.(); try { await toggleChore(myChore.id); haptic.success(); } catch (_) { /* toggle failed silently */ } }}
             accessibilityRole="button"
           >
             <Ionicons name="checkmark" size={14} color={c.positive} />

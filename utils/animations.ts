@@ -1,6 +1,6 @@
 // utils/animations.ts
 // Reusable animation hooks for the whole app.
-// Built on react-native-reanimated v3 + expo-haptics + react-native-gesture-handler.
+// Built on react-native-reanimated v4 + expo-haptics + react-native-gesture-handler.
 //
 // Pattern: keep animation *logic* here so screens only handle layout + data.
 // Every screen that uses these hooks gets a consistent feel for free.
@@ -50,6 +50,7 @@ export function useCountUp(
   value: number,
   { duration = 700, formatter = (n): string => n.toFixed(0), skipOnMount = false }: CountUpOptions = {},
 ): string {
+  const safeDuration = Math.max(0, duration);
   const fromRef = useRef(skipOnMount ? value : 0);
   const [display, setDisplay] = useState(() => fromRef.current);
   const startRef = useRef<number | null>(null);
@@ -67,6 +68,11 @@ export function useCountUp(
     const from = fromRef.current;
     const to = value;
     if (from === to) return;
+    if (safeDuration === 0) {
+      fromRef.current = to;
+      setDisplay(to);
+      return;
+    }
     startRef.current = Date.now();
 
     // Runs on the JS thread — fires every RAF. Adequate for a single hero number;
@@ -74,7 +80,7 @@ export function useCountUp(
     // text wrapper to avoid taxing the JS thread on low-end devices.
     const tick = (): void => {
       const elapsed = Date.now() - (startRef.current ?? 0);
-      const t = Math.min(1, elapsed / duration);
+      const t = Math.min(1, elapsed / safeDuration);
       // ease-out cubic
       const eased = 1 - Math.pow(1 - t, 3);
       const next = from + (to - from) * eased;
@@ -90,7 +96,7 @@ export function useCountUp(
     return (): void => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, [value, duration, skipOnMount]);
+  }, [value, safeDuration, skipOnMount]);
 
   return formatter(display);
 }
@@ -134,9 +140,10 @@ export function useFadeInUp(delay = 0, distance = 12): ReturnType<typeof useAnim
   const translateY = useSharedValue(distance);
 
   useEffect(() => {
+    translateY.value = distance;
     opacity.value = withDelay(delay, withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) }));
     translateY.value = withDelay(delay, withSpring(0, Springs.gentle));
-  }, [delay, opacity, translateY]);
+  }, [delay, distance, opacity, translateY]);
 
   return useAnimatedStyle(() => ({
     opacity: opacity.value,

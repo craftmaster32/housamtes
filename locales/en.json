@@ -369,7 +369,13 @@
     "free_others_message": "{{occupantName}} claimed this spot — are you sure you want to free it?",
     "free_others_confirm": "Yes, free it",
     "free_others_cancel": "Cancel",
-    "free_others_changed": "The spot changed while you were confirming — please try again."
+    "free_others_changed": "The spot changed while you were confirming — please try again.",
+    "spot_open": "Spot is open",
+    "your_car": "Your car",
+    "spot_open_hint": "Claim it before someone else does.",
+    "claimed_at": "Claimed at {{time}} · {{hours}} {{mins}}",
+    "parked_since": "Parked since {{time}} · {{hours}} {{mins}}",
+    "note_hint": "Add any useful info for your housemates"
   },
   "grocery": {
     "title": "Grocery List",
@@ -411,6 +417,11 @@
     "every": "🔁 Every",
     "of_month": "of month",
     "failed_add": "Failed to add chore. Try again.",
+    "every_day": "Every {{day}}",
+    "hero_subtitle": "House chores",
+    "empty": "No chores yet",
+    "progress": "{{done}} of {{total}} done",
+    "description": "Assign tasks, claim what you'll do, and check them off together.",
     "done_one": "{{count}} done",
     "done_other": "{{count}} done",
     "added": "Added"

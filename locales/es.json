@@ -357,7 +357,13 @@
     "free_others_message": "{{occupantName}} ocupó esta plaza — ¿estás seguro de que quieres liberarla?",
     "free_others_confirm": "Sí, liberar",
     "free_others_cancel": "Cancelar",
-    "free_others_changed": "La plaza cambió mientras confirmabas — inténtalo de nuevo."
+    "free_others_changed": "La plaza cambió mientras confirmabas — inténtalo de nuevo.",
+    "spot_open": "Plaza libre",
+    "your_car": "Tu coche",
+    "spot_open_hint": "Reclámala antes que otro.",
+    "claimed_at": "Reclamada a las {{time}} · {{hours}} {{mins}}",
+    "parked_since": "Aparcado desde las {{time}} · {{hours}} {{mins}}",
+    "note_hint": "Añade cualquier información útil para tus compañeros"
   },
   "grocery": {
     "title": "Lista de compras",
@@ -399,6 +405,11 @@
     "every": "🔁 Cada",
     "of_month": "del mes",
     "failed_add": "No se pudo agregar la tarea. Intenta de nuevo.",
+    "every_day": "Cada {{day}}",
+    "hero_subtitle": "Tareas del hogar",
+    "empty": "Sin tareas aún",
+    "progress": "{{done}} de {{total}} hechas",
+    "description": "Asigna tareas, toma las que harás y márcalas juntos.",
     "done_one": "{{count}} hecha",
     "done_other": "{{count}} hechas",
     "added": "Agregado"

@@ -369,6 +369,8 @@ function ReserveModal({
               style={styles.fieldInput}
               placeholder={t('parking.note_placeholder')}
               placeholderTextColor={C.textSecondary}
+              accessibilityLabel={t('parking.note_label')}
+              accessibilityHint={t('parking.note_hint')}
             />
 
             {!!error && <Text style={[type.bodySm, { color: C.negative, marginTop: 6 }]}>{error}</Text>}
@@ -616,9 +618,9 @@ export default function ParkingScreen(): React.JSX.Element {
                     </Text>
                     <Text style={[type.title, { color: '#fff' }]}>
                       {isFree
-                        ? 'Spot is open'
+                        ? t('parking.spot_open')
                         : isMine
-                        ? 'Your car'
+                        ? t('parking.your_car')
                         : resolveName(current?.occupant ?? '', housemates)}
                     </Text>
                   </View>
@@ -626,10 +628,10 @@ export default function ParkingScreen(): React.JSX.Element {
 
                 <Text style={[type.bodyMd, { color: 'rgba(255,255,255,0.85)' }]}>
                   {isFree
-                    ? 'Claim it before someone else does.'
+                    ? t('parking.spot_open_hint')
                     : isMine
-                    ? `Claimed at ${formatTime(current!.startTime)} · ${displayHours} ${displayMins}`
-                    : `Parked since ${formatTime(current!.startTime)} · ${displayHours} ${displayMins}`}
+                    ? t('parking.claimed_at', { time: formatTime(current!.startTime), hours: displayHours, mins: displayMins })
+                    : t('parking.parked_since', { time: formatTime(current!.startTime), hours: displayHours, mins: displayMins })}
                 </Text>
 
                 {isFree && (

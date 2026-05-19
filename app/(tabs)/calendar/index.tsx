@@ -217,6 +217,8 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
               placeholderTextColor={C.textSecondary}
               returnKeyType="done"
               onSubmitEditing={handleSave}
+              accessibilityLabel="Event name"
+              accessibilityHint="Enter a short name for the event"
             />
 
             <Text style={[type.captionMed, formStyles.label, formStyles.labelGap, { color: C.textPrimary }]}>Start date</Text>
@@ -266,6 +268,8 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              accessibilityLabel="Notes"
+              accessibilityHint="Add any optional extra details about this event"
             />
 
             <Text style={[type.captionMed, formStyles.label, formStyles.labelGap, { color: C.textPrimary }]}>Repeat</Text>
@@ -793,7 +797,10 @@ export default function CalendarScreen(): React.JSX.Element {
                             icon={alreadySynced ? 'checkmark-circle' : 'calendar-outline'}
                             color={alreadySynced ? C.positive : C.textSecondary}
                             size={18}
-                            onPress={() => handleManualSync(item).catch(() => {})}
+                            onPress={async () => {
+                              try { await handleManualSync(item); }
+                              catch { Alert.alert('Sync failed', 'Could not add to your calendar. Try again.'); }
+                            }}
                             label={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
                           />
                         ) : null}

@@ -49,7 +49,7 @@ function freqLabel(
 ): string | null {
   if (chore.recurrence === 'once') return null;
   if (chore.recurrence === 'weekly')
-    return chore.recurrenceDay ? `Every ${localizedWeekDay(chore.recurrenceDay, language)}` : t('chores.weekly');
+    return chore.recurrenceDay ? t('chores.every_day', { day: localizedWeekDay(chore.recurrenceDay, language) }) : t('chores.weekly');
   if (chore.recurrence === 'monthly')
     return chore.recurrenceDay ? `${ordinal(chore.recurrenceDay)} ${t('chores.of_month')}` : t('chores.monthly');
   return null;
@@ -231,6 +231,7 @@ export default function ChoresScreen(): React.JSX.Element {
 
   const handleAdd = useCallback(async (): Promise<void> => {
     if (!choreName.trim() || isAdding) return;
+    if (!houseId) { setAddError(t('common.failed_try_again')); return; }
     setIsAdding(true); setAddError('');
     try {
       await addChore(choreName.trim(), recurrence, recurrenceDay, houseId ?? '');
@@ -286,9 +287,9 @@ export default function ChoresScreen(): React.JSX.Element {
                     <Ionicons name="checkmark-done-outline" size={26} color="#fff" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>House chores</Text>
+                    <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>{t('chores.hero_subtitle')}</Text>
                     <Text style={[type.title, { color: '#fff' }]}>
-                      {chores.length === 0 ? 'No chores yet' : `${doneDisplay} of ${chores.length} done`}
+                      {chores.length === 0 ? t('chores.empty') : t('chores.progress', { done: doneDisplay, total: chores.length })}
                     </Text>
                   </View>
                 </View>
@@ -307,7 +308,7 @@ export default function ChoresScreen(): React.JSX.Element {
                 )}
 
                 <Text style={[type.bodySm, { color: 'rgba(255,255,255,0.78)' }]}>
-                  {"Assign tasks, claim what you'll do, and check them off together."}
+                  {t('chores.description')}
                 </Text>
               </View>
 
