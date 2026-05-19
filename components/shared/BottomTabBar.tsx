@@ -10,6 +10,8 @@ import { useMorePopupStore } from '@stores/morePopupStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useBadgeStore, countNewSimple } from '@stores/badgeStore';
 import { useBillsStore } from '@stores/billsStore';
+import { useParkingStore } from '@stores/parkingStore';
+import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 
@@ -46,9 +48,14 @@ export function BottomTabBar(): React.JSX.Element {
   const closeMore    = useMorePopupStore((s) => s.close);
   const closeProfile = useProfilePopupStore((s) => s.close);
 
-  const bills     = useBillsStore((s) => s.bills);
-  const lastSeen  = useBadgeStore((s) => s.lastSeen);
-  const billBadge = countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills);
+  const bills        = useBillsStore((s) => s.bills);
+  const lastSeen     = useBadgeStore((s) => s.lastSeen);
+  const billBadge    = countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills);
+  const reservations = useParkingStore((s) => s.reservations);
+  const myId         = useAuthStore((s) => s.profile?.id);
+  const parkingBadge = reservations.filter(
+    (r) => r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId)
+  ).length;
 
   const isActive = useCallback((id: string): boolean => {
     if (id === 'more') return false;
@@ -132,6 +139,7 @@ export function BottomTabBar(): React.JSX.Element {
       {/* Right two tabs */}
       {TABS.slice(2).map((tab) => {
         const active = isActive(tab.id);
+        const badge  = tab.id === 'parking' ? parkingBadge : 0;
         return (
           <Pressable
             key={tab.id}
@@ -142,11 +150,18 @@ export function BottomTabBar(): React.JSX.Element {
             accessibilityLabel={tabLabels[tab.id]}
             accessibilityState={{ selected: active }}
           >
-            <Ionicons
-              name={active ? tab.iconActive : tab.icon}
-              size={22}
-              color={active ? c.primary : c.textSecondary}
-            />
+            <View style={styles.tabIconWrap}>
+              <Ionicons
+                name={active ? tab.iconActive : tab.icon}
+                size={22}
+                color={active ? c.primary : c.textSecondary}
+              />
+              {badge > 0 && (
+                <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
+                  <Text style={[styles.badgeText, { color: c.white }]}>{badge > 9 ? '9+' : String(badge)}</Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.label, { color: active ? c.primary : c.textSecondary }, active && styles.labelActive]}>
               {tabLabels[tab.id]}
             </Text>

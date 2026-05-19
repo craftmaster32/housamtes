@@ -457,8 +457,8 @@ function ParkingCard(): React.JSX.Element {
         {newReservations > 0
           ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newReservations}</Text></View>
           : pendingCount > 0
-          ? <View style={[styles.badgePill, { backgroundColor: '#2A1A00' }]}>
-              <Text style={[styles.badgePillText, { color: '#E0B24D' }]}>{pendingCount} pending</Text>
+          ? <View style={[styles.badgePill, { backgroundColor: '#E0B24D' }]}>
+              <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{pendingCount} pending</Text>
             </View>
           : <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
         }
