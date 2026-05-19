@@ -439,7 +439,7 @@ export default function GroceryScreen(): React.JSX.Element {
     if (isPublishing || !myId) return;
     setIsPublishing(true); setAddError(null);
     try {
-      await publishDraftItems(myId);
+      await publishDraftItems(myId, houseId ?? '');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Could not share your list. Please try again.');

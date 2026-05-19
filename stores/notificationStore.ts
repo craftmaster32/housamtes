@@ -14,6 +14,7 @@ export interface NotificationPrefs {
   notifyParkingReservation: boolean;
   notifyChoreOverdue: boolean;
   notifyChatMessage: boolean;
+  notifyGroceryShared: boolean;
 }
 
 const DEFAULT_PREFS: NotificationPrefs = {
@@ -25,6 +26,7 @@ const DEFAULT_PREFS: NotificationPrefs = {
   notifyParkingReservation: true,
   notifyChoreOverdue: true,
   notifyChatMessage: true,
+  notifyGroceryShared: true,
 };
 
 interface NotificationStore {
@@ -46,6 +48,7 @@ function rowToPrefs(row: Record<string, unknown>): NotificationPrefs {
     notifyParkingReservation: (row.notify_parking_reservation ?? true) as boolean,
     notifyChoreOverdue:       (row.notify_chore_overdue       ?? true) as boolean,
     notifyChatMessage:        (row.notify_chat_message        ?? true) as boolean,
+    notifyGroceryShared:      (row.notify_grocery_shared      ?? true) as boolean,
   };
 }
 
@@ -59,6 +62,7 @@ function prefsToRow(prefs: Partial<NotificationPrefs>): Record<string, unknown> 
   if (prefs.notifyParkingReservation !== undefined) row.notify_parking_reservation = prefs.notifyParkingReservation;
   if (prefs.notifyChoreOverdue       !== undefined) row.notify_chore_overdue       = prefs.notifyChoreOverdue;
   if (prefs.notifyChatMessage        !== undefined) row.notify_chat_message        = prefs.notifyChatMessage;
+  if (prefs.notifyGroceryShared      !== undefined) row.notify_grocery_shared      = prefs.notifyGroceryShared;
   return row;
 }
 

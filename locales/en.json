@@ -322,7 +322,18 @@
     "custom_amount_hint": "Enter this person's share of the total",
     "failed_delete": "Failed to delete bill. Try again.",
     "delete_confirm_title": "Delete Bill",
-    "delete_confirm_message": "Delete \"{{title}}\"? This cannot be undone."
+    "delete_confirm_message": "Delete \"{{title}}\"? This cannot be undone.",
+    "by_percent": "By %",
+    "fill_remaining_equally": "Fill remaining equally",
+    "remaining": "Remaining",
+    "total_percent": "Total %",
+    "over_by_amount": "Over by {{amount}}",
+    "over_by_pct": "Over by {{pct}}%",
+    "pct_total_mismatch": "Percentages must add up to 100% (currently {{pct}}%)",
+    "amount_for": "Amount for {{name}}",
+    "amount_for_hint": "Enter this person's share of the bill",
+    "pct_for": "Percentage for {{name}}",
+    "pct_for_hint": "Enter this person's percentage share"
   },
   "parking": {
     "title": "Parking",
@@ -583,6 +594,8 @@
     "notify_chore_sub": "When a new chore is assigned",
     "notify_chat": "Chat messages",
     "notify_chat_sub": "When a housemate sends a message",
+    "notify_grocery_shared": "Grocery list shared",
+    "notify_grocery_shared_sub": "When a housemate shares their draft with the house",
     "language_section": "LANGUAGE",
     "language": "Language",
     "about_section": "ABOUT",

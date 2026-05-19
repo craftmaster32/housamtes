@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { notifyHousemates } from '@lib/notifyHousemates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 
 const ACTIVE_RUN_KEY = 'grocery_active_run';
 const RUN_MAX_AGE_MS = 4 * 60 * 60 * 1000;
+const DRAFT_EXPIRES_MS = 24 * 60 * 60 * 1000;
 
 export type AddMode = 'shared' | 'draft' | 'private';
 
@@ -15,16 +17,37 @@ export interface GroceryItem {
   name: string;
   quantity: string;
   boughtCount: number;
-  addedBy: string; // user UUID
+  addedBy: string;
   isChecked: boolean;
   createdAt: string;
   isPersonal: boolean;
   isDraft: boolean;
+  comment?: string;
+  draftExpiresAt?: string;
+}
+
+export interface GroceryListItem {
+  id: string;
+  listId: string;
+  name: string;
+  quantity: string;
+  position: number;
+}
+
+export interface GroceryList {
+  id: string;
+  houseId: string;
+  name: string;
+  createdBy: string;
+  isPrivate: boolean;
+  createdAt: string;
+  updatedAt: string;
+  items: GroceryListItem[];
 }
 
 export interface ShoppingRun {
-  shopperId: string;   // user UUID
-  shopperName: string; // display name for broadcast UI
+  shopperId: string;
+  shopperName: string;
   startedAt: string;
 }
 
@@ -40,21 +63,47 @@ interface GroceryStore {
   isLoading: boolean;
   error: string | null;
   activeRun: ShoppingRun | null;
+  savedLists: GroceryList[];
+  isLoadingLists: boolean;
+  currentDraftSourceListId: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addItem: (name: string, quantity: string, addedByUserId: string, houseId: string, mode?: AddMode) => Promise<void>;
   updateItem: (id: string, name: string, quantity: string) => Promise<void>;
+  addComment: (id: string, comment: string) => Promise<void>;
   toggleItem: (id: string) => Promise<void>;
   incrementBought: (id: string) => Promise<void>;
   decrementBought: (id: string) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   clearChecked: (houseId: string) => Promise<void>;
-  publishDraftItems: (userId: string) => Promise<void>;
+  publishDraftItems: (userId: string, houseId: string) => Promise<void>;
   startRun: (shopperId: string, shopperName: string) => Promise<void>;
   endRun: () => Promise<void>;
+  fetchSavedLists: (houseId: string) => Promise<void>;
+  createSavedList: (name: string, houseId: string, userId: string, items: Array<{ name: string; quantity: string }>, isPrivate?: boolean) => Promise<void>;
+  updateSavedList: (listId: string, items: Array<{ name: string; quantity: string }>) => Promise<void>;
+  deleteSavedList: (listId: string) => Promise<void>;
+  loadListIntoDraft: (list: GroceryList, userId: string, houseId: string) => Promise<void>;
+  setCurrentDraftSourceListId: (id: string | null) => void;
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+
+function mapItem(r: Record<string, unknown>): GroceryItem {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    quantity: (r.quantity as string) ?? '',
+    boughtCount: (r.bought_count as number) ?? 0,
+    addedBy: r.added_by as string,
+    isChecked: r.is_checked as boolean,
+    createdAt: r.created_at as string,
+    isPersonal: (r.is_personal as boolean) ?? false,
+    isDraft: (r.is_draft as boolean) ?? false,
+    comment: (r.comment as string) ?? undefined,
+    draftExpiresAt: (r.draft_expires_at as string) ?? undefined,
+  };
+}
 
 export const useGroceryStore = create<GroceryStore>()(
   devtools(
@@ -63,6 +112,9 @@ export const useGroceryStore = create<GroceryStore>()(
       isLoading: true,
       error: null,
       activeRun: null,
+      savedLists: [],
+      isLoadingLists: false,
+      currentDraftSourceListId: null,
 
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
@@ -88,17 +140,7 @@ export const useGroceryStore = create<GroceryStore>()(
             .eq('house_id', houseId)
             .order('created_at', { ascending: false });
           if (error) throw error;
-          const items: GroceryItem[] = (data ?? []).map((r) => ({
-            id: r.id,
-            name: r.name,
-            quantity: r.quantity ?? '',
-            boughtCount: r.bought_count ?? 0,
-            addedBy: r.added_by,
-            isChecked: r.is_checked,
-            createdAt: r.created_at,
-            isPersonal: r.is_personal ?? false,
-            isDraft: r.is_draft ?? false,
-          }));
+          const items: GroceryItem[] = (data ?? []).map((r) => mapItem(r as Record<string, unknown>));
           set({ items, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'grocery', houseId });
@@ -130,24 +172,36 @@ export const useGroceryStore = create<GroceryStore>()(
       addItem: async (name, quantity, addedByUserId, houseId, mode = 'shared'): Promise<void> => {
         const isPersonal = mode !== 'shared';
         const isDraft    = mode === 'draft';
+        const draftExpiresAt = isDraft
+          ? new Date(Date.now() + DRAFT_EXPIRES_MS).toISOString()
+          : null;
         const { data, error } = await supabase
           .from('grocery_items')
-          .insert({ house_id: houseId, name, quantity, added_by: addedByUserId, is_personal: isPersonal, is_draft: isDraft })
+          .insert({
+            house_id: houseId,
+            name,
+            quantity,
+            added_by: addedByUserId,
+            is_personal: isPersonal,
+            is_draft: isDraft,
+            ...(draftExpiresAt ? { draft_expires_at: draftExpiresAt } : {}),
+          })
           .select()
           .single();
         if (error) { captureError(error, { context: 'add-grocery', houseId }); throw new Error('Could not add the item. Please try again.'); }
-        const item: GroceryItem = {
-          id: data.id,
-          name: data.name,
-          quantity: data.quantity ?? '',
-          boughtCount: 0,
-          addedBy: data.added_by,
-          isChecked: false,
-          createdAt: data.created_at,
-          isPersonal: data.is_personal ?? false,
-          isDraft: data.is_draft ?? false,
-        };
+        const item: GroceryItem = mapItem(data as Record<string, unknown>);
         set({ items: [item, ...get().items] });
+      },
+
+      addComment: async (id, comment): Promise<void> => {
+        try {
+          const { error } = await supabase.from('grocery_items').update({ comment }).eq('id', id);
+          if (error) throw error;
+          set({ items: get().items.map((i) => (i.id === id ? { ...i, comment } : i)) });
+        } catch (err) {
+          captureError(err, { context: 'grocery-comment' });
+          throw new Error('Could not save note. Please try again.');
+        }
       },
 
       updateItem: async (id, name, quantity): Promise<void> => {
@@ -199,7 +253,7 @@ export const useGroceryStore = create<GroceryStore>()(
         set({ items: get().items.filter((i) => !i.isChecked) });
       },
 
-      publishDraftItems: async (userId: string): Promise<void> => {
+      publishDraftItems: async (userId: string, houseId: string): Promise<void> => {
         const draftIds = get().items
           .filter((i) => i.isDraft && i.addedBy === userId)
           .map((i) => i.id);
@@ -207,8 +261,9 @@ export const useGroceryStore = create<GroceryStore>()(
         try {
           const { error } = await supabase
             .from('grocery_items')
-            .update({ is_personal: false, is_draft: false })
+            .update({ is_personal: false, is_draft: false, draft_expires_at: null })
             .in('id', draftIds)
+            .eq('house_id', houseId)
             .eq('added_by', userId)
             .eq('is_draft', true);
           if (error) {
@@ -218,10 +273,21 @@ export const useGroceryStore = create<GroceryStore>()(
           set({
             items: get().items.map((i) =>
               draftIds.includes(i.id) && i.addedBy === userId
-                ? { ...i, isPersonal: false, isDraft: false }
+                ? { ...i, isPersonal: false, isDraft: false, draftExpiresAt: undefined }
                 : i
             ),
+            currentDraftSourceListId: null,
           });
+
+          // Notify housemates (non-fatal)
+          notifyHousemates({
+            houseId,
+            excludeUserId: userId,
+            title: 'New grocery list shared 🛒',
+            body: `${draftIds.length} item${draftIds.length === 1 ? '' : 's'} added to the shared list`,
+            notificationType: 'grocery_shared',
+            data: { screen: 'grocery' },
+          }).catch(() => {});
         } catch (err) {
           captureError(err, { context: 'publish-draft-exception', userId });
           throw err instanceof Error ? err : new Error('Could not share your list. Please try again.');
@@ -248,6 +314,125 @@ export const useGroceryStore = create<GroceryStore>()(
           event: 'shopping_run',
           payload: { active: false, shopperId: '', shopperName: '', startedAt: '' },
         }).catch(() => {});
+      },
+
+      // ── Saved Lists ──────────────────────────────────────────────────────────
+
+      fetchSavedLists: async (houseId: string): Promise<void> => {
+        set({ isLoadingLists: true });
+        try {
+          const { data, error } = await supabase
+            .from('grocery_lists')
+            .select('*, items:grocery_list_items(*)')
+            .eq('house_id', houseId)
+            .order('updated_at', { ascending: false });
+          if (error) throw error;
+          const lists: GroceryList[] = (data ?? []).map((r) => ({
+            id: r.id as string,
+            houseId: r.house_id as string,
+            name: r.name as string,
+            createdBy: r.created_by as string,
+            isPrivate: (r.is_private as boolean) ?? false,
+            createdAt: r.created_at as string,
+            updatedAt: r.updated_at as string,
+            items: ((r.items as Array<Record<string, unknown>>) ?? [])
+              .sort((a, b) => ((a.position as number) ?? 0) - ((b.position as number) ?? 0))
+              .map((li) => ({
+                id: li.id as string,
+                listId: li.list_id as string,
+                name: li.name as string,
+                quantity: (li.quantity as string) ?? '',
+                position: (li.position as number) ?? 0,
+              })),
+          }));
+          set({ savedLists: lists, isLoadingLists: false });
+        } catch (err) {
+          captureError(err, { context: 'fetch-grocery-lists' });
+          set({ isLoadingLists: false });
+        }
+      },
+
+      createSavedList: async (name, houseId, userId, items, isPrivate = false): Promise<void> => {
+        const { data: listData, error: listError } = await supabase
+          .from('grocery_lists')
+          .insert({ house_id: houseId, name, created_by: userId, is_private: isPrivate })
+          .select()
+          .single();
+        if (listError) { captureError(listError, { context: 'create-grocery-list' }); throw new Error('Could not save the list. Please try again.'); }
+
+        if (items.length > 0) {
+          const { error: itemsError } = await supabase
+            .from('grocery_list_items')
+            .insert(items.map((item, i) => ({ list_id: listData.id, name: item.name, quantity: item.quantity, position: i })));
+          if (itemsError) { captureError(itemsError, { context: 'create-grocery-list-items' }); throw new Error('Could not save the list items. Please try again.'); }
+        }
+
+        const newList: GroceryList = {
+          id: listData.id as string,
+          houseId: listData.house_id as string,
+          name: listData.name as string,
+          createdBy: listData.created_by as string,
+          isPrivate: (listData.is_private as boolean) ?? false,
+          createdAt: listData.created_at as string,
+          updatedAt: listData.updated_at as string,
+          items: items.map((item, i) => ({ id: '', listId: listData.id as string, name: item.name, quantity: item.quantity, position: i })),
+        };
+        set({ savedLists: [newList, ...get().savedLists] });
+      },
+
+      updateSavedList: async (listId, items): Promise<void> => {
+        const { error: delError } = await supabase.from('grocery_list_items').delete().eq('list_id', listId);
+        if (delError) { captureError(delError, { context: 'update-grocery-list-delete' }); throw new Error('Could not update the list. Please try again.'); }
+        if (items.length > 0) {
+          const { error: insError } = await supabase.from('grocery_list_items').insert(
+            items.map((item, i) => ({ list_id: listId, name: item.name, quantity: item.quantity, position: i }))
+          );
+          if (insError) { captureError(insError, { context: 'update-grocery-list-insert' }); throw new Error('Could not update the list. Please try again.'); }
+        }
+        const now = new Date().toISOString();
+        const { error: updError } = await supabase.from('grocery_lists').update({ updated_at: now }).eq('id', listId);
+        if (updError) { captureError(updError, { context: 'update-grocery-list-timestamp' }); throw new Error('Could not update the list. Please try again.'); }
+        set({
+          savedLists: get().savedLists.map((l) =>
+            l.id === listId
+              ? {
+                  ...l,
+                  updatedAt: now,
+                  items: items.map((item, i) => ({ id: '', listId, name: item.name, quantity: item.quantity, position: i })),
+                }
+              : l
+          ),
+        });
+      },
+
+      deleteSavedList: async (listId: string): Promise<void> => {
+        const { error } = await supabase.from('grocery_lists').delete().eq('id', listId);
+        if (error) { captureError(error, { context: 'delete-grocery-list' }); throw new Error('Could not delete the list. Please try again.'); }
+        set({ savedLists: get().savedLists.filter((l) => l.id !== listId) });
+      },
+
+      loadListIntoDraft: async (list: GroceryList, userId: string, houseId: string): Promise<void> => {
+        const draftExpiresAt = new Date(Date.now() + DRAFT_EXPIRES_MS).toISOString();
+        const insertRows = list.items.map((item) => ({
+          house_id: houseId,
+          name: item.name,
+          quantity: item.quantity,
+          added_by: userId,
+          is_personal: true,
+          is_draft: true,
+          draft_expires_at: draftExpiresAt,
+        }));
+        if (insertRows.length > 0) {
+          const { error } = await supabase.from('grocery_items').insert(insertRows);
+          if (error) { captureError(error, { context: 'load-list-into-draft' }); throw new Error('Could not load the list. Please try again.'); }
+        }
+        set({ currentDraftSourceListId: list.id });
+        // Reload items so new drafts appear
+        await get().load(houseId);
+      },
+
+      setCurrentDraftSourceListId: (id: string | null): void => {
+        set({ currentDraftSourceListId: id });
       },
     }),
     { name: 'grocery-store' }

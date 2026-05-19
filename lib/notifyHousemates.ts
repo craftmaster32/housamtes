@@ -12,7 +12,8 @@ export type NotificationType =
   | 'parking_claimed'
   | 'parking_reservation'
   | 'chore_overdue'
-  | 'chat_message';
+  | 'chat_message'
+  | 'grocery_shared';
 
 interface NotifyParams {
   houseId: string;

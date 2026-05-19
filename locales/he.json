@@ -578,6 +578,8 @@
     "notify_chore_sub": "כשמוטלת מטלה חדשה",
     "notify_chat": "הודעות צ׳אט",
     "notify_chat_sub": "כשהשותף שולח הודעה",
+    "notify_grocery_shared": "רשימת קניות שותפה",
+    "notify_grocery_shared_sub": "כשהשותף משתף את הרשימה שלו עם הבית",
     "language_section": "שפה",
     "language": "שפה",
     "about_section": "אודות",

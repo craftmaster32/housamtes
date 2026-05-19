@@ -582,6 +582,8 @@
     "notify_chore_sub": "Cuando se asigna una nueva tarea",
     "notify_chat": "Mensajes de chat",
     "notify_chat_sub": "Cuando un compañero envía un mensaje",
+    "notify_grocery_shared": "Lista de compras compartida",
+    "notify_grocery_shared_sub": "Cuando un compañero comparte su borrador con la casa",
     "language_section": "IDIOMA",
     "language": "Idioma",
     "about_section": "ACERCA DE",

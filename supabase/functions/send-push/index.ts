@@ -22,6 +22,7 @@ const PREF_COLUMN: Record<string, string> = {
   parking_reservation:  'notify_parking_reservation',
   chore_overdue:        'notify_chore_overdue',
   chat_message:         'notify_chat_message',
+  grocery_shared:       'notify_grocery_shared',
 };
 
 interface SendPushPayload {
@@ -119,7 +120,7 @@ Deno.serve(async (req: Request) => {
   const { data: prefRows } = allUserIds.length > 0
     ? await supabase
         .from('notification_preferences')
-        .select('user_id, notify_bill_added, notify_bill_settled, notify_bill_due, notify_parking_claimed, notify_parking_reservation, notify_chore_overdue, notify_chat_message')
+        .select('user_id, notify_bill_added, notify_bill_settled, notify_bill_due, notify_parking_claimed, notify_parking_reservation, notify_chore_overdue, notify_chat_message, notify_grocery_shared')
         .eq('house_id', house_id)
         .in('user_id', allUserIds)
     : { data: [] };

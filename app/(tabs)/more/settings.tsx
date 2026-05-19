@@ -587,6 +587,14 @@ export default function SettingsScreen(): React.JSX.Element {
               value={prefs.notifyChatMessage}
               onToggle={(v) => toggle('notifyChatMessage', v)}
             />
+            <RowDivider />
+            <ToggleRow
+              icon="🛒"
+              label={t('settings.notify_grocery_shared')}
+              sub={t('settings.notify_grocery_shared_sub')}
+              value={prefs.notifyGroceryShared}
+              onToggle={(v) => toggle('notifyGroceryShared', v)}
+            />
           </View>
 
           {/* Language */}
