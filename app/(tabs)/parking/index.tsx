@@ -480,8 +480,9 @@ export default function ParkingScreen(): React.JSX.Element {
   }, [release, houseId, t]);
 
   const handleReleaseOther = useCallback((): void => {
-    // Pin both values before the dialog opens so a realtime update can't
-    // change which session or name the confirmation refers to.
+    // Pin all three values before the dialog opens so the confirmed action
+    // always refers to the exact session that was shown.
+    const pinnedSessionId = current?.id ?? '';
     const occupantName = resolveName(current?.occupant ?? '', housemates);
     const pinnedHouseId = houseId ?? '';
     Alert.alert(
@@ -493,6 +494,11 @@ export default function ParkingScreen(): React.JSX.Element {
           text: 'Yes, free it',
           style: 'destructive',
           onPress: (): void => {
+            // Abort if a realtime update swapped the session while the dialog was open.
+            if (useParkingStore.getState().current?.id !== pinnedSessionId) {
+              setError('The spot changed while you were confirming — please try again.');
+              return;
+            }
             setError('');
             release(pinnedHouseId).catch((err: unknown) => {
               setError(err instanceof Error ? err.message : t('parking.failed_release'));
