@@ -53,9 +53,9 @@ export function BottomTabBar(): React.JSX.Element {
   const billBadge    = countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills);
   const reservations = useParkingStore((s) => s.reservations);
   const myId         = useAuthStore((s) => s.profile?.id);
-  const parkingBadge = reservations.filter(
+  const parkingBadge = myId ? reservations.filter(
     (r) => r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId)
-  ).length;
+  ).length : 0;
 
   const isActive = useCallback((id: string): boolean => {
     if (id === 'more') return false;
