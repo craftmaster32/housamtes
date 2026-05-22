@@ -4,8 +4,10 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { useChoresStore, type Chore, type Recurrence } from '@stores/choresStore';
 import { useAuthStore } from '@stores/authStore';
+import { useBadgeStore } from '@stores/badgeStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { resolveName } from '@utils/housemates';
@@ -115,6 +117,10 @@ function ChoreRow({
 
 export default function ChoresScreen(): React.JSX.Element {
   const { t } = useTranslation();
+
+  const markSeen = useBadgeStore((s) => s.markSeen);
+  useFocusEffect(useCallback(() => { markSeen('chores'); }, [markSeen]));
+
   const chores = useChoresStore((state) => state.chores);
   const isLoading = useChoresStore((state) => state.isLoading);
   const storeError = useChoresStore((state) => state.error);

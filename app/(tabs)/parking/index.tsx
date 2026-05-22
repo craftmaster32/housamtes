@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   useParkingStore,
   isDateConflict,
+  type ConflictResult,
   type ParkingReservation,
   type ParkingReservationStatus,
   type ParkingSession,
@@ -272,7 +273,11 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
     current && date === todayStr
       ? `${current.occupant === myId ? 'You are' : `${resolveName(current.occupant, housemates)} is`} currently using the spot`
       : null;
-  const dateConflict = activeConflict ?? isDateConflict(date, reservations);
+  const conflictResult: ConflictResult = activeConflict
+    ? { conflict: activeConflict, warning: null }
+    : isDateConflict(date, startTime || undefined, endTime || undefined, reservations);
+  const dateConflict = conflictResult.conflict;
+  const dateWarning  = conflictResult.warning;
 
   const reset = useCallback((): void => {
     setDate(todayStr);
@@ -327,6 +332,12 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
               <View style={styles.conflictBox}>
                 <Ionicons name="warning-outline" size={13} color={C.warning} />
                 <Text style={styles.conflictText}>{dateConflict}</Text>
+              </View>
+            )}
+            {!dateConflict && !!dateWarning && (
+              <View style={[styles.conflictBox, { borderColor: '#E0B24D40', backgroundColor: '#2A1A0010' }]}>
+                <Ionicons name="time-outline" size={13} color="#E0B24D" />
+                <Text style={[styles.conflictText, { color: '#E0B24D' }]}>{dateWarning}</Text>
               </View>
             )}
 

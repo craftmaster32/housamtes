@@ -102,19 +102,65 @@ export function tallyParkingReservationVotes(
   };
 }
 
+function toMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + (m ?? 0);
+}
+
+export interface ConflictResult {
+  conflict: string | null;
+  warning: string | null;
+}
+
 export function isDateConflict(
   date: string,
+  startTime: string | undefined,
+  endTime: string | undefined,
   reservations: ParkingReservation[],
   resolveName?: (id: string) => string
-): string | null {
-  const match = reservations.find(
+): ConflictResult {
+  const sameDay = reservations.filter(
     (r) => r.date === date && (r.status === 'approved' || r.status === 'pending')
   );
-  if (!match) return null;
-  const name = resolveName ? resolveName(match.requestedBy) : match.requestedBy;
-  return match.status === 'approved'
-    ? `Already reserved by ${name}`
-    : `${name} already has a pending request`;
+  if (sameDay.length === 0) return { conflict: null, warning: null };
+
+  for (const r of sameDay) {
+    const name  = resolveName ? resolveName(r.requestedBy) : r.requestedBy;
+    const label = r.status === 'approved' ? 'reserved' : 'pending';
+
+    // No times on either side → all-day conflict
+    if (!startTime || !endTime || !r.startTime || !r.endTime) {
+      return { conflict: `${name} already has the spot ${label} on this day`, warning: null };
+    }
+
+    const newStart = toMinutes(startTime);
+    const newEnd   = toMinutes(endTime);
+    const exStart  = toMinutes(r.startTime);
+    const exEnd    = toMinutes(r.endTime);
+
+    if (newStart < exEnd && newEnd > exStart) {
+      return {
+        conflict: `Overlaps with ${name}'s ${label} slot (${r.startTime}–${r.endTime})`,
+        warning: null,
+      };
+    }
+
+    const gap = newStart >= exEnd ? newStart - exEnd : exStart - newEnd;
+    if (gap <= 15) {
+      return {
+        conflict: null,
+        warning: `Only ${gap} min between your slot and ${name}'s — very tight, coordinate timing.`,
+      };
+    }
+    if (gap <= 60) {
+      return {
+        conflict: null,
+        warning: `${name} has the spot ${gap} min before/after yours — times are close.`,
+      };
+    }
+  }
+
+  return { conflict: null, warning: null };
 }
 
 export const useParkingStore = create<ParkingStore>()(
@@ -279,16 +325,8 @@ export const useParkingStore = create<ParkingStore>()(
         }).catch((err) => captureError(err, { context: 'notify-release', houseId }));
       },
       addReservation: async (data, displayName, houseId): Promise<string> => {
-        const conflict = get().reservations.find(
-          (r) => r.date === data.date && (r.status === 'approved' || r.status === 'pending')
-        );
-        if (conflict) {
-          throw new Error(
-            conflict.status === 'approved'
-              ? 'This date is already reserved'
-              : 'Someone already has a pending request for this date'
-          );
-        }
+        const { conflict } = isDateConflict(data.date, data.startTime, data.endTime, get().reservations);
+        if (conflict) throw new Error(conflict);
         const { data: inserted, error } = await supabase
           .from('parking_reservations')
           .insert({

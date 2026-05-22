@@ -21,6 +21,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useGroceryStore, type GroceryItem, type AddMode, type GroceryList } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
+import { useBadgeStore } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { UserAvatar } from '@components/shared/UserAvatar';
@@ -257,6 +258,9 @@ interface SectionData { title: string; icon: string; data: GroceryItemWithMeta[]
 export default function GroceryScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const router = useRouter();
+
+  const markSeen = useBadgeStore((s) => s.markSeen);
+  useFocusEffect(useCallback(() => { markSeen('grocery'); }, [markSeen]));
 
   const isLoading              = useGroceryStore((s) => s.isLoading);
   const error                  = useGroceryStore((s) => s.error);

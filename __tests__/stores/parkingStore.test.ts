@@ -71,32 +71,58 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('isDateConflict', () => {
-  it('returns null when reservation list is empty', () => {
-    expect(isDateConflict('2026-04-20', [])).toBeNull();
+  it('returns no conflict when reservation list is empty', () => {
+    const result = isDateConflict('2026-04-20', undefined, undefined, []);
+    expect(result.conflict).toBeNull();
+    expect(result.warning).toBeNull();
   });
 
-  it('returns null when no reservation matches the given date', () => {
+  it('returns no conflict when no reservation matches the given date', () => {
     const r = reservation({ date: '2026-04-21', status: 'approved' });
-    expect(isDateConflict('2026-04-20', [r])).toBeNull();
+    expect(isDateConflict('2026-04-20', undefined, undefined, [r]).conflict).toBeNull();
   });
 
-  it('returns an "already reserved" message for an approved reservation on the same date', () => {
+  // All-day (no times) conflicts
+  it('blocks all-day request when another all-day reservation exists (approved)', () => {
     const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved' });
-    const msg = isDateConflict('2026-04-20', [r]);
-    expect(msg).toMatch(/already reserved by Bob/i);
+    const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
+    expect(conflict).toMatch(/Bob/i);
+    expect(conflict).toMatch(/reserved/i);
   });
 
-  it('returns a "pending request" message for a pending reservation on the same date', () => {
+  it('blocks all-day request when a pending reservation exists', () => {
     const r = reservation({ date: '2026-04-20', requestedBy: 'Carol', status: 'pending' });
-    const msg = isDateConflict('2026-04-20', [r]);
-    expect(msg).toMatch(/Carol.*pending/i);
+    const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
+    expect(conflict).toMatch(/Carol/i);
+    expect(conflict).toMatch(/pending/i);
   });
 
-  it('returns the first match when multiple reservations exist (approved takes priority in list order)', () => {
-    const r1 = reservation({ id: 'r1', date: '2026-04-20', requestedBy: 'Bob',   status: 'approved' });
-    const r2 = reservation({ id: 'r2', date: '2026-04-20', requestedBy: 'Carol', status: 'pending'  });
-    const msg = isDateConflict('2026-04-20', [r1, r2]);
-    expect(msg).toMatch(/Bob/);
+  // Time-aware: overlapping slots
+  it('blocks when new slot overlaps existing timed reservation', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict } = isDateConflict('2026-04-20', '10:00', '12:00', [r]);
+    expect(conflict).toMatch(/Overlaps/i);
+  });
+
+  it('allows non-overlapping timed slots on the same day', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict } = isDateConflict('2026-04-20', '13:00', '14:00', [r]);
+    expect(conflict).toBeNull();
+  });
+
+  // Time-aware: gap warnings
+  it('warns when gap between slots is <= 60 minutes', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '10:00' });
+    const { conflict, warning } = isDateConflict('2026-04-20', '10:30', '11:30', [r]);
+    expect(conflict).toBeNull();
+    expect(warning).not.toBeNull();
+  });
+
+  it('warns more strongly when gap is <= 15 minutes', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '10:00' });
+    const { conflict, warning } = isDateConflict('2026-04-20', '10:10', '11:00', [r]);
+    expect(conflict).toBeNull();
+    expect(warning).toMatch(/tight/i);
   });
 });
 
@@ -198,7 +224,7 @@ describe('parkingStore — addReservation', () => {
         'Alice',
         'house-1'
       )
-    ).rejects.toThrow('This date is already reserved');
+    ).rejects.toThrow(/already has the spot/i);
 
     expect(mockFrom).not.toHaveBeenCalled(); // should not reach DB
   });
