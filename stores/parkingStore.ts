@@ -358,7 +358,12 @@ export const useParkingStore = create<ParkingStore>()(
             createdAt: inserted.created_at,
             votes: [],
           };
-          set({ reservations: [r, ...get().reservations] });
+          const alreadyPresent = get().reservations.some((res) => res.id === r.id);
+          if (alreadyPresent) {
+            set({ reservations: get().reservations.map((res) => (res.id === r.id ? r : res)) });
+          } else {
+            set({ reservations: [r, ...get().reservations] });
+          }
           const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
           notifyHousemates({
             houseId,

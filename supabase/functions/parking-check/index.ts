@@ -144,9 +144,15 @@ async function getNames(
 }
 
 Deno.serve(async (_req: Request): Promise<Response> => {
-  const supabaseUrl    = Deno.env.get('SUPABASE_URL')!;
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase       = createClient(supabaseUrl, serviceRoleKey);
+  const supabaseUrl    = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) {
+    return new Response(
+      JSON.stringify({ error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' }),
+      { status: 500 },
+    );
+  }
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   const now        = new Date();
   const nowMins    = now.getHours() * 60 + now.getMinutes();
@@ -264,7 +270,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       const hoursUntil   = (reservDate.getTime() - now.getTime()) / 3_600_000;
       const hoursOld     = (now.getTime() - createdAt.getTime()) / 3_600_000;
       // Send if: created >24h ago (standard notice), or created <24h ago but within 2h of slot
-      const shouldNotify = hoursOld >= 20 || hoursUntil <= 2;
+      const shouldNotify = hoursOld >= 24 || hoursUntil <= 2;
 
       if (shouldNotify) {
         const sent = await sendToUser(supabase, r.requested_by, r.house_id,
@@ -300,12 +306,12 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         { screen: 'parking' },
       );
       // Also give the reservation holder a heads-up that occupant was notified
-      await sendToUser(supabase, r.requested_by, r.house_id,
+      const sentRequester4 = await sendToUser(supabase, r.requested_by, r.house_id,
         '⏰ Spot still in use',
         `${occupantName} is still parked — we've reminded them your slot starts at ${r.start_time}.`,
         { screen: 'parking' },
       );
-      if (sentOccupant4) updates.push({ id: r.id, patch: { advance_warning_sent: true } });
+      if (sentOccupant4 && sentRequester4) updates.push({ id: r.id, patch: { advance_warning_sent: true } });
     }
 
     // ── #3: Spot taken when reservation start time has arrived ────────────────
@@ -322,12 +328,12 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         `${rName}'s reserved slot started at ${r.start_time ?? 'now'}. Please free the spot.`,
         { screen: 'parking' },
       );
-      await sendToUser(supabase, r.requested_by, r.house_id,
+      const sentRequester3 = await sendToUser(supabase, r.requested_by, r.house_id,
         '⚠️ Spot still occupied',
         `Your slot started but ${occupantName} is still parked — they've been notified.`,
         { screen: 'parking' },
       );
-      if (sentOccupant3) updates.push({ id: r.id, patch: { spot_taken_notified: true } });
+      if (sentOccupant3 && sentRequester3) updates.push({ id: r.id, patch: { spot_taken_notified: true } });
     }
   }
 

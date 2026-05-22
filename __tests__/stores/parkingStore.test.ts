@@ -287,6 +287,21 @@ describe('parkingStore — addReservation', () => {
     expect(useParkingStore.getState().reservations[0].id).toBe('r-winner');
   });
 
+  it('throws the validation message when RPC returns invalid_time_range', async () => {
+    useParkingStore.setState({ reservations: [] });
+    mockRpc.mockReturnValue(fail('invalid_time_range: start must be before end'));
+
+    await expect(
+      useParkingStore.getState().addReservation(
+        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+        'Alice',
+        'house-1'
+      )
+    ).rejects.toThrow(/time range is invalid/i);
+
+    expect(useParkingStore.getState().reservations).toHaveLength(0);
+  });
+
   it('throws when RPC fails for a non-conflict reason', async () => {
     mockRpc.mockReturnValue(fail('DB error'));
 

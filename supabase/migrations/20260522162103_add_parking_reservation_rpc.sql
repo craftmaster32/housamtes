@@ -68,6 +68,8 @@ BEGIN
 END;
 $$;
 
--- Allow authenticated house members to call this function.
+-- Restrict to authenticated users only; PUBLIC access is revoked first.
+REVOKE EXECUTE ON FUNCTION add_parking_reservation(uuid, uuid, text, text, text, text)
+  FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION add_parking_reservation(uuid, uuid, text, text, text, text)
   TO authenticated;
