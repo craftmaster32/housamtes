@@ -440,7 +440,7 @@ function ParkingCard(): React.JSX.Element {
 
   const lastSeen           = useBadgeStore((s) => s.lastSeen);
   const sortedReservations = [...reservations].sort((a, b) => a.date.localeCompare(b.date));
-  const pendingFromOthers  = sortedReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myId);
+  const pendingFromOthers  = sortedReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId));
   const myReservation      = sortedReservations.find((r) => r.requestedBy === myId) ?? null;
   const pendingCount       = reservations.filter((r) => r.status === 'pending').length;
   const newReservations    = countNew(reservations as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.parking, myId, 'requestedBy');
