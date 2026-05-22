@@ -161,11 +161,14 @@ Deno.serve(async (_req: Request) => {
   }
 
   // Also fetch past pending reservations for auto-reject
-  const { data: pastPending } = await supabase
+  const { data: pastPending, error: pastErr } = await supabase
     .from('parking_reservations')
     .select('*')
     .eq('status', 'pending')
     .lt('date', today);
+  if (pastErr) {
+    return new Response(JSON.stringify({ error: pastErr.message }), { status: 500 });
+  }
 
   const allReservations = [
     ...((reservations ?? []) as Reservation[]),
@@ -173,10 +176,13 @@ Deno.serve(async (_req: Request) => {
   ];
 
   // Fetch all active parking sessions
-  const { data: sessions } = await supabase
+  const { data: sessions, error: sessErr } = await supabase
     .from('parking_sessions')
     .select('*')
     .eq('is_active', true);
+  if (sessErr) {
+    return new Response(JSON.stringify({ error: sessErr.message }), { status: 500 });
+  }
 
   const sessionByHouse = new Map<string, Session>();
   for (const s of ((sessions ?? []) as Session[])) {
@@ -210,11 +216,14 @@ Deno.serve(async (_req: Request) => {
 
     // ── #6a: Auto-reject past pending reservations ───────────────────────────
     if (r.status === 'pending' && r.date < today) {
-      await supabase
+      const { error: rejErr } = await supabase
         .from('parking_reservations')
         .update({ status: 'rejected' })
         .eq('id', r.id);
-
+      if (rejErr) {
+        console.error('[parking-check] auto-reject (#6a) failed for', r.id, rejErr.message);
+        continue;
+      }
       await sendToUser(supabase, r.requested_by, r.house_id,
         '🅿️ Parking request expired',
         `Your request for ${r.date}${timeStr} was auto-rejected — no vote was completed in time.`,
@@ -227,11 +236,14 @@ Deno.serve(async (_req: Request) => {
     if (r.status === 'pending' && r.date === today) {
       const startMins = r.start_time ? toMinutes(r.start_time) : 0;
       if (nowMins >= startMins) {
-        await supabase
+        const { error: rejErr } = await supabase
           .from('parking_reservations')
           .update({ status: 'rejected' })
           .eq('id', r.id);
-
+        if (rejErr) {
+          console.error('[parking-check] auto-reject (#6b) failed for', r.id, rejErr.message);
+          continue;
+        }
         await sendToUser(supabase, r.requested_by, r.house_id,
           '🅿️ Parking request expired',
           `Your request for today${timeStr} was auto-rejected — no vote was completed in time.`,
@@ -321,10 +333,16 @@ Deno.serve(async (_req: Request) => {
       .filter((r) => r.status === 'approved' && r.date === today && r.start_time && r.end_time)
       .sort((a, b) => toMinutes(a.start_time!) - toMinutes(b.start_time!));
 
+    const notifiedIds = new Set<string>();
     for (let i = 0; i < todayApproved.length - 1; i++) {
       const a = todayApproved[i];
       const b = todayApproved[i + 1];
-      if (a.back_to_back_notified || b.back_to_back_notified) continue;
+      // Check both the persisted flag AND the local set so a middle reservation
+      // that was already paired this run is not notified a second time.
+      if (
+        a.back_to_back_notified || b.back_to_back_notified ||
+        notifiedIds.has(a.id)   || notifiedIds.has(b.id)
+      ) continue;
 
       const gap = toMinutes(b.start_time!) - toMinutes(a.end_time!);
       if (gap > 120) continue;
@@ -342,17 +360,28 @@ Deno.serve(async (_req: Request) => {
         `${aName} has the spot right before you (ends ${a.end_time}) — coordinate timing.`,
         { screen: 'parking' },
       );
+      notifiedIds.add(a.id);
+      notifiedIds.add(b.id);
       updates.push({ id: a.id, patch: { back_to_back_notified: true } });
       updates.push({ id: b.id, patch: { back_to_back_notified: true } });
     }
   }
 
-  // Flush all flag updates
-  await Promise.all(
-    updates.map(({ id, patch }) =>
-      supabase.from('parking_reservations').update(patch).eq('id', id)
-    )
+  // Flush all flag updates; log but don't abort on partial failure
+  const updateResults = await Promise.allSettled(
+    updates.map(async ({ id, patch }) => {
+      const { error } = await supabase
+        .from('parking_reservations')
+        .update(patch)
+        .eq('id', id);
+      if (error) throw new Error(`id=${id} patch=${JSON.stringify(patch)}: ${error.message}`);
+    })
   );
+  for (const result of updateResults) {
+    if (result.status === 'rejected') {
+      console.error('[parking-check] flag update failed:', result.reason);
+    }
+  }
 
   return new Response(
     JSON.stringify({ processed: allReservations.length, updated: updates.length }),

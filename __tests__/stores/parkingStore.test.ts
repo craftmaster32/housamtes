@@ -257,9 +257,9 @@ describe('parkingStore — addReservation', () => {
     );
 
     expect(id).toBe('r2');
-    expect(mockRpc).toHaveBeenCalledWith('add_parking_reservation', expect.objectContaining({
-      p_date: '2026-04-20',
-    }));
+    expect(useParkingStore.getState().reservations).toContainEqual(
+      expect.objectContaining({ id: 'r2', date: '2026-04-20', status: 'pending' })
+    );
   });
 
   it('throws when RPC fails for a non-conflict reason', async () => {

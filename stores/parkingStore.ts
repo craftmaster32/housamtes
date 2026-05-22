@@ -343,28 +343,33 @@ export const useParkingStore = create<ParkingStore>()(
           }
           throw new Error('Could not save the reservation. Please try again.');
         }
-        const r: ParkingReservation = {
-          id: inserted.id,
-          requestedBy: inserted.requested_by,
-          date: inserted.date,
-          startTime: inserted.start_time ?? undefined,
-          endTime: inserted.end_time ?? undefined,
-          note: inserted.note ?? '',
-          status: 'pending',
-          createdAt: inserted.created_at,
-          votes: [],
-        };
-        set({ reservations: [r, ...get().reservations] });
-        const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
-        notifyHousemates({
-          houseId,
-          excludeUserId: data.requestedBy,
-          title: '🚗 Parking request',
-          body: `${displayName} wants the spot on ${data.date}${timeStr}${data.note ? ` — ${data.note}` : ''}`,
-          data: { screen: 'parking' },
-          notificationType: 'parking_reservation',
-        });
-        return r.id;
+        try {
+          const r: ParkingReservation = {
+            id: inserted.id,
+            requestedBy: inserted.requested_by,
+            date: inserted.date,
+            startTime: inserted.start_time ?? undefined,
+            endTime: inserted.end_time ?? undefined,
+            note: inserted.note ?? '',
+            status: 'pending',
+            createdAt: inserted.created_at,
+            votes: [],
+          };
+          set({ reservations: [r, ...get().reservations] });
+          const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
+          notifyHousemates({
+            houseId,
+            excludeUserId: data.requestedBy,
+            title: '🚗 Parking request',
+            body: `${displayName} wants the spot on ${data.date}${timeStr}${data.note ? ` — ${data.note}` : ''}`,
+            data: { screen: 'parking' },
+            notificationType: 'parking_reservation',
+          });
+          return r.id;
+        } catch (err) {
+          captureError(err, { context: 'add-reservation-unexpected', houseId });
+          throw new Error('Could not save the reservation. Please try again.');
+        }
       },
       cancelReservation: async (id, houseId): Promise<void> => {
         const reservation = get().reservations.find((r) => r.id === id);

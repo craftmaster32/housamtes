@@ -16,7 +16,22 @@ AS $$
 DECLARE
   conflict_exists boolean;
   new_row         parking_reservations;
+  v_start         time;
+  v_end           time;
 BEGIN
+  -- Validate and parse supplied time range before acquiring the lock.
+  IF p_start_time IS NOT NULL OR p_end_time IS NOT NULL THEN
+    BEGIN
+      v_start := p_start_time::time;
+      v_end   := p_end_time::time;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE EXCEPTION 'invalid_time_range: times must be in HH:MM format';
+    END;
+    IF v_start >= v_end THEN
+      RAISE EXCEPTION 'invalid_time_range: start_time must be before end_time';
+    END IF;
+  END IF;
+
   -- Serialize concurrent inserts for the same house within this transaction.
   PERFORM pg_advisory_xact_lock(hashtext(p_house_id::text)::bigint);
 
@@ -28,10 +43,11 @@ BEGIN
       AND  status   IN ('approved', 'pending')
       AND  (
              -- Either side has no times → treat as all-day conflict
-             p_start_time IS NULL OR p_end_time IS NULL
+             v_start IS NULL OR v_end IS NULL
              OR start_time IS NULL OR end_time IS NULL
-             -- Timed overlap: new slot starts before existing ends AND ends after existing starts
-             OR (p_start_time < end_time AND p_end_time > start_time)
+             -- Timed overlap using cast values: new slot starts before existing ends
+             -- AND ends after existing starts
+             OR (v_start < end_time::time AND v_end > start_time::time)
            )
   ) INTO conflict_exists;
 
