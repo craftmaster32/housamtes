@@ -28,10 +28,12 @@ import { ok, fail } from '../__helpers__/supabaseMock';
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
+const mockRpc  = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc:  (...a: unknown[]): unknown => mockRpc(...a),
     channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
     removeChannel: jest.fn(),
     auth: { getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } }) },
@@ -124,6 +126,16 @@ describe('isDateConflict', () => {
     expect(conflict).toBeNull();
     expect(warning).toMatch(/tight/i);
   });
+
+  it('conflict takes precedence over warning when multiple reservations exist', () => {
+    // r1 would produce a gap warning (30 min gap), r2 overlaps → conflict must win
+    const r1 = reservation({ id: 'r1', date: '2026-04-20', requestedBy: 'Bob',   status: 'approved', startTime: '08:00', endTime: '09:00' });
+    const r2 = reservation({ id: 'r2', date: '2026-04-20', requestedBy: 'Carol', status: 'approved', startTime: '10:00', endTime: '12:00' });
+    // New slot: 09:30–11:00 — 30 min gap after r1 (warning), overlaps r2 (conflict)
+    const { conflict, warning } = isDateConflict('2026-04-20', '09:30', '11:00', [r1, r2]);
+    expect(conflict).not.toBeNull();
+    expect(warning).toBeNull();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -214,9 +226,10 @@ describe('parkingStore — release', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('parkingStore — addReservation', () => {
-  it('throws before hitting the DB when a local reservation conflict exists', async () => {
-    const existing = reservation({ date: '2026-04-20', status: 'approved', requestedBy: 'Bob' });
-    useParkingStore.setState({ reservations: [existing] });
+  beforeEach(() => mockRpc.mockReset());
+
+  it('throws when RPC returns a conflict error', async () => {
+    mockRpc.mockReturnValue(fail('conflicting_reservation: this time slot is already taken'));
 
     await expect(
       useParkingStore.getState().addReservation(
@@ -224,36 +237,33 @@ describe('parkingStore — addReservation', () => {
         'Alice',
         'house-1'
       )
-    ).rejects.toThrow(/already has the spot/i);
-
-    expect(mockFrom).not.toHaveBeenCalled(); // should not reach DB
+    ).rejects.toThrow(/conflicts with an existing reservation/i);
   });
 
-  it('⚠️ BUG: conflict check uses stale local state — another user booking same date concurrently is not caught', async () => {
-    // Local state shows no reservations, but another user just booked the same date.
-    // The client-side check passes and we hit the DB — only a server-side unique
-    // constraint would prevent a double booking, which does not exist.
-    useParkingStore.setState({ reservations: [] }); // locally looks free
-    const insertedRow = {
+  it('concurrent double-booking is now caught server-side via the RPC advisory lock', async () => {
+    // Previously a client-side-only check allowed race conditions.
+    // The RPC wraps conflict-check + insert in a single advisory-locked transaction.
+    const row = {
       id: 'r2', requested_by: 'Alice', date: '2026-04-20',
       start_time: null, end_time: null, note: '', status: 'pending',
       created_at: '2026-04-18T11:00:00Z',
     };
-    mockFrom.mockReturnValue(ok(insertedRow));
+    mockRpc.mockReturnValue(ok(row));
 
-    // This succeeds even though another user may have booked simultaneously
     const id = await useParkingStore.getState().addReservation(
       { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
       'Alice',
       'house-1'
     );
 
-    expect(id).toBe('r2'); // request goes through — race window exists
+    expect(id).toBe('r2');
+    expect(mockRpc).toHaveBeenCalledWith('add_parking_reservation', expect.objectContaining({
+      p_date: '2026-04-20',
+    }));
   });
 
-  it('throws when DB insert fails', async () => {
-    useParkingStore.setState({ reservations: [] });
-    mockFrom.mockReturnValue(fail('DB error'));
+  it('throws when RPC fails for a non-conflict reason', async () => {
+    mockRpc.mockReturnValue(fail('DB error'));
 
     await expect(
       useParkingStore.getState().addReservation(
@@ -273,7 +283,7 @@ describe('parkingStore — addReservation', () => {
       start_time: null, end_time: null, note: 'dentist', status: 'pending',
       created_at: '2026-04-18T12:00:00Z',
     };
-    mockFrom.mockReturnValue(ok(row));
+    mockRpc.mockReturnValue(ok(row));
 
     await useParkingStore.getState().addReservation(
       { requestedBy: 'uuid-alice', date: '2026-04-25', note: 'dentist' },

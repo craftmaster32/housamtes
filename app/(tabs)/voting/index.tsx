@@ -342,7 +342,7 @@ export default function VotingScreen(): React.JSX.Element {
   const { t } = useTranslation();
 
   const markSeen = useBadgeStore((s) => s.markSeen);
-  useFocusEffect(useCallback(() => { markSeen('voting'); }, [markSeen]));
+  useFocusEffect(useCallback((): void => { markSeen('voting'); }, [markSeen]));
 
   const proposals = useVotingStore((s) => s.proposals);
   const isLoading = useVotingStore((s) => s.isLoading);

@@ -124,11 +124,14 @@ export function isDateConflict(
   );
   if (sameDay.length === 0) return { conflict: null, warning: null };
 
+  let smallestGap = Infinity;
+  let gapWarning: string | null = null;
+
   for (const r of sameDay) {
     const name  = resolveName ? resolveName(r.requestedBy) : r.requestedBy;
     const label = r.status === 'approved' ? 'reserved' : 'pending';
 
-    // No times on either side → all-day conflict
+    // No times on either side → all-day conflict; return immediately
     if (!startTime || !endTime || !r.startTime || !r.endTime) {
       return { conflict: `${name} already has the spot ${label} on this day`, warning: null };
     }
@@ -138,6 +141,7 @@ export function isDateConflict(
     const exStart  = toMinutes(r.startTime);
     const exEnd    = toMinutes(r.endTime);
 
+    // Hard overlap — return immediately, no need to keep scanning
     if (newStart < exEnd && newEnd > exStart) {
       return {
         conflict: `Overlaps with ${name}'s ${label} slot (${r.startTime}–${r.endTime})`,
@@ -145,22 +149,19 @@ export function isDateConflict(
       };
     }
 
+    // Track the tightest gap across all reservations; only report after full scan
     const gap = newStart >= exEnd ? newStart - exEnd : exStart - newEnd;
-    if (gap <= 15) {
-      return {
-        conflict: null,
-        warning: `Only ${gap} min between your slot and ${name}'s — very tight, coordinate timing.`,
-      };
-    }
-    if (gap <= 60) {
-      return {
-        conflict: null,
-        warning: `${name} has the spot ${gap} min before/after yours — times are close.`,
-      };
+    if (gap < smallestGap) {
+      smallestGap = gap;
+      if (gap <= 15) {
+        gapWarning = `Only ${gap} min between your slot and ${name}'s — very tight, coordinate timing.`;
+      } else if (gap <= 60) {
+        gapWarning = `${name} has the spot ${gap} min before/after yours — times are close.`;
+      }
     }
   }
 
-  return { conflict: null, warning: null };
+  return { conflict: null, warning: gapWarning };
 }
 
 export const useParkingStore = create<ParkingStore>()(
@@ -325,21 +326,23 @@ export const useParkingStore = create<ParkingStore>()(
         }).catch((err) => captureError(err, { context: 'notify-release', houseId }));
       },
       addReservation: async (data, displayName, houseId): Promise<string> => {
-        const { conflict } = isDateConflict(data.date, data.startTime, data.endTime, get().reservations);
-        if (conflict) throw new Error(conflict);
-        const { data: inserted, error } = await supabase
-          .from('parking_reservations')
-          .insert({
-            house_id: houseId,
-            requested_by: data.requestedBy,
-            date: data.date,
-            start_time: data.startTime ?? null,
-            end_time: data.endTime ?? null,
-            note: data.note,
-          })
-          .select()
-          .single();
-        if (error) { captureError(error, { context: 'add-reservation', houseId }); throw new Error('Could not save the reservation. Please try again.'); }
+        // RPC performs an advisory-locked conflict check + insert atomically,
+        // preventing double-bookings that slip past the client-side check.
+        const { data: inserted, error } = await supabase.rpc('add_parking_reservation', {
+          p_house_id:     houseId,
+          p_requested_by: data.requestedBy,
+          p_date:         data.date,
+          p_start_time:   data.startTime ?? null,
+          p_end_time:     data.endTime   ?? null,
+          p_note:         data.note,
+        });
+        if (error) {
+          captureError(error, { context: 'add-reservation', houseId });
+          if (error.message.includes('conflicting_reservation')) {
+            throw new Error('This time slot conflicts with an existing reservation.');
+          }
+          throw new Error('Could not save the reservation. Please try again.');
+        }
         const r: ParkingReservation = {
           id: inserted.id,
           requestedBy: inserted.requested_by,

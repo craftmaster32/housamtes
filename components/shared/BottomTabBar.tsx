@@ -62,9 +62,9 @@ export function BottomTabBar(): React.JSX.Element {
   const parkingBadge = myId ? reservations.filter(
     (r) => r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId)
   ).length : 0;
-  const groceryBadge = myId ? countNew(items.filter((i) => !i.isDraft) as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.grocery, myId, 'addedBy') : 0;
-  const choresBadge  = countNewSimple(chores.filter((c) => !c.isComplete) as unknown as Array<{ createdAt: string }>, lastSeen.chores);
-  const votingBadge  = myId ? countNew(proposals.filter((p) => p.isOpen) as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.voting, myId, 'createdBy') : 0;
+  const groceryBadge = myId ? countNew(items.filter((i) => !i.isDraft), lastSeen.grocery, myId, 'addedBy') : 0;
+  const choresBadge  = countNewSimple(chores.filter((c) => !c.isComplete), lastSeen.chores);
+  const votingBadge  = myId ? countNew(proposals.filter((p) => p.isOpen), lastSeen.voting, myId, 'createdBy') : 0;
   const moreBadge    = groceryBadge + choresBadge + votingBadge;
 
   const isActive = useCallback((id: string): boolean => {

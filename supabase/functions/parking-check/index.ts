@@ -11,6 +11,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
+// Maps notification event types to the user-preference column in notification_preferences.
+const PREF_COLUMN: Record<string, string> = {
+  parking_reservation: 'notify_parking_reservation',
+  parking_claimed:     'notify_parking_claimed',
+};
+
 interface Reservation {
   id: string;
   house_id: string;
@@ -66,31 +72,65 @@ async function sendToUser(
   title: string,
   body: string,
   data: Record<string, string> = {},
+  notificationType = 'parking_reservation',
 ): Promise<void> {
-  const { data: rows } = await supabase
+  // 1. Check notification preferences before sending
+  const prefColumn = PREF_COLUMN[notificationType];
+  if (prefColumn) {
+    const { data: prefs, error: prefErr } = await supabase
+      .from('notification_preferences')
+      .select(prefColumn)
+      .eq('house_id', houseId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!prefErr && prefs && (prefs as Record<string, unknown>)[prefColumn] === false) return;
+  }
+
+  // 2. Fetch push tokens
+  const { data: rows, error: tokErr } = await supabase
     .from('push_tokens')
     .select('token')
     .eq('house_id', houseId)
     .eq('user_id', userId);
+  if (tokErr) {
+    console.error('[parking-check] push_tokens fetch error:', tokErr.message);
+    return;
+  }
 
   const tokens = ((rows ?? []) as PushToken[]).map((r) => r.token).filter(Boolean);
   if (tokens.length === 0) return;
 
-  await fetch(EXPO_PUSH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(tokens.map((to) => ({ to, title, body, data, sound: 'default', priority: 'high' }))),
-  });
+  // 3. Send with exponential-backoff retry (up to 3 attempts: 500 ms, 1 s, 2 s)
+  const messages = tokens.map((to) => ({ to, title, body, data, sound: 'default', priority: 'high' }));
+  const delays = [500, 1000, 2000];
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      const res = await fetch(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(messages),
+      });
+      if (res.ok) return;
+      console.warn(`[parking-check] Expo push attempt ${attempt + 1} returned ${res.status}`);
+    } catch (err) {
+      console.warn(`[parking-check] Expo push attempt ${attempt + 1} threw:`, err);
+    }
+    if (attempt < delays.length) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
+    }
+  }
+  console.error('[parking-check] All push attempts failed for user', userId);
 }
 
 async function getNames(
   supabase: ReturnType<typeof createClient>,
   userIds: string[],
 ): Promise<Map<string, string>> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('id, name')
     .in('id', userIds);
+  if (error) console.error('[parking-check] profiles fetch error:', error.message);
 
   const map = new Map<string, string>();
   for (const row of ((data ?? []) as UserProfile[])) {
