@@ -121,7 +121,8 @@ async function sendToUser(
     }
     await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
   }
-  console.error('[parking-check] All push attempts failed for user', userId);
+  console.error('[parking-check] All push attempts failed (houseId:', houseId, ')');
+
   return false;
 }
 

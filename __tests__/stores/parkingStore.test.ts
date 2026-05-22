@@ -66,6 +66,7 @@ beforeEach(() => {
   useParkingStore.setState({ current: null, reservations: [], isLoading: false });
   jest.clearAllMocks();
   mockFrom.mockReset();
+  mockRpc.mockReset();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

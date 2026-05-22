@@ -336,7 +336,7 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
             )}
             {!dateConflict && !!dateWarning && (
               <View style={[styles.conflictBox, styles.conflictWarningBox]}>
-                <Ionicons name="time-outline" size={13} color="#E0B24D" />
+                <Ionicons name="time-outline" size={13} color={C.warning} />
                 <Text style={[styles.conflictText, styles.conflictWarningText]}>{dateWarning}</Text>
               </View>
             )}
@@ -867,8 +867,8 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
   fieldError: { fontSize: 13, ...font.regular, color: C.negative },
   conflictBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   conflictText: { fontSize: 13, ...font.medium, color: C.warning, flex: 1 },
-  conflictWarningBox: { borderColor: '#E0B24D40', backgroundColor: '#2A1A0010' },
-  conflictWarningText: { color: '#E0B24D' },
+  conflictWarningBox: { borderColor: C.warning + '40', backgroundColor: C.warning + '10' },
+  conflictWarningText: { color: C.warning },
   modalBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
   modalBtnOutline: {
     flex: 1, paddingVertical: 14, borderRadius: 12,
