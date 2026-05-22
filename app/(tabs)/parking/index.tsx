@@ -7,6 +7,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  Alert,
   AppState,
   type AppStateStatus,
   type ListRenderItemInfo,
@@ -478,6 +479,36 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [release, houseId, t]);
 
+  const handleReleaseOther = useCallback((): void => {
+    // Pin all three values before the dialog opens so the confirmed action
+    // always refers to the exact session that was shown.
+    const pinnedSessionId = current?.id ?? '';
+    const occupantName = resolveName(current?.occupant ?? '', housemates);
+    const pinnedHouseId = houseId ?? '';
+    Alert.alert(
+      'Free someone else\'s spot?',
+      `${occupantName} claimed this spot — are you sure you want to free it?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, free it',
+          style: 'destructive',
+          onPress: (): void => {
+            // Abort if a realtime update swapped the session while the dialog was open.
+            if (useParkingStore.getState().current?.id !== pinnedSessionId) {
+              setError('The spot changed while you were confirming — please try again.');
+              return;
+            }
+            setError('');
+            release(pinnedHouseId).catch((err: unknown) => {
+              setError(err instanceof Error ? err.message : t('parking.failed_release'));
+            });
+          },
+        },
+      ]
+    );
+  }, [current, housemates, release, houseId, t]);
+
   const handleCancel = useCallback(async (id: string): Promise<void> => {
     try {
       await cancelReservation(id, houseId ?? '');
@@ -590,9 +621,16 @@ export default function ParkingScreen(): React.JSX.Element {
                   <Text style={styles.btnDangerText}>{t('parking.release')}</Text>
                 </Pressable>
               )}
-              {!isFree && !isMine && isAdmin && (
-                <Pressable style={styles.btnAdminRelease} onPress={handleRelease} accessibilityRole="button" accessibilityLabel="Admin: free the parking spot">
-                  <Ionicons name="shield-outline" size={15} color={C.warning} style={styles.btnIcon} />
+              {!isFree && !isMine && (
+                <Pressable
+                  style={styles.btnAdminRelease}
+                  onPress={handleReleaseOther}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel="Free the parking spot"
+                  accessibilityState={{ disabled: false }}
+                >
+                  <Ionicons name="exit-outline" size={15} color={C.warning} style={styles.btnIcon} />
                   <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
                 </Pressable>
               )}
