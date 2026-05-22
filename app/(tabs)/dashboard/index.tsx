@@ -438,12 +438,10 @@ function ParkingCard(): React.JSX.Element {
   const isFree       = !current;
   const isMine       = current?.occupant === myId;
 
-  const lastSeen           = useBadgeStore((s) => s.lastSeen);
   const sortedReservations = [...reservations].sort((a, b) => a.date.localeCompare(b.date));
   const pendingFromOthers  = sortedReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId));
   const myReservation      = sortedReservations.find((r) => r.requestedBy === myId) ?? null;
   const pendingCount       = reservations.filter((r) => r.status === 'pending').length;
-  const newReservations    = countNew(reservations as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.parking, myId, 'requestedBy');
 
   const handleClaim   = useCallback(async (): Promise<void> => { await claim(myId, myName, houseId ?? '').catch(() => {}); }, [claim, myId, myName, houseId]);
   const handleRelease = useCallback(async (): Promise<void> => { await release(houseId ?? '').catch(() => {}); }, [release, houseId]);
@@ -455,8 +453,8 @@ function ParkingCard(): React.JSX.Element {
           <Ionicons name={isFree ? 'car-outline' : 'car'} size={18} color={isFree ? c.positive : c.negative} />
         </View>
         <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Parking Spot</Text>
-        {newReservations > 0
-          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newReservations}</Text></View>
+        {pendingFromOthers.length > 0
+          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{pendingFromOthers.length}</Text></View>
           : pendingCount > 0
           ? <View style={[styles.badgePill, { backgroundColor: '#E0B24D' }]}>
               <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{pendingCount} pending</Text>
