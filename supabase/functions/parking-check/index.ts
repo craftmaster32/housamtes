@@ -73,8 +73,8 @@ async function sendToUser(
   body: string,
   data: Record<string, string> = {},
   notificationType = 'parking_reservation',
-): Promise<void> {
-  // 1. Check notification preferences before sending
+): Promise<boolean> {
+  // 1. Check notification preferences — fail closed on DB error
   const prefColumn = PREF_COLUMN[notificationType];
   if (prefColumn) {
     const { data: prefs, error: prefErr } = await supabase
@@ -83,7 +83,11 @@ async function sendToUser(
       .eq('house_id', houseId)
       .eq('user_id', userId)
       .maybeSingle();
-    if (!prefErr && prefs && (prefs as Record<string, unknown>)[prefColumn] === false) return;
+    if (prefErr) {
+      console.error('[parking-check] preferences fetch error:', prefErr.message);
+      return false;
+    }
+    if (prefs && (prefs as Record<string, unknown>)[prefColumn] === false) return false;
   }
 
   // 2. Fetch push tokens
@@ -94,32 +98,31 @@ async function sendToUser(
     .eq('user_id', userId);
   if (tokErr) {
     console.error('[parking-check] push_tokens fetch error:', tokErr.message);
-    return;
+    return false;
   }
 
   const tokens = ((rows ?? []) as PushToken[]).map((r) => r.token).filter(Boolean);
-  if (tokens.length === 0) return;
+  if (tokens.length === 0) return false;
 
-  // 3. Send with exponential-backoff retry (up to 3 attempts: 500 ms, 1 s, 2 s)
+  // 3. Send with exponential-backoff retry (3 attempts: 500 ms, 1 s, 2 s)
   const messages = tokens.map((to) => ({ to, title, body, data, sound: 'default', priority: 'high' }));
   const delays = [500, 1000, 2000];
-  for (let attempt = 0; attempt <= delays.length; attempt++) {
+  for (let attempt = 0; attempt < delays.length; attempt++) {
     try {
       const res = await fetch(EXPO_PUSH_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(messages),
       });
-      if (res.ok) return;
+      if (res.ok) return true;
       console.warn(`[parking-check] Expo push attempt ${attempt + 1} returned ${res.status}`);
     } catch (err) {
       console.warn(`[parking-check] Expo push attempt ${attempt + 1} threw:`, err);
     }
-    if (attempt < delays.length) {
-      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
-    }
+    await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
   }
   console.error('[parking-check] All push attempts failed for user', userId);
+  return false;
 }
 
 async function getNames(
@@ -139,7 +142,7 @@ async function getNames(
   return map;
 }
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (_req: Request): Promise<Response> => {
   const supabaseUrl    = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase       = createClient(supabaseUrl, serviceRoleKey);
@@ -263,12 +266,12 @@ Deno.serve(async (_req: Request) => {
       const shouldNotify = hoursOld >= 20 || hoursUntil <= 2;
 
       if (shouldNotify) {
-        await sendToUser(supabase, r.requested_by, r.house_id,
+        const sent = await sendToUser(supabase, r.requested_by, r.house_id,
           '⏳ Parking vote still open',
           `Your parking request for ${r.date}${timeStr} hasn't been voted on yet.`,
           { screen: 'parking' },
         );
-        updates.push({ id: r.id, patch: { pending_notice_sent: true } });
+        if (sent) updates.push({ id: r.id, patch: { pending_notice_sent: true } });
       }
     }
 
@@ -290,7 +293,7 @@ Deno.serve(async (_req: Request) => {
       startMins - nowMins <= 35 // 5-min tolerance window
     ) {
       const occupantName = names.get(session.occupant) ?? 'Someone';
-      await sendToUser(supabase, session.occupant, r.house_id,
+      const sentOccupant4 = await sendToUser(supabase, session.occupant, r.house_id,
         '🚗 Spot needed soon',
         `${rName} has the spot from ${r.start_time ?? 'soon'} — please free it up in time.`,
         { screen: 'parking' },
@@ -301,7 +304,7 @@ Deno.serve(async (_req: Request) => {
         `${occupantName} is still parked — we've reminded them your slot starts at ${r.start_time}.`,
         { screen: 'parking' },
       );
-      updates.push({ id: r.id, patch: { advance_warning_sent: true } });
+      if (sentOccupant4) updates.push({ id: r.id, patch: { advance_warning_sent: true } });
     }
 
     // ── #3: Spot taken when reservation start time has arrived ────────────────
@@ -313,7 +316,7 @@ Deno.serve(async (_req: Request) => {
       nowMins < endMins
     ) {
       const occupantName = names.get(session.occupant) ?? 'Someone';
-      await sendToUser(supabase, session.occupant, r.house_id,
+      const sentOccupant3 = await sendToUser(supabase, session.occupant, r.house_id,
         '🚗 Please free the spot',
         `${rName}'s reserved slot started at ${r.start_time ?? 'now'}. Please free the spot.`,
         { screen: 'parking' },
@@ -323,7 +326,7 @@ Deno.serve(async (_req: Request) => {
         `Your slot started but ${occupantName} is still parked — they've been notified.`,
         { screen: 'parking' },
       );
-      updates.push({ id: r.id, patch: { spot_taken_notified: true } });
+      if (sentOccupant3) updates.push({ id: r.id, patch: { spot_taken_notified: true } });
     }
   }
 
@@ -350,20 +353,21 @@ Deno.serve(async (_req: Request) => {
       const aName = names.get(a.requested_by) ?? 'A housemate';
       const bName = names.get(b.requested_by) ?? 'A housemate';
 
-      await sendToUser(supabase, a.requested_by, a.house_id,
+      const sentA = await sendToUser(supabase, a.requested_by, a.house_id,
         '🅿️ Back-to-back reservation',
         `${bName} has the spot right after you (${b.start_time}) — coordinate timing.`,
         { screen: 'parking' },
       );
-      await sendToUser(supabase, b.requested_by, b.house_id,
+      const sentB = await sendToUser(supabase, b.requested_by, b.house_id,
         '🅿️ Back-to-back reservation',
         `${aName} has the spot right before you (ends ${a.end_time}) — coordinate timing.`,
         { screen: 'parking' },
       );
+      // Always track in local set to prevent double-notifying within this run
       notifiedIds.add(a.id);
       notifiedIds.add(b.id);
-      updates.push({ id: a.id, patch: { back_to_back_notified: true } });
-      updates.push({ id: b.id, patch: { back_to_back_notified: true } });
+      if (sentA) updates.push({ id: a.id, patch: { back_to_back_notified: true } });
+      if (sentB) updates.push({ id: b.id, patch: { back_to_back_notified: true } });
     }
   }
 

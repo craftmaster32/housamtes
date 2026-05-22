@@ -20,7 +20,10 @@ DECLARE
   v_end           time;
 BEGIN
   -- Validate and parse supplied time range before acquiring the lock.
-  IF p_start_time IS NOT NULL OR p_end_time IS NOT NULL THEN
+  IF (p_start_time IS NULL) <> (p_end_time IS NULL) THEN
+    RAISE EXCEPTION 'invalid_time_range: both start_time and end_time must be provided together';
+  END IF;
+  IF p_start_time IS NOT NULL THEN
     BEGIN
       v_start := p_start_time::time;
       v_end   := p_end_time::time;

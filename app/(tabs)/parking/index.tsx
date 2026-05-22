@@ -275,7 +275,7 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
       : null;
   const conflictResult: ConflictResult = activeConflict
     ? { conflict: activeConflict, warning: null }
-    : isDateConflict(date, startTime || undefined, endTime || undefined, reservations);
+    : isDateConflict(date, startTime || undefined, endTime || undefined, reservations, (id) => resolveName(id, housemates));
   const dateConflict = conflictResult.conflict;
   const dateWarning  = conflictResult.warning;
 

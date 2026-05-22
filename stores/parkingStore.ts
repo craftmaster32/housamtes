@@ -341,6 +341,9 @@ export const useParkingStore = create<ParkingStore>()(
           if (error.message.includes('conflicting_reservation')) {
             throw new Error('This time slot conflicts with an existing reservation.');
           }
+          if (error.message.includes('invalid_time_range')) {
+            throw new Error('The selected time range is invalid — please choose a valid start and end time.');
+          }
           throw new Error('Could not save the reservation. Please try again.');
         }
         try {

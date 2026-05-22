@@ -240,9 +240,8 @@ describe('parkingStore — addReservation', () => {
     ).rejects.toThrow(/conflicts with an existing reservation/i);
   });
 
-  it('concurrent double-booking is now caught server-side via the RPC advisory lock', async () => {
-    // Previously a client-side-only check allowed race conditions.
-    // The RPC wraps conflict-check + insert in a single advisory-locked transaction.
+  it('adds reservation to store state when RPC succeeds (happy path)', async () => {
+    useParkingStore.setState({ reservations: [] });
     const row = {
       id: 'r2', requested_by: 'Alice', date: '2026-04-20',
       start_time: null, end_time: null, note: '', status: 'pending',
@@ -260,6 +259,31 @@ describe('parkingStore — addReservation', () => {
     expect(useParkingStore.getState().reservations).toContainEqual(
       expect.objectContaining({ id: 'r2', date: '2026-04-20', status: 'pending' })
     );
+  });
+
+  it('concurrent conflict: second caller gets conflicting_reservation error, first reservation stays in store', async () => {
+    useParkingStore.setState({ reservations: [] });
+    const winnerRow = {
+      id: 'r-winner', requested_by: 'uuid-alice', date: '2026-04-20',
+      start_time: null, end_time: null, note: '', status: 'pending',
+      created_at: '2026-04-18T11:00:00Z',
+    };
+    mockRpc
+      .mockReturnValueOnce(ok(winnerRow))
+      .mockReturnValueOnce(fail('conflicting_reservation: this time slot is already taken'));
+
+    const winnerId = await useParkingStore.getState().addReservation(
+      { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' }, 'Alice', 'house-1'
+    );
+    await expect(
+      useParkingStore.getState().addReservation(
+        { requestedBy: 'uuid-bob', date: '2026-04-20', note: '' }, 'Bob', 'house-1'
+      )
+    ).rejects.toThrow(/conflicts with an existing reservation/i);
+
+    expect(winnerId).toBe('r-winner');
+    expect(useParkingStore.getState().reservations).toHaveLength(1);
+    expect(useParkingStore.getState().reservations[0].id).toBe('r-winner');
   });
 
   it('throws when RPC fails for a non-conflict reason', async () => {
