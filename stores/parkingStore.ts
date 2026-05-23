@@ -131,32 +131,38 @@ export function isDateConflict(
     const name  = resolveName ? resolveName(r.requestedBy) : r.requestedBy;
     const label = r.status === 'approved' ? 'reserved' : 'pending';
 
-    // No times on either side → all-day conflict; return immediately
-    if (!startTime || !endTime || !r.startTime || !r.endTime) {
+    if (!startTime && !endTime && !r.startTime && !r.endTime) {
+      // Both sides all-day → hard conflict
       return { conflict: `${name} already has the spot ${label} on this day`, warning: null };
     }
 
-    const newStart = toMinutes(startTime);
-    const newEnd   = toMinutes(endTime);
-    const exStart  = toMinutes(r.startTime);
-    const exEnd    = toMinutes(r.endTime);
+    if (startTime && endTime && r.startTime && r.endTime) {
+      // Both fully timed → overlap / gap logic
+      const newStart = toMinutes(startTime);
+      const newEnd   = toMinutes(endTime);
+      const exStart  = toMinutes(r.startTime);
+      const exEnd    = toMinutes(r.endTime);
 
-    // Hard overlap — return immediately, no need to keep scanning
-    if (newStart < exEnd && newEnd > exStart) {
-      return {
-        conflict: `Overlaps with ${name}'s ${label} slot (${r.startTime}–${r.endTime})`,
-        warning: null,
-      };
-    }
+      if (newStart < exEnd && newEnd > exStart) {
+        return {
+          conflict: `Overlaps with ${name}'s ${label} slot (${r.startTime}–${r.endTime})`,
+          warning: null,
+        };
+      }
 
-    // Track the tightest gap across all reservations; only report after full scan
-    const gap = newStart >= exEnd ? newStart - exEnd : exStart - newEnd;
-    if (gap < smallestGap) {
-      smallestGap = gap;
-      if (gap <= 15) {
-        gapWarning = `Only ${gap} min between your slot and ${name}'s — very tight, coordinate timing.`;
-      } else if (gap <= 60) {
-        gapWarning = `${name} has the spot ${gap} min before/after yours — times are close.`;
+      const gap = newStart >= exEnd ? newStart - exEnd : exStart - newEnd;
+      if (gap < smallestGap) {
+        smallestGap = gap;
+        if (gap <= 15) {
+          gapWarning = `Only ${gap} min between your slot and ${name}'s — very tight, coordinate timing.`;
+        } else if (gap <= 60) {
+          gapWarning = `${name} has the spot ${gap} min before/after yours — times are close.`;
+        }
+      }
+    } else {
+      // Partial: one side timed, the other all-day — can't compare exactly, soft warning only
+      if (!gapWarning) {
+        gapWarning = `${name} has the spot ${label} on this day — exact times may overlap.`;
       }
     }
   }
@@ -380,7 +386,14 @@ export const useParkingStore = create<ParkingStore>()(
             throw new Error('Could not save the reservation. Please try again.');
           }
         } catch (err) {
-          if (err instanceof Error) throw err;
+          // Only rethrow known domain/validation errors; normalize everything else.
+          if (err instanceof Error && (
+            err.message.includes('conflicts with an existing reservation') ||
+            err.message.includes('time range is invalid') ||
+            err.message === 'Could not save the reservation. Please try again.'
+          )) {
+            throw err;
+          }
           captureError(err, { context: 'add-reservation', houseId });
           throw new Error('Could not save the reservation. Please try again.');
         }
