@@ -114,14 +114,25 @@ async function sendToUser(
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(messages),
       });
-      if (res.ok) return true;
-      console.warn(`[parking-check] Expo push attempt ${attempt + 1} returned ${res.status}`);
+      if (res.ok) {
+        const json = await res.json() as { data?: Array<{ status: string; message?: string }> };
+        const tickets = json.data ?? [];
+        const failed = tickets.filter((t) => t.status !== 'ok');
+        if (failed.length === 0) return true;
+        for (const t of failed) {
+          console.warn(`[parking-check] Expo ticket error: ${t.message ?? t.status}`);
+        }
+      } else {
+        console.warn(`[parking-check] Expo push attempt ${attempt + 1} returned ${res.status}`);
+      }
     } catch (err) {
       console.warn(`[parking-check] Expo push attempt ${attempt + 1} threw:`, err);
     }
-    await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
+    if (attempt < delays.length - 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
+    }
   }
-  console.error('[parking-check] All push attempts failed (houseId:', houseId, ')');
+  console.error('[parking-check] All push attempts failed');
 
   return false;
 }
@@ -154,6 +165,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
   }
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+  try {
   const now        = new Date();
   const nowMins    = now.getHours() * 60 + now.getMinutes();
   const today      = todayStr(now);
@@ -164,7 +176,8 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     .from('parking_reservations')
     .select('*')
     .in('status', ['approved', 'pending'])
-    .gte('date', today);
+    .gte('date', today)
+    .lte('date', tomorrow);
 
   if (resErr) {
     return new Response(JSON.stringify({ error: resErr.message }), { status: 500 });
@@ -265,12 +278,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
     // ── #6c: 24h-before notice for tomorrow's pending reservations ────────────
     if (r.status === 'pending' && r.date === tomorrow && !r.pending_notice_sent) {
-      const createdAt    = new Date(r.created_at);
       const reservDate   = new Date(`${r.date}T${r.start_time ?? '00:00'}:00`);
       const hoursUntil   = (reservDate.getTime() - now.getTime()) / 3_600_000;
-      const hoursOld     = (now.getTime() - createdAt.getTime()) / 3_600_000;
-      // Send if: created >24h ago (standard notice), or created <24h ago but within 2h of slot
-      const shouldNotify = hoursOld >= 24 || hoursUntil <= 2;
+      const shouldNotify = hoursUntil <= 24 && hoursUntil >= 0;
 
       if (shouldNotify) {
         const sent = await sendToUser(supabase, r.requested_by, r.house_id,
@@ -347,11 +357,12 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     for (let i = 0; i < todayApproved.length - 1; i++) {
       const a = todayApproved[i];
       const b = todayApproved[i + 1];
-      // Check both the persisted flag AND the local set so a middle reservation
-      // that was already paired this run is not notified a second time.
+      // Skip only when both sides are already handled: either both persisted flags
+      // are set, or both were already processed in this cron run. Using OR would
+      // permanently drop the un-notified side after a partial send.
       if (
-        a.back_to_back_notified || b.back_to_back_notified ||
-        notifiedIds.has(a.id)   || notifiedIds.has(b.id)
+        (a.back_to_back_notified && b.back_to_back_notified) ||
+        (notifiedIds.has(a.id)   && notifiedIds.has(b.id))
       ) continue;
 
       const gap = toMinutes(b.start_time!) - toMinutes(a.end_time!);
@@ -370,11 +381,8 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         `${aName} has the spot right before you (ends ${a.end_time}) — coordinate timing.`,
         { screen: 'parking' },
       );
-      // Always track in local set to prevent double-notifying within this run
-      notifiedIds.add(a.id);
-      notifiedIds.add(b.id);
-      if (sentA) updates.push({ id: a.id, patch: { back_to_back_notified: true } });
-      if (sentB) updates.push({ id: b.id, patch: { back_to_back_notified: true } });
+      if (sentA) { notifiedIds.add(a.id); updates.push({ id: a.id, patch: { back_to_back_notified: true } }); }
+      if (sentB) { notifiedIds.add(b.id); updates.push({ id: b.id, patch: { back_to_back_notified: true } }); }
     }
   }
 
@@ -398,4 +406,11 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     JSON.stringify({ processed: allReservations.length, updated: updates.length }),
     { headers: { 'Content-Type': 'application/json' } },
   );
+  } catch (err) {
+    console.error('[parking-check] Unhandled error:', err);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
 });
