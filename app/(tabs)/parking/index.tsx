@@ -273,9 +273,9 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
     current && date === todayStr
       ? `${current.occupant === myId ? 'You are' : `${resolveName(current.occupant, housemates)} is`} currently using the spot`
       : null;
-  const conflictResult: ConflictResult = activeConflict
-    ? { conflict: activeConflict, warning: null }
-    : isDateConflict(date, startTime || undefined, endTime || undefined, reservations, (id) => resolveName(id, housemates));
+  const conflictResult: ConflictResult = isDateConflict(
+    date, startTime || undefined, endTime || undefined, reservations, (id) => resolveName(id, housemates)
+  );
   const dateConflict = conflictResult.conflict;
   const dateWarning  = conflictResult.warning;
 
@@ -338,6 +338,12 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
               <View style={[styles.conflictBox, styles.conflictWarningBox]}>
                 <Ionicons name="time-outline" size={13} color={C.warning} />
                 <Text style={[styles.conflictText, styles.conflictWarningText]}>{dateWarning}</Text>
+              </View>
+            )}
+            {!dateConflict && !!activeConflict && (
+              <View style={[styles.conflictBox, styles.conflictWarningBox]}>
+                <Ionicons name="information-circle-outline" size={13} color={C.warning} />
+                <Text style={[styles.conflictText, styles.conflictWarningText]}>{activeConflict}</Text>
               </View>
             )}
 
@@ -507,12 +513,11 @@ export default function ParkingScreen(): React.JSX.Element {
           onPress: (): void => {
             // Abort if a realtime update swapped the session while the dialog was open.
             if (useParkingStore.getState().current?.id !== pinnedSessionId) {
-              setError('The spot changed while you were confirming — please try again.');
+              Alert.alert('Could not free spot', 'The spot changed while you were confirming — please try again.');
               return;
             }
-            setError('');
             release(pinnedHouseId).catch((err: unknown) => {
-              setError(err instanceof Error ? err.message : t('parking.failed_release'));
+              Alert.alert('Could not free spot', err instanceof Error ? err.message : t('parking.failed_release'));
             });
           },
         },
