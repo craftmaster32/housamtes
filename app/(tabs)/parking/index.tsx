@@ -7,6 +7,7 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  Alert,
   AppState,
   type AppStateStatus,
   type ListRenderItemInfo,
@@ -417,8 +418,6 @@ export default function ParkingScreen(): React.JSX.Element {
   const isAdmin = role === 'owner' || role === 'admin';
 
   const [showReserve, setShowReserve] = useState(false);
-  const [confirmFreeSpot, setConfirmFreeSpot] = useState(false);
-  const [isReleasing, setIsReleasing] = useState(false);
   const [error, setError] = useState('');
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -497,26 +496,31 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [release, houseId, t]);
 
-  const handleConfirmFreeSpot = useCallback(async (): Promise<void> => {
+  const handleReleaseOther = useCallback((): void => {
     const pinnedSessionId = current?.id ?? '';
+    const occupantName = resolveName(current?.occupant ?? '', housemates);
     const pinnedHouseId = houseId ?? '';
-    if (useParkingStore.getState().current?.id !== pinnedSessionId) {
-      setConfirmFreeSpot(false);
-      setError('The spot changed — please try again.');
-      return;
-    }
-    setIsReleasing(true);
-    setError('');
-    try {
-      await release(pinnedHouseId);
-      setConfirmFreeSpot(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.failed_release'));
-      setConfirmFreeSpot(false);
-    } finally {
-      setIsReleasing(false);
-    }
-  }, [current, houseId, release, t]);
+    Alert.alert(
+      'Free someone else\'s spot?',
+      `${occupantName} claimed this spot — are you sure you want to free it?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, free it',
+          style: 'destructive',
+          onPress: (): void => {
+            if (useParkingStore.getState().current?.id !== pinnedSessionId) {
+              Alert.alert('Could not free spot', 'The spot changed while you were confirming — please try again.');
+              return;
+            }
+            release(pinnedHouseId).catch((err: unknown) => {
+              Alert.alert('Could not free spot', err instanceof Error ? err.message : t('parking.failed_release'));
+            });
+          },
+        },
+      ]
+    );
+  }, [current, housemates, release, houseId, t]);
 
   const handleCancel = useCallback(async (id: string): Promise<void> => {
     try {
@@ -630,42 +634,16 @@ export default function ParkingScreen(): React.JSX.Element {
                   <Text style={styles.btnDangerText}>{t('parking.release')}</Text>
                 </Pressable>
               )}
-              {!isFree && !isMine && !confirmFreeSpot && (
+              {!isFree && !isMine && (
                 <Pressable
                   style={styles.btnAdminRelease}
-                  onPress={() => setConfirmFreeSpot(true)}
+                  onPress={handleReleaseOther}
                   accessibilityRole="button"
                   accessibilityLabel="Free the parking spot"
                 >
                   <Ionicons name="exit-outline" size={15} color={C.warning} style={styles.btnIcon} />
                   <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
                 </Pressable>
-              )}
-              {!isFree && !isMine && confirmFreeSpot && (
-                <View style={styles.confirmRow}>
-                  <Text style={styles.confirmLabel}>
-                    {`Free ${resolveName(current?.occupant ?? '', housemates)}'s spot?`}
-                  </Text>
-                  <View style={styles.confirmBtns}>
-                    <Pressable
-                      style={styles.confirmBtnCancel}
-                      onPress={() => setConfirmFreeSpot(false)}
-                      accessibilityRole="button"
-                      accessibilityLabel="Cancel"
-                    >
-                      <Text style={styles.confirmBtnCancelText}>Cancel</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.confirmBtnYes, isReleasing && { opacity: 0.5 }]}
-                      onPress={handleConfirmFreeSpot}
-                      disabled={isReleasing}
-                      accessibilityRole="button"
-                      accessibilityLabel="Yes, free the spot"
-                    >
-                      <Text style={styles.confirmBtnYesText}>{isReleasing ? '…' : 'Yes, free it'}</Text>
-                    </Pressable>
-                  </View>
-                </View>
               )}
             </View>
 
@@ -772,21 +750,6 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
   btnDangerText: { fontSize: 15, ...font.semibold, color: C.danger },
   btnAdminReleaseText: { fontSize: 14, ...font.semibold, color: C.warning },
   btnIcon: { marginRight: 6 },
-
-  confirmRow: { gap: 10 },
-  confirmLabel: { fontSize: 14, ...font.semibold, color: C.textPrimary, textAlign: 'center' },
-  confirmBtns: { flexDirection: 'row', gap: 10 },
-  confirmBtnCancel: {
-    flex: 1, paddingVertical: 12, borderRadius: 10,
-    borderWidth: 1.5, borderColor: C.border, alignItems: 'center',
-  },
-  confirmBtnCancelText: { fontSize: 14, ...font.semibold, color: C.textPrimary },
-  confirmBtnYes: {
-    flex: 1, paddingVertical: 12, borderRadius: 10,
-    backgroundColor: C.danger + '15', borderWidth: 1.5, borderColor: C.danger + '40',
-    alignItems: 'center',
-  },
-  confirmBtnYesText: { fontSize: 14, ...font.semibold, color: C.danger },
 
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
