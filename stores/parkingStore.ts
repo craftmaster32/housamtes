@@ -373,7 +373,7 @@ export const useParkingStore = create<ParkingStore>()(
           }
           const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
           try {
-            notifyHousemates({
+            await notifyHousemates({
               houseId,
               excludeUserId: data.requestedBy,
               title: '🚗 Parking request',

@@ -329,6 +329,21 @@ describe('parkingStore — addReservation', () => {
     expect(useParkingStore.getState().reservations).toHaveLength(0);
   });
 
+  it('throws the normalized message and leaves store empty when RPC promise rejects (transport failure)', async () => {
+    useParkingStore.setState({ reservations: [] });
+    mockRpc.mockRejectedValueOnce(new Error('Network request failed'));
+
+    await expect(
+      useParkingStore.getState().addReservation(
+        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+        'Alice',
+        'house-1'
+      )
+    ).rejects.toThrow('Could not save the reservation. Please try again.');
+
+    expect(useParkingStore.getState().reservations).toHaveLength(0);
+  });
+
   it('adds reservation to state on success', async () => {
     useParkingStore.setState({ reservations: [] });
     const row = {
