@@ -141,11 +141,12 @@ async function getNames(
   supabase: ReturnType<typeof createClient>,
   userIds: string[],
 ): Promise<Map<string, string>> {
+  if (userIds.length === 0) return new Map();
   const { data, error } = await supabase
     .from('profiles')
     .select('id, name')
     .in('id', userIds);
-  if (error) console.error('[parking-check] profiles fetch error:', error.message);
+  if (error) throw error;
 
   const map = new Map<string, string>();
   for (const row of ((data ?? []) as UserProfile[])) {
@@ -180,7 +181,8 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     .lte('date', tomorrow);
 
   if (resErr) {
-    return new Response(JSON.stringify({ error: resErr.message }), { status: 500 });
+    console.error('[parking-check] reservations fetch error:', resErr);
+    return new Response(JSON.stringify({ error: 'An internal error occurred' }), { status: 500 });
   }
 
   // Also fetch past pending reservations for auto-reject
@@ -190,7 +192,8 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     .eq('status', 'pending')
     .lt('date', today);
   if (pastErr) {
-    return new Response(JSON.stringify({ error: pastErr.message }), { status: 500 });
+    console.error('[parking-check] past-pending fetch error:', pastErr);
+    return new Response(JSON.stringify({ error: 'An internal error occurred' }), { status: 500 });
   }
 
   const allReservations = [
@@ -204,7 +207,8 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     .select('*')
     .eq('is_active', true);
   if (sessErr) {
-    return new Response(JSON.stringify({ error: sessErr.message }), { status: 500 });
+    console.error('[parking-check] sessions fetch error:', sessErr);
+    return new Response(JSON.stringify({ error: 'An internal error occurred' }), { status: 500 });
   }
 
   const sessionByHouse = new Map<string, Session>();
@@ -314,12 +318,14 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         '🚗 Spot needed soon',
         `${rName} has the spot from ${r.start_time ?? 'soon'} — please free it up in time.`,
         { screen: 'parking' },
+        'parking_claimed',
       );
       // Also give the reservation holder a heads-up that occupant was notified
       const sentRequester4 = await sendToUser(supabase, r.requested_by, r.house_id,
         '⏰ Spot still in use',
         `${occupantName} is still parked — we've reminded them your slot starts at ${r.start_time}.`,
         { screen: 'parking' },
+        'parking_claimed',
       );
       if (sentOccupant4 && sentRequester4) updates.push({ id: r.id, patch: { advance_warning_sent: true } });
     }
@@ -337,11 +343,13 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         '🚗 Please free the spot',
         `${rName}'s reserved slot started at ${r.start_time ?? 'now'}. Please free the spot.`,
         { screen: 'parking' },
+        'parking_claimed',
       );
       const sentRequester3 = await sendToUser(supabase, r.requested_by, r.house_id,
         '⚠️ Spot still occupied',
         `Your slot started but ${occupantName} is still parked — they've been notified.`,
         { screen: 'parking' },
+        'parking_claimed',
       );
       if (sentOccupant3 && sentRequester3) updates.push({ id: r.id, patch: { spot_taken_notified: true } });
     }
@@ -366,7 +374,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       ) continue;
 
       const gap = toMinutes(b.start_time!) - toMinutes(a.end_time!);
-      if (gap > 120) continue;
+      if (gap < 0 || gap > 120) continue;
 
       const aName = names.get(a.requested_by) ?? 'A housemate';
       const bName = names.get(b.requested_by) ?? 'A housemate';

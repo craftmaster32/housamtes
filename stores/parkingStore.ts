@@ -160,10 +160,11 @@ export function isDateConflict(
         }
       }
     } else {
-      // Partial: one side timed, the other all-day — can't compare exactly, soft warning only
-      if (!gapWarning) {
-        gapWarning = `${name} has the spot ${label} on this day — exact times may overlap.`;
-      }
+      // Partial: one side timed, the other all-day — backend treats this as a hard conflict
+      return {
+        conflict: `${name} has the spot ${label} on this day — exact times may overlap.`,
+        warning: null,
+      };
     }
   }
 
