@@ -371,16 +371,20 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       const aName = names.get(a.requested_by) ?? 'A housemate';
       const bName = names.get(b.requested_by) ?? 'A housemate';
 
-      const sentA = await sendToUser(supabase, a.requested_by, a.house_id,
-        '🅿️ Back-to-back reservation',
-        `${bName} has the spot right after you (${b.start_time}) — coordinate timing.`,
-        { screen: 'parking' },
-      );
-      const sentB = await sendToUser(supabase, b.requested_by, b.house_id,
-        '🅿️ Back-to-back reservation',
-        `${aName} has the spot right before you (ends ${a.end_time}) — coordinate timing.`,
-        { screen: 'parking' },
-      );
+      const sentA = (a.back_to_back_notified || notifiedIds.has(a.id))
+        ? false
+        : await sendToUser(supabase, a.requested_by, a.house_id,
+            '🅿️ Back-to-back reservation',
+            `${bName} has the spot right after you (${b.start_time}) — coordinate timing.`,
+            { screen: 'parking' },
+          );
+      const sentB = (b.back_to_back_notified || notifiedIds.has(b.id))
+        ? false
+        : await sendToUser(supabase, b.requested_by, b.house_id,
+            '🅿️ Back-to-back reservation',
+            `${aName} has the spot right before you (ends ${a.end_time}) — coordinate timing.`,
+            { screen: 'parking' },
+          );
       if (sentA) { notifiedIds.add(a.id); updates.push({ id: a.id, patch: { back_to_back_notified: true } }); }
       if (sentB) { notifiedIds.add(b.id); updates.push({ id: b.id, patch: { back_to_back_notified: true } }); }
     }
