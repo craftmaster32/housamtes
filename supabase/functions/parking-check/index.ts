@@ -11,8 +11,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
+type NotificationType = 'parking_reservation' | 'parking_claimed';
+
 // Maps notification event types to the user-preference column in notification_preferences.
-const PREF_COLUMN: Record<string, string> = {
+const PREF_COLUMN: Record<NotificationType, string> = {
   parking_reservation: 'notify_parking_reservation',
   parking_claimed:     'notify_parking_claimed',
 };
@@ -55,14 +57,21 @@ function toMinutes(time: string): number {
   return h * 60 + (m ?? 0);
 }
 
+function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function todayStr(now: Date): string {
-  return now.toISOString().split('T')[0];
+  return toLocalDateStr(now);
 }
 
 function tomorrowStr(now: Date): string {
   const d = new Date(now);
   d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
+  return toLocalDateStr(d);
 }
 
 async function sendToUser(
@@ -72,7 +81,7 @@ async function sendToUser(
   title: string,
   body: string,
   data: Record<string, string> = {},
-  notificationType = 'parking_reservation',
+  notificationType: NotificationType = 'parking_reservation',
 ): Promise<boolean> {
   // 1. Check notification preferences — fail closed on DB error
   const prefColumn = PREF_COLUMN[notificationType];

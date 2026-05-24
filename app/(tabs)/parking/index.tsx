@@ -294,6 +294,8 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
 
   const handleSave = useCallback(async (): Promise<void> => {
     if (dateConflict) { setError(dateConflict); return; }
+    if (!!startTime !== !!endTime) { setError('Please provide both a start time and an end time, or leave both empty.'); return; }
+    if (startTime && endTime && endTime <= startTime) { setError('End time must be after start time.'); return; }
     setSaving(true);
     setError('');
     try {

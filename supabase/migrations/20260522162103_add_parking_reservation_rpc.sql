@@ -35,6 +35,11 @@ BEGIN
     END IF;
   END IF;
 
+  -- Ensure the caller can only create reservations on their own behalf.
+  IF p_requested_by IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'forbidden: cannot create a reservation for another user';
+  END IF;
+
   -- Serialize concurrent inserts for the same house within this transaction.
   PERFORM pg_advisory_xact_lock(hashtext(p_house_id::text)::bigint);
 

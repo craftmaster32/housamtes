@@ -345,34 +345,34 @@ export const useParkingStore = create<ParkingStore>()(
             p_note:         data.note,
           });
           if (error) {
-            captureError(error, { context: 'add-reservation', houseId });
             if (error.message.includes('conflicting_reservation')) {
               throw new Error('This time slot conflicts with an existing reservation.');
             }
             if (error.message.includes('invalid_time_range')) {
               throw new Error('The selected time range is invalid — please choose a valid start and end time.');
             }
+            captureError(error, { context: 'add-reservation', houseId });
             throw new Error('Could not save the reservation. Please try again.');
           }
+          const r: ParkingReservation = {
+            id: inserted.id,
+            requestedBy: inserted.requested_by,
+            date: inserted.date,
+            startTime: inserted.start_time ?? undefined,
+            endTime: inserted.end_time ?? undefined,
+            note: inserted.note ?? '',
+            status: 'pending',
+            createdAt: inserted.created_at,
+            votes: [],
+          };
+          const alreadyPresent = get().reservations.some((res) => res.id === r.id);
+          if (alreadyPresent) {
+            set({ reservations: get().reservations.map((res) => (res.id === r.id ? r : res)) });
+          } else {
+            set({ reservations: [r, ...get().reservations] });
+          }
+          const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
           try {
-            const r: ParkingReservation = {
-              id: inserted.id,
-              requestedBy: inserted.requested_by,
-              date: inserted.date,
-              startTime: inserted.start_time ?? undefined,
-              endTime: inserted.end_time ?? undefined,
-              note: inserted.note ?? '',
-              status: 'pending',
-              createdAt: inserted.created_at,
-              votes: [],
-            };
-            const alreadyPresent = get().reservations.some((res) => res.id === r.id);
-            if (alreadyPresent) {
-              set({ reservations: get().reservations.map((res) => (res.id === r.id ? r : res)) });
-            } else {
-              set({ reservations: [r, ...get().reservations] });
-            }
-            const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
             notifyHousemates({
               houseId,
               excludeUserId: data.requestedBy,
@@ -381,11 +381,10 @@ export const useParkingStore = create<ParkingStore>()(
               data: { screen: 'parking' },
               notificationType: 'parking_reservation',
             });
-            return r.id;
-          } catch (err) {
-            captureError(err, { context: 'add-reservation-unexpected', houseId });
-            throw new Error('Could not save the reservation. Please try again.');
+          } catch (notifyErr) {
+            captureError(notifyErr, { context: 'notify-housemates', houseId });
           }
+          return r.id;
         } catch (err) {
           // Only rethrow known domain/validation errors; normalize everything else.
           if (err instanceof Error && (

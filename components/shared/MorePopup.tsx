@@ -42,8 +42,6 @@ const POPUP_NAV: NavItem[] = [
   { icon: 'construct-outline',      iconActive: 'construct',      labelKey: 'nav.property',   route: '/(tabs)/property',      featureKey: 'maintenance' },
 ];
 
-type GenericItem = { createdAt: string; [k: string]: unknown };
-
 export function MorePopup(): React.JSX.Element {
   const c       = useColors();
   const { t }   = useTranslation();
@@ -67,9 +65,9 @@ export function MorePopup(): React.JSX.Element {
   const markSeen         = useBadgeStore((s) => s.markSeen);
 
   const badgeCounts: Record<string, number> = {
-    grocery:     countNew(groceryItems.filter((i) => !i.isChecked) as unknown as GenericItem[], lastSeen.grocery, myId, 'addedBy'),
+    grocery:     countNew(groceryItems.filter((i) => !i.isChecked), lastSeen.grocery, myId, 'addedBy'),
     chores:      countNewSimple(chores.filter((ch) => !ch.isComplete), lastSeen.chores),
-    voting:      countNew(proposals.filter((p) => p.isOpen) as unknown as GenericItem[], lastSeen.voting, myId, 'createdBy'),
+    voting:      countNew(proposals.filter((p) => p.isOpen), lastSeen.voting, myId, 'createdBy'),
     maintenance: countNewSimple(maintenanceItems.filter((m) => m.status === 'open'), lastSeen.maintenance),
   };
 
