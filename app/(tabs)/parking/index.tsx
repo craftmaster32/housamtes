@@ -867,7 +867,7 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
   fieldError: { fontSize: 13, ...font.regular, color: C.negative },
   conflictBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   conflictText: { fontSize: 13, ...font.medium, color: C.warning, flex: 1 },
-  conflictWarningBox: { borderColor: C.warning + '40', backgroundColor: C.warning + '10' },
+  conflictWarningBox: { borderWidth: 1, borderRadius: 8, padding: 8, borderColor: C.warning + '40', backgroundColor: C.warning + '10' },
   conflictWarningText: { color: C.warning },
   modalBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
   modalBtnOutline: {

@@ -128,6 +128,19 @@ describe('isDateConflict', () => {
     expect(warning).toMatch(/tight/i);
   });
 
+  // Timed-vs-all-day: hard conflict in both directions
+  it('blocks timed request against an all-day reservation (hard conflict)', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Alice', status: 'approved' });
+    const { conflict } = isDateConflict('2026-04-20', '09:00', '10:00', [r]);
+    expect(conflict).not.toBeNull();
+  });
+
+  it('blocks all-day request against a timed reservation (hard conflict)', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Alice', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
+    expect(conflict).not.toBeNull();
+  });
+
   it('conflict takes precedence over warning when multiple reservations exist', () => {
     // r1 would produce a gap warning (30 min gap), r2 overlaps → conflict must win
     const r1 = reservation({ id: 'r1', date: '2026-04-20', requestedBy: 'Bob',   status: 'approved', startTime: '08:00', endTime: '09:00' });

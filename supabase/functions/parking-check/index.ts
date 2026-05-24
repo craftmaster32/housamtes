@@ -161,7 +161,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
   if (!supabaseUrl || !serviceRoleKey) {
     return new Response(
       JSON.stringify({ error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' }),
-      { status: 500 },
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }
   const supabase = createClient(supabaseUrl, serviceRoleKey);
@@ -182,7 +182,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
   if (resErr) {
     console.error('[parking-check] reservations fetch error:', resErr);
-    return new Response(JSON.stringify({ error: 'An internal error occurred' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'An internal error occurred' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 
   // Also fetch past pending reservations for auto-reject
@@ -193,7 +193,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     .lt('date', today);
   if (pastErr) {
     console.error('[parking-check] past-pending fetch error:', pastErr);
-    return new Response(JSON.stringify({ error: 'An internal error occurred' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'An internal error occurred' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 
   const allReservations = [
@@ -208,7 +208,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     .eq('is_active', true);
   if (sessErr) {
     console.error('[parking-check] sessions fetch error:', sessErr);
-    return new Response(JSON.stringify({ error: 'An internal error occurred' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'An internal error occurred' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 
   const sessionByHouse = new Map<string, Session>();
