@@ -160,7 +160,11 @@ export function isDateConflict(
         }
       }
     } else {
-      // Partial: one side timed, the other all-day — backend treats this as a hard conflict
+      // Exactly one of startTime/endTime is set — user is mid-entry; don't block.
+      if (Boolean(startTime) !== Boolean(endTime)) {
+        return { conflict: null, warning: null };
+      }
+      // All-day candidate vs timed existing, or timed candidate vs all-day existing → hard conflict.
       return {
         conflict: `${name} has the spot ${label} on this day — exact times may overlap.`,
         warning: null,
@@ -372,18 +376,14 @@ export const useParkingStore = create<ParkingStore>()(
             set({ reservations: [r, ...get().reservations] });
           }
           const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
-          try {
-            await notifyHousemates({
-              houseId,
-              excludeUserId: data.requestedBy,
-              title: '🚗 Parking request',
-              body: `${displayName} wants the spot on ${data.date}${timeStr}${data.note ? ` — ${data.note}` : ''}`,
-              data: { screen: 'parking' },
-              notificationType: 'parking_reservation',
-            });
-          } catch (notifyErr) {
-            captureError(notifyErr, { context: 'notify-housemates', houseId });
-          }
+          void notifyHousemates({
+            houseId,
+            excludeUserId: data.requestedBy,
+            title: '🚗 Parking request',
+            body: `${displayName} wants the spot on ${data.date}${timeStr}${data.note ? ` — ${data.note}` : ''}`,
+            data: { screen: 'parking' },
+            notificationType: 'parking_reservation',
+          }).catch((notifyErr) => captureError(notifyErr, { context: 'notify-housemates', houseId }));
           return r.id;
         } catch (err) {
           // Only rethrow known domain/validation errors; normalize everything else.

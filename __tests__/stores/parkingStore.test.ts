@@ -40,7 +40,7 @@ jest.mock('@lib/supabase', () => ({
   },
 }));
 
-jest.mock('@lib/notifyHousemates', () => ({ notifyHousemates: jest.fn() }));
+jest.mock('@lib/notifyHousemates', () => ({ notifyHousemates: jest.fn().mockResolvedValue(undefined) }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -139,6 +139,21 @@ describe('isDateConflict', () => {
     const r = reservation({ date: '2026-04-20', requestedBy: 'Alice', status: 'approved', startTime: '09:00', endTime: '11:00' });
     const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
     expect(conflict).not.toBeNull();
+  });
+
+  // One-sided time inputs: form is mid-entry — must never block
+  it('does not conflict when only startTime is provided (endTime still empty)', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict, warning } = isDateConflict('2026-04-20', '10:00', undefined, [r]);
+    expect(conflict).toBeNull();
+    expect(warning).toBeNull();
+  });
+
+  it('does not conflict when only endTime is provided (startTime still empty)', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict, warning } = isDateConflict('2026-04-20', undefined, '12:00', [r]);
+    expect(conflict).toBeNull();
+    expect(warning).toBeNull();
   });
 
   it('conflict takes precedence over warning when multiple reservations exist', () => {
