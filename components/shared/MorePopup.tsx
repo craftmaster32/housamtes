@@ -65,7 +65,7 @@ export function MorePopup(): React.JSX.Element {
   const markSeen         = useBadgeStore((s) => s.markSeen);
 
   const badgeCounts: Record<string, number> = {
-    grocery:     countNew(groceryItems.filter((i) => !i.isChecked), lastSeen.grocery, myId, 'addedBy'),
+    grocery:     countNew(groceryItems.filter((i) => !i.isChecked && !i.isDraft), lastSeen.grocery, myId, 'addedBy'),
     chores:      countNewSimple(chores.filter((ch) => !ch.isComplete), lastSeen.chores),
     voting:      countNew(proposals.filter((p) => p.isOpen), lastSeen.voting, myId, 'createdBy'),
     maintenance: countNewSimple(maintenanceItems.filter((m) => m.status === 'open'), lastSeen.maintenance),

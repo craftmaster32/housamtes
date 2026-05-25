@@ -274,7 +274,7 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
       ? `${current.occupant === myId ? 'You are' : `${resolveName(current.occupant, housemates)} is`} currently using the spot`
       : null;
   const conflictResult: ConflictResult = isDateConflict(
-    date, startTime || undefined, endTime || undefined, reservations, (id) => resolveName(id, housemates)
+    date, startTime || undefined, endTime || undefined, reservations, (id: string): string => resolveName(id, housemates)
   );
   const dateConflict = conflictResult.conflict;
   const dateWarning  = conflictResult.warning;
@@ -638,6 +638,7 @@ export default function ParkingScreen(): React.JSX.Element {
               )}
               {!isFree && !isMine && (
                 <Pressable
+                  accessible
                   style={styles.btnAdminRelease}
                   onPress={handleReleaseOther}
                   accessibilityRole="button"
