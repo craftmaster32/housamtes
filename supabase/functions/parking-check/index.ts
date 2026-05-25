@@ -365,7 +365,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
   }
 
   // ── #7: Back-to-back approved reservations on the same day ──────────────────
-  const allPairInserts: Array<{ a_id: string; b_id: string }> = [];
+  const allPairInserts: Array<{ a_id: string; b_id: string; house_id: string }> = [];
 
   for (const [, houseReservations] of byHouse) {
     const todayApproved = houseReservations
@@ -379,7 +379,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       .from('parking_pair_notifications')
       .select('a_id, b_id')
       .in('a_id', todayIds);
-    if (pairsErr) console.warn('[parking-check] pair notifications fetch failed:', pairsErr.message);
+    if (pairsErr) throw new Error(`[parking-check] pair notifications fetch failed: ${pairsErr.message}`);
 
     const notifiedPairs = new Set<string>();
     for (const row of ((existingPairs ?? []) as { a_id: string; b_id: string }[])) {
@@ -410,9 +410,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         `${aName} has the spot right before you (ends ${a.end_time}) — coordinate timing.`,
         { screen: 'parking' },
       );
-      if (sentA || sentB) {
+      if (sentA && sentB) {
         notifiedPairs.add(pairKey);
-        allPairInserts.push({ a_id: a.id, b_id: b.id });
+        allPairInserts.push({ a_id: a.id, b_id: b.id, house_id: a.house_id });
       }
     }
   }

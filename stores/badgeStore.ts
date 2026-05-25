@@ -69,6 +69,7 @@ export function countNew<K extends string, T extends { createdAt: string } & Rec
   myId: string,
   authorKey: K,
 ): number {
+  if (!myId) return 0;
   return items.filter(
     (item) => item.createdAt > lastSeen && item[authorKey] !== myId
   ).length;
