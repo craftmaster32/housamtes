@@ -365,22 +365,34 @@ Deno.serve(async (_req: Request): Promise<Response> => {
   }
 
   // ── #7: Back-to-back approved reservations on the same day ──────────────────
+  const allPairInserts: Array<{ a_id: string; b_id: string }> = [];
+
   for (const [, houseReservations] of byHouse) {
     const todayApproved = houseReservations
       .filter((r) => r.status === 'approved' && r.date === today && r.start_time && r.end_time)
       .sort((a, b) => toMinutes(a.start_time!) - toMinutes(b.start_time!));
 
-    const notifiedIds = new Set<string>();
+    if (todayApproved.length < 2) continue;
+
+    const todayIds = todayApproved.map((r) => r.id);
+    const { data: existingPairs, error: pairsErr } = await supabase
+      .from('parking_pair_notifications')
+      .select('a_id, b_id')
+      .in('a_id', todayIds);
+    if (pairsErr) console.warn('[parking-check] pair notifications fetch failed:', pairsErr.message);
+
+    const notifiedPairs = new Set<string>();
+    for (const row of ((existingPairs ?? []) as { a_id: string; b_id: string }[])) {
+      notifiedPairs.add(`${row.a_id}:${row.b_id}`);
+    }
+
     for (let i = 0; i < todayApproved.length - 1; i++) {
       const a = todayApproved[i];
       const b = todayApproved[i + 1];
-      // Skip only when both sides are already handled: either both persisted flags
-      // are set, or both were already processed in this cron run. Using OR would
-      // permanently drop the un-notified side after a partial send.
-      if (
-        (a.back_to_back_notified && b.back_to_back_notified) ||
-        (notifiedIds.has(a.id)   && notifiedIds.has(b.id))
-      ) continue;
+      const pairKey = `${a.id}:${b.id}`;
+
+      // Per-pair dedupe: skip if already recorded, or legacy per-reservation flags both set
+      if (notifiedPairs.has(pairKey) || (a.back_to_back_notified && b.back_to_back_notified)) continue;
 
       const gap = toMinutes(b.start_time!) - toMinutes(a.end_time!);
       if (gap < 0 || gap > 120) continue;
@@ -388,22 +400,20 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       const aName = names.get(a.requested_by) ?? 'A housemate';
       const bName = names.get(b.requested_by) ?? 'A housemate';
 
-      const sentA = (a.back_to_back_notified || notifiedIds.has(a.id))
-        ? false
-        : await sendToUser(supabase, a.requested_by, a.house_id,
-            '🅿️ Back-to-back reservation',
-            `${bName} has the spot right after you (${b.start_time}) — coordinate timing.`,
-            { screen: 'parking' },
-          );
-      const sentB = (b.back_to_back_notified || notifiedIds.has(b.id))
-        ? false
-        : await sendToUser(supabase, b.requested_by, b.house_id,
-            '🅿️ Back-to-back reservation',
-            `${aName} has the spot right before you (ends ${a.end_time}) — coordinate timing.`,
-            { screen: 'parking' },
-          );
-      if (sentA) { notifiedIds.add(a.id); updates.push({ id: a.id, patch: { back_to_back_notified: true } }); }
-      if (sentB) { notifiedIds.add(b.id); updates.push({ id: b.id, patch: { back_to_back_notified: true } }); }
+      const sentA = await sendToUser(supabase, a.requested_by, a.house_id,
+        '🅿️ Back-to-back reservation',
+        `${bName} has the spot right after you (${b.start_time}) — coordinate timing.`,
+        { screen: 'parking' },
+      );
+      const sentB = await sendToUser(supabase, b.requested_by, b.house_id,
+        '🅿️ Back-to-back reservation',
+        `${aName} has the spot right before you (ends ${a.end_time}) — coordinate timing.`,
+        { screen: 'parking' },
+      );
+      if (sentA || sentB) {
+        notifiedPairs.add(pairKey);
+        allPairInserts.push({ a_id: a.id, b_id: b.id });
+      }
     }
   }
 
@@ -423,8 +433,18 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     }
   }
 
+  // Flush pair-level back-to-back notification records
+  if (allPairInserts.length > 0) {
+    const { error: pairInsertErr } = await supabase
+      .from('parking_pair_notifications')
+      .upsert(allPairInserts, { onConflict: 'a_id,b_id', ignoreDuplicates: true });
+    if (pairInsertErr) {
+      console.error('[parking-check] pair notification insert failed:', pairInsertErr.message);
+    }
+  }
+
   return new Response(
-    JSON.stringify({ processed: allReservations.length, updated: updates.length }),
+    JSON.stringify({ processed: allReservations.length, updated: updates.length, pairs: allPairInserts.length }),
     { headers: { 'Content-Type': 'application/json' } },
   );
   } catch (err) {
