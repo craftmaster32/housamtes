@@ -48,7 +48,7 @@ interface ParkingStore {
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   claim: (userId: string, displayName: string, houseId: string) => Promise<void>;
-  release: (houseId: string) => Promise<void>;
+  release: (houseId: string, displayName?: string) => Promise<void>;
   addReservation: (
     r: Omit<ParkingReservation, 'id' | 'createdAt' | 'status' | 'votes'>,
     displayName: string,
@@ -299,7 +299,7 @@ export const useParkingStore = create<ParkingStore>()(
           throw err;
         }
       },
-      release: async (houseId: string): Promise<void> => {
+      release: async (houseId: string, displayName?: string): Promise<void> => {
         const previous = get().current;
         if (!previous) return;
 
@@ -329,7 +329,7 @@ export const useParkingStore = create<ParkingStore>()(
               houseId,
               excludeUserId: userId,
               title: '🅿️ Parking free',
-              body: 'The parking spot is now free',
+              body: displayName ? `${displayName} freed the parking spot` : 'The parking spot is now free',
               data: { screen: 'parking' },
               notificationType: 'parking_claimed',
             });

@@ -80,7 +80,7 @@ interface GroceryStore {
   startRun: (shopperId: string, shopperName: string) => Promise<void>;
   endRun: () => Promise<void>;
   fetchSavedLists: (houseId: string) => Promise<void>;
-  createSavedList: (name: string, houseId: string, userId: string, items: Array<{ name: string; quantity: string }>, isPrivate?: boolean) => Promise<void>;
+  createSavedList: (name: string, houseId: string, userId: string, items: Array<{ name: string; quantity: string }>, isPrivate?: boolean, displayName?: string) => Promise<void>;
   updateSavedList: (listId: string, items: Array<{ name: string; quantity: string }>) => Promise<void>;
   deleteSavedList: (listId: string) => Promise<void>;
   loadListIntoDraft: (list: GroceryList, userId: string, houseId: string) => Promise<void>;
@@ -352,7 +352,7 @@ export const useGroceryStore = create<GroceryStore>()(
         }
       },
 
-      createSavedList: async (name, houseId, userId, items, isPrivate = false): Promise<void> => {
+      createSavedList: async (name, houseId, userId, items, isPrivate = false, displayName = ''): Promise<void> => {
         const { data: listData, error: listError } = await supabase
           .from('grocery_lists')
           .insert({ house_id: houseId, name, created_by: userId, is_private: isPrivate })
@@ -378,6 +378,17 @@ export const useGroceryStore = create<GroceryStore>()(
           items: items.map((item, i) => ({ id: '', listId: listData.id as string, name: item.name, quantity: item.quantity, position: i })),
         };
         set({ savedLists: [newList, ...get().savedLists] });
+
+        if (!isPrivate) {
+          void notifyHousemates({
+            houseId,
+            excludeUserId: userId,
+            title: '🛒 New grocery list saved',
+            body: displayName ? `${displayName} saved a new list: "${name}"` : `A new grocery list was saved: "${name}"`,
+            data: { screen: 'grocery' },
+            notificationType: 'grocery_shared',
+          }).catch((err) => captureError(err, { context: 'notify-grocery-list-saved' }));
+        }
       },
 
       updateSavedList: async (listId, items): Promise<void> => {

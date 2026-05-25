@@ -209,7 +209,7 @@ function TodayAtHome(): React.JSX.Element {
         await claim(myId, myName, houseId ?? '');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } else {
-        await release(houseId ?? '');
+        await release(houseId ?? '', myName);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
     } catch {
@@ -446,7 +446,7 @@ function ParkingCard(): React.JSX.Element {
   const newReservations    = countNew(reservations, lastSeen.parking, myId, 'requestedBy');
 
   const handleClaim   = useCallback(async (): Promise<void> => { await claim(myId, myName, houseId ?? '').catch(() => {}); }, [claim, myId, myName, houseId]);
-  const handleRelease = useCallback(async (): Promise<void> => { await release(houseId ?? '').catch(() => {}); }, [release, houseId]);
+  const handleRelease = useCallback(async (): Promise<void> => { await release(houseId ?? '', myName).catch(() => {}); }, [release, houseId, myName]);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
