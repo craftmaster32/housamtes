@@ -69,7 +69,7 @@ export function DrawerMenu(): React.JSX.Element {
 
   const badgeCounts: Record<string, number> = {
     parking:     parkingReservations.filter((r) => r.status === 'pending' && r.requestedBy !== profile?.id).length,
-    grocery:     countNew(groceryItems.filter((i) => !i.isChecked), lastSeen.grocery, myId, 'addedBy'),
+    grocery:     countNew(groceryItems.filter((i) => !i.isChecked && !i.isDraft), lastSeen.grocery, myId, 'addedBy'),
     chores:      countNewSimple(chores.filter((ch) => !ch.isComplete), lastSeen.chores),
     bills:       countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills),
   };

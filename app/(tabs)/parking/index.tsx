@@ -639,10 +639,11 @@ export default function ParkingScreen(): React.JSX.Element {
               {!isFree && !isMine && (
                 <Pressable
                   accessible
-                  style={styles.btnAdminRelease}
-                  onPress={handleReleaseOther}
                   accessibilityRole="button"
                   accessibilityLabel="Free the parking spot"
+                  accessibilityState={{ disabled: false }}
+                  style={styles.btnAdminRelease}
+                  onPress={handleReleaseOther}
                 >
                   <Ionicons name="exit-outline" size={15} color={C.warning} style={styles.btnIcon} />
                   <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
