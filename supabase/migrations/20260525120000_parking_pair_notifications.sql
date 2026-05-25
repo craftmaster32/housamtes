@@ -30,7 +30,11 @@ CREATE POLICY "house members can insert parking pair notifications"
 CREATE POLICY "house members can update parking pair notifications"
   ON parking_pair_notifications FOR UPDATE
   USING  (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()))
-  WITH CHECK (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()));
+  WITH CHECK (
+    house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid())
+    AND a_id IN (SELECT id FROM parking_reservations WHERE house_id = parking_pair_notifications.house_id)
+    AND b_id IN (SELECT id FROM parking_reservations WHERE house_id = parking_pair_notifications.house_id)
+  );
 
 CREATE POLICY "house members can delete parking pair notifications"
   ON parking_pair_notifications FOR DELETE

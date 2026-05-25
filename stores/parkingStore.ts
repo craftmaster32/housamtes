@@ -340,6 +340,9 @@ export const useParkingStore = create<ParkingStore>()(
         // RPC performs an advisory-locked conflict check + insert atomically,
         // preventing double-bookings that slip past the client-side check.
         try {
+          if (!houseId || !data.requestedBy) {
+            throw new Error('Please wait while your profile loads before reserving a parking spot.');
+          }
           const { data: inserted, error } = await supabase.rpc('add_parking_reservation', {
             p_house_id:     houseId,
             p_requested_by: data.requestedBy,

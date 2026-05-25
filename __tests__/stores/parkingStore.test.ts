@@ -377,6 +377,29 @@ describe('parkingStore — addReservation', () => {
     expect(useParkingStore.getState().reservations).toHaveLength(1);
     expect(useParkingStore.getState().reservations[0].status).toBe('pending');
   });
+
+  it('resolves and saves reservation even when notifyHousemates rejects', async () => {
+    useParkingStore.setState({ reservations: [] });
+    const row = {
+      id: 'r4', requested_by: 'uuid-alice', date: '2026-04-26',
+      start_time: null, end_time: null, note: '', status: 'pending',
+      created_at: '2026-04-18T13:00:00Z',
+    };
+    mockRpc.mockReturnValue(ok(row));
+    const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as { notifyHousemates: jest.Mock };
+    notifyMock.mockRejectedValueOnce(new Error('push failed'));
+
+    const id = await useParkingStore.getState().addReservation(
+      { requestedBy: 'uuid-alice', date: '2026-04-26', note: '' },
+      'Alice',
+      'house-1'
+    );
+
+    expect(id).toBe('r4');
+    expect(useParkingStore.getState().reservations).toContainEqual(
+      expect.objectContaining({ id: 'r4', date: '2026-04-26', status: 'pending' })
+    );
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

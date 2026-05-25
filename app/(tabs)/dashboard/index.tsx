@@ -604,7 +604,7 @@ function GroceryWidget(): React.JSX.Element {
   const myDraftItems  = useMemo(() => items.filter((i) => i.isDraft && i.addedBy === myId), [items, myId]);
   const sharedPending = useMemo(() => items.filter((i) => !i.isPersonal && !i.isChecked), [items]);
 
-  const newGrocery = countNew(items.filter((i) => !i.isChecked), lastSeen.grocery, myId, 'addedBy');
+  const newGrocery = countNew(items.filter((i) => !i.isChecked && !i.isDraft), lastSeen.grocery, myId, 'addedBy');
 
   const handleUnitToggle = useCallback((u: string): void => { setUnit((prev) => (prev === u ? '' : u)); }, []);
 

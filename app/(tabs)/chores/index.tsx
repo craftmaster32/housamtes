@@ -119,7 +119,7 @@ export default function ChoresScreen(): React.JSX.Element {
   const { t } = useTranslation();
 
   const markSeen = useBadgeStore((s) => s.markSeen);
-  useFocusEffect(useCallback((): void => { markSeen('chores'); }, [markSeen]));
+  useFocusEffect(useCallback((): void => { markSeen('chores').catch(() => {}); }, [markSeen]));
 
   const chores = useChoresStore((state) => state.chores);
   const isLoading = useChoresStore((state) => state.isLoading);
