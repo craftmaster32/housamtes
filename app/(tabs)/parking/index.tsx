@@ -8,6 +8,7 @@ import {
   Modal,
   ScrollView,
   Alert,
+  Platform,
   AppState,
   type AppStateStatus,
   type ListRenderItemInfo,
@@ -502,26 +503,40 @@ export default function ParkingScreen(): React.JSX.Element {
     const pinnedSessionId = current?.id ?? '';
     const occupantName = resolveName(current?.occupant ?? '', housemates);
     const pinnedHouseId = houseId ?? '';
-    Alert.alert(
-      'Free someone else\'s spot?',
-      `${occupantName} claimed this spot — are you sure you want to free it?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes, free it',
-          style: 'destructive',
-          onPress: (): void => {
-            if (useParkingStore.getState().current?.id !== pinnedSessionId) {
-              Alert.alert('Could not free spot', 'The spot changed while you were confirming — please try again.');
-              return;
-            }
-            release(pinnedHouseId).catch((err: unknown) => {
-              Alert.alert('Could not free spot', err instanceof Error ? err.message : t('parking.failed_release'));
-            });
-          },
-        },
-      ]
-    );
+
+    const doRelease = (): void => {
+      if (useParkingStore.getState().current?.id !== pinnedSessionId) {
+        if (Platform.OS === 'web') {
+          window.alert('The spot changed while you were confirming — please try again.');
+        } else {
+          Alert.alert('Could not free spot', 'The spot changed while you were confirming — please try again.');
+        }
+        return;
+      }
+      release(pinnedHouseId).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : t('parking.failed_release');
+        if (Platform.OS === 'web') {
+          window.alert(msg);
+        } else {
+          Alert.alert('Could not free spot', msg);
+        }
+      });
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${occupantName} claimed this spot — are you sure you want to free it?`)) {
+        doRelease();
+      }
+    } else {
+      Alert.alert(
+        'Free someone else\'s spot?',
+        `${occupantName} claimed this spot — are you sure you want to free it?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Yes, free it', style: 'destructive', onPress: doRelease },
+        ]
+      );
+    }
   }, [current, housemates, release, houseId, t]);
 
   const handleCancel = useCallback(async (id: string): Promise<void> => {
