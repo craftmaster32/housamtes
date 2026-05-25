@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   useParkingStore,
   isDateConflict,
+  type ConflictResult,
   type ParkingReservation,
   type ParkingReservationStatus,
   type ParkingSession,
@@ -272,7 +273,11 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
     current && date === todayStr
       ? `${current.occupant === myId ? 'You are' : `${resolveName(current.occupant, housemates)} is`} currently using the spot`
       : null;
-  const dateConflict = activeConflict ?? isDateConflict(date, reservations);
+  const conflictResult: ConflictResult = isDateConflict(
+    date, startTime || undefined, endTime || undefined, reservations, (id: string): string => resolveName(id, housemates)
+  );
+  const dateConflict = conflictResult.conflict;
+  const dateWarning  = conflictResult.warning;
 
   const reset = useCallback((): void => {
     setDate(todayStr);
@@ -289,6 +294,8 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
 
   const handleSave = useCallback(async (): Promise<void> => {
     if (dateConflict) { setError(dateConflict); return; }
+    if (!!startTime !== !!endTime) { setError('Please provide both a start time and an end time, or leave both empty.'); return; }
+    if (startTime && endTime && endTime <= startTime) { setError('End time must be after start time.'); return; }
     setSaving(true);
     setError('');
     try {
@@ -327,6 +334,18 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
               <View style={styles.conflictBox}>
                 <Ionicons name="warning-outline" size={13} color={C.warning} />
                 <Text style={styles.conflictText}>{dateConflict}</Text>
+              </View>
+            )}
+            {!dateConflict && !!dateWarning && (
+              <View style={[styles.conflictBox, styles.conflictWarningBox]}>
+                <Ionicons name="time-outline" size={13} color={C.warning} />
+                <Text style={[styles.conflictText, styles.conflictWarningText]}>{dateWarning}</Text>
+              </View>
+            )}
+            {!dateConflict && !!activeConflict && (
+              <View style={[styles.conflictBox, styles.conflictWarningBox]}>
+                <Ionicons name="information-circle-outline" size={13} color={C.warning} />
+                <Text style={[styles.conflictText, styles.conflictWarningText]}>{activeConflict}</Text>
               </View>
             )}
 
@@ -480,8 +499,6 @@ export default function ParkingScreen(): React.JSX.Element {
   }, [release, houseId, t]);
 
   const handleReleaseOther = useCallback((): void => {
-    // Pin all three values before the dialog opens so the confirmed action
-    // always refers to the exact session that was shown.
     const pinnedSessionId = current?.id ?? '';
     const occupantName = resolveName(current?.occupant ?? '', housemates);
     const pinnedHouseId = houseId ?? '';
@@ -494,14 +511,12 @@ export default function ParkingScreen(): React.JSX.Element {
           text: 'Yes, free it',
           style: 'destructive',
           onPress: (): void => {
-            // Abort if a realtime update swapped the session while the dialog was open.
             if (useParkingStore.getState().current?.id !== pinnedSessionId) {
-              setError('The spot changed while you were confirming — please try again.');
+              Alert.alert('Could not free spot', 'The spot changed while you were confirming — please try again.');
               return;
             }
-            setError('');
             release(pinnedHouseId).catch((err: unknown) => {
-              setError(err instanceof Error ? err.message : t('parking.failed_release'));
+              Alert.alert('Could not free spot', err instanceof Error ? err.message : t('parking.failed_release'));
             });
           },
         },
@@ -623,12 +638,12 @@ export default function ParkingScreen(): React.JSX.Element {
               )}
               {!isFree && !isMine && (
                 <Pressable
-                  style={styles.btnAdminRelease}
-                  onPress={handleReleaseOther}
-                  accessible={true}
+                  accessible
                   accessibilityRole="button"
                   accessibilityLabel="Free the parking spot"
                   accessibilityState={{ disabled: false }}
+                  style={styles.btnAdminRelease}
+                  onPress={handleReleaseOther}
                 >
                   <Ionicons name="exit-outline" size={15} color={C.warning} style={styles.btnIcon} />
                   <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
@@ -856,6 +871,8 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
   fieldError: { fontSize: 13, ...font.regular, color: C.negative },
   conflictBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   conflictText: { fontSize: 13, ...font.medium, color: C.warning, flex: 1 },
+  conflictWarningBox: { borderWidth: 1, borderRadius: 8, padding: 8, borderColor: C.warning + '40', backgroundColor: C.warning + '10' },
+  conflictWarningText: { color: C.warning },
   modalBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
   modalBtnOutline: {
     flex: 1, paddingVertical: 14, borderRadius: 12,

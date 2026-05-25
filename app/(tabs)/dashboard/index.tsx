@@ -443,7 +443,7 @@ function ParkingCard(): React.JSX.Element {
   const pendingFromOthers  = sortedReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId));
   const myReservation      = sortedReservations.find((r) => r.requestedBy === myId) ?? null;
   const pendingCount       = reservations.filter((r) => r.status === 'pending').length;
-  const newReservations    = countNew(reservations as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.parking, myId, 'requestedBy');
+  const newReservations    = countNew(reservations, lastSeen.parking, myId, 'requestedBy');
 
   const handleClaim   = useCallback(async (): Promise<void> => { await claim(myId, myName, houseId ?? '').catch(() => {}); }, [claim, myId, myName, houseId]);
   const handleRelease = useCallback(async (): Promise<void> => { await release(houseId ?? '').catch(() => {}); }, [release, houseId]);
@@ -604,7 +604,7 @@ function GroceryWidget(): React.JSX.Element {
   const myDraftItems  = useMemo(() => items.filter((i) => i.isDraft && i.addedBy === myId), [items, myId]);
   const sharedPending = useMemo(() => items.filter((i) => !i.isPersonal && !i.isChecked), [items]);
 
-  const newGrocery = countNew(items.filter((i) => !i.isChecked) as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.grocery, myId, 'addedBy');
+  const newGrocery = countNew(items.filter((i) => !i.isChecked && !i.isDraft), lastSeen.grocery, myId, 'addedBy');
 
   const handleUnitToggle = useCallback((u: string): void => { setUnit((prev) => (prev === u ? '' : u)); }, []);
 
@@ -728,7 +728,7 @@ function VotesWidget(): React.JSX.Element {
   const myId       = profile?.id ?? '';
   const totalPeople = Math.max(1, housemates.length);
   const active     = proposals.filter((p) => p.isOpen);
-  const newVotes   = countNew(active as unknown as Array<{ createdAt: string; [k: string]: unknown }>, lastSeen.voting, myId, 'createdBy');
+  const newVotes   = countNew(active, lastSeen.voting, myId, 'createdBy');
 
   if (active.length === 0) {
     return (

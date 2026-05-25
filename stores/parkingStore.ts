@@ -102,19 +102,77 @@ export function tallyParkingReservationVotes(
   };
 }
 
+function toMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + (m ?? 0);
+}
+
+export interface ConflictResult {
+  conflict: string | null;
+  warning: string | null;
+}
+
 export function isDateConflict(
   date: string,
+  startTime: string | undefined,
+  endTime: string | undefined,
   reservations: ParkingReservation[],
   resolveName?: (id: string) => string
-): string | null {
-  const match = reservations.find(
+): ConflictResult {
+  const sameDay = reservations.filter(
     (r) => r.date === date && (r.status === 'approved' || r.status === 'pending')
   );
-  if (!match) return null;
-  const name = resolveName ? resolveName(match.requestedBy) : match.requestedBy;
-  return match.status === 'approved'
-    ? `Already reserved by ${name}`
-    : `${name} already has a pending request`;
+  if (sameDay.length === 0) return { conflict: null, warning: null };
+
+  let smallestGap = Infinity;
+  let gapWarning: string | null = null;
+
+  for (const r of sameDay) {
+    const name  = resolveName ? resolveName(r.requestedBy) : r.requestedBy;
+    const label = r.status === 'approved' ? 'reserved' : 'pending';
+
+    if (!startTime && !endTime && !r.startTime && !r.endTime) {
+      // Both sides all-day → hard conflict
+      return { conflict: `${name} already has the spot ${label} on this day`, warning: null };
+    }
+
+    if (startTime && endTime && r.startTime && r.endTime) {
+      // Both fully timed → overlap / gap logic
+      const newStart = toMinutes(startTime);
+      const newEnd   = toMinutes(endTime);
+      const exStart  = toMinutes(r.startTime);
+      const exEnd    = toMinutes(r.endTime);
+
+      if (newStart < exEnd && newEnd > exStart) {
+        return {
+          conflict: `Overlaps with ${name}'s ${label} slot (${r.startTime}–${r.endTime})`,
+          warning: null,
+        };
+      }
+
+      const gap = newStart >= exEnd ? newStart - exEnd : exStart - newEnd;
+      if (gap < smallestGap) {
+        smallestGap = gap;
+        if (gap <= 15) {
+          gapWarning = `Only ${gap} min between your slot and ${name}'s — very tight, coordinate timing.`;
+        } else if (gap <= 60) {
+          gapWarning = `${name} has the spot ${gap} min before/after yours — times are close.`;
+        }
+      }
+    } else {
+      // Exactly one of startTime/endTime is set — user is mid-entry; don't block.
+      if (Boolean(startTime) !== Boolean(endTime)) {
+        return { conflict: null, warning: null };
+      }
+      // All-day candidate vs timed existing, or timed candidate vs all-day existing → hard conflict.
+      return {
+        conflict: `${name} has the spot ${label} on this day — exact times may overlap.`,
+        warning: null,
+      };
+    }
+  }
+
+  return { conflict: null, warning: gapWarning };
 }
 
 export const useParkingStore = create<ParkingStore>()(
@@ -279,51 +337,69 @@ export const useParkingStore = create<ParkingStore>()(
         }).catch((err) => captureError(err, { context: 'notify-release', houseId }));
       },
       addReservation: async (data, displayName, houseId): Promise<string> => {
-        const conflict = get().reservations.find(
-          (r) => r.date === data.date && (r.status === 'approved' || r.status === 'pending')
-        );
-        if (conflict) {
-          throw new Error(
-            conflict.status === 'approved'
-              ? 'This date is already reserved'
-              : 'Someone already has a pending request for this date'
-          );
+        // RPC performs an advisory-locked conflict check + insert atomically,
+        // preventing double-bookings that slip past the client-side check.
+        try {
+          if (!houseId || !data.requestedBy) {
+            throw new Error('Please wait while your profile loads before reserving a parking spot.');
+          }
+          const { data: inserted, error } = await supabase.rpc('add_parking_reservation', {
+            p_house_id:     houseId,
+            p_requested_by: data.requestedBy,
+            p_date:         data.date,
+            p_start_time:   data.startTime ?? null,
+            p_end_time:     data.endTime   ?? null,
+            p_note:         data.note,
+          });
+          if (error) {
+            if (error.message.includes('conflicting_reservation')) {
+              throw new Error('This time slot conflicts with an existing reservation.');
+            }
+            if (error.message.includes('invalid_time_range')) {
+              throw new Error('The selected time range is invalid — please choose a valid start and end time.');
+            }
+            captureError(error, { context: 'add-reservation', houseId });
+            throw new Error('Could not save the reservation. Please try again.');
+          }
+          const r: ParkingReservation = {
+            id: inserted.id,
+            requestedBy: inserted.requested_by,
+            date: inserted.date,
+            startTime: inserted.start_time ?? undefined,
+            endTime: inserted.end_time ?? undefined,
+            note: inserted.note ?? '',
+            status: 'pending',
+            createdAt: inserted.created_at,
+            votes: [],
+          };
+          const alreadyPresent = get().reservations.some((res) => res.id === r.id);
+          if (alreadyPresent) {
+            set({ reservations: get().reservations.map((res) => (res.id === r.id ? r : res)) });
+          } else {
+            set({ reservations: [r, ...get().reservations] });
+          }
+          const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
+          void notifyHousemates({
+            houseId,
+            excludeUserId: data.requestedBy,
+            title: '🚗 Parking request',
+            body: `${displayName} wants the spot on ${data.date}${timeStr}${data.note ? ` — ${data.note}` : ''}`,
+            data: { screen: 'parking' },
+            notificationType: 'parking_reservation',
+          }).catch((notifyErr) => captureError(notifyErr, { context: 'notify-housemates', houseId }));
+          return r.id;
+        } catch (err) {
+          // Only rethrow known domain/validation errors; normalize everything else.
+          if (err instanceof Error && (
+            err.message.includes('conflicts with an existing reservation') ||
+            err.message.includes('time range is invalid') ||
+            err.message === 'Could not save the reservation. Please try again.'
+          )) {
+            throw err;
+          }
+          captureError(err, { context: 'add-reservation', houseId });
+          throw new Error('Could not save the reservation. Please try again.');
         }
-        const { data: inserted, error } = await supabase
-          .from('parking_reservations')
-          .insert({
-            house_id: houseId,
-            requested_by: data.requestedBy,
-            date: data.date,
-            start_time: data.startTime ?? null,
-            end_time: data.endTime ?? null,
-            note: data.note,
-          })
-          .select()
-          .single();
-        if (error) { captureError(error, { context: 'add-reservation', houseId }); throw new Error('Could not save the reservation. Please try again.'); }
-        const r: ParkingReservation = {
-          id: inserted.id,
-          requestedBy: inserted.requested_by,
-          date: inserted.date,
-          startTime: inserted.start_time ?? undefined,
-          endTime: inserted.end_time ?? undefined,
-          note: inserted.note ?? '',
-          status: 'pending',
-          createdAt: inserted.created_at,
-          votes: [],
-        };
-        set({ reservations: [r, ...get().reservations] });
-        const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
-        notifyHousemates({
-          houseId,
-          excludeUserId: data.requestedBy,
-          title: '🚗 Parking request',
-          body: `${displayName} wants the spot on ${data.date}${timeStr}${data.note ? ` — ${data.note}` : ''}`,
-          data: { screen: 'parking' },
-          notificationType: 'parking_reservation',
-        });
-        return r.id;
       },
       cancelReservation: async (id, houseId): Promise<void> => {
         const reservation = get().reservations.find((r) => r.id === id);

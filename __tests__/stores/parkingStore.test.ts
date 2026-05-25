@@ -28,17 +28,19 @@ import { ok, fail } from '../__helpers__/supabaseMock';
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
+const mockRpc  = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc:  (...a: unknown[]): unknown => mockRpc(...a),
     channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
     removeChannel: jest.fn(),
     auth: { getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } }) },
   },
 }));
 
-jest.mock('@lib/notifyHousemates', () => ({ notifyHousemates: jest.fn() }));
+jest.mock('@lib/notifyHousemates', () => ({ notifyHousemates: jest.fn().mockResolvedValue(undefined) }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -64,6 +66,7 @@ beforeEach(() => {
   useParkingStore.setState({ current: null, reservations: [], isLoading: false });
   jest.clearAllMocks();
   mockFrom.mockReset();
+  mockRpc.mockReset();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,32 +74,96 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('isDateConflict', () => {
-  it('returns null when reservation list is empty', () => {
-    expect(isDateConflict('2026-04-20', [])).toBeNull();
+  it('returns no conflict when reservation list is empty', () => {
+    const result = isDateConflict('2026-04-20', undefined, undefined, []);
+    expect(result.conflict).toBeNull();
+    expect(result.warning).toBeNull();
   });
 
-  it('returns null when no reservation matches the given date', () => {
+  it('returns no conflict when no reservation matches the given date', () => {
     const r = reservation({ date: '2026-04-21', status: 'approved' });
-    expect(isDateConflict('2026-04-20', [r])).toBeNull();
+    expect(isDateConflict('2026-04-20', undefined, undefined, [r]).conflict).toBeNull();
   });
 
-  it('returns an "already reserved" message for an approved reservation on the same date', () => {
+  // All-day (no times) conflicts
+  it('blocks all-day request when another all-day reservation exists (approved)', () => {
     const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved' });
-    const msg = isDateConflict('2026-04-20', [r]);
-    expect(msg).toMatch(/already reserved by Bob/i);
+    const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
+    expect(conflict).toMatch(/Bob/i);
+    expect(conflict).toMatch(/reserved/i);
   });
 
-  it('returns a "pending request" message for a pending reservation on the same date', () => {
+  it('blocks all-day request when a pending reservation exists', () => {
     const r = reservation({ date: '2026-04-20', requestedBy: 'Carol', status: 'pending' });
-    const msg = isDateConflict('2026-04-20', [r]);
-    expect(msg).toMatch(/Carol.*pending/i);
+    const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
+    expect(conflict).toMatch(/Carol/i);
+    expect(conflict).toMatch(/pending/i);
   });
 
-  it('returns the first match when multiple reservations exist (approved takes priority in list order)', () => {
-    const r1 = reservation({ id: 'r1', date: '2026-04-20', requestedBy: 'Bob',   status: 'approved' });
-    const r2 = reservation({ id: 'r2', date: '2026-04-20', requestedBy: 'Carol', status: 'pending'  });
-    const msg = isDateConflict('2026-04-20', [r1, r2]);
-    expect(msg).toMatch(/Bob/);
+  // Time-aware: overlapping slots
+  it('blocks when new slot overlaps existing timed reservation', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict } = isDateConflict('2026-04-20', '10:00', '12:00', [r]);
+    expect(conflict).toMatch(/Overlaps/i);
+  });
+
+  it('allows non-overlapping timed slots on the same day', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict } = isDateConflict('2026-04-20', '13:00', '14:00', [r]);
+    expect(conflict).toBeNull();
+  });
+
+  // Time-aware: gap warnings
+  it('warns when gap between slots is <= 60 minutes', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '10:00' });
+    const { conflict, warning } = isDateConflict('2026-04-20', '10:30', '11:30', [r]);
+    expect(conflict).toBeNull();
+    expect(warning).not.toBeNull();
+  });
+
+  it('warns more strongly when gap is <= 15 minutes', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '10:00' });
+    const { conflict, warning } = isDateConflict('2026-04-20', '10:10', '11:00', [r]);
+    expect(conflict).toBeNull();
+    expect(warning).toMatch(/tight/i);
+  });
+
+  // Timed-vs-all-day: hard conflict in both directions
+  it('blocks timed request against an all-day reservation (hard conflict)', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Alice', status: 'approved' });
+    const { conflict } = isDateConflict('2026-04-20', '09:00', '10:00', [r]);
+    expect(conflict).not.toBeNull();
+  });
+
+  it('blocks all-day request against a timed reservation (hard conflict)', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Alice', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
+    expect(conflict).not.toBeNull();
+  });
+
+  // One-sided time inputs: form is mid-entry — must never block
+  it('does not conflict when only startTime is provided (endTime still empty)', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict, warning } = isDateConflict('2026-04-20', '10:00', undefined, [r]);
+    expect(conflict).toBeNull();
+    expect(warning).toBeNull();
+  });
+
+  it('does not conflict when only endTime is provided (startTime still empty)', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const { conflict, warning } = isDateConflict('2026-04-20', undefined, '12:00', [r]);
+    expect(conflict).toBeNull();
+    expect(warning).toBeNull();
+  });
+
+  it('conflict takes precedence over warning when multiple reservations exist', () => {
+    // r1 would produce a gap warning (30 min gap), r2 overlaps → conflict must win
+    const r1 = reservation({ id: 'r1', date: '2026-04-20', requestedBy: 'Bob',   status: 'approved', startTime: '08:00', endTime: '09:00' });
+    const r2 = reservation({ id: 'r2', date: '2026-04-20', requestedBy: 'Carol', status: 'approved', startTime: '10:00', endTime: '12:00' });
+    // New slot: 09:30–11:00 — 30 min gap after r1 (warning), overlaps r2 (conflict)
+    const { conflict, warning } = isDateConflict('2026-04-20', '09:30', '11:00', [r1, r2]);
+    expect(conflict).not.toBeNull();
+    expect(warning).toBeNull();
   });
 });
 
@@ -188,9 +255,10 @@ describe('parkingStore — release', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('parkingStore — addReservation', () => {
-  it('throws before hitting the DB when a local reservation conflict exists', async () => {
-    const existing = reservation({ date: '2026-04-20', status: 'approved', requestedBy: 'Bob' });
-    useParkingStore.setState({ reservations: [existing] });
+  beforeEach(() => mockRpc.mockReset());
+
+  it('throws when RPC returns a conflict error', async () => {
+    mockRpc.mockReturnValue(fail('conflicting_reservation: this time slot is already taken'));
 
     await expect(
       useParkingStore.getState().addReservation(
@@ -198,36 +266,87 @@ describe('parkingStore — addReservation', () => {
         'Alice',
         'house-1'
       )
-    ).rejects.toThrow('This date is already reserved');
-
-    expect(mockFrom).not.toHaveBeenCalled(); // should not reach DB
+    ).rejects.toThrow(/conflicts with an existing reservation/i);
   });
 
-  it('⚠️ BUG: conflict check uses stale local state — another user booking same date concurrently is not caught', async () => {
-    // Local state shows no reservations, but another user just booked the same date.
-    // The client-side check passes and we hit the DB — only a server-side unique
-    // constraint would prevent a double booking, which does not exist.
-    useParkingStore.setState({ reservations: [] }); // locally looks free
-    const insertedRow = {
+  it('adds reservation to store state when RPC succeeds (happy path)', async () => {
+    useParkingStore.setState({ reservations: [] });
+    const row = {
       id: 'r2', requested_by: 'Alice', date: '2026-04-20',
       start_time: null, end_time: null, note: '', status: 'pending',
       created_at: '2026-04-18T11:00:00Z',
     };
-    mockFrom.mockReturnValue(ok(insertedRow));
+    mockRpc.mockReturnValue(ok(row));
 
-    // This succeeds even though another user may have booked simultaneously
     const id = await useParkingStore.getState().addReservation(
       { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
       'Alice',
       'house-1'
     );
 
-    expect(id).toBe('r2'); // request goes through — race window exists
+    expect(id).toBe('r2');
+    expect(useParkingStore.getState().reservations).toContainEqual(
+      expect.objectContaining({ id: 'r2', date: '2026-04-20', status: 'pending' })
+    );
   });
 
-  it('throws when DB insert fails', async () => {
+  it('concurrent conflict: second caller gets conflicting_reservation error, first reservation stays in store', async () => {
     useParkingStore.setState({ reservations: [] });
-    mockFrom.mockReturnValue(fail('DB error'));
+    const winnerRow = {
+      id: 'r-winner', requested_by: 'uuid-alice', date: '2026-04-20',
+      start_time: null, end_time: null, note: '', status: 'pending',
+      created_at: '2026-04-18T11:00:00Z',
+    };
+    mockRpc
+      .mockReturnValueOnce(ok(winnerRow))
+      .mockReturnValueOnce(fail('conflicting_reservation: this time slot is already taken'));
+
+    const winnerId = await useParkingStore.getState().addReservation(
+      { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' }, 'Alice', 'house-1'
+    );
+    await expect(
+      useParkingStore.getState().addReservation(
+        { requestedBy: 'uuid-bob', date: '2026-04-20', note: '' }, 'Bob', 'house-1'
+      )
+    ).rejects.toThrow(/conflicts with an existing reservation/i);
+
+    expect(winnerId).toBe('r-winner');
+    expect(useParkingStore.getState().reservations).toHaveLength(1);
+    expect(useParkingStore.getState().reservations[0].id).toBe('r-winner');
+  });
+
+  it('throws the validation message when RPC returns invalid_time_range', async () => {
+    useParkingStore.setState({ reservations: [] });
+    mockRpc.mockReturnValue(fail('invalid_time_range: start must be before end'));
+
+    await expect(
+      useParkingStore.getState().addReservation(
+        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+        'Alice',
+        'house-1'
+      )
+    ).rejects.toThrow(/time range is invalid/i);
+
+    expect(useParkingStore.getState().reservations).toHaveLength(0);
+  });
+
+  it('throws when RPC fails for a non-conflict reason', async () => {
+    mockRpc.mockReturnValue(fail('DB error'));
+
+    await expect(
+      useParkingStore.getState().addReservation(
+        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+        'Alice',
+        'house-1'
+      )
+    ).rejects.toThrow('Could not save the reservation. Please try again.');
+
+    expect(useParkingStore.getState().reservations).toHaveLength(0);
+  });
+
+  it('throws the normalized message and leaves store empty when RPC promise rejects (transport failure)', async () => {
+    useParkingStore.setState({ reservations: [] });
+    mockRpc.mockRejectedValueOnce(new Error('Network request failed'));
 
     await expect(
       useParkingStore.getState().addReservation(
@@ -247,7 +366,7 @@ describe('parkingStore — addReservation', () => {
       start_time: null, end_time: null, note: 'dentist', status: 'pending',
       created_at: '2026-04-18T12:00:00Z',
     };
-    mockFrom.mockReturnValue(ok(row));
+    mockRpc.mockReturnValue(ok(row));
 
     await useParkingStore.getState().addReservation(
       { requestedBy: 'uuid-alice', date: '2026-04-25', note: 'dentist' },
@@ -257,6 +376,29 @@ describe('parkingStore — addReservation', () => {
 
     expect(useParkingStore.getState().reservations).toHaveLength(1);
     expect(useParkingStore.getState().reservations[0].status).toBe('pending');
+  });
+
+  it('resolves and saves reservation even when notifyHousemates rejects', async () => {
+    useParkingStore.setState({ reservations: [] });
+    const row = {
+      id: 'r4', requested_by: 'uuid-alice', date: '2026-04-26',
+      start_time: null, end_time: null, note: '', status: 'pending',
+      created_at: '2026-04-18T13:00:00Z',
+    };
+    mockRpc.mockReturnValue(ok(row));
+    const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as { notifyHousemates: jest.Mock };
+    notifyMock.mockRejectedValueOnce(new Error('push failed'));
+
+    const id = await useParkingStore.getState().addReservation(
+      { requestedBy: 'uuid-alice', date: '2026-04-26', note: '' },
+      'Alice',
+      'house-1'
+    );
+
+    expect(id).toBe('r4');
+    expect(useParkingStore.getState().reservations).toContainEqual(
+      expect.objectContaining({ id: 'r4', date: '2026-04-26', status: 'pending' })
+    );
   });
 });
 

@@ -8,9 +8,12 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useMorePopupStore } from '@stores/morePopupStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
-import { useBadgeStore, countNewSimple } from '@stores/badgeStore';
+import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useParkingStore } from '@stores/parkingStore';
+import { useGroceryStore } from '@stores/groceryStore';
+import { useChoresStore } from '@stores/choresStore';
+import { useVotingStore } from '@stores/votingStore';
 import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
@@ -52,10 +55,17 @@ export function BottomTabBar(): React.JSX.Element {
   const lastSeen     = useBadgeStore((s) => s.lastSeen);
   const billBadge    = countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills);
   const reservations = useParkingStore((s) => s.reservations);
+  const items        = useGroceryStore((s) => s.items);
+  const chores       = useChoresStore((s) => s.chores);
+  const proposals    = useVotingStore((s) => s.proposals);
   const myId         = useAuthStore((s) => s.profile?.id);
   const parkingBadge = myId ? reservations.filter(
     (r) => r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId)
   ).length : 0;
+  const groceryBadge = myId ? countNew(items.filter((i) => !i.isDraft && !i.isChecked), lastSeen.grocery, myId, 'addedBy') : 0;
+  const choresBadge  = countNewSimple(chores.filter((c) => !c.isComplete), lastSeen.chores);
+  const votingBadge  = myId ? countNew(proposals.filter((p) => p.isOpen), lastSeen.voting, myId, 'createdBy') : 0;
+  const moreBadge    = groceryBadge + choresBadge + votingBadge;
 
   const isActive = useCallback((id: string): boolean => {
     if (id === 'more') return false;
@@ -139,7 +149,7 @@ export function BottomTabBar(): React.JSX.Element {
       {/* Right two tabs */}
       {TABS.slice(2).map((tab) => {
         const active = isActive(tab.id);
-        const badge  = tab.id === 'parking' ? parkingBadge : 0;
+        const badge  = tab.id === 'parking' ? parkingBadge : tab.id === 'more' ? moreBadge : 0;
         return (
           <Pressable
             key={tab.id}
