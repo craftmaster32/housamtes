@@ -20,7 +20,7 @@ BEGIN
     RAISE EXCEPTION 'forbidden: cannot create a list for another user';
   END IF;
 
-  IF btrim(p_name) = '' THEN
+  IF p_name IS NULL OR btrim(p_name) = '' THEN
     RAISE EXCEPTION 'invalid_name: list name must not be blank';
   END IF;
 
