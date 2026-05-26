@@ -264,12 +264,14 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       deleteItem: async (id): Promise<void> => {
-        await supabase.from('grocery_items').delete().eq('id', id);
+        const { error } = await supabase.from('grocery_items').delete().eq('id', id);
+        if (error) throw new Error(`Failed to delete item: ${error.message}`);
         set({ items: get().items.filter((i) => i.id !== id) });
       },
 
       clearChecked: async (houseId: string): Promise<void> => {
-        await supabase.from('grocery_items').delete().eq('house_id', houseId).eq('is_checked', true);
+        const { error } = await supabase.from('grocery_items').delete().eq('house_id', houseId).eq('is_checked', true);
+        if (error) throw new Error(`Failed to clear checked items: ${error.message}`);
         set({ items: get().items.filter((i) => !i.isChecked) });
       },
 
