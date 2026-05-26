@@ -288,9 +288,16 @@ describe('parkingStore — addReservation', () => {
       'house-1'
     );
 
+    // Read-path: camelCase fields mapped correctly in store state
     expect(useParkingStore.getState().reservations[0]).toMatchObject({
       startTime: '09:00', endTime: '11:00', note: 'dentist',
     });
+
+    // Write-path: snake_case fields sent to DB
+    const insertMock = (mockFrom.mock.results[0].value as Record<string, jest.Mock>).insert;
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ start_time: '09:00', end_time: '11:00' })
+    );
   });
 
   it('throws generic message when DB insert fails', async () => {
@@ -316,6 +323,7 @@ describe('parkingStore — addReservation', () => {
         ''
       )
     ).rejects.toThrow(/profile loads/i);
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('resolves and saves reservation even when notifyHousemates rejects', async () => {
