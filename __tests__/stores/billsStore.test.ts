@@ -360,7 +360,7 @@ describe('billsStore — settleBill', () => {
     await useBillsStore.getState().settleBill('b1', 'uuid-alice', 'Alice', 'house-1');
 
     expect(notifyHousemates).toHaveBeenCalledTimes(1);
-    expect(notifyHousemates).toHaveBeenCalledWith(expect.objectContaining({ title: '✅ Bill settled' }));
+    expect(notifyHousemates).toHaveBeenCalledWith(expect.objectContaining({ title: '🎉 Money drama resolved!' }));
   });
 });
 
