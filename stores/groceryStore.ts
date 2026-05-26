@@ -5,7 +5,6 @@ import { supabase } from '@lib/supabase';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
-import { useAuthStore } from '@stores/authStore';
 
 const ACTIVE_RUN_KEY = 'grocery_active_run';
 const RUN_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -109,7 +108,7 @@ function mapItem(r: Record<string, unknown>): GroceryItem {
 const createSavedListSchema = z.object({
   name:        z.string().min(1),
   houseId:     z.string().uuid(),
-  userId:      z.string().min(1),
+  userId:      z.string().uuid(),
   isPrivate:   z.boolean(),
   displayName: z.string(),
   items:       z.array(z.object({ name: z.string().min(1), quantity: z.string() })),
@@ -127,10 +126,6 @@ export const useGroceryStore = create<GroceryStore>()(
       currentDraftSourceListId: null,
 
       load: async (houseId: string): Promise<void> => {
-        if (houseId !== useAuthStore.getState().houseId) {
-          console.warn('[grocery] house ID mismatch — aborting load');
-          return;
-        }
         try {
           try {
             const stored = await AsyncStorage.getItem(ACTIVE_RUN_KEY);

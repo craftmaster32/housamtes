@@ -25,6 +25,13 @@ BEGIN
   RETURNING * INTO new_list;
 
   IF jsonb_array_length(COALESCE(p_items, '[]'::jsonb)) > 0 THEN
+    IF EXISTS (
+      SELECT 1 FROM jsonb_array_elements(p_items) AS item
+      WHERE item->>'name' IS NULL OR item->>'name' = ''
+    ) THEN
+      RAISE EXCEPTION 'invalid_item: every grocery list item must have a non-empty name';
+    END IF;
+
     INSERT INTO grocery_list_items (list_id, name, quantity, position)
     SELECT
       new_list.id,
