@@ -490,7 +490,7 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [claim, myId, myName, houseId, t]);
 
-  const handleRelease = useCallback(async (): Promise<void> => {
+  const doRelease = useCallback(async (): Promise<void> => {
     setError('');
     try {
       await release(houseId ?? '', myName);
@@ -498,6 +498,23 @@ export default function ParkingScreen(): React.JSX.Element {
       setError(err instanceof Error ? err.message : t('parking.failed_release'));
     }
   }, [release, houseId, myName, t]);
+
+  const handleRelease = useCallback((): void => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Done parking? Free the spot for your housemates — legend move.')) {
+        doRelease().catch(() => {});
+      }
+    } else {
+      Alert.alert(
+        'Done with the spot? 🚗',
+        'Free it up for your housemates — total legend behaviour.',
+        [
+          { text: 'Not yet', style: 'cancel' },
+          { text: 'Free it up!', style: 'destructive', onPress: (): void => { doRelease().catch(() => {}); } },
+        ]
+      );
+    }
+  }, [doRelease]);
 
   const handleReleaseOther = useCallback((): void => {
     const pinnedSessionId = current?.id ?? '';
@@ -524,16 +541,16 @@ export default function ParkingScreen(): React.JSX.Element {
     };
 
     if (Platform.OS === 'web') {
-      if (window.confirm(`${occupantName} claimed this spot — are you sure you want to free it?`)) {
+      if (window.confirm(`${occupantName} is parked there — evict them? This will free the spot.`)) {
         doRelease();
       }
     } else {
       Alert.alert(
-        'Free someone else\'s spot?',
-        `${occupantName} claimed this spot — are you sure you want to free it?`,
+        `Kick out ${occupantName}? 👀`,
+        "They claimed this spot — you're about to free it without asking. Bold move.",
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Yes, free it', style: 'destructive', onPress: doRelease },
+          { text: 'Leave it', style: 'cancel' },
+          { text: 'Free it anyway', style: 'destructive', onPress: doRelease },
         ]
       );
     }
@@ -621,10 +638,10 @@ export default function ParkingScreen(): React.JSX.Element {
                 <Text style={styles.titleHero}>{t('parking.title')}</Text>
                 <Text style={styles.textBase}>
                   {isFree
-                    ? 'The spot is open — claim it before someone else does.'
+                    ? 'Free real estate! Claim it before someone else does. 🏎️'
                     : isMine
-                    ? `You claimed it at ${formatTime(current!.startTime)}.`
-                    : `${resolveName(current?.occupant ?? '', housemates)} is parked since ${formatTime(current!.startTime)}.`}
+                    ? `That's your car in there — since ${formatTime(current!.startTime)}.`
+                    : `${resolveName(current?.occupant ?? '', housemates)} got here first. Since ${formatTime(current!.startTime)}.`}
                 </Text>
               </View>
 

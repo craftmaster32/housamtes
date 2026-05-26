@@ -135,8 +135,8 @@ export const useBillsStore = create<BillsStore>()(
           notifyHousemates({
             houseId,
             excludeUserId: userId,
-            title: '💰 New bill added',
-            body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}`,
+            title: '💸 New expense dropped',
+            body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}. Time to split! 🤝`,
             data: { screen: 'bills' },
             notificationType: 'bill_added',
           });
@@ -173,8 +173,8 @@ export const useBillsStore = create<BillsStore>()(
           notifyHousemates({
             houseId,
             excludeUserId: settledByUserId,
-            title: '✅ Bill settled',
-            body: `${bill.title} marked as settled by ${settledByName}`,
+            title: '🎉 Money drama resolved!',
+            body: `${bill.title} sorted. ${settledByName} saves the day 🙌`,
             data: { screen: 'bills' },
             notificationType: 'bill_deleted',
           });
@@ -197,8 +197,8 @@ export const useBillsStore = create<BillsStore>()(
             notifyHousemates({
               houseId,
               excludeUserId: userId,
-              title: '🗑️ Bill removed',
-              body: `${bill.title} was deleted`,
+              title: '🗑️ Bill gone poof',
+              body: `${bill.title} was removed. Pretend it never happened.`,
               data: { screen: 'bills' },
               notificationType: 'bill_settled',
             });

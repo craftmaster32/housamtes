@@ -303,8 +303,8 @@ export const useGroceryStore = create<GroceryStore>()(
           notifyHousemates({
             houseId,
             excludeUserId: userId,
-            title: 'New grocery list shared 🛒',
-            body: `${draftIds.length} item${draftIds.length === 1 ? '' : 's'} added to the shared list`,
+            title: '🛒 Shopping list incoming!',
+            body: `${draftIds.length} item${draftIds.length === 1 ? '' : 's'} added. Time to brave the shops 💪`,
             notificationType: 'grocery_shared',
             data: { screen: 'grocery' },
           }).catch(() => {});
@@ -401,8 +401,8 @@ export const useGroceryStore = create<GroceryStore>()(
             void notifyHousemates({
               houseId:       parsed.houseId,
               excludeUserId: parsed.userId,
-              title: '🛒 New grocery list saved',
-              body: parsed.displayName ? `${parsed.displayName} saved a new list: "${parsed.name}"` : `A new grocery list was saved: "${parsed.name}"`,
+              title: '📋 New list dropped!',
+              body: parsed.displayName ? `${parsed.displayName} made a list: "${parsed.name}" 🛍️` : `New list ready: "${parsed.name}" — go get the stuff!`,
               data: { screen: 'grocery' },
               notificationType: 'grocery_shared',
             }).catch((err) => captureError(err, { context: 'notify-grocery-list-saved' }));
