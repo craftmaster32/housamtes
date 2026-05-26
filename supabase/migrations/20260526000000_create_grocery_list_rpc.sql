@@ -10,6 +10,7 @@ CREATE OR REPLACE FUNCTION create_grocery_list(
   p_items      jsonb DEFAULT '[]'::jsonb
 )
 RETURNS grocery_lists
+SECURITY INVOKER
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -29,7 +30,7 @@ BEGIN
       new_list.id,
       item->>'name',
       COALESCE(item->>'quantity', ''),
-      (item->>'position')::integer
+      COALESCE(NULLIF(item->>'position', 'null')::integer, 0)
     FROM jsonb_array_elements(p_items) AS item;
   END IF;
 
