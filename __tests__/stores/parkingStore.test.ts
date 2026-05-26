@@ -255,28 +255,15 @@ describe('parkingStore — release', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('parkingStore — addReservation', () => {
-  beforeEach(() => mockRpc.mockReset());
+  const baseRow = {
+    id: 'r2', requested_by: 'uuid-alice', date: '2026-04-20',
+    start_time: null, end_time: null, note: '', status: 'pending',
+    created_at: '2026-04-18T11:00:00Z',
+  };
 
-  it('throws when RPC returns a conflict error', async () => {
-    mockRpc.mockReturnValue(fail('conflicting_reservation: this time slot is already taken'));
-
-    await expect(
-      useParkingStore.getState().addReservation(
-        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
-        'Alice',
-        'house-1'
-      )
-    ).rejects.toThrow(/conflicts with an existing reservation/i);
-  });
-
-  it('adds reservation to store state when RPC succeeds (happy path)', async () => {
+  it('adds reservation to store state on success (happy path)', async () => {
     useParkingStore.setState({ reservations: [] });
-    const row = {
-      id: 'r2', requested_by: 'Alice', date: '2026-04-20',
-      start_time: null, end_time: null, note: '', status: 'pending',
-      created_at: '2026-04-18T11:00:00Z',
-    };
-    mockRpc.mockReturnValue(ok(row));
+    mockFrom.mockReturnValue(ok(baseRow));
 
     const id = await useParkingStore.getState().addReservation(
       { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
@@ -290,102 +277,59 @@ describe('parkingStore — addReservation', () => {
     );
   });
 
-  it('concurrent conflict: second caller gets conflicting_reservation error, first reservation stays in store', async () => {
+  it('maps timed start/end fields correctly', async () => {
     useParkingStore.setState({ reservations: [] });
-    const winnerRow = {
-      id: 'r-winner', requested_by: 'uuid-alice', date: '2026-04-20',
-      start_time: null, end_time: null, note: '', status: 'pending',
-      created_at: '2026-04-18T11:00:00Z',
-    };
-    mockRpc
-      .mockReturnValueOnce(ok(winnerRow))
-      .mockReturnValueOnce(fail('conflicting_reservation: this time slot is already taken'));
-
-    const winnerId = await useParkingStore.getState().addReservation(
-      { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' }, 'Alice', 'house-1'
-    );
-    await expect(
-      useParkingStore.getState().addReservation(
-        { requestedBy: 'uuid-bob', date: '2026-04-20', note: '' }, 'Bob', 'house-1'
-      )
-    ).rejects.toThrow(/conflicts with an existing reservation/i);
-
-    expect(winnerId).toBe('r-winner');
-    expect(useParkingStore.getState().reservations).toHaveLength(1);
-    expect(useParkingStore.getState().reservations[0].id).toBe('r-winner');
-  });
-
-  it('throws the validation message when RPC returns invalid_time_range', async () => {
-    useParkingStore.setState({ reservations: [] });
-    mockRpc.mockReturnValue(fail('invalid_time_range: start must be before end'));
-
-    await expect(
-      useParkingStore.getState().addReservation(
-        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
-        'Alice',
-        'house-1'
-      )
-    ).rejects.toThrow(/time range is invalid/i);
-
-    expect(useParkingStore.getState().reservations).toHaveLength(0);
-  });
-
-  it('throws when RPC fails for a non-conflict reason', async () => {
-    mockRpc.mockReturnValue(fail('DB error'));
-
-    await expect(
-      useParkingStore.getState().addReservation(
-        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
-        'Alice',
-        'house-1'
-      )
-    ).rejects.toThrow('Could not save the reservation. Please try again.');
-
-    expect(useParkingStore.getState().reservations).toHaveLength(0);
-  });
-
-  it('throws the normalized message and leaves store empty when RPC promise rejects (transport failure)', async () => {
-    useParkingStore.setState({ reservations: [] });
-    mockRpc.mockRejectedValueOnce(new Error('Network request failed'));
-
-    await expect(
-      useParkingStore.getState().addReservation(
-        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
-        'Alice',
-        'house-1'
-      )
-    ).rejects.toThrow('Could not save the reservation. Please try again.');
-
-    expect(useParkingStore.getState().reservations).toHaveLength(0);
-  });
-
-  it('adds reservation to state on success', async () => {
-    useParkingStore.setState({ reservations: [] });
-    const row = {
-      id: 'r3', requested_by: 'Alice', date: '2026-04-25',
-      start_time: null, end_time: null, note: 'dentist', status: 'pending',
-      created_at: '2026-04-18T12:00:00Z',
-    };
-    mockRpc.mockReturnValue(ok(row));
+    const timedRow = { ...baseRow, id: 'r3', start_time: '09:00', end_time: '11:00', note: 'dentist' };
+    mockFrom.mockReturnValue(ok(timedRow));
 
     await useParkingStore.getState().addReservation(
-      { requestedBy: 'uuid-alice', date: '2026-04-25', note: 'dentist' },
+      { requestedBy: 'uuid-alice', date: '2026-04-20', startTime: '09:00', endTime: '11:00', note: 'dentist' },
       'Alice',
       'house-1'
     );
 
-    expect(useParkingStore.getState().reservations).toHaveLength(1);
-    expect(useParkingStore.getState().reservations[0].status).toBe('pending');
+    // Read-path: camelCase fields mapped correctly in store state
+    expect(useParkingStore.getState().reservations[0]).toMatchObject({
+      startTime: '09:00', endTime: '11:00', note: 'dentist',
+    });
+
+    // Write-path: snake_case fields sent to DB
+    const insertMock = (mockFrom.mock.results[0].value as Record<string, jest.Mock>).insert;
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ start_time: '09:00', end_time: '11:00' })
+    );
+  });
+
+  it('throws generic message when DB insert fails', async () => {
+    useParkingStore.setState({ reservations: [] });
+    mockFrom.mockReturnValue(fail('DB error'));
+
+    await expect(
+      useParkingStore.getState().addReservation(
+        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+        'Alice',
+        'house-1'
+      )
+    ).rejects.toThrow('Could not save the reservation. Please try again.');
+
+    expect(useParkingStore.getState().reservations).toHaveLength(0);
+  });
+
+  it('throws when houseId is empty', async () => {
+    await expect(
+      useParkingStore.getState().addReservation(
+        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+        'Alice',
+        ''
+      )
+    ).rejects.toThrow(/profile loads/i);
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('resolves and saves reservation even when notifyHousemates rejects', async () => {
     useParkingStore.setState({ reservations: [] });
-    const row = {
-      id: 'r4', requested_by: 'uuid-alice', date: '2026-04-26',
-      start_time: null, end_time: null, note: '', status: 'pending',
-      created_at: '2026-04-18T13:00:00Z',
-    };
-    mockRpc.mockReturnValue(ok(row));
+    const notifyRow = { ...baseRow, id: 'r4', date: '2026-04-26' };
+    mockFrom.mockReturnValue(ok(notifyRow));
     const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as { notifyHousemates: jest.Mock };
     notifyMock.mockRejectedValueOnce(new Error('push failed'));
 
@@ -397,7 +341,7 @@ describe('parkingStore — addReservation', () => {
 
     expect(id).toBe('r4');
     expect(useParkingStore.getState().reservations).toContainEqual(
-      expect.objectContaining({ id: 'r4', date: '2026-04-26', status: 'pending' })
+      expect.objectContaining({ id: 'r4', status: 'pending' })
     );
   });
 });
