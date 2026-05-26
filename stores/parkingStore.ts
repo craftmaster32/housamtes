@@ -337,10 +337,8 @@ export const useParkingStore = create<ParkingStore>()(
           }).catch((err) => captureError(err, { context: 'notify-release', houseId }));
         } catch (err) {
           set({ current: previous });
-          if (!(err instanceof Error)) {
-            captureError(err, { context: 'release-parking', houseId });
-          }
-          throw err instanceof Error ? err : new Error('Could not release the parking spot. Please try again.');
+          captureError(err, { context: 'release-parking', houseId });
+          throw new Error('Could not release the parking spot. Please try again.');
         }
       },
       addReservation: async (data, displayName, houseId): Promise<string> => {
