@@ -364,7 +364,12 @@ export const useGroceryStore = create<GroceryStore>()(
           const { error: itemsError } = await supabase
             .from('grocery_list_items')
             .insert(items.map((item, i) => ({ list_id: listData.id, name: item.name, quantity: item.quantity, position: i })));
-          if (itemsError) { captureError(itemsError, { context: 'create-grocery-list-items' }); throw new Error('Could not save the list items. Please try again.'); }
+          if (itemsError) {
+            captureError(itemsError, { context: 'create-grocery-list-items' });
+            const { error: deleteError } = await supabase.from('grocery_lists').delete().eq('id', listData.id);
+            if (deleteError) captureError(deleteError, { context: 'rollback-create-grocery-list' });
+            throw new Error('Could not save the list items. Please try again.');
+          }
         }
 
         const newList: GroceryList = {
