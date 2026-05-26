@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { z } from 'zod';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { notifyHousemates } from '@lib/notifyHousemates';
@@ -104,6 +105,15 @@ function mapItem(r: Record<string, unknown>): GroceryItem {
     draftExpiresAt: (r.draft_expires_at as string) ?? undefined,
   };
 }
+
+const createSavedListSchema = z.object({
+  name:        z.string().min(1),
+  houseId:     z.string().uuid(),
+  userId:      z.string().min(1),
+  isPrivate:   z.boolean(),
+  displayName: z.string(),
+  items:       z.array(z.object({ name: z.string().min(1), quantity: z.string() })),
+});
 
 export const useGroceryStore = create<GroceryStore>()(
   devtools(
@@ -354,12 +364,13 @@ export const useGroceryStore = create<GroceryStore>()(
 
       createSavedList: async (name, houseId, userId, items, isPrivate = false, displayName = ''): Promise<void> => {
         try {
+          const parsed = createSavedListSchema.parse({ name, houseId, userId, isPrivate, displayName, items });
           const { data: listData, error: listError } = await supabase.rpc('create_grocery_list', {
-            p_house_id:   houseId,
-            p_name:       name,
-            p_created_by: userId,
-            p_is_private: isPrivate,
-            p_items:      items.map((item, i) => ({ name: item.name, quantity: item.quantity, position: i })),
+            p_house_id:   parsed.houseId,
+            p_name:       parsed.name,
+            p_created_by: parsed.userId,
+            p_is_private: parsed.isPrivate,
+            p_items:      parsed.items.map((item, i) => ({ name: item.name, quantity: item.quantity, position: i })),
           });
           if (listError) { captureError(listError, { context: 'create-grocery-list' }); throw new Error('Could not save the list. Please try again.'); }
 
@@ -371,16 +382,16 @@ export const useGroceryStore = create<GroceryStore>()(
             isPrivate: (listData.is_private as boolean) ?? false,
             createdAt: listData.created_at as string,
             updatedAt: listData.updated_at as string,
-            items:     items.map((item, i) => ({ id: '', listId: listData.id as string, name: item.name, quantity: item.quantity, position: i })),
+            items:     parsed.items.map((item, i) => ({ id: '', listId: listData.id as string, name: item.name, quantity: item.quantity, position: i })),
           };
           set({ savedLists: [newList, ...get().savedLists] });
 
-          if (!isPrivate) {
+          if (!parsed.isPrivate) {
             void notifyHousemates({
-              houseId,
-              excludeUserId: userId,
+              houseId:       parsed.houseId,
+              excludeUserId: parsed.userId,
               title: '🛒 New grocery list saved',
-              body: displayName ? `${displayName} saved a new list: "${name}"` : `A new grocery list was saved: "${name}"`,
+              body: parsed.displayName ? `${parsed.displayName} saved a new list: "${parsed.name}"` : `A new grocery list was saved: "${parsed.name}"`,
               data: { screen: 'grocery' },
               notificationType: 'grocery_shared',
             }).catch((err) => captureError(err, { context: 'notify-grocery-list-saved' }));
