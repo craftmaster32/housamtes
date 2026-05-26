@@ -502,8 +502,12 @@ export default function GroceryScreen(): React.JSX.Element {
   // ── Save list modal handlers ───────────────────────────────────────────────
   const handleSaveNew = useCallback(async (name: string, isPrivate: boolean): Promise<void> => {
     if (!houseId) return;
-    await createSavedList(name, houseId, myId, pendingPublishedItems, isPrivate, myName);
-    setPendingPublishedItems([]);
+    try {
+      await createSavedList(name, houseId, myId, pendingPublishedItems, isPrivate, myName);
+      setPendingPublishedItems([]);
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Could not save the list. Please try again.');
+    }
   }, [createSavedList, houseId, myId, myName, pendingPublishedItems]);
 
   const handleUpdateList = useCallback(async (): Promise<void> => {
