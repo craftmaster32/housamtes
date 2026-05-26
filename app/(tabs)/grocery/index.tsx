@@ -11,6 +11,7 @@ import {
   Animated,
   BackHandler,
   Switch,
+  Alert,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -549,7 +550,7 @@ export default function GroceryScreen(): React.JSX.Element {
     }
   }, [startRun, myId, myName]);
 
-  const handleEndRun = useCallback(async (): Promise<void> => {
+  const doEndRun = useCallback(async (): Promise<void> => {
     try {
       await endRun();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -558,12 +559,40 @@ export default function GroceryScreen(): React.JSX.Element {
     }
   }, [endRun]);
 
+  const handleEndRun = useCallback((): void => {
+    Alert.alert(
+      'Back from the shops? 🛍️',
+      'Nice work. This will end your shopping run and uncheck everything.',
+      [
+        { text: 'Not done yet', style: 'cancel' },
+        { text: "Yep, I'm done!", onPress: (): void => { doEndRun().catch(() => {}); } },
+      ]
+    );
+  }, [doEndRun]);
+
   const onToggle    = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
   const onDelete    = useCallback((id: string): void => { deleteItem(id); }, [deleteItem]);
   const onInc       = useCallback((id: string): void => { incBought(id); }, [incBought]);
   const onDec       = useCallback((id: string): void => { decBought(id); }, [decBought]);
   const onUpdate    = useCallback((id: string, name: string, quantity: string): Promise<void> => updateItem(id, name, quantity), [updateItem]);
-  const handleClear = useCallback((): void => { clearChecked(houseId ?? ''); }, [clearChecked, houseId]);
+  const handleClear = useCallback((): void => {
+    Alert.alert(
+      'Clear the done ones? ✅',
+      'This removes all the checked-off items from the list. Gone for good.',
+      [
+        { text: 'Keep them', style: 'cancel' },
+        {
+          text: 'Wipe them!',
+          style: 'destructive',
+          onPress: (): void => {
+            clearChecked(houseId ?? '').catch(() => {
+              Alert.alert('Could not clear items', 'Something went wrong. Please try again.');
+            });
+          },
+        },
+      ]
+    );
+  }, [clearChecked, houseId]);
   const handleLongPress  = useCallback((item: GroceryItem): void => { setSelectedItem(item); }, []);
   const handleCloseModal = useCallback((): void => { setSelectedItem(null); }, []);
   const onSaveComment    = useCallback((id: string, comment: string): Promise<void> => addComment(id, comment), [addComment]);

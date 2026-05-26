@@ -220,11 +220,11 @@ function TodayAtHome(): React.JSX.Element {
   }, [isParkingBusy, isFree, isMine, claim, release, myId, myName, houseId]);
 
   const parkingSubLabel = isParkingBusy
-    ? '...'
+    ? 'On it…'
     : isFree
-    ? 'Tap to claim'
+    ? 'First come, first parked'
     : isMine
-    ? 'Tap to release'
+    ? 'Done? Free it up'
     : `by ${resolveName(current?.occupant ?? '', housemates).split(' ')[0]}`;
 
   return (
@@ -269,7 +269,7 @@ function TodayAtHome(): React.JSX.Element {
               {totalChores - pendingChores}/{totalChores}
             </Text>
             <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {pendingChores === 0 ? 'All done!' : 'On track'}
+              {pendingChores === 0 ? 'Smashed it! 🎉' : 'Someone\'s on it'}
             </Text>
           </Pressable>
         )}
@@ -409,14 +409,14 @@ function ChoreCard(): React.JSX.Element {
       ) : pending.length > 0 ? (
         <>
           <Text style={[styles.bigNumber, { color: c.textPrimary }]} numberOfLines={1}>{pending[0].name}</Text>
-          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>Not yet claimed</Text>
+          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>{"Nobody's stepped up yet"}</Text>
         </>
       ) : (
         <>
           <View style={styles.doneAllWrap}>
             <Ionicons name="checkmark-circle" size={32} color={c.positive} />
           </View>
-          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>All chores done!</Text>
+          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>All done! Screenshot this as proof.</Text>
         </>
       )}
     </WidgetCard>
@@ -477,7 +477,7 @@ function ParkingCard(): React.JSX.Element {
         {current && !isFree && <Text style={[styles.parkingAge, { color: c.textSecondary }]}>{parkingAge(current.startTime)}</Text>}
       </View>
       <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-        {isFree ? 'No one is using the spot' : isMine ? `In use for ${parkingAge(current?.startTime ?? '')}` : `Used by ${resolveName(current?.occupant ?? '', housemates)} · ${parkingAge(current?.startTime ?? '')}`}
+        {isFree ? 'Empty spot — free real estate 🏎️' : isMine ? `Your car's been there ${parkingAge(current?.startTime ?? '')}` : `Used by ${resolveName(current?.occupant ?? '', housemates)} · ${parkingAge(current?.startTime ?? '')}`}
       </Text>
       {pendingFromOthers.map((r) => (
         <View key={r.id} style={[styles.parkingPendingRow, { backgroundColor: '#2A1A00' }]}>
@@ -708,7 +708,7 @@ function GroceryWidget(): React.JSX.Element {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <GroceryWidgetRow item={item} myId={myId} onToggle={handleToggle} onDelete={handleDelete} onLongPress={handleItemLongPress} />}
         ListHeaderComponent={draftHeader}
-        ListEmptyComponent={myDraftItems.length === 0 ? <Text style={[styles.cardMuted, { color: c.textSecondary }]}>List is empty — add something above</Text> : null}
+        ListEmptyComponent={myDraftItems.length === 0 ? <Text style={[styles.cardMuted, { color: c.textSecondary }]}>Nothing here. Someone go shopping.</Text> : null}
         scrollEnabled={false}
         nestedScrollEnabled
       />
@@ -745,7 +745,7 @@ function VotesWidget(): React.JSX.Element {
           </View>
           <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Active Votes</Text>
         </View>
-        <Text style={[styles.cardMuted, { color: c.textSecondary }]}>No open votes right now</Text>
+        <Text style={[styles.cardMuted, { color: c.textSecondary }]}>No drama today. Suspicious.</Text>
       </WidgetCard>
     );
   }
@@ -962,7 +962,7 @@ function ActivityFeed(): React.JSX.Element {
         <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Recent Activity</Text>
       </View>
       {events.length === 0
-        ? <Text style={[styles.cardMuted, { color: c.textSecondary }]}>No activity in the last 7 days</Text>
+        ? <Text style={[styles.cardMuted, { color: c.textSecondary }]}>Eerie silence this week. What are you all up to?</Text>
         : events.map((event) => (
           <View key={event.id} style={[styles.activityRow, { borderTopColor: c.border }]}>
             <View style={[styles.activityIconWrap, { backgroundColor: event.iconBg }]}>

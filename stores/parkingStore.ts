@@ -289,8 +289,8 @@ export const useParkingStore = create<ParkingStore>()(
           notifyHousemates({
             houseId,
             excludeUserId: userId,
-            title: '🚗 Parking claimed',
-            body: `${displayName} is using the parking spot`,
+            title: '🚗 Spot taken!',
+            body: `${displayName} nabbed the parking spot. First come, first parked 🏎️`,
             data: { screen: 'parking' },
             notificationType: 'parking_claimed',
           });
@@ -326,8 +326,8 @@ export const useParkingStore = create<ParkingStore>()(
               return notifyHousemates({
                 houseId,
                 excludeUserId: userId,
-                title: '🅿️ Parking free',
-                body: displayName ? `${displayName} freed the parking spot` : 'The parking spot is now free',
+                title: '🅿️ Spot\'s free — go go go!',
+                body: displayName ? `${displayName} freed the spot. Quick, claim it! 🏃` : 'The spot is free — first come, first parked!',
                 data: { screen: 'parking' },
                 notificationType: 'parking_claimed',
               });
@@ -385,8 +385,8 @@ export const useParkingStore = create<ParkingStore>()(
           void notifyHousemates({
             houseId,
             excludeUserId: data.requestedBy,
-            title: '🚗 Parking request',
-            body: `${displayName} wants the spot on ${data.date}${timeStr}${data.note ? ` — ${data.note}` : ''}`,
+            title: '🙏 Calling dibs!',
+            body: `${displayName} wants the spot on ${data.date}${timeStr}${data.note ? ` — "${data.note}"` : ''}. Vote!`,
             data: { screen: 'parking' },
             notificationType: 'parking_reservation',
           }).catch((notifyErr) => captureError(notifyErr, { context: 'notify-housemates', houseId }));
@@ -485,8 +485,8 @@ export const useParkingStore = create<ParkingStore>()(
             notifyHousemates({
               houseId,
               excludeUserId: userId,
-              title: '✅ Parking approved',
-              body: `Parking spot confirmed for ${localReservation.date}${localReservation.startTime ? ` at ${localReservation.startTime}` : ''}`,
+              title: '✅ You got the spot!',
+              body: `Parking confirmed for ${localReservation.date}${localReservation.startTime ? ` at ${localReservation.startTime}` : ''}. You're welcome 🤝`,
               data: { screen: 'parking' },
               notificationType: 'parking_reservation',
             });
