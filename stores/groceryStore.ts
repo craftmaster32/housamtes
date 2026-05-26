@@ -106,12 +106,12 @@ function mapItem(r: Record<string, unknown>): GroceryItem {
 }
 
 const createSavedListSchema = z.object({
-  name:        z.string().min(1),
+  name:        z.string().trim().min(1),
   houseId:     z.string().uuid(),
   userId:      z.string().uuid(),
   isPrivate:   z.boolean(),
-  displayName: z.string(),
-  items:       z.array(z.object({ name: z.string().min(1), quantity: z.string() })),
+  displayName: z.string().trim(),
+  items:       z.array(z.object({ name: z.string().trim().min(1), quantity: z.string() })),
 });
 
 export const useGroceryStore = create<GroceryStore>()(

@@ -37,7 +37,7 @@ BEGIN
       new_list.id,
       item->>'name',
       COALESCE(item->>'quantity', ''),
-      COALESCE(NULLIF(item->>'position', 'null')::integer, 0)
+      CASE WHEN item->>'position' ~ '^\d+$' THEN (item->>'position')::integer ELSE 0 END
     FROM jsonb_array_elements(p_items) AS item;
   END IF;
 
