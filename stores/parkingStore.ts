@@ -48,7 +48,7 @@ interface ParkingStore {
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   claim: (userId: string, displayName: string, houseId: string) => Promise<void>;
-  release: (houseId: string) => Promise<void>;
+  release: (houseId: string, displayName?: string) => Promise<void>;
   addReservation: (
     r: Omit<ParkingReservation, 'id' | 'createdAt' | 'status' | 'votes'>,
     displayName: string,
@@ -299,42 +299,45 @@ export const useParkingStore = create<ParkingStore>()(
           throw err;
         }
       },
-      release: async (houseId: string): Promise<void> => {
+      release: async (houseId: string, displayName?: string): Promise<void> => {
         const previous = get().current;
         if (!previous) return;
 
         // Claim is still in flight — the DB row doesn't exist yet, so the UPDATE would be a no-op
         if (previous.id === 'optimistic') throw new Error('Claim is still in progress, please wait a moment');
 
-        // Optimistic update — feels instant, reverts on failure
-        set({ current: null });
+        try {
+          // Optimistic update — feels instant, reverts on failure
+          set({ current: null });
 
-        const { data: updated, error } = await supabase
-          .from('parking_sessions')
-          .update({ is_active: false })
-          .eq('id', previous.id)
-          .eq('house_id', houseId)
-          .select();
-        if (error || !updated?.length) {
+          const { data: updated, error } = await supabase
+            .from('parking_sessions')
+            .update({ is_active: false })
+            .eq('id', previous.id)
+            .eq('house_id', houseId)
+            .select();
+          if (error) throw error;
+          if (!updated?.length) throw new Error('No rows updated: parking session not found or already inactive');
+
+          // Notification fires in background — doesn't block the UI
+          supabase.auth.getSession().then(({ data: sessionData }) => {
+            const userId = sessionData.session?.user.id ?? '';
+            if (userId) {
+              return notifyHousemates({
+                houseId,
+                excludeUserId: userId,
+                title: '🅿️ Parking free',
+                body: displayName ? `${displayName} freed the parking spot` : 'The parking spot is now free',
+                data: { screen: 'parking' },
+                notificationType: 'parking_claimed',
+              });
+            }
+          }).catch((err) => captureError(err, { context: 'notify-release', houseId }));
+        } catch (err) {
           set({ current: previous });
-          if (error) captureError(error, { context: 'release-parking', houseId });
+          captureError(err, { context: 'release-parking', houseId });
           throw new Error('Could not release the parking spot. Please try again.');
         }
-
-        // Notification fires in background — doesn't block the UI
-        supabase.auth.getSession().then(({ data: sessionData }) => {
-          const userId = sessionData.session?.user.id ?? '';
-          if (userId) {
-            return notifyHousemates({
-              houseId,
-              excludeUserId: userId,
-              title: '🅿️ Parking free',
-              body: 'The parking spot is now free',
-              data: { screen: 'parking' },
-              notificationType: 'parking_claimed',
-            });
-          }
-        }).catch((err) => captureError(err, { context: 'notify-release', houseId }));
       },
       addReservation: async (data, displayName, houseId): Promise<string> => {
         // RPC performs an advisory-locked conflict check + insert atomically,

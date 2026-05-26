@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, TextInput, FlatList,
-  ActivityIndicator, useWindowDimensions,
+  ActivityIndicator, useWindowDimensions, Alert,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
@@ -209,11 +209,11 @@ function TodayAtHome(): React.JSX.Element {
         await claim(myId, myName, houseId ?? '');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } else {
-        await release(houseId ?? '');
+        await release(houseId ?? '', myName);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
-    } catch {
-      // store sets its own error state
+    } catch (err) {
+      Alert.alert('Parking error', err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setIsParkingBusy(false);
     }
@@ -446,7 +446,13 @@ function ParkingCard(): React.JSX.Element {
   const newReservations    = countNew(reservations, lastSeen.parking, myId, 'requestedBy');
 
   const handleClaim   = useCallback(async (): Promise<void> => { await claim(myId, myName, houseId ?? '').catch(() => {}); }, [claim, myId, myName, houseId]);
-  const handleRelease = useCallback(async (): Promise<void> => { await release(houseId ?? '').catch(() => {}); }, [release, houseId]);
+  const handleRelease = useCallback(async (): Promise<void> => {
+    try {
+      await release(houseId ?? '', myName);
+    } catch (err) {
+      Alert.alert('Parking error', err instanceof Error ? err.message : 'Could not release the parking spot. Please try again.');
+    }
+  }, [release, houseId, myName]);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/parking')}>

@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useGroceryStore, type GroceryItem, type AddMode, type GroceryList } from '@stores/groceryStore';
+import { useGroceryStore, type GroceryItem, type AddMode, type GroceryList, type SavedListItem } from '@stores/groceryStore';
 import { useAuthStore } from '@stores/authStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -307,7 +307,7 @@ export default function GroceryScreen(): React.JSX.Element {
   // ── Modal state ──────────────────────────────────────────────────────────────
   const [showSaveListModal, setShowSaveListModal] = useState(false);
   const [saveListMode, setSaveListMode]           = useState<SaveListMode>('new');
-  const [pendingPublishedItems, setPendingPublishedItems] = useState<Array<{ name: string; quantity: string }>>([]);
+  const [pendingPublishedItems, setPendingPublishedItems] = useState<SavedListItem[]>([]);
   const [showLeaveModal, setShowLeaveModal]       = useState(false);
   const leaveWarningShownRef                      = useRef(false);
 
@@ -502,9 +502,15 @@ export default function GroceryScreen(): React.JSX.Element {
   // ── Save list modal handlers ───────────────────────────────────────────────
   const handleSaveNew = useCallback(async (name: string, isPrivate: boolean): Promise<void> => {
     if (!houseId) return;
-    await createSavedList(name, houseId, myId, pendingPublishedItems, isPrivate);
-    setPendingPublishedItems([]);
-  }, [createSavedList, houseId, myId, pendingPublishedItems]);
+    setAddError(null);
+    try {
+      await createSavedList(name, houseId, myId, pendingPublishedItems, isPrivate, myName);
+      setAddError(null);
+      setPendingPublishedItems([]);
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Could not save the list. Please try again.');
+    }
+  }, [createSavedList, houseId, myId, myName, pendingPublishedItems]);
 
   const handleUpdateList = useCallback(async (): Promise<void> => {
     if (!currentDraftSourceListId) return;

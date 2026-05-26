@@ -1,10 +1,10 @@
 import { create } from 'zustand';
+import { z } from 'zod';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
-import { useAuthStore } from '@stores/authStore';
 
 const ACTIVE_RUN_KEY = 'grocery_active_run';
 const RUN_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -24,6 +24,11 @@ export interface GroceryItem {
   isDraft: boolean;
   comment?: string;
   draftExpiresAt?: string;
+}
+
+export interface SavedListItem {
+  name: string;
+  quantity: string;
 }
 
 export interface GroceryListItem {
@@ -80,8 +85,8 @@ interface GroceryStore {
   startRun: (shopperId: string, shopperName: string) => Promise<void>;
   endRun: () => Promise<void>;
   fetchSavedLists: (houseId: string) => Promise<void>;
-  createSavedList: (name: string, houseId: string, userId: string, items: Array<{ name: string; quantity: string }>, isPrivate?: boolean) => Promise<void>;
-  updateSavedList: (listId: string, items: Array<{ name: string; quantity: string }>) => Promise<void>;
+  createSavedList: (name: string, houseId: string, userId: string, items: SavedListItem[], isPrivate?: boolean, displayName?: string) => Promise<void>;
+  updateSavedList: (listId: string, items: SavedListItem[]) => Promise<void>;
   deleteSavedList: (listId: string) => Promise<void>;
   loadListIntoDraft: (list: GroceryList, userId: string, houseId: string) => Promise<void>;
   setCurrentDraftSourceListId: (id: string | null) => void;
@@ -105,6 +110,25 @@ function mapItem(r: Record<string, unknown>): GroceryItem {
   };
 }
 
+const createSavedListSchema = z.object({
+  name:        z.string().trim().min(1),
+  houseId:     z.string().uuid(),
+  userId:      z.string().uuid(),
+  isPrivate:   z.boolean(),
+  displayName: z.string().trim(),
+  items:       z.array(z.object({ name: z.string().trim().min(1), quantity: z.string() })),
+});
+
+const createGroceryListResultSchema = z.object({
+  id:         z.string().uuid(),
+  house_id:   z.string().uuid(),
+  name:       z.string(),
+  created_by: z.string(),
+  is_private: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
 export const useGroceryStore = create<GroceryStore>()(
   devtools(
     (set, get) => ({
@@ -117,10 +141,6 @@ export const useGroceryStore = create<GroceryStore>()(
       currentDraftSourceListId: null,
 
       load: async (houseId: string): Promise<void> => {
-        if (houseId !== useAuthStore.getState().houseId) {
-          console.warn('[grocery] house ID mismatch — aborting load');
-          return;
-        }
         try {
           try {
             const stored = await AsyncStorage.getItem(ACTIVE_RUN_KEY);
@@ -352,32 +372,48 @@ export const useGroceryStore = create<GroceryStore>()(
         }
       },
 
-      createSavedList: async (name, houseId, userId, items, isPrivate = false): Promise<void> => {
-        const { data: listData, error: listError } = await supabase
-          .from('grocery_lists')
-          .insert({ house_id: houseId, name, created_by: userId, is_private: isPrivate })
-          .select()
-          .single();
-        if (listError) { captureError(listError, { context: 'create-grocery-list' }); throw new Error('Could not save the list. Please try again.'); }
+      createSavedList: async (name, houseId, userId, items, isPrivate = false, displayName = ''): Promise<void> => {
+        try {
+          const parsed = createSavedListSchema.parse({ name, houseId, userId, isPrivate, displayName, items });
+          const { data: listData, error: listError } = await supabase.rpc('create_grocery_list', {
+            p_house_id:   parsed.houseId,
+            p_name:       parsed.name,
+            p_created_by: parsed.userId,
+            p_is_private: parsed.isPrivate,
+            p_items:      parsed.items.map((item, i) => ({ name: item.name, quantity: item.quantity, position: i })),
+          });
+          if (listError) { captureError(listError, { context: 'create-grocery-list' }); throw new Error('Could not save the list. Please try again.'); }
 
-        if (items.length > 0) {
-          const { error: itemsError } = await supabase
-            .from('grocery_list_items')
-            .insert(items.map((item, i) => ({ list_id: listData.id, name: item.name, quantity: item.quantity, position: i })));
-          if (itemsError) { captureError(itemsError, { context: 'create-grocery-list-items' }); throw new Error('Could not save the list items. Please try again.'); }
+          const rpcResult = createGroceryListResultSchema.parse(listData);
+          const newList: GroceryList = {
+            id:        rpcResult.id,
+            houseId:   rpcResult.house_id,
+            name:      rpcResult.name,
+            createdBy: rpcResult.created_by,
+            isPrivate: rpcResult.is_private,
+            createdAt: rpcResult.created_at,
+            updatedAt: rpcResult.updated_at,
+            items:     parsed.items.map((item, i) => ({ id: '', listId: rpcResult.id, name: item.name, quantity: item.quantity, position: i })),
+          };
+          set({ savedLists: [newList, ...get().savedLists] });
+
+          if (!parsed.isPrivate) {
+            void notifyHousemates({
+              houseId:       parsed.houseId,
+              excludeUserId: parsed.userId,
+              title: '🛒 New grocery list saved',
+              body: parsed.displayName ? `${parsed.displayName} saved a new list: "${parsed.name}"` : `A new grocery list was saved: "${parsed.name}"`,
+              data: { screen: 'grocery' },
+              notificationType: 'grocery_shared',
+            }).catch((err) => captureError(err, { context: 'notify-grocery-list-saved' }));
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message === 'Could not save the list. Please try again.') {
+            throw err;
+          }
+          captureError(err, { context: 'createSavedList-unexpected' });
+          throw new Error('An unexpected error occurred while saving the list. Please try again.');
         }
-
-        const newList: GroceryList = {
-          id: listData.id as string,
-          houseId: listData.house_id as string,
-          name: listData.name as string,
-          createdBy: listData.created_by as string,
-          isPrivate: (listData.is_private as boolean) ?? false,
-          createdAt: listData.created_at as string,
-          updatedAt: listData.updated_at as string,
-          items: items.map((item, i) => ({ id: '', listId: listData.id as string, name: item.name, quantity: item.quantity, position: i })),
-        };
-        set({ savedLists: [newList, ...get().savedLists] });
       },
 
       updateSavedList: async (listId, items): Promise<void> => {

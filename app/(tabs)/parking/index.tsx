@@ -493,11 +493,11 @@ export default function ParkingScreen(): React.JSX.Element {
   const handleRelease = useCallback(async (): Promise<void> => {
     setError('');
     try {
-      await release(houseId ?? '');
+      await release(houseId ?? '', myName);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('parking.failed_release'));
     }
-  }, [release, houseId, t]);
+  }, [release, houseId, myName, t]);
 
   const handleReleaseOther = useCallback((): void => {
     const pinnedSessionId = current?.id ?? '';
@@ -513,7 +513,7 @@ export default function ParkingScreen(): React.JSX.Element {
         }
         return;
       }
-      release(pinnedHouseId).catch((err: unknown) => {
+      release(pinnedHouseId, myName).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : t('parking.failed_release');
         if (Platform.OS === 'web') {
           window.alert(msg);
@@ -537,7 +537,7 @@ export default function ParkingScreen(): React.JSX.Element {
         ]
       );
     }
-  }, [current, housemates, release, houseId, t]);
+  }, [current, housemates, myName, release, houseId, t]);
 
   const handleCancel = useCallback(async (id: string): Promise<void> => {
     try {
