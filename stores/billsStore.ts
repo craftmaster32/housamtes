@@ -176,7 +176,7 @@ export const useBillsStore = create<BillsStore>()(
             title: '🎉 Money drama resolved!',
             body: `${bill.title} sorted. ${settledByName} saves the day 🙌`,
             data: { screen: 'bills' },
-            notificationType: 'bill_deleted',
+            notificationType: 'bill_settled',
           });
         }
       },
@@ -200,7 +200,7 @@ export const useBillsStore = create<BillsStore>()(
               title: '🗑️ Bill gone poof',
               body: `${bill.title} was removed. Pretend it never happened.`,
               data: { screen: 'bills' },
-              notificationType: 'bill_settled',
+              notificationType: 'bill_deleted',
             });
           }
         }

@@ -581,7 +581,15 @@ export default function GroceryScreen(): React.JSX.Element {
       'This removes all the checked-off items from the list. Gone for good.',
       [
         { text: 'Keep them', style: 'cancel' },
-        { text: 'Wipe them!', style: 'destructive', onPress: (): void => { clearChecked(houseId ?? ''); } },
+        {
+          text: 'Wipe them!',
+          style: 'destructive',
+          onPress: (): void => {
+            clearChecked(houseId ?? '').catch(() => {
+              Alert.alert('Could not clear items', 'Something went wrong. Please try again.');
+            });
+          },
+        },
       ]
     );
   }, [clearChecked, houseId]);
