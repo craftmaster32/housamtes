@@ -353,46 +353,57 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       createSavedList: async (name, houseId, userId, items, isPrivate = false, displayName = ''): Promise<void> => {
-        const { data: listData, error: listError } = await supabase
-          .from('grocery_lists')
-          .insert({ house_id: houseId, name, created_by: userId, is_private: isPrivate })
-          .select()
-          .single();
-        if (listError) { captureError(listError, { context: 'create-grocery-list' }); throw new Error('Could not save the list. Please try again.'); }
+        try {
+          const { data: listData, error: listError } = await supabase
+            .from('grocery_lists')
+            .insert({ house_id: houseId, name, created_by: userId, is_private: isPrivate })
+            .select()
+            .single();
+          if (listError) { captureError(listError, { context: 'create-grocery-list' }); throw new Error('Could not save the list. Please try again.'); }
 
-        if (items.length > 0) {
-          const { error: itemsError } = await supabase
-            .from('grocery_list_items')
-            .insert(items.map((item, i) => ({ list_id: listData.id, name: item.name, quantity: item.quantity, position: i })));
-          if (itemsError) {
-            captureError(itemsError, { context: 'create-grocery-list-items' });
-            const { error: deleteError } = await supabase.from('grocery_lists').delete().eq('id', listData.id);
-            if (deleteError) captureError(deleteError, { context: 'rollback-create-grocery-list' });
-            throw new Error('Could not save the list items. Please try again.');
+          if (items.length > 0) {
+            const { error: itemsError } = await supabase
+              .from('grocery_list_items')
+              .insert(items.map((item, i) => ({ list_id: listData.id, name: item.name, quantity: item.quantity, position: i })));
+            if (itemsError) {
+              captureError(itemsError, { context: 'create-grocery-list-items' });
+              const { error: deleteError } = await supabase.from('grocery_lists').delete().eq('id', listData.id);
+              if (deleteError) captureError(deleteError, { context: 'rollback-create-grocery-list' });
+              throw new Error('Could not save the list items. Please try again.');
+            }
           }
-        }
 
-        const newList: GroceryList = {
-          id: listData.id as string,
-          houseId: listData.house_id as string,
-          name: listData.name as string,
-          createdBy: listData.created_by as string,
-          isPrivate: (listData.is_private as boolean) ?? false,
-          createdAt: listData.created_at as string,
-          updatedAt: listData.updated_at as string,
-          items: items.map((item, i) => ({ id: '', listId: listData.id as string, name: item.name, quantity: item.quantity, position: i })),
-        };
-        set({ savedLists: [newList, ...get().savedLists] });
+          const newList: GroceryList = {
+            id: listData.id as string,
+            houseId: listData.house_id as string,
+            name: listData.name as string,
+            createdBy: listData.created_by as string,
+            isPrivate: (listData.is_private as boolean) ?? false,
+            createdAt: listData.created_at as string,
+            updatedAt: listData.updated_at as string,
+            items: items.map((item, i) => ({ id: '', listId: listData.id as string, name: item.name, quantity: item.quantity, position: i })),
+          };
+          set({ savedLists: [newList, ...get().savedLists] });
 
-        if (!isPrivate) {
-          void notifyHousemates({
-            houseId,
-            excludeUserId: userId,
-            title: '🛒 New grocery list saved',
-            body: displayName ? `${displayName} saved a new list: "${name}"` : `A new grocery list was saved: "${name}"`,
-            data: { screen: 'grocery' },
-            notificationType: 'grocery_shared',
-          }).catch((err) => captureError(err, { context: 'notify-grocery-list-saved' }));
+          if (!isPrivate) {
+            void notifyHousemates({
+              houseId,
+              excludeUserId: userId,
+              title: '🛒 New grocery list saved',
+              body: displayName ? `${displayName} saved a new list: "${name}"` : `A new grocery list was saved: "${name}"`,
+              data: { screen: 'grocery' },
+              notificationType: 'grocery_shared',
+            }).catch((err) => captureError(err, { context: 'notify-grocery-list-saved' }));
+          }
+        } catch (err) {
+          if (err instanceof Error && (
+            err.message === 'Could not save the list. Please try again.' ||
+            err.message === 'Could not save the list items. Please try again.'
+          )) {
+            throw err;
+          }
+          captureError(err, { context: 'createSavedList-unexpected' });
+          throw new Error('An unexpected error occurred while saving the list. Please try again.');
         }
       },
 
