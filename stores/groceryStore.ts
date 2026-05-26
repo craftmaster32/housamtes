@@ -119,6 +119,16 @@ const createSavedListSchema = z.object({
   items:       z.array(z.object({ name: z.string().trim().min(1), quantity: z.string() })),
 });
 
+const createGroceryListResultSchema = z.object({
+  id:         z.string().uuid(),
+  house_id:   z.string().uuid(),
+  name:       z.string(),
+  created_by: z.string(),
+  is_private: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
 export const useGroceryStore = create<GroceryStore>()(
   devtools(
     (set, get) => ({
@@ -374,15 +384,16 @@ export const useGroceryStore = create<GroceryStore>()(
           });
           if (listError) { captureError(listError, { context: 'create-grocery-list' }); throw new Error('Could not save the list. Please try again.'); }
 
+          const rpcResult = createGroceryListResultSchema.parse(listData);
           const newList: GroceryList = {
-            id:        listData.id as string,
-            houseId:   listData.house_id as string,
-            name:      listData.name as string,
-            createdBy: listData.created_by as string,
-            isPrivate: (listData.is_private as boolean) ?? false,
-            createdAt: listData.created_at as string,
-            updatedAt: listData.updated_at as string,
-            items:     parsed.items.map((item, i) => ({ id: '', listId: listData.id as string, name: item.name, quantity: item.quantity, position: i })),
+            id:        rpcResult.id,
+            houseId:   rpcResult.house_id,
+            name:      rpcResult.name,
+            createdBy: rpcResult.created_by,
+            isPrivate: rpcResult.is_private,
+            createdAt: rpcResult.created_at,
+            updatedAt: rpcResult.updated_at,
+            items:     parsed.items.map((item, i) => ({ id: '', listId: rpcResult.id, name: item.name, quantity: item.quantity, position: i })),
           };
           set({ savedLists: [newList, ...get().savedLists] });
 
