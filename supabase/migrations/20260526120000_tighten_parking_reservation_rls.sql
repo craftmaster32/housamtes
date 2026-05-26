@@ -2,6 +2,12 @@
 -- create a reservation on their own behalf, and make requested_by immutable
 -- after creation via a trigger (WITH CHECK alone would break vote updates).
 
+-- ── Index: support DELETE USING and queries filtering by requester ────────────
+-- (INSERT WITH CHECK evaluates only the new row, so it doesn't benefit from
+--  this index; the DELETE USING clause does scan existing rows and does.)
+CREATE INDEX IF NOT EXISTS idx_parking_reservations_requested_by
+  ON parking_reservations(requested_by);
+
 -- ── INSERT: require requested_by = auth.uid() ─────────────────────────────────
 DROP POLICY IF EXISTS "house members can insert parking reservations" ON parking_reservations;
 CREATE POLICY "house members can insert parking reservations"
