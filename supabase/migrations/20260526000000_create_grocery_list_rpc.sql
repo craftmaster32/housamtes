@@ -28,6 +28,10 @@ BEGIN
   VALUES (p_house_id, btrim(p_name), p_created_by, p_is_private)
   RETURNING * INTO new_list;
 
+  IF p_items IS NOT NULL AND jsonb_typeof(p_items) <> 'array' THEN
+    RAISE EXCEPTION 'invalid_items: p_items must be a JSON array';
+  END IF;
+
   IF jsonb_array_length(COALESCE(p_items, '[]'::jsonb)) > 0 THEN
     IF EXISTS (
       SELECT 1 FROM jsonb_array_elements(p_items) AS item

@@ -26,6 +26,11 @@ export interface GroceryItem {
   draftExpiresAt?: string;
 }
 
+export interface SavedListItem {
+  name: string;
+  quantity: string;
+}
+
 export interface GroceryListItem {
   id: string;
   listId: string;
@@ -80,8 +85,8 @@ interface GroceryStore {
   startRun: (shopperId: string, shopperName: string) => Promise<void>;
   endRun: () => Promise<void>;
   fetchSavedLists: (houseId: string) => Promise<void>;
-  createSavedList: (name: string, houseId: string, userId: string, items: Array<{ name: string; quantity: string }>, isPrivate?: boolean, displayName?: string) => Promise<void>;
-  updateSavedList: (listId: string, items: Array<{ name: string; quantity: string }>) => Promise<void>;
+  createSavedList: (name: string, houseId: string, userId: string, items: SavedListItem[], isPrivate?: boolean, displayName?: string) => Promise<void>;
+  updateSavedList: (listId: string, items: SavedListItem[]) => Promise<void>;
   deleteSavedList: (listId: string) => Promise<void>;
   loadListIntoDraft: (list: GroceryList, userId: string, houseId: string) => Promise<void>;
   setCurrentDraftSourceListId: (id: string | null) => void;

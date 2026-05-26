@@ -316,10 +316,8 @@ export const useParkingStore = create<ParkingStore>()(
             .eq('id', previous.id)
             .eq('house_id', houseId)
             .select();
-          if (error || !updated?.length) {
-            if (error) captureError(error, { context: 'release-parking', houseId });
-            throw new Error('Could not release the parking spot. Please try again.');
-          }
+          if (error) throw error;
+          if (!updated?.length) throw new Error('No rows updated: parking session not found or already inactive');
 
           // Notification fires in background — doesn't block the UI
           supabase.auth.getSession().then(({ data: sessionData }) => {
