@@ -29,6 +29,14 @@
       "expo-notifications",
       "expo-localization",
       [
+        "expo-media-library",
+        {
+          "photosPermission": "HouseMates needs access to save house photos to your library.",
+          "savePhotosPermission": "HouseMates needs permission to save photos to your device.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      [
         "expo-calendar",
         {
           "calendarPermission": "HouseMates needs calendar access to add house events and parking reservations to your calendar.",
