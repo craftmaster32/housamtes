@@ -490,7 +490,7 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [claim, myId, myName, houseId, t]);
 
-  const doRelease = useCallback(async (): Promise<void> => {
+  const handleRelease = useCallback(async (): Promise<void> => {
     setError('');
     try {
       await release(houseId ?? '', myName);
@@ -498,23 +498,6 @@ export default function ParkingScreen(): React.JSX.Element {
       setError(err instanceof Error ? err.message : t('parking.failed_release'));
     }
   }, [release, houseId, myName, t]);
-
-  const handleRelease = useCallback((): void => {
-    if (Platform.OS === 'web') {
-      if (window.confirm('Done parking? Free the spot for your housemates — legend move.')) {
-        doRelease().catch(() => {});
-      }
-    } else {
-      Alert.alert(
-        'Done with the spot? 🚗',
-        'Free it up for your housemates — total legend behaviour.',
-        [
-          { text: 'Not yet', style: 'cancel' },
-          { text: 'Free it up!', style: 'destructive', onPress: (): void => { doRelease().catch(() => {}); } },
-        ]
-      );
-    }
-  }, [doRelease]);
 
   const handleReleaseOther = useCallback((): void => {
     const pinnedSessionId = current?.id ?? '';
