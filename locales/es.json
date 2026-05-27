@@ -499,7 +499,17 @@
     "report_message": "¿Reportar esta foto de {{name}} como contenido inapropiado?",
     "report_action": "Reportar",
     "report_submitted_title": "Reporte enviado",
-    "report_submitted_message": "Nuestro equipo lo revisará en 48 horas."
+    "report_submitted_message": "Nuestro equipo lo revisará en 48 horas.",
+    "download_photo": "Guardar en teléfono",
+    "downloading": "Guardando…",
+    "download_success_title": "¡Guardado!",
+    "download_success": "Foto guardada en tu galería.",
+    "download_error": "No se pudo guardar la foto. Intenta de nuevo.",
+    "download_permission_denied": "Permite que HouseMates acceda a tu galería en Configuración.",
+    "photos_selected_one": "1 seleccionada",
+    "photos_selected_other": "{{count}} seleccionadas",
+    "download_all_success_one": "1 foto guardada en tu galería.",
+    "download_all_success_other": "{{count}} fotos guardadas en tu galería."
   },
   "profile": {
     "account_section": "CUENTA",

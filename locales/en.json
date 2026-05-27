@@ -511,7 +511,17 @@
     "report_message": "Report this photo by {{name}} as inappropriate content?",
     "report_action": "Report",
     "report_submitted_title": "Report Submitted",
-    "report_submitted_message": "Our team will review this within 48 hours."
+    "report_submitted_message": "Our team will review this within 48 hours.",
+    "download_photo": "Save to Phone",
+    "downloading": "Saving…",
+    "download_success_title": "Saved!",
+    "download_success": "Photo saved to your library.",
+    "download_error": "Could not save photo. Try again.",
+    "download_permission_denied": "Allow HouseMates to access your photo library in Settings.",
+    "photos_selected_one": "1 selected",
+    "photos_selected_other": "{{count}} selected",
+    "download_all_success_one": "1 photo saved to your library.",
+    "download_all_success_other": "{{count}} photos saved to your library."
   },
   "profile": {
     "account_section": "ACCOUNT",
