@@ -292,7 +292,7 @@ export default function PhotosScreen(): React.JSX.Element {
           : t('photos.download_all_success_other', { count })
       );
     } catch (err) {
-      const isPermission = err instanceof Error && err.message === 'permission_denied';
+      const isPermission = err instanceof Error && err.name === 'permission_denied';
       Alert.alert(
         t('common.error', 'Error'),
         isPermission ? t('photos.download_permission_denied') : t('photos.download_error')

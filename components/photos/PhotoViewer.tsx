@@ -149,7 +149,7 @@ export function PhotoViewer({
       await downloadPhotoToLibrary(photo.url);
       Alert.alert(t('photos.download_success_title'), t('photos.download_success'));
     } catch (err) {
-      const isPermission = err instanceof Error && err.message === 'permission_denied';
+      const isPermission = err instanceof Error && err.name === 'permission_denied';
       Alert.alert(
         t('common.error', 'Error'),
         isPermission ? t('photos.download_permission_denied') : t('photos.download_error')
