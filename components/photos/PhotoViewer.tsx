@@ -222,7 +222,7 @@ export function PhotoViewer({
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('photos.download_photo')}
-            accessibilityState={{ busy: isDownloading }}
+            accessibilityState={{ busy: isDownloading, disabled: isDownloading }}
           >
             {isDownloading ? (
               <ActivityIndicator size="small" color="#fff" />

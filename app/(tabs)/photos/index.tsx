@@ -277,7 +277,7 @@ export default function PhotosScreen(): React.JSX.Element {
   const handleBulkDownload = useCallback(async (): Promise<void> => {
     const ids = selectedIdsRef.current;
     if (ids.size === 0 || isBulkDownloading) return;
-    const toDownload = filtered.filter((p) => ids.has(p.id));
+    const toDownload = photos.filter((p) => ids.has(p.id));
     setIsBulkDownloading(true);
     try {
       for (const photo of toDownload) {
@@ -300,7 +300,7 @@ export default function PhotosScreen(): React.JSX.Element {
     } finally {
       setIsBulkDownloading(false);
     }
-  }, [isBulkDownloading, filtered, exitSelectMode, t]);
+  }, [isBulkDownloading, photos, exitSelectMode, t]);
 
   const pickFromCamera = useCallback(async (): Promise<void> => {
     try {
@@ -443,7 +443,12 @@ export default function PhotosScreen(): React.JSX.Element {
               accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
               accessibilityState={{ selected: isSelectMode ? isSelected : undefined }}
             >
-              <Image source={{ uri: photo.url }} style={styles.gridImg} contentFit="cover" />
+              <Image
+                source={{ uri: photo.url }}
+                style={styles.gridImg}
+                contentFit="cover"
+                accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
+              />
               {isSelectMode && isSelected && (
                 <View style={styles.selectedOverlay}>
                   <View style={styles.checkCircle}>
