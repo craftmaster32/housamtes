@@ -78,11 +78,11 @@
     "typescript": "~5.9.2"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
+    "**/*.{ts,tsx}": [
       "eslint --fix",
       "prettier --write"
     ],
-    "*.{json,md}": [
+    "**/*.{json,md}": [
       "prettier --write"
     ]
   },

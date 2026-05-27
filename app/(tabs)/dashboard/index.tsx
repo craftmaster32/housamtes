@@ -1,7 +1,14 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import {
-  View, StyleSheet, ScrollView, Pressable, TextInput, FlatList,
-  ActivityIndicator, useWindowDimensions, Alert,
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  TextInput,
+  FlatList,
+  ActivityIndicator,
+  useWindowDimensions,
+  Alert,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
@@ -12,7 +19,12 @@ import { router, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '@stores/authStore';
-import { useBillsStore, calculateAllNetBalances, calculateSimplifiedBalancesForUser, type Bill } from '@stores/billsStore';
+import {
+  useBillsStore,
+  calculateAllNetBalances,
+  calculateSimplifiedBalancesForUser,
+  type Bill,
+} from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
@@ -64,18 +76,18 @@ function todayDateLabel(): string {
 }
 
 const CATEGORY_ICON_MAP: Record<string, { name: string; color: string; bg: string }> = {
-  rent:           { name: 'home-outline',       color: '#8B5CF6', bg: '#2D1F4A' },
-  groceries:      { name: 'cart-outline',        color: '#22C55E', bg: '#0A2A1A' },
-  food:           { name: 'fast-food-outline',   color: '#F59E0B', bg: '#2A1A0A' },
-  transport:      { name: 'car-outline',         color: '#64748B', bg: '#1A1F2A' },
-  utilities:      { name: 'flash-outline',       color: '#F59E0B', bg: '#2A1A0A' },
-  internet:       { name: 'wifi-outline',        color: '#06B6D4', bg: '#0A1F2A' },
-  phone:          { name: 'phone-portrait-outline', color: '#06B6D4', bg: '#0A1F2A' },
-  entertainment:  { name: 'musical-notes-outline', color: '#EC4899', bg: '#2A0A1A' },
-  health:         { name: 'medkit-outline',      color: '#10B981', bg: '#0A2A1A' },
-  shopping:       { name: 'bag-outline',         color: '#10B981', bg: '#0A2A1A' },
-  travel:         { name: 'airplane-outline',    color: '#3B82F6', bg: '#0A1A2A' },
-  other:          { name: 'receipt-outline',     color: '#6B7280', bg: '#1A1A1A' },
+  rent: { name: 'home-outline', color: '#8B5CF6', bg: '#2D1F4A' },
+  groceries: { name: 'cart-outline', color: '#22C55E', bg: '#0A2A1A' },
+  food: { name: 'fast-food-outline', color: '#F59E0B', bg: '#2A1A0A' },
+  transport: { name: 'car-outline', color: '#64748B', bg: '#1A1F2A' },
+  utilities: { name: 'flash-outline', color: '#F59E0B', bg: '#2A1A0A' },
+  internet: { name: 'wifi-outline', color: '#06B6D4', bg: '#0A1F2A' },
+  phone: { name: 'phone-portrait-outline', color: '#06B6D4', bg: '#0A1F2A' },
+  entertainment: { name: 'musical-notes-outline', color: '#EC4899', bg: '#2A0A1A' },
+  health: { name: 'medkit-outline', color: '#10B981', bg: '#0A2A1A' },
+  shopping: { name: 'bag-outline', color: '#10B981', bg: '#0A2A1A' },
+  travel: { name: 'airplane-outline', color: '#3B82F6', bg: '#0A1A2A' },
+  other: { name: 'receipt-outline', color: '#6B7280', bg: '#1A1A1A' },
 };
 
 function catIconMeta(category: string | null): { name: string; color: string; bg: string } {
@@ -118,10 +130,13 @@ function BalanceHeroCard(): React.JSX.Element {
   }
   const balances = calculateSimplifiedBalancesForUser(combinedNet, myId);
   const totalOwed = balances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
-  const totalOwe  = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
+  const totalOwe = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
   const netAmount = totalOwed - totalOwe;
-  const newBills  = countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills);
-  const isOwed    = netAmount >= 0;
+  const newBills = countNewSimple(
+    bills.filter((b) => !b.settled),
+    lastSeen.bills
+  );
+  const isOwed = netAmount >= 0;
   const peopleCount = balances.length;
 
   return (
@@ -150,9 +165,7 @@ function BalanceHeroCard(): React.JSX.Element {
         )}
       </View>
 
-      <Text style={styles.balanceHeroAmt}>
-        {formatFull(Math.abs(netAmount), currencyCode)}
-      </Text>
+      <Text style={styles.balanceHeroAmt}>{formatFull(Math.abs(netAmount), currencyCode)}</Text>
 
       {balances.length > 0 && (
         <View style={styles.balanceHeroBtns}>
@@ -178,31 +191,34 @@ function BalanceHeroCard(): React.JSX.Element {
 
 // ── Today at Home ─────────────────────────────────────────────────────────────
 function TodayAtHome(): React.JSX.Element {
-  const c          = useThemedColors();
-  const current    = useParkingStore((s) => s.current);
-  const claim      = useParkingStore((s) => s.claim);
-  const release    = useParkingStore((s) => s.release);
-  const chores     = useChoresStore((s) => s.chores);
-  const items      = useGroceryStore((s) => s.items);
+  const c = useThemedColors();
+  const current = useParkingStore((s) => s.current);
+  const claim = useParkingStore((s) => s.claim);
+  const release = useParkingStore((s) => s.release);
+  const chores = useChoresStore((s) => s.chores);
+  const items = useGroceryStore((s) => s.items);
   const housemates = useHousematesStore((s) => s.housemates);
-  const isEnabled  = useSettingsStore((s) => s.isEnabled);
-  const profile    = useAuthStore((s) => s.profile);
-  const houseId    = useAuthStore((s) => s.houseId);
+  const isEnabled = useSettingsStore((s) => s.isEnabled);
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
 
-  const myId   = profile?.id ?? '';
+  const myId = profile?.id ?? '';
   const myName = profile?.name ?? '';
   const isFree = !current;
   const isMine = current?.occupant === myId;
 
   const [isParkingBusy, setIsParkingBusy] = useState(false);
 
-  const pendingChores  = chores.filter((ch) => !ch.isComplete).length;
-  const totalChores    = chores.length;
+  const pendingChores = chores.filter((ch) => !ch.isComplete).length;
+  const totalChores = chores.length;
   const groceryPending = items.filter((i) => !i.isChecked && !i.isPersonal).length;
 
   const handleParkingPress = useCallback(async (): Promise<void> => {
     if (isParkingBusy) return;
-    if (!isFree && !isMine) { router.push('/(tabs)/parking'); return; }
+    if (!isFree && !isMine) {
+      router.push('/(tabs)/parking');
+      return;
+    }
     setIsParkingBusy(true);
     try {
       if (isFree) {
@@ -213,7 +229,10 @@ function TodayAtHome(): React.JSX.Element {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
     } catch (err) {
-      Alert.alert('Parking error', err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      Alert.alert(
+        'Parking error',
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+      );
     } finally {
       setIsParkingBusy(false);
     }
@@ -222,10 +241,10 @@ function TodayAtHome(): React.JSX.Element {
   const parkingSubLabel = isParkingBusy
     ? 'On it…'
     : isFree
-    ? 'First come, first parked'
-    : isMine
-    ? 'Done? Free it up'
-    : `by ${resolveName(current?.occupant ?? '', housemates).split(' ')[0]}`;
+      ? 'First come, first parked'
+      : isMine
+        ? 'Done? Free it up'
+        : `by ${resolveName(current?.occupant ?? '', housemates).split(' ')[0]}`;
 
   return (
     <View style={styles.todaySection}>
@@ -237,20 +256,34 @@ function TodayAtHome(): React.JSX.Element {
             onPress={handleParkingPress}
             disabled={isParkingBusy}
             accessibilityRole="button"
-            accessibilityLabel={isFree ? 'Claim parking spot' : isMine ? 'Release parking spot' : 'View parking'}
+            accessibilityLabel={
+              isFree ? 'Claim parking spot' : isMine ? 'Release parking spot' : 'View parking'
+            }
             accessibilityState={{ busy: isParkingBusy }}
           >
-            <View style={[styles.todayIconWrap, { backgroundColor: isFree ? '#0A2418' : '#2A0A0A' }]}>
-              {isParkingBusy
-                ? <ActivityIndicator size="small" color={isFree ? '#4FB071' : '#D9534F'} />
-                : <Ionicons name={isFree ? 'car-outline' : 'car'} size={20} color={isFree ? '#4FB071' : '#D9534F'} />
-              }
+            <View
+              style={[styles.todayIconWrap, { backgroundColor: isFree ? '#0A2418' : '#2A0A0A' }]}
+            >
+              {isParkingBusy ? (
+                <ActivityIndicator size="small" color={isFree ? '#4FB071' : '#D9534F'} />
+              ) : (
+                <Ionicons
+                  name={isFree ? 'car-outline' : 'car'}
+                  size={20}
+                  color={isFree ? '#4FB071' : '#D9534F'}
+                />
+              )}
             </View>
             <Text style={styles.todayCardCat}>PARKING</Text>
             <Text style={[styles.todayCardStatus, { color: c.textPrimary }]}>
               {isFree ? 'Free' : 'In use'}
             </Text>
-            <Text style={[styles.todayCardSub, { color: isFree || isMine ? c.primary : c.textSecondary }]}>
+            <Text
+              style={[
+                styles.todayCardSub,
+                { color: isFree || isMine ? c.primary : c.textSecondary },
+              ]}
+            >
               {parkingSubLabel}
             </Text>
           </Pressable>
@@ -269,7 +302,7 @@ function TodayAtHome(): React.JSX.Element {
               {totalChores - pendingChores}/{totalChores}
             </Text>
             <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {pendingChores === 0 ? 'Smashed it! 🎉' : 'Someone\'s on it'}
+              {pendingChores === 0 ? 'Smashed it! 🎉' : "Someone's on it"}
             </Text>
           </Pressable>
         )}
@@ -296,16 +329,17 @@ function TodayAtHome(): React.JSX.Element {
 
 // ── Recent Expenses ───────────────────────────────────────────────────────────
 function RecentExpenses(): React.JSX.Element {
-  const c          = useThemedColors();
-  const bills      = useBillsStore((s) => s.bills);
+  const c = useThemedColors();
+  const bills = useBillsStore((s) => s.bills);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const housemates   = useHousematesStore((s) => s.housemates);
+  const housemates = useHousematesStore((s) => s.housemates);
 
   const recent = useMemo(
-    () => [...bills]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 4),
-    [bills],
+    () =>
+      [...bills]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 4),
+    [bills]
   );
 
   if (recent.length === 0) return <></>;
@@ -344,11 +378,18 @@ function RecentExpenses(): React.JSX.Element {
                   <Text style={[styles.recentAmt, { color: c.textPrimary }]}>
                     {formatFull(bill.amount, currencyCode)}
                   </Text>
-                  <View style={[
-                    styles.recentBadge,
-                    { backgroundColor: bill.settled ? c.positive + '18' : c.surfaceSecondary },
-                  ]}>
-                    <Text style={[styles.recentBadgeText, { color: bill.settled ? c.positive : c.textSecondary }]}>
+                  <View
+                    style={[
+                      styles.recentBadge,
+                      { backgroundColor: bill.settled ? c.positive + '18' : c.surfaceSecondary },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.recentBadgeText,
+                        { color: bill.settled ? c.positive : c.textSecondary },
+                      ]}
+                    >
                       {bill.settled ? 'Settled' : 'Pending'}
                     </Text>
                   </View>
@@ -364,16 +405,16 @@ function RecentExpenses(): React.JSX.Element {
 
 // ── Chore Card ────────────────────────────────────────────────────────────────
 function ChoreCard(): React.JSX.Element {
-  const c          = useThemedColors();
-  const chores     = useChoresStore((s) => s.chores);
+  const c = useThemedColors();
+  const chores = useChoresStore((s) => s.chores);
   const toggleChore = useChoresStore((s) => s.toggleChore);
-  const profile    = useAuthStore((s) => s.profile);
-  const lastSeen   = useBadgeStore((s) => s.lastSeen);
-  const myId       = profile?.id ?? '';
-  const myChore    = chores.find((ch) => !ch.isComplete && ch.claimedBy === myId);
-  const pending    = chores.filter((ch) => !ch.isComplete);
-  const done       = chores.filter((ch) => ch.isComplete);
-  const newChores  = countNewSimple(pending, lastSeen.chores);
+  const profile = useAuthStore((s) => s.profile);
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
+  const myId = profile?.id ?? '';
+  const myChore = chores.find((ch) => !ch.isComplete && ch.claimedBy === myId);
+  const pending = chores.filter((ch) => !ch.isComplete);
+  const done = chores.filter((ch) => ch.isComplete);
+  const newChores = countNewSimple(pending, lastSeen.chores);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/chores')}>
@@ -382,24 +423,32 @@ function ChoreCard(): React.JSX.Element {
           <Ionicons name="checkmark-done-outline" size={18} color="#E0B24D" />
         </View>
         <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Your Chore</Text>
-        {newChores > 0
-          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newChores}</Text></View>
-          : chores.length > 0
-          ? <View style={[styles.badgePill, { backgroundColor: c.surfaceSecondary }]}>
-              <Text style={[styles.badgePillText, { color: c.textSecondary }]}>{done.length}/{chores.length} done</Text>
-            </View>
-          : null
-        }
+        {newChores > 0 ? (
+          <View style={styles.cardBadge}>
+            <Text style={styles.cardBadgeText}>{newChores}</Text>
+          </View>
+        ) : chores.length > 0 ? (
+          <View style={[styles.badgePill, { backgroundColor: c.surfaceSecondary }]}>
+            <Text style={[styles.badgePillText, { color: c.textSecondary }]}>
+              {done.length}/{chores.length} done
+            </Text>
+          </View>
+        ) : null}
       </View>
       {myChore ? (
         <>
           <View style={[styles.choreBox, { backgroundColor: '#1A1000' }]}>
             <Ionicons name="brush-outline" size={22} color="#E0B24D" />
-            <Text style={[styles.choreName, { color: c.textPrimary }]} numberOfLines={2}>{myChore.name}</Text>
+            <Text style={[styles.choreName, { color: c.textPrimary }]} numberOfLines={2}>
+              {myChore.name}
+            </Text>
           </View>
           <Pressable
             style={[styles.doneBtn, { backgroundColor: c.positive + '18' }]}
-            onPress={(e) => { e.stopPropagation?.(); toggleChore(myChore.id); }}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              toggleChore(myChore.id);
+            }}
             accessibilityRole="button"
           >
             <Ionicons name="checkmark" size={14} color={c.positive} />
@@ -408,15 +457,21 @@ function ChoreCard(): React.JSX.Element {
         </>
       ) : pending.length > 0 ? (
         <>
-          <Text style={[styles.bigNumber, { color: c.textPrimary }]} numberOfLines={1}>{pending[0].name}</Text>
-          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>{"Nobody's stepped up yet"}</Text>
+          <Text style={[styles.bigNumber, { color: c.textPrimary }]} numberOfLines={1}>
+            {pending[0].name}
+          </Text>
+          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
+            {"Nobody's stepped up yet"}
+          </Text>
         </>
       ) : (
         <>
           <View style={styles.doneAllWrap}>
             <Ionicons name="checkmark-circle" size={32} color={c.positive} />
           </View>
-          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>All done! Screenshot this as proof.</Text>
+          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
+            All done! Screenshot this as proof.
+          </Text>
         </>
       )}
     </WidgetCard>
@@ -425,32 +480,40 @@ function ChoreCard(): React.JSX.Element {
 
 // ── Parking Card ──────────────────────────────────────────────────────────────
 function ParkingCard(): React.JSX.Element {
-  const c            = useThemedColors();
-  const current      = useParkingStore((s) => s.current);
+  const c = useThemedColors();
+  const current = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
-  const claim        = useParkingStore((s) => s.claim);
-  const release      = useParkingStore((s) => s.release);
-  const profile      = useAuthStore((s) => s.profile);
-  const houseId      = useAuthStore((s) => s.houseId);
-  const housemates   = useHousematesStore((s) => s.housemates);
-  const myId         = profile?.id ?? '';
-  const myName       = profile?.name ?? '';
-  const isFree       = !current;
-  const isMine       = current?.occupant === myId;
+  const claim = useParkingStore((s) => s.claim);
+  const release = useParkingStore((s) => s.release);
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const myId = profile?.id ?? '';
+  const myName = profile?.name ?? '';
+  const isFree = !current;
+  const isMine = current?.occupant === myId;
 
-  const lastSeen           = useBadgeStore((s) => s.lastSeen);
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
   const sortedReservations = [...reservations].sort((a, b) => a.date.localeCompare(b.date));
-  const pendingFromOthers  = sortedReservations.filter((r) => r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId));
-  const myReservation      = sortedReservations.find((r) => r.requestedBy === myId) ?? null;
-  const pendingCount       = reservations.filter((r) => r.status === 'pending').length;
-  const newReservations    = countNew(reservations, lastSeen.parking, myId, 'requestedBy');
+  const pendingFromOthers = sortedReservations.filter(
+    (r) =>
+      r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId)
+  );
+  const myReservation = sortedReservations.find((r) => r.requestedBy === myId) ?? null;
+  const pendingCount = reservations.filter((r) => r.status === 'pending').length;
+  const newReservations = countNew(reservations, lastSeen.parking, myId, 'requestedBy');
 
-  const handleClaim   = useCallback(async (): Promise<void> => { await claim(myId, myName, houseId ?? '').catch(() => {}); }, [claim, myId, myName, houseId]);
+  const handleClaim = useCallback(async (): Promise<void> => {
+    await claim(myId, myName, houseId ?? '').catch(() => {});
+  }, [claim, myId, myName, houseId]);
   const handleRelease = useCallback(async (): Promise<void> => {
     try {
       await release(houseId ?? '', myName);
     } catch (err) {
-      Alert.alert('Parking error', err instanceof Error ? err.message : 'Could not release the parking spot. Please try again.');
+      Alert.alert(
+        'Parking error',
+        err instanceof Error ? err.message : 'Could not release the parking spot. Please try again.'
+      );
     }
   }, [release, houseId, myName]);
 
@@ -458,33 +521,58 @@ function ParkingCard(): React.JSX.Element {
     <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
       <View style={styles.cardHeader}>
         <View style={[styles.cardIconWrap, { backgroundColor: isFree ? '#0A2418' : '#2A0A0A' }]}>
-          <Ionicons name={isFree ? 'car-outline' : 'car'} size={18} color={isFree ? c.positive : c.negative} />
+          <Ionicons
+            name={isFree ? 'car-outline' : 'car'}
+            size={18}
+            color={isFree ? c.positive : c.negative}
+          />
         </View>
         <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Parking Spot</Text>
-        {newReservations > 0
-          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newReservations}</Text></View>
-          : pendingCount > 0
-          ? <View style={[styles.badgePill, { backgroundColor: '#E0B24D' }]}>
-              <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{pendingCount} pending</Text>
-            </View>
-          : <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
-        }
+        {newReservations > 0 ? (
+          <View style={styles.cardBadge}>
+            <Text style={styles.cardBadgeText}>{newReservations}</Text>
+          </View>
+        ) : pendingCount > 0 ? (
+          <View style={[styles.badgePill, { backgroundColor: '#E0B24D' }]}>
+            <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{pendingCount} pending</Text>
+          </View>
+        ) : (
+          <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
+        )}
       </View>
-      <View style={[styles.parkingStatus, { backgroundColor: isFree ? c.positive + '14' : c.negative + '14' }]}>
+      <View
+        style={[
+          styles.parkingStatus,
+          { backgroundColor: isFree ? c.positive + '14' : c.negative + '14' },
+        ]}
+      >
         <Text style={[styles.parkingStatusText, { color: isFree ? c.positive : c.negative }]}>
-          {isFree ? 'Available now' : isMine ? 'Your car' : resolveName(current?.occupant ?? '', housemates)}
+          {isFree
+            ? 'Available now'
+            : isMine
+              ? 'Your car'
+              : resolveName(current?.occupant ?? '', housemates)}
         </Text>
-        {current && !isFree && <Text style={[styles.parkingAge, { color: c.textSecondary }]}>{parkingAge(current.startTime)}</Text>}
+        {current && !isFree && (
+          <Text style={[styles.parkingAge, { color: c.textSecondary }]}>
+            {parkingAge(current.startTime)}
+          </Text>
+        )}
       </View>
       <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-        {isFree ? 'Empty spot — free real estate 🏎️' : isMine ? `Your car's been there ${parkingAge(current?.startTime ?? '')}` : `Used by ${resolveName(current?.occupant ?? '', housemates)} · ${parkingAge(current?.startTime ?? '')}`}
+        {isFree
+          ? 'Empty spot — free real estate 🏎️'
+          : isMine
+            ? `Your car's been there ${parkingAge(current?.startTime ?? '')}`
+            : `Used by ${resolveName(current?.occupant ?? '', housemates)} · ${parkingAge(current?.startTime ?? '')}`}
       </Text>
       {pendingFromOthers.map((r) => (
         <View key={r.id} style={[styles.parkingPendingRow, { backgroundColor: '#2A1A00' }]}>
           <View style={styles.parkingPendingInfo}>
             <Ionicons name="time-outline" size={14} color="#E0B24D" />
             <Text style={[styles.parkingPendingText, { color: '#E0B24D', flex: 1 }]}>
-              {resolveName(r.requestedBy, housemates)} wants {r.date}{r.startTime ? ` at ${r.startTime}` : ''}
+              {resolveName(r.requestedBy, housemates)} wants {r.date}
+              {r.startTime ? ` at ${r.startTime}` : ''}
             </Text>
           </View>
           <View style={[styles.approveBtn, { backgroundColor: c.positive }]}>
@@ -493,30 +581,84 @@ function ParkingCard(): React.JSX.Element {
         </View>
       ))}
       {myReservation && pendingFromOthers.length === 0 && (
-        <View style={[styles.parkingReservationRow, {
-          backgroundColor: myReservation.status === 'approved' ? c.positive + '14' : myReservation.status === 'rejected' ? c.negative + '14' : '#2A1A00',
-        }]}>
+        <View
+          style={[
+            styles.parkingReservationRow,
+            {
+              backgroundColor:
+                myReservation.status === 'approved'
+                  ? c.positive + '14'
+                  : myReservation.status === 'rejected'
+                    ? c.negative + '14'
+                    : '#2A1A00',
+            },
+          ]}
+        >
           <Ionicons
-            name={myReservation.status === 'approved' ? 'checkmark-circle-outline' : myReservation.status === 'rejected' ? 'close-circle-outline' : 'time-outline'}
+            name={
+              myReservation.status === 'approved'
+                ? 'checkmark-circle-outline'
+                : myReservation.status === 'rejected'
+                  ? 'close-circle-outline'
+                  : 'time-outline'
+            }
             size={14}
-            color={myReservation.status === 'approved' ? c.positive : myReservation.status === 'rejected' ? c.negative : '#E0B24D'}
+            color={
+              myReservation.status === 'approved'
+                ? c.positive
+                : myReservation.status === 'rejected'
+                  ? c.negative
+                  : '#E0B24D'
+            }
           />
-          <Text style={[styles.parkingReservationText, {
-            color: myReservation.status === 'approved' ? c.positive : myReservation.status === 'rejected' ? c.negative : '#E0B24D',
-          }]}>
-            {myReservation.status === 'approved' ? 'Your spot confirmed' : myReservation.status === 'rejected' ? 'Request rejected' : 'Your request pending'}
-            {' · '}{myReservation.date}{myReservation.startTime ? ` at ${myReservation.startTime}` : ''}
+          <Text
+            style={[
+              styles.parkingReservationText,
+              {
+                color:
+                  myReservation.status === 'approved'
+                    ? c.positive
+                    : myReservation.status === 'rejected'
+                      ? c.negative
+                      : '#E0B24D',
+              },
+            ]}
+          >
+            {myReservation.status === 'approved'
+              ? 'Your spot confirmed'
+              : myReservation.status === 'rejected'
+                ? 'Request rejected'
+                : 'Your request pending'}
+            {' · '}
+            {myReservation.date}
+            {myReservation.startTime ? ` at ${myReservation.startTime}` : ''}
           </Text>
         </View>
       )}
       {isFree && (
-        <Pressable style={[styles.claimBtn, { backgroundColor: c.positive }]} onPress={(e) => { e.stopPropagation?.(); handleClaim(); }} accessibilityRole="button" accessibilityLabel="Claim parking spot">
+        <Pressable
+          style={[styles.claimBtn, { backgroundColor: c.positive }]}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            handleClaim();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Claim parking spot"
+        >
           <Ionicons name="car" size={14} color="#fff" />
           <Text style={styles.claimBtnText}>Claim Spot</Text>
         </Pressable>
       )}
       {isMine && (
-        <Pressable style={[styles.releaseBtn, { borderColor: c.negative + '40' }]} onPress={(e) => { e.stopPropagation?.(); handleRelease(); }} accessibilityRole="button" accessibilityLabel="Release parking spot">
+        <Pressable
+          style={[styles.releaseBtn, { borderColor: c.negative + '40' }]}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            handleRelease();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Release parking spot"
+        >
           <Ionicons name="exit-outline" size={14} color={c.negative} />
           <Text style={[styles.releaseBtnText, { color: c.negative }]}>Release Spot</Text>
         </Pressable>
@@ -534,33 +676,74 @@ interface GroceryWidgetRowProps {
   onLongPress?: (item: GroceryItem) => void;
 }
 
-function GroceryWidgetRow({ item, myId, onToggle, onDelete, onLongPress }: GroceryWidgetRowProps): React.JSX.Element {
-  const c         = useThemedColors();
-  const swipeRef  = useRef<Swipeable>(null);
+function GroceryWidgetRow({
+  item,
+  myId,
+  onToggle,
+  onDelete,
+  onLongPress,
+}: GroceryWidgetRowProps): React.JSX.Element {
+  const c = useThemedColors();
+  const swipeRef = useRef<Swipeable>(null);
   const canDelete = item.addedBy === myId;
 
-  const handleToggle    = useCallback((): void => { swipeRef.current?.close(); onToggle(item.id); }, [item.id, onToggle]);
-  const handleDelete    = useCallback((): void => { swipeRef.current?.close(); onDelete(item.id); }, [item.id, onDelete]);
+  const handleToggle = useCallback((): void => {
+    swipeRef.current?.close();
+    onToggle(item.id);
+  }, [item.id, onToggle]);
+  const handleDelete = useCallback((): void => {
+    swipeRef.current?.close();
+    onDelete(item.id);
+  }, [item.id, onDelete]);
   const handleLongPress = useCallback((): void => {
     if (!onLongPress) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     onLongPress(item);
   }, [item, onLongPress]);
 
-  const renderCheckAction = useCallback((): React.JSX.Element => (
-    <Pressable accessible style={[styles.widgetSwipeCheck, item.isChecked && styles.widgetSwipeUncheck]} onPress={handleToggle} accessibilityRole="button" accessibilityLabel={item.isChecked ? 'Mark as needed' : 'Mark as done'}>
-      <Ionicons name={item.isChecked ? 'arrow-undo-outline' : 'checkmark'} size={16} color="#fff" />
-    </Pressable>
-  ), [item.isChecked, handleToggle]);
+  const renderCheckAction = useCallback(
+    (): React.JSX.Element => (
+      <Pressable
+        accessible
+        style={[styles.widgetSwipeCheck, item.isChecked && styles.widgetSwipeUncheck]}
+        onPress={handleToggle}
+        accessibilityRole="button"
+        accessibilityLabel={item.isChecked ? 'Mark as needed' : 'Mark as done'}
+      >
+        <Ionicons
+          name={item.isChecked ? 'arrow-undo-outline' : 'checkmark'}
+          size={16}
+          color="#fff"
+        />
+      </Pressable>
+    ),
+    [item.isChecked, handleToggle]
+  );
 
-  const renderDeleteAction = useCallback((): React.JSX.Element => (
-    <Pressable accessible style={styles.widgetSwipeDelete} onPress={handleDelete} accessibilityRole="button" accessibilityLabel="Delete item">
-      <Ionicons name="trash-outline" size={16} color="#fff" />
-    </Pressable>
-  ), [handleDelete]);
+  const renderDeleteAction = useCallback(
+    (): React.JSX.Element => (
+      <Pressable
+        accessible
+        style={styles.widgetSwipeDelete}
+        onPress={handleDelete}
+        accessibilityRole="button"
+        accessibilityLabel="Delete item"
+      >
+        <Ionicons name="trash-outline" size={16} color="#fff" />
+      </Pressable>
+    ),
+    [handleDelete]
+  );
 
   return (
-    <Swipeable ref={swipeRef} renderLeftActions={renderCheckAction} renderRightActions={canDelete ? renderDeleteAction : undefined} overshootLeft={false} overshootRight={false} friction={2}>
+    <Swipeable
+      ref={swipeRef}
+      renderLeftActions={renderCheckAction}
+      renderRightActions={canDelete ? renderDeleteAction : undefined}
+      overshootLeft={false}
+      overshootRight={false}
+      friction={2}
+    >
       <Pressable
         style={[styles.groceryRow, { backgroundColor: c.surface }]}
         onPress={handleToggle}
@@ -570,8 +753,18 @@ function GroceryWidgetRow({ item, myId, onToggle, onDelete, onLongPress }: Groce
         accessibilityState={{ checked: item.isChecked }}
         accessibilityHint={onLongPress ? 'Long press for details and notes' : undefined}
       >
-        <Ionicons name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={item.isChecked ? c.positive : c.border} />
-        <Text style={[styles.groceryItemText, { color: c.textPrimary }, item.isChecked && styles.groceryItemDone]}>
+        <Ionicons
+          name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
+          size={18}
+          color={item.isChecked ? c.positive : c.border}
+        />
+        <Text
+          style={[
+            styles.groceryItemText,
+            { color: c.textPrimary },
+            item.isChecked && styles.groceryItemDone,
+          ]}
+        >
           {item.name}
         </Text>
         {item.quantity && item.quantity !== '1' && (
@@ -579,7 +772,12 @@ function GroceryWidgetRow({ item, myId, onToggle, onDelete, onLongPress }: Groce
         )}
         <UserAvatar userId={item.addedBy} size={22} />
         {!!item.comment && (
-          <Ionicons name="chatbubble-ellipses-outline" size={12} color={c.textSecondary} accessibilityLabel="Has a note" />
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={12}
+            color={c.textSecondary}
+            accessibilityLabel="Has a note"
+          />
         )}
       </Pressable>
     </Swipeable>
@@ -587,38 +785,51 @@ function GroceryWidgetRow({ item, myId, onToggle, onDelete, onLongPress }: Groce
 }
 
 function GroceryWidget(): React.JSX.Element {
-  const c                  = useThemedColors();
-  const items              = useGroceryStore((s) => s.items);
-  const addItem            = useGroceryStore((s) => s.addItem);
-  const toggleItem         = useGroceryStore((s) => s.toggleItem);
-  const deleteItem         = useGroceryStore((s) => s.deleteItem);
-  const publishDraftItems  = useGroceryStore((s) => s.publishDraftItems);
-  const addComment         = useGroceryStore((s) => s.addComment);
-  const profile            = useAuthStore((s) => s.profile);
-  const houseId            = useAuthStore((s) => s.houseId);
-  const lastSeen           = useBadgeStore((s) => s.lastSeen);
-  const draftEnabled       = useSettingsStore((s) => s.features.find((f) => f.key === 'grocery_draft')?.enabled ?? true);
-  const myId               = profile?.id ?? '';
+  const c = useThemedColors();
+  const items = useGroceryStore((s) => s.items);
+  const addItem = useGroceryStore((s) => s.addItem);
+  const toggleItem = useGroceryStore((s) => s.toggleItem);
+  const deleteItem = useGroceryStore((s) => s.deleteItem);
+  const publishDraftItems = useGroceryStore((s) => s.publishDraftItems);
+  const addComment = useGroceryStore((s) => s.addComment);
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
+  const draftEnabled = useSettingsStore(
+    (s) => s.features.find((f) => f.key === 'grocery_draft')?.enabled ?? true
+  );
+  const myId = profile?.id ?? '';
 
-  const [input, setInput]               = useState('');
-  const [qty, setQty]                   = useState('');
-  const [unit, setUnit]                 = useState('');
-  const [addError, setAddError]         = useState<string | null>(null);
+  const [input, setInput] = useState('');
+  const [qty, setQty] = useState('');
+  const [unit, setUnit] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
 
-  const myDraftItems  = useMemo(() => items.filter((i) => i.isDraft && i.addedBy === myId), [items, myId]);
+  const myDraftItems = useMemo(
+    () => items.filter((i) => i.isDraft && i.addedBy === myId),
+    [items, myId]
+  );
   const sharedPending = useMemo(() => items.filter((i) => !i.isPersonal && !i.isChecked), [items]);
 
-  const newGrocery = countNew(items.filter((i) => !i.isChecked && !i.isDraft), lastSeen.grocery, myId, 'addedBy');
+  const newGrocery = countNew(
+    items.filter((i) => !i.isChecked && !i.isDraft),
+    lastSeen.grocery,
+    myId,
+    'addedBy'
+  );
 
-  const handleUnitToggle = useCallback((u: string): void => { setUnit((prev) => (prev === u ? '' : u)); }, []);
+  const handleUnitToggle = useCallback((u: string): void => {
+    setUnit((prev) => (prev === u ? '' : u));
+  }, []);
 
   const unitPressHandlers = useMemo(
-    () => (['ml', 'L', 'g', 'kg'] as const).reduce<Record<string, () => void>>(
-      (acc, u) => { acc[u] = (): void => handleUnitToggle(u); return acc; },
-      {}
-    ),
+    () =>
+      (['ml', 'L', 'g', 'kg'] as const).reduce<Record<string, () => void>>((acc, u) => {
+        acc[u] = (): void => handleUnitToggle(u);
+        return acc;
+      }, {}),
     [handleUnitToggle]
   );
 
@@ -633,107 +844,231 @@ function GroceryWidget(): React.JSX.Element {
     const quantityStr = numPart ? numPart + unit : unit ? `1${unit}` : '';
     try {
       await addItem(n, quantityStr, myId, houseId ?? '', draftEnabled ? 'draft' : 'shared');
-      setInput(''); setQty(''); setUnit(''); setAddError(null);
-    } catch { setAddError('Could not add item. Try again.'); }
+      setInput('');
+      setQty('');
+      setUnit('');
+      setAddError(null);
+    } catch {
+      setAddError('Could not add item. Try again.');
+    }
   }, [input, qty, unit, addItem, myId, houseId, draftEnabled]);
 
   const handlePublish = useCallback(async (): Promise<void> => {
     if (isPublishing || !myId) return;
-    setAddError(null); setIsPublishing(true);
-    try { await publishDraftItems(myId, houseId ?? ''); }
-    catch { setAddError('Could not share draft. Try again.'); }
-    finally { setIsPublishing(false); }
+    setAddError(null);
+    setIsPublishing(true);
+    try {
+      await publishDraftItems(myId, houseId ?? '');
+    } catch {
+      setAddError('Could not share draft. Try again.');
+    } finally {
+      setIsPublishing(false);
+    }
   }, [publishDraftItems, myId, houseId, isPublishing]);
 
-  const handleToggle      = useCallback((id: string): void => { toggleItem(id); }, [toggleItem]);
-  const handleDelete      = useCallback((id: string): void => { deleteItem(id).catch(() => {}); }, [deleteItem]);
-  const handleItemLongPress = useCallback((item: GroceryItem): void => { setSelectedItem(item); }, []);
-  const handleCloseModal    = useCallback((): void => { setSelectedItem(null); }, []);
-  const onSaveComment       = useCallback((id: string, comment: string): Promise<void> => addComment(id, comment), [addComment]);
+  const handleToggle = useCallback(
+    (id: string): void => {
+      toggleItem(id);
+    },
+    [toggleItem]
+  );
+  const handleDelete = useCallback(
+    (id: string): void => {
+      deleteItem(id).catch(() => {});
+    },
+    [deleteItem]
+  );
+  const handleItemLongPress = useCallback((item: GroceryItem): void => {
+    setSelectedItem(item);
+  }, []);
+  const handleCloseModal = useCallback((): void => {
+    setSelectedItem(null);
+  }, []);
+  const onSaveComment = useCallback(
+    (id: string, comment: string): Promise<void> => addComment(id, comment),
+    [addComment]
+  );
 
-  const draftHeader = myDraftItems.length > 0 ? (
-    <>
-      <View style={styles.groceryDraftHeader}>
-        <Text style={styles.groceryDraftTitle}>📝 My Draft</Text>
-        <Pressable onPress={handlePublish} disabled={isPublishing || !myId} style={[styles.groceryDraftApproveBtn, (isPublishing || !myId) && styles.groceryDraftApproveBtnDisabled]} accessible accessibilityRole="button" accessibilityState={{ disabled: isPublishing || !myId }} accessibilityLabel="Share draft with housemates">
-          {isPublishing ? <ActivityIndicator size="small" color="#E0B24D" /> : <Ionicons name="checkmark-circle" size={22} color="#E0B24D" />}
-        </Pressable>
-      </View>
-      {myDraftItems.map((item) => (<GroceryWidgetRow key={item.id} item={item} myId={myId} onToggle={handleToggle} onDelete={handleDelete} onLongPress={handleItemLongPress} />))}
-      {sharedPending.length > 0 && <Text style={[styles.grocerySharedLabel, { color: c.textSecondary }]}>🏠 Shared</Text>}
-    </>
-  ) : null;
+  const draftHeader =
+    myDraftItems.length > 0 ? (
+      <>
+        <View style={styles.groceryDraftHeader}>
+          <Text style={styles.groceryDraftTitle}>📝 My Draft</Text>
+          <Pressable
+            onPress={handlePublish}
+            disabled={isPublishing || !myId}
+            style={[
+              styles.groceryDraftApproveBtn,
+              (isPublishing || !myId) && styles.groceryDraftApproveBtnDisabled,
+            ]}
+            accessible
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isPublishing || !myId }}
+            accessibilityLabel="Share draft with housemates"
+          >
+            {isPublishing ? (
+              <ActivityIndicator size="small" color="#E0B24D" />
+            ) : (
+              <Ionicons name="checkmark-circle" size={22} color="#E0B24D" />
+            )}
+          </Pressable>
+        </View>
+        {myDraftItems.map((item) => (
+          <GroceryWidgetRow
+            key={item.id}
+            item={item}
+            myId={myId}
+            onToggle={handleToggle}
+            onDelete={handleDelete}
+            onLongPress={handleItemLongPress}
+          />
+        ))}
+        {sharedPending.length > 0 && (
+          <Text style={[styles.grocerySharedLabel, { color: c.textSecondary }]}>🏠 Shared</Text>
+        )}
+      </>
+    ) : null;
 
   return (
     <>
-    <WidgetCard>
-      <View style={styles.cardHeader}>
-        <View style={[styles.cardIconWrap, { backgroundColor: '#0A2418' }]}>
-          <Ionicons name="cart-outline" size={18} color="#4FB071" />
+      <WidgetCard>
+        <View style={styles.cardHeader}>
+          <View style={[styles.cardIconWrap, { backgroundColor: '#0A2418' }]}>
+            <Ionicons name="cart-outline" size={18} color="#4FB071" />
+          </View>
+          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Shared Groceries</Text>
+          {newGrocery > 0 ? (
+            <View style={styles.cardBadge}>
+              <Text style={styles.cardBadgeText}>{newGrocery}</Text>
+            </View>
+          ) : (
+            <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button">
+              <Text style={[styles.viewAll, { color: c.primary }]}>View all</Text>
+            </Pressable>
+          )}
         </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Shared Groceries</Text>
-        {newGrocery > 0
-          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newGrocery}</Text></View>
-          : <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button"><Text style={[styles.viewAll, { color: c.primary }]}>View all</Text></Pressable>
-        }
-      </View>
-      <View style={[styles.groceryInputRow, { backgroundColor: c.surfaceSecondary, borderColor: c.border }]}>
-        <Ionicons name="add" size={16} color={c.textSecondary} />
-        <TextInput style={[styles.groceryInput, { color: c.textPrimary }]} value={input} onChangeText={(t) => { setInput(t); if (addError) setAddError(null); }} placeholder="Add an item..." placeholderTextColor={c.textSecondary} returnKeyType="next" onSubmitEditing={handleAdd} accessibilityLabel="Grocery item name" />
-        <View style={[styles.groceryQtySep, { backgroundColor: c.border }]} />
-        <TextInput style={[styles.groceryQtyInput, { color: c.textPrimary }]} value={qty} onChangeText={setQty} placeholder="Qty" placeholderTextColor={c.textSecondary} keyboardType="number-pad" returnKeyType="done" onSubmitEditing={handleAdd} accessibilityLabel="Quantity" />
-        {input.trim().length > 0 && (
-          <Pressable accessible onPress={handleAdd} style={[styles.groceryAddBtn, { backgroundColor: c.primary }]} accessibilityRole="button" accessibilityLabel="Add item" accessibilityState={{ disabled: false }}>
-            <Ionicons name="return-down-back-outline" size={15} color="#fff" />
-          </Pressable>
+        <View
+          style={[
+            styles.groceryInputRow,
+            { backgroundColor: c.surfaceSecondary, borderColor: c.border },
+          ]}
+        >
+          <Ionicons name="add" size={16} color={c.textSecondary} />
+          <TextInput
+            style={[styles.groceryInput, { color: c.textPrimary }]}
+            value={input}
+            onChangeText={(t) => {
+              setInput(t);
+              if (addError) setAddError(null);
+            }}
+            placeholder="Add an item..."
+            placeholderTextColor={c.textSecondary}
+            returnKeyType="next"
+            onSubmitEditing={handleAdd}
+            accessibilityLabel="Grocery item name"
+          />
+          <View style={[styles.groceryQtySep, { backgroundColor: c.border }]} />
+          <TextInput
+            style={[styles.groceryQtyInput, { color: c.textPrimary }]}
+            value={qty}
+            onChangeText={setQty}
+            placeholder="Qty"
+            placeholderTextColor={c.textSecondary}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            onSubmitEditing={handleAdd}
+            accessibilityLabel="Quantity"
+          />
+          {input.trim().length > 0 && (
+            <Pressable
+              accessible
+              onPress={handleAdd}
+              style={[styles.groceryAddBtn, { backgroundColor: c.primary }]}
+              accessibilityRole="button"
+              accessibilityLabel="Add item"
+              accessibilityState={{ disabled: false }}
+            >
+              <Ionicons name="return-down-back-outline" size={15} color="#fff" />
+            </Pressable>
+          )}
+        </View>
+        {!!addError && (
+          <Text style={[styles.groceryAddError, { color: c.negative }]}>{addError}</Text>
         )}
-      </View>
-      {!!addError && <Text style={[styles.groceryAddError, { color: c.negative }]}>{addError}</Text>}
-      <View style={styles.groceryUnitRow}>
-        {(['ml', 'L', 'g', 'kg'] as const).map((u) => (
-          <Pressable
-            key={u}
-            style={[styles.groceryUnitBtn, { backgroundColor: unit === u ? c.primary : c.surfaceSecondary, borderColor: unit === u ? c.primary : c.border }]}
-            onPress={unitPressHandlers[u]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: unit === u }}
-            accessibilityLabel={`Unit ${u}`}
-          >
-            <Text style={[styles.groceryUnitBtnText, { color: unit === u ? '#fff' : c.textSecondary }]}>{u}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <FlatList
-        data={sharedPending}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <GroceryWidgetRow item={item} myId={myId} onToggle={handleToggle} onDelete={handleDelete} onLongPress={handleItemLongPress} />}
-        ListHeaderComponent={draftHeader}
-        ListEmptyComponent={myDraftItems.length === 0 ? <Text style={[styles.cardMuted, { color: c.textSecondary }]}>Nothing here. Someone go shopping.</Text> : null}
-        scrollEnabled={false}
-        nestedScrollEnabled
+        <View style={styles.groceryUnitRow}>
+          {(['ml', 'L', 'g', 'kg'] as const).map((u) => (
+            <Pressable
+              key={u}
+              style={[
+                styles.groceryUnitBtn,
+                {
+                  backgroundColor: unit === u ? c.primary : c.surfaceSecondary,
+                  borderColor: unit === u ? c.primary : c.border,
+                },
+              ]}
+              onPress={unitPressHandlers[u]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: unit === u }}
+              accessibilityLabel={`Unit ${u}`}
+            >
+              <Text
+                style={[
+                  styles.groceryUnitBtnText,
+                  { color: unit === u ? '#fff' : c.textSecondary },
+                ]}
+              >
+                {u}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <FlatList
+          data={sharedPending}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <GroceryWidgetRow
+              item={item}
+              myId={myId}
+              onToggle={handleToggle}
+              onDelete={handleDelete}
+              onLongPress={handleItemLongPress}
+            />
+          )}
+          ListHeaderComponent={draftHeader}
+          ListEmptyComponent={
+            myDraftItems.length === 0 ? (
+              <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
+                Nothing here. Someone go shopping.
+              </Text>
+            ) : null
+          }
+          scrollEnabled={false}
+          nestedScrollEnabled
+        />
+      </WidgetCard>
+      <GroceryItemDetailModal
+        item={selectedItem}
+        visible={!!selectedItem}
+        myId={myId}
+        onClose={handleCloseModal}
+        onSaveComment={onSaveComment}
       />
-    </WidgetCard>
-    <GroceryItemDetailModal
-      item={selectedItem}
-      visible={!!selectedItem}
-      myId={myId}
-      onClose={handleCloseModal}
-      onSaveComment={onSaveComment}
-    />
     </>
   );
 }
 
 // ── Votes Widget ──────────────────────────────────────────────────────────────
 function VotesWidget(): React.JSX.Element {
-  const c          = useThemedColors();
-  const proposals  = useVotingStore((s) => s.proposals);
-  const profile    = useAuthStore((s) => s.profile);
+  const c = useThemedColors();
+  const proposals = useVotingStore((s) => s.proposals);
+  const profile = useAuthStore((s) => s.profile);
   const housemates = useHousematesStore((s) => s.housemates);
-  const myId       = profile?.id ?? '';
+  const myId = profile?.id ?? '';
   const totalPeople = Math.max(1, housemates.length);
-  const active     = proposals.filter((p) => p.isOpen);
-  const newVotes   = active.filter((p) => p.createdBy !== myId && !p.votes.some((v) => v.person === myId)).length;
+  const active = proposals.filter((p) => p.isOpen);
+  const newVotes = myId
+    ? active.filter((p) => p.createdBy !== myId && !p.votes.some((v) => v.person === myId)).length
+    : 0;
 
   if (active.length === 0) {
     return (
@@ -744,23 +1079,30 @@ function VotesWidget(): React.JSX.Element {
           </View>
           <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Active Votes</Text>
         </View>
-        <Text style={[styles.cardMuted, { color: c.textSecondary }]}>No drama today. Suspicious.</Text>
+        <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
+          No drama today. Suspicious.
+        </Text>
       </WidgetCard>
     );
   }
 
-  const top        = active[0];
-  const yesCount   = top.votes.filter((v) => v.choice === 'yes').length;
-  const noCount    = top.votes.filter((v) => v.choice === 'no').length;
+  const top = active[0];
+  const yesCount = top.votes.filter((v) => v.choice === 'yes').length;
+  const noCount = top.votes.filter((v) => v.choice === 'no').length;
   const totalVotes = yesCount + noCount;
-  const yesWidth   = totalVotes > 0 ? (yesCount / totalVotes) * 100 : 0;
-  const myVote     = top.votes.find((v) => v.person === myId)?.choice ?? null;
-  const allVoted   = totalVotes >= totalPeople;
+  const yesWidth = totalVotes > 0 ? (yesCount / totalVotes) * 100 : 0;
+  const myVote = top.votes.find((v) => v.person === myId)?.choice ?? null;
+  const allVoted = totalVotes >= totalPeople;
 
   type BadgeState = { label: string; bg: string; color: string };
   const badge: BadgeState = ((): BadgeState => {
     if (!myVote) return { label: 'Vote now', bg: c.danger + '20', color: c.danger };
-    if (!allVoted) return { label: `Waiting (${totalVotes}/${totalPeople})`, bg: c.textSecondary + '18', color: c.textSecondary };
+    if (!allVoted)
+      return {
+        label: `Waiting (${totalVotes}/${totalPeople})`,
+        bg: c.textSecondary + '18',
+        color: c.textSecondary,
+      };
     if (yesCount > noCount) return { label: 'Passed', bg: c.positive + '20', color: c.positive };
     return { label: 'Rejected', bg: c.negative + '20', color: c.negative };
   })();
@@ -772,23 +1114,40 @@ function VotesWidget(): React.JSX.Element {
           <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
         </View>
         <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Active Votes</Text>
-        {newVotes > 0
-          ? <View style={styles.cardBadge}><Text style={styles.cardBadgeText}>{newVotes}</Text></View>
-          : <View style={[styles.badgePill, { backgroundColor: badge.bg }]}><Text style={[styles.badgePillText, { color: badge.color }]}>{badge.label}</Text></View>
-        }
+        {newVotes > 0 ? (
+          <View style={styles.cardBadge}>
+            <Text style={styles.cardBadgeText}>{newVotes}</Text>
+          </View>
+        ) : (
+          <View style={[styles.badgePill, { backgroundColor: badge.bg }]}>
+            <Text style={[styles.badgePillText, { color: badge.color }]}>{badge.label}</Text>
+          </View>
+        )}
       </View>
-      <Text style={[styles.voteQuestion, { color: c.textPrimary }]} numberOfLines={2}>{top.title}</Text>
+      <Text style={[styles.voteQuestion, { color: c.textPrimary }]} numberOfLines={2}>
+        {top.title}
+      </Text>
       <View style={styles.voteBarRow}>
         <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>Yes</Text>
         <View style={[styles.voteTrack, { backgroundColor: c.surfaceSecondary }]}>
-          <View style={[styles.voteBar, { width: `${yesWidth}%` as `${number}%`, backgroundColor: '#7C4DFF' }]} />
+          <View
+            style={[
+              styles.voteBar,
+              { width: `${yesWidth}%` as `${number}%`, backgroundColor: '#7C4DFF' },
+            ]}
+          />
         </View>
         <Text style={[styles.voteCount, { color: c.textPrimary }]}>{yesCount}</Text>
       </View>
       <View style={styles.voteBarRow}>
         <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>No</Text>
         <View style={[styles.voteTrack, { backgroundColor: c.surfaceSecondary }]}>
-          <View style={[styles.voteBar, { width: `${100 - yesWidth}%` as `${number}%`, backgroundColor: c.border }]} />
+          <View
+            style={[
+              styles.voteBar,
+              { width: `${100 - yesWidth}%` as `${number}%`, backgroundColor: c.border },
+            ]}
+          />
         </View>
         <Text style={[styles.voteCount, { color: c.textPrimary }]}>{noCount}</Text>
       </View>
@@ -797,24 +1156,37 @@ function VotesWidget(): React.JSX.Element {
 }
 
 // ── Mini Calendar Widget ──────────────────────────────────────────────────────
-const CAL_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const CAL_DAYS   = ['S','M','T','W','T','F','S'];
+const CAL_MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+const CAL_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function MiniCalendarWidget(): React.JSX.Element {
-  const c                  = useThemedColors();
-  const events             = useEventsStore((s) => s.events);
-  const reservations       = useParkingStore((s) => s.reservations);
-  const recurringBills     = useRecurringBillsStore((s) => s.bills);
-  const recurringPayments  = useRecurringBillsStore((s) => s.payments);
-  const chores             = useChoresStore((s) => s.chores);
-  const showRecurring      = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
+  const c = useThemedColors();
+  const events = useEventsStore((s) => s.events);
+  const reservations = useParkingStore((s) => s.reservations);
+  const recurringBills = useRecurringBillsStore((s) => s.bills);
+  const recurringPayments = useRecurringBillsStore((s) => s.payments);
+  const chores = useChoresStore((s) => s.chores);
+  const showRecurring = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
 
   const today = new Date();
-  const [viewYear, setViewYear]   = useState(today.getFullYear());
+  const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
 
   const eventMap = useMemo((): Record<string, Array<{ title: string; color: string }>> => {
@@ -827,8 +1199,13 @@ function MiniCalendarWidget(): React.JSX.Element {
     const billNameById = new Map(recurringBills.map((b) => [b.id, b.name]));
     events.forEach((e) => push(e.date, e.title, '#6366f1'));
     reservations.forEach((r) => push(r.date, 'Parking', '#f59e0b'));
-    if (showRecurring) recurringPayments.forEach((p) => push(p.paidAt, billNameById.get(p.billId) ?? 'Recurring', '#ef4444'));
-    chores.forEach((ch) => { if (ch.recurrence === 'once' && ch.recurrenceDay) push(ch.recurrenceDay, ch.name, '#22c55e'); });
+    if (showRecurring)
+      recurringPayments.forEach((p) =>
+        push(p.paidAt, billNameById.get(p.billId) ?? 'Recurring', '#ef4444')
+      );
+    chores.forEach((ch) => {
+      if (ch.recurrence === 'once' && ch.recurrenceDay) push(ch.recurrenceDay, ch.name, '#22c55e');
+    });
     return map;
   }, [events, reservations, recurringPayments, recurringBills, chores, showRecurring]);
 
@@ -846,10 +1223,16 @@ function MiniCalendarWidget(): React.JSX.Element {
   }, [viewYear, viewMonth]);
 
   const prevMonth = useCallback((): void => {
-    if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); } else setViewMonth((m) => m - 1);
+    if (viewMonth === 0) {
+      setViewYear((y) => y - 1);
+      setViewMonth(11);
+    } else setViewMonth((m) => m - 1);
   }, [viewMonth]);
   const nextMonth = useCallback((): void => {
-    if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); } else setViewMonth((m) => m + 1);
+    if (viewMonth === 11) {
+      setViewYear((y) => y + 1);
+      setViewMonth(0);
+    } else setViewMonth((m) => m + 1);
   }, [viewMonth]);
 
   const todayStr = toYMD(today);
@@ -857,7 +1240,12 @@ function MiniCalendarWidget(): React.JSX.Element {
   return (
     <WidgetCard>
       <View style={styles.calHeader}>
-        <Pressable style={styles.calTitleRow} onPress={() => router.push('/(tabs)/calendar')} accessibilityRole="button" accessibilityLabel="Open calendar">
+        <Pressable
+          style={styles.calTitleRow}
+          onPress={() => router.push('/(tabs)/calendar')}
+          accessibilityRole="button"
+          accessibilityLabel="Open calendar"
+        >
           <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
             <Ionicons name="calendar-outline" size={18} color="#6366f1" />
           </View>
@@ -865,39 +1253,71 @@ function MiniCalendarWidget(): React.JSX.Element {
           <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
         </Pressable>
         <View style={styles.calNavRow}>
-          <Pressable onPress={prevMonth} style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]} accessibilityRole="button">
+          <Pressable
+            onPress={prevMonth}
+            style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]}
+            accessibilityRole="button"
+          >
             <Ionicons name="chevron-back" size={15} color={c.textSecondary} />
           </Pressable>
-          <Text style={[styles.calMonthLabel, { color: c.textPrimary }]}>{CAL_MONTHS[viewMonth].slice(0, 3)} {viewYear}</Text>
-          <Pressable onPress={nextMonth} style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]} accessibilityRole="button">
+          <Text style={[styles.calMonthLabel, { color: c.textPrimary }]}>
+            {CAL_MONTHS[viewMonth].slice(0, 3)} {viewYear}
+          </Text>
+          <Pressable
+            onPress={nextMonth}
+            style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]}
+            accessibilityRole="button"
+          >
             <Ionicons name="chevron-forward" size={15} color={c.textSecondary} />
           </Pressable>
         </View>
       </View>
       <View style={styles.calWeekRow}>
-        {CAL_DAYS.map((d, i) => <Text key={i} style={[styles.calWeekDay, { color: c.textSecondary }]}>{d}</Text>)}
+        {CAL_DAYS.map((d, i) => (
+          <Text key={i} style={[styles.calWeekDay, { color: c.textSecondary }]}>
+            {d}
+          </Text>
+        ))}
       </View>
       <View style={styles.calGrid}>
         {[0, 1, 2, 3, 4].map((row) => (
           <View key={row} style={styles.calRow}>
             {grid.slice(row * 7, row * 7 + 7).map((day, idx) => {
-              const ymd         = toYMD(day);
-              const isToday     = ymd === todayStr;
+              const ymd = toYMD(day);
+              const isToday = ymd === todayStr;
               const isCurrentMonth = day.getMonth() === viewMonth;
-              const dayEvents   = eventMap[ymd] ?? [];
+              const dayEvents = eventMap[ymd] ?? [];
               return (
-                <Pressable key={idx} style={styles.calDayCell} onPress={() => router.push('/(tabs)/calendar')} accessibilityRole="button">
+                <Pressable
+                  key={idx}
+                  style={styles.calDayCell}
+                  onPress={() => router.push('/(tabs)/calendar')}
+                  accessibilityRole="button"
+                >
                   <View style={[styles.calDayInner, isToday && { backgroundColor: c.primary }]}>
-                    <Text style={[styles.calDayNum, { color: c.textPrimary }, !isCurrentMonth && { color: c.textDisabled }, isToday && { color: c.white, ...font.bold }]}>
+                    <Text
+                      style={[
+                        styles.calDayNum,
+                        { color: c.textPrimary },
+                        !isCurrentMonth && { color: c.textDisabled },
+                        isToday && { color: c.white, ...font.bold },
+                      ]}
+                    >
                       {day.getDate()}
                     </Text>
                   </View>
                   {dayEvents[0] && (
                     <View style={[styles.calEventChip, { backgroundColor: dayEvents[0].color }]}>
-                      <Text style={styles.calEventChipText} numberOfLines={1}>{dayEvents[0].title}</Text>
+                      <Text style={styles.calEventChipText} numberOfLines={1}>
+                        {dayEvents[0].title}
+                      </Text>
                     </View>
                   )}
-                  {dayEvents.length > 1 && <Text style={[styles.calMoreText, { color: c.textSecondary }]}>+{dayEvents.length - 1}</Text>}
+                  {dayEvents.length > 1 && (
+                    <Text style={[styles.calMoreText, { color: c.textSecondary }]}>
+                      +{dayEvents.length - 1}
+                    </Text>
+                  )}
                 </Pressable>
               );
             })}
@@ -905,7 +1325,14 @@ function MiniCalendarWidget(): React.JSX.Element {
         ))}
       </View>
       <View style={styles.calLegend}>
-        {([['#6366f1','Events'],['#ef4444','Recurring'],['#22c55e','Chores'],['#f59e0b','Parking']] as [string,string][]).map(([col, label]) => (
+        {(
+          [
+            ['#6366f1', 'Events'],
+            ['#ef4444', 'Recurring'],
+            ['#22c55e', 'Chores'],
+            ['#f59e0b', 'Parking'],
+          ] as [string, string][]
+        ).map(([col, label]) => (
           <View key={label} style={styles.calLegendItem}>
             <View style={[styles.calLegendDot, { backgroundColor: col }]} />
             <Text style={[styles.calLegendLabel, { color: c.textSecondary }]}>{label}</Text>
@@ -927,30 +1354,73 @@ interface ActivityEvent {
   time: string;
 }
 
-function buildActivityEvents(bills: Bill[], groceryItems: GroceryItem[], chores: Chore[], myId: string, housemates: Housemate[]): ActivityEvent[] {
+function buildActivityEvents(
+  bills: Bill[],
+  groceryItems: GroceryItem[],
+  chores: Chore[],
+  myId: string,
+  housemates: Housemate[]
+): ActivityEvent[] {
   const events: ActivityEvent[] = [];
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  bills.filter((b) => new Date(b.createdAt).getTime() > cutoff).forEach((b) => {
-    events.push({ id: `bill-${b.id}`, icon: 'card-outline', iconColor: '#FF4757', iconBg: '#2A0A0A', actor: b.paidBy === myId ? 'You' : resolveName(b.paidBy, housemates), text: `added a bill — ${b.title}`, time: b.createdAt });
-  });
-  groceryItems.filter((i) => new Date(i.createdAt).getTime() > cutoff).forEach((i) => {
-    events.push({ id: `grocery-${i.id}`, icon: 'cart-outline', iconColor: '#4FB071', iconBg: '#0A2418', actor: i.addedBy === myId ? 'You' : resolveName(i.addedBy, housemates), text: `added "${i.name}" to groceries`, time: i.createdAt });
-  });
-  chores.filter((ch) => ch.isComplete && ch.completedAt && new Date(ch.completedAt).getTime() > cutoff).forEach((ch) => {
-    events.push({ id: `chore-${ch.id}`, icon: 'checkmark-done-outline', iconColor: '#E0B24D', iconBg: '#1A1000', actor: !ch.claimedBy ? 'Someone' : ch.claimedBy === myId ? 'You' : resolveName(ch.claimedBy, housemates), text: `completed "${ch.name}"`, time: ch.completedAt! });
-  });
+  bills
+    .filter((b) => new Date(b.createdAt).getTime() > cutoff)
+    .forEach((b) => {
+      events.push({
+        id: `bill-${b.id}`,
+        icon: 'card-outline',
+        iconColor: '#FF4757',
+        iconBg: '#2A0A0A',
+        actor: b.paidBy === myId ? 'You' : resolveName(b.paidBy, housemates),
+        text: `added a bill — ${b.title}`,
+        time: b.createdAt,
+      });
+    });
+  groceryItems
+    .filter((i) => new Date(i.createdAt).getTime() > cutoff)
+    .forEach((i) => {
+      events.push({
+        id: `grocery-${i.id}`,
+        icon: 'cart-outline',
+        iconColor: '#4FB071',
+        iconBg: '#0A2418',
+        actor: i.addedBy === myId ? 'You' : resolveName(i.addedBy, housemates),
+        text: `added "${i.name}" to groceries`,
+        time: i.createdAt,
+      });
+    });
+  chores
+    .filter((ch) => ch.isComplete && ch.completedAt && new Date(ch.completedAt).getTime() > cutoff)
+    .forEach((ch) => {
+      events.push({
+        id: `chore-${ch.id}`,
+        icon: 'checkmark-done-outline',
+        iconColor: '#E0B24D',
+        iconBg: '#1A1000',
+        actor: !ch.claimedBy
+          ? 'Someone'
+          : ch.claimedBy === myId
+            ? 'You'
+            : resolveName(ch.claimedBy, housemates),
+        text: `completed "${ch.name}"`,
+        time: ch.completedAt!,
+      });
+    });
   return events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 8);
 }
 
 function ActivityFeed(): React.JSX.Element {
-  const c            = useThemedColors();
-  const bills        = useBillsStore((s) => s.bills);
+  const c = useThemedColors();
+  const bills = useBillsStore((s) => s.bills);
   const groceryItems = useGroceryStore((s) => s.items);
-  const chores       = useChoresStore((s) => s.chores);
-  const profile      = useAuthStore((s) => s.profile);
-  const housemates   = useHousematesStore((s) => s.housemates);
-  const myId         = profile?.id ?? '';
-  const events       = useMemo(() => buildActivityEvents(bills, groceryItems, chores, myId, housemates), [bills, groceryItems, chores, myId, housemates]);
+  const chores = useChoresStore((s) => s.chores);
+  const profile = useAuthStore((s) => s.profile);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const myId = profile?.id ?? '';
+  const events = useMemo(
+    () => buildActivityEvents(bills, groceryItems, chores, myId, housemates),
+    [bills, groceryItems, chores, myId, housemates]
+  );
 
   return (
     <WidgetCard>
@@ -960,9 +1430,12 @@ function ActivityFeed(): React.JSX.Element {
         </View>
         <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Recent Activity</Text>
       </View>
-      {events.length === 0
-        ? <Text style={[styles.cardMuted, { color: c.textSecondary }]}>Eerie silence this week. What are you all up to?</Text>
-        : events.map((event) => (
+      {events.length === 0 ? (
+        <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
+          Eerie silence this week. What are you all up to?
+        </Text>
+      ) : (
+        events.map((event) => (
           <View key={event.id} style={[styles.activityRow, { borderTopColor: c.border }]}>
             <View style={[styles.activityIconWrap, { backgroundColor: event.iconBg }]}>
               <Ionicons name={event.icon as never} size={14} color={event.iconColor} />
@@ -972,27 +1445,28 @@ function ActivityFeed(): React.JSX.Element {
                 <Text style={[styles.activityActor, { color: c.textPrimary }]}>{event.actor} </Text>
                 {event.text}
               </Text>
-              <Text style={[styles.activityTime, { color: c.textSecondary }]}>{timeAgo(event.time)}</Text>
+              <Text style={[styles.activityTime, { color: c.textSecondary }]}>
+                {timeAgo(event.time)}
+              </Text>
             </View>
           </View>
         ))
-      }
+      )}
     </WidgetCard>
   );
 }
 
-
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function DashboardScreen(): React.JSX.Element {
-  const { t }      = useTranslation();
-  const c          = useThemedColors();
-  const profile    = useAuthStore((s) => s.profile);
-  const houseId    = useAuthStore((s) => s.houseId);
-  const houseName  = useHousematesStore((s) => s.houseName);
-  const isEnabled  = useSettingsStore((s) => s.isEnabled);
-  const { width }  = useWindowDimensions();
+  const { t } = useTranslation();
+  const c = useThemedColors();
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
+  const houseName = useHousematesStore((s) => s.houseName);
+  const isEnabled = useSettingsStore((s) => s.isEnabled);
+  const { width } = useWindowDimensions();
 
-  const openProfile  = useProfilePopupStore((s) => s.open);
+  const openProfile = useProfilePopupStore((s) => s.open);
 
   const isWide = width >= 680;
   const myName = profile?.name ?? 'there';
@@ -1010,14 +1484,21 @@ export default function DashboardScreen(): React.JSX.Element {
           <Animated.View entering={FadeIn.duration(400)} style={styles.hero}>
             <View style={styles.heroLeft}>
               <Text style={[styles.heroDate, { color: c.textSecondary }]}>{todayDateLabel()}</Text>
-              <Text style={[styles.greeting, { color: c.textPrimary }]}>{greetingText(myName, t)}</Text>
-              {houseName ? <Text style={[styles.greetingSub, { color: c.textSecondary }]}>{houseName}</Text> : null}
+              <Text style={[styles.greeting, { color: c.textPrimary }]}>
+                {greetingText(myName, t)}
+              </Text>
+              {houseName ? (
+                <Text style={[styles.greetingSub, { color: c.textSecondary }]}>{houseName}</Text>
+              ) : null}
             </View>
             <View style={styles.heroRight}>
               <Pressable
                 style={({ pressed }) => [
                   styles.heroAvatar,
-                  { backgroundColor: profile?.avatarUrl ? 'transparent' : c.primary, transform: [{ scale: pressed ? 0.92 : 1 }] },
+                  {
+                    backgroundColor: profile?.avatarUrl ? 'transparent' : c.primary,
+                    transform: [{ scale: pressed ? 0.92 : 1 }],
+                  },
                 ]}
                 onPress={openProfile}
                 accessible={true}
@@ -1025,10 +1506,16 @@ export default function DashboardScreen(): React.JSX.Element {
                 accessibilityLabel="Open profile menu"
                 accessibilityState={{ selected: false }}
               >
-                {profile?.avatarUrl
-                  ? <Image source={{ uri: profile.avatarUrl }} style={styles.heroAvatarImg} contentFit="cover" accessibilityLabel={`${profile.name ?? 'User'}'s avatar`} />
-                  : <Text style={styles.heroAvatarText}>{initials}</Text>
-                }
+                {profile?.avatarUrl ? (
+                  <Image
+                    source={{ uri: profile.avatarUrl }}
+                    style={styles.heroAvatarImg}
+                    contentFit="cover"
+                    accessibilityLabel={`${profile.name ?? 'User'}'s avatar`}
+                  />
+                ) : (
+                  <Text style={styles.heroAvatarText}>{initials}</Text>
+                )}
               </Pressable>
             </View>
           </Animated.View>
@@ -1037,7 +1524,14 @@ export default function DashboardScreen(): React.JSX.Element {
           <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.quickActions}>
             <Link asChild href="/(tabs)/bills/add">
               <Pressable
-                style={({ pressed }) => [styles.quickBtn, { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 }]}
+                style={({ pressed }) => [
+                  styles.quickBtn,
+                  {
+                    backgroundColor: c.primary,
+                    transform: [{ scale: pressed ? 0.96 : 1 }],
+                    opacity: pressed ? 0.88 : 1,
+                  },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Add new expense"
               >
@@ -1047,7 +1541,15 @@ export default function DashboardScreen(): React.JSX.Element {
             </Link>
             <Link asChild href="/(tabs)/bills?openRecurring=1">
               <Pressable
-                style={({ pressed }) => [styles.quickBtnOutline, { borderColor: c.border, backgroundColor: c.surface, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 }]}
+                style={({ pressed }) => [
+                  styles.quickBtnOutline,
+                  {
+                    borderColor: c.border,
+                    backgroundColor: c.surface,
+                    transform: [{ scale: pressed ? 0.96 : 1 }],
+                    opacity: pressed ? 0.88 : 1,
+                  },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Add house bill"
               >
@@ -1081,7 +1583,10 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* ── Chore + Parking detail cards ──────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(300).duration(450)} style={[styles.row, isWide && styles.rowWide]}>
+          <Animated.View
+            entering={FadeInDown.delay(300).duration(450)}
+            style={[styles.row, isWide && styles.rowWide]}
+          >
             {isEnabled('chores') && (
               <View style={isWide ? styles.colHalf : styles.colFull}>
                 <ChoreCard />
@@ -1095,7 +1600,10 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
 
           {/* ── Grocery · Votes ───────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(360).duration(450)} style={[styles.row, isWide && styles.rowWide]}>
+          <Animated.View
+            entering={FadeInDown.delay(360).duration(450)}
+            style={[styles.row, isWide && styles.rowWide]}
+          >
             {isEnabled('grocery') && (
               <View style={isWide ? styles.colHalf : styles.colFull}>
                 <GroceryWidget />
@@ -1121,7 +1629,6 @@ export default function DashboardScreen(): React.JSX.Element {
               <ActivityFeed />
             </View>
           </Animated.View>
-
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -1138,20 +1645,53 @@ const styles = StyleSheet.create({
   scrollWide: { paddingHorizontal: 24 },
 
   // ── Hero
-  hero: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingVertical: 16, gap: 12 },
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    gap: 12,
+  },
   heroLeft: { flex: 1, gap: 2 },
   heroRight: { alignItems: 'center', gap: 8 },
   heroDate: { fontSize: 13, ...font.regular },
   greeting: { fontSize: 26, ...font.extrabold, letterSpacing: -0.6, marginTop: 2 },
   greetingSub: { fontSize: 13, ...font.regular, marginTop: 2 },
-  heroAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  heroAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
   heroAvatarImg: { width: 44, height: 44 },
   heroAvatarText: { fontSize: 18, ...font.bold, color: '#fff' },
 
   quickActions: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  quickBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, shadowColor: '#4F78B6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 6 },
+  quickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    shadowColor: '#4F78B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+  },
   quickBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
-  quickBtnOutline: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1 },
+  quickBtnOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
   quickBtnOutlineText: { fontSize: 14, ...font.semibold },
 
   // ── Balance hero card
@@ -1168,20 +1708,55 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   balanceHeroDeco: {
-    position: 'absolute', top: -40, right: -30,
-    width: 160, height: 160, borderRadius: 80,
+    position: 'absolute',
+    top: -40,
+    right: -30,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
   balanceHeroTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   balanceHeroLabel: { fontSize: 14, ...font.semibold, color: 'rgba(255,255,255,0.80)' },
-  balanceHeroSub: { fontSize: 12, ...font.regular, color: 'rgba(255,255,255,0.55)', marginLeft: 'auto' },
-  balanceHeroNewBadge: { backgroundColor: '#D9534F', borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2 },
+  balanceHeroSub: {
+    fontSize: 12,
+    ...font.regular,
+    color: 'rgba(255,255,255,0.55)',
+    marginLeft: 'auto',
+  },
+  balanceHeroNewBadge: {
+    backgroundColor: '#D9534F',
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
   balanceHeroNewBadgeText: { fontSize: 11, ...font.bold, color: '#fff' },
-  balanceHeroAmt: { fontSize: 48, ...font.extrabold, color: '#fff', letterSpacing: -1.5, lineHeight: 56 },
+  balanceHeroAmt: {
+    fontSize: 48,
+    ...font.extrabold,
+    color: '#fff',
+    letterSpacing: -1.5,
+    lineHeight: 56,
+  },
   balanceHeroBtns: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  balanceHeroSettleBtn: { backgroundColor: '#fff', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 20, minHeight: 44, justifyContent: 'center' },
+  balanceHeroSettleBtn: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
   balanceHeroSettleBtnText: { fontSize: 14, ...font.bold, color: '#1A3578' },
-  balanceHeroDetailsBtn: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 20, minHeight: 44, justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
+  balanceHeroDetailsBtn: {
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+  },
   balanceHeroDetailsBtnText: { fontSize: 14, ...font.semibold, color: 'rgba(255,255,255,0.85)' },
 
   // ── Today at home
@@ -1190,8 +1765,22 @@ const styles = StyleSheet.create({
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionSeeAll: { fontSize: 14, ...font.semibold },
   todayRow: { flexDirection: 'row', gap: 10 },
-  todayCard: { flex: 1, borderRadius: 16, padding: 14, gap: 4, borderWidth: 1, alignItems: 'flex-start' },
-  todayIconWrap: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  todayCard: {
+    flex: 1,
+    borderRadius: 16,
+    padding: 14,
+    gap: 4,
+    borderWidth: 1,
+    alignItems: 'flex-start',
+  },
+  todayIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   todayCardCat: { fontSize: 10, ...font.extrabold, color: '#4D5870', letterSpacing: 0.8 },
   todayCardStatus: { fontSize: 16, ...font.extrabold, letterSpacing: -0.3 },
   todayCardSub: { fontSize: 12, ...font.regular },
@@ -1201,7 +1790,14 @@ const styles = StyleSheet.create({
   recentCard: { borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
   recentSep: { height: StyleSheet.hairlineWidth },
   recentRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  recentIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  recentIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
   recentInfo: { flex: 1, gap: 3 },
   recentTitle: { fontSize: 14, ...font.semibold },
   recentSub: { fontSize: 12, ...font.regular },
@@ -1218,17 +1814,43 @@ const styles = StyleSheet.create({
   colThird: { flex: 1 },
 
   // ── Base card
-  card: { borderRadius: 18, borderWidth: 1, padding: 16, gap: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' } as never,
+  card: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    gap: 10,
+    boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+  } as never,
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardIconWrap: { width: 32, height: 32, borderRadius: 9, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  cardIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
   cardTitle: { fontSize: 15, ...font.semibold, flex: 1 },
   cardMuted: { fontSize: 13, ...font.regular, lineHeight: 18 },
-  cardBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#D9534F', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5 },
+  cardBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#D9534F',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
   cardBadgeText: { color: '#fff', fontSize: 11, ...font.bold },
   bigNumber: { fontSize: 28, ...font.extrabold, letterSpacing: -0.8 },
   viewAll: { fontSize: 13, ...font.semibold },
 
-  statusPill: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 },
+  statusPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 9999,
+  },
   statusPillText: { fontSize: 12, ...font.semibold },
   badgePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999 },
   badgePillText: { fontSize: 11, ...font.bold },
@@ -1236,47 +1858,156 @@ const styles = StyleSheet.create({
   // ── Chore card
   choreBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, padding: 12 },
   choreName: { flex: 1, fontSize: 15, ...font.semibold },
-  doneBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 9 },
+  doneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 9,
+  },
   doneBtnText: { fontSize: 13, ...font.semibold },
   doneAllWrap: { alignItems: 'center', paddingVertical: 8 },
 
   // ── Parking card
-  parkingStatus: { borderRadius: 10, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  parkingStatus: {
+    borderRadius: 10,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   parkingStatusText: { fontSize: 15, ...font.bold },
   parkingAge: { fontSize: 12, ...font.regular },
-  parkingReservationRow: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7, marginTop: 8 },
+  parkingReservationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    marginTop: 8,
+  },
   parkingReservationText: { fontSize: 13, ...font.semibold, flex: 1 },
-  parkingPendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 8, gap: 8 },
+  parkingPendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 8,
+    gap: 8,
+  },
   parkingPendingInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   parkingPendingText: { fontSize: 13, ...font.medium },
   approveBtn: { borderRadius: 7, paddingHorizontal: 10, paddingVertical: 5 },
   approveBtnText: { fontSize: 12, ...font.bold, color: '#fff' },
-  claimBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 9, paddingVertical: 10, paddingHorizontal: 14, boxShadow: '0 4px 12px rgba(79,176,113,0.28)' } as never,
+  claimBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 9,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    boxShadow: '0 4px 12px rgba(79,176,113,0.28)',
+  } as never,
   claimBtnText: { fontSize: 13, ...font.semibold, color: '#fff' },
-  releaseBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'transparent', borderWidth: 1, borderRadius: 9, paddingVertical: 10, paddingHorizontal: 14 },
+  releaseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderRadius: 9,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
   releaseBtnText: { fontSize: 13, ...font.semibold },
 
   // ── Grocery widget
-  groceryInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1 },
+  groceryInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+  },
   groceryInput: { flex: 1, fontSize: 14, ...font.regular },
   groceryQtySep: { width: StyleSheet.hairlineWidth, height: 18 },
   groceryQtyInput: { width: 40, fontSize: 14, ...font.regular, textAlign: 'center' },
-  groceryAddBtn: { minWidth: 44, minHeight: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, minHeight: 44 },
+  groceryAddBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  groceryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 6,
+    minHeight: 44,
+  },
   groceryAddError: { fontSize: 12, ...font.regular, marginTop: 4 },
-  groceryDraftHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, paddingBottom: 2 },
-  groceryDraftTitle: { fontSize: 12, ...font.bold, color: '#E0B24D', textTransform: 'uppercase', letterSpacing: 0.5 },
+  groceryDraftHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  groceryDraftTitle: {
+    fontSize: 12,
+    ...font.bold,
+    color: '#E0B24D',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   groceryDraftApproveBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   groceryDraftApproveBtnDisabled: { opacity: 0.4 },
-  grocerySharedLabel: { fontSize: 12, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.5, paddingTop: 10, paddingBottom: 2 },
-  widgetSwipeCheck: { backgroundColor: '#22c55e', justifyContent: 'center', alignItems: 'center', width: 48, borderRadius: 10, marginRight: 4 },
+  grocerySharedLabel: {
+    fontSize: 12,
+    ...font.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  widgetSwipeCheck: {
+    backgroundColor: '#22c55e',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 48,
+    borderRadius: 10,
+    marginRight: 4,
+  },
   widgetSwipeUncheck: { backgroundColor: '#94a3b8' },
-  widgetSwipeDelete: { backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 48, borderRadius: 10, marginLeft: 4 },
+  widgetSwipeDelete: {
+    backgroundColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 48,
+    borderRadius: 10,
+    marginLeft: 4,
+  },
   groceryItemText: { flex: 1, fontSize: 14, ...font.regular },
   groceryItemDone: { textDecorationLine: 'line-through' },
   groceryQty: { fontSize: 12, ...font.regular },
   groceryUnitRow: { flexDirection: 'row', gap: 6, paddingTop: 6 },
-  groceryUnitBtn: { minWidth: 44, minHeight: 44, borderRadius: 9999, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12, borderWidth: 1 },
+  groceryUnitBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    borderWidth: 1,
+  },
   groceryUnitBtnText: { fontSize: 12, ...font.semibold },
 
   // ── Votes widget
@@ -1288,26 +2019,66 @@ const styles = StyleSheet.create({
   voteCount: { width: 20, fontSize: 12, ...font.bold, textAlign: 'right' },
 
   // ── Activity feed
-  activityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 7, borderTopWidth: StyleSheet.hairlineWidth },
-  activityIconWrap: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center', flexShrink: 0, marginTop: 1 },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 7,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  activityIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
   activityContent: { flex: 1, gap: 2 },
   activityActor: { fontSize: 13, ...font.semibold },
   activityText: { fontSize: 13, ...font.regular, lineHeight: 18 },
   activityTime: { fontSize: 11, ...font.regular },
 
-
   // ── Mini Calendar
   calHeader: { gap: 6 },
   calTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   calNavRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  calNavBtn: { width: 26, height: 26, justifyContent: 'center', alignItems: 'center', borderRadius: 13 },
+  calNavBtn: {
+    width: 26,
+    height: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 13,
+  },
   calMonthLabel: { flex: 1, fontSize: 12, ...font.semibold, textAlign: 'center' },
   calWeekRow: { flexDirection: 'row', marginTop: 4, marginBottom: 2 },
-  calWeekDay: { flex: 1, textAlign: 'center', fontSize: 9, ...font.bold, letterSpacing: 0.3, paddingVertical: 2 },
+  calWeekDay: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 9,
+    ...font.bold,
+    letterSpacing: 0.3,
+    paddingVertical: 2,
+  },
   calGrid: { gap: 0 },
   calRow: { flexDirection: 'row' },
-  calDayCell: { flex: 1, alignItems: 'stretch', paddingVertical: 1, paddingHorizontal: 1, minHeight: 40 },
-  calDayInner: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 1 },
+  calDayCell: {
+    flex: 1,
+    alignItems: 'stretch',
+    paddingVertical: 1,
+    paddingHorizontal: 1,
+    minHeight: 40,
+  },
+  calDayInner: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 1,
+  },
   calDayNum: { fontSize: 11, ...font.medium },
   calEventChip: { borderRadius: 2, paddingHorizontal: 2, paddingVertical: 1, marginTop: 0 },
   calEventChipText: { fontSize: 7, ...font.semibold, color: '#fff', lineHeight: 10 },

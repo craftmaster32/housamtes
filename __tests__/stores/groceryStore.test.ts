@@ -317,6 +317,15 @@ describe('decrementBought', () => {
 
     expect(useGroceryStore.getState().items[0].boughtCount).toBe(0);
   });
+
+  it('rolls back counter on DB error', async () => {
+    seedItems({ quantity: '3', boughtCount: 2 });
+    mockFrom.mockReturnValue(fail('error'));
+
+    await useGroceryStore.getState().decrementBought('item-1');
+
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+  });
 });
 
 // ── Realtime: INSERT handler ───────────────────────────────────────────────────
