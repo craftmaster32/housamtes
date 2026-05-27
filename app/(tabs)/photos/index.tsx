@@ -606,7 +606,7 @@ export default function PhotosScreen(): React.JSX.Element {
               accessible
               accessibilityRole="button"
               accessibilityLabel={t('photos.download_photo')}
-              accessibilityState={{ busy: isBulkDownloading, disabled: selectedCount === 0 }}
+              accessibilityState={{ busy: isBulkDownloading, disabled: selectedCount === 0 || isBulkDownloading }}
             >
               {isBulkDownloading ? (
                 <ActivityIndicator size="small" color="#fff" />
