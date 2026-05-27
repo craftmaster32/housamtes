@@ -730,11 +730,10 @@ function VotesWidget(): React.JSX.Element {
   const proposals  = useVotingStore((s) => s.proposals);
   const profile    = useAuthStore((s) => s.profile);
   const housemates = useHousematesStore((s) => s.housemates);
-  const lastSeen   = useBadgeStore((s) => s.lastSeen);
   const myId       = profile?.id ?? '';
   const totalPeople = Math.max(1, housemates.length);
   const active     = proposals.filter((p) => p.isOpen);
-  const newVotes   = countNew(active, lastSeen.voting, myId, 'createdBy');
+  const newVotes   = active.filter((p) => p.createdBy !== myId && !p.votes.some((v) => v.person === myId)).length;
 
   if (active.length === 0) {
     return (
