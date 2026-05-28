@@ -20,8 +20,10 @@ export function dbResult(result: { data: unknown; error: unknown }): Record<stri
   // method calls that return itself so chaining works to any depth.
   const chain: Record<string, unknown> = {
     // Direct-await support
-    then: (res: Parameters<Promise<unknown>['then']>[0], rej: Parameters<Promise<unknown>['then']>[1]): Promise<unknown> =>
-      p.then(res, rej),
+    then: (
+      res: Parameters<Promise<unknown>['then']>[0],
+      rej: Parameters<Promise<unknown>['then']>[1]
+    ): Promise<unknown> => p.then(res, rej),
     catch: (rej: Parameters<Promise<unknown>['catch']>[0]): Promise<unknown> => p.catch(rej),
     finally: (fn: Parameters<Promise<unknown>['finally']>[0]) => p.finally(fn),
 
@@ -31,7 +33,19 @@ export function dbResult(result: { data: unknown; error: unknown }): Record<stri
   };
 
   // Every chainable method returns the same chain object.
-  for (const m of ['select', 'eq', 'neq', 'or', 'order', 'limit', 'gte', 'update', 'delete', 'upsert']) {
+  for (const m of [
+    'select',
+    'eq',
+    'neq',
+    'in',
+    'or',
+    'order',
+    'limit',
+    'gte',
+    'update',
+    'delete',
+    'upsert',
+  ]) {
     chain[m] = jest.fn(() => chain);
   }
 
@@ -40,8 +54,10 @@ export function dbResult(result: { data: unknown; error: unknown }): Record<stri
     select: jest.fn(() => ({
       single: jest.fn(() => p),
     })),
-    then: (res: Parameters<Promise<unknown>['then']>[0], rej: Parameters<Promise<unknown>['then']>[1]): Promise<unknown> =>
-      p.then(res, rej),
+    then: (
+      res: Parameters<Promise<unknown>['then']>[0],
+      rej: Parameters<Promise<unknown>['then']>[1]
+    ): Promise<unknown> => p.then(res, rej),
     catch: (rej: Parameters<Promise<unknown>['catch']>[0]): Promise<unknown> => p.catch(rej),
   }));
 
@@ -49,7 +65,9 @@ export function dbResult(result: { data: unknown; error: unknown }): Record<stri
 }
 
 /** Convenience: successful response with data */
-export const ok = (data: unknown = null): Record<string, unknown> => dbResult({ data, error: null });
+export const ok = (data: unknown = null): Record<string, unknown> =>
+  dbResult({ data, error: null });
 
 /** Convenience: failed response with error message */
-export const fail = (message: string): Record<string, unknown> => dbResult({ data: null, error: { message } });
+export const fail = (message: string): Record<string, unknown> =>
+  dbResult({ data: null, error: { message } });
