@@ -72,7 +72,6 @@ interface GroceryStore {
   isLoadingLists: boolean;
   listsError: string | null;
   currentDraftSourceListId: string | null;
-  clearVersion: number;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addItem: (
@@ -155,7 +154,6 @@ export const useGroceryStore = create<GroceryStore>()(
       isLoadingLists: false,
       listsError: null,
       currentDraftSourceListId: null,
-      clearVersion: 0,
 
       load: async (houseId: string): Promise<void> => {
         try {
@@ -173,26 +171,16 @@ export const useGroceryStore = create<GroceryStore>()(
             /* ignore storage errors */
           }
 
-          const versionAtStart = get().clearVersion;
           const { data, error } = await supabase
             .from('grocery_items')
             .select('*')
             .eq('house_id', houseId)
             .order('created_at', { ascending: false });
           if (error) throw error;
-          const fetchedItems: GroceryItem[] = (data ?? []).map((r) =>
+          const items: GroceryItem[] = (data ?? []).map((r) =>
             mapItem(r as Record<string, unknown>)
           );
-          // A clear completed while this fetch was in-flight: the fetched data is
-          // stale (DB had the items when the request started). Filter them out so
-          // a concurrent loadGrocery call can never restore items that were just
-          // cleared, regardless of which async operation completes last.
-          const cleared = get().clearVersion !== versionAtStart;
-          set({
-            items: cleared ? fetchedItems.filter((i) => !i.isChecked) : fetchedItems,
-            isLoading: false,
-            error: null,
-          });
+          set({ items, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'grocery', houseId });
           set({ isLoading: false, error: 'Could not load groceries. Please try again.' });
@@ -409,13 +397,10 @@ export const useGroceryStore = create<GroceryStore>()(
             .eq('house_id', parsedHouseId.data)
             .eq('is_checked', true);
           if (error) throw error;
-          // Increment clearVersion and re-apply. Any load() whose fetch started before
-          // this delete will see the version mismatch and filter checked items from its
-          // stale result, regardless of which async operation completes last.
-          set({
-            items: get().items.filter((i) => !i.isChecked),
-            clearVersion: get().clearVersion + 1,
-          });
+          // Re-apply after DB confirms success: loadGrocery may have run concurrently
+          // (AppState active fires when the native Alert dismisses on iOS) and restored
+          // checked items from the DB before the delete landed.
+          set({ items: get().items.filter((i) => !i.isChecked) });
         } catch (err) {
           // Restore only the removed items into the current state, not the full
           // prevItems snapshot — a concurrent load() may have added new items.
