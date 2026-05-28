@@ -234,6 +234,29 @@ describe('clearChecked', () => {
     const ids = useGroceryStore.getState().items.map((i) => i.id);
     expect(ids).toEqual(['item-2']);
   });
+
+  it('re-removes checked items restored by a concurrent load before the delete landed', async () => {
+    seedItems({ id: 'item-1', isChecked: true }, { id: 'item-2', isChecked: false });
+    mockFrom.mockImplementation(() => {
+      // Simulate loadGrocery overwriting state mid-flight (AppState active race)
+      useGroceryStore.setState({
+        items: [item({ id: 'item-1', isChecked: true }), item({ id: 'item-2', isChecked: false })],
+      });
+      return ok(null);
+    });
+
+    await useGroceryStore.getState().clearChecked('house-1');
+
+    const ids = useGroceryStore.getState().items.map((i) => i.id);
+    expect(ids).toEqual(['item-2']);
+  });
+
+  it('is a no-op when houseId is empty', async () => {
+    seedItems({ isChecked: true });
+    await useGroceryStore.getState().clearChecked('');
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(useGroceryStore.getState().items).toHaveLength(1);
+  });
 });
 
 // ── deleteItem ────────────────────────────────────────────────────────────────

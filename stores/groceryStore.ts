@@ -384,6 +384,7 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       clearChecked: async (houseId: string): Promise<void> => {
+        if (!houseId) return;
         const prevItems = get().items;
         if (!prevItems.some((i) => i.isChecked)) return;
         set({ items: prevItems.filter((i) => !i.isChecked) });
@@ -397,6 +398,10 @@ export const useGroceryStore = create<GroceryStore>()(
           captureError(error, { context: 'clear-checked-grocery', houseId });
           throw new Error('Could not clear checked items. Please try again.');
         }
+        // Re-apply after DB confirms success: loadGrocery may have run concurrently
+        // (AppState active fires when the native Alert dismisses on iOS) and restored
+        // checked items from the DB before the delete landed.
+        set({ items: get().items.filter((i) => !i.isChecked) });
       },
 
       publishDraftItems: async (userId: string, houseId: string): Promise<void> => {
