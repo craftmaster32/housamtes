@@ -531,7 +531,11 @@ export const useGroceryStore = create<GroceryStore>()(
             })),
           });
           if (listError) {
-            captureError(listError, { context: 'create-grocery-list' });
+            captureError(listError, {
+              context: 'create-grocery-list',
+              houseId: parsed.houseId,
+              userId: parsed.userId,
+            });
             throw new Error('Could not save the list. Please try again.');
           }
 
@@ -573,7 +577,7 @@ export const useGroceryStore = create<GroceryStore>()(
           ) {
             throw err;
           }
-          captureError(err, { context: 'createSavedList-unexpected' });
+          captureError(err, { context: 'createSavedList-unexpected', houseId, userId });
           throw new Error('An unexpected error occurred while saving the list. Please try again.');
         }
       },
@@ -588,16 +592,14 @@ export const useGroceryStore = create<GroceryStore>()(
           throw new Error('Could not update the list. Please try again.');
         }
         if (items.length > 0) {
-          const { error: insError } = await supabase
-            .from('grocery_list_items')
-            .insert(
-              items.map((item, i) => ({
-                list_id: listId,
-                name: item.name,
-                quantity: item.quantity,
-                position: i,
-              }))
-            );
+          const { error: insError } = await supabase.from('grocery_list_items').insert(
+            items.map((item, i) => ({
+              list_id: listId,
+              name: item.name,
+              quantity: item.quantity,
+              position: i,
+            }))
+          );
           if (insError) {
             captureError(insError, { context: 'update-grocery-list-insert' });
             throw new Error('Could not update the list. Please try again.');

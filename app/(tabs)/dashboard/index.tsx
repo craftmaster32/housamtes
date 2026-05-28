@@ -215,6 +215,7 @@ function TodayAtHome(): React.JSX.Element {
 
   const handleParkingPress = useCallback(async (): Promise<void> => {
     if (isParkingBusy) return;
+    if (!myId || !houseId) return;
     if (!isFree && !isMine) {
       router.push('/(tabs)/parking');
       return;
@@ -1257,6 +1258,8 @@ function MiniCalendarWidget(): React.JSX.Element {
             onPress={prevMonth}
             style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]}
             accessibilityRole="button"
+            accessibilityLabel="Previous month"
+            hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
             <Ionicons name="chevron-back" size={15} color={c.textSecondary} />
           </Pressable>
@@ -1267,6 +1270,8 @@ function MiniCalendarWidget(): React.JSX.Element {
             onPress={nextMonth}
             style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]}
             accessibilityRole="button"
+            accessibilityLabel="Next month"
+            hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
             <Ionicons name="chevron-forward" size={15} color={c.textSecondary} />
           </Pressable>
