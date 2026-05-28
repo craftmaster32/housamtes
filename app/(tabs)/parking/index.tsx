@@ -797,6 +797,7 @@ export default function ParkingScreen(): React.JSX.Element {
               <Pressable
                 onPress={() => setShowReserve(true)}
                 style={styles.addBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 accessibilityRole="button"
               >
                 <Ionicons name="add" size={14} color={C.primary} />
