@@ -767,22 +767,14 @@ export default function GroceryScreen(): React.JSX.Element {
     [updateItem]
   );
   const handleClear = useCallback((): void => {
-    Alert.alert(
-      'Clear the done ones? ✅',
-      'This removes all the checked-off items from the list. Gone for good.',
-      [
-        { text: 'Keep them', style: 'cancel' },
-        {
-          text: 'Wipe them!',
-          style: 'destructive',
-          onPress: (): void => {
-            clearChecked(houseId ?? '').catch(() => {
-              Alert.alert('Could not clear items', 'Something went wrong. Please try again.');
-            });
-          },
-        },
-      ]
-    );
+    if (!houseId) {
+      Alert.alert('Could not clear items', 'Something went wrong. Please try again.');
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    clearChecked(houseId).catch(() => {
+      Alert.alert('Could not clear items', 'Something went wrong. Please try again.');
+    });
   }, [clearChecked, houseId]);
   const handleLongPress = useCallback((item: GroceryItem): void => {
     setSelectedItem(item);
