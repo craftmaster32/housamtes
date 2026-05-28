@@ -255,12 +255,15 @@ function TodayAtHome(): React.JSX.Element {
           <Pressable
             style={[styles.todayCard, { backgroundColor: c.surface, borderColor: c.border }]}
             onPress={handleParkingPress}
-            disabled={isParkingBusy}
+            disabled={!myId || !houseId || isParkingBusy}
             accessibilityRole="button"
             accessibilityLabel={
               isFree ? 'Claim parking spot' : isMine ? 'Release parking spot' : 'View parking'
             }
-            accessibilityState={{ busy: isParkingBusy }}
+            accessibilityState={{
+              disabled: Boolean(!myId || !houseId || isParkingBusy),
+              busy: isParkingBusy,
+            }}
           >
             <View
               style={[styles.todayIconWrap, { backgroundColor: isFree ? '#0A2418' : '#2A0A0A' }]}
