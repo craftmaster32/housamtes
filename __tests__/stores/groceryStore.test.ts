@@ -259,6 +259,13 @@ describe('clearChecked', () => {
     expect(mockFrom).not.toHaveBeenCalled();
     expect(useGroceryStore.getState().items).toHaveLength(1);
   });
+
+  it('is a no-op when houseId is not a valid UUID', async () => {
+    seedItems({ isChecked: true });
+    await useGroceryStore.getState().clearChecked('not-a-valid-uuid');
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(useGroceryStore.getState().items).toHaveLength(1);
+  });
 });
 
 // ── deleteItem ────────────────────────────────────────────────────────────────
