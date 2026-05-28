@@ -767,8 +767,12 @@ export default function GroceryScreen(): React.JSX.Element {
     [updateItem]
   );
   const handleClear = useCallback((): void => {
+    if (!houseId) {
+      Alert.alert('Could not clear items', 'Something went wrong. Please try again.');
+      return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    clearChecked(houseId ?? '').catch(() => {
+    clearChecked(houseId).catch(() => {
       Alert.alert('Could not clear items', 'Something went wrong. Please try again.');
     });
   }, [clearChecked, houseId]);
