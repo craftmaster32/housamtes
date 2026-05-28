@@ -216,6 +216,7 @@ function ItemRow({
             accessible
             accessibilityRole="text"
             accessibilityLabel="Item name, edit"
+            accessibilityHint="Type the item name then tap Save"
           />
           <TextInput
             value={editQty}
@@ -230,6 +231,7 @@ function ItemRow({
             accessible
             accessibilityRole="text"
             accessibilityLabel="Quantity, edit"
+            accessibilityHint="Type a number or amount then tap Save"
           />
           <Pressable
             onPress={saveEdit}
@@ -1156,6 +1158,10 @@ export default function GroceryScreen(): React.JSX.Element {
                               style={[styles.qtyBtn, active && styles.qtyBtnOn]}
                               onPress={() => handleQtyPresetSelect(p)}
                               hitSlop={4}
+                              accessible
+                              accessibilityRole="button"
+                              accessibilityLabel={`Quantity ${p}`}
+                              accessibilityState={{ selected: active }}
                             >
                               <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
                                 {p}
@@ -1167,6 +1173,11 @@ export default function GroceryScreen(): React.JSX.Element {
                           style={[styles.qtyBtn, showCustomQty && styles.qtyBtnOn]}
                           onPress={handleToggleCustomQty}
                           hitSlop={4}
+                          accessible
+                          accessibilityRole="button"
+                          accessibilityLabel="Custom quantity"
+                          accessibilityHint="Opens a text field to enter a custom amount"
+                          accessibilityState={{ selected: showCustomQty }}
                         >
                           <Text style={[styles.qtyBtnText, showCustomQty && styles.qtyBtnTextOn]}>
                             ✏️
