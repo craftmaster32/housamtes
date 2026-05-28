@@ -387,21 +387,23 @@ export const useGroceryStore = create<GroceryStore>()(
         if (!houseId) return;
         const prevItems = get().items;
         if (!prevItems.some((i) => i.isChecked)) return;
-        set({ items: prevItems.filter((i) => !i.isChecked) });
-        const { error } = await supabase
-          .from('grocery_items')
-          .delete()
-          .eq('house_id', houseId)
-          .eq('is_checked', true);
-        if (error) {
+        try {
+          set({ items: prevItems.filter((i) => !i.isChecked) });
+          const { error } = await supabase
+            .from('grocery_items')
+            .delete()
+            .eq('house_id', houseId)
+            .eq('is_checked', true);
+          if (error) throw error;
+          // Re-apply after DB confirms success: loadGrocery may have run concurrently
+          // (AppState active fires when the native Alert dismisses on iOS) and restored
+          // checked items from the DB before the delete landed.
+          set({ items: get().items.filter((i) => !i.isChecked) });
+        } catch (err) {
           set({ items: prevItems });
-          captureError(error, { context: 'clear-checked-grocery', houseId });
+          captureError(err, { context: 'clear-checked-grocery', houseId });
           throw new Error('Could not clear checked items. Please try again.');
         }
-        // Re-apply after DB confirms success: loadGrocery may have run concurrently
-        // (AppState active fires when the native Alert dismisses on iOS) and restored
-        // checked items from the DB before the delete landed.
-        set({ items: get().items.filter((i) => !i.isChecked) });
       },
 
       publishDraftItems: async (userId: string, houseId: string): Promise<void> => {
