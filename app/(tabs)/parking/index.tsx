@@ -41,9 +41,18 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-');
-  return `${d}/${m}/${y}`;
+function parseDateParts(dateStr: string): {
+  dayNum: string;
+  monthAbbr: string;
+  weekdayAbbr: string;
+} {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return {
+    dayNum: String(d),
+    monthAbbr: date.toLocaleString('default', { month: 'short' }).toUpperCase(),
+    weekdayAbbr: date.toLocaleString('default', { weekday: 'short' }),
+  };
 }
 
 function todayString(): string {
@@ -90,13 +99,13 @@ function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.El
       {voters.map((h) => {
         const v = votes.find((vote) => vote.userId === h.id);
         const dotStyle =
-          v?.vote === 'approve' ? styles.dotApprove
-          : v?.vote === 'reject' ? styles.dotReject
-          : styles.dotPending;
+          v?.vote === 'approve'
+            ? styles.dotApprove
+            : v?.vote === 'reject'
+              ? styles.dotReject
+              : styles.dotPending;
         const dotIcon =
-          v?.vote === 'approve' ? 'checkmark'
-          : v?.vote === 'reject' ? 'close'
-          : 'remove';
+          v?.vote === 'approve' ? 'checkmark' : v?.vote === 'reject' ? 'close' : 'remove';
         return (
           <View key={h.id} style={styles.voteAvatarWrap}>
             <View style={[styles.voteAvatarCircle, { backgroundColor: h.color + '30' }]}>
@@ -115,7 +124,15 @@ function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.El
 }
 
 // ── Reservation card ───────────────────────────────────────────────────────────
-function ReservationCard({ item, currentUserId, isAdmin, onCancel, onVote, onClear, isHistory }: ReservationCardProps): React.JSX.Element {
+function ReservationCard({
+  item,
+  currentUserId,
+  isAdmin,
+  onCancel,
+  onVote,
+  onClear,
+  isHistory,
+}: ReservationCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -126,25 +143,23 @@ function ReservationCard({ item, currentUserId, isAdmin, onCancel, onVote, onCle
   const rejected = item.status === 'rejected';
 
   const statusColor = approved ? C.positive : rejected ? C.danger : C.warning;
-  const statusBg = approved
-    ? C.positive + '20'
-    : rejected
-    ? C.danger + '15'
-    : C.warning + '20';
+  const statusBg = approved ? C.positive + '20' : rejected ? C.danger + '15' : C.warning + '20';
   const statusLabel = approved
     ? t('parking.approved')
     : rejected
-    ? t('parking.rejected')
-    : t('parking.pending');
+      ? t('parking.rejected')
+      : t('parking.pending');
 
-  const handleCancel  = useCallback(() => onCancel(item.id),            [onCancel, item.id]);
-  const handleClear   = useCallback(() => onClear(item.id),             [onClear,  item.id]);
-  const handleApprove = useCallback(() => onVote(item.id, 'approve'),   [onVote,   item.id]);
-  const handleReject  = useCallback(() => onVote(item.id, 'reject'),    [onVote,   item.id]);
+  const handleCancel = useCallback(() => onCancel(item.id), [onCancel, item.id]);
+  const handleClear = useCallback(() => onClear(item.id), [onClear, item.id]);
+  const handleApprove = useCallback(() => onVote(item.id, 'approve'), [onVote, item.id]);
+  const handleReject = useCallback(() => onVote(item.id, 'reject'), [onVote, item.id]);
 
-  const timeLabel = item.startTime
-    ? ` · ${item.startTime}${item.endTime ? `–${item.endTime}` : ''}`
-    : '';
+  const timeText = item.startTime
+    ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
+    : null;
+
+  const { dayNum, monthAbbr, weekdayAbbr } = parseDateParts(item.date);
 
   const myVote = item.votes.find((v) => v.userId === currentUserId);
   const canVote = !isOwn && isPending;
@@ -154,15 +169,22 @@ function ReservationCard({ item, currentUserId, isAdmin, onCancel, onVote, onCle
 
   return (
     <View style={[styles.resCard, isHistory && styles.resCardDim]}>
-      <View style={styles.resIconWrap}>
-        <Ionicons name="calendar-outline" size={18} color={statusColor} />
+      <View
+        style={[styles.dateBadge, { borderColor: statusColor + '50' }]}
+        accessible
+        accessibilityLabel={`${weekdayAbbr} ${dayNum} ${monthAbbr}`}
+      >
+        <View style={[styles.dateBadgeTop, { backgroundColor: statusColor }]}>
+          <Text style={styles.dateBadgeMonth}>{monthAbbr}</Text>
+        </View>
+        <View style={styles.dateBadgeBottom}>
+          <Text style={[styles.dateBadgeDay, { color: C.textPrimary }]}>{dayNum}</Text>
+          <Text style={[styles.dateBadgeWeekday, { color: C.textSecondary }]}>{weekdayAbbr}</Text>
+        </View>
       </View>
 
       <View style={styles.resInfo}>
-        <Text style={styles.resDate}>
-          {formatDate(item.date)}
-          {timeLabel}
-        </Text>
+        {!!timeText && <Text style={styles.resDate}>{timeText}</Text>}
         <Text style={styles.resBy}>
           {isOwn ? 'You' : resolveName(item.requestedBy, housemates)}
           {item.note ? ` · ${item.note}` : ''}
@@ -252,7 +274,15 @@ function ReservationCard({ item, currentUserId, isAdmin, onCancel, onVote, onCle
 }
 
 // ── Reserve modal ──────────────────────────────────────────────────────────────
-function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, current }: ReserveModalProps): React.JSX.Element {
+function ReserveModal({
+  visible,
+  onClose,
+  myId,
+  myName,
+  houseId,
+  reservations,
+  current,
+}: ReserveModalProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -275,10 +305,14 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
       ? `${current.occupant === myId ? 'You are' : `${resolveName(current.occupant, housemates)} is`} currently using the spot`
       : null;
   const conflictResult: ConflictResult = isDateConflict(
-    date, startTime || undefined, endTime || undefined, reservations, (id: string): string => resolveName(id, housemates)
+    date,
+    startTime || undefined,
+    endTime || undefined,
+    reservations,
+    (id: string): string => resolveName(id, housemates)
   );
   const dateConflict = conflictResult.conflict;
-  const dateWarning  = conflictResult.warning;
+  const dateWarning = conflictResult.warning;
 
   const reset = useCallback((): void => {
     setDate(todayStr);
@@ -294,14 +328,29 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
   }, [reset, onClose]);
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (dateConflict) { setError(dateConflict); return; }
-    if (!!startTime !== !!endTime) { setError('Please provide both a start time and an end time, or leave both empty.'); return; }
-    if (startTime && endTime && endTime <= startTime) { setError('End time must be after start time.'); return; }
+    if (dateConflict) {
+      setError(dateConflict);
+      return;
+    }
+    if (!!startTime !== !!endTime) {
+      setError('Please provide both a start time and an end time, or leave both empty.');
+      return;
+    }
+    if (startTime && endTime && endTime <= startTime) {
+      setError('End time must be after start time.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
       const reservationId = await addReservation(
-        { requestedBy: myId, date, startTime: startTime || undefined, endTime: endTime || undefined, note },
+        {
+          requestedBy: myId,
+          date,
+          startTime: startTime || undefined,
+          endTime: endTime || undefined,
+          note,
+        },
         myName,
         houseId
       );
@@ -318,7 +367,20 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
     } finally {
       setSaving(false);
     }
-  }, [dateConflict, date, startTime, endTime, note, myId, myName, houseId, addReservation, handleClose, syncParkingPending, t]);
+  }, [
+    dateConflict,
+    date,
+    startTime,
+    endTime,
+    note,
+    myId,
+    myName,
+    houseId,
+    addReservation,
+    handleClose,
+    syncParkingPending,
+    t,
+  ]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
@@ -329,7 +391,13 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
             <Text style={styles.fieldLabel}>Date</Text>
-            <CalendarPicker value={date} onChange={(d) => { setDate(d); setError(''); }} />
+            <CalendarPicker
+              value={date}
+              onChange={(d) => {
+                setDate(d);
+                setError('');
+              }}
+            />
 
             {!!dateConflict && (
               <View style={styles.conflictBox}>
@@ -346,7 +414,9 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
             {!dateConflict && !!activeConflict && (
               <View style={[styles.conflictBox, styles.conflictWarningBox]}>
                 <Ionicons name="information-circle-outline" size={13} color={C.warning} />
-                <Text style={[styles.conflictText, styles.conflictWarningText]}>{activeConflict}</Text>
+                <Text style={[styles.conflictText, styles.conflictWarningText]}>
+                  {activeConflict}
+                </Text>
               </View>
             )}
 
@@ -369,7 +439,11 @@ function ReserveModal({ visible, onClose, myId, myName, houseId, reservations, c
           </ScrollView>
 
           <View style={styles.modalBtns}>
-            <Pressable style={styles.modalBtnOutline} onPress={handleClose} accessibilityRole="button">
+            <Pressable
+              style={styles.modalBtnOutline}
+              onPress={handleClose}
+              accessibilityRole="button"
+            >
               <Text style={styles.modalBtnOutlineText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable
@@ -432,8 +506,13 @@ export default function ParkingScreen(): React.JSX.Element {
       }
       appStateRef.current = nextState;
     });
-    const interval = setInterval(() => { checkReservationAutoApply(houseId ?? ''); }, 60_000);
-    return (): void => { sub.remove(); clearInterval(interval); };
+    const interval = setInterval(() => {
+      checkReservationAutoApply(houseId ?? '');
+    }, 60_000);
+    return (): void => {
+      sub.remove();
+      clearInterval(interval);
+    };
   }, [houseId, checkReservationAutoApply]);
 
   // Sync the requester's own calendar entry when their request is resolved.
@@ -444,7 +523,11 @@ export default function ParkingScreen(): React.JSX.Element {
     const prevMap = prevStatusMapRef.current;
     for (const r of reservations) {
       const prev = prevMap.get(r.id);
-      if ((prev === undefined || prev === 'pending') && r.status !== 'pending' && r.requestedBy === myId) {
+      if (
+        (prev === undefined || prev === 'pending') &&
+        r.status !== 'pending' &&
+        r.requestedBy === myId
+      ) {
         if (r.status === 'approved') {
           syncParkingApproved({
             id: r.id,
@@ -470,16 +553,16 @@ export default function ParkingScreen(): React.JSX.Element {
     () => reservations.filter((r) => r.date >= today),
     [reservations, today]
   );
-  const history = useMemo(
-    () => reservations.filter((r) => r.date < today),
-    [reservations, today]
-  );
+  const history = useMemo(() => reservations.filter((r) => r.date < today), [reservations, today]);
 
-  const listData = useMemo((): FlatItem[] => [
-    ...upcoming.map((r) => ({ _k: 'res' as const, res: r, isHistory: false })),
-    ...(history.length > 0 ? [{ _k: 'hist-header' as const, count: history.length }] : []),
-    ...history.map((r) => ({ _k: 'res' as const, res: r, isHistory: true })),
-  ], [upcoming, history]);
+  const listData = useMemo(
+    (): FlatItem[] => [
+      ...upcoming.map((r) => ({ _k: 'res' as const, res: r, isHistory: false })),
+      ...(history.length > 0 ? [{ _k: 'hist-header' as const, count: history.length }] : []),
+      ...history.map((r) => ({ _k: 'res' as const, res: r, isHistory: true })),
+    ],
+    [upcoming, history]
+  );
 
   const handleClaim = useCallback(async (): Promise<void> => {
     setError('');
@@ -509,7 +592,10 @@ export default function ParkingScreen(): React.JSX.Element {
         if (Platform.OS === 'web') {
           window.alert('The spot changed while you were confirming — please try again.');
         } else {
-          Alert.alert('Could not free spot', 'The spot changed while you were confirming — please try again.');
+          Alert.alert(
+            'Could not free spot',
+            'The spot changed while you were confirming — please try again.'
+          );
         }
         return;
       }
@@ -524,7 +610,9 @@ export default function ParkingScreen(): React.JSX.Element {
     };
 
     if (Platform.OS === 'web') {
-      if (window.confirm(`${occupantName} is parked there — evict them? This will free the spot.`)) {
+      if (
+        window.confirm(`${occupantName} is parked there — evict them? This will free the spot.`)
+      ) {
         doRelease();
       }
     } else {
@@ -539,69 +627,82 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [current, housemates, myName, release, houseId, t]);
 
-  const handleCancel = useCallback(async (id: string): Promise<void> => {
-    try {
-      await cancelReservation(id, houseId ?? '');
-      removeCalendarEvent(`pk-${id}`).catch(() => {});
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.failed_cancel'));
-    }
-  }, [cancelReservation, houseId, removeCalendarEvent, t]);
-
-  const handleVote = useCallback(async (id: string, vote: ParkingVoteChoice): Promise<void> => {
-    const reservation = reservations.find((r) => r.id === id);
-    if (!reservation) return;
-    try {
-      const resultStatus = await voteOnReservation(id, vote, houseId ?? '');
-      if (resultStatus === 'approved') {
-        syncParkingApproved({
-          id: reservation.id,
-          requestedBy: resolveName(reservation.requestedBy, housemates),
-          date: reservation.date,
-          startTime: reservation.startTime,
-          endTime: reservation.endTime,
-        }).catch(() => {});
+  const handleCancel = useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        await cancelReservation(id, houseId ?? '');
+        removeCalendarEvent(`pk-${id}`).catch(() => {});
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('parking.failed_cancel'));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.error_vote_failed'));
-    }
-  }, [voteOnReservation, reservations, housemates, houseId, syncParkingApproved, t]);
+    },
+    [cancelReservation, houseId, removeCalendarEvent, t]
+  );
 
-  const handleClear = useCallback(async (id: string): Promise<void> => {
-    try {
-      await clearHistoryItem(id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.error_clear_failed'));
-    }
-  }, [clearHistoryItem, t]);
+  const handleVote = useCallback(
+    async (id: string, vote: ParkingVoteChoice): Promise<void> => {
+      const reservation = reservations.find((r) => r.id === id);
+      if (!reservation) return;
+      try {
+        const resultStatus = await voteOnReservation(id, vote, houseId ?? '');
+        if (resultStatus === 'approved') {
+          syncParkingApproved({
+            id: reservation.id,
+            requestedBy: resolveName(reservation.requestedBy, housemates),
+            date: reservation.date,
+            startTime: reservation.startTime,
+            endTime: reservation.endTime,
+          }).catch(() => {});
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('parking.error_vote_failed'));
+      }
+    },
+    [voteOnReservation, reservations, housemates, houseId, syncParkingApproved, t]
+  );
 
-  const keyExtractor = useCallback((item: FlatItem): string =>
-    item._k === 'hist-header' ? 'history-header' : item.res.id
-  , []);
+  const handleClear = useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        await clearHistoryItem(id);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t('parking.error_clear_failed'));
+      }
+    },
+    [clearHistoryItem, t]
+  );
 
-  const renderItem = useCallback(({ item }: ListRenderItemInfo<FlatItem>): React.JSX.Element => {
-    if (item._k === 'hist-header') {
-      return (
-        <View style={styles.historyHeaderRow}>
-          <Text style={styles.eyebrow}>{t('parking.history')}</Text>
-          <View style={styles.countPill}>
-            <Text style={styles.countPillText}>{item.count}</Text>
+  const keyExtractor = useCallback(
+    (item: FlatItem): string => (item._k === 'hist-header' ? 'history-header' : item.res.id),
+    []
+  );
+
+  const renderItem = useCallback(
+    ({ item }: ListRenderItemInfo<FlatItem>): React.JSX.Element => {
+      if (item._k === 'hist-header') {
+        return (
+          <View style={styles.historyHeaderRow}>
+            <Text style={styles.eyebrow}>{t('parking.history')}</Text>
+            <View style={styles.countPill}>
+              <Text style={styles.countPillText}>{item.count}</Text>
+            </View>
           </View>
-        </View>
+        );
+      }
+      return (
+        <ReservationCard
+          item={item.res}
+          currentUserId={myId}
+          isAdmin={isAdmin}
+          onCancel={handleCancel}
+          onVote={handleVote}
+          onClear={handleClear}
+          isHistory={item.isHistory}
+        />
       );
-    }
-    return (
-      <ReservationCard
-        item={item.res}
-        currentUserId={myId}
-        isAdmin={isAdmin}
-        onCancel={handleCancel}
-        onVote={handleVote}
-        onClear={handleClear}
-        isHistory={item.isHistory}
-      />
-    );
-  }, [myId, isAdmin, handleCancel, handleVote, handleClear, t, styles]);
+    },
+    [myId, isAdmin, handleCancel, handleVote, handleClear, t, styles]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -612,7 +713,6 @@ export default function ParkingScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
-
         ListHeaderComponent={
           <View>
             {/* ── Hero card ── */}
@@ -623,12 +723,17 @@ export default function ParkingScreen(): React.JSX.Element {
                   {isFree
                     ? 'Free real estate! Claim it before someone else does. 🏎️'
                     : isMine
-                    ? `That's your car in there — since ${formatTime(current!.startTime)}.`
-                    : `${resolveName(current?.occupant ?? '', housemates)} got here first. Since ${formatTime(current!.startTime)}.`}
+                      ? `That's your car in there — since ${formatTime(current!.startTime)}.`
+                      : `${resolveName(current?.occupant ?? '', housemates)} got here first. Since ${formatTime(current!.startTime)}.`}
                 </Text>
               </View>
 
-              <View style={[styles.statusCircle, { backgroundColor: isFree ? C.positive + '18' : C.negative + '18' }]}>
+              <View
+                style={[
+                  styles.statusCircle,
+                  { backgroundColor: isFree ? C.positive + '18' : C.negative + '18' },
+                ]}
+              >
                 <Ionicons
                   name={isFree ? 'car-outline' : 'car'}
                   size={38}
@@ -640,13 +745,21 @@ export default function ParkingScreen(): React.JSX.Element {
               </View>
 
               {isFree && (
-                <Pressable style={styles.btnPrimary} onPress={handleClaim} accessibilityRole="button">
+                <Pressable
+                  style={styles.btnPrimary}
+                  onPress={handleClaim}
+                  accessibilityRole="button"
+                >
                   <Ionicons name="car" size={16} color="#fff" style={styles.btnIcon} />
                   <Text style={styles.btnPrimaryText}>{t('parking.claim')}</Text>
                 </Pressable>
               )}
               {isMine && (
-                <Pressable style={styles.btnDanger} onPress={handleRelease} accessibilityRole="button">
+                <Pressable
+                  style={styles.btnDanger}
+                  onPress={handleRelease}
+                  accessibilityRole="button"
+                >
                   <Ionicons name="exit-outline" size={16} color={C.danger} style={styles.btnIcon} />
                   <Text style={styles.btnDangerText}>{t('parking.release')}</Text>
                 </Pressable>
@@ -660,7 +773,12 @@ export default function ParkingScreen(): React.JSX.Element {
                   style={styles.btnAdminRelease}
                   onPress={handleReleaseOther}
                 >
-                  <Ionicons name="exit-outline" size={15} color={C.warning} style={styles.btnIcon} />
+                  <Ionicons
+                    name="exit-outline"
+                    size={15}
+                    color={C.warning}
+                    style={styles.btnIcon}
+                  />
                   <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
                 </Pressable>
               )}
@@ -676,7 +794,11 @@ export default function ParkingScreen(): React.JSX.Element {
             {/* ── Reservations section header ── */}
             <View style={styles.sectionHeader}>
               <Text style={styles.eyebrow}>{t('parking.reservations')}</Text>
-              <Pressable onPress={() => setShowReserve(true)} style={styles.addBtn} accessibilityRole="button">
+              <Pressable
+                onPress={() => setShowReserve(true)}
+                style={styles.addBtn}
+                accessibilityRole="button"
+              >
                 <Ionicons name="add" size={14} color={C.primary} />
                 <Text style={styles.addBtnText}>{t('parking.reserve')}</Text>
               </Pressable>
@@ -692,15 +814,16 @@ export default function ParkingScreen(): React.JSX.Element {
             )}
           </View>
         }
-
         ListEmptyComponent={
-          isLoading
-            ? <EmptyState mode="loading" title="Loading…" />
-            : <EmptyState
-                icon="calendar-outline"
-                title={t('parking.no_reservations')}
-                message="Reserve ahead of time so housemates know when the spot is taken."
-              />
+          isLoading ? (
+            <EmptyState mode="loading" title="Loading…" />
+          ) : (
+            <EmptyState
+              icon="calendar-outline"
+              title={t('parking.no_reservations')}
+              message="Reserve ahead of time so housemates know when the spot is taken."
+            />
+          )
         }
       />
 
@@ -717,186 +840,297 @@ export default function ParkingScreen(): React.JSX.Element {
   );
 }
 
-const makeStyles = (C: ColorTokens) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
-  sep: { height: 8 },
+const makeStyles = (C: ColorTokens) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
+    sep: { height: 8 },
 
-  heroCard: {
-    backgroundColor: C.surface,
-    borderRadius: 20, borderWidth: 1, borderColor: C.border,
-    padding: 20, gap: 16, marginBottom: 24,
-    shadowColor: '#2C333D',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 24,
-    elevation: 3,
-  },
-  heroCopy: { gap: 6 },
-  titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-  textBase: { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
+    heroCard: {
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: C.border,
+      padding: 20,
+      gap: 16,
+      marginBottom: 24,
+      shadowColor: '#2C333D',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.05,
+      shadowRadius: 24,
+      elevation: 3,
+    },
+    heroCopy: { gap: 6 },
+    titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
+    textBase: { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
 
-  statusCircle: {
-    alignSelf: 'center',
-    width: 96, height: 96, borderRadius: 48,
-    justifyContent: 'center', alignItems: 'center', gap: 4,
-  },
-  statusLabel: { fontSize: 12, ...font.bold, letterSpacing: 0.6 },
+    statusCircle: {
+      alignSelf: 'center',
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 4,
+    },
+    statusLabel: { fontSize: 12, ...font.bold, letterSpacing: 0.6 },
 
-  btnPrimary: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    minHeight: 48, paddingHorizontal: 18, borderRadius: 10,
-    backgroundColor: C.primary,
-    shadowColor: '#4F78B6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  btnDanger: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    minHeight: 48, paddingHorizontal: 18, borderRadius: 10,
-    backgroundColor: C.danger + '15',
-    borderWidth: 1, borderColor: C.danger + '30',
-  },
-  btnAdminRelease: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    minHeight: 44, paddingHorizontal: 16, borderRadius: 10,
-    backgroundColor: C.warning + '15',
-    borderWidth: 1, borderColor: C.warning + '40',
-  },
-  btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-  btnDangerText: { fontSize: 15, ...font.semibold, color: C.danger },
-  btnAdminReleaseText: { fontSize: 14, ...font.semibold, color: C.warning },
-  btnIcon: { marginRight: 6 },
+    btnPrimary: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 48,
+      paddingHorizontal: 18,
+      borderRadius: 10,
+      backgroundColor: C.primary,
+      shadowColor: '#4F78B6',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.18,
+      shadowRadius: 16,
+      elevation: 6,
+    },
+    btnDanger: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 48,
+      paddingHorizontal: 18,
+      borderRadius: 10,
+      backgroundColor: C.danger + '15',
+      borderWidth: 1,
+      borderColor: C.danger + '30',
+    },
+    btnAdminRelease: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      backgroundColor: C.warning + '15',
+      borderWidth: 1,
+      borderColor: C.warning + '40',
+    },
+    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+    btnDangerText: { fontSize: 15, ...font.semibold, color: C.danger },
+    btnAdminReleaseText: { fontSize: 14, ...font.semibold, color: C.warning },
+    btnIcon: { marginRight: 6 },
 
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: C.primary + '15',
-    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 9999,
-  },
-  addBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: C.primary + '15',
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 9999,
+    },
+    addBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
 
-  sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 4, marginBottom: 12,
-  },
-  subHeaderRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 4, marginBottom: 12,
-  },
-  eyebrow: {
-    fontSize: 12, ...font.bold, color: C.textSecondary,
-    letterSpacing: 0.72, textTransform: 'uppercase',
-  },
-  countPill: {
-    minHeight: 22, paddingHorizontal: 8, borderRadius: 9999,
-    backgroundColor: C.secondary, justifyContent: 'center', alignItems: 'center',
-  },
-  countPillText: { fontSize: 11, ...font.bold, color: C.secondaryForeground },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 4,
+      marginBottom: 12,
+    },
+    subHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 4,
+      marginBottom: 12,
+    },
+    eyebrow: {
+      fontSize: 12,
+      ...font.bold,
+      color: C.textSecondary,
+      letterSpacing: 0.72,
+      textTransform: 'uppercase',
+    },
+    countPill: {
+      minHeight: 22,
+      paddingHorizontal: 8,
+      borderRadius: 9999,
+      backgroundColor: C.secondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    countPillText: { fontSize: 11, ...font.bold, color: C.secondaryForeground },
 
-  historyHeaderRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 4, paddingTop: 16, paddingBottom: 8,
-  },
+    historyHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 4,
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
 
-  resCard: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 14,
-    borderRadius: 14, backgroundColor: C.surface,
-    borderWidth: 1, borderColor: C.border,
-    shadowColor: '#2C333D',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 16,
-    elevation: 1,
-  },
-  resCardDim: { opacity: 0.72 },
-  resIconWrap: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: C.surfaceSecondary,
-    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
-    marginTop: 2,
-  },
-  resInfo: { flex: 1, gap: 4 },
-  resDate: { fontSize: 15, ...font.semibold, color: C.textPrimary },
-  resBy: { fontSize: 13, ...font.regular, color: C.textSecondary },
+    resCard: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
+      shadowColor: '#2C333D',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.02,
+      shadowRadius: 16,
+      elevation: 1,
+    },
+    resCardDim: { opacity: 0.72 },
+    dateBadge: {
+      width: 52,
+      borderRadius: 10,
+      overflow: 'hidden',
+      borderWidth: 1,
+      flexShrink: 0,
+      alignSelf: 'flex-start',
+    },
+    dateBadgeTop: {
+      paddingVertical: 4,
+      alignItems: 'center',
+    },
+    dateBadgeMonth: { fontSize: 9, ...font.bold, color: '#fff', letterSpacing: 0.6 },
+    dateBadgeBottom: {
+      backgroundColor: C.surfaceSecondary,
+      alignItems: 'center',
+      paddingTop: 5,
+      paddingBottom: 6,
+    },
+    dateBadgeDay: { fontSize: 22, ...font.extrabold, lineHeight: 26, letterSpacing: -0.5 },
+    dateBadgeWeekday: { fontSize: 9, ...font.medium, marginTop: 1 },
+    resInfo: { flex: 1, gap: 4 },
+    resDate: { fontSize: 13, ...font.semibold, color: C.textSecondary },
+    resBy: { fontSize: 13, ...font.regular, color: C.textSecondary },
 
-  badge: {
-    alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2,
-    borderRadius: 9999, marginTop: 2,
-  },
-  badgeText: { fontSize: 11, ...font.semibold },
+    badge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 9999,
+      marginTop: 2,
+    },
+    badgeText: { fontSize: 11, ...font.semibold },
 
-  resActions: { gap: 6, alignItems: 'center', paddingTop: 2 },
-  iconBtn: { padding: 4 },
+    resActions: { gap: 6, alignItems: 'center', paddingTop: 2 },
+    iconBtn: { padding: 4 },
 
-  voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  voteAvatarWrap: { position: 'relative', width: 28, height: 28 },
-  voteAvatarCircle: {
-    width: 28, height: 28, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  voteAvatarInitial: { fontSize: 11, ...font.bold },
-  voteDot: {
-    position: 'absolute', bottom: -1, right: -1,
-    width: 13, height: 13, borderRadius: 7,
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1.5, borderColor: C.surface,
-  },
-  dotApprove: { backgroundColor: C.positive },
-  dotReject:  { backgroundColor: C.danger },
-  dotPending: { backgroundColor: C.textSecondary + '80' },
+    voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    voteAvatarWrap: { position: 'relative', width: 28, height: 28 },
+    voteAvatarCircle: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    voteAvatarInitial: { fontSize: 11, ...font.bold },
+    voteDot: {
+      position: 'absolute',
+      bottom: -1,
+      right: -1,
+      width: 13,
+      height: 13,
+      borderRadius: 7,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: C.surface,
+    },
+    dotApprove: { backgroundColor: C.positive },
+    dotReject: { backgroundColor: C.danger },
+    dotPending: { backgroundColor: C.textSecondary + '80' },
 
-  voteBtns: { flexDirection: 'row', gap: 6 },
-  voteBtn: {
-    width: 32, height: 32, borderRadius: 9999,
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: C.border,
-    backgroundColor: C.surfaceSecondary,
-  },
-  voteBtnApproveActive: { backgroundColor: C.positive, borderColor: C.positive },
-  voteBtnRejectActive:  { backgroundColor: C.danger,   borderColor: C.danger },
+    voteBtns: { flexDirection: 'row', gap: 6 },
+    voteBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 9999,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+    },
+    voteBtnApproveActive: { backgroundColor: C.positive, borderColor: C.positive },
+    voteBtnRejectActive: { backgroundColor: C.danger, borderColor: C.danger },
 
-  errorBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: C.danger + '15', borderRadius: 10,
-    padding: 12, marginBottom: 16,
-  },
-  errorText: { fontSize: 13, ...font.regular, color: C.danger, flex: 1 },
+    errorBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: C.danger + '15',
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 16,
+    },
+    errorText: { fontSize: 13, ...font.regular, color: C.danger, flex: 1 },
 
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: C.surface,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40, gap: 12,
-    maxHeight: '90%',
-  },
-  modalScroll: { flexGrow: 0 },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 4 },
-  modalTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-  fieldLabel: { fontSize: 13, ...font.semibold, color: C.textPrimary, marginBottom: 6 },
-  fieldInput: {
-    borderWidth: 1.5, borderColor: C.border, borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, ...font.regular, color: C.textPrimary,
-    backgroundColor: C.surfaceSecondary,
-  },
-  fieldError: { fontSize: 13, ...font.regular, color: C.negative },
-  conflictBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  conflictText: { fontSize: 13, ...font.medium, color: C.warning, flex: 1 },
-  conflictWarningBox: { borderWidth: 1, borderRadius: 8, padding: 8, borderColor: C.warning + '40', backgroundColor: C.warning + '10' },
-  conflictWarningText: { color: C.warning },
-  modalBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  modalBtnOutline: {
-    flex: 1, paddingVertical: 14, borderRadius: 12,
-    borderWidth: 1.5, borderColor: C.border, alignItems: 'center',
-  },
-  modalBtnOutlineText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
-  modalBtnPrimary: {
-    flex: 1, paddingVertical: 14, borderRadius: 12,
-    backgroundColor: C.primary, alignItems: 'center',
-  },
-  modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-});
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    modalSheet: {
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 40,
+      gap: 12,
+      maxHeight: '90%',
+    },
+    modalScroll: { flexGrow: 0 },
+    modalHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: C.border,
+      alignSelf: 'center',
+      marginBottom: 4,
+    },
+    modalTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    fieldLabel: { fontSize: 13, ...font.semibold, color: C.textPrimary, marginBottom: 6 },
+    fieldInput: {
+      borderWidth: 1.5,
+      borderColor: C.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      ...font.regular,
+      color: C.textPrimary,
+      backgroundColor: C.surfaceSecondary,
+    },
+    fieldError: { fontSize: 13, ...font.regular, color: C.negative },
+    conflictBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+    conflictText: { fontSize: 13, ...font.medium, color: C.warning, flex: 1 },
+    conflictWarningBox: {
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 8,
+      borderColor: C.warning + '40',
+      backgroundColor: C.warning + '10',
+    },
+    conflictWarningText: { color: C.warning },
+    modalBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
+    modalBtnOutline: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      alignItems: 'center',
+    },
+    modalBtnOutlineText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    modalBtnPrimary: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: C.primary,
+      alignItems: 'center',
+    },
+    modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+  });
