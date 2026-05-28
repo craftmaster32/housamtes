@@ -399,15 +399,15 @@ export const useGroceryStore = create<GroceryStore>()(
         const parsedHouseId = z.string().uuid().safeParse(houseId);
         if (!parsedHouseId.success) return;
         const prevItems = get().items;
-        if (!prevItems.some((i) => i.isChecked)) return;
         const removedItems = prevItems.filter((i) => i.isChecked);
+        if (removedItems.length === 0) return;
+        const removedIds = removedItems.map((i) => i.id);
         try {
           set({ items: prevItems.filter((i) => !i.isChecked) });
-          const { error } = await supabase
-            .from('grocery_items')
-            .delete()
-            .eq('house_id', parsedHouseId.data)
-            .eq('is_checked', true);
+          // Delete by specific IDs, not by is_checked flag — avoids a race where
+          // toggleItem's DB update hasn't committed yet so is_checked is still false
+          // in the DB at the moment clearChecked runs.
+          const { error } = await supabase.from('grocery_items').delete().in('id', removedIds);
           if (error) throw error;
           // Increment clearVersion and re-apply. Any load() whose fetch started before
           // this delete will see the version mismatch and filter checked items from its
