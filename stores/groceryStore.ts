@@ -70,6 +70,7 @@ interface GroceryStore {
   activeRun: ShoppingRun | null;
   savedLists: GroceryList[];
   isLoadingLists: boolean;
+  listsError: string | null;
   currentDraftSourceListId: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
@@ -151,6 +152,7 @@ export const useGroceryStore = create<GroceryStore>()(
       activeRun: null,
       savedLists: [],
       isLoadingLists: false,
+      listsError: null,
       currentDraftSourceListId: null,
 
       load: async (houseId: string): Promise<void> => {
@@ -495,10 +497,13 @@ export const useGroceryStore = create<GroceryStore>()(
                 position: (li.position as number) ?? 0,
               })),
           }));
-          set({ savedLists: lists, isLoadingLists: false });
+          set({ savedLists: lists, isLoadingLists: false, listsError: null });
         } catch (err) {
           captureError(err, { context: 'fetch-grocery-lists' });
-          set({ isLoadingLists: false });
+          set({
+            isLoadingLists: false,
+            listsError: 'Could not load saved lists. Please try again.',
+          });
         }
       },
 
@@ -583,6 +588,11 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       updateSavedList: async (listId, items): Promise<void> => {
+        const parsedItems = createSavedListSchema.shape.items.safeParse(items);
+        if (!parsedItems.success) {
+          captureError(parsedItems.error, { context: 'update-grocery-list-validation' });
+          throw new Error('Could not update the list. Please try again.');
+        }
         const { error: delError } = await supabase
           .from('grocery_list_items')
           .delete()
