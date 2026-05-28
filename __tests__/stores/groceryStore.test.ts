@@ -75,6 +75,8 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   removeItem: jest.fn().mockResolvedValue(undefined),
 }));
 
+const HOUSE_UUID = '00000000-0000-0000-0000-000000000001';
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function rawRow(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
@@ -195,7 +197,7 @@ describe('clearChecked', () => {
     seedItems({ isChecked: true }, { isChecked: false }, { isChecked: true });
     mockFrom.mockReturnValue(ok(null));
 
-    const promise = useGroceryStore.getState().clearChecked('house-1');
+    const promise = useGroceryStore.getState().clearChecked(HOUSE_UUID);
 
     // State updated synchronously before the await resolves
     expect(useGroceryStore.getState().items).toHaveLength(1);
@@ -207,7 +209,7 @@ describe('clearChecked', () => {
     seedItems({ isChecked: true }, { isChecked: false });
     mockFrom.mockReturnValue(fail('connection error'));
 
-    await expect(useGroceryStore.getState().clearChecked('house-1')).rejects.toThrow(
+    await expect(useGroceryStore.getState().clearChecked(HOUSE_UUID)).rejects.toThrow(
       'Could not clear checked items'
     );
 
@@ -217,7 +219,7 @@ describe('clearChecked', () => {
 
   it('is a no-op when nothing is checked', async () => {
     seedItems({ isChecked: false });
-    await useGroceryStore.getState().clearChecked('house-1');
+    await useGroceryStore.getState().clearChecked(HOUSE_UUID);
     expect(mockFrom).not.toHaveBeenCalled();
     expect(useGroceryStore.getState().items).toHaveLength(1);
   });
@@ -229,10 +231,40 @@ describe('clearChecked', () => {
       { id: 'item-3', isChecked: true }
     );
     mockFrom.mockReturnValue(ok(null));
-    await useGroceryStore.getState().clearChecked('house-1');
+    await useGroceryStore.getState().clearChecked(HOUSE_UUID);
 
     const ids = useGroceryStore.getState().items.map((i) => i.id);
     expect(ids).toEqual(['item-2']);
+  });
+
+  it('re-removes checked items restored by a concurrent load before the delete landed', async () => {
+    seedItems({ id: 'item-1', isChecked: true }, { id: 'item-2', isChecked: false });
+    mockFrom.mockImplementation(() => {
+      // Simulate loadGrocery overwriting state mid-flight (AppState active race)
+      useGroceryStore.setState({
+        items: [item({ id: 'item-1', isChecked: true }), item({ id: 'item-2', isChecked: false })],
+      });
+      return ok(null);
+    });
+
+    await useGroceryStore.getState().clearChecked(HOUSE_UUID);
+
+    const ids = useGroceryStore.getState().items.map((i) => i.id);
+    expect(ids).toEqual(['item-2']);
+  });
+
+  it('is a no-op when houseId is empty', async () => {
+    seedItems({ isChecked: true });
+    await useGroceryStore.getState().clearChecked('');
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(useGroceryStore.getState().items).toHaveLength(1);
+  });
+
+  it('is a no-op when houseId is not a valid UUID', async () => {
+    seedItems({ isChecked: true });
+    await useGroceryStore.getState().clearChecked('not-a-valid-uuid');
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(useGroceryStore.getState().items).toHaveLength(1);
   });
 });
 
@@ -414,7 +446,7 @@ describe('clearChecked + realtime race condition', () => {
     });
 
     mockFrom.mockReturnValue(ok(null));
-    await useGroceryStore.getState().clearChecked('house-1');
+    await useGroceryStore.getState().clearChecked(HOUSE_UUID);
 
     // Simulate realtime DELETE event arriving after the clear
     capturedHandlers.delete!({ old: { id: 'item-1' } });
