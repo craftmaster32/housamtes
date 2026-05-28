@@ -3,11 +3,9 @@ import { View, StyleSheet, ScrollView, Pressable, TextInput, Animated } from 're
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { summarizeProposalVotes, useVotingStore, type Proposal } from '@stores/votingStore';
-import { useBadgeStore } from '@stores/badgeStore';
 import { resolveName } from '@utils/housemates';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -340,9 +338,6 @@ function AddProposalForm({ onClose, createdBy, houseId }: { onClose: () => void;
 
 export default function VotingScreen(): React.JSX.Element {
   const { t } = useTranslation();
-
-  const markSeen = useBadgeStore((s) => s.markSeen);
-  useFocusEffect(useCallback((): void => { markSeen('voting').catch(() => {}); }, [markSeen]));
 
   const proposals = useVotingStore((s) => s.proposals);
   const isLoading = useVotingStore((s) => s.isLoading);

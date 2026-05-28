@@ -64,7 +64,7 @@ export function BottomTabBar(): React.JSX.Element {
   ).length : 0;
   const groceryBadge = myId ? countNew(items.filter((i) => !i.isDraft && !i.isChecked), lastSeen.grocery, myId, 'addedBy') : 0;
   const choresBadge  = countNewSimple(chores.filter((c) => !c.isComplete), lastSeen.chores);
-  const votingBadge  = myId ? countNew(proposals.filter((p) => p.isOpen), lastSeen.voting, myId, 'createdBy') : 0;
+  const votingBadge  = myId ? proposals.filter((p) => p.isOpen && p.createdBy !== myId && !p.votes.some((v) => v.person === myId)).length : 0;
   const moreBadge    = groceryBadge + choresBadge + votingBadge;
 
   const isActive = useCallback((id: string): boolean => {

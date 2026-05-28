@@ -13,7 +13,8 @@
     "type-check": "tsc --noEmit",
     "test": "jest --watchAll=false",
     "test:coverage": "jest --coverage --watchAll=false",
-    "deploy": "node scripts/deploy.js"
+    "deploy": "node scripts/deploy.js",
+    "prepare": "husky"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -69,10 +70,21 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^4.6.2",
+    "husky": "^9.1.7",
     "jest": "^29.7.0",
     "jest-expo": "~54.0.17",
+    "lint-staged": "^17.0.5",
     "prettier": "^3.5.3",
     "typescript": "~5.9.2"
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "**/*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "private": true,
   "jest": {
