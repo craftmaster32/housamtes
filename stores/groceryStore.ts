@@ -388,6 +388,7 @@ export const useGroceryStore = create<GroceryStore>()(
         if (!parsedHouseId.success) return;
         const prevItems = get().items;
         if (!prevItems.some((i) => i.isChecked)) return;
+        const removedItems = prevItems.filter((i) => i.isChecked);
         try {
           set({ items: prevItems.filter((i) => !i.isChecked) });
           const { error } = await supabase
@@ -401,7 +402,12 @@ export const useGroceryStore = create<GroceryStore>()(
           // checked items from the DB before the delete landed.
           set({ items: get().items.filter((i) => !i.isChecked) });
         } catch (err) {
-          set({ items: prevItems });
+          // Restore only the removed items into the current state, not the full
+          // prevItems snapshot — a concurrent load() may have added new items.
+          const currentItems = get().items;
+          const currentIds = new Set(currentItems.map((i) => i.id));
+          const toRestore = removedItems.filter((i) => !currentIds.has(i.id));
+          set({ items: [...currentItems, ...toRestore] });
           captureError(err, { context: 'clear-checked-grocery', houseId: parsedHouseId.data });
           throw new Error('Could not clear checked items. Please try again.');
         }
