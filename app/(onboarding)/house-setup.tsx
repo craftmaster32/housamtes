@@ -37,29 +37,43 @@ export default function HouseSetupScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  const onBackPress = useCallback(() => { signOut(); }, [signOut]);
-  const onSelectCreate = useCallback(() => { setTab('create'); setError(''); }, [setTab, setError]);
-  const onSelectJoin = useCallback(() => { setTab('join'); setError(''); }, [setTab, setError]);
+  const onBackPress = useCallback(() => {
+    signOut();
+  }, [signOut]);
+  const onSelectCreate = useCallback(() => {
+    setTab('create');
+    setError('');
+  }, [setTab, setError]);
+  const onSelectJoin = useCallback(() => {
+    setTab('join');
+    setError('');
+  }, [setTab, setError]);
 
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_INTENT_KEY).then((intent) => {
-      if (intent === 'join') {
-        setTab('join');
-        AsyncStorage.removeItem(ONBOARDING_INTENT_KEY).catch(() => {});
-      }
-    }).catch(() => {});
+    AsyncStorage.getItem(ONBOARDING_INTENT_KEY)
+      .then((intent) => {
+        if (intent === 'join') {
+          setTab('join');
+          AsyncStorage.removeItem(ONBOARDING_INTENT_KEY).catch(() => {});
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleCreate = useCallback(async () => {
-    if (!houseName.trim()) { setError(t('house_setup.enter_house_name')); return; }
+    if (!houseName.trim()) {
+      setError(t('house_setup.enter_house_name'));
+      return;
+    }
     if (!user) return;
     setIsLoading(true);
     setError('');
     try {
       const code = generateCode();
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const { data: house, error: houseErr } = await supabase
         .from('houses')
-        .insert({ name: houseName.trim(), invite_code: code, created_by: user.id })
+        .insert({ name: houseName.trim(), invite_code: code, created_by: user.id, timezone })
         .select()
         .single();
       if (houseErr) throw new Error(t('house_setup.failed_create'));
@@ -82,7 +96,10 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setError(`Too many attempts. Please wait ${secondsLeft}s before trying again.`);
       return;
     }
-    if (!inviteCode.trim()) { setError(t('house_setup.enter_invite_code')); return; }
+    if (!inviteCode.trim()) {
+      setError(t('house_setup.enter_invite_code'));
+      return;
+    }
     if (!user) return;
     setIsLoading(true);
     setError('');
@@ -122,7 +139,13 @@ export default function HouseSetupScreen(): React.JSX.Element {
 
       if (otherMembers && otherMembers.length > 0) {
         const [{ data: otherProfiles }, { data: myProfile }] = await Promise.all([
-          supabase.from('profiles').select('avatar_color').in('id', otherMembers.map((m) => m.user_id)),
+          supabase
+            .from('profiles')
+            .select('avatar_color')
+            .in(
+              'id',
+              otherMembers.map((m) => m.user_id)
+            ),
           supabase.from('profiles').select('avatar_color').eq('id', user.id).maybeSingle(),
         ]);
         const takenColors = new Set(otherProfiles?.map((p) => p.avatar_color) ?? []);
@@ -162,9 +185,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
 
           <View style={styles.titleBlock}>
             <Text style={styles.title}>{t('house_setup.title')}</Text>
-            <Text style={styles.subtitle}>
-              {t('house_setup.subtitle')}
-            </Text>
+            <Text style={styles.subtitle}>{t('house_setup.subtitle')}</Text>
           </View>
 
           {/* Tab strip */}
@@ -200,7 +221,10 @@ export default function HouseSetupScreen(): React.JSX.Element {
               <TextInput
                 label={t('house_setup.house_name_placeholder')}
                 value={houseName}
-                onChangeText={(v) => { setHouseName(v); setError(''); }}
+                onChangeText={(v) => {
+                  setHouseName(v);
+                  setError('');
+                }}
                 mode="outlined"
                 style={styles.input}
                 autoFocus
@@ -224,13 +248,14 @@ export default function HouseSetupScreen(): React.JSX.Element {
             </View>
           ) : (
             <View style={styles.form}>
-              <Text style={styles.hint}>
-                {t('house_setup.invite_code_hint')}
-              </Text>
+              <Text style={styles.hint}>{t('house_setup.invite_code_hint')}</Text>
               <TextInput
                 label={t('house_setup.invite_code')}
                 value={inviteCode}
-                onChangeText={(v) => { setInviteCode(v.toUpperCase()); setError(''); }}
+                onChangeText={(v) => {
+                  setInviteCode(v.toUpperCase());
+                  setError('');
+                }}
                 mode="outlined"
                 style={[styles.input, styles.codeInput]}
                 autoCapitalize="characters"
@@ -244,7 +269,8 @@ export default function HouseSetupScreen(): React.JSX.Element {
                 <View style={styles.colorNotice}>
                   <View style={[styles.colorNoticeDot, { backgroundColor: assignedColor }]} />
                   <Text style={styles.colorNoticeText}>
-                    Your color was updated to avoid a clash with your new housemates. Change it anytime in Profile.
+                    Your color was updated to avoid a clash with your new housemates. Change it
+                    anytime in Profile.
                   </Text>
                 </View>
               )}

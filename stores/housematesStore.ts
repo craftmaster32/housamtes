@@ -21,6 +21,7 @@ interface HousematesStore {
   housemates: Housemate[];
   houseName: string;
   inviteCode: string;
+  timezone: string;
   isSetup: boolean;
   isLoading: boolean;
   load: (houseId: string) => Promise<void>;
@@ -28,6 +29,7 @@ interface HousematesStore {
   save: (housemates: Housemate[]) => Promise<void>;
   updatePermissions: (memberId: string, permissions: MemberPermissions) => Promise<void>;
   updateRole: (memberId: string, role: MemberRole) => Promise<void>;
+  updateTimezone: (houseId: string, tz: string) => Promise<void>;
 }
 
 export const COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
@@ -40,6 +42,7 @@ export const useHousematesStore = create<HousematesStore>()(
       housemates: [],
       houseName: '',
       inviteCode: '',
+      timezone: 'UTC',
       isSetup: false,
       isLoading: true,
       load: async (houseId: string): Promise<void> => {
@@ -56,14 +59,21 @@ export const useHousematesStore = create<HousematesStore>()(
               .eq('house_id', houseId),
             supabase
               .from('houses')
-              .select('name, invite_code')
+              .select('name, invite_code, timezone')
               .eq('id', houseId)
               .single(),
           ]);
 
           const defaultPerms: MemberPermissions = {
-            bills: true, grocery: true, parking: true, chores: true,
-            chat: true, photos: true, voting: true, maintenance: true, condition: true,
+            bills: true,
+            grocery: true,
+            parking: true,
+            chores: true,
+            chat: true,
+            photos: true,
+            voting: true,
+            maintenance: true,
+            condition: true,
           };
 
           const memberRows = membersRes.data ?? [];
@@ -72,13 +82,25 @@ export const useHousematesStore = create<HousematesStore>()(
           // Fetch profiles separately to avoid relying on an indirect FK join
           // (house_members.user_id → auth.users ← profiles.id) that PostgREST
           // may not resolve, causing all profiles to silently return null.
-          const profilesRes = userIds.length > 0
-            ? await supabase.from('profiles').select('id, name, avatar_color, avatar_url').in('id', userIds)
-            : { data: [] as { id: string; name: string; avatar_color: string; avatar_url: string | null }[] };
+          const profilesRes =
+            userIds.length > 0
+              ? await supabase
+                  .from('profiles')
+                  .select('id, name, avatar_color, avatar_url')
+                  .in('id', userIds)
+              : {
+                  data: [] as {
+                    id: string;
+                    name: string;
+                    avatar_color: string;
+                    avatar_url: string | null;
+                  }[],
+                };
 
-          const profileMap = new Map<string, { id: string; name: string; avatar_color: string; avatar_url: string | null }>(
-            (profilesRes.data ?? []).map((p) => [p.id, p])
-          );
+          const profileMap = new Map<
+            string,
+            { id: string; name: string; avatar_color: string; avatar_url: string | null }
+          >((profilesRes.data ?? []).map((p) => [p.id, p]));
 
           // Generate signed avatar URLs in parallel for members who have one
           const signedUrls = new Map<string, string>();
@@ -113,6 +135,7 @@ export const useHousematesStore = create<HousematesStore>()(
             housemates,
             houseName: houseRes.data?.name ?? '',
             inviteCode: houseRes.data?.invite_code ?? '',
+            timezone: houseRes.data?.timezone ?? 'UTC',
             isSetup: housemates.length >= 1,
             isLoading: false,
           });
@@ -122,22 +145,43 @@ export const useHousematesStore = create<HousematesStore>()(
         }
 
         // Re-fetch when someone joins or leaves the house
-        if (_channel) { supabase.removeChannel(_channel); }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
         _channel = supabase
           .channel(`housemates:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'house_members', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'house_members',
+              filter: `house_id=eq.${houseId}`,
+            },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+        }
       },
       save: async (): Promise<void> => {
         // No-op: housemates are real users managed by Supabase auth + house_members table
       },
       updatePermissions: async (memberId, permissions): Promise<void> => {
-        const { error } = await supabase.from('house_members').update({ permissions }).eq('id', memberId);
-        if (error) { captureError(error, { context: 'update-permissions', memberId }); throw new Error('Could not update permissions. Please try again.'); }
+        const { error } = await supabase
+          .from('house_members')
+          .update({ permissions })
+          .eq('id', memberId);
+        if (error) {
+          captureError(error, { context: 'update-permissions', memberId });
+          throw new Error('Could not update permissions. Please try again.');
+        }
         set({
           housemates: get().housemates.map((h) =>
             h.memberId === memberId ? { ...h, permissions } : h
@@ -146,12 +190,21 @@ export const useHousematesStore = create<HousematesStore>()(
       },
       updateRole: async (memberId, role): Promise<void> => {
         const { error } = await supabase.from('house_members').update({ role }).eq('id', memberId);
-        if (error) { captureError(error, { context: 'update-role', memberId }); throw new Error('Could not update role. Please try again.'); }
+        if (error) {
+          captureError(error, { context: 'update-role', memberId });
+          throw new Error('Could not update role. Please try again.');
+        }
         set({
-          housemates: get().housemates.map((h) =>
-            h.memberId === memberId ? { ...h, role } : h
-          ),
+          housemates: get().housemates.map((h) => (h.memberId === memberId ? { ...h, role } : h)),
         });
+      },
+      updateTimezone: async (houseId: string, tz: string): Promise<void> => {
+        const { error } = await supabase.from('houses').update({ timezone: tz }).eq('id', houseId);
+        if (error) {
+          captureError(error, { context: 'update-timezone', houseId });
+          throw new Error('Could not update timezone. Please try again.');
+        }
+        set({ timezone: tz });
       },
     }),
     { name: 'housemates-store' }

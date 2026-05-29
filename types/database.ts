@@ -29,6 +29,7 @@ export interface House {
   name: string;
   address: string | null;
   invite_code: string;
+  timezone: string;
   parking_advance_days: number;
   parking_approval_type: 'all_members' | 'any_one_member';
   created_by_user_id: string;
