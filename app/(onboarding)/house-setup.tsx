@@ -13,6 +13,14 @@ import { font } from '@constants/typography';
 
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
 
+function getDeviceTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 type Tab = 'create' | 'join';
 
 export default function HouseSetupScreen(): React.JSX.Element {
@@ -70,7 +78,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
     setError('');
     try {
       const code = generateCode();
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const timezone = getDeviceTimezone();
       const { data: house, error: houseErr } = await supabase
         .from('houses')
         .insert({ name: houseName.trim(), invite_code: code, created_by: user.id, timezone })
