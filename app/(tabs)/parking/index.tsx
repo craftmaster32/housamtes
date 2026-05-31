@@ -31,6 +31,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore, type Housemate } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
+import { useLanguageStore } from '@stores/languageStore';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -41,7 +42,10 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function parseDateParts(dateStr: string): {
+function parseDateParts(
+  dateStr: string,
+  locale: string
+): {
   dayNum: string;
   monthAbbr: string;
   weekdayFull: string;
@@ -50,8 +54,8 @@ function parseDateParts(dateStr: string): {
   const date = new Date(y, m - 1, d);
   return {
     dayNum: String(d),
-    monthAbbr: date.toLocaleString('default', { month: 'short' }).toUpperCase(),
-    weekdayFull: date.toLocaleString('default', { weekday: 'long' }),
+    monthAbbr: date.toLocaleString(locale, { month: 'short' }).toUpperCase(),
+    weekdayFull: date.toLocaleString(locale, { weekday: 'long' }),
   };
 }
 
@@ -139,6 +143,7 @@ function DayScheduleSheet({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
   const housemates = useHousematesStore((s) => s.housemates);
   const allReservations = useParkingStore((s) => s.reservations);
 
@@ -155,7 +160,7 @@ function DayScheduleSheet({
   }, [allReservations, date]);
 
   if (!date) return <View />;
-  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(date);
+  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(date, language);
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -242,6 +247,7 @@ function ReservationCard({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
   const housemates = useHousematesStore((s) => s.housemates);
   const allReservations = useParkingStore((s) => s.reservations);
   const sameDayDots = useMemo(
@@ -279,7 +285,7 @@ function ReservationCard({
     ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
     : null;
 
-  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(item.date);
+  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(item.date, language);
   const handleDatePress = useCallback(() => onDatePress(item.date), [onDatePress, item.date]);
 
   const myVote = item.votes.find((v) => v.userId === currentUserId);
@@ -414,6 +420,69 @@ function ReservationCard({
           </View>
         )}
       </View>
+    </View>
+  );
+}
+
+// ── Week strip ────────────────────────────────────────────────────────────────
+interface WeekStripProps {
+  onDayPress: (date: string) => void;
+}
+
+function WeekStrip({ onDayPress }: WeekStripProps): React.JSX.Element {
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const allReservations = useParkingStore((s) => s.reservations);
+
+  const days = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const dayAbbr = d.toLocaleString(language, { weekday: 'short' }).toUpperCase();
+      const dots = allReservations
+        .filter((r) => r.date === dateStr)
+        .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
+        .slice(0, 3);
+      return { dateStr, dayAbbr, dayNum: d.getDate(), isToday: i === 0, dots };
+    });
+  }, [language, allReservations]);
+
+  return (
+    <View style={styles.weekStrip}>
+      {days.map(({ dateStr, dayAbbr, dayNum, isToday, dots }) => (
+        <Pressable
+          key={dateStr}
+          style={styles.weekDay}
+          onPress={() => onDayPress(dateStr)}
+          accessibilityRole="button"
+          accessibilityLabel={`${dayAbbr} ${dayNum}`}
+        >
+          <Text style={[styles.weekDayAbbr, isToday && styles.weekDayAbbrToday]}>{dayAbbr}</Text>
+          <View style={[styles.weekDayNumWrap, isToday && styles.weekDayNumWrapToday]}>
+            <Text style={[styles.weekDayNum, isToday && styles.weekDayNumToday]}>{dayNum}</Text>
+          </View>
+          <View style={styles.weekDayDots}>
+            {dots.map((r) => (
+              <View
+                key={r.id}
+                style={[
+                  styles.weekDot,
+                  {
+                    backgroundColor:
+                      r.status === 'approved'
+                        ? C.positive
+                        : r.status === 'rejected'
+                          ? C.danger
+                          : C.warning,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        </Pressable>
+      ))}
     </View>
   );
 }
@@ -624,6 +693,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const cancelReservation = useParkingStore((s) => s.cancelReservation);
   const voteOnReservation = useParkingStore((s) => s.voteOnReservation);
   const clearHistoryItem = useParkingStore((s) => s.clearHistoryItem);
+  const clearAllHistory = useParkingStore((s) => s.clearAllHistory);
   const checkReservationAutoApply = useParkingStore((s) => s.checkReservationAutoApply);
 
   const profile = useAuthStore((s) => s.profile);
@@ -820,6 +890,21 @@ export default function ParkingScreen(): React.JSX.Element {
     [clearHistoryItem, t]
   );
 
+  const handleClearAll = useCallback((): void => {
+    Alert.alert(t('parking.clear_all_confirm_title'), t('parking.clear_all_confirm_msg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('parking.clear_all'),
+        style: 'destructive',
+        onPress: (): void => {
+          clearAllHistory(houseId ?? '').catch((err: unknown) => {
+            setError(err instanceof Error ? err.message : t('parking.error_clear_all_failed'));
+          });
+        },
+      },
+    ]);
+  }, [clearAllHistory, houseId, t]);
+
   const keyExtractor = useCallback(
     (item: FlatItem): string => (item._k === 'hist-header' ? 'history-header' : item.res.id),
     []
@@ -834,6 +919,17 @@ export default function ParkingScreen(): React.JSX.Element {
             <View style={styles.countPill}>
               <Text style={styles.countPillText}>{item.count}</Text>
             </View>
+            <View style={styles.historyHeaderSpacer} />
+            <Pressable
+              onPress={handleClearAll}
+              style={styles.clearAllBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear all history"
+            >
+              <Ionicons name="trash-outline" size={12} color={C.danger} />
+              <Text style={styles.clearAllBtnText}>{t('parking.clear_all')}</Text>
+            </Pressable>
           </View>
         );
       }
@@ -850,7 +946,18 @@ export default function ParkingScreen(): React.JSX.Element {
         />
       );
     },
-    [myId, isAdmin, handleCancel, handleVote, handleClear, handleDatePress, t, styles]
+    [
+      myId,
+      isAdmin,
+      handleCancel,
+      handleVote,
+      handleClear,
+      handleDatePress,
+      handleClearAll,
+      C,
+      t,
+      styles,
+    ]
   );
 
   return (
@@ -939,6 +1046,8 @@ export default function ParkingScreen(): React.JSX.Element {
                 <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
+
+            <WeekStrip onDayPress={handleDatePress} />
 
             {/* ── Reservations section header ── */}
             <View style={styles.sectionHeader}>
@@ -1335,4 +1444,58 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
     },
     daySheetCloseBtnText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+
+    weekStrip: {
+      flexDirection: 'row',
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingVertical: 12,
+      paddingHorizontal: 4,
+      marginBottom: 16,
+    },
+    weekDay: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 2,
+    },
+    weekDayAbbr: {
+      fontSize: 9,
+      ...font.bold,
+      color: C.textSecondary,
+      letterSpacing: 0.4,
+    },
+    weekDayAbbrToday: { color: C.primary },
+    weekDayNumWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    weekDayNumWrapToday: { backgroundColor: C.primary },
+    weekDayNum: { fontSize: 14, ...font.bold, color: C.textPrimary },
+    weekDayNumToday: { color: '#fff' },
+    weekDayDots: {
+      flexDirection: 'row',
+      gap: 2,
+      height: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    weekDot: { width: 5, height: 5, borderRadius: 3 },
+
+    historyHeaderSpacer: { flex: 1 },
+    clearAllBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 9999,
+      backgroundColor: C.danger + '12',
+    },
+    clearAllBtnText: { fontSize: 11, ...font.semibold, color: C.danger },
   });

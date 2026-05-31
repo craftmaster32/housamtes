@@ -33,7 +33,7 @@ export interface ParkingReservation {
   requestedBy: string; // user UUID
   date: string;
   startTime?: string; // HH:MM
-  endTime?: string;   // HH:MM
+  endTime?: string; // HH:MM
   note: string;
   status: ParkingReservationStatus;
   createdAt: string;
@@ -61,6 +61,7 @@ interface ParkingStore {
     houseId: string
   ) => Promise<ParkingReservationStatus>;
   clearHistoryItem: (id: string) => Promise<void>;
+  clearAllHistory: (houseId: string) => Promise<void>;
   checkReservationAutoApply: (houseId: string) => Promise<void>;
 }
 
@@ -128,7 +129,7 @@ export function isDateConflict(
   let gapWarning: string | null = null;
 
   for (const r of sameDay) {
-    const name  = resolveName ? resolveName(r.requestedBy) : r.requestedBy;
+    const name = resolveName ? resolveName(r.requestedBy) : r.requestedBy;
     const label = r.status === 'approved' ? 'reserved' : 'pending';
 
     if (!startTime && !endTime && !r.startTime && !r.endTime) {
@@ -139,9 +140,9 @@ export function isDateConflict(
     if (startTime && endTime && r.startTime && r.endTime) {
       // Both fully timed → overlap / gap logic
       const newStart = toMinutes(startTime);
-      const newEnd   = toMinutes(endTime);
-      const exStart  = toMinutes(r.startTime);
-      const exEnd    = toMinutes(r.endTime);
+      const newEnd = toMinutes(endTime);
+      const exStart = toMinutes(r.startTime);
+      const exEnd = toMinutes(r.endTime);
 
       if (newStart < exEnd && newEnd > exStart) {
         return {
@@ -229,19 +230,54 @@ export const useParkingStore = create<ParkingStore>()(
           set({ isLoading: false, error: 'Could not load parking data. Please try again.' });
         }
 
-        if (_channel) { supabase.removeChannel(_channel); }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
         _channel = supabase
           .channel(`parking:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_sessions', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_reservations', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_reservation_votes', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'parking_sessions',
+              filter: `house_id=eq.${houseId}`,
+            },
+            () => {
+              get().load(houseId);
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'parking_reservations',
+              filter: `house_id=eq.${houseId}`,
+            },
+            () => {
+              get().load(houseId);
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'parking_reservation_votes',
+              filter: `house_id=eq.${houseId}`,
+            },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+        }
       },
       claim: async (userId, displayName, houseId): Promise<void> => {
         if (!userId) throw new Error('User ID is required to claim parking');
@@ -257,7 +293,8 @@ export const useParkingStore = create<ParkingStore>()(
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
         const conflictingReservation = get().reservations.find((r) => {
-          if (r.status !== 'approved' || r.date !== todayStr || r.requestedBy === userId) return false;
+          if (r.status !== 'approved' || r.date !== todayStr || r.requestedBy === userId)
+            return false;
           const start = r.startTime
             ? parseInt(r.startTime.split(':')[0], 10) * 60 + parseInt(r.startTime.split(':')[1], 10)
             : 0;
@@ -271,7 +308,11 @@ export const useParkingStore = create<ParkingStore>()(
         }
 
         // Optimistic update — feels instant, reverts on failure
-        const optimistic: ParkingSession = { id: 'optimistic', occupant: userId, startTime: now.toISOString() };
+        const optimistic: ParkingSession = {
+          id: 'optimistic',
+          occupant: userId,
+          startTime: now.toISOString(),
+        };
         set({ current: optimistic });
 
         try {
@@ -304,7 +345,8 @@ export const useParkingStore = create<ParkingStore>()(
         if (!previous) return;
 
         // Claim is still in flight — the DB row doesn't exist yet, so the UPDATE would be a no-op
-        if (previous.id === 'optimistic') throw new Error('Claim is still in progress, please wait a moment');
+        if (previous.id === 'optimistic')
+          throw new Error('Claim is still in progress, please wait a moment');
 
         try {
           // Optimistic update — feels instant, reverts on failure
@@ -317,22 +359,28 @@ export const useParkingStore = create<ParkingStore>()(
             .eq('house_id', houseId)
             .select();
           if (error) throw error;
-          if (!updated?.length) throw new Error('No rows updated: parking session not found or already inactive');
+          if (!updated?.length)
+            throw new Error('No rows updated: parking session not found or already inactive');
 
           // Notification fires in background — doesn't block the UI
-          supabase.auth.getSession().then(({ data: sessionData }) => {
-            const userId = sessionData.session?.user.id ?? '';
-            if (userId) {
-              return notifyHousemates({
-                houseId,
-                excludeUserId: userId,
-                title: '🅿️ Spot\'s free — go go go!',
-                body: displayName ? `${displayName} freed the spot. Quick, claim it! 🏃` : 'The spot is free — first come, first parked!',
-                data: { screen: 'parking' },
-                notificationType: 'parking_claimed',
-              });
-            }
-          }).catch((err) => captureError(err, { context: 'notify-release', houseId }));
+          supabase.auth
+            .getSession()
+            .then(({ data: sessionData }) => {
+              const userId = sessionData.session?.user.id ?? '';
+              if (userId) {
+                return notifyHousemates({
+                  houseId,
+                  excludeUserId: userId,
+                  title: "🅿️ Spot's free — go go go!",
+                  body: displayName
+                    ? `${displayName} freed the spot. Quick, claim it! 🏃`
+                    : 'The spot is free — first come, first parked!',
+                  data: { screen: 'parking' },
+                  notificationType: 'parking_claimed',
+                });
+              }
+            })
+            .catch((err) => captureError(err, { context: 'notify-release', houseId }));
         } catch (err) {
           set({ current: previous });
           captureError(err, { context: 'release-parking', houseId });
@@ -346,12 +394,12 @@ export const useParkingStore = create<ParkingStore>()(
         const { data: inserted, error } = await supabase
           .from('parking_reservations')
           .insert({
-            house_id:     houseId,
+            house_id: houseId,
             requested_by: data.requestedBy,
-            date:         data.date,
-            start_time:   data.startTime ?? null,
-            end_time:     data.endTime   ?? null,
-            note:         data.note,
+            date: data.date,
+            start_time: data.startTime ?? null,
+            end_time: data.endTime ?? null,
+            note: data.note,
           })
           .select()
           .single();
@@ -376,7 +424,9 @@ export const useParkingStore = create<ParkingStore>()(
         } else {
           set({ reservations: [r, ...get().reservations] });
         }
-        const timeStr = data.startTime ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}` : '';
+        const timeStr = data.startTime
+          ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}`
+          : '';
         void notifyHousemates({
           houseId,
           excludeUserId: data.requestedBy,
@@ -390,7 +440,10 @@ export const useParkingStore = create<ParkingStore>()(
       cancelReservation: async (id, houseId): Promise<void> => {
         const reservation = get().reservations.find((r) => r.id === id);
         const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
-        if (error) { captureError(error, { context: 'cancel-reservation' }); throw new Error('Could not cancel the reservation. Please try again.'); }
+        if (error) {
+          captureError(error, { context: 'cancel-reservation' });
+          throw new Error('Could not cancel the reservation. Please try again.');
+        }
         set({ reservations: get().reservations.filter((r) => r.id !== id) });
         const current = get().current;
         if (reservation && current && current.occupant === reservation.requestedBy) {
@@ -401,7 +454,11 @@ export const useParkingStore = create<ParkingStore>()(
           }
         }
       },
-      voteOnReservation: async (reservationId, vote, houseId): Promise<ParkingReservationStatus> => {
+      voteOnReservation: async (
+        reservationId,
+        vote,
+        houseId
+      ): Promise<ParkingReservationStatus> => {
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData.session?.user.id ?? '';
         if (!userId) throw new Error('Not signed in');
@@ -409,8 +466,10 @@ export const useParkingStore = create<ParkingStore>()(
         // Guard: only allow voting on pending reservations; requester cannot vote on their own request
         const localReservation = get().reservations.find((r) => r.id === reservationId);
         if (!localReservation) throw new Error('Reservation not found');
-        if (localReservation.status !== 'pending') throw new Error('This request is no longer pending');
-        if (userId === localReservation.requestedBy) throw new Error('You cannot vote on your own request');
+        if (localReservation.status !== 'pending')
+          throw new Error('This request is no longer pending');
+        if (userId === localReservation.requestedBy)
+          throw new Error('You cannot vote on your own request');
 
         const { error: voteError } = await supabase
           .from('parking_reservation_votes')
@@ -496,7 +555,8 @@ export const useParkingStore = create<ParkingStore>()(
         if (!reservation) throw new Error('Reservation not found');
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        if (reservation.date >= todayStr) throw new Error('Cannot clear a future or current reservation');
+        if (reservation.date >= todayStr)
+          throw new Error('Cannot clear a future or current reservation');
 
         const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
         if (error) {
@@ -504,6 +564,19 @@ export const useParkingStore = create<ParkingStore>()(
           throw new Error('Could not clear this item. Please try again.');
         }
         set({ reservations: get().reservations.filter((r) => r.id !== id) });
+      },
+      clearAllHistory: async (houseId: string): Promise<void> => {
+        const { reservations } = get();
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const historyIds = reservations.filter((r) => r.date < todayStr).map((r) => r.id);
+        if (historyIds.length === 0) return;
+        const { error } = await supabase.from('parking_reservations').delete().in('id', historyIds);
+        if (error) {
+          captureError(error, { context: 'clear-all-history', houseId });
+          throw new Error('Could not clear history. Please try again.');
+        }
+        set({ reservations: reservations.filter((r) => r.date >= todayStr) });
       },
       checkReservationAutoApply: async (houseId: string): Promise<void> => {
         const { current, reservations } = get();
