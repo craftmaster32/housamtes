@@ -341,7 +341,8 @@
     "failed_claim": "No se pudo ocupar la plaza",
     "failed_release": "No se pudo liberar la plaza",
     "failed_reservation": "No se pudo agregar la reserva",
-    "admin_free_spot": "Liberar la plaza"
+    "admin_free_spot": "Liberar la plaza",
+    "no_reservations_day": "Sin reservas para este día."
   },
   "grocery": {
     "title": "Lista de compras",

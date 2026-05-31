@@ -353,7 +353,8 @@
     "failed_claim": "Failed to claim spot",
     "failed_release": "Failed to release spot",
     "failed_reservation": "Failed to add reservation",
-    "admin_free_spot": "Free the spot"
+    "admin_free_spot": "Free the spot",
+    "no_reservations_day": "No reservations on this day."
   },
   "grocery": {
     "title": "Grocery List",

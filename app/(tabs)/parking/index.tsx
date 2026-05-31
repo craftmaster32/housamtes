@@ -136,6 +136,7 @@ function DayScheduleSheet({
   onClose,
   currentUserId,
 }: DayScheduleSheetProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -166,7 +167,7 @@ function DayScheduleSheet({
           </Text>
 
           {dayReservations.length === 0 ? (
-            <Text style={styles.daySheetEmpty}>No reservations on this day.</Text>
+            <Text style={styles.daySheetEmpty}>{t('parking.no_reservations_day')}</Text>
           ) : (
             <View style={styles.daySheetList}>
               {dayReservations.map((r) => {
