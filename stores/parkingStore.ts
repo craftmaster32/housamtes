@@ -363,14 +363,15 @@ export const useParkingStore = create<ParkingStore>()(
             throw new Error('No rows updated: parking session not found or already inactive');
 
           // Notification fires in background — doesn't block the UI
+          let notifyUserId = '';
           supabase.auth
             .getSession()
             .then(({ data: sessionData }) => {
-              const userId = sessionData.session?.user.id ?? '';
-              if (userId) {
+              notifyUserId = sessionData.session?.user.id ?? '';
+              if (notifyUserId) {
                 return notifyHousemates({
                   houseId,
-                  excludeUserId: userId,
+                  excludeUserId: notifyUserId,
                   title: "🅿️ Spot's free — go go go!",
                   body: displayName
                     ? `${displayName} freed the spot. Quick, claim it! 🏃`
@@ -380,7 +381,9 @@ export const useParkingStore = create<ParkingStore>()(
                 });
               }
             })
-            .catch((err) => captureError(err, { context: 'notify-release', houseId }));
+            .catch((err) =>
+              captureError(err, { context: 'notify-release', houseId, userId: notifyUserId })
+            );
         } catch (err) {
           set({ current: previous });
           captureError(err, { context: 'release-parking', houseId });
@@ -439,20 +442,26 @@ export const useParkingStore = create<ParkingStore>()(
       },
       cancelReservation: async (id, houseId): Promise<void> => {
         const userId = useAuthStore.getState().profile?.id ?? '';
-        const reservation = get().reservations.find((r) => r.id === id);
-        const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
-        if (error) {
-          captureError(error, { context: 'cancel-reservation', houseId, userId });
-          throw new Error('Could not cancel the reservation. Please try again.');
-        }
-        set({ reservations: get().reservations.filter((r) => r.id !== id) });
-        const current = get().current;
-        if (reservation && current && current.occupant === reservation.requestedBy) {
-          const today = new Date();
-          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-          if (reservation.date === todayStr) {
-            await get().release(houseId);
+        try {
+          const reservation = get().reservations.find((r) => r.id === id);
+          const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
+          if (error) {
+            captureError(error, { context: 'cancel-reservation', houseId, userId });
+            throw new Error('Could not cancel the reservation. Please try again.');
           }
+          set({ reservations: get().reservations.filter((r) => r.id !== id) });
+          const current = get().current;
+          if (reservation && current && current.occupant === reservation.requestedBy) {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            if (reservation.date === todayStr) {
+              await get().release(houseId);
+            }
+          }
+        } catch (err) {
+          if (err instanceof Error) throw err;
+          captureError(err, { context: 'cancel-reservation', houseId, userId });
+          throw new Error('Could not cancel the reservation. Please try again.');
         }
       },
       voteOnReservation: async (
@@ -460,111 +469,125 @@ export const useParkingStore = create<ParkingStore>()(
         vote,
         houseId
       ): Promise<ParkingReservationStatus> => {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user.id ?? '';
-        if (!userId) throw new Error('Not signed in');
+        let userId = '';
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          userId = sessionData.session?.user.id ?? '';
+          if (!userId) throw new Error('Not signed in');
 
-        // Guard: only allow voting on pending reservations; requester cannot vote on their own request
-        const localReservation = get().reservations.find((r) => r.id === reservationId);
-        if (!localReservation) throw new Error('Reservation not found');
-        if (localReservation.status !== 'pending')
-          throw new Error('This request is no longer pending');
-        if (userId === localReservation.requestedBy)
-          throw new Error('You cannot vote on your own request');
+          // Guard: only allow voting on pending reservations; requester cannot vote on their own request
+          const localReservation = get().reservations.find((r) => r.id === reservationId);
+          if (!localReservation) throw new Error('Reservation not found');
+          if (localReservation.status !== 'pending')
+            throw new Error('This request is no longer pending');
+          if (userId === localReservation.requestedBy)
+            throw new Error('You cannot vote on your own request');
 
-        const { error: voteError } = await supabase
-          .from('parking_reservation_votes')
-          .upsert(
-            { reservation_id: reservationId, house_id: houseId, user_id: userId, vote },
-            { onConflict: 'reservation_id,user_id' }
+          const { error: voteError } = await supabase
+            .from('parking_reservation_votes')
+            .upsert(
+              { reservation_id: reservationId, house_id: houseId, user_id: userId, vote },
+              { onConflict: 'reservation_id,user_id' }
+            );
+          if (voteError) {
+            captureError(voteError, { context: 'vote-reservation', reservationId });
+            throw new Error('Could not save your vote. Please try again.');
+          }
+
+          const { data: allVotes, error: selectError } = await supabase
+            .from('parking_reservation_votes')
+            .select('user_id, vote')
+            .eq('reservation_id', reservationId);
+          if (selectError) {
+            captureError(selectError, { context: 'vote-tally', reservationId });
+            throw new Error('Could not read vote tally. Please try again.');
+          }
+
+          // Fetch authoritative member list from DB — don't trust caller-supplied IDs
+          const { data: memberRows, error: membersError } = await supabase
+            .from('house_members')
+            .select('user_id')
+            .eq('house_id', houseId);
+          if (membersError) {
+            captureError(membersError, { context: 'vote-members', houseId });
+            throw new Error('Could not read house members. Please try again.');
+          }
+
+          const voterIds = ((memberRows ?? []) as { user_id: string }[])
+            .map((m) => m.user_id)
+            .filter((id) => id !== localReservation.requestedBy);
+          const votes = ((allVotes ?? []) as { user_id: string; vote: ParkingVoteChoice }[]).map(
+            (row) => ({ userId: row.user_id, vote: row.vote })
           );
-        if (voteError) {
-          captureError(voteError, { context: 'vote-reservation', reservationId });
+          const newStatus = tallyParkingReservationVotes(votes, voterIds).status;
+
+          let statusWasUpdated = false;
+          if (newStatus !== 'pending') {
+            const { data: updated, error: updateError } = await supabase
+              .from('parking_reservations')
+              .update({ status: newStatus })
+              .eq('id', reservationId)
+              .eq('status', 'pending') // guard against concurrent finalisation
+              .select();
+            if (updateError) {
+              captureError(updateError, { context: 'vote-status-update', reservationId });
+              throw new Error('Could not update reservation status. Please try again.');
+            }
+            statusWasUpdated = (updated?.length ?? 0) > 0;
+
+            if (statusWasUpdated && newStatus === 'approved') {
+              notifyHousemates({
+                houseId,
+                excludeUserId: userId,
+                title: '✅ You got the spot!',
+                body: `Parking confirmed for ${localReservation.date}${localReservation.startTime ? ` at ${localReservation.startTime}` : ''}. You're welcome 🤝`,
+                data: { screen: 'parking' },
+                notificationType: 'parking_reservation',
+              });
+            }
+          }
+
+          // Optimistic local update while realtime syncs
+          set({
+            reservations: get().reservations.map((r) => {
+              if (r.id !== reservationId) return r;
+              const existing = r.votes.findIndex((v) => v.userId === userId);
+              const updatedVotes =
+                existing >= 0
+                  ? r.votes.map((v, i) => (i === existing ? { userId, vote } : v))
+                  : [...r.votes, { userId, vote }];
+              return { ...r, votes: updatedVotes, status: statusWasUpdated ? newStatus : r.status };
+            }),
+          });
+
+          return statusWasUpdated ? newStatus : 'pending';
+        } catch (err) {
+          if (err instanceof Error) throw err;
+          captureError(err, { context: 'vote-reservation', reservationId, houseId, userId });
           throw new Error('Could not save your vote. Please try again.');
         }
-
-        const { data: allVotes, error: selectError } = await supabase
-          .from('parking_reservation_votes')
-          .select('user_id, vote')
-          .eq('reservation_id', reservationId);
-        if (selectError) {
-          captureError(selectError, { context: 'vote-tally', reservationId });
-          throw new Error('Could not read vote tally. Please try again.');
-        }
-
-        // Fetch authoritative member list from DB — don't trust caller-supplied IDs
-        const { data: memberRows, error: membersError } = await supabase
-          .from('house_members')
-          .select('user_id')
-          .eq('house_id', houseId);
-        if (membersError) {
-          captureError(membersError, { context: 'vote-members', houseId });
-          throw new Error('Could not read house members. Please try again.');
-        }
-
-        const voterIds = ((memberRows ?? []) as { user_id: string }[])
-          .map((m) => m.user_id)
-          .filter((id) => id !== localReservation.requestedBy);
-        const votes = ((allVotes ?? []) as { user_id: string; vote: ParkingVoteChoice }[]).map(
-          (row) => ({ userId: row.user_id, vote: row.vote })
-        );
-        const newStatus = tallyParkingReservationVotes(votes, voterIds).status;
-
-        let statusWasUpdated = false;
-        if (newStatus !== 'pending') {
-          const { data: updated, error: updateError } = await supabase
-            .from('parking_reservations')
-            .update({ status: newStatus })
-            .eq('id', reservationId)
-            .eq('status', 'pending') // guard against concurrent finalisation
-            .select();
-          if (updateError) {
-            captureError(updateError, { context: 'vote-status-update', reservationId });
-            throw new Error('Could not update reservation status. Please try again.');
-          }
-          statusWasUpdated = (updated?.length ?? 0) > 0;
-
-          if (statusWasUpdated && newStatus === 'approved') {
-            notifyHousemates({
-              houseId,
-              excludeUserId: userId,
-              title: '✅ You got the spot!',
-              body: `Parking confirmed for ${localReservation.date}${localReservation.startTime ? ` at ${localReservation.startTime}` : ''}. You're welcome 🤝`,
-              data: { screen: 'parking' },
-              notificationType: 'parking_reservation',
-            });
-          }
-        }
-
-        // Optimistic local update while realtime syncs
-        set({
-          reservations: get().reservations.map((r) => {
-            if (r.id !== reservationId) return r;
-            const existing = r.votes.findIndex((v) => v.userId === userId);
-            const updatedVotes =
-              existing >= 0
-                ? r.votes.map((v, i) => (i === existing ? { userId, vote } : v))
-                : [...r.votes, { userId, vote }];
-            return { ...r, votes: updatedVotes, status: statusWasUpdated ? newStatus : r.status };
-          }),
-        });
-
-        return statusWasUpdated ? newStatus : 'pending';
       },
       clearHistoryItem: async (id): Promise<void> => {
-        const reservation = get().reservations.find((r) => r.id === id);
-        if (!reservation) throw new Error('Reservation not found');
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        if (reservation.date >= todayStr)
-          throw new Error('Cannot clear a future or current reservation');
+        const userId = useAuthStore.getState().profile?.id ?? '';
+        try {
+          const reservation = get().reservations.find((r) => r.id === id);
+          if (!reservation) throw new Error('Reservation not found');
+          const now = new Date();
+          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          if (reservation.date >= todayStr)
+            throw new Error('Cannot clear a future or current reservation');
 
-        const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
-        if (error) {
-          captureError(error, { context: 'clear-history-item', id });
+          const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
+          if (error) {
+            captureError(error, { context: 'clear-history-item', id, userId });
+            throw new Error('Could not clear this item. Please try again.');
+          }
+          set({ reservations: get().reservations.filter((r) => r.id !== id) });
+        } catch (err) {
+          if (err instanceof Error) throw err;
+          captureError(err, { context: 'clear-history-item', id, userId });
           throw new Error('Could not clear this item. Please try again.');
         }
-        set({ reservations: get().reservations.filter((r) => r.id !== id) });
       },
       clearAllHistory: async (houseId: string): Promise<void> => {
         const userId = useAuthStore.getState().profile?.id ?? '';

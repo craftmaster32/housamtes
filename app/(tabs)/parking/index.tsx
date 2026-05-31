@@ -223,7 +223,7 @@ function DayScheduleSheet({
             style={styles.daySheetCloseBtn}
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="Close day schedule"
+            accessibilityLabel={t('common.close')}
           >
             <Text style={styles.daySheetCloseBtnText}>{t('common.close')}</Text>
           </Pressable>
@@ -337,7 +337,7 @@ function ReservationCard({
       <View style={styles.resInfo}>
         {!!timeText && <Text style={styles.resDate}>{timeText}</Text>}
         <Text style={styles.resBy}>
-          {isOwn ? 'You' : resolveName(item.requestedBy, housemates)}
+          {isOwn ? t('parking.you') : resolveName(item.requestedBy, housemates)}
           {item.note ? ` · ${item.note}` : ''}
         </Text>
 
@@ -443,7 +443,12 @@ function WeekStrip({ onDayPress }: WeekStripProps): React.JSX.Element {
       const dayAbbr = d.toLocaleString(language, { weekday: 'short' }).toUpperCase();
       const dots = allReservations
         .filter((r) => r.date === dateStr)
-        .sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
+        .sort((a, b) => {
+          if (!a.startTime && !b.startTime) return 0;
+          if (!a.startTime) return 1;
+          if (!b.startTime) return -1;
+          return a.startTime.localeCompare(b.startTime);
+        })
         .slice(0, 3);
       return { dateStr, dayAbbr, dayNum: d.getDate(), isToday: i === 0, dots };
     });
@@ -456,6 +461,7 @@ function WeekStrip({ onDayPress }: WeekStripProps): React.JSX.Element {
           key={dateStr}
           style={styles.weekDay}
           onPress={() => onDayPress(dateStr)}
+          hitSlop={{ left: 4, right: 4 }}
           accessibilityRole="button"
           accessibilityLabel={`${dayAbbr} ${dayNum}`}
         >
