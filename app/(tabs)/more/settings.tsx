@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, Switch, Modal, Platform, Animated } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Alert,
+  Switch,
+  Modal,
+  Platform,
+  Animated,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -108,15 +118,40 @@ function SectionDivider({ label }: { label: string }): React.JSX.Element {
 
 const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
 
+const TIMEZONES: { id: string; label: string; region: string }[] = [
+  { id: 'Pacific/Auckland', label: 'Auckland', region: 'UTC+12/13' },
+  { id: 'Australia/Sydney', label: 'Sydney', region: 'UTC+10/11' },
+  { id: 'Asia/Tokyo', label: 'Tokyo', region: 'UTC+9' },
+  { id: 'Australia/Perth', label: 'Perth', region: 'UTC+8' },
+  { id: 'Asia/Singapore', label: 'Singapore', region: 'UTC+8' },
+  { id: 'Asia/Bangkok', label: 'Bangkok', region: 'UTC+7' },
+  { id: 'Asia/Kolkata', label: 'Mumbai / Kolkata', region: 'UTC+5:30' },
+  { id: 'Asia/Dubai', label: 'Dubai', region: 'UTC+4' },
+  { id: 'Europe/Moscow', label: 'Moscow', region: 'UTC+3' },
+  { id: 'Asia/Jerusalem', label: 'Jerusalem', region: 'UTC+2/3' },
+  { id: 'Africa/Cairo', label: 'Cairo', region: 'UTC+2/3' },
+  { id: 'Europe/Paris', label: 'Paris / Berlin', region: 'UTC+1/2' },
+  { id: 'Europe/London', label: 'London', region: 'UTC+0/1' },
+  { id: 'America/Sao_Paulo', label: 'São Paulo', region: 'UTC−3' },
+  { id: 'America/New_York', label: 'New York', region: 'UTC−5' },
+  { id: 'America/Chicago', label: 'Chicago', region: 'UTC−6' },
+  { id: 'America/Denver', label: 'Denver', region: 'UTC−7' },
+  { id: 'America/Los_Angeles', label: 'Los Angeles', region: 'UTC−8' },
+  { id: 'Pacific/Honolulu', label: 'Honolulu', region: 'UTC−10' },
+];
+
 export default function SettingsScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const houseName = useHousematesStore((s) => s.houseName);
   const inviteCode = useHousematesStore((s) => s.inviteCode);
   const housemates = useHousematesStore((s) => s.housemates);
+  const houseTimezone = useHousematesStore((s) => s.timezone);
+  const updateTimezone = useHousematesStore((s) => s.updateTimezone);
 
   const user = useAuthStore((s) => s.user);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
+  const myRole = useAuthStore((s) => s.role);
   const leaveHouse = useAuthStore((s) => s.leaveHouse);
   const bills = useBillsStore((s) => s.bills);
   const addProposal = useVotingStore((s) => s.addProposal);
@@ -124,15 +159,17 @@ export default function SettingsScreen(): React.JSX.Element {
   const currency = useSettingsStore((s) => s.currency);
   const setCurrency = useSettingsStore((s) => s.setCurrency);
 
-  const calConnected   = useCalendarSyncStore((s) => s.connected);
-  const calAutoSync    = useCalendarSyncStore((s) => s.autoSync);
-  const calConnect     = useCalendarSyncStore((s) => s.connect);
-  const calDisconnect  = useCalendarSyncStore((s) => s.disconnect);
+  const calConnected = useCalendarSyncStore((s) => s.connected);
+  const calAutoSync = useCalendarSyncStore((s) => s.autoSync);
+  const calConnect = useCalendarSyncStore((s) => s.connect);
+  const calDisconnect = useCalendarSyncStore((s) => s.disconnect);
   const calSetAutoSync = useCalendarSyncStore((s) => s.setAutoSync);
 
   const { from } = useLocalSearchParams<{ from?: string }>();
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showDebtModal, setShowDebtModal] = useState(false);
+  const [showTimezoneModal, setShowTimezoneModal] = useState(false);
+  const [savingTimezone, setSavingTimezone] = useState(false);
   const [debtAmount, setDebtAmount] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [requestingVote, setRequestingVote] = useState(false);
@@ -155,13 +192,19 @@ export default function SettingsScreen(): React.JSX.Element {
     const result = await enableWebPush(user.id, houseId);
     setWebPushStatus(result);
     if (result === 'denied') {
-      Alert.alert('Notifications blocked', 'To enable, go to your browser settings and allow notifications for this site.');
+      Alert.alert(
+        'Notifications blocked',
+        'To enable, go to your browser settings and allow notifications for this site.'
+      );
     }
   }, [user?.id, houseId]);
 
   const handleLeavePress = useCallback((): void => {
     const myId = profile?.id ?? '';
-    const balances = calculateBalances(bills.filter((b) => !b.settled), myId);
+    const balances = calculateBalances(
+      bills.filter((b) => !b.settled),
+      myId
+    );
     const owed = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
     if (owed > 0.01) {
       setDebtAmount(owed);
@@ -207,7 +250,9 @@ export default function SettingsScreen(): React.JSX.Element {
   const updatePrefs = useNotificationStore((s) => s.update);
 
   const showRecurringBillsOnCalendar = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
-  const toggleShowRecurringBillsOnCalendar = useSettingsStore((s) => s.toggleShowRecurringBillsOnCalendar);
+  const toggleShowRecurringBillsOnCalendar = useSettingsStore(
+    (s) => s.toggleShowRecurringBillsOnCalendar
+  );
 
   const currentLanguage = useLanguageStore((s) => s.language);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
@@ -215,7 +260,11 @@ export default function SettingsScreen(): React.JSX.Element {
   const handleCalendarToggle = useCallback(async (): Promise<void> => {
     setCalLoading(true);
     try {
-      if (calConnected) { await calDisconnect(); } else { await calConnect(); }
+      if (calConnected) {
+        await calDisconnect();
+      } else {
+        await calConnect();
+      }
     } finally {
       setCalLoading(false);
     }
@@ -237,12 +286,28 @@ export default function SettingsScreen(): React.JSX.Element {
     [user?.id, houseId, updatePrefs]
   );
 
+  const handleTimezoneSelect = useCallback(
+    async (tz: string): Promise<void> => {
+      if (!houseId) return;
+      setSavingTimezone(true);
+      try {
+        await updateTimezone(houseId, tz);
+        setShowTimezoneModal(false);
+      } catch {
+        Alert.alert('Error', 'Could not update timezone. Please try again.');
+      } finally {
+        setSavingTimezone(false);
+      }
+    },
+    [houseId, updateTimezone]
+  );
+
+  const timezoneLabel = TIMEZONES.find((t) => t.id === houseTimezone)?.label ?? houseTimezone;
+
   const handleCopyInviteCode = useCallback(() => {
-    Alert.alert(
-      t('settings.invite_code'),
-      `${t('profile.share_code')}\n\n${inviteCode}`,
-      [{ text: t('common.ok') }]
-    );
+    Alert.alert(t('settings.invite_code'), `${t('profile.share_code')}\n\n${inviteCode}`, [
+      { text: t('common.ok') },
+    ]);
   }, [inviteCode, t]);
 
   const LANGUAGE_OPTIONS: { code: AppLanguage; label: string; flag: string }[] = [
@@ -256,7 +321,7 @@ export default function SettingsScreen(): React.JSX.Element {
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <Pressable
           style={styles.backBtn}
-          onPress={() => from === 'profile' ? router.push('/(tabs)/profile') : router.back()}
+          onPress={() => (from === 'profile' ? router.push('/(tabs)/profile') : router.back())}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
@@ -278,10 +343,20 @@ export default function SettingsScreen(): React.JSX.Element {
                 accessibilityRole="button"
                 accessibilityState={{ selected: currency === c.symbol }}
               >
-                <Text style={[styles.currencySymbol, currency === c.symbol && styles.currencySymbolActive]}>
+                <Text
+                  style={[
+                    styles.currencySymbol,
+                    currency === c.symbol && styles.currencySymbolActive,
+                  ]}
+                >
                   {c.symbol}
                 </Text>
-                <Text style={[styles.currencyLabel, currency === c.symbol && styles.currencyLabelActive]}>
+                <Text
+                  style={[
+                    styles.currencyLabel,
+                    currency === c.symbol && styles.currencyLabelActive,
+                  ]}
+                >
                   {c.label.split('(')[0].trim()}
                 </Text>
               </Pressable>
@@ -311,6 +386,17 @@ export default function SettingsScreen(): React.JSX.Element {
             )}
             <RowDivider />
             <MenuItem
+              icon="🌍"
+              label="Timezone"
+              sub={myRole === 'owner' ? 'Tap to change' : 'Set by house owner'}
+              rightText={timezoneLabel}
+              onPress={() => {
+                if (myRole === 'owner') setShowTimezoneModal(true);
+              }}
+              disabled={myRole !== 'owner'}
+            />
+            <RowDivider />
+            <MenuItem
               icon="👥"
               label={t('settings.housemates')}
               sub={t('common.person', { count: housemates.length })}
@@ -329,7 +415,9 @@ export default function SettingsScreen(): React.JSX.Element {
               <View style={styles.menuText}>
                 <Text style={[styles.menuLabel, { color: C.negative }]}>Leave House</Text>
                 <Text style={styles.menuSub}>
-                  {houseName ? `Leave "${houseName}" and join or create a new house` : 'Leave this house and start fresh'}
+                  {houseName
+                    ? `Leave "${houseName}" and join or create a new house`
+                    : 'Leave this house and start fresh'}
                 </Text>
               </View>
               <Text style={[styles.menuChevron, { color: C.negative }]}>›</Text>
@@ -350,7 +438,8 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <Text style={styles.modalTitle}>Leave House?</Text>
                 <Text style={styles.modalBody}>
-                  You will be removed from{houseName ? ` "${houseName}"` : ' the current house'}. Your data will stay but you{`'`}ll need to join or create a new house.
+                  You will be removed from{houseName ? ` "${houseName}"` : ' the current house'}.
+                  Your data will stay but you{`'`}ll need to join or create a new house.
                 </Text>
                 <Pressable
                   style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
@@ -358,7 +447,9 @@ export default function SettingsScreen(): React.JSX.Element {
                   disabled={leaving}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.modalBtnDangerText}>{leaving ? 'Leaving…' : 'Yes, Leave House'}</Text>
+                  <Text style={styles.modalBtnDangerText}>
+                    {leaving ? 'Leaving…' : 'Yes, Leave House'}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={styles.modalBtnCancel}
@@ -385,11 +476,15 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <Text style={styles.modalTitle}>Settle Up First</Text>
                 <Text style={styles.modalBody}>
-                  You owe your housemates {debtAmount.toFixed(2)}. Please settle your balance before leaving, or ask the house to vote on approving your departure.
+                  You owe your housemates {debtAmount.toFixed(2)}. Please settle your balance before
+                  leaving, or ask the house to vote on approving your departure.
                 </Text>
                 <Pressable
                   style={styles.modalBtnPrimary}
-                  onPress={() => { setShowDebtModal(false); router.push('/(tabs)/bills'); }}
+                  onPress={() => {
+                    setShowDebtModal(false);
+                    router.push('/(tabs)/bills');
+                  }}
                   accessibilityRole="button"
                 >
                   <Text style={styles.modalBtnPrimaryText}>Settle Up</Text>
@@ -400,7 +495,9 @@ export default function SettingsScreen(): React.JSX.Element {
                   disabled={requestingVote}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.modalBtnSecondaryText}>{requestingVote ? 'Creating vote…' : 'Request a Vote to Leave'}</Text>
+                  <Text style={styles.modalBtnSecondaryText}>
+                    {requestingVote ? 'Creating vote…' : 'Request a Vote to Leave'}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={styles.modalBtnCancel}
@@ -413,15 +510,71 @@ export default function SettingsScreen(): React.JSX.Element {
             </Pressable>
           </Modal>
 
+          {/* Timezone picker */}
+          <Modal
+            visible={showTimezoneModal}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowTimezoneModal(false)}
+          >
+            <Pressable style={styles.modalBackdrop} onPress={() => setShowTimezoneModal(false)}>
+              <Pressable style={styles.tzModalBox} onPress={() => {}}>
+                <Text style={styles.modalTitle}>House Timezone</Text>
+                <Text style={[styles.modalBody, { marginBottom: 8 }]}>
+                  Affects parking notifications for the whole house.
+                </Text>
+                <ScrollView style={styles.tzModalList} showsVerticalScrollIndicator={false}>
+                  {TIMEZONES.map((tz, idx) => (
+                    <View key={tz.id}>
+                      {idx > 0 && <View style={styles.rowDivider} />}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.tzOption,
+                          pressed && styles.menuItemPressed,
+                        ]}
+                        onPress={() => {
+                          if (!savingTimezone) handleTimezoneSelect(tz.id);
+                        }}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: houseTimezone === tz.id }}
+                      >
+                        <View style={styles.menuText}>
+                          <Text style={styles.menuLabel}>{tz.label}</Text>
+                          <Text style={styles.menuSub}>{tz.region}</Text>
+                        </View>
+                        {houseTimezone === tz.id && (
+                          <Text style={[styles.menuChevron, { color: C.primary, fontSize: 18 }]}>
+                            ✓
+                          </Text>
+                        )}
+                      </Pressable>
+                    </View>
+                  ))}
+                </ScrollView>
+                <Pressable
+                  style={styles.modalBtnCancel}
+                  onPress={() => setShowTimezoneModal(false)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.modalBtnCancelText}>Cancel</Text>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          </Modal>
+
           {/* Calendar */}
           <SectionDivider label="CALENDAR" />
           <View style={styles.menuGroup}>
             <View style={styles.menuItem}>
-              <View style={styles.menuIcon}><Text style={styles.menuIconText}>📅</Text></View>
+              <View style={styles.menuIcon}>
+                <Text style={styles.menuIconText}>📅</Text>
+              </View>
               <View style={styles.menuText}>
                 <Text style={styles.menuLabel}>Connect my calendar</Text>
                 <Text style={styles.menuSub}>
-                  {calConnected ? 'Syncing with your device calendar' : 'See personal events in-app and auto-add house events'}
+                  {calConnected
+                    ? 'Syncing with your device calendar'
+                    : 'See personal events in-app and auto-add house events'}
                 </Text>
               </View>
               <Switch
@@ -436,10 +589,14 @@ export default function SettingsScreen(): React.JSX.Element {
               <>
                 <RowDivider />
                 <View style={styles.menuItem}>
-                  <View style={styles.menuIcon}><Text style={styles.menuIconText}>📋</Text></View>
+                  <View style={styles.menuIcon}>
+                    <Text style={styles.menuIconText}>📋</Text>
+                  </View>
                   <View style={styles.menuText}>
                     <Text style={styles.menuLabel}>Auto-add house events</Text>
-                    <Text style={styles.menuSub}>New house events go straight to your calendar</Text>
+                    <Text style={styles.menuSub}>
+                      New house events go straight to your calendar
+                    </Text>
                   </View>
                   <Switch
                     value={calAutoSync.events}
@@ -450,10 +607,14 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <RowDivider />
                 <View style={styles.menuItem}>
-                  <View style={styles.menuIcon}><Text style={styles.menuIconText}>🚗</Text></View>
+                  <View style={styles.menuIcon}>
+                    <Text style={styles.menuIconText}>🚗</Text>
+                  </View>
                   <View style={styles.menuText}>
                     <Text style={styles.menuLabel}>Auto-add parking</Text>
-                    <Text style={styles.menuSub}>Pending when requested, confirmed when approved</Text>
+                    <Text style={styles.menuSub}>
+                      Pending when requested, confirmed when approved
+                    </Text>
                   </View>
                   <Switch
                     value={calAutoSync.parking}
@@ -480,7 +641,10 @@ export default function SettingsScreen(): React.JSX.Element {
             {webPushStatus !== 'unavailable' && (
               <>
                 <Pressable
-                  style={({ pressed }) => [styles.menuItem, webPushStatus === 'default' && pressed && styles.menuItemPressed]}
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    webPushStatus === 'default' && pressed && styles.menuItemPressed,
+                  ]}
                   onPress={webPushStatus === 'default' ? handleEnableWebPush : undefined}
                   accessible
                   accessibilityRole="button"
@@ -495,16 +659,12 @@ export default function SettingsScreen(): React.JSX.Element {
                       {webPushStatus === 'granted'
                         ? 'Enabled for this browser'
                         : webPushStatus === 'denied'
-                        ? 'Blocked — allow in browser settings'
-                        : 'Tap to enable push notifications'}
+                          ? 'Blocked — allow in browser settings'
+                          : 'Tap to enable push notifications'}
                     </Text>
                   </View>
-                  {webPushStatus === 'granted' && (
-                    <Text style={styles.webPushOn}>On</Text>
-                  )}
-                  {webPushStatus === 'default' && (
-                    <Text style={styles.menuChevron}>›</Text>
-                  )}
+                  {webPushStatus === 'granted' && <Text style={styles.webPushOn}>On</Text>}
+                  {webPushStatus === 'default' && <Text style={styles.menuChevron}>›</Text>}
                 </Pressable>
                 <RowDivider />
               </>
@@ -539,14 +699,22 @@ export default function SettingsScreen(): React.JSX.Element {
                   {DAYS_OPTIONS.map((d) => (
                     <Pressable
                       key={d}
-                      style={[styles.dayChip, prefs.billDueDaysBefore === d && styles.dayChipActive]}
+                      style={[
+                        styles.dayChip,
+                        prefs.billDueDaysBefore === d && styles.dayChipActive,
+                      ]}
                       onPress={() => setDaysBefore(d)}
                       accessible
                       accessibilityRole="button"
                       accessibilityLabel={t('common.day', { count: d })}
                       accessibilityState={{ selected: prefs.billDueDaysBefore === d }}
                     >
-                      <Text style={[styles.dayChipText, prefs.billDueDaysBefore === d && styles.dayChipTextActive]}>
+                      <Text
+                        style={[
+                          styles.dayChipText,
+                          prefs.billDueDaysBefore === d && styles.dayChipTextActive,
+                        ]}
+                      >
                         {d}d
                       </Text>
                     </Pressable>
@@ -712,7 +880,13 @@ function makeStyles(C: ColorTokens) {
     menuChevronDisabled: { opacity: 0 },
     menuRightText: { color: C.textSecondary, ...font.regular, fontSize: 14 },
     rowDivider: { height: 1, backgroundColor: C.border, marginLeft: sizes.md + 36 + sizes.sm },
-    footer: { color: C.textDisabled, fontSize: 13, ...font.regular, textAlign: 'center', marginTop: sizes.md },
+    footer: {
+      color: C.textDisabled,
+      fontSize: 13,
+      ...font.regular,
+      textAlign: 'center',
+      marginTop: sizes.md,
+    },
     daysPickerRow: {
       paddingHorizontal: sizes.md,
       paddingBottom: sizes.md,
@@ -782,18 +956,92 @@ function makeStyles(C: ColorTokens) {
     currencySymbolActive: { color: C.primary },
     currencyLabel: { fontSize: 12, ...font.regular, color: C.textSecondary },
     currencyLabelActive: { color: C.primary },
-    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-    modalBox: { backgroundColor: C.surface, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360, gap: 12, alignItems: 'center' },
-    modalIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.negative + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    modalBox: {
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      padding: 24,
+      width: '100%',
+      maxWidth: 360,
+      gap: 12,
+      alignItems: 'center',
+    },
+    tzModalBox: {
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      padding: 20,
+      paddingBottom: 16,
+      width: '100%',
+      maxWidth: 360,
+      maxHeight: '80%',
+      alignItems: 'stretch',
+      gap: 12,
+    },
+    tzModalList: { flexGrow: 0 },
+    tzOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 4,
+    },
+    modalIconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: C.negative + '15',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
     modalTitle: { fontSize: 18, ...font.extrabold, color: C.textPrimary, textAlign: 'center' },
-    modalBody: { fontSize: 14, ...font.regular, color: C.textSecondary, textAlign: 'center', lineHeight: 20 },
-    modalBtnDanger: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: C.negative, alignItems: 'center', marginTop: 4 },
+    modalBody: {
+      fontSize: 14,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    modalBtnDanger: {
+      width: '100%',
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: C.negative,
+      alignItems: 'center',
+      marginTop: 4,
+    },
     modalBtnDangerText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    modalBtnPrimary: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: C.primary, alignItems: 'center', marginTop: 4 },
+    modalBtnPrimary: {
+      width: '100%',
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: C.primary,
+      alignItems: 'center',
+      marginTop: 4,
+    },
     modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    modalBtnSecondary: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: C.primary, alignItems: 'center' },
+    modalBtnSecondary: {
+      width: '100%',
+      paddingVertical: 12,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: C.primary,
+      alignItems: 'center',
+    },
     modalBtnSecondaryText: { fontSize: 15, ...font.semibold, color: C.primary },
-    modalBtnCancel: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+    modalBtnCancel: {
+      width: '100%',
+      paddingVertical: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.border,
+      alignItems: 'center',
+    },
     modalBtnCancelText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
   });
 }

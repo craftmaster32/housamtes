@@ -44,14 +44,14 @@ function formatTime(iso: string): string {
 function parseDateParts(dateStr: string): {
   dayNum: string;
   monthAbbr: string;
-  weekdayAbbr: string;
+  weekdayFull: string;
 } {
   const [y, m, d] = dateStr.split('-').map(Number);
   const date = new Date(y, m - 1, d);
   return {
     dayNum: String(d),
     monthAbbr: date.toLocaleString('default', { month: 'short' }).toUpperCase(),
-    weekdayAbbr: date.toLocaleString('default', { weekday: 'short' }),
+    weekdayFull: date.toLocaleString('default', { weekday: 'long' }),
   };
 }
 
@@ -74,6 +74,7 @@ export interface ReservationCardProps {
   onCancel: (id: string) => void;
   onVote: (id: string, vote: ParkingVoteChoice) => void;
   onClear: (id: string) => void;
+  onDatePress: (date: string) => void;
   isHistory: boolean;
 }
 
@@ -123,6 +124,110 @@ function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.El
   );
 }
 
+// ── Day schedule sheet ────────────────────────────────────────────────────────
+interface DayScheduleSheetProps {
+  date: string | null;
+  onClose: () => void;
+  currentUserId: string;
+}
+
+function DayScheduleSheet({
+  date,
+  onClose,
+  currentUserId,
+}: DayScheduleSheetProps): React.JSX.Element {
+  const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const allReservations = useParkingStore((s) => s.reservations);
+
+  const dayReservations = useMemo(() => {
+    if (!date) return [];
+    return [...allReservations]
+      .filter((r) => r.date === date)
+      .sort((a, b) => {
+        if (!a.startTime && !b.startTime) return 0;
+        if (!a.startTime) return 1;
+        if (!b.startTime) return -1;
+        return a.startTime.localeCompare(b.startTime);
+      });
+  }, [allReservations, date]);
+
+  if (!date) return <View />;
+  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(date);
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.daySheetBackdrop} onPress={onClose}>
+        <Pressable style={styles.daySheetPanel} onPress={() => {}}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.daySheetTitle}>
+            {weekdayFull}, {dayNum} {monthAbbr}
+          </Text>
+
+          {dayReservations.length === 0 ? (
+            <Text style={styles.daySheetEmpty}>{t('parking.no_reservations_day')}</Text>
+          ) : (
+            <View style={styles.daySheetList}>
+              {dayReservations.map((r) => {
+                const isOwn = r.requestedBy === currentUserId;
+                const dotColor =
+                  r.status === 'approved'
+                    ? C.positive
+                    : r.status === 'rejected'
+                      ? C.danger
+                      : C.warning;
+                const statusBg =
+                  r.status === 'approved'
+                    ? C.positive + '20'
+                    : r.status === 'rejected'
+                      ? C.danger + '15'
+                      : C.warning + '20';
+                const statusLabel =
+                  r.status === 'approved'
+                    ? 'Approved'
+                    : r.status === 'rejected'
+                      ? 'Rejected'
+                      : 'Pending';
+                const timeLabel = r.startTime
+                  ? `${r.startTime}${r.endTime ? ` – ${r.endTime}` : ''}`
+                  : 'All day';
+                return (
+                  <View key={r.id} style={styles.daySheetRow}>
+                    <View style={[styles.daySheetDot, { backgroundColor: dotColor }]} />
+                    <View style={styles.daySheetRowInfo}>
+                      <Text style={styles.daySheetTime}>{timeLabel}</Text>
+                      <Text style={styles.daySheetName}>
+                        {isOwn ? 'You' : resolveName(r.requestedBy, housemates)}
+                        {r.note ? ` · ${r.note}` : ''}
+                      </Text>
+                    </View>
+                    <View style={[styles.daySheetStatusBadge, { backgroundColor: statusBg }]}>
+                      <Text style={[styles.daySheetStatusText, { color: dotColor }]}>
+                        {statusLabel}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          <Pressable
+            style={styles.daySheetCloseBtn}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close day schedule"
+          >
+            <Text style={styles.daySheetCloseBtnText}>Close</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ── Reservation card ───────────────────────────────────────────────────────────
 function ReservationCard({
   item,
@@ -131,12 +236,27 @@ function ReservationCard({
   onCancel,
   onVote,
   onClear,
+  onDatePress,
   isHistory,
 }: ReservationCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const housemates = useHousematesStore((s) => s.housemates);
+  const allReservations = useParkingStore((s) => s.reservations);
+  const sameDayDots = useMemo(
+    () =>
+      allReservations
+        .filter((r) => r.date === item.date)
+        .sort((a, b) => {
+          if (!a.startTime && !b.startTime) return 0;
+          if (!a.startTime) return 1;
+          if (!b.startTime) return -1;
+          return a.startTime.localeCompare(b.startTime);
+        })
+        .slice(0, 4),
+    [allReservations, item.date]
+  );
   const isOwn = item.requestedBy === currentUserId;
   const isPending = item.status === 'pending';
   const approved = item.status === 'approved';
@@ -159,7 +279,8 @@ function ReservationCard({
     ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
     : null;
 
-  const { dayNum, monthAbbr, weekdayAbbr } = parseDateParts(item.date);
+  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(item.date);
+  const handleDatePress = useCallback(() => onDatePress(item.date), [onDatePress, item.date]);
 
   const myVote = item.votes.find((v) => v.userId === currentUserId);
   const canVote = !isOwn && isPending;
@@ -169,18 +290,42 @@ function ReservationCard({
 
   return (
     <View style={[styles.resCard, isHistory && styles.resCardDim]}>
-      <View
-        style={[styles.dateBadge, { borderColor: statusColor + '50' }]}
-        accessible
-        accessibilityLabel={`${weekdayAbbr} ${dayNum} ${monthAbbr}`}
-      >
-        <View style={[styles.dateBadgeTop, { backgroundColor: statusColor }]}>
-          <Text style={styles.dateBadgeMonth}>{monthAbbr}</Text>
-        </View>
-        <View style={styles.dateBadgeBottom}>
-          <Text style={[styles.dateBadgeDay, { color: C.textPrimary }]}>{dayNum}</Text>
-          <Text style={[styles.dateBadgeWeekday, { color: C.textSecondary }]}>{weekdayAbbr}</Text>
-        </View>
+      <View style={styles.dateBadgeCol}>
+        <Pressable
+          style={[styles.dateBadge, { borderColor: statusColor + '50' }]}
+          onPress={handleDatePress}
+          hitSlop={{ top: 4, bottom: 0, left: 4, right: 4 }}
+          accessibilityRole="button"
+          accessibilityLabel={`${weekdayFull} ${dayNum} ${monthAbbr} — tap to see day schedule`}
+        >
+          <View style={[styles.dateBadgeTop, { backgroundColor: statusColor }]}>
+            <Text style={styles.dateBadgeMonth}>{monthAbbr}</Text>
+          </View>
+          <View style={styles.dateBadgeBottom}>
+            <Text style={[styles.dateBadgeDay, { color: C.textPrimary }]}>{dayNum}</Text>
+            {sameDayDots.length > 1 && (
+              <View style={styles.dayDots}>
+                {sameDayDots.map((r) => (
+                  <View
+                    key={r.id}
+                    style={[
+                      styles.dayDot,
+                      {
+                        backgroundColor:
+                          r.status === 'approved'
+                            ? C.positive
+                            : r.status === 'rejected'
+                              ? C.danger
+                              : C.warning,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        </Pressable>
+        <Text style={[styles.dateBadgeWeekLabel, { color: C.textSecondary }]}>{weekdayFull}</Text>
       </View>
 
       <View style={styles.resInfo}>
@@ -495,7 +640,10 @@ export default function ParkingScreen(): React.JSX.Element {
   const isAdmin = role === 'owner' || role === 'admin';
 
   const [showReserve, setShowReserve] = useState(false);
+  const [daySheetDate, setDaySheetDate] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  const handleDatePress = useCallback((date: string) => setDaySheetDate(date), []);
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   useEffect(() => {
@@ -697,11 +845,12 @@ export default function ParkingScreen(): React.JSX.Element {
           onCancel={handleCancel}
           onVote={handleVote}
           onClear={handleClear}
+          onDatePress={handleDatePress}
           isHistory={item.isHistory}
         />
       );
     },
-    [myId, isAdmin, handleCancel, handleVote, handleClear, t, styles]
+    [myId, isAdmin, handleCancel, handleVote, handleClear, handleDatePress, t, styles]
   );
 
   return (
@@ -826,6 +975,12 @@ export default function ParkingScreen(): React.JSX.Element {
             />
           )
         }
+      />
+
+      <DayScheduleSheet
+        date={daySheetDate}
+        onClose={() => setDaySheetDate(null)}
+        currentUserId={myId}
       />
 
       <ReserveModal
@@ -985,27 +1140,26 @@ const makeStyles = (C: ColorTokens) =>
       elevation: 1,
     },
     resCardDim: { opacity: 0.72 },
+    dateBadgeCol: { alignItems: 'center', alignSelf: 'flex-start', gap: 4 },
     dateBadge: {
       width: 52,
       borderRadius: 10,
       overflow: 'hidden',
       borderWidth: 1,
       flexShrink: 0,
-      alignSelf: 'flex-start',
     },
-    dateBadgeTop: {
-      paddingVertical: 4,
-      alignItems: 'center',
-    },
+    dateBadgeTop: { paddingVertical: 4, alignItems: 'center' },
     dateBadgeMonth: { fontSize: 9, ...font.bold, color: '#fff', letterSpacing: 0.6 },
     dateBadgeBottom: {
       backgroundColor: C.surfaceSecondary,
       alignItems: 'center',
       paddingTop: 5,
-      paddingBottom: 6,
+      paddingBottom: 7,
     },
     dateBadgeDay: { fontSize: 22, ...font.extrabold, lineHeight: 26, letterSpacing: -0.5 },
-    dateBadgeWeekday: { fontSize: 9, ...font.medium, marginTop: 1 },
+    dateBadgeWeekLabel: { fontSize: 10, ...font.medium, textAlign: 'center' },
+    dayDots: { flexDirection: 'row', gap: 3, justifyContent: 'center', marginTop: 4 },
+    dayDot: { width: 5, height: 5, borderRadius: 3 },
     resInfo: { flex: 1, gap: 4 },
     resDate: { fontSize: 13, ...font.semibold, color: C.textSecondary },
     resBy: { fontSize: 13, ...font.regular, color: C.textSecondary },
@@ -1134,4 +1288,51 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
     },
     modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+
+    daySheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    daySheetPanel: {
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 40,
+      gap: 16,
+    },
+    daySheetTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    daySheetEmpty: {
+      fontSize: 14,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      paddingVertical: 16,
+    },
+    daySheetList: { gap: 10 },
+    daySheetRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+    },
+    daySheetDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+    daySheetRowInfo: { flex: 1, gap: 2 },
+    daySheetTime: { fontSize: 13, ...font.semibold, color: C.textPrimary },
+    daySheetName: { fontSize: 12, ...font.regular, color: C.textSecondary },
+    daySheetStatusBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 9999,
+      flexShrink: 0,
+    },
+    daySheetStatusText: { fontSize: 11, ...font.semibold },
+    daySheetCloseBtn: {
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      alignItems: 'center',
+    },
+    daySheetCloseBtnText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
   });

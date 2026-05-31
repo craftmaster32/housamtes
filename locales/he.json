@@ -341,7 +341,8 @@
     "failed_claim": "תפיסת החניה נכשלה",
     "failed_release": "שחרור החניה נכשל",
     "failed_reservation": "הוספת ההזמנה נכשלה",
-    "admin_free_spot": "שחרר את החניה"
+    "admin_free_spot": "שחרר את החניה",
+    "no_reservations_day": "אין הזמנות ביום זה."
   },
   "grocery": {
     "title": "רשימת קניות",
