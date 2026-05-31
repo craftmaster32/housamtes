@@ -566,17 +566,23 @@ export const useParkingStore = create<ParkingStore>()(
         set({ reservations: get().reservations.filter((r) => r.id !== id) });
       },
       clearAllHistory: async (houseId: string): Promise<void> => {
-        const { reservations } = get();
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const historyIds = reservations.filter((r) => r.date < todayStr).map((r) => r.id);
-        if (historyIds.length === 0) return;
-        const { error } = await supabase.from('parking_reservations').delete().in('id', historyIds);
-        if (error) {
-          captureError(error, { context: 'clear-all-history', houseId });
+        const userId = useAuthStore.getState().profile?.id ?? '';
+        try {
+          const { reservations } = get();
+          const now = new Date();
+          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const historyIds = reservations.filter((r) => r.date < todayStr).map((r) => r.id);
+          if (historyIds.length === 0) return;
+          const { error } = await supabase
+            .from('parking_reservations')
+            .delete()
+            .in('id', historyIds);
+          if (error) throw error;
+          set({ reservations: reservations.filter((r) => r.date >= todayStr) });
+        } catch (err) {
+          captureError(err, { context: 'clear-all-history', houseId, userId });
           throw new Error('Could not clear history. Please try again.');
         }
-        set({ reservations: reservations.filter((r) => r.date >= todayStr) });
       },
       checkReservationAutoApply: async (houseId: string): Promise<void> => {
         const { current, reservations } = get();

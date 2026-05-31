@@ -891,18 +891,19 @@ export default function ParkingScreen(): React.JSX.Element {
   );
 
   const handleClearAll = useCallback((): void => {
-    Alert.alert(t('parking.clear_all_confirm_title'), t('parking.clear_all_confirm_msg'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('parking.clear_all'),
-        style: 'destructive',
-        onPress: (): void => {
-          clearAllHistory(houseId ?? '').catch((err: unknown) => {
-            setError(err instanceof Error ? err.message : t('parking.error_clear_all_failed'));
-          });
-        },
-      },
-    ]);
+    const doDelete = (): void => {
+      clearAllHistory(houseId ?? '').catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : t('parking.error_clear_all_failed'));
+      });
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('parking.clear_all_confirm_msg'))) doDelete();
+    } else {
+      Alert.alert(t('parking.clear_all_confirm_title'), t('parking.clear_all_confirm_msg'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('parking.clear_all'), style: 'destructive', onPress: doDelete },
+      ]);
+    }
   }, [clearAllHistory, houseId, t]);
 
   const keyExtractor = useCallback(
@@ -1492,8 +1493,8 @@ const makeStyles = (C: ColorTokens) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      paddingVertical: 4,
-      paddingHorizontal: 8,
+      minHeight: 44,
+      paddingHorizontal: 10,
       borderRadius: 9999,
       backgroundColor: C.danger + '12',
     },
