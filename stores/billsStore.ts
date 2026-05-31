@@ -148,7 +148,7 @@ export const useBillsStore = create<BillsStore>()(
           .select()
           .single();
         if (error) {
-          captureError(error, { context: 'add-bill', houseId });
+          captureError(error, { context: 'add-bill', houseId, userId });
           throw new Error('Could not save the bill. Please try again.');
         }
         const bill: Bill = {
@@ -218,7 +218,12 @@ export const useBillsStore = create<BillsStore>()(
           .update({ settled: true, settled_by: settledByUserId, settled_at: now })
           .eq('id', id);
         if (error) {
-          captureError(error, { context: 'settle-bill', billId: id });
+          captureError(error, {
+            context: 'settle-bill',
+            billId: id,
+            houseId,
+            userId: settledByUserId,
+          });
           throw new Error('Could not settle the bill. Please try again.');
         }
         set({
@@ -244,7 +249,7 @@ export const useBillsStore = create<BillsStore>()(
         }
         const { error } = await supabase.from('bills').delete().eq('id', id);
         if (error) {
-          captureError(error, { context: 'delete-bill', billId: id });
+          captureError(error, { context: 'delete-bill', billId: id, houseId });
           throw new Error('Could not delete the bill. Please try again.');
         }
         set({ bills: get().bills.filter((b) => b.id !== id) });
