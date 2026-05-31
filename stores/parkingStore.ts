@@ -438,10 +438,11 @@ export const useParkingStore = create<ParkingStore>()(
         return r.id;
       },
       cancelReservation: async (id, houseId): Promise<void> => {
+        const userId = useAuthStore.getState().profile?.id ?? '';
         const reservation = get().reservations.find((r) => r.id === id);
         const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
         if (error) {
-          captureError(error, { context: 'cancel-reservation' });
+          captureError(error, { context: 'cancel-reservation', houseId, userId });
           throw new Error('Could not cancel the reservation. Please try again.');
         }
         set({ reservations: get().reservations.filter((r) => r.id !== id) });
@@ -576,9 +577,10 @@ export const useParkingStore = create<ParkingStore>()(
           const { error } = await supabase
             .from('parking_reservations')
             .delete()
+            .eq('house_id', houseId)
             .in('id', historyIds);
           if (error) throw error;
-          set({ reservations: reservations.filter((r) => r.date >= todayStr) });
+          set({ reservations: get().reservations.filter((r) => r.date >= todayStr) });
         } catch (err) {
           captureError(err, { context: 'clear-all-history', houseId, userId });
           throw new Error('Could not clear history. Please try again.');

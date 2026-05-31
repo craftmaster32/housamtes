@@ -191,10 +191,10 @@ function DayScheduleSheet({
                       : C.warning + '20';
                 const statusLabel =
                   r.status === 'approved'
-                    ? 'Approved'
+                    ? t('parking.approved')
                     : r.status === 'rejected'
-                      ? 'Rejected'
-                      : 'Pending';
+                      ? t('parking.rejected')
+                      : t('parking.pending');
                 const timeLabel = r.startTime
                   ? `${r.startTime}${r.endTime ? ` – ${r.endTime}` : ''}`
                   : 'All day';
@@ -204,7 +204,7 @@ function DayScheduleSheet({
                     <View style={styles.daySheetRowInfo}>
                       <Text style={styles.daySheetTime}>{timeLabel}</Text>
                       <Text style={styles.daySheetName}>
-                        {isOwn ? 'You' : resolveName(r.requestedBy, housemates)}
+                        {isOwn ? t('parking.you') : resolveName(r.requestedBy, housemates)}
                         {r.note ? ` · ${r.note}` : ''}
                       </Text>
                     </View>
@@ -225,7 +225,7 @@ function DayScheduleSheet({
             accessibilityRole="button"
             accessibilityLabel="Close day schedule"
           >
-            <Text style={styles.daySheetCloseBtnText}>Close</Text>
+            <Text style={styles.daySheetCloseBtnText}>{t('common.close')}</Text>
           </Pressable>
         </Pressable>
       </Pressable>
