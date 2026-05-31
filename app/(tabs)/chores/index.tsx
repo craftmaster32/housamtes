@@ -12,9 +12,11 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useChoresStore, type Chore, type Recurrence } from '@stores/choresStore';
 import { useAuthStore } from '@stores/authStore';
+import { useBadgeStore } from '@stores/badgeStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { resolveName } from '@utils/housemates';
@@ -22,11 +24,9 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { Button, EmptyState, Header } from '@components/ui';
 import { type } from '@constants/typography';
 import { sizes } from '@constants/sizes';
-import {
-  useFadeInUp, usePressScale, useSpringBar, useCountUp, useHaptic,
-} from '@utils/animations';
+import { useFadeInUp, usePressScale, useSpringBar, useCountUp, useHaptic } from '@utils/animations';
 
-const WEEK_DAYS  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 
 function ordinal(n: string): string {
@@ -45,21 +45,32 @@ function localizedWeekDay(englishDay: string, language: string): string {
 function freqLabel(
   chore: Chore,
   t: (key: string, opts?: Record<string, unknown>) => string,
-  language: string,
+  language: string
 ): string | null {
   if (chore.recurrence === 'once') return null;
   if (chore.recurrence === 'weekly')
-    return chore.recurrenceDay ? t('chores.every_day', { day: localizedWeekDay(chore.recurrenceDay, language) }) : t('chores.weekly');
+    return chore.recurrenceDay
+      ? t('chores.every_day', { day: localizedWeekDay(chore.recurrenceDay, language) })
+      : t('chores.weekly');
   if (chore.recurrence === 'monthly')
-    return chore.recurrenceDay ? `${ordinal(chore.recurrenceDay)} ${t('chores.of_month')}` : t('chores.monthly');
+    return chore.recurrenceDay
+      ? `${ordinal(chore.recurrenceDay)} ${t('chores.of_month')}`
+      : t('chores.monthly');
   return null;
 }
 
 // ── Chore row ────────────────────────────────────────────────────────────────
 function ChoreRow({
-  chore, myId, onToggle, onClaim, onUnclaim, onDelete, C,
+  chore,
+  myId,
+  onToggle,
+  onClaim,
+  onUnclaim,
+  onDelete,
+  C,
 }: {
-  chore: Chore; myId: string;
+  chore: Chore;
+  myId: string;
   onToggle: (id: string) => void;
   onClaim: (id: string) => void;
   onUnclaim: (id: string) => void;
@@ -82,7 +93,10 @@ function ChoreRow({
     >
       <Pressable
         style={styles.checkBtn}
-        onPress={() => { if (!chore.isComplete) haptic.success(); onToggle(chore.id); }}
+        onPress={() => {
+          if (!chore.isComplete) haptic.success();
+          onToggle(chore.id);
+        }}
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         accessibilityRole="checkbox"
@@ -124,14 +138,26 @@ function ChoreRow({
               </Text>
             </View>
             {isMineClaimed && (
-              <TextLink onPress={() => { haptic.tap(); onUnclaim(chore.id); }} color={C.textSecondary}>
+              <TextLink
+                onPress={() => {
+                  haptic.tap();
+                  onUnclaim(chore.id);
+                }}
+                color={C.textSecondary}
+              >
                 {t('chores.drop')}
               </TextLink>
             )}
           </View>
         ) : (
           !chore.isComplete && (
-            <TextLink onPress={() => { haptic.tap(); onClaim(chore.id); }} color={C.primary}>
+            <TextLink
+              onPress={() => {
+                haptic.tap();
+                onClaim(chore.id);
+              }}
+              color={C.primary}
+            >
               {t('chores.take')}
             </TextLink>
           )
@@ -152,7 +178,15 @@ function ChoreRow({
   );
 }
 
-function TextLink({ children, onPress, color }: { children: React.ReactNode; onPress: () => void; color: string }): React.JSX.Element {
+function TextLink({
+  children,
+  onPress,
+  color,
+}: {
+  children: React.ReactNode;
+  onPress: () => void;
+  color: string;
+}): React.JSX.Element {
   const press = usePressScale(0.94);
   return (
     <Animated.View style={press.animatedStyle}>
@@ -176,67 +210,87 @@ export default function ChoresScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const haptic = useHaptic();
 
-  const chores       = useChoresStore((state) => state.chores);
-  const isLoading    = useChoresStore((state) => state.isLoading);
-  const storeError   = useChoresStore((state) => state.error);
-  const addChore     = useChoresStore((state) => state.addChore);
-  const toggleChore  = useChoresStore((state) => state.toggleChore);
-  const claimChore   = useChoresStore((state) => state.claimChore);
+  const markSeen = useBadgeStore((s) => s.markSeen);
+  useFocusEffect(
+    useCallback((): void => {
+      markSeen('chores').catch(() => {});
+    }, [markSeen])
+  );
+
+  const chores = useChoresStore((state) => state.chores);
+  const isLoading = useChoresStore((state) => state.isLoading);
+  const storeError = useChoresStore((state) => state.error);
+  const addChore = useChoresStore((state) => state.addChore);
+  const toggleChore = useChoresStore((state) => state.toggleChore);
+  const claimChore = useChoresStore((state) => state.claimChore);
   const unclaimChore = useChoresStore((state) => state.unclaimChore);
-  const deleteChore  = useChoresStore((state) => state.deleteChore);
-  const resetAll     = useChoresStore((state) => state.resetAll);
-  const profile      = useAuthStore((s) => s.profile);
-  const houseId      = useAuthStore((s) => s.houseId);
-  const role         = useAuthStore((s) => s.role);
-  const canReset     = role === 'owner' || role === 'admin';
-  const language     = useLanguageStore((s) => s.language);
+  const deleteChore = useChoresStore((state) => state.deleteChore);
+  const resetAll = useChoresStore((state) => state.resetAll);
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId);
+  const role = useAuthStore((s) => s.role);
+  const canReset = role === 'owner' || role === 'admin';
+  const language = useLanguageStore((s) => s.language);
 
   const fadeStyle = useFadeInUp(0);
 
   const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
-    { value: 'once',    label: t('chores.once') },
-    { value: 'weekly',  label: t('chores.weekly') },
+    { value: 'once', label: t('chores.once') },
+    { value: 'weekly', label: t('chores.weekly') },
     { value: 'monthly', label: t('chores.monthly') },
   ];
 
   const weekDayLabels = useMemo(
-    () => WEEK_DAYS.map((_, i) =>
-      new Intl.DateTimeFormat(language, { weekday: 'short' }).format(new Date(2024, 0, 7 + i))
-    ),
+    () =>
+      WEEK_DAYS.map((_, i) =>
+        new Intl.DateTimeFormat(language, { weekday: 'short' }).format(new Date(2024, 0, 7 + i))
+      ),
     [language]
   );
 
   const myId = profile?.id ?? '';
-  const [choreName, setChoreName]         = useState('');
-  const [recurrence, setRecurrence]       = useState<Recurrence>('once');
+  const [choreName, setChoreName] = useState('');
+  const [recurrence, setRecurrence] = useState<Recurrence>('once');
   const [recurrenceDay, setRecurrenceDay] = useState<string | null>(null);
-  const [isAdding, setIsAdding]           = useState(false);
-  const [addError, setAddError]           = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [addError, setAddError] = useState('');
 
-  const pending  = chores.filter((c) => !c.isComplete);
-  const done     = chores.filter((c) => c.isComplete);
+  const pending = chores.filter((c) => !c.isComplete);
+  const done = chores.filter((c) => c.isComplete);
   const listData = [...pending, ...done];
 
   // Spring-animated progress bar + count-up "done" count.
   const progressBar = useSpringBar(done.length, Math.max(1, chores.length), { delay: 120 });
-  const doneDisplay = useCountUp(done.length, { duration: 600, formatter: (n) => Math.round(n).toString() });
+  const doneDisplay = useCountUp(done.length, {
+    duration: 600,
+    formatter: (n: number) => Math.round(n).toString(),
+  });
 
-  const handleRecurrenceChange = useCallback((r: Recurrence): void => {
-    haptic.tap();
-    setRecurrence(r);
-    if (r === 'weekly')      setRecurrenceDay(WEEK_DAYS[new Date().getDay()]);
-    else if (r === 'monthly') setRecurrenceDay(String(new Date().getDate()));
-    else                      setRecurrenceDay(null);
-  }, [haptic]);
+  const handleRecurrenceChange = useCallback(
+    (r: Recurrence): void => {
+      haptic.tap();
+      setRecurrence(r);
+      if (r === 'weekly') setRecurrenceDay(WEEK_DAYS[new Date().getDay()]);
+      else if (r === 'monthly') setRecurrenceDay(String(new Date().getDate()));
+      else setRecurrenceDay(null);
+    },
+    [haptic]
+  );
 
   const handleAdd = useCallback(async (): Promise<void> => {
     if (!choreName.trim() || isAdding) return;
-    if (!houseId) { setAddError(t('common.failed_try_again')); return; }
-    setIsAdding(true); setAddError('');
+    if (!houseId) {
+      setAddError(t('common.failed_try_again'));
+      return;
+    }
+    setIsAdding(true);
+    setAddError('');
     try {
       await addChore(choreName.trim(), recurrence, recurrenceDay, houseId ?? '');
       haptic.success();
-      setChoreName(''); setRecurrence('once'); setRecurrenceDay(null);
+      setChoreName('');
+      setRecurrence('once');
+      setRecurrenceDay(null);
     } catch (err) {
       setAddError(err instanceof Error ? err.message : t('chores.failed_add'));
     } finally {
@@ -244,24 +298,51 @@ export default function ChoresScreen(): React.JSX.Element {
     }
   }, [choreName, recurrence, recurrenceDay, addChore, houseId, isAdding, t, haptic]);
 
-  const handleToggle  = useCallback((id: string): void => { toggleChore(id); }, [toggleChore]);
-  const handleClaim   = useCallback((id: string): void => { claimChore(id, myId); }, [claimChore, myId]);
-  const handleUnclaim = useCallback((id: string): void => { unclaimChore(id); }, [unclaimChore]);
-  const handleDelete  = useCallback((id: string): void => { haptic.warn(); deleteChore(id); }, [deleteChore, haptic]);
+  const handleToggle = useCallback(
+    (id: string): void => {
+      toggleChore(id);
+    },
+    [toggleChore]
+  );
+  const handleClaim = useCallback(
+    (id: string): void => {
+      claimChore(id, myId);
+    },
+    [claimChore, myId]
+  );
+  const handleUnclaim = useCallback(
+    (id: string): void => {
+      unclaimChore(id);
+    },
+    [unclaimChore]
+  );
+  const handleDelete = useCallback(
+    (id: string): void => {
+      haptic.warn();
+      deleteChore(id);
+    },
+    [deleteChore, haptic]
+  );
 
   const renderChore = useCallback(
     ({ item }: { item: Chore }): React.JSX.Element => (
       <ChoreRow
-        chore={item} myId={myId}
-        onToggle={handleToggle} onClaim={handleClaim}
-        onUnclaim={handleUnclaim} onDelete={handleDelete}
+        chore={item}
+        myId={myId}
+        onToggle={handleToggle}
+        onClaim={handleClaim}
+        onUnclaim={handleUnclaim}
+        onDelete={handleDelete}
         C={C}
       />
     ),
     [myId, handleToggle, handleClaim, handleUnclaim, handleDelete, C]
   );
 
-  const handleResetAll = useCallback(() => { haptic.warn(); resetAll(houseId ?? ''); }, [haptic, resetAll, houseId]);
+  const handleResetAll = useCallback(() => {
+    haptic.warn();
+    resetAll(houseId ?? '');
+  }, [haptic, resetAll, houseId]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -274,7 +355,6 @@ export default function ChoresScreen(): React.JSX.Element {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
-
           ListHeaderComponent={
             <View>
               {/* ── Blue hero with progress bar ────────────────────── */}
@@ -287,9 +367,13 @@ export default function ChoresScreen(): React.JSX.Element {
                     <Ionicons name="checkmark-done-outline" size={26} color="#fff" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>{t('chores.hero_subtitle')}</Text>
+                    <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>
+                      {t('chores.hero_subtitle')}
+                    </Text>
                     <Text style={[type.title, { color: '#fff' }]}>
-                      {chores.length === 0 ? t('chores.empty') : t('chores.progress', { done: doneDisplay, total: chores.length })}
+                      {chores.length === 0
+                        ? t('chores.empty')
+                        : t('chores.progress', { done: doneDisplay, total: chores.length })}
                     </Text>
                   </View>
                 </View>
@@ -313,15 +397,22 @@ export default function ChoresScreen(): React.JSX.Element {
               </View>
 
               {/* ── Add form ───────────────────────────────────────── */}
-              <View style={[styles.formCard, { backgroundColor: C.surface, borderColor: C.border }]}>
-                <Text style={[type.eyebrow, { color: C.textSecondary }]}>{t('chores.add_chore')}</Text>
+              <View
+                style={[styles.formCard, { backgroundColor: C.surface, borderColor: C.border }]}
+              >
+                <Text style={[type.eyebrow, { color: C.textSecondary }]}>
+                  {t('chores.add_chore')}
+                </Text>
 
                 <TextInput
                   value={choreName}
                   onChangeText={setChoreName}
                   placeholder={t('chores.chore_placeholder')}
                   placeholderTextColor={C.textSecondary}
-                  style={[styles.formInput, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
+                  style={[
+                    styles.formInput,
+                    { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary },
+                  ]}
                   returnKeyType="done"
                   onSubmitEditing={handleAdd}
                   accessibilityLabel="Chore name"
@@ -343,7 +434,9 @@ export default function ChoresScreen(): React.JSX.Element {
 
                 {recurrence === 'weekly' && (
                   <View style={{ gap: 8 }}>
-                    <Text style={[type.eyebrow, { color: C.textSecondary }]}>{t('chores.which_day')}</Text>
+                    <Text style={[type.eyebrow, { color: C.textSecondary }]}>
+                      {t('chores.which_day')}
+                    </Text>
                     <View style={styles.weekDayRow}>
                       {WEEK_DAYS.map((day, i) => (
                         <DayChip
@@ -360,7 +453,9 @@ export default function ChoresScreen(): React.JSX.Element {
 
                 {recurrence === 'monthly' && (
                   <View style={{ gap: 8 }}>
-                    <Text style={[type.eyebrow, { color: C.textSecondary }]}>{t('chores.which_day_of_month')}</Text>
+                    <Text style={[type.eyebrow, { color: C.textSecondary }]}>
+                      {t('chores.which_day_of_month')}
+                    </Text>
                     <View style={styles.monthDayGrid}>
                       {MONTH_DAYS.map((d) => (
                         <DayChip
@@ -389,7 +484,6 @@ export default function ChoresScreen(): React.JSX.Element {
                   disabled={isAdding || !choreName.trim()}
                   fullWidth
                   icon="add"
-                  haptic={null}
                 >
                   {isAdding ? t('chores.adding') : t('chores.add_chore')}
                 </Button>
@@ -399,7 +493,12 @@ export default function ChoresScreen(): React.JSX.Element {
                 <ActivityIndicator size="small" color={C.primary} style={{ marginVertical: 12 }} />
               )}
               {!!storeError && (
-                <View style={[styles.storeErrorBox, { backgroundColor: C.danger + '12', borderColor: C.danger + '35' }]}>
+                <View
+                  style={[
+                    styles.storeErrorBox,
+                    { backgroundColor: C.danger + '12', borderColor: C.danger + '35' },
+                  ]}
+                >
                   <Text style={[type.bodySm, { color: C.danger }]}>{storeError}</Text>
                 </View>
               )}
@@ -408,24 +507,30 @@ export default function ChoresScreen(): React.JSX.Element {
                 <View style={styles.sectionHeader}>
                   <Text style={[type.eyebrow, { color: C.textSecondary }]}>{t('chores.todo')}</Text>
                   <View style={[styles.countPill, { backgroundColor: C.secondary }]}>
-                    <Text style={[type.captionMed, { color: C.secondaryForeground, fontWeight: '700' }]}>{pending.length}</Text>
+                    <Text
+                      style={[type.captionMed, { color: C.secondaryForeground, fontWeight: '700' }]}
+                    >
+                      {pending.length}
+                    </Text>
                   </View>
                 </View>
               )}
             </View>
           }
-
           ListFooterComponent={
             done.length > 0 ? (
               <View style={[styles.sectionHeader, { marginTop: 16 }]}>
-                <Text style={[type.eyebrow, { color: C.textSecondary }]}>{t('chores.done_section')}</Text>
+                <Text style={[type.eyebrow, { color: C.textSecondary }]}>
+                  {t('chores.done_section')}
+                </Text>
                 <View style={[styles.countPill, { backgroundColor: C.positive + '20' }]}>
-                  <Text style={[type.captionMed, { color: C.positive, fontWeight: '700' }]}>{done.length}</Text>
+                  <Text style={[type.captionMed, { color: C.positive, fontWeight: '700' }]}>
+                    {done.length}
+                  </Text>
                 </View>
               </View>
             ) : null
           }
-
           ListEmptyComponent={
             <EmptyState
               icon="checkmark-done-outline"
@@ -440,7 +545,17 @@ export default function ChoresScreen(): React.JSX.Element {
 }
 
 // ── Chips ────────────────────────────────────────────────────────────────────
-function Chip({ label, selected, onPress, C }: { label: string; selected: boolean; onPress: () => void; C: ColorTokens }): React.JSX.Element {
+function Chip({
+  label,
+  selected,
+  onPress,
+  C,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  C: ColorTokens;
+}): React.JSX.Element {
   const press = usePressScale(0.94);
   return (
     <Animated.View style={press.animatedStyle}>
@@ -449,8 +564,10 @@ function Chip({ label, selected, onPress, C }: { label: string; selected: boolea
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         style={{
-          paddingHorizontal: 14, paddingVertical: 9,
-          borderRadius: 9999, borderWidth: 1.5,
+          paddingHorizontal: 14,
+          paddingVertical: 9,
+          borderRadius: 9999,
+          borderWidth: 1.5,
           borderColor: selected ? C.primary : C.border,
           backgroundColor: selected ? C.primary : C.surfaceSecondary,
           minHeight: 36,
@@ -464,7 +581,17 @@ function Chip({ label, selected, onPress, C }: { label: string; selected: boolea
   );
 }
 
-function DayChip({ label, selected, onPress, C }: { label: string; selected: boolean; onPress: () => void; C: ColorTokens }): React.JSX.Element {
+function DayChip({
+  label,
+  selected,
+  onPress,
+  C,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  C: ColorTokens;
+}): React.JSX.Element {
   const press = usePressScale(0.9);
   return (
     <Animated.View style={press.animatedStyle}>
@@ -473,16 +600,23 @@ function DayChip({ label, selected, onPress, C }: { label: string; selected: boo
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         style={{
-          width: 44, height: 44, borderRadius: 22,
+          width: 44,
+          height: 44,
+          borderRadius: 22,
           borderWidth: 1.5,
           borderColor: selected ? C.primary : C.border,
           backgroundColor: selected ? C.primary : C.surfaceSecondary,
-          justifyContent: 'center', alignItems: 'center',
+          justifyContent: 'center',
+          alignItems: 'center',
         }}
         accessibilityRole="radio"
         accessibilityState={{ selected }}
       >
-        <Text style={[type.captionMed, { color: selected ? '#fff' : C.textPrimary, fontWeight: '700' }]}>{label}</Text>
+        <Text
+          style={[type.captionMed, { color: selected ? '#fff' : C.textPrimary, fontWeight: '700' }]}
+        >
+          {label}
+        </Text>
       </Pressable>
     </Animated.View>
   );
@@ -495,92 +629,140 @@ function makeStyles(C: ColorTokens) {
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     list: { paddingHorizontal: sizes.md, paddingTop: 4, paddingBottom: 60 },
-    sep:  { height: 8 },
+    sep: { height: 8 },
 
     // Blue hero
     heroCard: {
       backgroundColor: C.primary,
       borderRadius: sizes.borderRadiusLg,
-      padding: sizes.lg, gap: 14, marginBottom: sizes.md,
-      position: 'relative', overflow: 'hidden',
+      padding: sizes.lg,
+      gap: 14,
+      marginBottom: sizes.md,
+      position: 'relative',
+      overflow: 'hidden',
     },
     heroDeco: {
-      position: 'absolute', top: -40, right: -30, width: 160, height: 160,
-      borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.07)',
+      position: 'absolute',
+      top: -40,
+      right: -30,
+      width: 160,
+      height: 160,
+      borderRadius: 80,
+      backgroundColor: 'rgba(255,255,255,0.07)',
     },
     heroDecoSm: {
-      position: 'absolute', bottom: -50, left: -20, width: 110, height: 110,
-      borderRadius: 55, backgroundColor: 'rgba(255,255,255,0.05)',
+      position: 'absolute',
+      bottom: -50,
+      left: -20,
+      width: 110,
+      height: 110,
+      borderRadius: 55,
+      backgroundColor: 'rgba(255,255,255,0.05)',
     },
     heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
     heroIcon: {
-      width: 48, height: 48, borderRadius: 14,
+      width: 48,
+      height: 48,
+      borderRadius: 14,
       backgroundColor: 'rgba(255,255,255,0.16)',
-      justifyContent: 'center', alignItems: 'center',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     heroProgress: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     heroProgressTrack: {
-      flex: 1, height: 8, borderRadius: 4,
-      backgroundColor: 'rgba(255,255,255,0.18)', overflow: 'hidden',
+      flex: 1,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      overflow: 'hidden',
     },
     heroProgressFill: { height: 8, backgroundColor: '#fff', borderRadius: 4 },
 
     // Form card
     formCard: {
-      borderRadius: sizes.borderRadiusLg, borderWidth: 1,
-      padding: sizes.lg, gap: sizes.sm, marginBottom: sizes.lg,
+      borderRadius: sizes.borderRadiusLg,
+      borderWidth: 1,
+      padding: sizes.lg,
+      gap: sizes.sm,
+      marginBottom: sizes.lg,
       ...(isDark
         ? {}
         : {
-            shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 6,
+            elevation: 2,
           }),
     } as never,
     formInput: {
-      height: 46, borderRadius: 10, borderWidth: 1,
-      paddingHorizontal: 13, fontSize: 15,
+      height: 46,
+      borderRadius: 10,
+      borderWidth: 1,
+      paddingHorizontal: 13,
+      fontSize: 15,
     },
 
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    weekDayRow:  { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-    monthDayGrid:{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    weekDayRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+    monthDayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
 
     errorBox: {
-      flexDirection: 'row', alignItems: 'center', gap: 6,
-      borderRadius: 10, padding: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: 10,
+      padding: 10,
     },
     storeErrorBox: { borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1 },
 
     sectionHeader: {
-      flexDirection: 'row', alignItems: 'center', gap: 8,
-      paddingHorizontal: 4, marginBottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 4,
+      marginBottom: 10,
     },
     countPill: {
-      minHeight: 22, paddingHorizontal: 8, borderRadius: 9999,
-      justifyContent: 'center', alignItems: 'center',
+      minHeight: 22,
+      paddingHorizontal: 8,
+      borderRadius: 9999,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
 
     // Chore row
     choreRow: {
-      flexDirection: 'row', alignItems: 'center', gap: 12,
-      paddingHorizontal: 14, paddingVertical: 12,
-      borderRadius: 14, backgroundColor: C.surface,
-      borderWidth: 1, borderColor: C.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 14,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
       ...(isDark
         ? {}
         : {
-            shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 6,
+            elevation: 1,
           }),
     } as never,
     choreRowDone: { backgroundColor: C.surfaceSecondary, borderColor: 'transparent' },
-    checkBtn:     { flexShrink: 0, padding: 2 },
-    choreInfo:    { flex: 1, gap: 4 },
-    freqRow:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    claimedRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    checkBtn: { flexShrink: 0, padding: 2 },
+    choreInfo: { flex: 1, gap: 4 },
+    freqRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    claimedRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     claimedBadge: {
-      flexDirection: 'row', alignItems: 'center', gap: 4,
-      paddingHorizontal: 8, paddingVertical: 3,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
       borderRadius: 9999,
     },
     deleteBtn: { padding: 4, flexShrink: 0 },

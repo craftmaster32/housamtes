@@ -1,10 +1,3 @@
-// app/(tabs)/parking/index.tsx
-// Parking — v2 redesign.
-// Same data flow as v1 (useParkingStore, useAuthStore, useHousematesStore,
-// useCalendarSyncStore). Same reserve modal flow. Same admin-cancel + voting
-// behavior. New: blue hero with status, dark theme via useThemedColors,
-// `type` ladder, `Header` UI primitive, fade-up entrance, press scale + haptics.
-
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   View,
@@ -15,6 +8,7 @@ import {
   Modal,
   ScrollView,
   Alert,
+  Platform,
   AppState,
   type AppStateStatus,
   type ListRenderItemInfo,
@@ -23,10 +17,10 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { LinearTransition } from 'react-native-reanimated';
 import {
   useParkingStore,
   isDateConflict,
+  type ConflictResult,
   type ParkingReservation,
   type ParkingReservationStatus,
   type ParkingSession,
@@ -37,21 +31,34 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore, type Housemate } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
+import { useLanguageStore } from '@stores/languageStore';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { Button, EmptyState, Header, Pill } from '@components/ui';
-import { type } from '@constants/typography';
+import { Button, EmptyState } from '@components/ui';
+import { font, type } from '@constants/typography';
 import { sizes } from '@constants/sizes';
-import { useFadeInUp, usePressScale, useHaptic, useCountUp } from '@utils/animations';
+import { useCountUp } from '@utils/animations';
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-');
-  return `${d}/${m}/${y}`;
+function parseDateParts(
+  dateStr: string,
+  locale: string
+): {
+  dayNum: string;
+  monthAbbr: string;
+  weekdayFull: string;
+} {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return {
+    dayNum: String(d),
+    monthAbbr: date.toLocaleString(locale, { month: 'short' }).toUpperCase(),
+    weekdayFull: date.toLocaleString(locale, { weekday: 'long' }),
+  };
 }
 
 function todayString(): string {
@@ -70,7 +77,6 @@ export interface VoteRowProps {
   votes: ParkingVote[];
   housemates: Housemate[];
   requestedBy: string;
-  C: ColorTokens;
 }
 
 export interface ReservationCardProps {
@@ -80,8 +86,8 @@ export interface ReservationCardProps {
   onCancel: (id: string) => void;
   onVote: (id: string, vote: ParkingVoteChoice) => void;
   onClear: (id: string) => void;
+  onDatePress: (date: string) => void;
   isHistory: boolean;
-  C: ColorTokens;
 }
 
 export interface ReserveModalProps {
@@ -95,7 +101,8 @@ export interface ReserveModalProps {
 }
 
 // ── Vote status row ────────────────────────────────────────────────────────────
-function VoteRow({ votes, housemates, requestedBy, C }: VoteRowProps): React.JSX.Element {
+function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.Element {
+  const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const voters = housemates.filter((h) => h.id !== requestedBy);
   if (voters.length === 0) return <View />;
@@ -115,7 +122,7 @@ function VoteRow({ votes, housemates, requestedBy, C }: VoteRowProps): React.JSX
         return (
           <View key={h.id} style={styles.voteAvatarWrap}>
             <View style={[styles.voteAvatarCircle, { backgroundColor: h.color + '30' }]}>
-              <Text style={[type.captionMed, { color: h.color }]}>
+              <Text style={[styles.voteAvatarInitial, { color: h.color }]}>
                 {h.name.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -129,6 +136,111 @@ function VoteRow({ votes, housemates, requestedBy, C }: VoteRowProps): React.JSX
   );
 }
 
+// ── Day schedule sheet ────────────────────────────────────────────────────────
+interface DayScheduleSheetProps {
+  date: string | null;
+  onClose: () => void;
+  currentUserId: string;
+}
+
+function DayScheduleSheet({
+  date,
+  onClose,
+  currentUserId,
+}: DayScheduleSheetProps): React.JSX.Element {
+  const { t } = useTranslation();
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const allReservations = useParkingStore((s) => s.reservations);
+
+  const dayReservations = useMemo(() => {
+    if (!date) return [];
+    return [...allReservations]
+      .filter((r) => r.date === date)
+      .sort((a, b) => {
+        if (!a.startTime && !b.startTime) return 0;
+        if (!a.startTime) return 1;
+        if (!b.startTime) return -1;
+        return a.startTime.localeCompare(b.startTime);
+      });
+  }, [allReservations, date]);
+
+  if (!date) return <View />;
+  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(date, language);
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.daySheetBackdrop} onPress={onClose}>
+        <Pressable style={styles.daySheetPanel} onPress={() => {}}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.daySheetTitle}>
+            {weekdayFull}, {dayNum} {monthAbbr}
+          </Text>
+
+          {dayReservations.length === 0 ? (
+            <Text style={styles.daySheetEmpty}>{t('parking.no_reservations_day')}</Text>
+          ) : (
+            <View style={styles.daySheetList}>
+              {dayReservations.map((r) => {
+                const isOwn = r.requestedBy === currentUserId;
+                const dotColor =
+                  r.status === 'approved'
+                    ? C.positive
+                    : r.status === 'rejected'
+                      ? C.danger
+                      : C.warning;
+                const statusBg =
+                  r.status === 'approved'
+                    ? C.positive + '20'
+                    : r.status === 'rejected'
+                      ? C.danger + '15'
+                      : C.warning + '20';
+                const statusLabel =
+                  r.status === 'approved'
+                    ? t('parking.approved')
+                    : r.status === 'rejected'
+                      ? t('parking.rejected')
+                      : t('parking.pending');
+                const timeLabel = r.startTime
+                  ? `${r.startTime}${r.endTime ? ` – ${r.endTime}` : ''}`
+                  : 'All day';
+                return (
+                  <View key={r.id} style={styles.daySheetRow}>
+                    <View style={[styles.daySheetDot, { backgroundColor: dotColor }]} />
+                    <View style={styles.daySheetRowInfo}>
+                      <Text style={styles.daySheetTime}>{timeLabel}</Text>
+                      <Text style={styles.daySheetName}>
+                        {isOwn ? t('parking.you') : resolveName(r.requestedBy, housemates)}
+                        {r.note ? ` · ${r.note}` : ''}
+                      </Text>
+                    </View>
+                    <View style={[styles.daySheetStatusBadge, { backgroundColor: statusBg }]}>
+                      <Text style={[styles.daySheetStatusText, { color: dotColor }]}>
+                        {statusLabel}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          <Pressable
+            style={styles.daySheetCloseBtn}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          >
+            <Text style={styles.daySheetCloseBtnText}>{t('common.close')}</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ── Reservation card ───────────────────────────────────────────────────────────
 function ReservationCard({
   item,
@@ -137,22 +249,35 @@ function ReservationCard({
   onCancel,
   onVote,
   onClear,
+  onDatePress,
   isHistory,
-  C,
 }: ReservationCardProps): React.JSX.Element {
   const { t } = useTranslation();
+  const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
   const housemates = useHousematesStore((s) => s.housemates);
+  const allReservations = useParkingStore((s) => s.reservations);
+  const sameDayDots = useMemo(
+    () =>
+      allReservations
+        .filter((r) => r.date === item.date)
+        .sort((a, b) => {
+          if (!a.startTime && !b.startTime) return 0;
+          if (!a.startTime) return 1;
+          if (!b.startTime) return -1;
+          return a.startTime.localeCompare(b.startTime);
+        })
+        .slice(0, 4),
+    [allReservations, item.date]
+  );
   const isOwn = item.requestedBy === currentUserId;
   const isPending = item.status === 'pending';
   const approved = item.status === 'approved';
   const rejected = item.status === 'rejected';
 
-  const statusTone: 'success' | 'warning' | 'danger' = approved
-    ? 'success'
-    : rejected
-      ? 'danger'
-      : 'warning';
+  const statusColor = approved ? C.positive : rejected ? C.danger : C.warning;
+  const statusBg = approved ? C.positive + '20' : rejected ? C.danger + '15' : C.warning + '20';
   const statusLabel = approved
     ? t('parking.approved')
     : rejected
@@ -164,181 +289,215 @@ function ReservationCard({
   const handleApprove = useCallback(() => onVote(item.id, 'approve'), [onVote, item.id]);
   const handleReject = useCallback(() => onVote(item.id, 'reject'), [onVote, item.id]);
 
-  const timeLabel = item.startTime
-    ? ` · ${item.startTime}${item.endTime ? `–${item.endTime}` : ''}`
-    : '';
+  const timeText = item.startTime
+    ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
+    : null;
+
+  const { dayNum, monthAbbr, weekdayFull } = parseDateParts(item.date, language);
+  const handleDatePress = useCallback(() => onDatePress(item.date), [onDatePress, item.date]);
 
   const myVote = item.votes.find((v) => v.userId === currentUserId);
   const canVote = !isOwn && isPending;
+  // Admin can cancel any upcoming (non-history) reservation they don't own
   const canAdminCancel = isAdmin && !isOwn && !isHistory && (isPending || approved);
   const showOwnCancel = isOwn && isPending;
 
   return (
-    <Animated.View
-      layout={LinearTransition.springify().damping(18)}
-      style={[styles.resCard, isHistory && styles.resCardDim]}
-    >
-      <View style={styles.resIconWrap}>
-        <Ionicons
-          name="calendar-outline"
-          size={18}
-          color={approved ? C.positive : rejected ? C.danger : C.warning}
-        />
+    <View style={[styles.resCard, isHistory && styles.resCardDim]}>
+      <View style={styles.dateBadgeCol}>
+        <Pressable
+          style={[styles.dateBadge, { borderColor: statusColor + '50' }]}
+          onPress={handleDatePress}
+          hitSlop={{ top: 4, bottom: 0, left: 4, right: 4 }}
+          accessibilityRole="button"
+          accessibilityLabel={`${weekdayFull} ${dayNum} ${monthAbbr} — tap to see day schedule`}
+        >
+          <View style={[styles.dateBadgeTop, { backgroundColor: statusColor }]}>
+            <Text style={styles.dateBadgeMonth}>{monthAbbr}</Text>
+          </View>
+          <View style={styles.dateBadgeBottom}>
+            <Text style={[styles.dateBadgeDay, { color: C.textPrimary }]}>{dayNum}</Text>
+            {sameDayDots.length > 1 && (
+              <View style={styles.dayDots}>
+                {sameDayDots.map((r) => (
+                  <View
+                    key={r.id}
+                    style={[
+                      styles.dayDot,
+                      {
+                        backgroundColor:
+                          r.status === 'approved'
+                            ? C.positive
+                            : r.status === 'rejected'
+                              ? C.danger
+                              : C.warning,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        </Pressable>
+        <Text style={[styles.dateBadgeWeekLabel, { color: C.textSecondary }]}>{weekdayFull}</Text>
       </View>
 
       <View style={styles.resInfo}>
-        <Text style={[type.label, { color: C.textPrimary }]}>
-          {formatDate(item.date)}
-          {timeLabel}
-        </Text>
-        <Text style={[type.bodySm, { color: C.textSecondary }]}>
-          {isOwn ? 'You' : resolveName(item.requestedBy, housemates)}
+        {!!timeText && <Text style={styles.resDate}>{timeText}</Text>}
+        <Text style={styles.resBy}>
+          {isOwn ? t('parking.you') : resolveName(item.requestedBy, housemates)}
           {item.note ? ` · ${item.note}` : ''}
         </Text>
 
-        <VoteRow votes={item.votes} housemates={housemates} requestedBy={item.requestedBy} C={C} />
+        <VoteRow votes={item.votes} housemates={housemates} requestedBy={item.requestedBy} />
 
-        <View style={{ marginTop: 2 }}>
-          <Pill tone={statusTone} size="sm">
-            {statusLabel}
-          </Pill>
+        <View style={[styles.badge, { backgroundColor: statusBg }]}>
+          <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
       </View>
 
       <View style={styles.resActions}>
         {showOwnCancel && (
-          <IconBtn
-            icon="close-circle-outline"
-            color={C.danger}
+          <Pressable
             onPress={handleCancel}
-            label="Cancel reservation"
-          />
+            style={styles.iconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel reservation"
+          >
+            <Ionicons name="close-circle-outline" size={20} color={C.danger} />
+          </Pressable>
         )}
+
         {canAdminCancel && (
-          <IconBtn
-            icon="shield-outline"
-            color={C.warning}
+          <Pressable
             onPress={handleCancel}
-            label="Admin: cancel this reservation"
-          />
+            style={styles.iconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Admin: cancel this reservation"
+          >
+            <Ionicons name="shield-outline" size={20} color={C.warning} />
+          </Pressable>
         )}
+
         {isHistory && (
-          <IconBtn
-            icon="trash-outline"
-            color={C.textSecondary}
+          <Pressable
             onPress={handleClear}
-            label="Clear from history"
-          />
+            style={styles.iconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Clear from history"
+          >
+            <Ionicons name="trash-outline" size={18} color={C.textSecondary} />
+          </Pressable>
         )}
 
         {canVote && (
           <View style={styles.voteBtns}>
-            <VoteBtn
-              icon="checkmark"
-              active={myVote?.vote === 'approve'}
-              activeBg={C.positive}
-              borderColor={C.border}
-              fg={C.positive}
+            <Pressable
               onPress={handleApprove}
-              label="Approve parking request"
-              C={C}
-            />
-            <VoteBtn
-              icon="close"
-              active={myVote?.vote === 'reject'}
-              activeBg={C.danger}
-              borderColor={C.border}
-              fg={C.danger}
+              style={[styles.voteBtn, myVote?.vote === 'approve' && styles.voteBtnApproveActive]}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Approve parking request"
+              accessibilityState={{ selected: myVote?.vote === 'approve' }}
+            >
+              <Ionicons
+                name="checkmark"
+                size={15}
+                color={myVote?.vote === 'approve' ? '#fff' : C.positive}
+              />
+            </Pressable>
+            <Pressable
               onPress={handleReject}
-              label="Reject parking request"
-              C={C}
-            />
+              style={[styles.voteBtn, myVote?.vote === 'reject' && styles.voteBtnRejectActive]}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Reject parking request"
+              accessibilityState={{ selected: myVote?.vote === 'reject' }}
+            >
+              <Ionicons
+                name="close"
+                size={15}
+                color={myVote?.vote === 'reject' ? '#fff' : C.danger}
+              />
+            </Pressable>
           </View>
         )}
       </View>
-    </Animated.View>
+    </View>
   );
 }
 
-function IconBtn({
-  icon,
-  color,
-  onPress,
-  label,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  color: string;
-  onPress: () => void;
-  label: string;
-}): React.JSX.Element {
-  const press = usePressScale(0.9);
-  return (
-    <Animated.View style={press.animatedStyle}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={press.onPressIn}
-        onPressOut={press.onPressOut}
-        style={{
-          padding: 6,
-          minWidth: 32,
-          minHeight: 32,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-      >
-        <Ionicons name={icon} size={20} color={color} />
-      </Pressable>
-    </Animated.View>
-  );
+// ── Week strip ────────────────────────────────────────────────────────────────
+interface WeekStripProps {
+  onDayPress: (date: string) => void;
 }
 
-function VoteBtn({
-  icon,
-  active,
-  activeBg,
-  borderColor,
-  fg,
-  onPress,
-  label,
-  C,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  active: boolean;
-  activeBg: string;
-  borderColor: string;
-  fg: string;
-  onPress: () => void;
-  label: string;
-  C: ColorTokens;
-}): React.JSX.Element {
-  const press = usePressScale(0.9);
+function WeekStrip({ onDayPress }: WeekStripProps): React.JSX.Element {
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const allReservations = useParkingStore((s) => s.reservations);
+
+  const days = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const dayAbbr = d.toLocaleString(language, { weekday: 'short' }).toUpperCase();
+      const dots = allReservations
+        .filter((r) => r.date === dateStr)
+        .sort((a, b) => {
+          if (!a.startTime && !b.startTime) return 0;
+          if (!a.startTime) return 1;
+          if (!b.startTime) return -1;
+          return a.startTime.localeCompare(b.startTime);
+        })
+        .slice(0, 3);
+      return { dateStr, dayAbbr, dayNum: d.getDate(), isToday: i === 0, dots };
+    });
+  }, [language, allReservations]);
+
   return (
-    <Animated.View style={press.animatedStyle}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={press.onPressIn}
-        onPressOut={press.onPressOut}
-        style={{
-          width: 32,
-          height: 32,
-          borderRadius: 9999,
-          justifyContent: 'center',
-          alignItems: 'center',
-          borderWidth: 1.5,
-          borderColor: active ? activeBg : borderColor,
-          backgroundColor: active ? activeBg : C.surfaceSecondary,
-        }}
-        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={{ selected: active }}
-      >
-        <Ionicons name={icon} size={15} color={active ? '#fff' : fg} />
-      </Pressable>
-    </Animated.View>
+    <View style={styles.weekStrip}>
+      {days.map(({ dateStr, dayAbbr, dayNum, isToday, dots }) => (
+        <Pressable
+          key={dateStr}
+          style={styles.weekDay}
+          onPress={() => onDayPress(dateStr)}
+          hitSlop={{ left: 4, right: 4 }}
+          accessibilityRole="button"
+          accessibilityLabel={`${dayAbbr} ${dayNum}`}
+        >
+          <Text style={[styles.weekDayAbbr, isToday && styles.weekDayAbbrToday]}>{dayAbbr}</Text>
+          <View style={[styles.weekDayNumWrap, isToday && styles.weekDayNumWrapToday]}>
+            <Text style={[styles.weekDayNum, isToday && styles.weekDayNumToday]}>{dayNum}</Text>
+          </View>
+          <View style={styles.weekDayDots}>
+            {dots.map((r) => (
+              <View
+                key={r.id}
+                style={[
+                  styles.weekDot,
+                  {
+                    backgroundColor:
+                      r.status === 'approved'
+                        ? C.positive
+                        : r.status === 'rejected'
+                          ? C.danger
+                          : C.warning,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
@@ -355,12 +514,13 @@ function ReserveModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const haptic = useHaptic();
   const addReservation = useParkingStore((s) => s.addReservation);
   const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
   const housemates = useHousematesStore((s) => s.housemates);
 
-  const todayStr = useMemo(() => todayString(), []);
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
   const [date, setDate] = useState(todayStr);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -372,15 +532,15 @@ function ReserveModal({
     current && date === todayStr
       ? `${current.occupant === myId ? 'You are' : `${resolveName(current.occupant, housemates)} is`} currently using the spot`
       : null;
-  const conflictResult = isDateConflict(
+  const conflictResult: ConflictResult = isDateConflict(
     date,
     startTime || undefined,
     endTime || undefined,
     reservations,
-    (id) => resolveName(id, housemates)
+    (id: string): string => resolveName(id, housemates)
   );
-  const dateConflict = activeConflict ?? conflictResult.conflict ?? conflictResult.warning;
-  const isHardConflict = !!(activeConflict ?? conflictResult.conflict);
+  const dateConflict = conflictResult.conflict;
+  const dateWarning = conflictResult.warning;
 
   const reset = useCallback((): void => {
     setDate(todayStr);
@@ -396,8 +556,16 @@ function ReserveModal({
   }, [reset, onClose]);
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (isHardConflict) {
-      setError(dateConflict ?? '');
+    if (dateConflict) {
+      setError(dateConflict);
+      return;
+    }
+    if (!!startTime !== !!endTime) {
+      setError('Please provide both a start time and an end time, or leave both empty.');
+      return;
+    }
+    if (startTime && endTime && endTime <= startTime) {
+      setError('End time must be after start time.');
       return;
     }
     setSaving(true);
@@ -421,7 +589,6 @@ function ReserveModal({
         startTime: startTime || undefined,
         endTime: endTime || undefined,
       }).catch(() => {});
-      haptic.success();
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('parking.failed_reservation'));
@@ -429,7 +596,6 @@ function ReserveModal({
       setSaving(false);
     }
   }, [
-    isHardConflict,
     dateConflict,
     date,
     startTime,
@@ -442,7 +608,6 @@ function ReserveModal({
     handleClose,
     syncParkingPending,
     t,
-    haptic,
   ]);
 
   return (
@@ -450,10 +615,10 @@ function ReserveModal({
       <Pressable style={styles.modalBackdrop} onPress={handleClose}>
         <Pressable style={styles.modalSheet} onPress={() => {}}>
           <View style={styles.modalHandle} />
-          <Text style={[type.title, { color: C.textPrimary }]}>Reserve Parking</Text>
+          <Text style={styles.modalTitle}>Reserve Parking</Text>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }}>
-            <Text style={[type.captionMed, styles.fieldLabel, { color: C.textPrimary }]}>Date</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
+            <Text style={styles.fieldLabel}>Date</Text>
             <CalendarPicker
               value={date}
               onChange={(d) => {
@@ -465,58 +630,58 @@ function ReserveModal({
             {!!dateConflict && (
               <View style={styles.conflictBox}>
                 <Ionicons name="warning-outline" size={13} color={C.warning} />
-                <Text style={[type.bodySm, { color: C.warning, flex: 1 }]}>{dateConflict}</Text>
+                <Text style={styles.conflictText}>{dateConflict}</Text>
+              </View>
+            )}
+            {!dateConflict && !!dateWarning && (
+              <View style={[styles.conflictBox, styles.conflictWarningBox]}>
+                <Ionicons name="time-outline" size={13} color={C.warning} />
+                <Text style={[styles.conflictText, styles.conflictWarningText]}>{dateWarning}</Text>
+              </View>
+            )}
+            {!dateConflict && !!activeConflict && (
+              <View style={[styles.conflictBox, styles.conflictWarningBox]}>
+                <Ionicons name="information-circle-outline" size={13} color={C.warning} />
+                <Text style={[styles.conflictText, styles.conflictWarningText]}>
+                  {activeConflict}
+                </Text>
               </View>
             )}
 
-            <Text
-              style={[type.captionMed, styles.fieldLabel, { color: C.textPrimary, marginTop: 14 }]}
-            >
-              Start time (optional)
-            </Text>
+            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Start time (optional)</Text>
             <TimePicker value={startTime} onChange={setStartTime} />
 
-            <Text
-              style={[type.captionMed, styles.fieldLabel, { color: C.textPrimary, marginTop: 14 }]}
-            >
-              End time (optional)
-            </Text>
+            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>End time (optional)</Text>
             <TimePicker value={endTime} onChange={setEndTime} />
 
-            <Text
-              style={[type.captionMed, styles.fieldLabel, { color: C.textPrimary, marginTop: 14 }]}
-            >
-              {t('parking.note_label')}
-            </Text>
+            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>{t('parking.note_label')}</Text>
             <TextInput
               value={note}
               onChangeText={setNote}
               style={styles.fieldInput}
               placeholder={t('parking.note_placeholder')}
               placeholderTextColor={C.textSecondary}
-              accessibilityLabel={t('parking.note_label')}
-              accessibilityHint={t('parking.note_hint')}
             />
 
-            {!!error && (
-              <Text style={[type.bodySm, { color: C.negative, marginTop: 6 }]}>{error}</Text>
-            )}
+            {!!error && <Text style={styles.fieldError}>{error}</Text>}
           </ScrollView>
 
           <View style={styles.modalBtns}>
-            <Button variant="secondary" onPress={handleClose} fullWidth>
-              {t('common.cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              onPress={handleSave}
-              loading={saving}
-              disabled={saving || isHardConflict}
-              fullWidth
-              haptic={null}
+            <Pressable
+              style={styles.modalBtnOutline}
+              onPress={handleClose}
+              accessibilityRole="button"
             >
-              {saving ? '…' : t('parking.request')}
-            </Button>
+              <Text style={styles.modalBtnOutlineText}>{t('common.cancel')}</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.modalBtnPrimary, (saving || !!dateConflict) && { opacity: 0.5 }]}
+              onPress={handleSave}
+              disabled={saving || !!dateConflict}
+              accessibilityRole="button"
+            >
+              <Text style={styles.modalBtnPrimaryText}>{saving ? '…' : t('parking.request')}</Text>
+            </Pressable>
           </View>
         </Pressable>
       </Pressable>
@@ -524,7 +689,7 @@ function ReserveModal({
   );
 }
 
-// ── List item union ───────────────────────────────────────────────────────────
+// ── List item union type ───────────────────────────────────────────────────────
 type FlatItem =
   | { _k: 'res'; res: ParkingReservation; isHistory: boolean }
   | { _k: 'hist-header'; count: number };
@@ -534,8 +699,6 @@ export default function ParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const haptic = useHaptic();
-
   const isLoading = useParkingStore((s) => s.isLoading);
   const current = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
@@ -544,6 +707,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const cancelReservation = useParkingStore((s) => s.cancelReservation);
   const voteOnReservation = useParkingStore((s) => s.voteOnReservation);
   const clearHistoryItem = useParkingStore((s) => s.clearHistoryItem);
+  const clearAllHistory = useParkingStore((s) => s.clearAllHistory);
   const checkReservationAutoApply = useParkingStore((s) => s.checkReservationAutoApply);
 
   const profile = useAuthStore((s) => s.profile);
@@ -559,13 +723,6 @@ export default function ParkingScreen(): React.JSX.Element {
   const isFree = !current;
   const isAdmin = role === 'owner' || role === 'admin';
 
-  const [showReserve, setShowReserve] = useState(false);
-  const [error, setError] = useState('');
-
-  // Entry fade-up.
-  const fadeStyle = useFadeInUp(0);
-
-  // Count-up duration since the spot was claimed (renders inside hero).
   const elapsed = current ? elapsedSince(current.startTime) : { hours: 0, mins: 0 };
   const displayHours = useCountUp(elapsed.hours, {
     duration: 500,
@@ -575,6 +732,12 @@ export default function ParkingScreen(): React.JSX.Element {
     duration: 500,
     formatter: (n) => `${Math.round(n)}m`,
   });
+
+  const [showReserve, setShowReserve] = useState(false);
+  const [daySheetDate, setDaySheetDate] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const handleDatePress = useCallback((date: string) => setDaySheetDate(date), []);
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   useEffect(() => {
@@ -595,6 +758,8 @@ export default function ParkingScreen(): React.JSX.Element {
   }, [houseId, checkReservationAutoApply]);
 
   // Sync the requester's own calendar entry when their request is resolved.
+  // Voters already call syncParkingApproved in handleVote; this effect handles
+  // the requester's device where the status change arrives via realtime.
   const prevStatusMapRef = useRef<Map<string, ParkingReservationStatus>>(new Map());
   useEffect(() => {
     const prevMap = prevStatusMapRef.current;
@@ -621,6 +786,10 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [reservations, myId, myName, syncParkingApproved, removeCalendarEvent]);
 
+  // Split into upcoming (date >= today) and history (date < today)
+  // Plain const so the value refreshes each render — same-day string equality
+  // prevents the downstream memos from re-running, but a midnight transition
+  // will produce a new string and correctly re-categorize reservations.
   const today = todayString();
   const upcoming = useMemo(
     () => reservations.filter((r) => r.date >= today),
@@ -639,63 +808,77 @@ export default function ParkingScreen(): React.JSX.Element {
 
   const handleClaim = useCallback(async (): Promise<void> => {
     setError('');
-    haptic.success();
     try {
       await claim(myId, myName, houseId ?? '');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('parking.failed_claim'));
     }
-  }, [claim, myId, myName, houseId, t, haptic]);
+  }, [claim, myId, myName, houseId, t]);
 
   const handleRelease = useCallback(async (): Promise<void> => {
     setError('');
-    haptic.warn();
     try {
-      await release(houseId ?? '');
+      await release(houseId ?? '', myName);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('parking.failed_release'));
     }
-  }, [release, houseId, t, haptic]);
+  }, [release, houseId, myName, t]);
 
   const handleReleaseOther = useCallback((): void => {
     const pinnedSessionId = current?.id ?? '';
     const occupantName = resolveName(current?.occupant ?? '', housemates);
     const pinnedHouseId = houseId ?? '';
-    Alert.alert(
-      t('parking.free_others_title'),
-      t('parking.free_others_message', { occupantName }),
-      [
-        { text: t('parking.free_others_cancel'), style: 'cancel' },
-        {
-          text: t('parking.free_others_confirm'),
-          style: 'destructive',
-          onPress: (): void => {
-            if (useParkingStore.getState().current?.id !== pinnedSessionId) {
-              setError(t('parking.free_others_changed'));
-              return;
-            }
-            setError('');
-            haptic.warn();
-            release(pinnedHouseId).catch((err: unknown) => {
-              setError(err instanceof Error ? err.message : t('parking.failed_release'));
-            });
-          },
-        },
-      ]
-    );
-  }, [current, housemates, release, houseId, t, haptic]);
+
+    const doRelease = (): void => {
+      if (useParkingStore.getState().current?.id !== pinnedSessionId) {
+        if (Platform.OS === 'web') {
+          window.alert('The spot changed while you were confirming — please try again.');
+        } else {
+          Alert.alert(
+            'Could not free spot',
+            'The spot changed while you were confirming — please try again.'
+          );
+        }
+        return;
+      }
+      release(pinnedHouseId, myName).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : t('parking.failed_release');
+        if (Platform.OS === 'web') {
+          window.alert(msg);
+        } else {
+          Alert.alert('Could not free spot', msg);
+        }
+      });
+    };
+
+    if (Platform.OS === 'web') {
+      if (
+        window.confirm(`${occupantName} is parked there — evict them? This will free the spot.`)
+      ) {
+        doRelease();
+      }
+    } else {
+      Alert.alert(
+        `Kick out ${occupantName}? 👀`,
+        "They claimed this spot — you're about to free it without asking. Bold move.",
+        [
+          { text: 'Leave it', style: 'cancel' },
+          { text: 'Free it anyway', style: 'destructive', onPress: doRelease },
+        ]
+      );
+    }
+  }, [current, housemates, myName, release, houseId, t]);
 
   const handleCancel = useCallback(
     async (id: string): Promise<void> => {
       try {
-        haptic.warn();
         await cancelReservation(id, houseId ?? '');
         removeCalendarEvent(`pk-${id}`).catch(() => {});
       } catch (err) {
         setError(err instanceof Error ? err.message : t('parking.failed_cancel'));
       }
     },
-    [cancelReservation, houseId, removeCalendarEvent, t, haptic]
+    [cancelReservation, houseId, removeCalendarEvent, t]
   );
 
   const handleVote = useCallback(
@@ -703,7 +886,6 @@ export default function ParkingScreen(): React.JSX.Element {
       const reservation = reservations.find((r) => r.id === id);
       if (!reservation) return;
       try {
-        haptic.toggle();
         const resultStatus = await voteOnReservation(id, vote, houseId ?? '');
         if (resultStatus === 'approved') {
           syncParkingApproved({
@@ -718,7 +900,7 @@ export default function ParkingScreen(): React.JSX.Element {
         setError(err instanceof Error ? err.message : t('parking.error_vote_failed'));
       }
     },
-    [voteOnReservation, reservations, housemates, houseId, syncParkingApproved, t, haptic]
+    [voteOnReservation, reservations, housemates, houseId, syncParkingApproved, t]
   );
 
   const handleClear = useCallback(
@@ -732,10 +914,21 @@ export default function ParkingScreen(): React.JSX.Element {
     [clearHistoryItem, t]
   );
 
-  const handleOpenReserve = useCallback(() => {
-    haptic.tap();
-    setShowReserve(true);
-  }, [haptic]);
+  const handleClearAll = useCallback((): void => {
+    const doDelete = (): void => {
+      clearAllHistory(houseId ?? '').catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : t('parking.error_clear_all_failed'));
+      });
+    };
+    if (Platform.OS === 'web') {
+      if (window.confirm(t('parking.clear_all_confirm_msg'))) doDelete();
+    } else {
+      Alert.alert(t('parking.clear_all_confirm_title'), t('parking.clear_all_confirm_msg'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('parking.clear_all'), style: 'destructive', onPress: doDelete },
+      ]);
+    }
+  }, [clearAllHistory, houseId, t]);
 
   const keyExtractor = useCallback(
     (item: FlatItem): string => (item._k === 'hist-header' ? 'history-header' : item.res.id),
@@ -747,10 +940,21 @@ export default function ParkingScreen(): React.JSX.Element {
       if (item._k === 'hist-header') {
         return (
           <View style={styles.historyHeaderRow}>
-            <Text style={[type.eyebrow, { color: C.textSecondary }]}>{t('parking.history')}</Text>
-            <View style={[styles.countPill, { backgroundColor: C.secondary }]}>
-              <Text style={[type.captionMed, { color: C.secondaryForeground }]}>{item.count}</Text>
+            <Text style={styles.eyebrow}>{t('parking.history')}</Text>
+            <View style={styles.countPill}>
+              <Text style={styles.countPillText}>{item.count}</Text>
             </View>
+            <View style={styles.historyHeaderSpacer} />
+            <Pressable
+              onPress={handleClearAll}
+              style={styles.clearAllBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear all history"
+            >
+              <Ionicons name="trash-outline" size={12} color={C.danger} />
+              <Text style={styles.clearAllBtnText}>{t('parking.clear_all')}</Text>
+            </Pressable>
           </View>
         );
       }
@@ -762,153 +966,166 @@ export default function ParkingScreen(): React.JSX.Element {
           onCancel={handleCancel}
           onVote={handleVote}
           onClear={handleClear}
+          onDatePress={handleDatePress}
           isHistory={item.isHistory}
-          C={C}
         />
       );
     },
-    [myId, isAdmin, handleCancel, handleVote, handleClear, t, styles, C]
+    [
+      myId,
+      isAdmin,
+      handleCancel,
+      handleVote,
+      handleClear,
+      handleDatePress,
+      handleClearAll,
+      C,
+      t,
+      styles,
+    ]
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Header title={t('parking.title')} />
-      <Animated.View style={[styles.flex, fadeStyle]}>
-        <FlatList
-          data={listData}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          ListHeaderComponent={
-            <View>
-              {/* ── Blue hero — status, occupant, claim/release ───────────── */}
-              <View style={styles.heroCard}>
-                <View style={styles.heroDeco} />
-                <View style={styles.heroDecoSm} />
+      <FlatList
+        data={listData}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        ListHeaderComponent={
+          <View>
+            {/* ── Blue hero — status, occupant, claim/release ───────────── */}
+            <View style={styles.heroCard}>
+              <View style={styles.heroDeco} />
+              <View style={styles.heroDecoSm} />
 
-                <View style={styles.heroTopRow}>
-                  <View
-                    style={[
-                      styles.heroIcon,
-                      {
-                        backgroundColor: isFree ? 'rgba(79,176,113,0.22)' : 'rgba(217,83,79,0.22)',
-                      },
-                    ]}
-                  >
-                    <Ionicons name={isFree ? 'car-outline' : 'car'} size={26} color="#fff" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>
-                      {isFree ? t('parking.free') : t('parking.taken')}
-                    </Text>
-                    <Text style={[type.title, { color: '#fff' }]}>
-                      {isFree
-                        ? t('parking.spot_open')
-                        : isMine
-                          ? t('parking.your_car')
-                          : resolveName(current?.occupant ?? '', housemates)}
-                    </Text>
-                  </View>
+              <View style={styles.heroTopRow}>
+                <View
+                  style={[
+                    styles.heroIcon,
+                    { backgroundColor: isFree ? 'rgba(79,176,113,0.22)' : 'rgba(217,83,79,0.22)' },
+                  ]}
+                >
+                  <Ionicons name={isFree ? 'car-outline' : 'car'} size={26} color="#fff" />
                 </View>
-
-                <Text style={[type.bodyMd, { color: 'rgba(255,255,255,0.85)' }]}>
-                  {isFree
-                    ? t('parking.spot_open_hint')
-                    : isMine
-                      ? t('parking.claimed_at', {
-                          time: formatTime(current!.startTime),
-                          hours: displayHours,
-                          mins: displayMins,
-                        })
-                      : t('parking.parked_since', {
-                          time: formatTime(current!.startTime),
-                          hours: displayHours,
-                          mins: displayMins,
-                        })}
-                </Text>
-
-                {isFree && (
-                  <Button
-                    variant="primary"
-                    onPress={handleClaim}
-                    fullWidth
-                    icon="car"
-                    haptic={null}
-                    style={styles.heroBtnClaim}
-                  >
-                    {t('parking.claim')}
-                  </Button>
-                )}
-                {isMine && (
-                  <Button
-                    variant="secondary"
-                    onPress={handleRelease}
-                    fullWidth
-                    icon="exit-outline"
-                    haptic={null}
-                    style={styles.heroBtnRelease}
-                  >
-                    {t('parking.release')}
-                  </Button>
-                )}
-                {!isFree && !isMine && (
-                  <Button
-                    variant="secondary"
-                    onPress={handleReleaseOther}
-                    fullWidth
-                    icon="exit-outline"
-                    haptic={null}
-                    style={styles.heroBtnAdmin}
-                  >
-                    {t('parking.admin_free_spot')}
-                  </Button>
-                )}
-              </View>
-
-              {!!error && (
-                <View style={[styles.errorBox, { backgroundColor: C.danger + '15' }]}>
-                  <Ionicons name="warning-outline" size={14} color={C.danger} />
-                  <Text style={[type.bodySm, { color: C.danger, flex: 1 }]}>{error}</Text>
-                </View>
-              )}
-
-              {/* Reservations section header */}
-              <View style={styles.sectionHeader}>
-                <Text style={[type.eyebrow, { color: C.textSecondary }]}>
-                  {t('parking.reservations')}
-                </Text>
-                <AddReserveBtn onPress={handleOpenReserve} label={t('parking.reserve')} C={C} />
-              </View>
-
-              {upcoming.length > 0 && (
-                <View style={styles.subHeaderRow}>
-                  <Text style={[type.eyebrow, { color: C.textSecondary }]}>
-                    {t('parking.upcoming')}
+                <View style={{ flex: 1 }}>
+                  <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>
+                    {isFree ? t('parking.free') : t('parking.taken')}
                   </Text>
-                  <View style={[styles.countPill, { backgroundColor: C.secondary }]}>
-                    <Text style={[type.captionMed, { color: C.secondaryForeground }]}>
-                      {upcoming.length}
-                    </Text>
-                  </View>
+                  <Text style={[type.title, { color: '#fff' }]}>
+                    {isFree
+                      ? t('parking.spot_open')
+                      : isMine
+                        ? t('parking.your_car')
+                        : resolveName(current?.occupant ?? '', housemates)}
+                  </Text>
                 </View>
+              </View>
+
+              <Text style={[type.bodyMd, { color: 'rgba(255,255,255,0.85)' }]}>
+                {isFree
+                  ? t('parking.spot_open_hint')
+                  : isMine
+                    ? t('parking.claimed_at', {
+                        time: formatTime(current!.startTime),
+                        hours: displayHours,
+                        mins: displayMins,
+                      })
+                    : t('parking.parked_since', {
+                        time: formatTime(current!.startTime),
+                        hours: displayHours,
+                        mins: displayMins,
+                      })}
+              </Text>
+
+              {isFree && (
+                <Button
+                  variant="primary"
+                  onPress={handleClaim}
+                  fullWidth
+                  icon="car"
+                  style={styles.heroBtnClaim}
+                >
+                  {t('parking.claim')}
+                </Button>
+              )}
+              {isMine && (
+                <Button
+                  variant="secondary"
+                  onPress={handleRelease}
+                  fullWidth
+                  icon="exit-outline"
+                  style={styles.heroBtnRelease}
+                >
+                  {t('parking.release')}
+                </Button>
+              )}
+              {!isFree && !isMine && (
+                <Button
+                  variant="secondary"
+                  onPress={handleReleaseOther}
+                  fullWidth
+                  icon="exit-outline"
+                  style={styles.heroBtnAdmin}
+                >
+                  {t('parking.admin_free_spot')}
+                </Button>
               )}
             </View>
-          }
-          ListEmptyComponent={
-            isLoading ? (
-              <EmptyState mode="loading" title="Loading…" />
-            ) : (
-              <EmptyState
-                icon="calendar-outline"
-                title={t('parking.no_reservations')}
-                message="Reserve ahead of time so housemates know when the spot is taken."
-              />
-            )
-          }
-        />
-      </Animated.View>
+
+            {!!error && (
+              <View style={styles.errorBox}>
+                <Ionicons name="warning-outline" size={14} color={C.danger} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            <WeekStrip onDayPress={handleDatePress} />
+
+            {/* ── Reservations section header ── */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.eyebrow}>{t('parking.reservations')}</Text>
+              <Pressable
+                onPress={() => setShowReserve(true)}
+                style={styles.addBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+              >
+                <Ionicons name="add" size={14} color={C.primary} />
+                <Text style={styles.addBtnText}>{t('parking.reserve')}</Text>
+              </Pressable>
+            </View>
+
+            {upcoming.length > 0 && (
+              <View style={styles.subHeaderRow}>
+                <Text style={styles.eyebrow}>{t('parking.upcoming')}</Text>
+                <View style={styles.countPill}>
+                  <Text style={styles.countPillText}>{upcoming.length}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <EmptyState mode="loading" title="Loading…" />
+          ) : (
+            <EmptyState
+              icon="calendar-outline"
+              title={t('parking.no_reservations')}
+              message="Reserve ahead of time so housemates know when the spot is taken."
+            />
+          )
+        }
+      />
+
+      <DayScheduleSheet
+        date={daySheetDate}
+        onClose={() => setDaySheetDate(null)}
+        currentUserId={myId}
+      />
 
       <ReserveModal
         visible={showReserve}
@@ -923,51 +1140,12 @@ export default function ParkingScreen(): React.JSX.Element {
   );
 }
 
-function AddReserveBtn({
-  onPress,
-  label,
-  C,
-}: {
-  onPress: () => void;
-  label: string;
-  C: ColorTokens;
-}): React.JSX.Element {
-  const press = usePressScale(0.94);
-  return (
-    <Animated.View style={press.animatedStyle}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={press.onPressIn}
-        onPressOut={press.onPressOut}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 4,
-          backgroundColor: C.primary + '15',
-          paddingVertical: 7,
-          paddingHorizontal: 12,
-          borderRadius: 9999,
-          minHeight: 36,
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-      >
-        <Ionicons name="add" size={14} color={C.primary} />
-        <Text style={[type.labelSm, { color: C.primary }]}>{label}</Text>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-const makeStyles = (C: ColorTokens) => {
-  const isDark = C.background !== '#F6F2EA';
-  return StyleSheet.create({
+const makeStyles = (C: ColorTokens) =>
+  StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-    flex: { flex: 1 },
-    list: { paddingHorizontal: sizes.md, paddingTop: 4, paddingBottom: 40 },
+    list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
+    sep: { height: 8 },
 
-    // ── Hero — blue card with decoration ──────────────────────────────────
     heroCard: {
       backgroundColor: C.primary,
       borderRadius: sizes.borderRadiusLg,
@@ -1020,6 +1198,32 @@ const makeStyles = (C: ColorTokens) => {
       borderColor: 'rgba(224,178,77,0.42)',
       borderWidth: 1,
     } as never,
+    btnAdminRelease: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 44,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      backgroundColor: C.warning + '15',
+      borderWidth: 1,
+      borderColor: C.warning + '40',
+    },
+    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+    btnDangerText: { fontSize: 15, ...font.semibold, color: C.danger },
+    btnAdminReleaseText: { fontSize: 14, ...font.semibold, color: C.warning },
+    btnIcon: { marginRight: 6 },
+
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: C.primary + '15',
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 9999,
+    },
+    addBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
 
     sectionHeader: {
       flexDirection: 'row',
@@ -1035,13 +1239,22 @@ const makeStyles = (C: ColorTokens) => {
       paddingHorizontal: 4,
       marginBottom: 12,
     },
+    eyebrow: {
+      fontSize: 12,
+      ...font.bold,
+      color: C.textSecondary,
+      letterSpacing: 0.72,
+      textTransform: 'uppercase',
+    },
     countPill: {
       minHeight: 22,
       paddingHorizontal: 8,
       borderRadius: 9999,
+      backgroundColor: C.secondary,
       justifyContent: 'center',
       alignItems: 'center',
     },
+    countPillText: { fontSize: 11, ...font.bold, color: C.secondaryForeground },
 
     historyHeaderRow: {
       flexDirection: 'row',
@@ -1052,7 +1265,6 @@ const makeStyles = (C: ColorTokens) => {
       paddingBottom: 8,
     },
 
-    // ── Reservation card ──────────────────────────────────────────────────
     resCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -1063,31 +1275,49 @@ const makeStyles = (C: ColorTokens) => {
       backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
-      ...(isDark
-        ? {}
-        : {
-            shadowColor: '#2C333D',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.02,
-            shadowRadius: 16,
-            elevation: 1,
-          }),
-    } as never,
+      shadowColor: '#2C333D',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.02,
+      shadowRadius: 16,
+      elevation: 1,
+    },
     resCardDim: { opacity: 0.72 },
-    resIconWrap: {
-      width: 36,
-      height: 36,
+    dateBadgeCol: { alignItems: 'center', alignSelf: 'flex-start', gap: 4 },
+    dateBadge: {
+      width: 52,
       borderRadius: 10,
-      backgroundColor: C.surfaceSecondary,
-      justifyContent: 'center',
-      alignItems: 'center',
+      overflow: 'hidden',
+      borderWidth: 1,
       flexShrink: 0,
+    },
+    dateBadgeTop: { paddingVertical: 4, alignItems: 'center' },
+    dateBadgeMonth: { fontSize: 9, ...font.bold, color: '#fff', letterSpacing: 0.6 },
+    dateBadgeBottom: {
+      backgroundColor: C.surfaceSecondary,
+      alignItems: 'center',
+      paddingTop: 5,
+      paddingBottom: 7,
+    },
+    dateBadgeDay: { fontSize: 22, ...font.extrabold, lineHeight: 26, letterSpacing: -0.5 },
+    dateBadgeWeekLabel: { fontSize: 10, ...font.medium, textAlign: 'center' },
+    dayDots: { flexDirection: 'row', gap: 3, justifyContent: 'center', marginTop: 4 },
+    dayDot: { width: 5, height: 5, borderRadius: 3 },
+    resInfo: { flex: 1, gap: 4 },
+    resDate: { fontSize: 13, ...font.semibold, color: C.textSecondary },
+    resBy: { fontSize: 13, ...font.regular, color: C.textSecondary },
+
+    badge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 9999,
       marginTop: 2,
     },
-    resInfo: { flex: 1, gap: 4 },
-    resActions: { gap: 6, alignItems: 'center', paddingTop: 2 },
+    badgeText: { fontSize: 11, ...font.semibold },
 
-    // Vote row
+    resActions: { gap: 6, alignItems: 'center', paddingTop: 2 },
+    iconBtn: { padding: 4 },
+
     voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
     voteAvatarWrap: { position: 'relative', width: 28, height: 28 },
     voteAvatarCircle: {
@@ -1097,6 +1327,7 @@ const makeStyles = (C: ColorTokens) => {
       justifyContent: 'center',
       alignItems: 'center',
     },
+    voteAvatarInitial: { fontSize: 11, ...font.bold },
     voteDot: {
       position: 'absolute',
       bottom: -1,
@@ -1114,18 +1345,30 @@ const makeStyles = (C: ColorTokens) => {
     dotPending: { backgroundColor: C.textSecondary + '80' },
 
     voteBtns: { flexDirection: 'row', gap: 6 },
+    voteBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 9999,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+    },
+    voteBtnApproveActive: { backgroundColor: C.positive, borderColor: C.positive },
+    voteBtnRejectActive: { backgroundColor: C.danger, borderColor: C.danger },
 
-    // Error banner
     errorBox: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
+      backgroundColor: C.danger + '15',
       borderRadius: 10,
       padding: 12,
       marginBottom: 16,
     },
+    errorText: { fontSize: 13, ...font.regular, color: C.danger, flex: 1 },
 
-    // ── Reserve modal ─────────────────────────────────────────────────────
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     modalSheet: {
       backgroundColor: C.surface,
@@ -1136,6 +1379,7 @@ const makeStyles = (C: ColorTokens) => {
       gap: 12,
       maxHeight: '90%',
     },
+    modalScroll: { flexGrow: 0 },
     modalHandle: {
       width: 40,
       height: 4,
@@ -1144,7 +1388,8 @@ const makeStyles = (C: ColorTokens) => {
       alignSelf: 'center',
       marginBottom: 4,
     },
-    fieldLabel: { marginBottom: 6, textTransform: 'none' as const, letterSpacing: 0 },
+    modalTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    fieldLabel: { fontSize: 13, ...font.semibold, color: C.textPrimary, marginBottom: 6 },
     fieldInput: {
       borderWidth: 1.5,
       borderColor: C.border,
@@ -1152,10 +1397,138 @@ const makeStyles = (C: ColorTokens) => {
       paddingHorizontal: 14,
       paddingVertical: 12,
       fontSize: 15,
+      ...font.regular,
       color: C.textPrimary,
       backgroundColor: C.surfaceSecondary,
     },
+    fieldError: { fontSize: 13, ...font.regular, color: C.negative },
     conflictBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+    conflictText: { fontSize: 13, ...font.medium, color: C.warning, flex: 1 },
+    conflictWarningBox: {
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 8,
+      borderColor: C.warning + '40',
+      backgroundColor: C.warning + '10',
+    },
+    conflictWarningText: { color: C.warning },
     modalBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
+    modalBtnOutline: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      alignItems: 'center',
+    },
+    modalBtnOutlineText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    modalBtnPrimary: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: C.primary,
+      alignItems: 'center',
+    },
+    modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+
+    daySheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    daySheetPanel: {
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 40,
+      gap: 16,
+    },
+    daySheetTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    daySheetEmpty: {
+      fontSize: 14,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      paddingVertical: 16,
+    },
+    daySheetList: { gap: 10 },
+    daySheetRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+    },
+    daySheetDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+    daySheetRowInfo: { flex: 1, gap: 2 },
+    daySheetTime: { fontSize: 13, ...font.semibold, color: C.textPrimary },
+    daySheetName: { fontSize: 12, ...font.regular, color: C.textSecondary },
+    daySheetStatusBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 9999,
+      flexShrink: 0,
+    },
+    daySheetStatusText: { fontSize: 11, ...font.semibold },
+    daySheetCloseBtn: {
+      paddingVertical: 14,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      alignItems: 'center',
+    },
+    daySheetCloseBtnText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+
+    weekStrip: {
+      flexDirection: 'row',
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingVertical: 12,
+      paddingHorizontal: 4,
+      marginBottom: 16,
+    },
+    weekDay: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 2,
+    },
+    weekDayAbbr: {
+      fontSize: 9,
+      ...font.bold,
+      color: C.textSecondary,
+      letterSpacing: 0.4,
+    },
+    weekDayAbbrToday: { color: C.primary },
+    weekDayNumWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    weekDayNumWrapToday: { backgroundColor: C.primary },
+    weekDayNum: { fontSize: 14, ...font.bold, color: C.textPrimary },
+    weekDayNumToday: { color: '#fff' },
+    weekDayDots: {
+      flexDirection: 'row',
+      gap: 2,
+      height: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    weekDot: { width: 5, height: 5, borderRadius: 3 },
+
+    historyHeaderSpacer: { flex: 1 },
+    clearAllBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      minHeight: 44,
+      paddingHorizontal: 10,
+      borderRadius: 9999,
+      backgroundColor: C.danger + '12',
+    },
+    clearAllBtnText: { fontSize: 11, ...font.semibold, color: C.danger },
   });
-};

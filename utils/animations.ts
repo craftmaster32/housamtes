@@ -28,7 +28,7 @@ export const Springs = {
   gentle: { damping: 18, stiffness: 140, mass: 0.9 },
   snappy: { damping: 14, stiffness: 220, mass: 0.7 },
   bouncy: { damping: 10, stiffness: 180, mass: 0.8 },
-  stiff:  { damping: 30, stiffness: 400, mass: 0.6 },
+  stiff: { damping: 30, stiffness: 400, mass: 0.6 },
 } as const;
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -48,7 +48,11 @@ interface CountUpOptions {
 
 export function useCountUp(
   value: number,
-  { duration = 700, formatter = (n): string => n.toFixed(0), skipOnMount = false }: CountUpOptions = {},
+  {
+    duration = 700,
+    formatter = (n): string => n.toFixed(0),
+    skipOnMount = false,
+  }: CountUpOptions = {}
 ): string {
   const safeDuration = Math.max(0, duration);
   const fromRef = useRef(skipOnMount ? value : 0);
@@ -118,8 +122,12 @@ export function usePressScale(target = 0.96): {
 } {
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const onPressIn = useCallback(() => { scale.value = withSpring(target, Springs.snappy); }, [scale, target]);
-  const onPressOut = useCallback(() => { scale.value = withSpring(1, Springs.snappy); }, [scale]);
+  const onPressIn = useCallback(() => {
+    scale.value = withSpring(target, Springs.snappy);
+  }, [scale, target]);
+  const onPressOut = useCallback(() => {
+    scale.value = withSpring(1, Springs.snappy);
+  }, [scale]);
   return { animatedStyle, onPressIn, onPressOut };
 }
 
@@ -141,7 +149,10 @@ export function useFadeInUp(delay = 0, distance = 12): ReturnType<typeof useAnim
 
   useEffect(() => {
     translateY.value = distance;
-    opacity.value = withDelay(delay, withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) }));
+    opacity.value = withDelay(
+      delay,
+      withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) })
+    );
     translateY.value = withDelay(delay, withSpring(0, Springs.gentle));
   }, [delay, distance, opacity, translateY]);
 
@@ -162,7 +173,7 @@ export function useFadeInUp(delay = 0, distance = 12): ReturnType<typeof useAnim
 export function useSpringBar(
   value: number,
   max: number,
-  options: { delay?: number } = {},
+  options: { delay?: number } = {}
 ): { animatedStyle: ReturnType<typeof useAnimatedStyle>; width: SharedValue<number> } {
   const target = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
   const width = useSharedValue(0);
@@ -194,7 +205,10 @@ export function useExpandable(isOpen: boolean): {
 
   const containerStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [{ scaleY: 0.95 + progress.value * 0.05 }, { translateY: (1 - progress.value) * -6 }],
+    transform: [
+      { scaleY: 0.95 + progress.value * 0.05 },
+      { translateY: (1 - progress.value) * -6 },
+    ],
   }));
 
   const caretStyle = useAnimatedStyle(() => ({
@@ -223,13 +237,26 @@ export function useHaptic(): {
   warn: () => void;
   error: () => void;
 } {
-  return useMemo(() => ({
-    tap:     (): void => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); },
-    toggle:  (): void => { Haptics.selectionAsync().catch(() => {}); },
-    success: (): void => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); },
-    warn:    (): void => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {}); },
-    error:   (): void => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {}); },
-  }), []);
+  return useMemo(
+    () => ({
+      tap: (): void => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      },
+      toggle: (): void => {
+        Haptics.selectionAsync().catch(() => {});
+      },
+      success: (): void => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      },
+      warn: (): void => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      },
+      error: (): void => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      },
+    }),
+    []
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -246,4 +273,11 @@ export function useHaptic(): {
  *
  * Re-exported here so screens don't need a second import line.
  * ────────────────────────────────────────────────────────────────────────── */
-export { FadeIn, FadeInDown, FadeOut, LinearTransition, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+export {
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  LinearTransition,
+  SlideInRight,
+  SlideOutLeft,
+} from 'react-native-reanimated';
