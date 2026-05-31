@@ -6,6 +6,7 @@
 // Every screen that uses these hooks gets a consistent feel for free.
 
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { Platform } from 'react-native';
 import {
   useSharedValue,
   useAnimatedStyle,
@@ -144,10 +145,11 @@ export function usePressScale(target = 0.96): {
  *   <Animated.View style={[styles.card, heroFade]}>...</Animated.View>
  * ────────────────────────────────────────────────────────────────────────── */
 export function useFadeInUp(delay = 0, distance = 12): ReturnType<typeof useAnimatedStyle> {
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(distance);
+  const opacity = useSharedValue(Platform.OS === 'web' ? 1 : 0);
+  const translateY = useSharedValue(Platform.OS === 'web' ? 0 : distance);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     translateY.value = distance;
     opacity.value = withDelay(
       delay,
