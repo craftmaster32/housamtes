@@ -247,15 +247,15 @@ export const useBillsStore = create<BillsStore>()(
         if (bill?.settled) {
           throw new Error('Settled bills cannot be deleted — settlement history is permanent.');
         }
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData.session?.user.id ?? '';
         const { error } = await supabase.from('bills').delete().eq('id', id);
         if (error) {
-          captureError(error, { context: 'delete-bill', billId: id, houseId });
+          captureError(error, { context: 'delete-bill', billId: id, houseId, userId });
           throw new Error('Could not delete the bill. Please try again.');
         }
         set({ bills: get().bills.filter((b) => b.id !== id) });
         if (bill) {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const userId = sessionData.session?.user.id ?? '';
           if (userId) {
             notifyHousemates({
               houseId,
