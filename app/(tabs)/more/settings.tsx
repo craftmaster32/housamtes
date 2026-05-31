@@ -312,7 +312,6 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const LANGUAGE_OPTIONS: { code: AppLanguage; label: string; flag: string }[] = [
     { code: 'en', label: t('settings.language_en'), flag: '🇬🇧' },
-    { code: 'he', label: t('settings.language_he'), flag: '🇮🇱' },
     { code: 'es', label: t('settings.language_es'), flag: '🇪🇸' },
   ];
 
