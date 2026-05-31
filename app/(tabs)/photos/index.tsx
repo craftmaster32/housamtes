@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -17,11 +17,17 @@ import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import { format, isToday, isYesterday } from 'date-fns';
 import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
-import { usePhotoStore, PHOTO_CATEGORIES, type Photo, type PhotoCategory } from '@stores/photoStore';
+import {
+  usePhotoStore,
+  PHOTO_CATEGORIES,
+  type Photo,
+  type PhotoCategory,
+} from '@stores/photoStore';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
 import { PhotoUploadModal } from '@components/photos/PhotoUploadModal';
 
@@ -34,7 +40,10 @@ const MAX_PHOTOS = 50;
 const DATE_FNS_LOCALES = { en: enUS, es: dateFnsEs, he: dateFnsHe } as const;
 
 type PhotoRow = Photo[];
-interface PhotoSection { title: string; data: PhotoRow[] }
+interface PhotoSection {
+  title: string;
+  data: PhotoRow[];
+}
 
 const chunkRows = (photos: Photo[]): PhotoRow[] =>
   Array.from({ length: Math.ceil(photos.length / GRID_COLS) }, (_, i) =>
@@ -90,7 +99,7 @@ const makeStyles = (C: ColorTokens) =>
       paddingHorizontal: sizes.lg,
       marginBottom: sizes.xs,
     },
-    listContent: { paddingHorizontal: sizes.lg, paddingBottom: 40 },
+    listContent: { paddingHorizontal: sizes.lg, paddingBottom: 100 },
     sectionHeader: { paddingTop: sizes.sm, paddingBottom: sizes.xs },
     sectionTitle: {
       fontSize: 12,
@@ -108,6 +117,64 @@ const makeStyles = (C: ColorTokens) =>
       borderCurve: 'continuous',
     } as never,
     gridImg: { width: '100%', height: '100%' },
+    selectedOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(99,102,241,0.35)',
+      justifyContent: 'flex-end',
+      alignItems: 'flex-end',
+      padding: 5,
+    },
+    checkCircle: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: C.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    checkMark: { color: '#fff', fontSize: 13, ...font.bold },
+    unselectedOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.25)',
+    },
+    unselectedCircle: {
+      position: 'absolute',
+      bottom: 5,
+      right: 5,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: 'rgba(255,255,255,0.7)',
+    },
+    selectionBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: C.surface,
+      borderTopWidth: 1,
+      borderTopColor: C.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: sizes.lg,
+      paddingTop: sizes.sm,
+      paddingBottom: sizes.xl,
+    },
+    selectionBarText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    selectionCancelBtn: { padding: sizes.sm },
+    selectionCancelTxt: { fontSize: 15, ...font.regular, color: C.textSecondary },
+    selectionDownloadBtn: {
+      backgroundColor: C.primary,
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: sizes.borderRadiusLg,
+      minWidth: 100,
+      alignItems: 'center',
+    },
+    selectionDownloadBtnDisabled: { opacity: 0.45 },
+    selectionDownloadTxt: { fontSize: 15, ...font.semibold, color: '#fff' },
     emptyState: { alignItems: 'center', paddingTop: sizes.xxl, gap: sizes.sm },
     emptyIcon: { fontSize: 48 },
     emptyTitle: { fontSize: 17, ...font.bold, color: C.textPrimary },
@@ -136,7 +203,9 @@ export default function PhotosScreen(): React.JSX.Element {
 
   useEffect(() => {
     if (houseId) load(houseId);
-    return (): void => { usePhotoStore.getState().unsubscribe(); };
+    return (): void => {
+      usePhotoStore.getState().unsubscribe();
+    };
   }, [houseId, load]);
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory | 'general'>('general');
@@ -145,6 +214,14 @@ export default function PhotosScreen(): React.JSX.Element {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState('');
+
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDownloading, setIsBulkDownloading] = useState(false);
+
+  // keep a stable ref to selectedIds for use in callbacks
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
 
   const filtered = useMemo(
     () =>
@@ -155,16 +232,15 @@ export default function PhotosScreen(): React.JSX.Element {
   );
 
   const sections = useMemo<PhotoSection[]>(() => {
-    const dateFnsLocale =
-      DATE_FNS_LOCALES[i18n.language as keyof typeof DATE_FNS_LOCALES] ?? enUS;
+    const dateFnsLocale = DATE_FNS_LOCALES[i18n.language as keyof typeof DATE_FNS_LOCALES] ?? enUS;
     const groups = new Map<string, Photo[]>();
     for (const photo of filtered) {
       const d = new Date(photo.createdAt);
       const label = isToday(d)
         ? t('photos.today')
         : isYesterday(d)
-        ? t('photos.yesterday')
-        : format(d, 'MMMM yyyy', { locale: dateFnsLocale });
+          ? t('photos.yesterday')
+          : format(d, 'MMMM yyyy', { locale: dateFnsLocale });
       const arr = groups.get(label) ?? [];
       arr.push(photo);
       groups.set(label, arr);
@@ -185,10 +261,63 @@ export default function PhotosScreen(): React.JSX.Element {
     [photos]
   );
 
+  const exitSelectMode = useCallback((): void => {
+    setIsSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleSelect = useCallback((photoId: string): void => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(photoId)) {
+        next.delete(photoId);
+      } else {
+        next.add(photoId);
+      }
+      return next;
+    });
+  }, []);
+
+  const enterSelectMode = useCallback((photoId: string): void => {
+    setIsSelectMode(true);
+    setSelectedIds(new Set([photoId]));
+  }, []);
+
+  const handleBulkDownload = useCallback(async (): Promise<void> => {
+    const ids = selectedIdsRef.current;
+    if (ids.size === 0 || isBulkDownloading) return;
+    const toDownload = photos.filter((p) => ids.has(p.id));
+    setIsBulkDownloading(true);
+    try {
+      for (const photo of toDownload) {
+        await downloadPhotoToLibrary(photo.url);
+      }
+      exitSelectMode();
+      const count = toDownload.length;
+      Alert.alert(
+        t('photos.download_success_title'),
+        count === 1
+          ? t('photos.download_all_success_one')
+          : t('photos.download_all_success_other', { count })
+      );
+    } catch (err) {
+      const isPermission = err instanceof Error && err.name === 'permission_denied';
+      Alert.alert(
+        t('common.error', 'Error'),
+        isPermission ? t('photos.download_permission_denied') : t('photos.download_error')
+      );
+    } finally {
+      setIsBulkDownloading(false);
+    }
+  }, [isBulkDownloading, photos, exitSelectMode, t]);
+
   const pickFromCamera = useCallback(async (): Promise<void> => {
     try {
       const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-      if (!granted) { setError(t('photos.permission_denied')); return; }
+      if (!granted) {
+        setError(t('photos.permission_denied'));
+        return;
+      }
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
       if (!result.canceled && result.assets[0]) {
         setPickedAssets([result.assets[0]]);
@@ -201,7 +330,10 @@ export default function PhotosScreen(): React.JSX.Element {
   const pickFromLibrary = useCallback(async (): Promise<void> => {
     try {
       const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!granted) { setError(t('photos.permission_denied')); return; }
+      if (!granted) {
+        setError(t('photos.permission_denied'));
+        return;
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
@@ -273,10 +405,23 @@ export default function PhotosScreen(): React.JSX.Element {
 
   const handlePhotoPress = useCallback(
     (photo: Photo): void => {
+      if (isSelectMode) {
+        toggleSelect(photo.id);
+        return;
+      }
       const idx = filtered.findIndex((p) => p.id === photo.id);
       setViewIndex(idx);
     },
-    [filtered]
+    [filtered, isSelectMode, toggleSelect]
+  );
+
+  const handlePhotoLongPress = useCallback(
+    (photo: Photo): void => {
+      if (!isSelectMode) {
+        enterSelectMode(photo.id);
+      }
+    },
+    [isSelectMode, enterSelectMode]
   );
 
   const onSelectCategory = useCallback(
@@ -299,21 +444,45 @@ export default function PhotosScreen(): React.JSX.Element {
   const renderRow = useCallback(
     ({ item }: ListRenderItemInfo<PhotoRow>) => (
       <View style={styles.gridRow}>
-        {item.map((photo) => (
-          <Pressable
-            key={photo.id}
-            style={styles.gridItem}
-            onPress={() => handlePhotoPress(photo)}
-            accessible
-            accessibilityRole="imagebutton"
-            accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
-          >
-            <Image source={{ uri: photo.url }} style={styles.gridImg} contentFit="cover" />
-          </Pressable>
-        ))}
+        {item.map((photo) => {
+          const isSelected = selectedIds.has(photo.id);
+          return (
+            <Pressable
+              key={photo.id}
+              style={styles.gridItem}
+              onPress={() => handlePhotoPress(photo)}
+              onLongPress={() => handlePhotoLongPress(photo)}
+              delayLongPress={350}
+              accessible
+              accessibilityRole="imagebutton"
+              accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
+              accessibilityState={{ selected: isSelectMode ? isSelected : undefined }}
+            >
+              <Image
+                source={{ uri: photo.url }}
+                style={styles.gridImg}
+                contentFit="cover"
+                accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
+              />
+              {isSelectMode && isSelected && (
+                <View style={styles.selectedOverlay}>
+                  <View style={styles.checkCircle}>
+                    <Text style={styles.checkMark}>✓</Text>
+                  </View>
+                </View>
+              )}
+              {isSelectMode && !isSelected && (
+                <>
+                  <View style={styles.unselectedOverlay} />
+                  <View style={styles.unselectedCircle} />
+                </>
+              )}
+            </Pressable>
+          );
+        })}
       </View>
     ),
-    [styles, handlePhotoPress]
+    [styles, selectedIds, isSelectMode, handlePhotoPress, handlePhotoLongPress]
   );
 
   const EmptyComponent = useMemo(
@@ -326,6 +495,12 @@ export default function PhotosScreen(): React.JSX.Element {
     ),
     [styles, t]
   );
+
+  const selectedCount = selectedIds.size;
+  const selectionLabel =
+    selectedCount === 1
+      ? t('photos.photos_selected_one')
+      : t('photos.photos_selected_other', { count: selectedCount });
 
   if (isLoading) {
     return (
@@ -421,6 +596,44 @@ export default function PhotosScreen(): React.JSX.Element {
           onClose={onClearPicked}
           onUpload={handleUpload}
         />
+
+        {isSelectMode && (
+          <View style={styles.selectionBar}>
+            <Pressable
+              onPress={exitSelectMode}
+              style={styles.selectionCancelBtn}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
+            >
+              <Text style={styles.selectionCancelTxt}>{t('common.cancel')}</Text>
+            </Pressable>
+
+            <Text style={styles.selectionBarText}>{selectionLabel}</Text>
+
+            <Pressable
+              onPress={handleBulkDownload}
+              style={[
+                styles.selectionDownloadBtn,
+                (selectedCount === 0 || isBulkDownloading) && styles.selectionDownloadBtnDisabled,
+              ]}
+              disabled={selectedCount === 0 || isBulkDownloading}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('photos.download_photo')}
+              accessibilityState={{
+                busy: isBulkDownloading,
+                disabled: selectedCount === 0 || isBulkDownloading,
+              }}
+            >
+              {isBulkDownloading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.selectionDownloadTxt}>{t('photos.download_photo')}</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );

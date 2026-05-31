@@ -6,7 +6,6 @@
  *  2. Store actions: error handling, optimistic updates, race-condition edge cases
  *
  * BUGS PROVEN HERE (marked ⚠️):
- *  ⚠️  getPersonShare returns Infinity when splitBetween is empty (0-member split)
  *  ⚠️  settleBill silently skips notification when bill is deleted mid-flight
  *  ⚠️  settleBill has no guard against settling an already-settled bill
  */
@@ -31,7 +30,9 @@ jest.mock('@lib/supabase', () => ({
     from: (...a: unknown[]): unknown => mockFrom(...a),
     channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
     removeChannel: jest.fn(),
-    auth: { getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: {
+      getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } }),
+    },
   },
 }));
 
@@ -92,13 +93,14 @@ describe('getPersonShare', () => {
     expect(getPersonShare(b, 'Alice')).toBe(0);
   });
 
-  it('floating-point: share floors to whole cents; payer absorbs the remainder', () => {
-    // 10 / 3: each person pays $3.33 (floored to whole cents via Math.floor on cents).
-    // The payer keeps the leftover penny — 3 × $3.33 = $9.99, not $10.00.
+  it('distributes remainder cent to first people in sort order so shares sum exactly to the total', () => {
+    // $10 / 3: sorted order is Alice, Bob, Carol — Alice absorbs the +1 cent remainder.
     const b = bill({ amount: 10, splitBetween: ['Alice', 'Bob', 'Carol'] });
-    const share = getPersonShare(b, 'Bob');
-    expect(share).toBe(3.33);
-    expect(share * b.splitBetween.length).toBeLessThan(b.amount);
+    expect(getPersonShare(b, 'Alice')).toBe(3.34);
+    expect(getPersonShare(b, 'Bob')).toBe(3.33);
+    expect(getPersonShare(b, 'Carol')).toBe(3.33);
+    const total = b.splitBetween.reduce((sum, p) => sum + getPersonShare(b, p), 0);
+    expect(total).toBeCloseTo(10, 10);
   });
 });
 
@@ -160,18 +162,27 @@ describe('calculateAllNetBalances', () => {
 
 describe('settleDebts', () => {
   it('returns no transfers when everyone is balanced', () => {
-    const net = new Map([['Alice', 0], ['Bob', 0]]);
+    const net = new Map([
+      ['Alice', 0],
+      ['Bob', 0],
+    ]);
     expect(settleDebts(net)).toHaveLength(0);
   });
 
   it('ignores balances within the ±0.01 rounding threshold', () => {
     // Floating-point residue from 10/3 splits must not create phantom debts.
-    const net = new Map([['Alice', 0.005], ['Bob', -0.005]]);
+    const net = new Map([
+      ['Alice', 0.005],
+      ['Bob', -0.005],
+    ]);
     expect(settleDebts(net)).toHaveLength(0);
   });
 
   it('generates one transfer for a simple two-person debt', () => {
-    const net = new Map([['Alice', 100], ['Bob', -100]]);
+    const net = new Map([
+      ['Alice', 100],
+      ['Bob', -100],
+    ]);
     const result = settleDebts(net);
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ from: 'Bob', to: 'Alice', amount: 100 });
@@ -179,7 +190,11 @@ describe('settleDebts', () => {
 
   it('generates two transfers for a three-person imbalance', () => {
     // Alice is owed 200; Bob owes 100; Carol owes 100
-    const net = new Map([['Alice', 200], ['Bob', -100], ['Carol', -100]]);
+    const net = new Map([
+      ['Alice', 200],
+      ['Bob', -100],
+      ['Carol', -100],
+    ]);
     const result = settleDebts(net);
     expect(result).toHaveLength(2);
     const totalPaid = result.reduce((s, t) => s + t.amount, 0);
@@ -187,7 +202,11 @@ describe('settleDebts', () => {
   });
 
   it('handles a chain where one creditor is covered by multiple debtors', () => {
-    const net = new Map([['Alice', 150], ['Bob', -100], ['Carol', -50]]);
+    const net = new Map([
+      ['Alice', 150],
+      ['Bob', -100],
+      ['Carol', -50],
+    ]);
     const result = settleDebts(net);
     const toAlice = result.filter((t) => t.to === 'Alice').reduce((s, t) => s + t.amount, 0);
     expect(toAlice).toBeCloseTo(150);
@@ -224,7 +243,7 @@ describe('calculateBalances', () => {
 
   it('nets two opposing bills between the same pair correctly', () => {
     const b1 = bill({ id: 'b1', paidBy: 'Alice', amount: 300, splitBetween: ['Alice', 'Bob'] }); // Bob owes Alice 150
-    const b2 = bill({ id: 'b2', paidBy: 'Bob',   amount: 100, splitBetween: ['Alice', 'Bob'] }); // Alice owes Bob  50
+    const b2 = bill({ id: 'b2', paidBy: 'Bob', amount: 100, splitBetween: ['Alice', 'Bob'] }); // Alice owes Bob  50
     const balances = calculateBalances([b1, b2], 'Alice');
     expect(balances).toHaveLength(1);
     expect(balances[0]).toMatchObject({ person: 'Bob', amount: 100 }); // net
@@ -233,7 +252,7 @@ describe('calculateBalances', () => {
   it('filters out near-zero residue (< 0.01) after netting', () => {
     // If two bills perfectly cancel out, no entry should appear.
     const b1 = bill({ id: 'b1', paidBy: 'Alice', amount: 100, splitBetween: ['Alice', 'Bob'] });
-    const b2 = bill({ id: 'b2', paidBy: 'Bob',   amount: 100, splitBetween: ['Alice', 'Bob'] });
+    const b2 = bill({ id: 'b2', paidBy: 'Bob', amount: 100, splitBetween: ['Alice', 'Bob'] });
     expect(calculateBalances([b1, b2], 'Alice')).toHaveLength(0);
   });
 
@@ -255,19 +274,28 @@ describe('calculateSimplifiedBalancesForUser', () => {
 
   it('returns empty array when current user has no settlements', () => {
     // Alice and Bob owe each other; Lior is uninvolved
-    const net = new Map([['Alice', 50], ['Bob', -50]]);
+    const net = new Map([
+      ['Alice', 50],
+      ['Bob', -50],
+    ]);
     expect(calculateSimplifiedBalancesForUser(net, 'Lior')).toHaveLength(0);
   });
 
   it('positive amount — other person owes me', () => {
-    const net = new Map([['Lior', 100], ['Bob', -100]]);
+    const net = new Map([
+      ['Lior', 100],
+      ['Bob', -100],
+    ]);
     const result = calculateSimplifiedBalancesForUser(net, 'Lior');
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ person: 'Bob', amount: 100 });
   });
 
   it('negative amount — I owe the other person', () => {
-    const net = new Map([['Alice', 100], ['Lior', -100]]);
+    const net = new Map([
+      ['Alice', 100],
+      ['Lior', -100],
+    ]);
     const result = calculateSimplifiedBalancesForUser(net, 'Lior');
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ person: 'Alice', amount: -100 });
@@ -277,7 +305,11 @@ describe('calculateSimplifiedBalancesForUser', () => {
     // Alice owes Bob $100, Bob owes Lior $100.
     // Global net: Alice -100, Bob 0, Lior +100.
     // Splitwise result: Alice pays Lior directly (1 transfer, not 2).
-    const net = new Map([['Lior', 100], ['Bob', 0], ['Alice', -100]]);
+    const net = new Map([
+      ['Lior', 100],
+      ['Bob', 0],
+      ['Alice', -100],
+    ]);
     const result = calculateSimplifiedBalancesForUser(net, 'Lior');
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ person: 'Alice', amount: 100 });
@@ -285,7 +317,11 @@ describe('calculateSimplifiedBalancesForUser', () => {
 
   it('splits owed amount across multiple debtors when needed', () => {
     // Alice owes Lior 60, Bob owes Lior 40
-    const net = new Map([['Lior', 100], ['Alice', -60], ['Bob', -40]]);
+    const net = new Map([
+      ['Lior', 100],
+      ['Alice', -60],
+      ['Bob', -40],
+    ]);
     const result = calculateSimplifiedBalancesForUser(net, 'Lior');
     const total = result.reduce((s, b) => s + b.amount, 0);
     expect(total).toBeCloseTo(100);
@@ -293,7 +329,10 @@ describe('calculateSimplifiedBalancesForUser', () => {
   });
 
   it('does not mutate the input net map', () => {
-    const net = new Map([['Lior', 50], ['Alice', -50]]);
+    const net = new Map([
+      ['Lior', 50],
+      ['Alice', -50],
+    ]);
     const copy = new Map(net);
     calculateSimplifiedBalancesForUser(net, 'Lior');
     expect(net).toEqual(copy);
@@ -360,7 +399,9 @@ describe('billsStore — settleBill', () => {
     await useBillsStore.getState().settleBill('b1', 'uuid-alice', 'Alice', 'house-1');
 
     expect(notifyHousemates).toHaveBeenCalledTimes(1);
-    expect(notifyHousemates).toHaveBeenCalledWith(expect.objectContaining({ title: '✅ Bill settled' }));
+    expect(notifyHousemates).toHaveBeenCalledWith(
+      expect.objectContaining({ title: '🎉 Money drama resolved!' })
+    );
   });
 });
 
@@ -369,9 +410,9 @@ describe('billsStore — deleteBill', () => {
     useBillsStore.setState({ bills: [bill({ id: 'b1' })] });
     mockFrom.mockReturnValue(fail('RLS violation'));
 
-    await expect(
-      useBillsStore.getState().deleteBill('b1', 'house1')
-    ).rejects.toThrow('Could not delete the bill. Please try again.');
+    await expect(useBillsStore.getState().deleteBill('b1', 'house1')).rejects.toThrow(
+      'Could not delete the bill. Please try again.'
+    );
 
     expect(useBillsStore.getState().bills).toHaveLength(1);
   });
@@ -392,7 +433,13 @@ describe('billsStore — editBill', () => {
     mockFrom.mockReturnValue(fail('timeout'));
 
     await expect(
-      useBillsStore.getState().editBill('b1', { title: 'Updated Rent', amount: 1000, date: '2026-05-01', notes: '', category: 'Rent' })
+      useBillsStore.getState().editBill('b1', {
+        title: 'Updated Rent',
+        amount: 1000,
+        date: '2026-05-01',
+        notes: '',
+        category: 'Rent',
+      })
     ).rejects.toThrow('Could not update the bill. Please try again.');
 
     expect(useBillsStore.getState().bills[0].title).toBe('Rent');
@@ -403,7 +450,13 @@ describe('billsStore — editBill', () => {
     useBillsStore.setState({ bills: [bill({ id: 'b1', title: 'Rent' })] });
     mockFrom.mockReturnValue(ok());
 
-    await useBillsStore.getState().editBill('b1', { title: 'New Rent', amount: 1000, date: '2026-05-01', notes: 'increased', category: 'Groceries' });
+    await useBillsStore.getState().editBill('b1', {
+      title: 'New Rent',
+      amount: 1000,
+      date: '2026-05-01',
+      notes: 'increased',
+      category: 'Groceries',
+    });
 
     expect(useBillsStore.getState().bills[0].title).toBe('New Rent');
     expect(useBillsStore.getState().bills[0].category).toBe('Groceries');
@@ -425,10 +478,19 @@ describe('billsStore — load', () => {
 
   it('maps DB rows to Bill objects correctly', async () => {
     const row = {
-      id: 'b1', title: 'Internet', amount: '45.00', paid_by: 'Bob',
-      split_between: ['Alice', 'Bob'], split_amounts: null, category: 'Internet',
-      date: '2026-04-15', created_at: '2026-04-15T10:00:00Z',
-      settled: false, settled_by: null, settled_at: null, notes: null,
+      id: 'b1',
+      title: 'Internet',
+      amount: '45.00',
+      paid_by: 'Bob',
+      split_between: ['Alice', 'Bob'],
+      split_amounts: null,
+      category: 'Internet',
+      date: '2026-04-15',
+      created_at: '2026-04-15T10:00:00Z',
+      settled: false,
+      settled_by: null,
+      settled_at: null,
+      notes: null,
     };
     mockFrom.mockReturnValue({ ...ok([row]), order: jest.fn(() => ok([row])) });
 

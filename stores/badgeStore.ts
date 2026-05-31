@@ -4,7 +4,14 @@ import { create } from 'zustand';
 const STORAGE_KEY = 'badge_last_seen_v1';
 
 // Feature keys that show badges
-export type BadgeFeature = 'parking' | 'grocery' | 'chores' | 'bills' | 'voting' | 'maintenance' | 'announcements';
+export type BadgeFeature =
+  | 'parking'
+  | 'grocery'
+  | 'chores'
+  | 'bills'
+  | 'voting'
+  | 'maintenance'
+  | 'announcements';
 
 interface BadgeStore {
   lastSeen: Record<BadgeFeature, string>; // ISO timestamp
@@ -63,12 +70,12 @@ export const useBadgeStore = create<BadgeStore>()((set, get) => ({
 }));
 
 // ── Selectors — count items created after lastSeen, not by me ─────────────────
-export function countNew(items: Array<{ createdAt: string; [k: string]: unknown }>, lastSeen: string, myId: string, authorKey = 'author'): number {
-  return items.filter(
-    (item) =>
-      item.createdAt > lastSeen &&
-      (item[authorKey] as string | undefined) !== myId
-  ).length;
+export function countNew<
+  K extends string,
+  T extends { createdAt: string } & Record<K, string | undefined>,
+>(items: T[], lastSeen: string, myId: string, authorKey: K): number {
+  if (!myId) return 0;
+  return items.filter((item) => item.createdAt > lastSeen && item[authorKey] !== myId).length;
 }
 
 export function countNewSimple(items: Array<{ createdAt: string }>, lastSeen: string): number {

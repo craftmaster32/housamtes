@@ -28,17 +28,23 @@ import { ok, fail } from '../__helpers__/supabaseMock';
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc: (...a: unknown[]): unknown => mockRpc(...a),
     channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
     removeChannel: jest.fn(),
-    auth: { getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: {
+      getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } }),
+    },
   },
 }));
 
-jest.mock('@lib/notifyHousemates', () => ({ notifyHousemates: jest.fn() }));
+jest.mock('@lib/notifyHousemates', () => ({
+  notifyHousemates: jest.fn().mockResolvedValue(undefined),
+}));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -64,6 +70,7 @@ beforeEach(() => {
   useParkingStore.setState({ current: null, reservations: [], isLoading: false });
   jest.clearAllMocks();
   mockFrom.mockReset();
+  mockRpc.mockReset();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,32 +78,152 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('isDateConflict', () => {
-  it('returns null when reservation list is empty', () => {
-    expect(isDateConflict('2026-04-20', [])).toBeNull();
+  it('returns no conflict when reservation list is empty', () => {
+    const result = isDateConflict('2026-04-20', undefined, undefined, []);
+    expect(result.conflict).toBeNull();
+    expect(result.warning).toBeNull();
   });
 
-  it('returns null when no reservation matches the given date', () => {
+  it('returns no conflict when no reservation matches the given date', () => {
     const r = reservation({ date: '2026-04-21', status: 'approved' });
-    expect(isDateConflict('2026-04-20', [r])).toBeNull();
+    expect(isDateConflict('2026-04-20', undefined, undefined, [r]).conflict).toBeNull();
   });
 
-  it('returns an "already reserved" message for an approved reservation on the same date', () => {
+  // All-day (no times) conflicts
+  it('blocks all-day request when another all-day reservation exists (approved)', () => {
     const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved' });
-    const msg = isDateConflict('2026-04-20', [r]);
-    expect(msg).toMatch(/already reserved by Bob/i);
+    const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
+    expect(conflict).toMatch(/Bob/i);
+    expect(conflict).toMatch(/reserved/i);
   });
 
-  it('returns a "pending request" message for a pending reservation on the same date', () => {
+  it('blocks all-day request when a pending reservation exists', () => {
     const r = reservation({ date: '2026-04-20', requestedBy: 'Carol', status: 'pending' });
-    const msg = isDateConflict('2026-04-20', [r]);
-    expect(msg).toMatch(/Carol.*pending/i);
+    const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
+    expect(conflict).toMatch(/Carol/i);
+    expect(conflict).toMatch(/pending/i);
   });
 
-  it('returns the first match when multiple reservations exist (approved takes priority in list order)', () => {
-    const r1 = reservation({ id: 'r1', date: '2026-04-20', requestedBy: 'Bob',   status: 'approved' });
-    const r2 = reservation({ id: 'r2', date: '2026-04-20', requestedBy: 'Carol', status: 'pending'  });
-    const msg = isDateConflict('2026-04-20', [r1, r2]);
-    expect(msg).toMatch(/Bob/);
+  // Time-aware: overlapping slots
+  it('blocks when new slot overlaps existing timed reservation', () => {
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
+    const { conflict } = isDateConflict('2026-04-20', '10:00', '12:00', [r]);
+    expect(conflict).toMatch(/Overlaps/i);
+  });
+
+  it('allows non-overlapping timed slots on the same day', () => {
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
+    const { conflict } = isDateConflict('2026-04-20', '13:00', '14:00', [r]);
+    expect(conflict).toBeNull();
+  });
+
+  // Time-aware: gap warnings
+  it('warns when gap between slots is <= 60 minutes', () => {
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '10:00',
+    });
+    const { conflict, warning } = isDateConflict('2026-04-20', '10:30', '11:30', [r]);
+    expect(conflict).toBeNull();
+    expect(warning).not.toBeNull();
+  });
+
+  it('warns more strongly when gap is <= 15 minutes', () => {
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '10:00',
+    });
+    const { conflict, warning } = isDateConflict('2026-04-20', '10:10', '11:00', [r]);
+    expect(conflict).toBeNull();
+    expect(warning).toMatch(/tight/i);
+  });
+
+  // Timed-vs-all-day: hard conflict in both directions
+  it('blocks timed request against an all-day reservation (hard conflict)', () => {
+    const r = reservation({ date: '2026-04-20', requestedBy: 'Alice', status: 'approved' });
+    const { conflict } = isDateConflict('2026-04-20', '09:00', '10:00', [r]);
+    expect(conflict).not.toBeNull();
+  });
+
+  it('blocks all-day request against a timed reservation (hard conflict)', () => {
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Alice',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
+    const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
+    expect(conflict).not.toBeNull();
+  });
+
+  // One-sided time inputs: form is mid-entry — must never block
+  it('does not conflict when only startTime is provided (endTime still empty)', () => {
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
+    const { conflict, warning } = isDateConflict('2026-04-20', '10:00', undefined, [r]);
+    expect(conflict).toBeNull();
+    expect(warning).toBeNull();
+  });
+
+  it('does not conflict when only endTime is provided (startTime still empty)', () => {
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
+    const { conflict, warning } = isDateConflict('2026-04-20', undefined, '12:00', [r]);
+    expect(conflict).toBeNull();
+    expect(warning).toBeNull();
+  });
+
+  it('conflict takes precedence over warning when multiple reservations exist', () => {
+    // r1 would produce a gap warning (30 min gap), r2 overlaps → conflict must win
+    const r1 = reservation({
+      id: 'r1',
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '08:00',
+      endTime: '09:00',
+    });
+    const r2 = reservation({
+      id: 'r2',
+      date: '2026-04-20',
+      requestedBy: 'Carol',
+      status: 'approved',
+      startTime: '10:00',
+      endTime: '12:00',
+    });
+    // New slot: 09:30–11:00 — 30 min gap after r1 (warning), overlaps r2 (conflict)
+    const { conflict, warning } = isDateConflict('2026-04-20', '09:30', '11:00', [r1, r2]);
+    expect(conflict).not.toBeNull();
+    expect(warning).toBeNull();
   });
 });
 
@@ -118,7 +245,7 @@ describe('parkingStore — claim', () => {
   });
 
   it('throws when the DB insert fails', async () => {
-    mockFrom.mockReturnValue(fail('unique constraint'));  // insert fails
+    mockFrom.mockReturnValue(fail('unique constraint')); // insert fails
 
     await expect(
       useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1')
@@ -128,7 +255,7 @@ describe('parkingStore — claim', () => {
   });
 
   it('sets current session state on successful claim', async () => {
-    mockFrom.mockReturnValue(ok({ id: 'ps2', occupant: 'Alice', start_time: '09:00' }));  // insert
+    mockFrom.mockReturnValue(ok({ id: 'ps2', occupant: 'Alice', start_time: '09:00' })); // insert
 
     await useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1');
 
@@ -140,14 +267,13 @@ describe('parkingStore — claim', () => {
 
   it('throws when name is empty string (profile not loaded guard)', async () => {
     // Guard added: name.trim() === '' throws before any DB call.
-    await expect(
-      useParkingStore.getState().claim('', '', 'house-1')
-    ).rejects.toThrow('User ID is required to claim parking');
+    await expect(useParkingStore.getState().claim('', '', 'house-1')).rejects.toThrow(
+      'User ID is required to claim parking'
+    );
 
     expect(mockFrom).not.toHaveBeenCalled();
     expect(useParkingStore.getState().current).toBeNull();
   });
-
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,9 +291,9 @@ describe('parkingStore — release', () => {
     useParkingStore.setState({ current: { id: 'ps1', occupant: 'Alice', startTime: '09:00' } });
     mockFrom.mockReturnValue(fail('connection lost'));
 
-    await expect(
-      useParkingStore.getState().release('house-1')
-    ).rejects.toThrow('Could not release the parking spot. Please try again.');
+    await expect(useParkingStore.getState().release('house-1')).rejects.toThrow(
+      'Could not release the parking spot. Please try again.'
+    );
 
     // Session should still be set — no rollback because release throws before set({ current: null })
     expect(useParkingStore.getState().current).not.toBeNull();
@@ -175,7 +301,7 @@ describe('parkingStore — release', () => {
 
   it('clears current session on successful release', async () => {
     useParkingStore.setState({ current: { id: 'ps1', occupant: 'Alice', startTime: '09:00' } });
-    mockFrom.mockReturnValue(ok([{ id: 'ps1' }]));  // update returns the affected row
+    mockFrom.mockReturnValue(ok([{ id: 'ps1' }])); // update returns the affected row
 
     await useParkingStore.getState().release('house-1');
 
@@ -188,75 +314,121 @@ describe('parkingStore — release', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('parkingStore — addReservation', () => {
-  it('throws before hitting the DB when a local reservation conflict exists', async () => {
-    const existing = reservation({ date: '2026-04-20', status: 'approved', requestedBy: 'Bob' });
-    useParkingStore.setState({ reservations: [existing] });
+  const baseRow = {
+    id: 'r2',
+    requested_by: 'uuid-alice',
+    date: '2026-04-20',
+    start_time: null,
+    end_time: null,
+    note: '',
+    status: 'pending',
+    created_at: '2026-04-18T11:00:00Z',
+  };
 
-    await expect(
-      useParkingStore.getState().addReservation(
+  it('adds reservation to store state on success (happy path)', async () => {
+    useParkingStore.setState({ reservations: [] });
+    mockFrom.mockReturnValue(ok(baseRow));
+
+    const id = await useParkingStore
+      .getState()
+      .addReservation(
         { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
         'Alice',
         'house-1'
-      )
-    ).rejects.toThrow('This date is already reserved');
+      );
 
-    expect(mockFrom).not.toHaveBeenCalled(); // should not reach DB
-  });
-
-  it('⚠️ BUG: conflict check uses stale local state — another user booking same date concurrently is not caught', async () => {
-    // Local state shows no reservations, but another user just booked the same date.
-    // The client-side check passes and we hit the DB — only a server-side unique
-    // constraint would prevent a double booking, which does not exist.
-    useParkingStore.setState({ reservations: [] }); // locally looks free
-    const insertedRow = {
-      id: 'r2', requested_by: 'Alice', date: '2026-04-20',
-      start_time: null, end_time: null, note: '', status: 'pending',
-      created_at: '2026-04-18T11:00:00Z',
-    };
-    mockFrom.mockReturnValue(ok(insertedRow));
-
-    // This succeeds even though another user may have booked simultaneously
-    const id = await useParkingStore.getState().addReservation(
-      { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
-      'Alice',
-      'house-1'
+    expect(id).toBe('r2');
+    expect(useParkingStore.getState().reservations).toContainEqual(
+      expect.objectContaining({ id: 'r2', date: '2026-04-20', status: 'pending' })
     );
-
-    expect(id).toBe('r2'); // request goes through — race window exists
   });
 
-  it('throws when DB insert fails', async () => {
+  it('maps timed start/end fields correctly', async () => {
+    useParkingStore.setState({ reservations: [] });
+    const timedRow = {
+      ...baseRow,
+      id: 'r3',
+      start_time: '09:00',
+      end_time: '11:00',
+      note: 'dentist',
+    };
+    mockFrom.mockReturnValue(ok(timedRow));
+
+    await useParkingStore
+      .getState()
+      .addReservation(
+        {
+          requestedBy: 'uuid-alice',
+          date: '2026-04-20',
+          startTime: '09:00',
+          endTime: '11:00',
+          note: 'dentist',
+        },
+        'Alice',
+        'house-1'
+      );
+
+    // Read-path: camelCase fields mapped correctly in store state
+    expect(useParkingStore.getState().reservations[0]).toMatchObject({
+      startTime: '09:00',
+      endTime: '11:00',
+      note: 'dentist',
+    });
+
+    // Write-path: snake_case fields sent to DB
+    const insertMock = (mockFrom.mock.results[0].value as Record<string, jest.Mock>).insert;
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ start_time: '09:00', end_time: '11:00' })
+    );
+  });
+
+  it('throws generic message when DB insert fails', async () => {
     useParkingStore.setState({ reservations: [] });
     mockFrom.mockReturnValue(fail('DB error'));
 
     await expect(
-      useParkingStore.getState().addReservation(
-        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
-        'Alice',
-        'house-1'
-      )
+      useParkingStore
+        .getState()
+        .addReservation(
+          { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+          'Alice',
+          'house-1'
+        )
     ).rejects.toThrow('Could not save the reservation. Please try again.');
 
     expect(useParkingStore.getState().reservations).toHaveLength(0);
   });
 
-  it('adds reservation to state on success', async () => {
+  it('throws when houseId is empty', async () => {
+    await expect(
+      useParkingStore
+        .getState()
+        .addReservation({ requestedBy: 'uuid-alice', date: '2026-04-20', note: '' }, 'Alice', '')
+    ).rejects.toThrow(/profile loads/i);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('resolves and saves reservation even when notifyHousemates rejects', async () => {
     useParkingStore.setState({ reservations: [] });
-    const row = {
-      id: 'r3', requested_by: 'Alice', date: '2026-04-25',
-      start_time: null, end_time: null, note: 'dentist', status: 'pending',
-      created_at: '2026-04-18T12:00:00Z',
+    const notifyRow = { ...baseRow, id: 'r4', date: '2026-04-26' };
+    mockFrom.mockReturnValue(ok(notifyRow));
+    const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as {
+      notifyHousemates: jest.Mock;
     };
-    mockFrom.mockReturnValue(ok(row));
+    notifyMock.mockRejectedValueOnce(new Error('push failed'));
 
-    await useParkingStore.getState().addReservation(
-      { requestedBy: 'uuid-alice', date: '2026-04-25', note: 'dentist' },
-      'Alice',
-      'house-1'
+    const id = await useParkingStore
+      .getState()
+      .addReservation(
+        { requestedBy: 'uuid-alice', date: '2026-04-26', note: '' },
+        'Alice',
+        'house-1'
+      );
+
+    expect(id).toBe('r4');
+    expect(useParkingStore.getState().reservations).toContainEqual(
+      expect.objectContaining({ id: 'r4', status: 'pending' })
     );
-
-    expect(useParkingStore.getState().reservations).toHaveLength(1);
-    expect(useParkingStore.getState().reservations[0].status).toBe('pending');
   });
 });
 
@@ -293,7 +465,9 @@ describe('parkingStore — checkReservationAutoApply', () => {
     const todayStr = localDateStr();
     useParkingStore.setState({
       current: null,
-      reservations: [reservation({ status: 'approved', date: todayStr, startTime: '00:00', endTime: '23:59' })],
+      reservations: [
+        reservation({ status: 'approved', date: todayStr, startTime: '00:00', endTime: '23:59' }),
+      ],
     });
 
     // Server says there IS already an active session (another user claimed since load)
@@ -310,12 +484,18 @@ describe('parkingStore — checkReservationAutoApply', () => {
     useParkingStore.setState({
       current: null,
       reservations: [
-        reservation({ status: 'approved', date: todayStr, startTime: '00:00', endTime: '23:59', requestedBy: 'Carol' }),
+        reservation({
+          status: 'approved',
+          date: todayStr,
+          startTime: '00:00',
+          endTime: '23:59',
+          requestedBy: 'Carol',
+        }),
       ],
     });
 
     mockFrom
-      .mockReturnValueOnce(ok(null))  // server check: no active session
+      .mockReturnValueOnce(ok(null)) // server check: no active session
       .mockReturnValueOnce(ok({ id: 'ps-new', occupant: 'Carol', start_time: '00:00' })); // insert
 
     await useParkingStore.getState().checkReservationAutoApply('house-1');
@@ -354,17 +534,16 @@ describe('parkingStore — voteOnReservation', () => {
     });
     mockFrom
       .mockReturnValueOnce(ok())
-      .mockReturnValueOnce(ok([
-        { user_id: 'u1', vote: 'approve' },
-        { user_id: 'u2', vote: 'reject' },
-        { user_id: 'u3', vote: 'approve' },
-      ]))
-      .mockReturnValueOnce(ok([
-        { user_id: 'requester' },
-        { user_id: 'u1' },
-        { user_id: 'u2' },
-        { user_id: 'u3' },
-      ]))
+      .mockReturnValueOnce(
+        ok([
+          { user_id: 'u1', vote: 'approve' },
+          { user_id: 'u2', vote: 'reject' },
+          { user_id: 'u3', vote: 'approve' },
+        ])
+      )
+      .mockReturnValueOnce(
+        ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }, { user_id: 'u3' }])
+      )
       .mockReturnValueOnce(ok([{ id: 'r1' }]));
 
     const status = await useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1');
@@ -438,9 +617,9 @@ describe('parkingStore — cancelReservation', () => {
     useParkingStore.setState({ reservations: [reservation({ id: 'r1' })], current: null });
     mockFrom.mockReturnValue(fail('network error'));
 
-    await expect(
-      useParkingStore.getState().cancelReservation('r1', 'house-1')
-    ).rejects.toThrow('Could not cancel the reservation. Please try again.');
+    await expect(useParkingStore.getState().cancelReservation('r1', 'house-1')).rejects.toThrow(
+      'Could not cancel the reservation. Please try again.'
+    );
 
     expect(useParkingStore.getState().reservations).toHaveLength(1); // unchanged
   });

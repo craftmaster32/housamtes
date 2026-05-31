@@ -363,7 +363,13 @@
     "spot_open_hint": "תפוס לפני מישהו אחר.",
     "claimed_at": "נתפסה ב-{{time}} · {{hours}} {{mins}}",
     "parked_since": "חונה מאז {{time}} · {{hours}} {{mins}}",
-    "note_hint": "הוסף מידע שימושי לשאר בני הבית"
+    "note_hint": "הוסף מידע שימושי לשאר בני הבית",
+    "you": "אתה",
+    "no_reservations_day": "אין הזמנות ביום זה.",
+    "clear_all": "נקה הכל",
+    "clear_all_confirm_title": "לנקות את כל ההיסטוריה?",
+    "clear_all_confirm_msg": "פעולה זו תמחק לצמיתות את כל ההזמנות שעברו. לא ניתן לשחזר.",
+    "error_clear_all_failed": "לא ניתן לנקות את ההיסטוריה"
   },
   "grocery": {
     "title": "רשימת קניות",
@@ -522,7 +528,17 @@
     "report_message": "לדווח על תמונה זו של {{name}} כתוכן לא הולם?",
     "report_action": "דווח",
     "report_submitted_title": "הדיווח נשלח",
-    "report_submitted_message": "הצוות שלנו יבדוק את הנושא תוך 48 שעות."
+    "report_submitted_message": "הצוות שלנו יבדוק את הנושא תוך 48 שעות.",
+    "download_photo": "שמור לטלפון",
+    "downloading": "שומר…",
+    "download_success_title": "נשמר!",
+    "download_success": "התמונה נשמרה לגלריה.",
+    "download_error": "לא ניתן לשמור את התמונה. נסה שוב.",
+    "download_permission_denied": "אפשר ל-HouseMates גישה לגלריה בהגדרות.",
+    "photos_selected_one": "1 נבחרה",
+    "photos_selected_other": "{{count}} נבחרו",
+    "download_all_success_one": "תמונה אחת נשמרה לגלריה.",
+    "download_all_success_other": "{{count}} תמונות נשמרו לגלריה."
   },
   "profile": {
     "account_section": "חשבון",

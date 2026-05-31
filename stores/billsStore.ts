@@ -7,15 +7,25 @@ import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 
 export const CATEGORIES = [
-  'Rent', 'Groceries', 'Food', 'Transport', 'Utilities',
-  'Internet', 'Phone', 'Entertainment', 'Health', 'Shopping', 'Travel', 'Other',
+  'Rent',
+  'Groceries',
+  'Food',
+  'Transport',
+  'Utilities',
+  'Internet',
+  'Phone',
+  'Entertainment',
+  'Health',
+  'Shopping',
+  'Travel',
+  'Other',
 ];
 
 export interface Bill {
   id: string;
   title: string;
   amount: number;
-  paidBy: string;        // user UUID
+  paidBy: string; // user UUID
   splitBetween: string[]; // user UUIDs
   splitAmounts: Record<string, number> | null; // null = equal split; keys are user UUIDs
   category: string;
@@ -38,9 +48,22 @@ interface BillsStore {
   error: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addBill: (bill: Omit<Bill, 'id' | 'createdAt' | 'settled' | 'settledBy' | 'settledAt' | 'notes'> & { notes?: string }, houseId: string) => Promise<void>;
-  editBill: (id: string, updates: { title: string; amount: number; date: string; notes: string; category: string }) => Promise<void>;
-  settleBill: (id: string, settledByUserId: string, settledByName: string, houseId: string) => Promise<void>;
+  addBill: (
+    bill: Omit<Bill, 'id' | 'createdAt' | 'settled' | 'settledBy' | 'settledAt' | 'notes'> & {
+      notes?: string;
+    },
+    houseId: string
+  ) => Promise<void>;
+  editBill: (
+    id: string,
+    updates: { title: string; amount: number; date: string; notes: string; category: string }
+  ) => Promise<void>;
+  settleBill: (
+    id: string,
+    settledByUserId: string,
+    settledByName: string,
+    houseId: string
+  ) => Promise<void>;
   deleteBill: (id: string, houseId: string) => Promise<void>;
 }
 
@@ -86,15 +109,25 @@ export const useBillsStore = create<BillsStore>()(
           set({ isLoading: false, error: 'Could not load bills. Please try again.' });
         }
 
-        if (_channel) { supabase.removeChannel(_channel); }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
         _channel = supabase
           .channel(`bills:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'bills', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'bills', filter: `house_id=eq.${houseId}` },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+        }
       },
       addBill: async (data, houseId): Promise<void> => {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -114,7 +147,10 @@ export const useBillsStore = create<BillsStore>()(
           })
           .select()
           .single();
-        if (error) { captureError(error, { context: 'add-bill', houseId }); throw new Error('Could not save the bill. Please try again.'); }
+        if (error) {
+          captureError(error, { context: 'add-bill', houseId, userId });
+          throw new Error('Could not save the bill. Please try again.');
+        }
         const bill: Bill = {
           id: inserted.id,
           title: inserted.title,
@@ -135,8 +171,8 @@ export const useBillsStore = create<BillsStore>()(
           notifyHousemates({
             houseId,
             excludeUserId: userId,
-            title: '💰 New bill added',
-            body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}`,
+            title: '💸 New expense dropped',
+            body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}. Time to split! 🤝`,
             data: { screen: 'bills' },
             notificationType: 'bill_added',
           });
@@ -145,12 +181,30 @@ export const useBillsStore = create<BillsStore>()(
       editBill: async (id, updates): Promise<void> => {
         const { error } = await supabase
           .from('bills')
-          .update({ title: updates.title, amount: updates.amount, date: updates.date, notes: updates.notes, category: updates.category })
+          .update({
+            title: updates.title,
+            amount: updates.amount,
+            date: updates.date,
+            notes: updates.notes,
+            category: updates.category,
+          })
           .eq('id', id);
-        if (error) { captureError(error, { context: 'edit-bill', billId: id }); throw new Error('Could not update the bill. Please try again.'); }
+        if (error) {
+          captureError(error, { context: 'edit-bill', billId: id });
+          throw new Error('Could not update the bill. Please try again.');
+        }
         set({
           bills: get().bills.map((b) =>
-            b.id === id ? { ...b, title: updates.title, amount: updates.amount, date: updates.date, notes: updates.notes, category: updates.category } : b
+            b.id === id
+              ? {
+                  ...b,
+                  title: updates.title,
+                  amount: updates.amount,
+                  date: updates.date,
+                  notes: updates.notes,
+                  category: updates.category,
+                }
+              : b
           ),
         });
       },
@@ -163,7 +217,15 @@ export const useBillsStore = create<BillsStore>()(
           .from('bills')
           .update({ settled: true, settled_by: settledByUserId, settled_at: now })
           .eq('id', id);
-        if (error) { captureError(error, { context: 'settle-bill', billId: id }); throw new Error('Could not settle the bill. Please try again.'); }
+        if (error) {
+          captureError(error, {
+            context: 'settle-bill',
+            billId: id,
+            houseId,
+            userId: settledByUserId,
+          });
+          throw new Error('Could not settle the bill. Please try again.');
+        }
         set({
           bills: get().bills.map((b) =>
             b.id === id ? { ...b, settled: true, settledBy: settledByUserId, settledAt: now } : b
@@ -173,34 +235,35 @@ export const useBillsStore = create<BillsStore>()(
           notifyHousemates({
             houseId,
             excludeUserId: settledByUserId,
-            title: '✅ Bill settled',
-            body: `${bill.title} marked as settled by ${settledByName}`,
+            title: '🎉 Money drama resolved!',
+            body: `${bill.title} sorted. ${settledByName} saves the day 🙌`,
             data: { screen: 'bills' },
-            notificationType: 'bill_deleted',
+            notificationType: 'bill_settled',
           });
         }
       },
       deleteBill: async (id, houseId): Promise<void> => {
         const bill = get().bills.find((b) => b.id === id);
         if (bill?.settled) {
-          throw new Error(
-            'Settled bills cannot be deleted — settlement history is permanent.'
-          );
+          throw new Error('Settled bills cannot be deleted — settlement history is permanent.');
         }
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userId = sessionData.session?.user.id ?? '';
         const { error } = await supabase.from('bills').delete().eq('id', id);
-        if (error) { captureError(error, { context: 'delete-bill', billId: id }); throw new Error('Could not delete the bill. Please try again.'); }
+        if (error) {
+          captureError(error, { context: 'delete-bill', billId: id, houseId, userId });
+          throw new Error('Could not delete the bill. Please try again.');
+        }
         set({ bills: get().bills.filter((b) => b.id !== id) });
         if (bill) {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const userId = sessionData.session?.user.id ?? '';
           if (userId) {
             notifyHousemates({
               houseId,
               excludeUserId: userId,
-              title: '🗑️ Bill removed',
-              body: `${bill.title} was deleted`,
+              title: '🗑️ Bill gone poof',
+              body: `${bill.title} was removed. Pretend it never happened.`,
               data: { screen: 'bills' },
-              notificationType: 'bill_settled',
+              notificationType: 'bill_deleted',
             });
           }
         }
@@ -227,7 +290,7 @@ export function calculateAllNetBalances(bills: Bill[]): Map<string, number> {
 
 export interface Settlement {
   from: string; // user UUID
-  to: string;   // user UUID
+  to: string; // user UUID
   amount: number;
 }
 
@@ -241,7 +304,8 @@ export function settleDebts(netBalances: Map<string, number>): Settlement[] {
   pos.sort((a, b) => b.amount - a.amount);
   neg.sort((a, b) => b.amount - a.amount);
   const result: Settlement[] = [];
-  let i = 0, j = 0;
+  let i = 0,
+    j = 0;
   while (i < pos.length && j < neg.length) {
     const transfer = Math.min(pos[i].amount, neg[j].amount);
     result.push({ from: neg[j].person, to: pos[i].person, amount: transfer });
@@ -258,9 +322,16 @@ export function getPersonShare(bill: Bill, person: string): number {
     return bill.splitAmounts[person];
   }
   if (bill.splitBetween.length === 0) return 0;
-  // Work in whole cents to avoid floating-point errors; payer absorbs any remainder
+  const n = bill.splitBetween.length;
   const totalCents = Math.round(bill.amount * 100);
-  return Math.floor(totalCents / bill.splitBetween.length) / 100;
+  const baseCents = Math.floor(totalCents / n);
+  const remainderCents = totalCents - baseCents * n;
+  // Distribute remainder cents to the first N people in deterministic sort order
+  // so shares always sum exactly to the bill total (no lost pennies).
+  const sorted = [...bill.splitBetween].sort();
+  const personIndex = sorted.indexOf(person);
+  const extraCent = personIndex >= 0 && personIndex < remainderCents ? 1 : 0;
+  return (baseCents + extraCent) / 100;
 }
 
 /**

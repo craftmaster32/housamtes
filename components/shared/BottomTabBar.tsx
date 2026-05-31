@@ -8,9 +8,12 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useMorePopupStore } from '@stores/morePopupStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
-import { useBadgeStore, countNewSimple } from '@stores/badgeStore';
+import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useParkingStore } from '@stores/parkingStore';
+import { useGroceryStore } from '@stores/groceryStore';
+import { useChoresStore } from '@stores/choresStore';
+import { useVotingStore } from '@stores/votingStore';
 import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
@@ -26,52 +29,99 @@ interface TabItem {
 }
 
 const TABS: TabItem[] = [
-  { id: 'dashboard', icon: 'home-outline',     iconActive: 'home',     label: 'Home',    route: '/(tabs)/dashboard' },
-  { id: 'bills',     icon: 'card-outline',      iconActive: 'card',     label: 'Bills',   route: '/(tabs)/bills' },
-  { id: 'parking',   icon: 'car-outline',        iconActive: 'car',      label: 'Parking', route: '/(tabs)/parking' },
-  { id: 'more',      icon: 'grid-outline',       iconActive: 'grid',     label: 'More',    route: '' },
+  {
+    id: 'dashboard',
+    icon: 'home-outline',
+    iconActive: 'home',
+    label: 'Home',
+    route: '/(tabs)/dashboard',
+  },
+  { id: 'bills', icon: 'card-outline', iconActive: 'card', label: 'Bills', route: '/(tabs)/bills' },
+  {
+    id: 'parking',
+    icon: 'car-outline',
+    iconActive: 'car',
+    label: 'Parking',
+    route: '/(tabs)/parking',
+  },
+  { id: 'more', icon: 'grid-outline', iconActive: 'grid', label: 'More', route: '' },
 ];
 
 export function BottomTabBar(): React.JSX.Element {
-  const { t }    = useTranslation();
-  const c        = useColors();
+  const { t } = useTranslation();
+  const c = useColors();
 
   const tabLabels: Record<string, string> = {
     dashboard: t('nav.dashboard'),
-    bills:     t('nav.bills'),
-    parking:   t('nav.parking'),
-    more:      t('nav.more'),
+    bills: t('nav.bills'),
+    parking: t('nav.parking'),
+    more: t('nav.more'),
   };
-  const insets   = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const openMore     = useMorePopupStore((s) => s.open);
-  const closeMore    = useMorePopupStore((s) => s.close);
+  const openMore = useMorePopupStore((s) => s.open);
+  const closeMore = useMorePopupStore((s) => s.close);
   const closeProfile = useProfilePopupStore((s) => s.close);
 
-  const bills        = useBillsStore((s) => s.bills);
-  const lastSeen     = useBadgeStore((s) => s.lastSeen);
-  const billBadge    = countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills);
+  const bills = useBillsStore((s) => s.bills);
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
+  const billBadge = countNewSimple(
+    bills.filter((b) => !b.settled),
+    lastSeen.bills
+  );
   const reservations = useParkingStore((s) => s.reservations);
-  const myId         = useAuthStore((s) => s.profile?.id);
-  const parkingBadge = myId ? reservations.filter(
-    (r) => r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId)
-  ).length : 0;
+  const items = useGroceryStore((s) => s.items);
+  const chores = useChoresStore((s) => s.chores);
+  const proposals = useVotingStore((s) => s.proposals);
+  const myId = useAuthStore((s) => s.profile?.id);
+  const parkingBadge = myId
+    ? reservations.filter(
+        (r) =>
+          r.status === 'pending' &&
+          r.requestedBy !== myId &&
+          !r.votes.some((v) => v.userId === myId)
+      ).length
+    : 0;
+  const groceryBadge = myId
+    ? countNew(
+        items.filter((i) => !i.isDraft && !i.isChecked),
+        lastSeen.grocery,
+        myId,
+        'addedBy'
+      )
+    : 0;
+  const choresBadge = countNewSimple(
+    chores.filter((c) => !c.isComplete),
+    lastSeen.chores
+  );
+  const votingBadge = myId
+    ? proposals.filter(
+        (p) => p.isOpen && p.createdBy !== myId && !p.votes.some((v) => v.person === myId)
+      ).length
+    : 0;
+  const moreBadge = groceryBadge + choresBadge + votingBadge;
 
-  const isActive = useCallback((id: string): boolean => {
-    if (id === 'more') return false;
-    return pathname.includes(`/${id}`);
-  }, [pathname]);
+  const isActive = useCallback(
+    (id: string): boolean => {
+      if (id === 'more') return false;
+      return pathname.includes(`/${id}`);
+    },
+    [pathname]
+  );
 
-  const handleTab = useCallback((tab: TabItem): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    closeMore();
-    closeProfile();
-    if (tab.id === 'more') {
-      openMore();
-    } else {
-      router.navigate(tab.route as Parameters<typeof router.navigate>[0]);
-    }
-  }, [openMore, closeMore, closeProfile]);
+  const handleTab = useCallback(
+    (tab: TabItem): void => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      closeMore();
+      closeProfile();
+      if (tab.id === 'more') {
+        openMore();
+      } else {
+        router.navigate(tab.route as Parameters<typeof router.navigate>[0]);
+      }
+    },
+    [openMore, closeMore, closeProfile]
+  );
 
   const handleAdd = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -80,19 +130,22 @@ export function BottomTabBar(): React.JSX.Element {
     router.push('/(tabs)/bills/add');
   }, [closeMore, closeProfile]);
 
-  const bg          = c.background;
+  const bg = c.background;
   const borderColor = c.border;
   const bottomInset = Math.max(insets.bottom, 12);
 
   return (
-    <View style={[
-      styles.container,
-      { backgroundColor: bg, borderTopColor: borderColor, paddingBottom: bottomInset },
-    ]} testID="bottom-tab-bar">
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: bg, borderTopColor: borderColor, paddingBottom: bottomInset },
+      ]}
+      testID="bottom-tab-bar"
+    >
       {/* Left two tabs */}
       {TABS.slice(0, 2).map((tab) => {
         const active = isActive(tab.id);
-        const badge  = tab.id === 'bills' ? billBadge : 0;
+        const badge = tab.id === 'bills' ? billBadge : 0;
         return (
           <Pressable
             key={tab.id}
@@ -111,11 +164,19 @@ export function BottomTabBar(): React.JSX.Element {
               />
               {badge > 0 && (
                 <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
-                  <Text style={[styles.badgeText, { color: c.white }]}>{badge > 9 ? '9+' : String(badge)}</Text>
+                  <Text style={[styles.badgeText, { color: c.white }]}>
+                    {badge > 9 ? '9+' : String(badge)}
+                  </Text>
                 </View>
               )}
             </View>
-            <Text style={[styles.label, { color: active ? c.primary : c.textSecondary }, active && styles.labelActive]}>
+            <Text
+              style={[
+                styles.label,
+                { color: active ? c.primary : c.textSecondary },
+                active && styles.labelActive,
+              ]}
+            >
               {tabLabels[tab.id]}
             </Text>
           </Pressable>
@@ -139,7 +200,7 @@ export function BottomTabBar(): React.JSX.Element {
       {/* Right two tabs */}
       {TABS.slice(2).map((tab) => {
         const active = isActive(tab.id);
-        const badge  = tab.id === 'parking' ? parkingBadge : 0;
+        const badge = tab.id === 'parking' ? parkingBadge : tab.id === 'more' ? moreBadge : 0;
         return (
           <Pressable
             key={tab.id}
@@ -158,11 +219,19 @@ export function BottomTabBar(): React.JSX.Element {
               />
               {badge > 0 && (
                 <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
-                  <Text style={[styles.badgeText, { color: c.white }]}>{badge > 9 ? '9+' : String(badge)}</Text>
+                  <Text style={[styles.badgeText, { color: c.white }]}>
+                    {badge > 9 ? '9+' : String(badge)}
+                  </Text>
                 </View>
               )}
             </View>
-            <Text style={[styles.label, { color: active ? c.primary : c.textSecondary }, active && styles.labelActive]}>
+            <Text
+              style={[
+                styles.label,
+                { color: active ? c.primary : c.textSecondary },
+                active && styles.labelActive,
+              ]}
+            >
               {tabLabels[tab.id]}
             </Text>
           </Pressable>

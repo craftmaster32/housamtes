@@ -7,6 +7,7 @@ import {
   Dimensions,
   Modal,
   Alert,
+  ActivityIndicator,
   type ListRenderItemInfo,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
@@ -18,6 +19,7 @@ import { captureError } from '@lib/errorTracking';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
 import type { Photo } from '@stores/photoStore';
 
 const { width: SW } = Dimensions.get('window');
@@ -45,15 +47,30 @@ const makeStyles = (C: ColorTokens) =>
       paddingHorizontal: sizes.lg,
       zIndex: 10,
     },
+    topBarSide: {
+      width: 44,
+      height: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     closeBtn: {
       width: 44,
       height: 44,
       borderRadius: 22,
-      backgroundColor: 'rgba(255,255,255,0.18)',
+      backgroundColor: 'rgba(0,0,0,0.6)',
       justifyContent: 'center',
       alignItems: 'center',
     },
     closeTxt: { color: '#fff', fontSize: 18, ...font.bold },
+    downloadBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    downloadTxt: { fontSize: 18 },
     counter: { color: 'rgba(255,255,255,0.65)', fontSize: 14, ...font.medium },
     list: { flex: 1 },
     slide: { width: SW, flex: 1, justifyContent: 'center' },
@@ -89,6 +106,7 @@ export function PhotoViewer({
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [isDownloading, setIsDownloading] = useState(false);
   const listRef = useRef<FlatList<Photo>>(null);
 
   const photo = photos[currentIndex];
@@ -116,47 +134,54 @@ export function PhotoViewer({
     []
   );
 
-  const onMomentumScrollEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const idx = Math.round(e.nativeEvent.contentOffset.x / SW);
-      setCurrentIndex(idx);
-    },
-    []
-  );
+  const onMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / SW);
+    setCurrentIndex(idx);
+  }, []);
+
+  const handleDownload = useCallback(async (): Promise<void> => {
+    if (!photo || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      await downloadPhotoToLibrary(photo.url);
+      Alert.alert(t('photos.download_success_title'), t('photos.download_success'));
+    } catch (err) {
+      const isPermission = err instanceof Error && err.name === 'permission_denied';
+      Alert.alert(
+        t('common.error', 'Error'),
+        isPermission ? t('photos.download_permission_denied') : t('photos.download_error')
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [photo, isDownloading, t]);
 
   const handleReport = useCallback((): void => {
     if (!photo) return;
-    Alert.alert(
-      t('photos.report_title'),
-      t('photos.report_message', { name: photo.uploadedBy }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('photos.report_action'),
-          style: 'destructive',
-          onPress: (): void => {
-            captureError(new Error('User photo report'), {
-              type: 'photo_report',
-              reportedPhotoId: photo.id,
-              reportedUploader: photo.uploadedBy,
-              reporterUserId: currentUserId ?? '',
-              houseId: houseId ?? '',
-            });
-            Alert.alert(
-              t('photos.report_submitted_title'),
-              t('photos.report_submitted_message'),
-              [{ text: t('common.ok') }]
-            );
-          },
+    Alert.alert(t('photos.report_title'), t('photos.report_message', { name: photo.uploadedBy }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('photos.report_action'),
+        style: 'destructive',
+        onPress: (): void => {
+          captureError(new Error('User photo report'), {
+            type: 'photo_report',
+            reportedPhotoId: photo.id,
+            reportedUploader: photo.uploadedBy,
+            reporterUserId: currentUserId ?? '',
+            houseId: houseId ?? '',
+          });
+          Alert.alert(t('photos.report_submitted_title'), t('photos.report_submitted_message'), [
+            { text: t('common.ok') },
+          ]);
         },
-      ]
-    );
+      },
+    ]);
   }, [photo, currentUserId, houseId, t]);
 
-  const handleDelete = useCallback(
-    () => { if (photo) onDelete(photo); },
-    [onDelete, photo]
-  );
+  const handleDelete = useCallback(() => {
+    if (photo) onDelete(photo);
+  }, [onDelete, photo]);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -171,11 +196,30 @@ export function PhotoViewer({
           >
             <Text style={styles.closeTxt}>✕</Text>
           </Pressable>
-          {photos.length > 1 && (
+
+          {photos.length > 1 ? (
             <Text style={styles.counter}>
               {currentIndex + 1} / {photos.length}
             </Text>
+          ) : (
+            <View />
           )}
+
+          <Pressable
+            style={styles.downloadBtn}
+            onPress={handleDownload}
+            disabled={isDownloading}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('photos.download_photo')}
+            accessibilityState={{ busy: isDownloading, disabled: isDownloading }}
+          >
+            {isDownloading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.downloadTxt}>⬇️</Text>
+            )}
+          </Pressable>
         </View>
 
         <FlatList
@@ -194,9 +238,7 @@ export function PhotoViewer({
 
         {!!photo && (
           <View style={styles.meta}>
-            {!!photo.caption && (
-              <Text style={styles.caption}>{photo.caption}</Text>
-            )}
+            {!!photo.caption && <Text style={styles.caption}>{photo.caption}</Text>}
             <Text style={styles.info}>
               {photo.uploadedBy} · {new Date(photo.createdAt).toLocaleDateString()}
             </Text>
