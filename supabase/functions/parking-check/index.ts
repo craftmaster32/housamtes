@@ -309,8 +309,18 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
     // ── Process each house using its own local timezone ──────────────────────────
     for (const [houseId, houseReservations] of byHouse) {
-      const tz = houseTimezone.get(houseId) ?? 'UTC';
-      const { nowMins, today, tomorrow } = getLocalContext(tz);
+      let tz = houseTimezone.get(houseId) ?? 'UTC';
+      let localCtx: ReturnType<typeof getLocalContext>;
+      try {
+        localCtx = getLocalContext(tz);
+      } catch {
+        console.error(
+          `[parking-check] invalid timezone "${tz}" for house ${houseId}, falling back to UTC`
+        );
+        tz = 'UTC';
+        localCtx = getLocalContext('UTC');
+      }
+      const { nowMins, today, tomorrow } = localCtx;
       const session = sessionByHouse.get(houseId);
 
       for (const r of houseReservations) {

@@ -244,7 +244,16 @@ function ReservationCard({
   const housemates = useHousematesStore((s) => s.housemates);
   const allReservations = useParkingStore((s) => s.reservations);
   const sameDayDots = useMemo(
-    () => allReservations.filter((r) => r.date === item.date).slice(0, 4),
+    () =>
+      allReservations
+        .filter((r) => r.date === item.date)
+        .sort((a, b) => {
+          if (!a.startTime && !b.startTime) return 0;
+          if (!a.startTime) return 1;
+          if (!b.startTime) return -1;
+          return a.startTime.localeCompare(b.startTime);
+        })
+        .slice(0, 4),
     [allReservations, item.date]
   );
   const isOwn = item.requestedBy === currentUserId;
