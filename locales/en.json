@@ -354,7 +354,12 @@
     "failed_release": "Failed to release spot",
     "failed_reservation": "Failed to add reservation",
     "admin_free_spot": "Free the spot",
-    "no_reservations_day": "No reservations on this day."
+    "you": "You",
+    "no_reservations_day": "No reservations on this day.",
+    "clear_all": "Clear All",
+    "clear_all_confirm_title": "Clear all history?",
+    "clear_all_confirm_msg": "This will permanently remove all past reservations. This can't be undone.",
+    "error_clear_all_failed": "Could not clear history"
   },
   "grocery": {
     "title": "Grocery List",

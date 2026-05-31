@@ -342,7 +342,12 @@
     "failed_release": "No se pudo liberar la plaza",
     "failed_reservation": "No se pudo agregar la reserva",
     "admin_free_spot": "Liberar la plaza",
-    "no_reservations_day": "Sin reservas para este día."
+    "you": "Tú",
+    "no_reservations_day": "Sin reservas para este día.",
+    "clear_all": "Borrar Todo",
+    "clear_all_confirm_title": "¿Borrar todo el historial?",
+    "clear_all_confirm_msg": "Se eliminarán permanentemente todas las reservas pasadas. No se puede deshacer.",
+    "error_clear_all_failed": "No se pudo borrar el historial"
   },
   "grocery": {
     "title": "Lista de compras",

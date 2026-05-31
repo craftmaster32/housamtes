@@ -342,7 +342,12 @@
     "failed_release": "שחרור החניה נכשל",
     "failed_reservation": "הוספת ההזמנה נכשלה",
     "admin_free_spot": "שחרר את החניה",
-    "no_reservations_day": "אין הזמנות ביום זה."
+    "you": "אתה",
+    "no_reservations_day": "אין הזמנות ביום זה.",
+    "clear_all": "נקה הכל",
+    "clear_all_confirm_title": "לנקות את כל ההיסטוריה?",
+    "clear_all_confirm_msg": "פעולה זו תמחק לצמיתות את כל ההזמנות שעברו. לא ניתן לשחזר.",
+    "error_clear_all_failed": "לא ניתן לנקות את ההיסטוריה"
   },
   "grocery": {
     "title": "רשימת קניות",
