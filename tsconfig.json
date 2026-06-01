@@ -8,46 +8,25 @@
     "noUnusedParameters": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@components/*": [
-        "components/*"
-      ],
-      "@hooks/*": [
-        "hooks/*"
-      ],
-      "@stores/*": [
-        "stores/*"
-      ],
-      "@types/*": [
-        "types/*"
-      ],
-      "@constants/*": [
-        "constants/*"
-      ],
-      "@utils/*": [
-        "utils/*"
-      ],
-      "@lib/*": [
-        "lib/*"
-      ],
-      "@locales/*": [
-        "locales/*"
-      ]
+      "@/*": ["./*"],
+      "@components/*": ["components/*"],
+      "@hooks/*": ["hooks/*"],
+      "@stores/*": ["stores/*"],
+      "@types/*": ["types/*"],
+      "@constants/*": ["constants/*"],
+      "@utils/*": ["utils/*"],
+      "@lib/*": ["lib/*"],
+      "@locales/*": ["locales/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.d.ts"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts"],
   "exclude": [
     "supabase/functions",
     "HouseMates Design System (2)",
     "handoff",
     "handoff-bills",
     "handoff-parking",
-    "handoff-spending"
+    "handoff-spending",
+    "handoff-darkmode"
   ]
 }
