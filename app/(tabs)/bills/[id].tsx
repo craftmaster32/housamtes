@@ -45,7 +45,12 @@ function formatDisplayDate(iso: string, locale: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return iso;
   const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
-  return d.toLocaleDateString(locale || undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString(locale || undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export default function BillDetailScreen(): React.JSX.Element {
@@ -54,25 +59,27 @@ export default function BillDetailScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
-  const isLoading   = useBillsStore((s) => s.isLoading);
-  const editBill    = useBillsStore((s) => s.editBill);
-  const settleBill  = useBillsStore((s) => s.settleBill);
-  const deleteBill  = useBillsStore((s) => s.deleteBill);
-  const profile     = useAuthStore((s) => s.profile);
-  const houseId     = useAuthStore((s) => s.houseId);
-  const role        = useAuthStore((s) => s.role);
-  const canDelete   = role === 'owner' || role === 'admin';
+  const isLoading = useBillsStore((s) => s.isLoading);
+  const editBill = useBillsStore((s) => s.editBill);
+  const deleteBill = useBillsStore((s) => s.deleteBill);
+  const houseId = useAuthStore((s) => s.houseId);
+  const role = useAuthStore((s) => s.role);
+  const canDelete = role === 'owner' || role === 'admin';
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const housemates   = useHousematesStore((s) => s.housemates);
-  const markSeen     = useBadgeStore((s) => s.markSeen);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const markSeen = useBadgeStore((s) => s.markSeen);
 
-  useFocusEffect(useCallback(() => { markSeen('bills').catch(() => {}); }, [markSeen]));
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('bills').catch(() => {});
+    }, [markSeen])
+  );
 
   const [isEditing, setIsEditing] = useState(false);
-  const [title, setTitle]   = useState(bill?.title ?? '');
+  const [title, setTitle] = useState(bill?.title ?? '');
   const [amount, setAmount] = useState(bill?.amount.toString() ?? '');
-  const [date, setDate]     = useState(bill?.date ?? '');
-  const [notes, setNotes]   = useState(bill?.notes ?? '');
+  const [date, setDate] = useState(bill?.date ?? '');
+  const [notes, setNotes] = useState(bill?.notes ?? '');
   const [category, setCategory] = useState(bill?.category ?? 'Other');
 
   // Sync form back to bill data when not editing (covers async load + cancel)
@@ -86,11 +93,10 @@ export default function BillDetailScreen(): React.JSX.Element {
     }
   }, [bill, isEditing]);
 
-  const [isSaving, setIsSaving]   = useState(false);
-  const [isSettling, setIsSettling] = useState(false);
-  const [error, setError]         = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const openDatePicker  = useCallback((): void => setShowDatePicker(true), []);
+  const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
   const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
 
   // Page fade-up on mount.
@@ -105,8 +111,14 @@ export default function BillDetailScreen(): React.JSX.Element {
 
   const handleSaveEdit = useCallback(async () => {
     const parsed = parseFloat(amount);
-    if (!title.trim()) { setError(t('bills.title_required')); return; }
-    if (isNaN(parsed) || parsed <= 0) { setError(t('bills.enter_valid_amount')); return; }
+    if (!title.trim()) {
+      setError(t('bills.title_required'));
+      return;
+    }
+    if (isNaN(parsed) || parsed <= 0) {
+      setError(t('bills.enter_valid_amount'));
+      return;
+    }
     if (!bill) return;
     try {
       setIsSaving(true);
@@ -119,18 +131,6 @@ export default function BillDetailScreen(): React.JSX.Element {
     }
   }, [bill, title, amount, date, notes, category, editBill, t]);
 
-  const handleSettle = useCallback(async () => {
-    if (!bill || !profile || !houseId) return;
-    try {
-      setIsSettling(true);
-      await settleBill(bill.id, profile.id, profile.name, houseId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('bills.failed_settle'));
-    } finally {
-      setIsSettling(false);
-    }
-  }, [bill, profile, houseId, settleBill, t]);
-
   const handleDelete = useCallback((): void => {
     if (!bill) return;
     Alert.alert(
@@ -139,7 +139,8 @@ export default function BillDetailScreen(): React.JSX.Element {
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: t('bills.delete_bill'), style: 'destructive',
+          text: t('bills.delete_bill'),
+          style: 'destructive',
           onPress: async (): Promise<void> => {
             try {
               await deleteBill(bill.id, houseId ?? '');
@@ -149,7 +150,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             }
           },
         },
-      ],
+      ]
     );
   }, [bill, houseId, deleteBill, t]);
 
@@ -163,7 +164,13 @@ export default function BillDetailScreen(): React.JSX.Element {
             icon="receipt-outline"
             title={isLoading ? 'Loading…' : t('bills.bill_not_found')}
             actionLabel={isLoading ? undefined : t('bills.back_to_bills')}
-            onAction={isLoading ? undefined : (): void => { router.replace('/(tabs)/bills'); }}
+            onAction={
+              isLoading
+                ? undefined
+                : (): void => {
+                    router.replace('/(tabs)/bills');
+                  }
+            }
           />
         </View>
       </SafeAreaView>
@@ -173,38 +180,53 @@ export default function BillDetailScreen(): React.JSX.Element {
   const isCustomSplit = !!bill.splitAmounts;
   const icon = CATEGORY_ICONS[(bill.category ?? '').toLowerCase()] ?? 'receipt-outline';
 
-  const editRight = !bill.settled && !isEditing ? (
-    <Pressable
-      onPress={() => setIsEditing(true)}
-      style={{ minWidth: 44, minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' }}
-      accessible
-      accessibilityRole="button"
-      accessibilityLabel={t('common.edit')}
-      accessibilityHint={t('common.edit_hint')}
-      accessibilityState={{ disabled: false }}
-    >
-      <Text style={[type.label, { color: C.primary }]}>{t('common.edit')}</Text>
-    </Pressable>
-  ) : isEditing ? (
-    <Pressable
-      onPress={() => { setIsEditing(false); setError(''); }}
-      style={{ minWidth: 44, minHeight: 44, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center' }}
-      accessible
-      accessibilityRole="button"
-      accessibilityLabel={t('common.cancel')}
-      accessibilityHint={t('common.cancel_hint')}
-      accessibilityState={{ disabled: false }}
-    >
-      <Text style={[type.label, { color: C.textSecondary }]}>{t('common.cancel')}</Text>
-    </Pressable>
-  ) : undefined;
+  const editRight =
+    !bill.settled && !isEditing ? (
+      <Pressable
+        onPress={() => setIsEditing(true)}
+        style={{
+          minWidth: 44,
+          minHeight: 44,
+          paddingHorizontal: 8,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={t('common.edit')}
+        accessibilityHint={t('common.edit_hint')}
+        accessibilityState={{ disabled: false }}
+      >
+        <Text style={[type.label, { color: C.primary }]}>{t('common.edit')}</Text>
+      </Pressable>
+    ) : isEditing ? (
+      <Pressable
+        onPress={() => {
+          setIsEditing(false);
+          setError('');
+        }}
+        style={{
+          minWidth: 44,
+          minHeight: 44,
+          paddingHorizontal: 8,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={t('common.cancel')}
+        accessibilityHint={t('common.cancel_hint')}
+        accessibilityState={{ disabled: false }}
+      >
+        <Text style={[type.label, { color: C.textSecondary }]}>{t('common.cancel')}</Text>
+      </Pressable>
+    ) : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Header title={isEditing ? t('bills.edit_bill') : 'Bill'} back right={editRight} />
       <Animated.View style={[styles.flex, fadeStyle]}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-
           {/* Status banner */}
           {bill.settled && (
             <Pill tone="success" size="md" icon="checkmark-circle-outline">
@@ -223,10 +245,14 @@ export default function BillDetailScreen(): React.JSX.Element {
                 <View style={[styles.heroIcon, { backgroundColor: 'rgba(255,255,255,0.16)' }]}>
                   <Ionicons name={icon} size={20} color="#fff" />
                 </View>
-                <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>{bill.category ?? 'Other'}</Text>
+                <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>
+                  {bill.category ?? 'Other'}
+                </Text>
               </View>
               <Text style={[type.title, { color: '#fff' }]}>{bill.title}</Text>
-              <Text style={[type.displayLg, { color: '#fff', letterSpacing: -0.8 }]}>{displayAmount}</Text>
+              <Text style={[type.displayLg, { color: '#fff', letterSpacing: -0.8 }]}>
+                {displayAmount}
+              </Text>
             </View>
           )}
 
@@ -236,7 +262,10 @@ export default function BillDetailScreen(): React.JSX.Element {
               <TextInput
                 label={t('bills.title_label')}
                 value={title}
-                onChangeText={(v) => { setTitle(v); setError(''); }}
+                onChangeText={(v) => {
+                  setTitle(v);
+                  setError('');
+                }}
                 mode="outlined"
                 style={styles.input}
                 outlineColor={C.border}
@@ -247,7 +276,10 @@ export default function BillDetailScreen(): React.JSX.Element {
               <TextInput
                 label={t('bills.amount_label')}
                 value={amount}
-                onChangeText={(v) => { setAmount(v); setError(''); }}
+                onChangeText={(v) => {
+                  setAmount(v);
+                  setError('');
+                }}
                 mode="outlined"
                 style={styles.input}
                 keyboardType="decimal-pad"
@@ -257,16 +289,23 @@ export default function BillDetailScreen(): React.JSX.Element {
                 accessibilityHint={t('bills.amount_hint')}
               />
               <View style={styles.dateField}>
-                <Text style={[type.captionMed, { color: C.textSecondary, marginLeft: 4 }]}>{t('bills.date_label')}</Text>
+                <Text style={[type.captionMed, { color: C.textSecondary, marginLeft: 4 }]}>
+                  {t('bills.date_label')}
+                </Text>
                 <Pressable
-                  style={[styles.dateTrigger, { backgroundColor: C.surface, borderColor: C.border }]}
+                  style={[
+                    styles.dateTrigger,
+                    { backgroundColor: C.surface, borderColor: C.border },
+                  ]}
                   onPress={openDatePicker}
                   accessibilityRole="button"
                   accessibilityLabel={t('bills.pick_date')}
                   accessibilityState={{ expanded: showDatePicker }}
                 >
                   <Ionicons name="calendar-outline" size={18} color={C.primary} />
-                  <Text style={[type.bodyMd, { color: C.textPrimary, flex: 1 }]}>{formatDisplayDate(date, i18n.language)}</Text>
+                  <Text style={[type.bodyMd, { color: C.textPrimary, flex: 1 }]}>
+                    {formatDisplayDate(date, i18n.language)}
+                  </Text>
                   <Ionicons name="chevron-down" size={16} color={C.textSecondary} />
                 </Pressable>
               </View>
@@ -285,8 +324,14 @@ export default function BillDetailScreen(): React.JSX.Element {
                 accessibilityHint={t('bills.notes_hint')}
               />
               <View style={styles.categoryField}>
-                <Text style={[type.captionMed, { color: C.textSecondary, marginLeft: 4 }]}>{t('bills.category')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+                <Text style={[type.captionMed, { color: C.textSecondary, marginLeft: 4 }]}>
+                  {t('bills.category')}
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryScroll}
+                >
                   {CATEGORIES.map((cat) => {
                     const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
                     const selected = category === cat;
@@ -304,14 +349,28 @@ export default function BillDetailScreen(): React.JSX.Element {
                 </ScrollView>
               </View>
               {!!error && <Text style={[type.bodySm, { color: C.danger }]}>{error}</Text>}
-              <Button variant="primary" onPress={handleSaveEdit} loading={isSaving} disabled={isSaving} fullWidth>
+              <Button
+                variant="primary"
+                onPress={handleSaveEdit}
+                loading={isSaving}
+                disabled={isSaving}
+                fullWidth
+              >
                 {t('common.save')}
               </Button>
             </View>
           ) : (
             <View style={styles.card}>
-              <MetaRow label={t('bills.date')} value={new Date(bill.date).toLocaleDateString()} C={C} />
-              <MetaRow label={t('bills.paid_by')} value={resolveName(bill.paidBy, housemates)} C={C} />
+              <MetaRow
+                label={t('bills.date')}
+                value={new Date(bill.date).toLocaleDateString()}
+                C={C}
+              />
+              <MetaRow
+                label={t('bills.paid_by')}
+                value={resolveName(bill.paidBy, housemates)}
+                C={C}
+              />
               {bill.notes ? (
                 <MetaRow label={t('bills.notes_label')} value={bill.notes} multiline C={C} />
               ) : null}
@@ -321,49 +380,39 @@ export default function BillDetailScreen(): React.JSX.Element {
           {/* Split breakdown */}
           {!isEditing && (
             <View style={styles.card}>
-              <Text style={[type.label, { color: C.textPrimary, marginBottom: 6 }]}>{t('bills.split_breakdown')}</Text>
+              <Text style={[type.label, { color: C.textPrimary, marginBottom: 6 }]}>
+                {t('bills.split_breakdown')}
+              </Text>
               <Text style={[type.bodySm, { color: C.textSecondary, marginBottom: 8 }]}>
-                {t('bills.total')} {formatFull(bill.amount, currencyCode)} · {isCustomSplit ? t('bills.custom_split') : `${t('bills.equal_split')} ${bill.splitBetween.length}`}
+                {t('bills.total')} {formatFull(bill.amount, currencyCode)} ·{' '}
+                {isCustomSplit
+                  ? t('bills.custom_split')
+                  : `${t('bills.equal_split')} ${bill.splitBetween.length}`}
               </Text>
               {bill.splitBetween.map((person) => (
                 <View key={person} style={styles.splitRow}>
                   <View style={[styles.splitDot, { backgroundColor: C.primary }]} />
-                  <Text style={[type.bodyMdMed, { color: C.textPrimary, flex: 1 }]}>{resolveName(person, housemates)}</Text>
-                  <Text style={[type.amount, { color: C.primary }]}>{formatFull(getPersonShare(bill, person), currencyCode)}</Text>
+                  <Text style={[type.bodyMdMed, { color: C.textPrimary, flex: 1 }]}>
+                    {resolveName(person, housemates)}
+                  </Text>
+                  <Text style={[type.amount, { color: C.primary }]}>
+                    {formatFull(getPersonShare(bill, person), currencyCode)}
+                  </Text>
                 </View>
               ))}
             </View>
           )}
 
           {/* Actions */}
-          {!isEditing && !bill.settled && (
-            <Button
-              variant="primary"
-              onPress={handleSettle}
-              loading={isSettling}
-              disabled={isSettling}
-              fullWidth
-              size="lg"
-              haptic="success"
-              style={{ backgroundColor: C.positive }}
-            >
-              {t('bills.mark_settled')}
-            </Button>
-          )}
-
           {!isEditing && canDelete && (
-            <Button
-              variant="danger"
-              onPress={handleDelete}
-              fullWidth
-              size="lg"
-              haptic="warn"
-            >
+            <Button variant="danger" onPress={handleDelete} fullWidth size="lg" haptic="warn">
               {t('bills.delete_bill')}
             </Button>
           )}
 
-          {!!error && !isEditing && <Text style={[type.bodySm, { color: C.danger, textAlign: 'center' }]}>{error}</Text>}
+          {!!error && !isEditing && (
+            <Text style={[type.bodySm, { color: C.danger, textAlign: 'center' }]}>{error}</Text>
+          )}
         </ScrollView>
       </Animated.View>
 
@@ -379,9 +428,27 @@ export default function BillDetailScreen(): React.JSX.Element {
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
-function MetaRow({ label, value, multiline, C }: { label: string; value: string; multiline?: boolean; C: ColorTokens }): React.JSX.Element {
+function MetaRow({
+  label,
+  value,
+  multiline,
+  C,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+  C: ColorTokens;
+}): React.JSX.Element {
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 4, gap: 12 }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        paddingVertical: 4,
+        gap: 12,
+      }}
+    >
       <Text style={[type.bodyMd, { color: C.textSecondary }]}>{label}</Text>
       <Text
         style={[type.bodyMdMed, { color: C.textPrimary, flexShrink: 1, textAlign: 'right' }]}
@@ -394,7 +461,11 @@ function MetaRow({ label, value, multiline, C }: { label: string; value: string;
 }
 
 function CategoryChip({
-  icon, selected, onPress, label, C,
+  icon,
+  selected,
+  onPress,
+  label,
+  C,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   selected: boolean;
@@ -408,9 +479,14 @@ function CategoryChip({
       <Pressable
         style={[
           {
-            flexDirection: 'row', alignItems: 'center', gap: 5,
-            paddingVertical: 10, paddingHorizontal: 12, minHeight: 44,
-            borderRadius: 9999, borderWidth: 1.5,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 5,
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            minHeight: 44,
+            borderRadius: 9999,
+            borderWidth: 1.5,
             borderColor: selected ? C.primary : C.primary + '55',
             backgroundColor: selected ? C.primary : C.primary + '08',
           },
@@ -434,46 +510,71 @@ function makeStyles(C: ColorTokens) {
   const isDark = C.background !== '#F6F2EA';
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-    flex:      { flex: 1 },
-    content:   { padding: sizes.lg, gap: sizes.md, paddingBottom: sizes.xxl },
-    centered:  { flex: 1, alignItems: 'center', justifyContent: 'center', gap: sizes.md },
+    flex: { flex: 1 },
+    content: { padding: sizes.lg, gap: sizes.md, paddingBottom: sizes.xxl },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: sizes.md },
 
     heroCard: {
       backgroundColor: C.primary,
       borderRadius: sizes.borderRadiusLg,
-      padding: sizes.lg, gap: 10,
-      position: 'relative', overflow: 'hidden',
+      padding: sizes.lg,
+      gap: 10,
+      position: 'relative',
+      overflow: 'hidden',
     },
     heroDeco: {
-      position: 'absolute', top: -40, right: -30, width: 160, height: 160,
-      borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.08)',
+      position: 'absolute',
+      top: -40,
+      right: -30,
+      width: 160,
+      height: 160,
+      borderRadius: 80,
+      backgroundColor: 'rgba(255,255,255,0.08)',
     },
     heroHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    heroIcon:   { width: 32, height: 32, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
+    heroIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
 
     card: {
       backgroundColor: C.surface,
       borderRadius: sizes.borderRadiusLg,
-      padding: sizes.lg, gap: sizes.sm,
+      padding: sizes.lg,
+      gap: sizes.sm,
       ...(isDark
         ? { borderWidth: StyleSheet.hairlineWidth, borderColor: C.border }
         : {
-            shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 6,
+            elevation: 2,
           }),
     } as never,
 
     splitRow: {
-      flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: 6,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      paddingVertical: 6,
     },
     splitDot: { width: 8, height: 8, borderRadius: 4 },
 
     input: { backgroundColor: C.surface },
     dateField: { gap: 4 },
     dateTrigger: {
-      flexDirection: 'row', alignItems: 'center', gap: sizes.sm,
-      borderRadius: 8, borderWidth: 1,
-      paddingHorizontal: 14, paddingVertical: 14, minHeight: 56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      borderRadius: 8,
+      borderWidth: 1,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      minHeight: 56,
     },
 
     categoryField: { gap: 4 },
