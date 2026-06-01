@@ -26,7 +26,35 @@
       "Bash(grep -v \"^\\\\s*$\")",
       "Bash(node scripts/deploy.js)",
       "Bash(ls c:/homeapp/node_modules/@expo/vector-icons/*.js)",
-      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"shared household management mobile app dark modern\" --design-system -p \"HouseMates\" -f markdown)"
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py \"shared household management mobile app dark modern\" --design-system -p \"HouseMates\" -f markdown)",
+      "Bash(Get-ChildItem -Path \"c:\\\\homeapp\\\\app\\\\\\(tabs\\)\\\\bills\" -File)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"c:\\\\homeapp\\\\stores\" -Filter \"*bill*\" -File)",
+      "Bash(node -e \"const {enUS,es,he} = require\\('date-fns/locale'\\); console.log\\(enUS?.code, es?.code, he?.code\\)\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\homeapp\" -Recurse -Filter \"*.tsx\" -o File)",
+      "Bash(Select-Object FullName)",
+      "Bash(cp \"handoff-bills/app/\\(tabs\\)/bills/index.tsx\" \"app/\\(tabs\\)/bills/index.tsx\" && cp \"handoff-bills/app/\\(tabs\\)/bills/[id].tsx\" \"app/\\(tabs\\)/bills/[id].tsx\" && cp \"handoff-bills/app/\\(tabs\\)/bills/add.tsx\" \"app/\\(tabs\\)/bills/add.tsx\" && echo \"done\")",
+      "Bash(git rebase *)",
+      "Bash(find /mnt/c/homeapp -type d -name \"*grocery*\" 2>/dev/null)",
+      "Read(//mnt/c/**)",
+      "PowerShell(git add \"app/\\(tabs\\)/dashboard/index.tsx\" \"app/\\(tabs\\)/grocery/index.tsx\" \"stores/groceryStore.ts\" \"supabase/migrations/20260517000000_grocery_item_comment.sql\")",
+      "PowerShell(git push origin feature/grocery-units-long-press-notes)",
+      "PowerShell(git add \"app/\\(tabs\\)/dashboard/index.tsx\" \"stores/groceryStore.ts\")",
+      "PowerShell(git checkout -b feature/grocery-dashboard-rich-rows)",
+      "PowerShell(git add \"components/shared/UserAvatar.tsx\" \"components/grocery/GroceryItemDetailModal.tsx\" \"app/\\(tabs\\)/grocery/index.tsx\" \"app/\\(tabs\\)/dashboard/index.tsx\")",
+      "PowerShell(git push origin feature/grocery-dashboard-rich-rows)",
+      "PowerShell(git add \"components/shared/UserAvatar.tsx\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\homeapp\" -Recurse -Directory -ErrorAction SilentlyContinue)",
+      "PowerShell(git checkout -b feature/custom-split-remaining)",
+      "PowerShell(git add \"app/\\(tabs\\)/bills/add.tsx\")",
+      "PowerShell(git push origin feature/custom-split-remaining)",
+      "PowerShell(git add \"app/\\(tabs\\)/bills/add.tsx\" \"locales/en.json\")",
+      "Bash(git restore *)",
+      "Bash(dir \"c:\\\\homeapp\\\\supabase\\\\migrations\\\\*parking*\")",
+      "Bash(dir \"c:\\\\homeapp\\\\supabase\\\\migrations\\\\\" | findstr parking)"
+    ],
+    "additionalDirectories": [
+      "C:\\homeapp\\handoff-bills\\app\\(tabs)\\bills"
     ]
   }
 }

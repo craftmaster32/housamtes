@@ -39,7 +39,9 @@
     "all": "Todos",
     "optional": "opcional",
     "new": "Nuevo",
-    "or": "o"
+    "or": "o",
+    "edit_hint": "Toca para editar este gasto",
+    "cancel_hint": "Toca para cancelar la edición"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -56,6 +58,7 @@
     "housemates": "Compañeros",
     "profile": "Perfil",
     "settings": "Ajustes",
+    "more": "Más",
     "house_section": "CASA",
     "me_section": "YO"
   },
@@ -310,7 +313,16 @@
     "next_month": "Mes siguiente",
     "add_expense": "Agregar gasto",
     "load_error": "No se pudieron cargar los gastos",
-    "retry": "Intentar de nuevo"
+    "retry": "Intentar de nuevo",
+    "title_hint": "Introduce una breve descripción del gasto",
+    "amount_hint": "Introduce el importe total pagado",
+    "notes_hint": "Añade notas opcionales sobre este gasto",
+    "what_for_hint": "Introduce una breve descripción del gasto",
+    "custom_amount_for": "Importe para {{name}}",
+    "custom_amount_hint": "Introduce la parte correspondiente a esta persona",
+    "failed_delete": "Error al eliminar el gasto. Inténtalo de nuevo.",
+    "delete_confirm_title": "Eliminar gasto",
+    "delete_confirm_message": "¿Eliminar \"{{title}}\"? Esta acción no se puede deshacer."
   },
   "parking": {
     "title": "Estacionamiento",
@@ -342,6 +354,17 @@
     "failed_release": "No se pudo liberar la plaza",
     "failed_reservation": "No se pudo agregar la reserva",
     "admin_free_spot": "Liberar la plaza",
+    "free_others_title": "¿Liberar la plaza de otra persona?",
+    "free_others_message": "{{occupantName}} ocupó esta plaza — ¿estás seguro de que quieres liberarla?",
+    "free_others_confirm": "Sí, liberar",
+    "free_others_cancel": "Cancelar",
+    "free_others_changed": "La plaza cambió mientras confirmabas — inténtalo de nuevo.",
+    "spot_open": "Plaza libre",
+    "your_car": "Tu coche",
+    "spot_open_hint": "Reclámala antes que otro.",
+    "claimed_at": "Reclamada a las {{time}} · {{hours}} {{mins}}",
+    "parked_since": "Aparcado desde las {{time}} · {{hours}} {{mins}}",
+    "note_hint": "Añade cualquier información útil para tus compañeros",
     "you": "Tú",
     "no_reservations_day": "Sin reservas para este día.",
     "clear_all": "Borrar Todo",
@@ -389,6 +412,11 @@
     "every": "🔁 Cada",
     "of_month": "del mes",
     "failed_add": "No se pudo agregar la tarea. Intenta de nuevo.",
+    "every_day": "Cada {{day}}",
+    "hero_subtitle": "Tareas del hogar",
+    "empty": "Sin tareas aún",
+    "progress": "{{done}} de {{total}} hechas",
+    "description": "Asigna tareas, toma las que harás y márcalas juntos.",
     "done_one": "{{count}} hecha",
     "done_other": "{{count}} hechas",
     "added": "Agregado"

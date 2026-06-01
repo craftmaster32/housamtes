@@ -46,8 +46,11 @@
     "supabase/functions",
     "HouseMates Design System (2)",
     "handoff",
+    "handoff-spending",
     "handoff-bills",
     "handoff-parking",
-    "handoff-spending"
+    "handoff-grocery",
+    "handoff-chores",
+    "handoff-calendar"
   ]
 }

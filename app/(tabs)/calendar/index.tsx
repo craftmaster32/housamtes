@@ -1,8 +1,18 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert, Keyboard, Animated } from 'react-native';
+// app/(tabs)/calendar/index.tsx
+// Calendar — v2 redesign.
+// Same data flow as v1 (useEventsStore, useParkingStore, useRecurringBillsStore,
+// useChoresStore, useCalendarSyncStore, usePersonalCalendar). Same recurring
+// expansion, multi-day events, parking/bills/chores/personal overlays. New:
+// dark theme via useThemedColors, `type` ladder, `Header` UI primitive,
+// fade-up entrance, press scale on day cells + buttons, LinearTransition on
+// the selected-day event list, haptics on day taps + month nav.
+
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert, Keyboard } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useEventsStore, HouseEvent, EventRecurrence, EventUpdates } from '@stores/eventsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -18,8 +28,10 @@ import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { addWeeks, addMonths, addYears } from 'date-fns';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { font } from '@constants/typography';
+import { Button, EmptyState, Header } from '@components/ui';
+import { type } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { useFadeInUp, usePressScale, useHaptic } from '@utils/animations';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CalendarEvent {
@@ -71,16 +83,12 @@ function expandRecurringDates(
   const recEnd = recurrenceEnd ? new Date(recurrenceEnd + 'T00:00:00') : null;
   const dates: string[] = [];
   let current = new Date(startDate + 'T00:00:00');
-
   const advance = (): void => {
     if (recurrence === 'weekly') current = addWeeks(current, 1);
     else if (recurrence === 'monthly') current = addMonths(current, 1);
     else current = addYears(current, 1);
   };
-
-  // Fast-forward to the first occurrence at or after 'from'
   while (current < from) advance();
-
   while (current <= to) {
     if (recEnd && current > recEnd) break;
     dates.push(toYMD(current));
@@ -89,7 +97,7 @@ function expandRecurringDates(
   return dates;
 }
 
-// ── Event Form Modal (add + edit) ─────────────────────────────────────────────
+// ── Event Form Modal ──────────────────────────────────────────────────────────
 interface EventFormModalProps {
   visible: boolean;
   initialDate: string;
@@ -98,15 +106,16 @@ interface EventFormModalProps {
 }
 
 const RECURRENCE_OPTIONS: Array<{ label: string; value: EventRecurrence | '' }> = [
-  { label: 'None', value: '' },
-  { label: 'Weekly', value: 'weekly' },
+  { label: 'None',    value: '' },
+  { label: 'Weekly',  value: 'weekly' },
   { label: 'Monthly', value: 'monthly' },
-  { label: 'Yearly', value: 'yearly' },
+  { label: 'Yearly',  value: 'yearly' },
 ];
 
 function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFormModalProps): React.JSX.Element {
   const C = useThemedColors();
   const formStyles = useMemo(() => makeFormStyles(C), [C]);
+  const haptic = useHaptic();
 
   const addEvent       = useEventsStore((s) => s.addEvent);
   const editEvent      = useEventsStore((s) => s.editEvent);
@@ -141,24 +150,14 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
       setRecurrenceEnd(editingEvent.recurrenceEnd ?? '');
       setShowRecEnd(!!editingEvent.recurrenceEnd);
     } else {
-      setTitle('');
-      setDate(initialDate);
-      setEndDate('');
-      setShowEndDate(false);
-      setStartTime('');
-      setEndTime('');
-      setNotes('');
-      setRecurrence('');
-      setRecurrenceEnd('');
-      setShowRecEnd(false);
+      setTitle(''); setDate(initialDate); setEndDate(''); setShowEndDate(false);
+      setStartTime(''); setEndTime(''); setNotes('');
+      setRecurrence(''); setRecurrenceEnd(''); setShowRecEnd(false);
     }
     setError('');
   }, [visible, editingEvent, initialDate]);
 
-  const handleClose = useCallback((): void => {
-    Keyboard.dismiss();
-    onClose();
-  }, [onClose]);
+  const handleClose = useCallback((): void => { Keyboard.dismiss(); onClose(); }, [onClose]);
 
   const handleSave = useCallback(async (): Promise<void> => {
     if (!title.trim()) { setError('Enter an event name'); return; }
@@ -171,86 +170,62 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
       const resolvedRec     = recurrence || undefined;
       if (editingEvent) {
         const updates: EventUpdates = {
-          title: title.trim(), date,
-          endDate: resolvedEndDate,
-          startTime: startTime || undefined,
-          endTime: endTime || undefined,
-          notes: notes || undefined,
-          recurrence: resolvedRec,
-          recurrenceEnd: resolvedRecEnd,
+          title: title.trim(), date, endDate: resolvedEndDate,
+          startTime: startTime || undefined, endTime: endTime || undefined,
+          notes: notes || undefined, recurrence: resolvedRec, recurrenceEnd: resolvedRecEnd,
         };
         await editEvent(editingEvent.id, updates);
       } else {
         const eventId = await addEvent({
-          title: title.trim(),
-          date,
-          createdBy: profile?.id ?? '',
-          houseId: houseId ?? '',
-          startTime: startTime || undefined,
-          endTime: endTime || undefined,
-          endDate: resolvedEndDate,
-          notes: notes || undefined,
-          recurrence: resolvedRec,
-          recurrenceEnd: resolvedRecEnd,
+          title: title.trim(), date,
+          createdBy: profile?.id ?? '', houseId: houseId ?? '',
+          startTime: startTime || undefined, endTime: endTime || undefined,
+          endDate: resolvedEndDate, notes: notes || undefined,
+          recurrence: resolvedRec, recurrenceEnd: resolvedRecEnd,
         });
         syncHouseEvent({
           id: eventId, title: title.trim(), date,
-          startTime: startTime || undefined,
-          endTime: endTime || undefined,
+          startTime: startTime || undefined, endTime: endTime || undefined,
           createdBy: profile?.id,
         }).catch(() => {});
       }
+      haptic.success();
       handleClose();
     } catch {
       setError('Could not save event. Try again.');
     } finally {
       setSaving(false);
     }
-  }, [title, date, showEndDate, endDate, startTime, endTime, notes, recurrence, showRecEnd, recurrenceEnd, editingEvent, addEvent, editEvent, profile, houseId, syncHouseEvent, handleClose]);
-
-  const handleModalShow = useCallback((): void => {
-    Keyboard.dismiss();
-  }, []);
+  }, [title, date, showEndDate, endDate, startTime, endTime, notes, recurrence, showRecEnd, recurrenceEnd, editingEvent, addEvent, editEvent, profile, houseId, syncHouseEvent, handleClose, haptic]);
 
   const isEditing = !!editingEvent;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-      onShow={handleModalShow}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <Pressable style={formStyles.backdrop} onPress={handleClose}>
         <Pressable style={formStyles.sheet} onPress={() => {}}>
           <View style={formStyles.handle} />
-          <Text style={formStyles.title}>{isEditing ? 'Edit Event' : 'Add Event'}</Text>
+          <Text style={[type.title, { color: C.textPrimary }]}>{isEditing ? 'Edit Event' : 'Add Event'}</Text>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            style={formStyles.scroll}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text style={formStyles.label}>Event name</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }} keyboardShouldPersistTaps="handled">
+            <Text style={[type.captionMed, formStyles.label, { color: C.textPrimary }]}>Event name</Text>
             <TextInput
               style={formStyles.input}
               value={title}
               onChangeText={(v) => { setTitle(v); setError(''); }}
               placeholder="e.g. House meeting, Inspection…"
               placeholderTextColor={C.textSecondary}
-              autoFocus={false}
               returnKeyType="done"
               onSubmitEditing={handleSave}
               accessibilityLabel="Event name"
-              accessibilityHint="Enter the event title"
+              accessibilityHint="Enter a short name for the event"
             />
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>Start date</Text>
+            <Text style={[type.captionMed, formStyles.label, formStyles.labelGap, { color: C.textPrimary }]}>Start date</Text>
             <CalendarPicker value={date} onChange={(v) => { setDate(v); setError(''); }} />
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>
-              End date <Text style={formStyles.optional}>(optional — for multi-day events)</Text>
+            <Text style={[type.captionMed, formStyles.label, formStyles.labelGap, { color: C.textPrimary }]}>
+              End date <Text style={[type.bodySm, { color: C.textSecondary }]}>(optional)</Text>
             </Text>
             {showEndDate ? (
               <>
@@ -259,66 +234,61 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                   style={formStyles.clearLink}
                   onPress={() => { setShowEndDate(false); setEndDate(''); }}
                   accessibilityRole="button"
-                  accessibilityLabel="Remove end date"
                 >
-                  <Text style={formStyles.clearLinkText}>Remove end date</Text>
+                  <Text style={[type.caption, { color: C.textSecondary, textDecorationLine: 'underline' }]}>Remove end date</Text>
                 </Pressable>
               </>
             ) : (
-              <Pressable
-                style={formStyles.addToggle}
+              <AddToggle
                 onPress={() => { setShowEndDate(true); setEndDate(date); }}
-                accessibilityRole="button"
-                accessibilityLabel="Add end date"
-                accessibilityHint="Make this a multi-day event"
-              >
-                <Ionicons name="add-circle-outline" size={17} color={C.primary} />
-                <Text style={formStyles.addToggleText}>Add end date</Text>
-              </Pressable>
+                label="Add end date"
+                C={C}
+              />
             )}
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>Start time <Text style={formStyles.optional}>(optional)</Text></Text>
+            <Text style={[type.captionMed, formStyles.label, formStyles.labelGap, { color: C.textPrimary }]}>
+              Start time <Text style={[type.bodySm, { color: C.textSecondary }]}>(optional)</Text>
+            </Text>
             <TimePicker value={startTime} onChange={setStartTime} />
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>End time <Text style={formStyles.optional}>(optional)</Text></Text>
+            <Text style={[type.captionMed, formStyles.label, formStyles.labelGap, { color: C.textPrimary }]}>
+              End time <Text style={[type.bodySm, { color: C.textSecondary }]}>(optional)</Text>
+            </Text>
             <TimePicker value={endTime} onChange={setEndTime} />
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>Notes <Text style={formStyles.optional}>(optional)</Text></Text>
+            <Text style={[type.captionMed, formStyles.label, formStyles.labelGap, { color: C.textPrimary }]}>
+              Notes <Text style={[type.bodySm, { color: C.textSecondary }]}>(optional)</Text>
+            </Text>
             <TextInput
-              style={[formStyles.input, formStyles.notesInput]}
+              style={[formStyles.input, { minHeight: 80, paddingTop: 12 }]}
               value={notes}
               onChangeText={setNotes}
               placeholder="Any extra details…"
               placeholderTextColor={C.textSecondary}
-              autoFocus={false}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
               accessibilityLabel="Notes"
-              accessibilityHint="Optional additional details for this event"
+              accessibilityHint="Add any optional extra details about this event"
             />
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>Repeat</Text>
+            <Text style={[type.captionMed, formStyles.label, formStyles.labelGap, { color: C.textPrimary }]}>Repeat</Text>
             <View style={formStyles.chips}>
               {RECURRENCE_OPTIONS.map(({ label, value }) => (
-                <Pressable
+                <RecChip
                   key={value || 'none'}
-                  style={[formStyles.chip, recurrence === value && formStyles.chipSelected]}
+                  label={label}
+                  selected={recurrence === value}
                   onPress={() => setRecurrence(value)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: recurrence === value }}
-                >
-                  <Text style={[formStyles.chipText, recurrence === value && formStyles.chipTextSelected]}>
-                    {label}
-                  </Text>
-                </Pressable>
+                  C={C}
+                />
               ))}
             </View>
 
             {recurrence !== '' && (
               <>
-                <Text style={[formStyles.label, formStyles.labelGap]}>
-                  Repeat until <Text style={formStyles.optional}>(optional)</Text>
+                <Text style={[type.captionMed, formStyles.label, formStyles.labelGap, { color: C.textPrimary }]}>
+                  Repeat until <Text style={[type.bodySm, { color: C.textSecondary }]}>(optional)</Text>
                 </Text>
                 {showRecEnd ? (
                   <>
@@ -327,42 +297,27 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                       style={formStyles.clearLink}
                       onPress={() => { setShowRecEnd(false); setRecurrenceEnd(''); }}
                       accessibilityRole="button"
-                      accessibilityLabel="Remove repeat end date"
                     >
-                      <Text style={formStyles.clearLinkText}>No end date (repeat forever)</Text>
+                      <Text style={[type.caption, { color: C.textSecondary, textDecorationLine: 'underline' }]}>
+                        No end date (repeat forever)
+                      </Text>
                     </Pressable>
                   </>
                 ) : (
-                  <Pressable
-                    style={formStyles.addToggle}
-                    onPress={() => setShowRecEnd(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Set repeat end date"
-                    accessibilityHint="Choose when this event stops repeating"
-                  >
-                    <Ionicons name="add-circle-outline" size={17} color={C.primary} />
-                    <Text style={formStyles.addToggleText}>Set an end date for repeating</Text>
-                  </Pressable>
+                  <AddToggle onPress={() => setShowRecEnd(true)} label="Set an end date for repeating" C={C} />
                 )}
               </>
             )}
 
-            {!!error && <Text style={[formStyles.errorText, formStyles.labelGap]}>{error}</Text>}
+            {!!error && <Text style={[type.bodySm, { color: C.negative, marginTop: 12 }]}>{error}</Text>}
             <View style={{ height: 16 }} />
           </ScrollView>
 
           <View style={formStyles.btns}>
-            <Pressable style={formStyles.btnOutline} onPress={handleClose} accessibilityRole="button">
-              <Text style={formStyles.btnOutlineText}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              style={[formStyles.btnPrimary, saving && formStyles.btnDisabled]}
-              onPress={handleSave}
-              disabled={saving}
-              accessibilityRole="button"
-            >
-              <Text style={formStyles.btnPrimaryText}>{saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Save Event'}</Text>
-            </Pressable>
+            <Button variant="secondary" onPress={handleClose} fullWidth>Cancel</Button>
+            <Button variant="primary" onPress={handleSave} loading={saving} disabled={saving} fullWidth haptic={null}>
+              {isEditing ? 'Save Changes' : 'Save Event'}
+            </Button>
           </View>
         </Pressable>
       </Pressable>
@@ -370,9 +325,58 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
   );
 }
 
-// ── Day Cell ──────────────────────────────────────────────────────────────────
+function AddToggle({ onPress, label, C }: { onPress: () => void; label: string; C: ColorTokens }): React.JSX.Element {
+  const press = usePressScale(0.96);
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: 6,
+          alignSelf: 'flex-start',
+          paddingVertical: 8, paddingHorizontal: 14,
+          borderRadius: 20, borderWidth: 1,
+          borderColor: C.primary, backgroundColor: C.secondary,
+          minHeight: 44,
+        }}
+        accessibilityRole="button"
+      >
+        <Ionicons name="add-circle-outline" size={17} color={C.primary} />
+        <Text style={[type.bodyMdMed, { color: C.primary }]}>{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function RecChip({ label, selected, onPress, C }: { label: string; selected: boolean; onPress: () => void; C: ColorTokens }): React.JSX.Element {
+  const press = usePressScale(0.94);
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={{
+          paddingVertical: 8, paddingHorizontal: 16,
+          borderRadius: 20, borderWidth: 1.5,
+          borderColor: selected ? C.primary : C.border,
+          backgroundColor: selected ? C.primary : C.surfaceSecondary,
+          minHeight: 36,
+        }}
+        accessibilityRole="radio"
+        accessibilityState={{ selected }}
+      >
+        <Text style={[type.labelSm, { color: selected ? '#fff' : C.textSecondary }]}>{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ── Day Cell — press scaled ──────────────────────────────────────────────────
 function DayCell({
-  day, isToday, isSelected, isCurrentMonth, events: dayEvents, onPress,
+  day, isToday, isSelected, isCurrentMonth, events: dayEvents, onPress, C,
 }: {
   day: Date;
   isToday: boolean;
@@ -380,25 +384,30 @@ function DayCell({
   isCurrentMonth: boolean;
   events: Array<{ title: string; color: string }>;
   onPress: () => void;
+  C: ColorTokens;
 }): React.JSX.Element {
-  const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
+  const press = usePressScale(0.92);
   return (
-    <Pressable style={s.dayCell} onPress={onPress}>
-      <View style={[
-        s.dayInner,
-        isSelected && s.daySelected,
-        isToday && !isSelected && s.dayToday,
-      ]}>
+    <Pressable style={s.dayCell} onPress={onPress} onPressIn={press.onPressIn} onPressOut={press.onPressOut}>
+      <Animated.View
+        style={[
+          s.dayInner,
+          isSelected && s.daySelected,
+          isToday && !isSelected && s.dayToday,
+          press.animatedStyle,
+        ]}
+      >
         <Text style={[
-          s.dayNum,
-          !isCurrentMonth && s.dayNumFaint,
-          isSelected && s.dayNumSelected,
-          isToday && !isSelected && s.dayNumToday,
+          type.captionMed,
+          { color: C.textPrimary },
+          !isCurrentMonth && { color: C.textDisabled },
+          isSelected && { color: '#fff', fontWeight: '700' },
+          isToday && !isSelected && { color: C.primary, fontWeight: '700' },
         ]}>
           {day.getDate()}
         </Text>
-      </View>
+      </Animated.View>
       {dayEvents.slice(0, 2).map((ev, i) => (
         <View key={i} style={[s.eventChip, { backgroundColor: ev.color }]}>
           <Text style={s.eventChipText} numberOfLines={1}>{ev.title}</Text>
@@ -411,7 +420,7 @@ function DayCell({
   );
 }
 
-// ── Main Screen ───────────────────────────────────────────────────────────────
+// ── Main Screen ──────────────────────────────────────────────────────────────
 export default function CalendarScreen(): React.JSX.Element {
   const events                       = useEventsStore((s) => s.events);
   const isLoading                    = useEventsStore((s) => s.isLoading);
@@ -435,10 +444,8 @@ export default function CalendarScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const fadeStyle = useFadeInUp(0);
+  const haptic = useHaptic();
 
   const today = new Date();
   const [viewYear, setViewYear]   = useState(today.getFullYear());
@@ -446,7 +453,6 @@ export default function CalendarScreen(): React.JSX.Element {
   const [selectedDate, setSelectedDate] = useState(toYMD(today));
   const [showForm, setShowForm]         = useState(false);
   const [editingEvent, setEditingEvent] = useState<HouseEvent | undefined>(undefined);
-  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
   const [gridStart, gridEnd] = useMemo(() => {
     const first = new Date(viewYear, viewMonth, 1);
@@ -462,25 +468,17 @@ export default function CalendarScreen(): React.JSX.Element {
 
   const allEvents = useMemo((): CalendarEvent[] => {
     const list: CalendarEvent[] = [];
-
-    // Expand window: grid + 2 extra months for recurring events
     const expandEnd = new Date(gridEnd);
     expandEnd.setMonth(expandEnd.getMonth() + 2);
 
     for (const e of events) {
       const base = {
-        sourceId: e.id,
-        title: e.title,
+        sourceId: e.id, title: e.title,
         type: 'event' as const,
         detail: resolveName(e.createdBy, housemates),
-        createdBy: e.createdBy,
-        startTime: e.startTime,
-        endTime: e.endTime,
-        endDate: e.endDate,
-        notes: e.notes,
-        recurrence: e.recurrence,
+        createdBy: e.createdBy, startTime: e.startTime, endTime: e.endTime,
+        endDate: e.endDate, notes: e.notes, recurrence: e.recurrence,
       };
-
       if (e.recurrence) {
         const dates = expandRecurringDates(e.date, e.recurrence, e.recurrenceEnd, gridStart, expandEnd);
         if (e.endDate && e.endDate > e.date) {
@@ -496,9 +494,7 @@ export default function CalendarScreen(): React.JSX.Element {
             }
           }
         } else {
-          for (const d of dates) {
-            list.push({ ...base, id: `ev-${e.id}-${d}`, date: d });
-          }
+          for (const d of dates) list.push({ ...base, id: `ev-${e.id}-${d}`, date: d });
         }
       } else if (e.endDate && e.endDate > e.date) {
         const start = new Date(e.date + 'T00:00:00');
@@ -572,14 +568,16 @@ export default function CalendarScreen(): React.JSX.Element {
   }, [viewYear, viewMonth]);
 
   const prevMonth = useCallback((): void => {
+    haptic.tap();
     if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
     else setViewMonth((m) => m - 1);
-  }, [viewMonth]);
+  }, [viewMonth, haptic]);
 
   const nextMonth = useCallback((): void => {
+    haptic.tap();
     if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
     else setViewMonth((m) => m + 1);
-  }, [viewMonth]);
+  }, [viewMonth, haptic]);
 
   const selectedEvents = useMemo(
     () => allEvents.filter((e) => e.date === selectedDate),
@@ -589,9 +587,10 @@ export default function CalendarScreen(): React.JSX.Element {
   const todayStr = toYMD(today);
 
   const handleOpenAdd = useCallback((): void => {
+    haptic.tap();
     setEditingEvent(undefined);
     setShowForm(true);
-  }, []);
+  }, [haptic]);
 
   const handleEditEvent = useCallback((sourceId: string): void => {
     const ev = events.find((e) => e.id === sourceId);
@@ -620,244 +619,218 @@ export default function CalendarScreen(): React.JSX.Element {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
+        <Header title="Calendar" />
         <View style={styles.centered}>
-          <Text style={styles.emptyDayText}>Loading…</Text>
+          <EmptyState mode="loading" title="Loading…" />
         </View>
       </SafeAreaView>
     );
   }
 
+  const headerRight = (
+    <AddEventBtn onPress={handleOpenAdd} C={C} />
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <Header title="Calendar" right={headerRight} />
+      <Animated.View style={[styles.flex, fadeStyle]}>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        {!!storeError && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorBannerText}>{storeError}</Text>
-          </View>
-        )}
+          {!!storeError && (
+            <View style={[styles.errorBanner, { backgroundColor: C.negative + '15', borderColor: C.negative + '40' }]}>
+              <Text style={[type.bodySm, { color: C.negative }]}>{storeError}</Text>
+            </View>
+          )}
 
-        {/* Header */}
-        <View style={styles.pageHeader}>
-          <View>
-            <Text style={styles.pageTitle}>Calendar</Text>
-            <Text style={styles.pageSubtitle}>
-              {connected ? 'Synced with your calendar' : 'House schedule'}
+          {/* Blue hero — sync state */}
+          <View style={styles.heroCard}>
+            <View style={styles.heroDeco} />
+            <View style={styles.heroDecoSm} />
+
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroIcon}>
+                <Ionicons name="calendar-outline" size={26} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>House schedule</Text>
+                <Text style={[type.title, { color: '#fff' }]}>{MONTHS[viewMonth]} {viewYear}</Text>
+              </View>
+            </View>
+
+            <Text style={[type.bodySm, { color: 'rgba(255,255,255,0.78)' }]}>
+              {connected ? 'Synced with your calendar' : 'Tap any day to see events.'}
             </Text>
           </View>
-          <Pressable style={styles.addBtn} onPress={handleOpenAdd} accessibilityRole="button">
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>Add Event</Text>
-          </Pressable>
-        </View>
 
-        {/* Month nav */}
-        <View style={styles.monthHeader}>
-          <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button">
-            <Ionicons name="chevron-back" size={18} color={C.primary} />
-          </Pressable>
-          <Text style={styles.monthTitle}>{MONTHS[viewMonth]} {viewYear}</Text>
-          <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button">
-            <Ionicons name="chevron-forward" size={18} color={C.primary} />
-          </Pressable>
-        </View>
+          {/* Month nav */}
+          <View style={styles.monthHeader}>
+            <NavBtn icon="chevron-back" onPress={prevMonth} C={C} />
+            <Text style={[type.subtitle, { color: C.textPrimary, flex: 1, textAlign: 'center' }]}>
+              {MONTHS[viewMonth]} {viewYear}
+            </Text>
+            <NavBtn icon="chevron-forward" onPress={nextMonth} C={C} />
+          </View>
 
-        {/* Calendar grid */}
-        <View style={styles.calCard}>
-          <View style={styles.weekRow}>
-            {WEEKDAYS.map((d) => (
-              <Text key={d} style={styles.weekDay}>{d}</Text>
+          {/* Calendar grid */}
+          <View style={[styles.calCard, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <View style={styles.weekRow}>
+              {WEEKDAYS.map((d) => (
+                <Text key={d} style={[type.caption, styles.weekDay, { color: C.textSecondary }]}>{d}</Text>
+              ))}
+            </View>
+            {[0, 1, 2, 3, 4, 5].map((row) => (
+              <View key={row} style={styles.gridRow}>
+                {grid.slice(row * 7, row * 7 + 7).map((day, idx) => {
+                  const ymd = toYMD(day);
+                  return (
+                    <DayCell
+                      key={idx}
+                      day={day}
+                      isToday={ymd === todayStr}
+                      isSelected={ymd === selectedDate}
+                      isCurrentMonth={day.getMonth() === viewMonth}
+                      events={eventMap2[ymd] ?? []}
+                      onPress={() => { haptic.tap(); setSelectedDate(ymd); }}
+                      C={C}
+                    />
+                  );
+                })}
+              </View>
             ))}
           </View>
-          {[0, 1, 2, 3, 4, 5].map((row) => (
-            <View key={row} style={styles.gridRow}>
-              {grid.slice(row * 7, row * 7 + 7).map((day, idx) => {
-                const ymd = toYMD(day);
-                return (
-                  <DayCell
-                    key={idx}
-                    day={day}
-                    isToday={ymd === todayStr}
-                    isSelected={ymd === selectedDate}
-                    isCurrentMonth={day.getMonth() === viewMonth}
-                    events={eventMap2[ymd] ?? []}
-                    onPress={() => { setSelectedDate(ymd); setExpandedEventId(null); }}
-                  />
-                );
-              })}
-            </View>
-          ))}
-        </View>
 
-        {/* Legend */}
-        <View style={styles.legend}>
-          {(Object.entries(TYPE_META) as [CalendarEvent['type'], { icon: string; color: string }][]).map(([type, meta]) => (
-            <View key={type} style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
-              <Text style={styles.legendLabel}>
-                {meta.icon} {type === 'parking-pending' ? 'Parking (pending)' : type.charAt(0).toUpperCase() + type.slice(1)}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Selected day */}
-        <View style={styles.eventsSection}>
-          <View style={styles.eventsSectionHeader}>
-            <Text style={styles.eventsSectionTitle}>
-              {selectedDate === todayStr
-                ? 'Today'
-                : new Date(selectedDate + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
-            </Text>
-            <Pressable style={styles.addDayBtn} onPress={handleOpenAdd} accessibilityRole="button">
-              <Ionicons name="add-circle-outline" size={18} color={C.primary} />
-              <Text style={styles.addDayBtnText}>Add</Text>
-            </Pressable>
+          {/* Legend */}
+          <View style={[styles.legend, { backgroundColor: C.surface, borderColor: C.border }]}>
+            {(Object.entries(TYPE_META) as [CalendarEvent['type'], { icon: string; color: string }][]).map(([type_, meta]) => (
+              <View key={type_} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
+                <Text style={[type.caption, { color: C.textSecondary }]}>
+                  {meta.icon} {type_ === 'parking-pending' ? 'Parking (pending)' : type_.charAt(0).toUpperCase() + type_.slice(1)}
+                </Text>
+              </View>
+            ))}
           </View>
 
-          {selectedEvents.length === 0 ? (
-            <View style={styles.emptyDay}>
-              <Text style={styles.emptyDayText}>Nothing scheduled — tap Add to create an event</Text>
+          {/* Selected day */}
+          <View style={[styles.eventsSection, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <View style={styles.eventsSectionHeader}>
+              <Text style={[type.label, { color: C.textPrimary }]}>
+                {selectedDate === todayStr
+                  ? 'Today'
+                  : new Date(selectedDate + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+              </Text>
+              <AddDayBtn onPress={handleOpenAdd} C={C} />
             </View>
-          ) : (
-            <FlatList
-              data={selectedEvents}
-              keyExtractor={(e) => e.id}
-              scrollEnabled={false}
-              renderItem={({ item }) => {
-                const timeLabel = item.startTime
-                  ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
-                  : null;
-                const dateRangeLabel = item.endDate && item.endDate !== item.date
-                  ? `${formatShortDate(item.date)} – ${formatShortDate(item.endDate)}`
-                  : null;
-                const syncKey = (item.type === 'parking' || item.type === 'parking-pending')
-                  ? `pk-${item.sourceId}`
-                  : `ev-${item.sourceId}-${item.date}`;
-                const alreadySynced = !!eventMap[syncKey];
-                const showSyncBtn = item.type === 'event' || item.type === 'parking' || item.type === 'parking-pending';
-                const hideSyncBtn = alreadySynced && (
-                  (item.type === 'event' && connected && autoSync.events) ||
-                  ((item.type === 'parking' || item.type === 'parking-pending') && connected && autoSync.parking)
-                );
 
-                const isExpanded = expandedEventId === item.id;
+            {selectedEvents.length === 0 ? (
+              <View style={styles.emptyDay}>
+                <Text style={[type.bodyMd, { color: C.textSecondary, textAlign: 'center' }]}>
+                  Nothing scheduled — tap Add to create an event
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={selectedEvents}
+                keyExtractor={(e) => e.id}
+                scrollEnabled={false}
+                renderItem={({ item }) => {
+                  const timeLabel = item.startTime
+                    ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
+                    : null;
+                  const dateRangeLabel = item.endDate && item.endDate !== item.date
+                    ? `${formatShortDate(item.date)} – ${formatShortDate(item.endDate)}`
+                    : null;
+                  const syncKey = (item.type === 'parking' || item.type === 'parking-pending')
+                    ? `pk-${item.sourceId}`
+                    : `ev-${item.sourceId}-${item.date}`;
+                  const alreadySynced = !!eventMap[syncKey];
+                  const showSyncBtn = item.type === 'event' || item.type === 'parking' || item.type === 'parking-pending';
+                  const hideSyncBtn = alreadySynced && (
+                    (item.type === 'event' && connected && autoSync.events) ||
+                    ((item.type === 'parking' || item.type === 'parking-pending') && connected && autoSync.parking)
+                  );
 
-                return (
-                  <Pressable
-                    style={[styles.eventRow, item.type === 'personal' && styles.eventRowPersonal]}
-                    onPress={() => setExpandedEventId(isExpanded ? null : item.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={isExpanded ? `Collapse ${item.title}` : `Expand ${item.title}`}
-                    accessibilityState={{ expanded: isExpanded }}
-                  >
-                    <View style={[styles.eventIconWrap, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
-                      <Text style={styles.eventIcon}>{TYPE_META[item.type].icon}</Text>
-                    </View>
-                    <View style={styles.eventInfo}>
-                      <View style={styles.eventTitleRow}>
-                        <Text style={styles.eventTitle} numberOfLines={isExpanded ? 0 : 1}>{item.title}</Text>
-                        {item.recurrence && (
-                          <View style={styles.recurrenceBadge}>
-                            <Text style={styles.recurrenceBadgeText}>↻ {item.recurrence}</Text>
-                          </View>
-                        )}
+                  return (
+                    <Animated.View
+                      layout={LinearTransition.springify().damping(18)}
+                      style={[styles.eventRow, { backgroundColor: C.background }, item.type === 'personal' && { opacity: 0.75 }]}
+                    >
+                      <View style={[styles.eventIconWrap, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
+                        <Text style={{ fontSize: 18 }}>{TYPE_META[item.type].icon}</Text>
                       </View>
-                      {isExpanded && !!timeLabel && <Text style={styles.eventTime}>{timeLabel}</Text>}
-                      {isExpanded && !!dateRangeLabel && <Text style={styles.eventTime}>{dateRangeLabel}</Text>}
-                      {isExpanded && !!item.detail && <Text style={styles.eventDetail}>{item.detail}</Text>}
-                      {isExpanded && !!item.notes && <Text style={styles.eventNotes}>{item.notes}</Text>}
-                      {isExpanded && (
-                        <View style={styles.eventActions}>
-                          {showSyncBtn && Platform.OS === 'web' ? (
-                            <>
-                              <Pressable
-                                style={styles.iconBtn}
-                                hitSlop={{ left: 7, right: 7 }}
-                                onPress={() => openGoogleCalendar({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
-                                accessibilityRole="button"
-                                accessibilityLabel="Add to Google Calendar"
-                              >
-                                <Ionicons name="logo-google" size={16} color={C.textSecondary} />
-                              </Pressable>
-                              <Pressable
-                                style={styles.iconBtn}
-                                hitSlop={{ left: 7, right: 7 }}
-                                onPress={() => downloadIcs({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
-                                accessibilityRole="button"
-                                accessibilityLabel="Download .ics file"
-                              >
-                                <Ionicons name="download-outline" size={16} color={C.textSecondary} />
-                              </Pressable>
-                            </>
-                          ) : showSyncBtn && !hideSyncBtn ? (
-                            <Pressable
-                              style={styles.iconBtn}
-                              hitSlop={{ left: 7, right: 7 }}
-                              onPress={async () => {
-                                try { await handleManualSync(item); }
-                                catch { Alert.alert('Sync failed', 'Could not add to your calendar. Please try again.'); }
-                              }}
-                              accessibilityRole="button"
-                              accessibilityLabel={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
-                            >
-                              <Ionicons
-                                name={alreadySynced ? 'checkmark-circle' : 'calendar-outline'}
-                                size={18}
-                                color={alreadySynced ? C.positive : C.textSecondary}
-                              />
-                            </Pressable>
-                          ) : null}
-                          {item.type === 'event' && (
-                            <>
-                              <Pressable
-                                style={styles.iconBtn}
-                                hitSlop={{ left: 7, right: 7 }}
-                                onPress={() => handleEditEvent(item.sourceId)}
-                                accessibilityRole="button"
-                                accessibilityLabel="Edit event"
-                              >
-                                <Ionicons name="pencil-outline" size={16} color={C.primary} />
-                              </Pressable>
-                              <Pressable
-                                style={styles.iconBtn}
-                                hitSlop={{ left: 7, right: 7 }}
-                                onPress={async () => {
-                                  try { await removeEvent(item.sourceId); }
-                                  catch { Alert.alert('Error', 'Could not remove event. Try again.'); }
-                                }}
-                                accessibilityRole="button"
-                                accessibilityLabel="Delete event"
-                              >
-                                <Ionicons name="trash-outline" size={16} color={C.negative} />
-                              </Pressable>
-                            </>
+                      <View style={styles.eventInfo}>
+                        <View style={styles.eventTitleRow}>
+                          <Text style={[type.label, { color: C.textPrimary, flex: 1 }]} numberOfLines={2}>{item.title}</Text>
+                          {item.recurrence && (
+                            <View style={styles.recurrenceBadge}>
+                              <Text style={[type.caption, { color: '#6366f1', fontWeight: '700' }]}>↻ {item.recurrence}</Text>
+                            </View>
                           )}
                         </View>
-                      )}
-                    </View>
-                    <View style={styles.eventRight}>
-                      <View style={[styles.typeBadge, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
-                        <Text style={[styles.typeBadgeText, { color: TYPE_META[item.type].color }]}>
-                          {item.type === 'parking-pending' ? 'pending' : item.type}
-                        </Text>
+                        {!!timeLabel && <Text style={[type.captionMed, { color: C.primary }]}>{timeLabel}</Text>}
+                        {!!dateRangeLabel && <Text style={[type.captionMed, { color: C.primary }]}>{dateRangeLabel}</Text>}
+                        {!!item.detail && <Text style={[type.caption, { color: C.textSecondary }]}>{item.detail}</Text>}
+                        {!!item.notes && <Text style={[type.caption, { color: C.textSecondary, fontStyle: 'italic' }]} numberOfLines={2}>{item.notes}</Text>}
                       </View>
-                      <Ionicons
-                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={14}
-                        color={C.textSecondary}
-                      />
-                    </View>
-                  </Pressable>
-                );
-              }}
-              ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-            />
-          )}
-        </View>
+                      <View style={styles.eventRight}>
+                        <View style={[styles.typeBadge, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
+                          <Text style={[type.caption, { color: TYPE_META[item.type].color, fontWeight: '600', textTransform: 'capitalize' }]}>
+                            {item.type === 'parking-pending' ? 'pending' : item.type}
+                          </Text>
+                        </View>
+                        {showSyncBtn && Platform.OS === 'web' ? (
+                          <>
+                            <ActionIcon
+                              icon="logo-google" color={C.textSecondary}
+                              onPress={() => openGoogleCalendar({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
+                              label="Add to Google Calendar"
+                            />
+                            <ActionIcon
+                              icon="download-outline" color={C.textSecondary}
+                              onPress={() => downloadIcs({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
+                              label="Download .ics file"
+                            />
+                          </>
+                        ) : showSyncBtn && !hideSyncBtn ? (
+                          <ActionIcon
+                            icon={alreadySynced ? 'checkmark-circle' : 'calendar-outline'}
+                            color={alreadySynced ? C.positive : C.textSecondary}
+                            size={18}
+                            onPress={async () => {
+                              try { await handleManualSync(item); }
+                              catch { Alert.alert('Sync failed', 'Could not add to your calendar. Try again.'); }
+                            }}
+                            label={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
+                          />
+                        ) : null}
+                        {item.type === 'event' && (
+                          <>
+                            <ActionIcon
+                              icon="pencil-outline" color={C.primary}
+                              onPress={() => handleEditEvent(item.sourceId)}
+                              label="Edit event"
+                            />
+                            <ActionIcon
+                              icon="trash-outline" color={C.negative}
+                              onPress={async () => {
+                                try { haptic.warn(); await removeEvent(item.sourceId); }
+                                catch { Alert.alert('Error', 'Could not remove event. Try again.'); }
+                              }}
+                              label="Delete event"
+                            />
+                          </>
+                        )}
+                      </View>
+                    </Animated.View>
+                  );
+                }}
+                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+              />
+            )}
+          </View>
 
-      </ScrollView>
+        </ScrollView>
       </Animated.View>
 
       <EventFormModal
@@ -870,83 +843,176 @@ export default function CalendarScreen(): React.JSX.Element {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Reusable mini buttons ────────────────────────────────────────────────────
+function NavBtn({ icon, onPress, C }: { icon: React.ComponentProps<typeof Ionicons>['name']; onPress: () => void; C: ColorTokens }): React.JSX.Element {
+  const press = usePressScale(0.9);
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={{
+          width: 40, height: 40, borderRadius: 20,
+          justifyContent: 'center', alignItems: 'center',
+          backgroundColor: C.surfaceSecondary,
+        }}
+        accessibilityRole="button"
+      >
+        <Ionicons name={icon} size={18} color={C.primary} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function AddEventBtn({ onPress, C }: { onPress: () => void; C: ColorTokens }): React.JSX.Element {
+  const press = usePressScale(0.94);
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={{
+          flexDirection: 'row', alignItems: 'center', gap: 4,
+          backgroundColor: C.primary,
+          paddingVertical: 8, paddingHorizontal: 12,
+          borderRadius: 12, minHeight: 36,
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Add event"
+      >
+        <Ionicons name="add" size={18} color="#fff" />
+        <Text style={[type.labelSm, { color: '#fff' }]}>Add</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function AddDayBtn({ onPress, C }: { onPress: () => void; C: ColorTokens }): React.JSX.Element {
+  const press = usePressScale(0.94);
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36, paddingHorizontal: 4 }}
+        accessibilityRole="button"
+      >
+        <Ionicons name="add-circle-outline" size={18} color={C.primary} />
+        <Text style={[type.labelSm, { color: C.primary }]}>Add</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function ActionIcon({
+  icon, color, size = 16, onPress, label,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  color: string; size?: number;
+  onPress: () => void; label: string;
+}): React.JSX.Element {
+  const press = usePressScale(0.85);
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' }}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <Ionicons name={icon} size={size} color={color} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ── Styles ──────────────────────────────────────────────────────────────────
 function makeStyles(C: ColorTokens) {
+  const isDark = C.background !== '#F6F2EA';
   return StyleSheet.create({
     flex:      { flex: 1 },
     container: { flex: 1, backgroundColor: C.background },
-    scroll: { padding: sizes.md, paddingBottom: 60, gap: sizes.md },
+    scroll:    { padding: sizes.md, paddingBottom: 60, gap: sizes.md },
 
-    pageHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingTop: 4 },
-    pageTitle: { fontSize: 28, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.8 },
-    pageSubtitle: { fontSize: 13, ...font.regular, color: C.textSecondary, marginTop: 2 },
-    addBtn: {
-      flexDirection: 'row', alignItems: 'center', gap: 6,
-      backgroundColor: C.primary, paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+    // Hero
+    heroCard: {
+      backgroundColor: C.primary,
+      borderRadius: sizes.borderRadiusLg,
+      padding: sizes.lg, gap: 14,
+      position: 'relative', overflow: 'hidden',
     },
-    addBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
+    heroDeco: {
+      position: 'absolute', top: -40, right: -30, width: 160, height: 160,
+      borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.07)',
+    },
+    heroDecoSm: {
+      position: 'absolute', bottom: -50, left: -20, width: 110, height: 110,
+      borderRadius: 55, backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
+    heroIcon: {
+      width: 48, height: 48, borderRadius: 14,
+      backgroundColor: 'rgba(255,255,255,0.16)',
+      justifyContent: 'center', alignItems: 'center',
+    },
 
-    monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: sizes.xs },
-    monthTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    navBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20, backgroundColor: C.surfaceSecondary },
+    monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: sizes.xs, gap: sizes.sm },
 
-    calCard: { backgroundColor: C.surface, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: C.border, padding: sizes.sm, overflow: 'hidden' },
-    weekRow: { flexDirection: 'row', marginBottom: 4 },
-    weekDay: { flex: 1, textAlign: 'center', fontSize: 10, ...font.bold, color: C.textSecondary, letterSpacing: 0.5, paddingVertical: 4 },
-    gridRow: { flexDirection: 'row' },
+    calCard: {
+      borderRadius: sizes.borderRadiusLg, borderWidth: 1,
+      padding: sizes.sm, overflow: 'hidden',
+      ...(isDark
+        ? {}
+        : {
+            shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
+          }),
+    } as never,
+    weekRow:  { flexDirection: 'row', marginBottom: 4 },
+    weekDay:  { flex: 1, textAlign: 'center', fontWeight: '700', letterSpacing: 0.5, paddingVertical: 4 },
+    gridRow:  { flexDirection: 'row' },
 
-    dayCell: { flex: 1, alignItems: 'stretch', paddingVertical: 2, paddingHorizontal: 1, minHeight: 52 },
-    dayInner: { width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 2 },
+    dayCell:  { flex: 1, alignItems: 'stretch', paddingVertical: 2, paddingHorizontal: 1, minHeight: 52 },
+    dayInner: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 2 },
     daySelected: { backgroundColor: C.primary },
-    dayToday: { backgroundColor: C.primary + '20' },
-    dayNum: { fontSize: 12, ...font.medium, color: C.textPrimary },
-    dayNumFaint: { color: C.textDisabled },
-    dayNumSelected: { color: '#fff', ...font.bold },
-    dayNumToday: { color: C.primary, ...font.bold },
+    dayToday:    { backgroundColor: C.primary + '20' },
 
-    eventChip: { borderRadius: 3, paddingHorizontal: 3, paddingVertical: 1, marginBottom: 1 },
-    eventChipText: { fontSize: 8, ...font.semibold, color: '#fff', lineHeight: 11 },
-    moreChip: { fontSize: 8, ...font.regular, color: C.textSecondary, paddingHorizontal: 3 },
+    eventChip:     { borderRadius: 3, paddingHorizontal: 3, paddingVertical: 1, marginBottom: 1 },
+    eventChipText: { fontSize: 8, fontWeight: '600', color: '#fff', lineHeight: 11 },
+    moreChip:      { fontSize: 8, color: C.textSecondary, paddingHorizontal: 3 },
 
-    legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, backgroundColor: C.surface, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: C.border, padding: sizes.md },
+    legend: {
+      flexDirection: 'row', flexWrap: 'wrap', gap: 12,
+      borderRadius: sizes.borderRadiusLg, borderWidth: 1, padding: sizes.md,
+    },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    legendDot: { width: 8, height: 8, borderRadius: 4 },
-    legendLabel: { fontSize: 12, ...font.medium, color: C.textSecondary },
+    legendDot:  { width: 8, height: 8, borderRadius: 4 },
 
-    eventsSection: { backgroundColor: C.surface, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: C.border, padding: sizes.md, gap: sizes.sm },
+    eventsSection: {
+      borderRadius: sizes.borderRadiusLg, borderWidth: 1,
+      padding: sizes.md, gap: sizes.sm,
+    },
     eventsSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-    eventsSectionTitle: { fontSize: 15, ...font.bold, color: C.textPrimary },
-    addDayBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    addDayBtnText: { fontSize: 14, ...font.semibold, color: C.primary },
     emptyDay: { paddingVertical: sizes.lg, alignItems: 'center' },
-    emptyDayText: { color: C.textSecondary, fontSize: 14, ...font.regular, textAlign: 'center' },
 
-    eventRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: C.background, borderRadius: 10, padding: sizes.sm },
-    eventRowPersonal: { opacity: 0.75 },
+    eventRow: {
+      flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+      borderRadius: 10, padding: sizes.sm,
+    },
     eventIconWrap: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-    eventIcon: { fontSize: 18 },
-    eventInfo: { flex: 1, gap: 2, minWidth: 0 },
+    eventInfo:     { flex: 1, gap: 2 },
     eventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-    eventTitle: { fontSize: 14, ...font.semibold, color: C.textPrimary, flex: 1 },
     recurrenceBadge: { backgroundColor: '#6366f120', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-    recurrenceBadgeText: { fontSize: 10, ...font.semibold, color: '#6366f1' },
-    eventTime: { fontSize: 12, ...font.semibold, color: C.primary },
-    eventDetail: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    eventNotes: { fontSize: 12, ...font.regular, color: C.textSecondary, fontStyle: 'italic' },
-    eventRight: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 2, flexShrink: 0 },
-    eventActions: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-    typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-    typeBadgeText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
-    iconBtn: { width: 30, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+    eventRight:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingTop: 2 },
+    typeBadge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
 
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-    errorBanner: { backgroundColor: C.negative + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: C.negative + '40' },
-    errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.negative },
+    centered:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    errorBanner: { borderRadius: 10, padding: sizes.sm, borderWidth: 1 },
   });
 }
 
@@ -959,34 +1025,17 @@ function makeFormStyles(C: ColorTokens) {
       padding: 24, paddingBottom: 40, gap: 12,
       maxHeight: '94%',
     },
-    scroll: { flexGrow: 0 },
     handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 4 },
-    title: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    label: { fontSize: 13, ...font.semibold, color: C.textPrimary, marginBottom: 6 },
+    label:    { marginBottom: 6, textTransform: 'none' as const, letterSpacing: 0 },
     labelGap: { marginTop: 14 },
-    optional: { ...font.regular, color: C.textSecondary },
     input: {
       borderWidth: 1.5, borderColor: C.border, borderRadius: 12,
       paddingHorizontal: 14, paddingVertical: 12,
-      fontSize: 15, ...font.regular, color: C.textPrimary,
+      fontSize: 15, color: C.textPrimary,
       backgroundColor: C.surfaceSecondary,
     },
-    notesInput: { minHeight: 80, paddingTop: 12 },
-    addToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: C.primary, backgroundColor: C.secondary },
-    addToggleText: { fontSize: 14, ...font.medium, color: C.primary },
     clearLink: { alignSelf: 'flex-start', marginTop: 6 },
-    clearLinkText: { fontSize: 12, ...font.regular, color: C.textSecondary, textDecorationLine: 'underline' },
-    chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-    chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.surfaceSecondary },
-    chipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-    chipText: { fontSize: 14, ...font.semibold, color: C.textSecondary },
-    chipTextSelected: { color: '#fff' },
-    errorText: { fontSize: 13, ...font.regular, color: C.negative },
-    btns: { flexDirection: 'row', gap: 10, marginTop: 4 },
-    btnOutline: { flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, alignItems: 'center' },
-    btnOutlineText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
-    btnPrimary: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: C.primary, alignItems: 'center' },
-    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    btnDisabled: { opacity: 0.6 },
+    chips:     { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+    btns:      { flexDirection: 'row', gap: 10, marginTop: 4 },
   });
 }

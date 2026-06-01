@@ -38,7 +38,9 @@
     "all": "הכל",
     "optional": "אופציונלי",
     "new": "חדש",
-    "or": "או"
+    "or": "או",
+    "edit_hint": "הקש כדי לערוך חשבון זה",
+    "cancel_hint": "הקש כדי לבטל את העריכה"
   },
   "nav": {
     "dashboard": "ראשי",
@@ -310,7 +312,16 @@
     "next_month": "חודש הבא",
     "add_expense": "הוסף הוצאה",
     "load_error": "לא ניתן לטעון חשבונות",
-    "retry": "נסה שוב"
+    "retry": "נסה שוב",
+    "title_hint": "הזן תיאור קצר של ההוצאה",
+    "amount_hint": "הזן את הסכום הכולל ששולם",
+    "notes_hint": "הוסף הערות אופציונליות להוצאה זו",
+    "what_for_hint": "הזן תיאור קצר של ההוצאה",
+    "custom_amount_for": "סכום עבור {{name}}",
+    "custom_amount_hint": "הזן את החלק של אדם זה מהסכום הכולל",
+    "failed_delete": "מחיקת החשבון נכשלה. נסה שוב.",
+    "delete_confirm_title": "מחיקת חשבון",
+    "delete_confirm_message": "למחוק את \"{{title}}\"? לא ניתן לבטל פעולה זו."
   },
   "parking": {
     "title": "חניה",
@@ -342,6 +353,17 @@
     "failed_release": "שחרור החניה נכשל",
     "failed_reservation": "הוספת ההזמנה נכשלה",
     "admin_free_spot": "שחרר את החניה",
+    "free_others_title": "לשחרר חניה של מישהו אחר?",
+    "free_others_message": "{{occupantName}} תפס את החניה — האם אתה בטוח שברצונך לשחרר אותה?",
+    "free_others_confirm": "כן, שחרר",
+    "free_others_cancel": "ביטול",
+    "free_others_changed": "החניה השתנתה בזמן שאישרת — אנא נסה שנית.",
+    "spot_open": "חניה פנויה",
+    "your_car": "הרכב שלך",
+    "spot_open_hint": "תפוס לפני מישהו אחר.",
+    "claimed_at": "נתפסה ב-{{time}} · {{hours}} {{mins}}",
+    "parked_since": "חונה מאז {{time}} · {{hours}} {{mins}}",
+    "note_hint": "הוסף מידע שימושי לשאר בני הבית",
     "you": "אתה",
     "no_reservations_day": "אין הזמנות ביום זה.",
     "clear_all": "נקה הכל",
@@ -385,6 +407,11 @@
     "every": "🔁 כל",
     "of_month": "לחודש",
     "failed_add": "הוספת המטלה נכשלה. נסה שוב.",
+    "every_day": "כל {{day}}",
+    "hero_subtitle": "מטלות הבית",
+    "empty": "אין מטלות עדיין",
+    "progress": "{{done}} מתוך {{total}} הושלמו",
+    "description": "הקצה מטלות, קח על עצמך ותסמן יחד.",
     "done_one": "{{count}} בוצעה",
     "done_other": "{{count}} בוצעו",
     "added": "נוסף"

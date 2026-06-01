@@ -36,7 +36,11 @@ const downloadPhotoNative = async (url: string): Promise<void> => {
     throw new Error('Unable to download or save the photo. Please try again.');
   } finally {
     if (file) {
-      try { file.delete(); } catch { /* best-effort cache cleanup */ }
+      try {
+        file.delete();
+      } catch {
+        /* best-effort cache cleanup */
+      }
     }
   }
 };

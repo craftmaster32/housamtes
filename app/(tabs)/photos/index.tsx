@@ -17,7 +17,12 @@ import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import { format, isToday, isYesterday } from 'date-fns';
 import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
-import { usePhotoStore, PHOTO_CATEGORIES, type Photo, type PhotoCategory } from '@stores/photoStore';
+import {
+  usePhotoStore,
+  PHOTO_CATEGORIES,
+  type Photo,
+  type PhotoCategory,
+} from '@stores/photoStore';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -35,7 +40,10 @@ const MAX_PHOTOS = 50;
 const DATE_FNS_LOCALES = { en: enUS, es: dateFnsEs, he: dateFnsHe } as const;
 
 type PhotoRow = Photo[];
-interface PhotoSection { title: string; data: PhotoRow[] }
+interface PhotoSection {
+  title: string;
+  data: PhotoRow[];
+}
 
 const chunkRows = (photos: Photo[]): PhotoRow[] =>
   Array.from({ length: Math.ceil(photos.length / GRID_COLS) }, (_, i) =>
@@ -195,7 +203,9 @@ export default function PhotosScreen(): React.JSX.Element {
 
   useEffect(() => {
     if (houseId) load(houseId);
-    return (): void => { usePhotoStore.getState().unsubscribe(); };
+    return (): void => {
+      usePhotoStore.getState().unsubscribe();
+    };
   }, [houseId, load]);
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory | 'general'>('general');
@@ -222,16 +232,15 @@ export default function PhotosScreen(): React.JSX.Element {
   );
 
   const sections = useMemo<PhotoSection[]>(() => {
-    const dateFnsLocale =
-      DATE_FNS_LOCALES[i18n.language as keyof typeof DATE_FNS_LOCALES] ?? enUS;
+    const dateFnsLocale = DATE_FNS_LOCALES[i18n.language as keyof typeof DATE_FNS_LOCALES] ?? enUS;
     const groups = new Map<string, Photo[]>();
     for (const photo of filtered) {
       const d = new Date(photo.createdAt);
       const label = isToday(d)
         ? t('photos.today')
         : isYesterday(d)
-        ? t('photos.yesterday')
-        : format(d, 'MMMM yyyy', { locale: dateFnsLocale });
+          ? t('photos.yesterday')
+          : format(d, 'MMMM yyyy', { locale: dateFnsLocale });
       const arr = groups.get(label) ?? [];
       arr.push(photo);
       groups.set(label, arr);
@@ -305,7 +314,10 @@ export default function PhotosScreen(): React.JSX.Element {
   const pickFromCamera = useCallback(async (): Promise<void> => {
     try {
       const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-      if (!granted) { setError(t('photos.permission_denied')); return; }
+      if (!granted) {
+        setError(t('photos.permission_denied'));
+        return;
+      }
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
       if (!result.canceled && result.assets[0]) {
         setPickedAssets([result.assets[0]]);
@@ -318,7 +330,10 @@ export default function PhotosScreen(): React.JSX.Element {
   const pickFromLibrary = useCallback(async (): Promise<void> => {
     try {
       const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!granted) { setError(t('photos.permission_denied')); return; }
+      if (!granted) {
+        setError(t('photos.permission_denied'));
+        return;
+      }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
@@ -606,7 +621,10 @@ export default function PhotosScreen(): React.JSX.Element {
               accessible
               accessibilityRole="button"
               accessibilityLabel={t('photos.download_photo')}
-              accessibilityState={{ busy: isBulkDownloading, disabled: selectedCount === 0 || isBulkDownloading }}
+              accessibilityState={{
+                busy: isBulkDownloading,
+                disabled: selectedCount === 0 || isBulkDownloading,
+              }}
             >
               {isBulkDownloading ? (
                 <ActivityIndicator size="small" color="#fff" />

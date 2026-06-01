@@ -35,8 +35,10 @@ import { useLanguageStore } from '@stores/languageStore';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { EmptyState } from '@components/ui';
-import { font } from '@constants/typography';
+import { Button, EmptyState } from '@components/ui';
+import { font, type } from '@constants/typography';
+import { sizes } from '@constants/sizes';
+import { useCountUp } from '@utils/animations';
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -62,6 +64,12 @@ function parseDateParts(
 function todayString(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function elapsedSince(iso: string): { hours: number; mins: number } {
+  const diff = Date.now() - new Date(iso).getTime();
+  const totalMins = Math.max(0, Math.floor(diff / 60000));
+  return { hours: Math.floor(totalMins / 60), mins: totalMins % 60 };
 }
 
 // ── Component prop interfaces ──────────────────────────────────────────────────
@@ -715,6 +723,16 @@ export default function ParkingScreen(): React.JSX.Element {
   const isFree = !current;
   const isAdmin = role === 'owner' || role === 'admin';
 
+  const elapsed = current ? elapsedSince(current.startTime) : { hours: 0, mins: 0 };
+  const displayHours = useCountUp(elapsed.hours, {
+    duration: 500,
+    formatter: (n) => `${Math.round(n)}h`,
+  });
+  const displayMins = useCountUp(elapsed.mins, {
+    duration: 500,
+    formatter: (n) => `${Math.round(n)}m`,
+  });
+
   const [showReserve, setShowReserve] = useState(false);
   const [daySheetDate, setDaySheetDate] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -978,72 +996,82 @@ export default function ParkingScreen(): React.JSX.Element {
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         ListHeaderComponent={
           <View>
-            {/* ── Hero card ── */}
+            {/* ── Blue hero — status, occupant, claim/release ───────────── */}
             <View style={styles.heroCard}>
-              <View style={styles.heroCopy}>
-                <Text style={styles.titleHero}>{t('parking.title')}</Text>
-                <Text style={styles.textBase}>
-                  {isFree
-                    ? 'Free real estate! Claim it before someone else does. 🏎️'
-                    : isMine
-                      ? `That's your car in there — since ${formatTime(current!.startTime)}.`
-                      : `${resolveName(current?.occupant ?? '', housemates)} got here first. Since ${formatTime(current!.startTime)}.`}
-                </Text>
+              <View style={styles.heroDeco} />
+              <View style={styles.heroDecoSm} />
+
+              <View style={styles.heroTopRow}>
+                <View
+                  style={[
+                    styles.heroIcon,
+                    { backgroundColor: isFree ? 'rgba(79,176,113,0.22)' : 'rgba(217,83,79,0.22)' },
+                  ]}
+                >
+                  <Ionicons name={isFree ? 'car-outline' : 'car'} size={26} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[type.eyebrow, { color: 'rgba(255,255,255,0.78)' }]}>
+                    {isFree ? t('parking.free') : t('parking.taken')}
+                  </Text>
+                  <Text style={[type.title, { color: '#fff' }]}>
+                    {isFree
+                      ? t('parking.spot_open')
+                      : isMine
+                        ? t('parking.your_car')
+                        : resolveName(current?.occupant ?? '', housemates)}
+                  </Text>
+                </View>
               </View>
 
-              <View
-                style={[
-                  styles.statusCircle,
-                  { backgroundColor: isFree ? C.positive + '18' : C.negative + '18' },
-                ]}
-              >
-                <Ionicons
-                  name={isFree ? 'car-outline' : 'car'}
-                  size={38}
-                  color={isFree ? C.positive : C.negative}
-                />
-                <Text style={[styles.statusLabel, { color: isFree ? C.positive : C.negative }]}>
-                  {isFree ? t('parking.free') : t('parking.taken')}
-                </Text>
-              </View>
+              <Text style={[type.bodyMd, { color: 'rgba(255,255,255,0.85)' }]}>
+                {isFree
+                  ? t('parking.spot_open_hint')
+                  : isMine
+                    ? t('parking.claimed_at', {
+                        time: formatTime(current!.startTime),
+                        hours: displayHours,
+                        mins: displayMins,
+                      })
+                    : t('parking.parked_since', {
+                        time: formatTime(current!.startTime),
+                        hours: displayHours,
+                        mins: displayMins,
+                      })}
+              </Text>
 
               {isFree && (
-                <Pressable
-                  style={styles.btnPrimary}
+                <Button
+                  variant="primary"
                   onPress={handleClaim}
-                  accessibilityRole="button"
+                  fullWidth
+                  icon="car"
+                  style={styles.heroBtnClaim}
                 >
-                  <Ionicons name="car" size={16} color="#fff" style={styles.btnIcon} />
-                  <Text style={styles.btnPrimaryText}>{t('parking.claim')}</Text>
-                </Pressable>
+                  {t('parking.claim')}
+                </Button>
               )}
               {isMine && (
-                <Pressable
-                  style={styles.btnDanger}
+                <Button
+                  variant="secondary"
                   onPress={handleRelease}
-                  accessibilityRole="button"
+                  fullWidth
+                  icon="exit-outline"
+                  style={styles.heroBtnRelease}
                 >
-                  <Ionicons name="exit-outline" size={16} color={C.danger} style={styles.btnIcon} />
-                  <Text style={styles.btnDangerText}>{t('parking.release')}</Text>
-                </Pressable>
+                  {t('parking.release')}
+                </Button>
               )}
               {!isFree && !isMine && (
-                <Pressable
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel="Free the parking spot"
-                  accessibilityState={{ disabled: false }}
-                  style={styles.btnAdminRelease}
+                <Button
+                  variant="secondary"
                   onPress={handleReleaseOther}
+                  fullWidth
+                  icon="exit-outline"
+                  style={styles.heroBtnAdmin}
                 >
-                  <Ionicons
-                    name="exit-outline"
-                    size={15}
-                    color={C.warning}
-                    style={styles.btnIcon}
-                  />
-                  <Text style={styles.btnAdminReleaseText}>{t('parking.admin_free_spot')}</Text>
-                </Pressable>
+                  {t('parking.admin_free_spot')}
+                </Button>
               )}
             </View>
 
@@ -1119,59 +1147,57 @@ const makeStyles = (C: ColorTokens) =>
     sep: { height: 8 },
 
     heroCard: {
-      backgroundColor: C.surface,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: C.border,
-      padding: 20,
-      gap: 16,
-      marginBottom: 24,
-      shadowColor: '#2C333D',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.05,
-      shadowRadius: 24,
-      elevation: 3,
-    },
-    heroCopy: { gap: 6 },
-    titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-    textBase: { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
-
-    statusCircle: {
-      alignSelf: 'center',
-      width: 96,
-      height: 96,
-      borderRadius: 48,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 4,
-    },
-    statusLabel: { fontSize: 12, ...font.bold, letterSpacing: 0.6 },
-
-    btnPrimary: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 48,
-      paddingHorizontal: 18,
-      borderRadius: 10,
       backgroundColor: C.primary,
-      shadowColor: '#4F78B6',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.18,
-      shadowRadius: 16,
-      elevation: 6,
+      borderRadius: sizes.borderRadiusLg,
+      padding: sizes.lg,
+      gap: 14,
+      marginBottom: sizes.md,
+      position: 'relative',
+      overflow: 'hidden',
     },
-    btnDanger: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    heroDeco: {
+      position: 'absolute',
+      top: -40,
+      right: -30,
+      width: 160,
+      height: 160,
+      borderRadius: 80,
+      backgroundColor: 'rgba(255,255,255,0.07)',
+    },
+    heroDecoSm: {
+      position: 'absolute',
+      bottom: -50,
+      left: -20,
+      width: 110,
+      height: 110,
+      borderRadius: 55,
+      backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    heroTopRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
+    heroIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: 14,
       justifyContent: 'center',
-      minHeight: 48,
-      paddingHorizontal: 18,
-      borderRadius: 10,
-      backgroundColor: C.danger + '15',
-      borderWidth: 1,
-      borderColor: C.danger + '30',
+      alignItems: 'center',
     },
+    heroBtnClaim: {
+      backgroundColor: C.positive,
+      shadowColor: C.positive,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35,
+      shadowRadius: 10,
+    } as never,
+    heroBtnRelease: {
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      borderColor: 'rgba(255,255,255,0.28)',
+      borderWidth: 1,
+    } as never,
+    heroBtnAdmin: {
+      backgroundColor: 'rgba(224,178,77,0.18)',
+      borderColor: 'rgba(224,178,77,0.42)',
+      borderWidth: 1,
+    } as never,
     btnAdminRelease: {
       flexDirection: 'row',
       alignItems: 'center',

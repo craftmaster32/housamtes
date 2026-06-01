@@ -122,13 +122,14 @@ export const useSettingsStore = create<SettingsStore>()(
         currencyCode: 'ILS' as CurrencyCode,
         showRecurringBillsOnCalendar: true,
         theme: 'dark' as AppTheme,
-        themeMode: 'system' as ThemeMode,
+        // v2 design system: default to DARK so the app matches the
+        // animation-rollout preview out of the box. Was 'system', which
+        // rendered the light/cream palette on light-mode phones.
+        themeMode: 'dark' as ThemeMode,
 
         toggleFeature: (key: string): void => {
           set((s) => ({
-            features: s.features.map((f) =>
-              f.key === key ? { ...f, enabled: !f.enabled } : f
-            ),
+            features: s.features.map((f) => (f.key === key ? { ...f, enabled: !f.enabled } : f)),
           }));
         },
 
@@ -173,7 +174,7 @@ export const useSettingsStore = create<SettingsStore>()(
       {
         name: 'housemates-settings',
         storage: createJSONStorage(() => AsyncStorage),
-        version: 4,
+        version: 5,
         migrate: (state: unknown, fromVersion: number): SettingsStore => {
           let next = { ...(state as SettingsStore) };
           if (fromVersion < 2) {
@@ -184,7 +185,8 @@ export const useSettingsStore = create<SettingsStore>()(
                 key: 'grocery_draft',
                 label: 'Grocery Draft Mode',
                 icon: '📝',
-                description: 'Privately compose your shopping list before sharing it with the house',
+                description:
+                  'Privately compose your shopping list before sharing it with the house',
                 enabled: true,
               };
               const features = [...(next.features ?? [])];
@@ -201,6 +203,14 @@ export const useSettingsStore = create<SettingsStore>()(
             }
             if (!next.themeMode) {
               next = { ...next, themeMode: 'system' };
+            }
+          }
+          // v5 — flip existing installs to dark so everyone gets the v2 look.
+          // Users who explicitly picked 'light' keep it; only 'system' (the old
+          // default) is promoted to 'dark'.
+          if (fromVersion < 5) {
+            if (!next.themeMode || next.themeMode === 'system') {
+              next = { ...next, themeMode: 'dark' };
             }
           }
           return next;

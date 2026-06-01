@@ -134,13 +134,10 @@ export function PhotoViewer({
     []
   );
 
-  const onMomentumScrollEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const idx = Math.round(e.nativeEvent.contentOffset.x / SW);
-      setCurrentIndex(idx);
-    },
-    []
-  );
+  const onMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / SW);
+    setCurrentIndex(idx);
+  }, []);
 
   const handleDownload = useCallback(async (): Promise<void> => {
     if (!photo || isDownloading) return;
@@ -161,37 +158,30 @@ export function PhotoViewer({
 
   const handleReport = useCallback((): void => {
     if (!photo) return;
-    Alert.alert(
-      t('photos.report_title'),
-      t('photos.report_message', { name: photo.uploadedBy }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('photos.report_action'),
-          style: 'destructive',
-          onPress: (): void => {
-            captureError(new Error('User photo report'), {
-              type: 'photo_report',
-              reportedPhotoId: photo.id,
-              reportedUploader: photo.uploadedBy,
-              reporterUserId: currentUserId ?? '',
-              houseId: houseId ?? '',
-            });
-            Alert.alert(
-              t('photos.report_submitted_title'),
-              t('photos.report_submitted_message'),
-              [{ text: t('common.ok') }]
-            );
-          },
+    Alert.alert(t('photos.report_title'), t('photos.report_message', { name: photo.uploadedBy }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('photos.report_action'),
+        style: 'destructive',
+        onPress: (): void => {
+          captureError(new Error('User photo report'), {
+            type: 'photo_report',
+            reportedPhotoId: photo.id,
+            reportedUploader: photo.uploadedBy,
+            reporterUserId: currentUserId ?? '',
+            houseId: houseId ?? '',
+          });
+          Alert.alert(t('photos.report_submitted_title'), t('photos.report_submitted_message'), [
+            { text: t('common.ok') },
+          ]);
         },
-      ]
-    );
+      },
+    ]);
   }, [photo, currentUserId, houseId, t]);
 
-  const handleDelete = useCallback(
-    () => { if (photo) onDelete(photo); },
-    [onDelete, photo]
-  );
+  const handleDelete = useCallback(() => {
+    if (photo) onDelete(photo);
+  }, [onDelete, photo]);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -248,9 +238,7 @@ export function PhotoViewer({
 
         {!!photo && (
           <View style={styles.meta}>
-            {!!photo.caption && (
-              <Text style={styles.caption}>{photo.caption}</Text>
-            )}
+            {!!photo.caption && <Text style={styles.caption}>{photo.caption}</Text>}
             <Text style={styles.info}>
               {photo.uploadedBy} · {new Date(photo.createdAt).toLocaleDateString()}
             </Text>
