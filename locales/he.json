@@ -244,6 +244,7 @@
     "total": "סה״כ:",
     "custom_split": "חלוקה מותאמת",
     "equal_split": "חלוקה שווה ÷",
+    "equal_split_count": "חלוקה שווה ÷ {{count}}",
     "mark_settled": "סמן כמקוזז",
     "delete_bill": "מחק חשבון",
     "title_required": "כותרת היא שדה חובה",

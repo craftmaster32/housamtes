@@ -244,6 +244,7 @@
     "total": "Total:",
     "custom_split": "División personalizada",
     "equal_split": "División igual ÷",
+    "equal_split_count": "División igual ÷ {{count}}",
     "mark_settled": "Marcar como liquidado",
     "delete_bill": "Eliminar gasto",
     "title_required": "El título es obligatorio",

@@ -245,6 +245,7 @@
     "total": "Total:",
     "custom_split": "Custom split",
     "equal_split": "Equal ÷",
+    "equal_split_count": "Equal ÷ {{count}}",
     "mark_settled": "Mark as Settled",
     "delete_bill": "Delete Bill",
     "title_required": "Title is required",

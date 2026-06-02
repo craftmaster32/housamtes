@@ -325,7 +325,7 @@ export default function BillDetailScreen(): React.JSX.Element {
               {t('bills.total')} {formatFull(bill.amount, currencyCode)} ·{' '}
               {isCustomSplit
                 ? t('bills.custom_split')
-                : `${t('bills.equal_split')} ${bill.splitBetween.length}`}
+                : t('bills.equal_split_count', { count: bill.splitBetween.length })}
             </Text>
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>
