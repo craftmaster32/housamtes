@@ -110,7 +110,8 @@ export default function BillDetailScreen(): React.JSX.Element {
       await editBill(bill.id, { title: title.trim(), amount: parsed, date, notes, category });
       setIsEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('bills.failed_save'));
+      console.error(err);
+      setError(t('bills.failed_save'));
     } finally {
       setIsSaving(false);
     }
@@ -122,7 +123,8 @@ export default function BillDetailScreen(): React.JSX.Element {
       await deleteBill(bill.id, houseId ?? '');
       router.replace('/(tabs)/bills');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('bills.failed_delete'));
+      console.error(err);
+      setError(t('bills.failed_delete'));
     }
   }, [bill, houseId, deleteBill, t]);
 
@@ -133,7 +135,7 @@ export default function BillDetailScreen(): React.JSX.Element {
           <EmptyState
             mode={isLoading ? 'loading' : 'empty'}
             icon="receipt-outline"
-            title={isLoading ? 'Loading…' : t('bills.bill_not_found')}
+            title={isLoading ? t('common.loading') : t('bills.bill_not_found')}
             actionLabel={isLoading ? undefined : t('bills.back_to_bills')}
             onAction={isLoading ? undefined : handleBackToBills}
           />
@@ -160,6 +162,7 @@ export default function BillDetailScreen(): React.JSX.Element {
           {!bill.settled && !isEditing && (
             <Pressable
               onPress={() => setIsEditing(true)}
+              style={styles.editBtn}
               accessibilityRole="button"
               accessibilityLabel={t('common.edit')}
             >
@@ -366,6 +369,7 @@ const makeStyles = (C: ColorTokens) =>
       marginBottom: sizes.xs,
     },
     backBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    editBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     editText: { color: C.primary, fontSize: 15, ...font.medium },
     card: {
