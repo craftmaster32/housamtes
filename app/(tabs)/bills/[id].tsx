@@ -340,7 +340,7 @@ export default function BillDetailScreen(): React.JSX.Element {
         )}
 
         {/* Actions */}
-        {!isEditing && canDelete && (
+        {!isEditing && canDelete && !bill.settled && (
           <Button
             variant="danger"
             onPress={handleDelete}
