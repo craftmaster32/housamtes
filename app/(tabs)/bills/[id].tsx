@@ -86,6 +86,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   }, [bill, isEditing]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
@@ -108,6 +109,7 @@ export default function BillDetailScreen(): React.JSX.Element {
     try {
       setIsSaving(true);
       await editBill(bill.id, { title: title.trim(), amount: parsed, date, notes, category });
+      setError('');
       setIsEditing(false);
     } catch (err) {
       console.error(err);
@@ -118,15 +120,17 @@ export default function BillDetailScreen(): React.JSX.Element {
   }, [bill, title, amount, date, notes, category, editBill, t]);
 
   const handleDelete = useCallback(async (): Promise<void> => {
-    if (!bill) return;
+    if (!bill || !houseId || isDeleting) return;
     try {
-      await deleteBill(bill.id, houseId ?? '');
+      setIsDeleting(true);
+      await deleteBill(bill.id, houseId);
       router.replace('/(tabs)/bills');
     } catch (err) {
       console.error(err);
       setError(t('bills.failed_delete'));
+      setIsDeleting(false);
     }
-  }, [bill, houseId, deleteBill, t]);
+  }, [bill, houseId, isDeleting, deleteBill, t]);
 
   if (!bill) {
     return (
@@ -194,6 +198,8 @@ export default function BillDetailScreen(): React.JSX.Element {
               }}
               mode="outlined"
               style={styles.input}
+              accessibilityLabel={t('bills.title_label')}
+              accessibilityHint={t('bills.title_hint')}
             />
             <TextInput
               label={t('bills.amount_label')}
@@ -205,6 +211,8 @@ export default function BillDetailScreen(): React.JSX.Element {
               mode="outlined"
               style={styles.input}
               keyboardType="decimal-pad"
+              accessibilityLabel={t('bills.amount_label')}
+              accessibilityHint={t('bills.amount_hint')}
             />
             <View style={styles.dateField}>
               <Text style={styles.dateFieldLabel}>{t('bills.date_label')}</Text>
@@ -336,6 +344,8 @@ export default function BillDetailScreen(): React.JSX.Element {
           <Button
             variant="danger"
             onPress={handleDelete}
+            loading={isDeleting}
+            disabled={isDeleting}
             fullWidth
             size="lg"
             style={styles.deleteBtn}
