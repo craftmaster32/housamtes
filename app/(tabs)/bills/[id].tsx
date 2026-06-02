@@ -94,7 +94,7 @@ export default function BillDetailScreen(): React.JSX.Element {
     router.replace('/(tabs)/bills');
   }, []);
 
-  const handleSaveEdit = useCallback(async () => {
+  const handleSaveEdit = useCallback(async (): Promise<void> => {
     const parsed = parseFloat(amount);
     if (!title.trim()) {
       setError(t('bills.title_required'));
@@ -116,15 +116,15 @@ export default function BillDetailScreen(): React.JSX.Element {
     }
   }, [bill, title, amount, date, notes, category, editBill, t]);
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(async (): Promise<void> => {
     if (!bill) return;
     try {
       await deleteBill(bill.id, houseId ?? '');
       router.replace('/(tabs)/bills');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete bill');
+      setError(err instanceof Error ? err.message : t('bills.failed_delete'));
     }
-  }, [bill, houseId, deleteBill]);
+  }, [bill, houseId, deleteBill, t]);
 
   if (!bill) {
     return (
@@ -149,11 +149,20 @@ export default function BillDetailScreen(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
             <Text style={styles.backText}>← {t('common.back')}</Text>
           </Pressable>
           {!bill.settled && !isEditing && (
-            <Pressable onPress={() => setIsEditing(true)}>
+            <Pressable
+              onPress={() => setIsEditing(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.edit')}
+            >
               <Text style={styles.editText}>{t('common.edit')}</Text>
             </Pressable>
           )}
@@ -356,7 +365,7 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
       marginBottom: sizes.xs,
     },
-    backBtn: { padding: 4 },
+    backBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     editText: { color: C.primary, fontSize: 15, ...font.medium },
     card: {
@@ -406,7 +415,6 @@ const makeStyles = (C: ColorTokens) =>
     dateTriggerText: { flex: 1, fontSize: 15, ...font.regular, color: C.textPrimary },
     editButtons: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center', marginTop: sizes.xs },
     saveBtn: { borderRadius: 14 },
-    settleBtn: { borderRadius: 14 },
     deleteBtn: { borderRadius: 14 },
     error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
 
