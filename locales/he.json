@@ -229,6 +229,7 @@
     "custom_total_mismatch": "סכום החלוקה ₪{{entered}} לא תואם לחשבון ₪{{total}}",
     "failed_save": "השמירה נכשלה. נסה שוב.",
     "failed_delete": "המחיקה נכשלה. נסה שוב.",
+    "no_housemates": "לא נמצאו שותפים לדירה",
     "back_to_bills": "חזרה לחשבונות",
     "bill_not_found": "החשבון לא נמצא",
     "settled_by_on": "קוזז על ידי {{name}} ב-{{date}}",

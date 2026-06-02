@@ -96,6 +96,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   }, []);
 
   const handleSaveEdit = useCallback(async (): Promise<void> => {
+    if (isSaving) return;
     const parsed = parseFloat(amount.replace(',', '.'));
     if (!title.trim()) {
       setError(t('bills.title_required'));
@@ -117,7 +118,7 @@ export default function BillDetailScreen(): React.JSX.Element {
     } finally {
       setIsSaving(false);
     }
-  }, [bill, title, amount, date, notes, category, editBill, t]);
+  }, [bill, title, amount, date, notes, category, editBill, t, isSaving]);
 
   const handleDelete = useCallback(async (): Promise<void> => {
     if (!bill || !houseId || isDeleting) return;
@@ -285,6 +286,7 @@ export default function BillDetailScreen(): React.JSX.Element {
                   setIsEditing(false);
                   setError('');
                 }}
+                disabled={isSaving}
               >
                 {t('common.cancel')}
               </Button>

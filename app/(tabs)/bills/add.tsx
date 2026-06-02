@@ -258,6 +258,10 @@ export default function AddBillScreen(): React.JSX.Element {
       }
     }
 
+    if (!houseId) {
+      setError(t('bills.failed_save'));
+      return;
+    }
     try {
       setIsLoading(true);
       await addBill(
@@ -270,7 +274,7 @@ export default function AddBillScreen(): React.JSX.Element {
           category,
           date,
         },
-        houseId ?? ''
+        houseId
       );
       markSeen('bills').catch(() => {});
       // Reset before navigating so stale state never persists on re-entry
@@ -306,6 +310,16 @@ export default function AddBillScreen(): React.JSX.Element {
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
           <EmptyState mode="loading" title="Loading…" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (housemates.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <EmptyState mode="empty" icon="people-outline" title={t('bills.no_housemates')} />
         </View>
       </SafeAreaView>
     );

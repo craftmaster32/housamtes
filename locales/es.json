@@ -229,6 +229,7 @@
     "custom_total_mismatch": "El total personalizado ₪{{entered}} no coincide con el gasto ₪{{total}}",
     "failed_save": "No se pudo guardar. Intenta de nuevo.",
     "failed_delete": "No se pudo eliminar. Intenta de nuevo.",
+    "no_housemates": "No se encontraron compañeros de piso",
     "back_to_bills": "Volver a gastos",
     "bill_not_found": "Gasto no encontrado",
     "settled_by_on": "Liquidado por {{name}} el {{date}}",

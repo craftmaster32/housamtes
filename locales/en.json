@@ -230,6 +230,7 @@
     "custom_total_mismatch": "Custom amounts total ₪{{entered}} but bill is ₪{{total}}",
     "failed_save": "Failed to save. Try again.",
     "failed_delete": "Failed to delete. Try again.",
+    "no_housemates": "No housemates found",
     "back_to_bills": "Back to bills",
     "bill_not_found": "Bill not found",
     "settled_by_on": "Settled by {{name}} on {{date}}",

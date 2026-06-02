@@ -253,6 +253,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
               keyboardType="decimal-pad"
               placeholder={t('bills.household_amount')}
               placeholderTextColor={c.textDisabled}
+              accessibilityLabel={t('bills.household_amount')}
             />
             <Pressable
               style={[styles.dateTrigger, { backgroundColor: c.background, borderColor: c.border }]}
@@ -282,6 +283,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             onChangeText={setNote}
             placeholder={t('bills.household_note')}
             placeholderTextColor={c.textDisabled}
+            accessibilityLabel={t('bills.household_note')}
           />
           <Pressable
             style={[styles.savePaymentBtn, { backgroundColor: c.primary }]}
@@ -355,6 +357,10 @@ function AddBillForm({
     const amt = parseFloat(typicalAmount.replace(',', '.'));
     if (!typicalAmount || isNaN(amt) || amt <= 0) {
       setError('Please enter a valid amount.');
+      return;
+    }
+    if (!assignedTo) {
+      setError('Please select who pays.');
       return;
     }
     if (!houseId) return;
@@ -445,6 +451,7 @@ function AddBillForm({
         placeholder={t('bills.household_bill_name_placeholder')}
         placeholderTextColor={c.textDisabled}
         autoCorrect={false}
+        accessibilityLabel={t('bills.household_bill_name')}
       />
 
       {/* Assigned to */}
@@ -507,6 +514,7 @@ function AddBillForm({
         keyboardType="decimal-pad"
         placeholder="0"
         placeholderTextColor={c.textDisabled}
+        accessibilityLabel={t('bills.household_typical_amount')}
       />
 
       {/* Last paid date */}
