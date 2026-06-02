@@ -96,7 +96,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   }, []);
 
   const handleSaveEdit = useCallback(async (): Promise<void> => {
-    const parsed = parseFloat(amount);
+    const parsed = parseFloat(amount.replace(',', '.'));
     if (!title.trim()) {
       setError(t('bills.title_required'));
       return;
@@ -300,7 +300,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.date')}</Text>
-              <Text style={styles.metaValue}>{new Date(bill.date).toLocaleDateString()}</Text>
+              <Text style={styles.metaValue}>{formatDisplayDate(bill.date, i18n.language)}</Text>
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
