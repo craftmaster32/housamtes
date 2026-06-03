@@ -241,6 +241,7 @@
     "date_label": "Fecha (YYYY-MM-DD)",
     "notes_label": "Notas (opcional)",
     "notes_placeholder": "Notas",
+    "notes_hint": "Cualquier detalle adicional sobre este gasto",
     "split_breakdown": "Desglose de división",
     "total": "Total:",
     "custom_split": "División personalizada",

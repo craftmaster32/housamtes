@@ -241,6 +241,7 @@
     "date_label": "תאריך (YYYY-MM-DD)",
     "notes_label": "הערות (אופציונלי)",
     "notes_placeholder": "הערות",
+    "notes_hint": "פרטים נוספים על ההוצאה",
     "split_breakdown": "פירוט חלוקה",
     "total": "סה״כ:",
     "custom_split": "חלוקה מותאמת",

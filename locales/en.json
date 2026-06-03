@@ -242,6 +242,7 @@
     "date_label": "Date (YYYY-MM-DD)",
     "notes_label": "Notes (optional)",
     "notes_placeholder": "Notes",
+    "notes_hint": "Any additional details about this expense",
     "split_breakdown": "Split breakdown",
     "total": "Total:",
     "custom_split": "Custom split",

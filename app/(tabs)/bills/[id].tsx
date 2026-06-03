@@ -240,6 +240,8 @@ export default function BillDetailScreen(): React.JSX.Element {
               placeholder={t('bills.notes_placeholder')}
               multiline
               numberOfLines={2}
+              accessibilityLabel={t('bills.notes_label')}
+              accessibilityHint={t('bills.notes_hint')}
             />
             <View style={styles.categoryField}>
               <Text style={styles.categoryFieldLabel}>{t('bills.category')}</Text>

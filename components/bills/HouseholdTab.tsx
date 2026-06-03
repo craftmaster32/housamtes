@@ -322,7 +322,16 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
               {p.note ? (
                 <Text style={[styles.historyNote, { color: c.textSecondary }]}>{p.note}</Text>
               ) : null}
-              <Pressable onPress={() => deletePayment(p.id)} hitSlop={8}>
+              <Pressable
+                onPress={async () => {
+                  try {
+                    await deletePayment(p.id);
+                  } catch {
+                    setCardError(t('bills.failed_delete'));
+                  }
+                }}
+                hitSlop={8}
+              >
                 <Ionicons name="close" size={14} color={c.textSecondary} />
               </Pressable>
             </View>
