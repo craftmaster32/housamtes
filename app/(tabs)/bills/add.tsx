@@ -438,10 +438,14 @@ export default function AddBillScreen(): React.JSX.Element {
         {selectedPeople.length > 0 && (
           <View style={styles.field}>
             <Text style={styles.label}>{t('bills.how_to_split')}</Text>
-            <View style={styles.chipRow}>
+            <View style={styles.chipRow} accessibilityRole="radiogroup">
               <Pressable
                 style={[styles.chip, splitType === 'equal' && styles.chipSelected]}
                 onPress={() => setSplitType('equal')}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={t('bills.equal')}
+                accessibilityState={{ selected: splitType === 'equal' }}
               >
                 <Text style={[styles.chipText, splitType === 'equal' && styles.chipTextSelected]}>
                   {t('bills.equal')}
@@ -450,6 +454,10 @@ export default function AddBillScreen(): React.JSX.Element {
               <Pressable
                 style={[styles.chip, splitType === 'custom' && styles.chipSelected]}
                 onPress={() => setSplitType('custom')}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={t('bills.custom_amounts')}
+                accessibilityState={{ selected: splitType === 'custom' }}
               >
                 <Text style={[styles.chipText, splitType === 'custom' && styles.chipTextSelected]}>
                   {t('bills.custom_amounts')}
@@ -458,6 +466,10 @@ export default function AddBillScreen(): React.JSX.Element {
               <Pressable
                 style={[styles.chip, splitType === 'percentage' && styles.chipSelected]}
                 onPress={() => setSplitType('percentage')}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={t('bills.by_percent')}
+                accessibilityState={{ selected: splitType === 'percentage' }}
               >
                 <Text
                   style={[styles.chipText, splitType === 'percentage' && styles.chipTextSelected]}
@@ -728,6 +740,8 @@ const makeStyles = (C: ColorTokens) =>
     chip: {
       paddingVertical: 8,
       paddingHorizontal: sizes.sm,
+      minHeight: 44,
+      justifyContent: 'center',
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1.5,
       borderColor: C.border,

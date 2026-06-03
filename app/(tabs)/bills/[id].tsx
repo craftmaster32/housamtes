@@ -52,6 +52,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
   const isLoading = useBillsStore((s) => s.isLoading);
+  const storeError = useBillsStore((s) => s.error);
   const editBill = useBillsStore((s) => s.editBill);
   const deleteBill = useBillsStore((s) => s.deleteBill);
   const houseId = useAuthStore((s) => s.houseId);
@@ -138,9 +139,9 @@ export default function BillDetailScreen(): React.JSX.Element {
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
           <EmptyState
-            mode={isLoading ? 'loading' : 'empty'}
+            mode={isLoading ? 'loading' : storeError ? 'error' : 'empty'}
             icon="receipt-outline"
-            title={isLoading ? t('common.loading') : t('bills.bill_not_found')}
+            title={isLoading ? t('common.loading') : (storeError ?? t('bills.bill_not_found'))}
             actionLabel={isLoading ? undefined : t('bills.back_to_bills')}
             onAction={isLoading ? undefined : handleBackToBills}
           />

@@ -133,6 +133,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const [amount, setAmount] = useState(String(bill.typicalAmount));
   const [date, setDate] = useState(todayStr);
   const [note, setNote] = useState('');
+  const [cardError, setCardError] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showLogDatePicker, setShowLogDatePicker] = useState(false);
 
@@ -143,17 +144,27 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     .filter((p) => p.billId === bill.id)
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
 
-  const handleLog = useCallback(async () => {
+  const handleLog = useCallback(async (): Promise<void> => {
     const parsed = parseFloat(amount.replace(',', '.'));
     if (!amount || isNaN(parsed) || parsed <= 0 || !houseId) return;
-    await logPayment({ billId: bill.id, amount: parsed, paidAt: date, note }, houseId);
-    setLogging(false);
-    setAmount(String(bill.typicalAmount));
-    setDate(todayStr);
-    setNote('');
-  }, [amount, date, note, bill.id, bill.typicalAmount, logPayment, houseId, todayStr]);
+    try {
+      await logPayment({ billId: bill.id, amount: parsed, paidAt: date, note }, houseId);
+      setLogging(false);
+      setAmount(String(bill.typicalAmount));
+      setDate(todayStr);
+      setNote('');
+    } catch {
+      setCardError(t('bills.failed_save'));
+    }
+  }, [amount, date, note, bill.id, bill.typicalAmount, logPayment, houseId, todayStr, t]);
 
-  const handleDeleteBill = useCallback(() => deleteBill(bill.id), [deleteBill, bill.id]);
+  const handleDeleteBill = useCallback(async (): Promise<void> => {
+    try {
+      await deleteBill(bill.id);
+    } catch {
+      setCardError(t('bills.failed_delete'));
+    }
+  }, [deleteBill, bill.id, t]);
   const toggleLogging = useCallback(() => setLogging((v) => !v), []);
   const toggleShowHistory = useCallback(() => setShowHistory((v) => !v), []);
   const openLogDatePicker = useCallback(() => setShowLogDatePicker(true), []);
@@ -238,6 +249,8 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           </Pressable>
         )}
       </View>
+
+      {!!cardError && <Text style={[styles.formError, { color: c.negative }]}>{cardError}</Text>}
 
       {/* Log payment inline form */}
       {logging && (
@@ -351,16 +364,16 @@ function AddBillForm({
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
-      setError('Please enter a bill name.');
+      setError(t('bills.household_name_required'));
       return;
     }
     const amt = parseFloat(typicalAmount.replace(',', '.'));
     if (!typicalAmount || isNaN(amt) || amt <= 0) {
-      setError('Please enter a valid amount.');
+      setError(t('bills.household_invalid_amount'));
       return;
     }
     if (!assignedTo) {
-      setError('Please select who pays.');
+      setError(t('bills.household_assignee_required'));
       return;
     }
     if (!houseId) return;
@@ -393,6 +406,7 @@ function AddBillForm({
     logPayment,
     houseId,
     onClose,
+    t,
   ]);
 
   const openAddDatePicker = useCallback(() => setShowAddDatePicker(true), []);
@@ -468,6 +482,10 @@ function AddBillForm({
               assignedTo === p.id && { backgroundColor: c.primary, borderColor: c.primary },
             ]}
             onPress={() => setAssignedTo(p.id)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={p.name}
+            accessibilityState={{ selected: assignedTo === p.id }}
           >
             <Text
               style={[styles.chipText, { color: assignedTo === p.id ? '#fff' : c.textPrimary }]}
@@ -561,9 +579,12 @@ function AddBillForm({
           ]}
           onPress={handleSave}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel={saving ? t('bills.household_saving') : t('bills.household_add_bill')}
+          accessibilityState={{ disabled: saving || !name.trim() || !typicalAmount }}
         >
           <Text style={styles.saveBtnText}>
-            {saving ? 'Saving…' : t('bills.household_add_bill')}
+            {saving ? t('bills.household_saving') : t('bills.household_add_bill')}
           </Text>
         </Pressable>
       </View>
