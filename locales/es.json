@@ -316,6 +316,8 @@
     "cat_travel": "Viajes",
     "cat_other": "Otro",
     "pick_date": "Elegir fecha",
+    "select_payment_date": "Seleccionar fecha de pago",
+    "select_last_paid_date": "Seleccionar última fecha de pago",
     "prev_month": "Mes anterior",
     "next_month": "Mes siguiente",
     "add_expense": "Agregar gasto",

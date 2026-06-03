@@ -273,7 +273,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
               onPress={openLogDatePicker}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Select payment date"
+              accessibilityLabel={t('bills.select_payment_date')}
             >
               <Ionicons name="calendar-outline" size={15} color={c.primary} />
               <Text style={[styles.dateTriggerText, { color: c.textPrimary }]}>
@@ -400,7 +400,7 @@ function AddBillForm({
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the bill. Please try again.');
+      setError(err instanceof Error ? err.message : t('bills.failed_save'));
     } finally {
       setSaving(false);
     }
@@ -519,6 +519,10 @@ function AddBillForm({
               frequency === f && { backgroundColor: c.primary, borderColor: c.primary },
             ]}
             onPress={() => setFrequency(f)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={t(`bills.freq_${f}`)}
+            accessibilityState={{ selected: frequency === f }}
           >
             <Text style={[styles.chipText, { color: frequency === f ? '#fff' : c.textPrimary }]}>
               {t(`bills.freq_${f}`)}
@@ -556,7 +560,7 @@ function AddBillForm({
         onPress={openAddDatePicker}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Select last paid date"
+        accessibilityLabel={t('bills.select_last_paid_date')}
       >
         <Ionicons name="calendar-outline" size={16} color={c.primary} />
         <Text

@@ -316,6 +316,8 @@
     "cat_travel": "נסיעות",
     "cat_other": "אחר",
     "pick_date": "בחר תאריך",
+    "select_payment_date": "בחר תאריך תשלום",
+    "select_last_paid_date": "בחר תאריך תשלום אחרון",
     "prev_month": "חודש קודם",
     "next_month": "חודש הבא",
     "add_expense": "הוסף הוצאה",
