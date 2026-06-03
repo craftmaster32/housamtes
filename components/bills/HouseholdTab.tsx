@@ -128,7 +128,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const currency = useSettingsStore((s) => s.currency);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = ((): string => {
+    const d = new Date();
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  })();
   const [logging, setLogging] = useState(false);
   const [amount, setAmount] = useState(String(bill.typicalAmount));
   const [date, setDate] = useState(todayStr);
@@ -146,7 +150,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
 
   const handleLog = useCallback(async (): Promise<void> => {
     const parsed = parseFloat(amount.replace(',', '.'));
-    if (!amount || isNaN(parsed) || parsed <= 0 || !houseId) return;
+    if (!amount || isNaN(parsed) || parsed <= 0) {
+      setCardError(t('bills.enter_valid_amount'));
+      return;
+    }
+    if (!houseId) return;
     try {
       await logPayment({ billId: bill.id, amount: parsed, paidAt: date, note }, houseId);
       setLogging(false);
@@ -202,6 +210,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           onPress={handleDeleteBill}
           style={styles.deleteBtn}
           accessibilityRole="button"
+          accessibilityLabel={t('bills.delete_bill')}
           hitSlop={8}
         >
           <Ionicons name="close" size={16} color={c.textSecondary} />
@@ -299,8 +308,23 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             accessibilityLabel={t('bills.household_note')}
           />
           <Pressable
-            style={[styles.savePaymentBtn, { backgroundColor: c.primary }]}
+            style={[
+              styles.savePaymentBtn,
+              {
+                backgroundColor:
+                  !amount ||
+                  isNaN(parseFloat(amount.replace(',', '.'))) ||
+                  parseFloat(amount.replace(',', '.')) <= 0
+                    ? c.textDisabled
+                    : c.primary,
+              },
+            ]}
             onPress={handleLog}
+            disabled={
+              !amount ||
+              isNaN(parseFloat(amount.replace(',', '.'))) ||
+              parseFloat(amount.replace(',', '.')) <= 0
+            }
           >
             <Text style={styles.savePaymentBtnText}>{t('bills.household_save_payment')}</Text>
           </Pressable>
@@ -424,6 +448,8 @@ function AddBillForm({
     setLastPaidDate(val);
     setShowAddDatePicker(false);
   }, []);
+
+  const isSaveDisabled = saving || !name.trim() || !typicalAmount;
 
   return (
     <View style={[styles.addForm, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -585,16 +611,12 @@ function AddBillForm({
           </Text>
         </Pressable>
         <Pressable
-          style={[
-            styles.saveBtn,
-            { backgroundColor: c.primary },
-            (saving || !name.trim() || !typicalAmount) && { backgroundColor: c.textDisabled },
-          ]}
+          style={[styles.saveBtn, { backgroundColor: isSaveDisabled ? c.textDisabled : c.primary }]}
           onPress={handleSave}
-          disabled={saving}
+          disabled={isSaveDisabled}
           accessibilityRole="button"
           accessibilityLabel={saving ? t('bills.household_saving') : t('bills.household_add_bill')}
-          accessibilityState={{ disabled: saving || !name.trim() || !typicalAmount }}
+          accessibilityState={{ disabled: isSaveDisabled }}
         >
           <Text style={styles.saveBtnText}>
             {saving ? t('bills.household_saving') : t('bills.household_add_bill')}
@@ -795,6 +817,9 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: sizes.sm,
     paddingVertical: 6,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: sizes.borderRadiusFull,
     borderWidth: 1,
   },
@@ -808,6 +833,9 @@ const styles = StyleSheet.create({
   cancelBtn: {
     paddingHorizontal: sizes.md,
     paddingVertical: sizes.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: sizes.borderRadius,
     borderWidth: 1,
   },
@@ -815,6 +843,9 @@ const styles = StyleSheet.create({
   saveBtn: {
     paddingHorizontal: sizes.md,
     paddingVertical: sizes.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: sizes.borderRadius,
   },
   saveBtnText: { color: '#fff', ...font.bold },

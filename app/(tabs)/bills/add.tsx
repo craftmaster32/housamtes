@@ -111,6 +111,7 @@ export default function AddBillScreen(): React.JSX.Element {
 
   const togglePerson = useCallback((id: string) => {
     setSelectedPeople((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+    setError('');
   }, []);
 
   const totalAmount = parseFloat(amount.replace(',', '.')) || 0;
