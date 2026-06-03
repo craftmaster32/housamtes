@@ -657,7 +657,12 @@ const styles = StyleSheet.create({
   },
   metaChipText: { fontSize: sizes.fontXs, ...font.semibold },
   typicalAmount: { fontSize: sizes.fontXs },
-  deleteBtn: { padding: 4 },
+  deleteBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   billStatus: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
   lastPaid: { fontSize: sizes.fontSm, flex: 1 },
   neverPaid: { fontSize: sizes.fontSm, flex: 1 },
