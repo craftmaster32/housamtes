@@ -137,7 +137,10 @@ export default function BillDetailScreen(): React.JSX.Element {
   const handleBack = useCallback((): void => {
     router.back();
   }, []);
-  const handleStartEditing = useCallback((): void => setIsEditing(true), []);
+  const handleStartEditing = useCallback((): void => {
+    setIsEditing(true);
+    setError('');
+  }, []);
   const handleCancel = useCallback((): void => {
     setIsEditing(false);
     setError('');

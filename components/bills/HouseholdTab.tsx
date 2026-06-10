@@ -134,6 +134,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   })();
   const [logging, setLogging] = useState(false);
+  const [isSubmittingLog, setIsSubmittingLog] = useState(false);
   const [amount, setAmount] = useState(String(bill.typicalAmount));
   const [date, setDate] = useState(todayStr);
   const [note, setNote] = useState('');
@@ -148,9 +149,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     .filter((p) => p.billId === bill.id)
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
   const parsedLogAmount = parseFloat(amount.replace(',', '.'));
-  const isLogDisabled = !houseId || !amount || isNaN(parsedLogAmount) || parsedLogAmount <= 0;
+  const isLogDisabled =
+    !houseId || !amount || isNaN(parsedLogAmount) || parsedLogAmount <= 0 || isSubmittingLog;
 
   const handleLog = useCallback(async (): Promise<void> => {
+    if (isSubmittingLog) return;
     const parsed = parseFloat(amount.replace(',', '.'));
     if (!amount || isNaN(parsed) || parsed <= 0) {
       setCardError(t('bills.enter_valid_amount'));
@@ -161,6 +164,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       return;
     }
     try {
+      setIsSubmittingLog(true);
       setCardError('');
       await logPayment({ billId: bill.id, amount: parsed, paidAt: date, note }, houseId);
       setLogging(false);
@@ -169,8 +173,21 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       setNote('');
     } catch {
       setCardError(t('bills.failed_save'));
+    } finally {
+      setIsSubmittingLog(false);
     }
-  }, [amount, date, note, bill.id, bill.typicalAmount, logPayment, houseId, todayStr, t]);
+  }, [
+    amount,
+    date,
+    note,
+    bill.id,
+    bill.typicalAmount,
+    logPayment,
+    houseId,
+    todayStr,
+    t,
+    isSubmittingLog,
+  ]);
 
   const handleDeleteBill = useCallback(async (): Promise<void> => {
     try {
@@ -192,11 +209,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     },
     [deletePayment, t]
   );
-  const toggleLogging = useCallback(() => setLogging((v) => !v), []);
-  const toggleShowHistory = useCallback(() => setShowHistory((v) => !v), []);
-  const openLogDatePicker = useCallback(() => setShowLogDatePicker(true), []);
-  const closeLogDatePicker = useCallback(() => setShowLogDatePicker(false), []);
-  const handleLogDateSelect = useCallback((val: string) => {
+  const toggleLogging = useCallback((): void => setLogging((v) => !v), []);
+  const toggleShowHistory = useCallback((): void => setShowHistory((v) => !v), []);
+  const openLogDatePicker = useCallback((): void => setShowLogDatePicker(true), []);
+  const closeLogDatePicker = useCallback((): void => setShowLogDatePicker(false), []);
+  const handleLogDateSelect = useCallback((val: string): void => {
     setDate(val);
     setShowLogDatePicker(false);
   }, []);
@@ -262,13 +279,23 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
         <Pressable
           style={[styles.logBtn, { backgroundColor: c.primary + '20' }]}
           onPress={toggleLogging}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={logging ? t('common.cancel') : t('bills.household_log_payment')}
+          accessibilityState={{ selected: logging }}
         >
           <Text style={[styles.logBtnText, { color: c.primary }]}>
             {logging ? t('common.cancel') : t('bills.household_log_payment')}
           </Text>
         </Pressable>
         {billPayments.length > 0 && (
-          <Pressable onPress={toggleShowHistory}>
+          <Pressable
+            onPress={toggleShowHistory}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('bills.household_history')}
+            accessibilityState={{ expanded: showHistory }}
+          >
             <Text style={[styles.historyLink, { color: c.textSecondary }]}>
               {showHistory
                 ? t('bills.household_hide_history')
@@ -335,6 +362,10 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             ]}
             onPress={handleLog}
             disabled={isLogDisabled}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('bills.household_save_payment')}
+            accessibilityState={{ disabled: isLogDisabled }}
           >
             <Text style={styles.savePaymentBtnText}>{t('bills.household_save_payment')}</Text>
           </Pressable>
@@ -402,7 +433,7 @@ function AddBillForm({
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (): Promise<void> => {
     if (!name.trim()) {
       setError(t('bills.household_name_required'));
       return;
@@ -452,9 +483,9 @@ function AddBillForm({
     t,
   ]);
 
-  const openAddDatePicker = useCallback(() => setShowAddDatePicker(true), []);
-  const closeAddDatePicker = useCallback(() => setShowAddDatePicker(false), []);
-  const handleAddDateSelect = useCallback((val: string) => {
+  const openAddDatePicker = useCallback((): void => setShowAddDatePicker(true), []);
+  const closeAddDatePicker = useCallback((): void => setShowAddDatePicker(false), []);
+  const handleAddDateSelect = useCallback((val: string): void => {
     setLastPaidDate(val);
     setShowAddDatePicker(false);
   }, []);
@@ -654,8 +685,8 @@ export function HouseholdTab(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const openAddForm = useCallback(() => setShowAddForm(true), []);
-  const closeAddForm = useCallback(() => setShowAddForm(false), []);
+  const openAddForm = useCallback((): void => setShowAddForm(true), []);
+  const closeAddForm = useCallback((): void => setShowAddForm(false), []);
 
   const allPeople = [
     profile ? { id: profile.id, name: profile.name ?? '' } : null,
@@ -686,7 +717,13 @@ export function HouseholdTab(): React.JSX.Element {
       {showAddForm ? (
         <AddBillForm people={allPeople} onClose={closeAddForm} />
       ) : (
-        <Pressable style={[styles.addBillBtn, { borderColor: c.border }]} onPress={openAddForm}>
+        <Pressable
+          style={[styles.addBillBtn, { borderColor: c.border }]}
+          onPress={openAddForm}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('bills.household_add_recurring')}
+        >
           <Text style={[styles.addBillBtnText, { color: c.primary }]}>
             {t('bills.household_add_recurring')}
           </Text>

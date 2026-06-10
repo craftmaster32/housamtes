@@ -167,6 +167,7 @@ export default function AddBillScreen(): React.JSX.Element {
     if (customRemaining < 0.01) return;
     const per = customRemaining / blanks.length;
     let allocated = 0;
+    setError('');
     setCustomAmounts((prev) => {
       const updated = { ...prev };
       blanks.forEach((id, i) => {
@@ -179,7 +180,7 @@ export default function AddBillScreen(): React.JSX.Element {
       });
       return updated;
     });
-  }, [selectedPeople, customAmounts, customRemaining]);
+  }, [selectedPeople, customAmounts, customRemaining, setError]);
 
   const fillEquallyPercent = useCallback((): void => {
     const blanks = selectedPeople.filter(
@@ -189,6 +190,7 @@ export default function AddBillScreen(): React.JSX.Element {
     if (percentRemaining < 0.1) return;
     const per = percentRemaining / blanks.length;
     let allocated = 0;
+    setError('');
     setPercentAmounts((prev) => {
       const updated = { ...prev };
       blanks.forEach((id, i) => {
@@ -201,7 +203,7 @@ export default function AddBillScreen(): React.JSX.Element {
       });
       return updated;
     });
-  }, [selectedPeople, percentAmounts, percentRemaining]);
+  }, [selectedPeople, percentAmounts, percentRemaining, setError]);
 
   const handleSave = useCallback(async () => {
     if (!title.trim()) {
