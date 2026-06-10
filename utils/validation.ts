@@ -48,7 +48,7 @@ export interface AddBillPayload {
 }
 
 export function parseAmount(raw: string): number {
-  const n = parseFloat(raw.trim().replace(',', '.'));
+  const n = parseFloat(raw.trim().replace(/,/g, '.'));
   return isFinite(n) && n >= 0 ? n : 0;
 }
 
