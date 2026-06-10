@@ -89,7 +89,7 @@ function FairnessSection(): React.JSX.Element {
               style={[
                 styles.barFill,
                 {
-                  width: `${(f.total / maxTotal) * 100}%` as unknown as number,
+                  width: `${(f.total / maxTotal) * 100}%`,
                   backgroundColor: f.balance >= 0 ? c.positive : c.negative,
                 },
               ]}
@@ -460,7 +460,11 @@ function AddBillForm({
   }, []);
 
   const isSaveDisabled =
-    saving || !houseId || !name.trim() || !(parseFloat(typicalAmount.replace(',', '.')) > 0);
+    saving ||
+    !houseId ||
+    !name.trim() ||
+    !assignedTo ||
+    !(parseFloat(typicalAmount.replace(',', '.')) > 0);
 
   return (
     <View style={[styles.addForm, { backgroundColor: c.surface, borderColor: c.border }]}>

@@ -161,16 +161,16 @@ export default function AddBillScreen(): React.JSX.Element {
 
   const fillEquallyCustom = useCallback((): void => {
     const blanks = selectedPeople.filter(
-      (id) => !customAmounts[id] || parseFloat((customAmounts[id] ?? '0').replace(',', '.')) === 0
+      (id) => customAmounts[id] === undefined || customAmounts[id] === ''
     );
-    const targets = blanks.length > 0 ? blanks : selectedPeople;
+    if (blanks.length === 0) return;
     if (customRemaining < 0.01) return;
-    const per = customRemaining / targets.length;
+    const per = customRemaining / blanks.length;
     let allocated = 0;
     setCustomAmounts((prev) => {
       const updated = { ...prev };
-      targets.forEach((id, i) => {
-        const isLast = i === targets.length - 1;
+      blanks.forEach((id, i) => {
+        const isLast = i === blanks.length - 1;
         const share = isLast
           ? Math.round((customRemaining - allocated) * 100) / 100
           : Math.round(per * 100) / 100;
@@ -183,16 +183,16 @@ export default function AddBillScreen(): React.JSX.Element {
 
   const fillEquallyPercent = useCallback((): void => {
     const blanks = selectedPeople.filter(
-      (id) => !percentAmounts[id] || parseFloat((percentAmounts[id] ?? '0').replace(',', '.')) === 0
+      (id) => percentAmounts[id] === undefined || percentAmounts[id] === ''
     );
-    const targets = blanks.length > 0 ? blanks : selectedPeople;
+    if (blanks.length === 0) return;
     if (percentRemaining < 0.1) return;
-    const per = percentRemaining / targets.length;
+    const per = percentRemaining / blanks.length;
     let allocated = 0;
     setPercentAmounts((prev) => {
       const updated = { ...prev };
-      targets.forEach((id, i) => {
-        const isLast = i === targets.length - 1;
+      blanks.forEach((id, i) => {
+        const isLast = i === blanks.length - 1;
         const share = isLast
           ? Math.round((percentRemaining - allocated) * 10) / 10
           : Math.round(per * 10) / 10;
