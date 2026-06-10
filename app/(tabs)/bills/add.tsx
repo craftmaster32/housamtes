@@ -233,7 +233,11 @@ export default function AddBillScreen(): React.JSX.Element {
     } catch (err) {
       if (err instanceof z.ZodError) {
         const firstError = err.errors[0];
-        setError(t(firstError.message, firstError.params as Record<string, string | number>));
+        const params =
+          firstError.code === 'custom'
+            ? ((firstError as z.ZodCustomIssue).params as Record<string, string | number>)
+            : undefined;
+        setError(t(firstError.message, params));
       } else {
         setError(t('bills.failed_save'));
       }
