@@ -438,6 +438,7 @@ function AddBillForm({
   const [saving, setSaving] = useState(false);
 
   const handleSave = useCallback(async (): Promise<void> => {
+    if (saving) return;
     if (!name.trim()) {
       setError(t('bills.household_name_required'));
       return;
@@ -485,6 +486,7 @@ function AddBillForm({
     houseId,
     onClose,
     t,
+    saving,
   ]);
 
   const handleCancel = useCallback((): void => {

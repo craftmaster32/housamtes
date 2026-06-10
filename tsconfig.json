@@ -6,6 +6,7 @@
     "strictNullChecks": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
@@ -22,6 +23,7 @@
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.d.ts"],
   "exclude": [
     "supabase/functions",
+    "HouseMates Design System",
     "HouseMates Design System (2)",
     "handoff",
     "handoff-bills",
