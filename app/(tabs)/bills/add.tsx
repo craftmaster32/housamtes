@@ -5,7 +5,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { z } from 'zod';
 import { useBillsStore, CATEGORIES } from '@stores/billsStore';
+import { captureError } from '@lib/errorTracking';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -16,6 +18,7 @@ import { formatFull } from '@constants/currencies';
 import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { parseAndValidateAddBill, parseAmount, type AddBillPayload } from '@utils/validation';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
 
@@ -44,7 +47,12 @@ function formatDisplayDate(iso: string, locale: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return iso;
   const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
-  return d.toLocaleDateString(locale || undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString(locale || undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export default function AddBillScreen(): React.JSX.Element {
@@ -78,8 +86,8 @@ export default function AddBillScreen(): React.JSX.Element {
   const [date, setDate] = useState(todayString);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
-  const [splitType, setSplitType]     = useState<SplitType>('equal');
-  const [customAmounts, setCustomAmounts]   = useState<Record<string, string>>({});
+  const [splitType, setSplitType] = useState<SplitType>('equal');
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [percentAmounts, setPercentAmounts] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -105,12 +113,11 @@ export default function AddBillScreen(): React.JSX.Element {
   );
 
   const togglePerson = useCallback((id: string) => {
-    setSelectedPeople((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
+    setSelectedPeople((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+    setError('');
   }, []);
 
-  const totalAmount = parseFloat(amount) || 0;
+  const totalAmount = parseAmount(amount);
 
   const setPersonAmount = useCallback((id: string, value: string): void => {
     setCustomAmounts((prev) => ({ ...prev, [id]: value }));
@@ -123,44 +130,54 @@ export default function AddBillScreen(): React.JSX.Element {
   }, []);
 
   const getCustomTotal = useCallback((): number => {
-    return selectedPeople.reduce(
-      (sum, id) => sum + (parseFloat(customAmounts[id] ?? '0') || 0), 0
-    );
+    return selectedPeople.reduce((sum, id) => sum + parseAmount(customAmounts[id] ?? '0'), 0);
   }, [selectedPeople, customAmounts]);
 
   const getPercentTotal = useCallback((): number => {
-    return selectedPeople.reduce(
-      (sum, id) => sum + (parseFloat(percentAmounts[id] ?? '0') || 0), 0
-    );
+    return selectedPeople.reduce((sum, id) => sum + parseAmount(percentAmounts[id] ?? '0'), 0);
   }, [selectedPeople, percentAmounts]);
 
-  const customRemaining  = totalAmount - getCustomTotal();
+  const customRemaining = totalAmount - getCustomTotal();
   const percentRemaining = 100 - getPercentTotal();
 
   const percentPreviewText = useMemo((): string => {
     if (totalAmount <= 0 || Math.abs(getPercentTotal() - 100) >= 0.1) return '';
     let running = 0;
-    return selectedPeople.map((id, i) => {
-      const pct  = parseFloat(percentAmounts[id] ?? '0') || 0;
-      const isLast = i === selectedPeople.length - 1;
-      const share  = isLast
-        ? Math.round((totalAmount - running) * 100) / 100
-        : Math.round((pct / 100) * totalAmount * 100) / 100;
-      if (!isLast) running += share;
-      return `${housemates.find((h) => h.id === id)?.name ?? id}: ${formatFull(share, currencyCode)}`;
-    }).join('  ·  ');
+    return selectedPeople
+      .map((id, i) => {
+        const pct = parseFloat((percentAmounts[id] ?? '0').replace(',', '.')) || 0;
+        const isLast = i === selectedPeople.length - 1;
+        const share = isLast
+          ? Math.round((totalAmount - running) * 100) / 100
+          : Math.round((pct / 100) * totalAmount * 100) / 100;
+        if (!isLast) running += share;
+        return `${housemates.find((h) => h.id === id)?.name ?? id}: ${formatFull(share, currencyCode)}`;
+      })
+      .join('  ·  ');
   }, [totalAmount, selectedPeople, percentAmounts, housemates, currencyCode, getPercentTotal]);
 
+  const equalSplitPreview = useMemo((): number => {
+    if (selectedPeople.length === 0 || totalAmount <= 0) return 0;
+    const totalCents = Math.round(totalAmount * 100);
+    const n = selectedPeople.length;
+    const baseCents = Math.floor(totalCents / n);
+    const remainderCents = totalCents - baseCents * n;
+    return (baseCents + (remainderCents > 0 ? 1 : 0)) / 100;
+  }, [totalAmount, selectedPeople]);
+
   const fillEquallyCustom = useCallback((): void => {
-    const blanks = selectedPeople.filter((id) => !customAmounts[id] || parseFloat(customAmounts[id] ?? '0') === 0);
-    const targets = blanks.length > 0 ? blanks : selectedPeople;
+    const blanks = selectedPeople.filter(
+      (id) => customAmounts[id] === undefined || customAmounts[id] === ''
+    );
+    if (blanks.length === 0) return;
     if (customRemaining < 0.01) return;
-    const per = customRemaining / targets.length;
+    const per = customRemaining / blanks.length;
     let allocated = 0;
+    setError('');
     setCustomAmounts((prev) => {
       const updated = { ...prev };
-      targets.forEach((id, i) => {
-        const isLast = i === targets.length - 1;
+      blanks.forEach((id, i) => {
+        const isLast = i === blanks.length - 1;
         const share = isLast
           ? Math.round((customRemaining - allocated) * 100) / 100
           : Math.round(per * 100) / 100;
@@ -169,18 +186,21 @@ export default function AddBillScreen(): React.JSX.Element {
       });
       return updated;
     });
-  }, [selectedPeople, customAmounts, customRemaining]);
+  }, [selectedPeople, customAmounts, customRemaining, setError]);
 
   const fillEquallyPercent = useCallback((): void => {
-    const blanks = selectedPeople.filter((id) => !percentAmounts[id] || parseFloat(percentAmounts[id] ?? '0') === 0);
-    const targets = blanks.length > 0 ? blanks : selectedPeople;
+    const blanks = selectedPeople.filter(
+      (id) => percentAmounts[id] === undefined || percentAmounts[id] === ''
+    );
+    if (blanks.length === 0) return;
     if (percentRemaining < 0.1) return;
-    const per = percentRemaining / targets.length;
+    const per = percentRemaining / blanks.length;
     let allocated = 0;
+    setError('');
     setPercentAmounts((prev) => {
       const updated = { ...prev };
-      targets.forEach((id, i) => {
-        const isLast = i === targets.length - 1;
+      blanks.forEach((id, i) => {
+        const isLast = i === blanks.length - 1;
         const share = isLast
           ? Math.round((percentRemaining - allocated) * 10) / 10
           : Math.round(per * 10) / 10;
@@ -189,67 +209,69 @@ export default function AddBillScreen(): React.JSX.Element {
       });
       return updated;
     });
-  }, [selectedPeople, percentAmounts, percentRemaining]);
+  }, [selectedPeople, percentAmounts, percentRemaining, setError]);
 
-  const handleSave = useCallback(async () => {
-    if (!title.trim()) { setError(t('bills.enter_title')); return; }
-    const parsed = parseFloat(amount);
-    if (!amount || isNaN(parsed) || parsed <= 0) { setError(t('bills.enter_valid_amount')); return; }
-    if (!paidBy) { setError(t('bills.select_who_paid')); return; }
-    if (selectedPeople.length === 0) { setError(t('bills.select_split')); return; }
-
-    let splitAmounts: Record<string, number> | null = null;
-    if (splitType === 'custom') {
-      const customTotal = getCustomTotal();
-      if (Math.abs(customTotal - parsed) > 0.01) {
-        setError(t('bills.custom_total_mismatch', { entered: customTotal.toFixed(2), total: parsed.toFixed(2) }));
-        return;
-      }
-      splitAmounts = {};
-      for (const id of selectedPeople) {
-        splitAmounts[id] = parseFloat(customAmounts[id] ?? '0') || 0;
-      }
-    } else if (splitType === 'percentage') {
-      const pctTotal = getPercentTotal();
-      if (Math.abs(pctTotal - 100) > 0.1) {
-        setError(t('bills.pct_total_mismatch', { pct: pctTotal.toFixed(1) }));
-        return;
-      }
-      splitAmounts = {};
-      let running = 0;
-      for (let i = 0; i < selectedPeople.length; i++) {
-        const id = selectedPeople[i];
-        const pct = parseFloat(percentAmounts[id] ?? '0') || 0;
-        if (i === selectedPeople.length - 1) {
-          splitAmounts[id] = Math.round((parsed - running) * 100) / 100;
-        } else {
-          const share = Math.round((pct / 100) * parsed * 100) / 100;
-          splitAmounts[id] = share;
-          running += share;
-        }
-      }
-    }
-
+  const handleSave = useCallback(async (): Promise<void> => {
+    let payload: AddBillPayload;
     try {
-      setIsLoading(true);
-      await addBill({
-        title: title.trim(),
-        amount: parsed,
+      payload = parseAndValidateAddBill({
+        title,
+        amount,
         paidBy,
-        splitBetween: selectedPeople,
-        splitAmounts,
+        selectedPeople,
+        splitType,
+        customAmounts,
+        percentAmounts,
         category,
         date,
-      }, houseId ?? '');
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const firstError = err.errors[0];
+        const params =
+          firstError.code === 'custom'
+            ? ((firstError as z.ZodCustomIssue).params as Record<string, string | number>)
+            : undefined;
+        setError(t(firstError.message, params));
+      } else {
+        setError(t('bills.failed_save'));
+      }
+      return;
+    }
+    if (!houseId) {
+      setError(t('bills.failed_save'));
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await addBill(payload, houseId);
       markSeen('bills').catch(() => {});
       // Reset before navigating so stale state never persists on re-entry
       resetForm(allIds, myId);
       router.replace('/(tabs)/bills');
-    } catch {
+    } catch (err) {
+      captureError(err, { houseId, userId: myId });
       setError(t('bills.failed_save'));
       setIsLoading(false);
     }
-  }, [title, amount, paidBy, selectedPeople, splitType, customAmounts, percentAmounts, category, date, addBill, houseId, getCustomTotal, getPercentTotal, markSeen, resetForm, allIds, myId, t]);
+  }, [
+    title,
+    amount,
+    paidBy,
+    selectedPeople,
+    splitType,
+    customAmounts,
+    percentAmounts,
+    category,
+    date,
+    addBill,
+    houseId,
+    markSeen,
+    resetForm,
+    allIds,
+    myId,
+    t,
+  ]);
 
   if (housematesLoading) {
     return (
@@ -261,10 +283,19 @@ export default function AddBillScreen(): React.JSX.Element {
     );
   }
 
+  if (housemates.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <EmptyState mode="empty" icon="people-outline" title={t('bills.no_housemates')} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
@@ -278,7 +309,10 @@ export default function AddBillScreen(): React.JSX.Element {
           <Text style={styles.label}>{t('bills.what_for')}</Text>
           <TextInput
             value={title}
-            onChangeText={(v) => { setTitle(v); setError(''); }}
+            onChangeText={(v) => {
+              setTitle(v);
+              setError('');
+            }}
             mode="outlined"
             style={styles.input}
             placeholder={t('bills.what_for_placeholder')}
@@ -294,7 +328,10 @@ export default function AddBillScreen(): React.JSX.Element {
           <Text style={styles.label}>{t('bills.amount')}</Text>
           <TextInput
             value={amount}
-            onChangeText={(v) => { setAmount(v); setError(''); }}
+            onChangeText={(v) => {
+              setAmount(v);
+              setError('');
+            }}
             mode="outlined"
             style={styles.input}
             keyboardType="decimal-pad"
@@ -320,7 +357,8 @@ export default function AddBillScreen(): React.JSX.Element {
                 accessibilityState={{ selected: paidBy === h.id }}
               >
                 <Text style={[styles.chipText, paidBy === h.id && styles.chipTextSelected]}>
-                  {h.name}{h.id === myId ? ` (${t('common.me')})` : ''}
+                  {h.name}
+                  {h.id === myId ? ` (${t('common.me')})` : ''}
                 </Text>
               </Pressable>
             ))}
@@ -345,8 +383,14 @@ export default function AddBillScreen(): React.JSX.Element {
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: selectedPeople.includes(h.id) }}
               >
-                <Text style={[styles.chipText, selectedPeople.includes(h.id) && styles.chipTextSelected]}>
-                  {h.name}{h.id === myId ? ` (${t('common.me')})` : ''}
+                <Text
+                  style={[
+                    styles.chipText,
+                    selectedPeople.includes(h.id) && styles.chipTextSelected,
+                  ]}
+                >
+                  {h.name}
+                  {h.id === myId ? ` (${t('common.me')})` : ''}
                 </Text>
               </Pressable>
             ))}
@@ -362,10 +406,17 @@ export default function AddBillScreen(): React.JSX.Element {
         {selectedPeople.length > 0 && (
           <View style={styles.field}>
             <Text style={styles.label}>{t('bills.how_to_split')}</Text>
-            <View style={styles.chipRow}>
+            <View style={styles.chipRow} accessibilityRole="radiogroup">
               <Pressable
                 style={[styles.chip, splitType === 'equal' && styles.chipSelected]}
-                onPress={() => setSplitType('equal')}
+                onPress={() => {
+                  setSplitType('equal');
+                  setError('');
+                }}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={t('bills.equal')}
+                accessibilityState={{ selected: splitType === 'equal' }}
               >
                 <Text style={[styles.chipText, splitType === 'equal' && styles.chipTextSelected]}>
                   {t('bills.equal')}
@@ -373,7 +424,14 @@ export default function AddBillScreen(): React.JSX.Element {
               </Pressable>
               <Pressable
                 style={[styles.chip, splitType === 'custom' && styles.chipSelected]}
-                onPress={() => setSplitType('custom')}
+                onPress={() => {
+                  setSplitType('custom');
+                  setError('');
+                }}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={t('bills.custom_amounts')}
+                accessibilityState={{ selected: splitType === 'custom' }}
               >
                 <Text style={[styles.chipText, splitType === 'custom' && styles.chipTextSelected]}>
                   {t('bills.custom_amounts')}
@@ -381,9 +439,18 @@ export default function AddBillScreen(): React.JSX.Element {
               </Pressable>
               <Pressable
                 style={[styles.chip, splitType === 'percentage' && styles.chipSelected]}
-                onPress={() => setSplitType('percentage')}
+                onPress={() => {
+                  setSplitType('percentage');
+                  setError('');
+                }}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={t('bills.by_percent')}
+                accessibilityState={{ selected: splitType === 'percentage' }}
               >
-                <Text style={[styles.chipText, splitType === 'percentage' && styles.chipTextSelected]}>
+                <Text
+                  style={[styles.chipText, splitType === 'percentage' && styles.chipTextSelected]}
+                >
                   {t('bills.by_percent')}
                 </Text>
               </Pressable>
@@ -392,7 +459,7 @@ export default function AddBillScreen(): React.JSX.Element {
             {splitType === 'equal' && totalAmount > 0 && (
               <View style={styles.previewBox}>
                 <Text style={styles.previewText}>
-                  {formatFull(totalAmount / selectedPeople.length, currencyCode)} {t('bills.per_person')}
+                  {formatFull(equalSplitPreview, currencyCode)} {t('bills.per_person')}
                 </Text>
               </View>
             )}
@@ -421,26 +488,51 @@ export default function AddBillScreen(): React.JSX.Element {
                   );
                 })}
                 {customRemaining > 0.01 && (
-                  <Pressable onPress={fillEquallyCustom} style={styles.fillBtn} accessibilityRole="button" accessibilityLabel={t('bills.fill_remaining_equally')}>
+                  <Pressable
+                    onPress={fillEquallyCustom}
+                    style={styles.fillBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('bills.fill_remaining_equally')}
+                  >
                     <Ionicons name="git-branch-outline" size={13} color={C.primary} />
                     <Text style={styles.fillBtnText}>{t('bills.fill_remaining_equally')}</Text>
                   </Pressable>
                 )}
                 <View style={styles.customTotal}>
                   <Text style={styles.customTotalLabel}>{t('bills.total_entered')}</Text>
-                  <Text style={[
-                    styles.customTotalValue,
-                    { color: Math.abs(getCustomTotal() - totalAmount) < 0.01 ? C.positive : C.danger },
-                  ]}>
-                    {formatFull(getCustomTotal(), currencyCode)} / {formatFull(totalAmount, currencyCode)}
+                  <Text
+                    style={[
+                      styles.customTotalValue,
+                      {
+                        color:
+                          Math.abs(getCustomTotal() - totalAmount) < 0.01 ? C.positive : C.danger,
+                      },
+                    ]}
+                  >
+                    {formatFull(getCustomTotal(), currencyCode)} /{' '}
+                    {formatFull(totalAmount, currencyCode)}
                   </Text>
                 </View>
                 {totalAmount > 0 && (
                   <View style={styles.customRemainingRow}>
                     <Text style={styles.customTotalLabel}>{t('bills.remaining')}</Text>
-                    <Text style={[styles.customTotalValue, { color: customRemaining < -0.01 ? C.danger : customRemaining < 0.01 ? C.positive : C.textPrimary }]}>
+                    <Text
+                      style={[
+                        styles.customTotalValue,
+                        {
+                          color:
+                            customRemaining < -0.01
+                              ? C.danger
+                              : customRemaining < 0.01
+                                ? C.positive
+                                : C.textPrimary,
+                        },
+                      ]}
+                    >
                       {customRemaining < -0.01
-                        ? t('bills.over_by_amount', { amount: formatFull(-customRemaining, currencyCode) })
+                        ? t('bills.over_by_amount', {
+                            amount: formatFull(-customRemaining, currencyCode),
+                          })
                         : formatFull(customRemaining, currencyCode)}
                     </Text>
                   </View>
@@ -475,20 +567,42 @@ export default function AddBillScreen(): React.JSX.Element {
                   );
                 })}
                 {percentRemaining > 0.1 && (
-                  <Pressable onPress={fillEquallyPercent} style={styles.fillBtn} accessibilityRole="button" accessibilityLabel={t('bills.fill_remaining_equally')}>
+                  <Pressable
+                    onPress={fillEquallyPercent}
+                    style={styles.fillBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('bills.fill_remaining_equally')}
+                  >
                     <Ionicons name="git-branch-outline" size={13} color={C.primary} />
                     <Text style={styles.fillBtnText}>{t('bills.fill_remaining_equally')}</Text>
                   </Pressable>
                 )}
                 <View style={styles.customTotal}>
                   <Text style={styles.customTotalLabel}>{t('bills.total_percent')}</Text>
-                  <Text style={[styles.customTotalValue, { color: Math.abs(getPercentTotal() - 100) < 0.1 ? C.positive : C.danger }]}>
+                  <Text
+                    style={[
+                      styles.customTotalValue,
+                      { color: Math.abs(getPercentTotal() - 100) < 0.1 ? C.positive : C.danger },
+                    ]}
+                  >
                     {getPercentTotal().toFixed(1)}% / 100%
                   </Text>
                 </View>
                 <View style={styles.customRemainingRow}>
                   <Text style={styles.customTotalLabel}>{t('bills.remaining')}</Text>
-                  <Text style={[styles.customTotalValue, { color: percentRemaining < -0.1 ? C.danger : percentRemaining < 0.1 ? C.positive : C.textPrimary }]}>
+                  <Text
+                    style={[
+                      styles.customTotalValue,
+                      {
+                        color:
+                          percentRemaining < -0.1
+                            ? C.danger
+                            : percentRemaining < 0.1
+                              ? C.positive
+                              : C.textPrimary,
+                      },
+                    ]}
+                  >
                     {percentRemaining < -0.1
                       ? t('bills.over_by_pct', { pct: (-percentRemaining).toFixed(1) })
                       : `${percentRemaining.toFixed(1)}%`}
@@ -507,7 +621,11 @@ export default function AddBillScreen(): React.JSX.Element {
         {/* Category */}
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.category')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryScroll}
+          >
             {CATEGORIES.map((cat) => {
               const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
               const selected = category === cat;
@@ -577,115 +695,130 @@ export default function AddBillScreen(): React.JSX.Element {
   );
 }
 
-const makeStyles = (C: ColorTokens) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content: { padding: sizes.lg, gap: sizes.md, paddingBottom: 60 },
+const makeStyles = (C: ColorTokens) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    content: { padding: sizes.lg, gap: sizes.md, paddingBottom: 60 },
 
-  header: { gap: 4, marginBottom: sizes.xs },
-  backBtn: { alignSelf: 'flex-start' },
-  backText: { color: C.primary, fontSize: 15, ...font.semibold },
-  heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    header: { gap: 4, marginBottom: sizes.xs },
+    backBtn: {
+      alignSelf: 'flex-start',
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    backText: { color: C.primary, fontSize: 15, ...font.semibold },
+    heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
 
-  field: { gap: sizes.xs },
-  label: { color: C.textPrimary, ...font.semibold, fontSize: 14 },
-  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  selectAll: { color: C.primary, fontSize: 13, ...font.semibold },
-  input: { backgroundColor: C.surface },
+    field: { gap: sizes.xs },
+    label: { color: C.textPrimary, ...font.semibold, fontSize: 14 },
+    labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    selectAll: { color: C.primary, fontSize: 13, ...font.semibold },
+    input: { backgroundColor: C.surface },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  chip: {
-    paddingVertical: 8,
-    paddingHorizontal: sizes.sm,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 1.5,
-    borderColor: C.border,
-    backgroundColor: C.surface,
-  },
-  chipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-  chipText: { color: C.textPrimary, fontSize: 14, ...font.medium },
-  chipTextSelected: { color: C.white },
-  splitCount: { color: C.textSecondary, fontSize: 12, ...font.regular, marginTop: 2 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+    chip: {
+      paddingVertical: 8,
+      paddingHorizontal: sizes.sm,
+      minHeight: 44,
+      justifyContent: 'center',
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+    },
+    chipSelected: { backgroundColor: C.primary, borderColor: C.primary },
+    chipText: { color: C.textPrimary, fontSize: 14, ...font.medium },
+    chipTextSelected: { color: C.white },
+    splitCount: { color: C.textSecondary, fontSize: 12, ...font.regular, marginTop: 2 },
 
-  previewBox: {
-    backgroundColor: C.primary + '12',
-    borderRadius: 10,
-    padding: sizes.sm,
-    alignItems: 'center',
-    marginTop: sizes.xs,
-  },
-  previewText: { color: C.primary, ...font.semibold, fontSize: 15 },
+    previewBox: {
+      backgroundColor: C.primary + '12',
+      borderRadius: 10,
+      padding: sizes.sm,
+      alignItems: 'center',
+      marginTop: sizes.xs,
+    },
+    previewText: { color: C.primary, ...font.semibold, fontSize: 15 },
 
-  customBox: {
-    backgroundColor: C.surface,
-    borderRadius: 12,
-    padding: sizes.md,
-    gap: sizes.sm,
-    borderWidth: 1,
-    borderColor: C.border,
-    marginTop: sizes.xs,
-  },
-  customRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-  customName: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
-  customInput: { width: 110, backgroundColor: C.surface },
-  customTotal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: sizes.xs,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-  },
-  customTotalLabel:   { color: C.textSecondary, fontSize: 14, ...font.medium },
-  customTotalValue:   { fontSize: 14, ...font.semibold },
-  customRemainingRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
-  pctInputRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pctSymbol:   { fontSize: 16, ...font.semibold, color: C.textPrimary },
-  fillBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 10,
-    borderRadius: 8, borderWidth: 1,
-    borderColor: C.primary + '40', backgroundColor: C.primary + '08',
-    minHeight: 44,
-  },
-  fillBtnText: { color: C.primary, fontSize: 13, ...font.semibold },
+    customBox: {
+      backgroundColor: C.surface,
+      borderRadius: 12,
+      padding: sizes.md,
+      gap: sizes.sm,
+      borderWidth: 1,
+      borderColor: C.border,
+      marginTop: sizes.xs,
+    },
+    customRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
+    customName: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
+    customInput: { width: 110, backgroundColor: C.surface },
+    customTotal: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingTop: sizes.xs,
+      borderTopWidth: 1,
+      borderTopColor: C.border,
+    },
+    customTotalLabel: { color: C.textSecondary, fontSize: 14, ...font.medium },
+    customTotalValue: { fontSize: 14, ...font.semibold },
+    customRemainingRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
+    pctInputRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    pctSymbol: { fontSize: 16, ...font.semibold, color: C.textPrimary },
+    fillBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: C.primary + '40',
+      backgroundColor: C.primary + '08',
+      minHeight: 44,
+    },
+    fillBtnText: { color: C.primary, fontSize: 13, ...font.semibold },
 
-  categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
-  catChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    minHeight: 44,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 1.5,
-    borderColor: C.primary + '55',
-    backgroundColor: C.primary + '08',
-  },
-  catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-  catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
-  catChipTextSelected: { color: C.white },
+    categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
+    catChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      minHeight: 44,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1.5,
+      borderColor: C.primary + '55',
+      backgroundColor: C.primary + '08',
+    },
+    catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
+    catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
+    catChipTextSelected: { color: C.white },
 
-  dateTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    minHeight: 44,
-  },
-  dateTriggerText: { flex: 1, fontSize: 15, ...font.medium, color: C.textPrimary },
+    dateTrigger: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
+      borderRadius: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      minHeight: 44,
+    },
+    dateTriggerText: { flex: 1, fontSize: 15, ...font.medium, color: C.textPrimary },
 
-  errorBox: {
-    backgroundColor: C.danger + '12',
-    borderRadius: 10,
-    padding: sizes.md,
-  },
-  errorText: { color: C.danger, fontSize: 14, ...font.regular },
+    errorBox: {
+      backgroundColor: C.danger + '12',
+      borderRadius: 10,
+      padding: sizes.md,
+    },
+    errorText: { color: C.danger, fontSize: 14, ...font.regular },
 
-  saveBtn: { marginTop: sizes.sm },
-});
+    saveBtn: { marginTop: sizes.sm },
+  });

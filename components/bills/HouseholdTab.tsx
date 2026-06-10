@@ -43,15 +43,17 @@ function formatDate(dateStr: string): string {
 
 function dueBadge(
   nextDue: string | null,
-  textSecondaryColor: string,
+  textSecondaryColor: string
 ): { key: string; params?: Record<string, string | number>; color: string } | null {
   if (!nextDue) return null;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const due = new Date(nextDue + 'T00:00:00');
   const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
-  if (diff < 0)  return { key: 'bills.household_overdue',  params: { n: Math.abs(diff) }, color: '#D9534F' };
+  if (diff < 0)
+    return { key: 'bills.household_overdue', params: { n: Math.abs(diff) }, color: '#D9534F' };
   if (diff === 0) return { key: 'bills.household_due_today', color: '#D9534F' };
-  if (diff <= 7)  return { key: 'bills.household_due_in',  params: { n: diff }, color: '#E0B24D' };
+  if (diff <= 7) return { key: 'bills.household_due_in', params: { n: diff }, color: '#E0B24D' };
   return { key: 'bills.household_due_in', params: { n: diff }, color: textSecondaryColor };
 }
 
@@ -70,24 +72,45 @@ function FairnessSection(): React.JSX.Element {
   const maxTotal = Math.max(...fairness.map((f) => f.total), 1);
 
   return (
-    <View style={[styles.fairnessCard, { backgroundColor: c.surface, borderColor: c.border, borderWidth: 1 }]}>
-      <Text style={[styles.fairnessTitle, { color: c.textSecondary }]}>{t('bills.household_contributions')}</Text>
+    <View
+      style={[
+        styles.fairnessCard,
+        { backgroundColor: c.surface, borderColor: c.border, borderWidth: 1 },
+      ]}
+    >
+      <Text style={[styles.fairnessTitle, { color: c.textSecondary }]}>
+        {t('bills.household_contributions')}
+      </Text>
       {fairness.map((f) => (
         <View key={f.person} style={styles.fairnessRow}>
           <Text style={[styles.fairnessPerson, { color: c.textPrimary }]}>{f.person}</Text>
           <View style={[styles.barTrack, { backgroundColor: c.surfaceSecondary }]}>
-            <View style={[styles.barFill, {
-              width: `${(f.total / maxTotal) * 100}%` as unknown as number,
-              backgroundColor: f.balance >= 0 ? c.positive : c.negative,
-            }]} />
+            <View
+              style={[
+                styles.barFill,
+                {
+                  width: `${(f.total / maxTotal) * 100}%`,
+                  backgroundColor: f.balance >= 0 ? c.positive : c.negative,
+                },
+              ]}
+            />
           </View>
-          <Text style={[styles.fairnessAmount, { color: c.textPrimary }]}>{currency}{f.total.toFixed(0)}</Text>
-          <Text style={[styles.fairnessBalance, { color: f.balance >= 0 ? c.positive : c.negative }]}>
-            {f.balance >= 0 ? `+${currency}${f.balance.toFixed(0)}` : `-${currency}${Math.abs(f.balance).toFixed(0)}`}
+          <Text style={[styles.fairnessAmount, { color: c.textPrimary }]}>
+            {currency}
+            {f.total.toFixed(0)}
+          </Text>
+          <Text
+            style={[styles.fairnessBalance, { color: f.balance >= 0 ? c.positive : c.negative }]}
+          >
+            {f.balance >= 0
+              ? `+${currency}${f.balance.toFixed(0)}`
+              : `-${currency}${Math.abs(f.balance).toFixed(0)}`}
           </Text>
         </View>
       ))}
-      <Text style={[styles.fairnessNote, { color: c.textDisabled }]}>{t('bills.household_balance_note')}</Text>
+      <Text style={[styles.fairnessNote, { color: c.textDisabled }]}>
+        {t('bills.household_balance_note')}
+      </Text>
     </View>
   );
 }
@@ -105,11 +128,17 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const currency = useSettingsStore((s) => s.currency);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = ((): string => {
+    const d = new Date();
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  })();
   const [logging, setLogging] = useState(false);
+  const [isSubmittingLog, setIsSubmittingLog] = useState(false);
   const [amount, setAmount] = useState(String(bill.typicalAmount));
   const [date, setDate] = useState(todayStr);
   const [note, setNote] = useState('');
+  const [cardError, setCardError] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showLogDatePicker, setShowLogDatePicker] = useState(false);
 
@@ -119,23 +148,78 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const billPayments = payments
     .filter((p) => p.billId === bill.id)
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+  const parsedLogAmount = parseFloat(amount.replace(',', '.'));
+  const isLogDisabled =
+    !houseId || !amount || isNaN(parsedLogAmount) || parsedLogAmount <= 0 || isSubmittingLog;
 
-  const handleLog = useCallback(async () => {
-    const parsed = parseFloat(amount);
-    if (!amount || isNaN(parsed) || parsed <= 0 || !houseId) return;
-    await logPayment({ billId: bill.id, amount: parsed, paidAt: date, note }, houseId);
-    setLogging(false);
-    setAmount(String(bill.typicalAmount));
-    setDate(todayStr);
-    setNote('');
-  }, [amount, date, note, bill.id, bill.typicalAmount, logPayment, houseId, todayStr]);
+  const handleLog = useCallback(async (): Promise<void> => {
+    if (isSubmittingLog) return;
+    const parsed = parseFloat(amount.replace(',', '.'));
+    if (!amount || isNaN(parsed) || parsed <= 0) {
+      setCardError(t('bills.enter_valid_amount'));
+      return;
+    }
+    if (!houseId) {
+      setCardError(t('bills.household_missing'));
+      return;
+    }
+    try {
+      setIsSubmittingLog(true);
+      setCardError('');
+      await logPayment({ billId: bill.id, amount: parsed, paidAt: date, note }, houseId);
+      setLogging(false);
+      setAmount(String(bill.typicalAmount));
+      setDate(todayStr);
+      setNote('');
+    } catch {
+      setCardError(t('bills.failed_save'));
+    } finally {
+      setIsSubmittingLog(false);
+    }
+  }, [
+    amount,
+    date,
+    note,
+    bill.id,
+    bill.typicalAmount,
+    logPayment,
+    houseId,
+    todayStr,
+    t,
+    isSubmittingLog,
+  ]);
 
-  const handleDeleteBill    = useCallback(() => deleteBill(bill.id), [deleteBill, bill.id]);
-  const toggleLogging       = useCallback(() => setLogging((v) => !v), []);
-  const toggleShowHistory   = useCallback(() => setShowHistory((v) => !v), []);
-  const openLogDatePicker   = useCallback(() => setShowLogDatePicker(true), []);
-  const closeLogDatePicker  = useCallback(() => setShowLogDatePicker(false), []);
-  const handleLogDateSelect = useCallback((val: string) => { setDate(val); setShowLogDatePicker(false); }, []);
+  const handleDeleteBill = useCallback(async (): Promise<void> => {
+    try {
+      setCardError('');
+      await deleteBill(bill.id);
+    } catch {
+      setCardError(t('bills.failed_delete'));
+    }
+  }, [deleteBill, bill.id, t]);
+
+  const handleDeletePayment = useCallback(
+    async (paymentId: string): Promise<void> => {
+      try {
+        setCardError('');
+        await deletePayment(paymentId);
+      } catch {
+        setCardError(t('bills.failed_delete'));
+      }
+    },
+    [deletePayment, t]
+  );
+  const toggleLogging = useCallback((): void => {
+    if (isSubmittingLog) return;
+    setLogging((v) => !v);
+  }, [isSubmittingLog]);
+  const toggleShowHistory = useCallback((): void => setShowHistory((v) => !v), []);
+  const openLogDatePicker = useCallback((): void => setShowLogDatePicker(true), []);
+  const closeLogDatePicker = useCallback((): void => setShowLogDatePicker(false), []);
+  const handleLogDateSelect = useCallback((val: string): void => {
+    setDate(val);
+    setShowLogDatePicker(false);
+  }, []);
 
   return (
     <View style={[styles.billCard, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -146,15 +230,28 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           <Text style={[styles.billName, { color: c.textPrimary }]}>{bill.name}</Text>
           <View style={styles.billMeta}>
             <View style={[styles.metaChip, { backgroundColor: c.primary + '20' }]}>
-              <Text style={[styles.metaChipText, { color: c.primary }]}>{resolveName(bill.assignedTo, housemates)}</Text>
+              <Text style={[styles.metaChipText, { color: c.primary }]}>
+                {resolveName(bill.assignedTo, housemates)}
+              </Text>
             </View>
             <View style={[styles.metaChip, { backgroundColor: c.primary + '20' }]}>
-              <Text style={[styles.metaChipText, { color: c.primary }]}>{t(`bills.freq_${bill.frequency}`)}</Text>
+              <Text style={[styles.metaChipText, { color: c.primary }]}>
+                {t(`bills.freq_${bill.frequency}`)}
+              </Text>
             </View>
-            <Text style={[styles.typicalAmount, { color: c.textSecondary }]}>~{currency}{bill.typicalAmount}</Text>
+            <Text style={[styles.typicalAmount, { color: c.textSecondary }]}>
+              ~{currency}
+              {bill.typicalAmount}
+            </Text>
           </View>
         </View>
-        <Pressable onPress={handleDeleteBill} style={styles.deleteBtn} accessibilityRole="button" hitSlop={8}>
+        <Pressable
+          onPress={handleDeleteBill}
+          style={styles.deleteBtn}
+          accessibilityRole="button"
+          accessibilityLabel={t('bills.delete_bill')}
+          hitSlop={8}
+        >
           <Ionicons name="close" size={16} color={c.textSecondary} />
         </Pressable>
       </View>
@@ -162,50 +259,86 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       {/* Last payment + due date */}
       <View style={styles.billStatus}>
         {last ? (
-          <Text style={[styles.lastPaid, { color: c.textSecondary }]}>{t('bills.household_last_paid')} {formatDate(last.paidAt)} · {currency}{last.amount.toFixed(0)}</Text>
+          <Text style={[styles.lastPaid, { color: c.textSecondary }]}>
+            {t('bills.household_last_paid')} {formatDate(last.paidAt)} · {currency}
+            {last.amount.toFixed(0)}
+          </Text>
         ) : (
-          <Text style={[styles.neverPaid, { color: c.textDisabled }]}>{t('bills.household_no_payments')}</Text>
+          <Text style={[styles.neverPaid, { color: c.textDisabled }]}>
+            {t('bills.household_no_payments')}
+          </Text>
         )}
         {badge && (
           <View style={[styles.dueBadge, { backgroundColor: badge.color + '18' }]}>
-            <Text style={[styles.dueBadgeText, { color: badge.color }]}>{t(badge.key, badge.params)}</Text>
+            <Text style={[styles.dueBadgeText, { color: badge.color }]}>
+              {t(badge.key, badge.params)}
+            </Text>
           </View>
         )}
       </View>
 
       {/* Actions */}
       <View style={styles.billActions}>
-        <Pressable style={[styles.logBtn, { backgroundColor: c.primary + '20' }]} onPress={toggleLogging}>
-          <Text style={[styles.logBtnText, { color: c.primary }]}>{logging ? t('common.cancel') : t('bills.household_log_payment')}</Text>
+        <Pressable
+          style={[styles.logBtn, { backgroundColor: c.primary + '20' }]}
+          onPress={toggleLogging}
+          disabled={isSubmittingLog}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={logging ? t('common.cancel') : t('bills.household_log_payment')}
+          accessibilityState={{ selected: logging, disabled: isSubmittingLog }}
+        >
+          <Text style={[styles.logBtnText, { color: c.primary }]}>
+            {logging ? t('common.cancel') : t('bills.household_log_payment')}
+          </Text>
         </Pressable>
         {billPayments.length > 0 && (
-          <Pressable onPress={toggleShowHistory}>
-            <Text style={[styles.historyLink, { color: c.textSecondary }]}>{showHistory ? t('bills.household_hide_history') : `${t('bills.household_history')} (${billPayments.length})`}</Text>
+          <Pressable
+            onPress={toggleShowHistory}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('bills.household_history')}
+            accessibilityState={{ expanded: showHistory }}
+          >
+            <Text style={[styles.historyLink, { color: c.textSecondary }]}>
+              {showHistory
+                ? t('bills.household_hide_history')
+                : `${t('bills.household_history')} (${billPayments.length})`}
+            </Text>
           </Pressable>
         )}
       </View>
+
+      {!!cardError && <Text style={[styles.formError, { color: c.negative }]}>{cardError}</Text>}
 
       {/* Log payment inline form */}
       {logging && (
         <View style={[styles.logForm, { borderTopColor: c.border }]}>
           <View style={styles.logRow}>
             <TextInput
-              style={[styles.logAmountInput, { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary }]}
+              style={[
+                styles.logAmountInput,
+                { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+              ]}
               value={amount}
               onChangeText={setAmount}
               keyboardType="decimal-pad"
               placeholder={t('bills.household_amount')}
               placeholderTextColor={c.textDisabled}
+              accessibilityLabel={t('bills.household_amount')}
+              accessibilityHint={t('bills.hint_amount_paid')}
             />
             <Pressable
               style={[styles.dateTrigger, { backgroundColor: c.background, borderColor: c.border }]}
               onPress={openLogDatePicker}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Select payment date"
+              accessibilityLabel={t('bills.select_payment_date')}
             >
               <Ionicons name="calendar-outline" size={15} color={c.primary} />
-              <Text style={[styles.dateTriggerText, { color: c.textPrimary }]}>{formatDate(date)}</Text>
+              <Text style={[styles.dateTriggerText, { color: c.textPrimary }]}>
+                {formatDate(date)}
+              </Text>
             </Pressable>
           </View>
           <DatePickerModal
@@ -215,13 +348,29 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             onClose={closeLogDatePicker}
           />
           <TextInput
-            style={[styles.logNoteInput, { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary }]}
+            style={[
+              styles.logNoteInput,
+              { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+            ]}
             value={note}
             onChangeText={setNote}
             placeholder={t('bills.household_note')}
             placeholderTextColor={c.textDisabled}
+            accessibilityLabel={t('bills.household_note')}
+            accessibilityHint={t('bills.hint_optional_note')}
           />
-          <Pressable style={[styles.savePaymentBtn, { backgroundColor: c.primary }]} onPress={handleLog}>
+          <Pressable
+            style={[
+              styles.savePaymentBtn,
+              { backgroundColor: isLogDisabled ? c.textDisabled : c.primary },
+            ]}
+            onPress={handleLog}
+            disabled={isLogDisabled}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('bills.household_save_payment')}
+            accessibilityState={{ disabled: isLogDisabled }}
+          >
             <Text style={styles.savePaymentBtnText}>{t('bills.household_save_payment')}</Text>
           </Pressable>
         </View>
@@ -232,10 +381,23 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
         <View style={[styles.history, { borderTopColor: c.border }]}>
           {billPayments.map((p) => (
             <View key={p.id} style={styles.historyRow}>
-              <Text style={[styles.historyDate, { color: c.textSecondary }]}>{formatDate(p.paidAt)}</Text>
-              <Text style={[styles.historyAmount, { color: c.textPrimary }]}>{currency}{p.amount.toFixed(0)}</Text>
-              {p.note ? <Text style={[styles.historyNote, { color: c.textSecondary }]}>{p.note}</Text> : null}
-              <Pressable onPress={() => deletePayment(p.id)} hitSlop={8}>
+              <Text style={[styles.historyDate, { color: c.textSecondary }]}>
+                {formatDate(p.paidAt)}
+              </Text>
+              <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
+                {currency}
+                {p.amount.toFixed(0)}
+              </Text>
+              {p.note ? (
+                <Text style={[styles.historyNote, { color: c.textSecondary }]}>{p.note}</Text>
+              ) : null}
+              <Pressable
+                onPress={() => handleDeletePayment(p.id)}
+                hitSlop={8}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('bills.delete_payment')}
+              >
                 <Ionicons name="close" size={14} color={c.textSecondary} />
               </Pressable>
             </View>
@@ -248,14 +410,23 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
 
 // ── Add bill form ─────────────────────────────────────────────────────────────
 
-interface PersonOption { id: string; name: string; }
+interface PersonOption {
+  id: string;
+  name: string;
+}
 
-function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () => void }): React.JSX.Element {
+function AddBillForm({
+  people,
+  onClose,
+}: {
+  people: PersonOption[];
+  onClose: () => void;
+}): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
-  const addBill    = useRecurringBillsStore((s) => s.addBill);
+  const addBill = useRecurringBillsStore((s) => s.addBill);
   const logPayment = useRecurringBillsStore((s) => s.logPayment);
-  const houseId    = useAuthStore((s) => s.houseId);
+  const houseId = useAuthStore((s) => s.houseId);
   const [name, setName] = useState('');
   const [assignedTo, setAssignedTo] = useState(people[0]?.id ?? '');
   const [frequency, setFrequency] = useState<BillFrequency>('monthly');
@@ -266,38 +437,87 @@ function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () 
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const handleSave = useCallback(async () => {
-    if (!name.trim()) { setError('Please enter a bill name.'); return; }
-    const amt = parseFloat(typicalAmount);
-    if (!typicalAmount || isNaN(amt) || amt <= 0) { setError('Please enter a valid amount.'); return; }
-    if (!houseId) return;
+  const handleSave = useCallback(async (): Promise<void> => {
+    if (saving) return;
+    if (!name.trim()) {
+      setError(t('bills.household_name_required'));
+      return;
+    }
+    const amt = parseFloat(typicalAmount.replace(',', '.'));
+    if (!typicalAmount || isNaN(amt) || amt <= 0) {
+      setError(t('bills.household_invalid_amount'));
+      return;
+    }
+    if (!assignedTo) {
+      setError(t('bills.household_assignee_required'));
+      return;
+    }
+    if (!houseId) {
+      setError(t('bills.household_missing'));
+      return;
+    }
     try {
       setSaving(true);
       const newBill = await addBill(
         { name: name.trim(), assignedTo, frequency, typicalAmount: amt, icon },
-        houseId,
+        houseId
       );
       if (lastPaidDate) {
-        await logPayment({ billId: newBill.id, amount: amt, paidAt: lastPaidDate, note: '' }, houseId);
+        await logPayment(
+          { billId: newBill.id, amount: amt, paidAt: lastPaidDate, note: '' },
+          houseId
+        );
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the bill. Please try again.');
+      setError(err instanceof Error ? err.message : t('bills.failed_save'));
     } finally {
       setSaving(false);
     }
-  }, [name, assignedTo, frequency, typicalAmount, icon, lastPaidDate, addBill, logPayment, houseId, onClose]);
+  }, [
+    name,
+    assignedTo,
+    frequency,
+    typicalAmount,
+    icon,
+    lastPaidDate,
+    addBill,
+    logPayment,
+    houseId,
+    onClose,
+    t,
+    saving,
+  ]);
 
-  const openAddDatePicker   = useCallback(() => setShowAddDatePicker(true), []);
-  const closeAddDatePicker  = useCallback(() => setShowAddDatePicker(false), []);
-  const handleAddDateSelect = useCallback((val: string) => { setLastPaidDate(val); setShowAddDatePicker(false); }, []);
+  const handleCancel = useCallback((): void => {
+    if (saving) return;
+    onClose();
+  }, [saving, onClose]);
+
+  const openAddDatePicker = useCallback((): void => setShowAddDatePicker(true), []);
+  const closeAddDatePicker = useCallback((): void => setShowAddDatePicker(false), []);
+  const handleAddDateSelect = useCallback((val: string): void => {
+    setLastPaidDate(val);
+    setShowAddDatePicker(false);
+  }, []);
+
+  const isSaveDisabled =
+    saving ||
+    !houseId ||
+    !name.trim() ||
+    !assignedTo ||
+    !(parseFloat(typicalAmount.replace(',', '.')) > 0);
 
   return (
     <View style={[styles.addForm, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <Text style={[styles.addFormTitle, { color: c.textPrimary }]}>{t('bills.household_new_recurring')}</Text>
+      <Text style={[styles.addFormTitle, { color: c.textPrimary }]}>
+        {t('bills.household_new_recurring')}
+      </Text>
 
       {/* Icon picker */}
-      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{t('bills.household_icon')}</Text>
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_icon')}
+      </Text>
       <View style={styles.iconRow}>
         {BILL_ICONS.map((ic) => (
           <Pressable
@@ -314,7 +534,9 @@ function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () 
             accessibilityState={{ selected: icon === ic }}
           >
             <Text style={styles.iconChipEmoji}>{ic}</Text>
-            <Text style={[styles.iconChipLabel, { color: icon === ic ? c.primary : c.textSecondary }]}>
+            <Text
+              style={[styles.iconChipLabel, { color: icon === ic ? c.primary : c.textSecondary }]}
+            >
               {BILL_ICON_LABELS[ic] ?? ''}
             </Text>
           </Pressable>
@@ -322,18 +544,27 @@ function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () 
       </View>
 
       {/* Name */}
-      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{t('bills.household_bill_name')}</Text>
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_bill_name')}
+      </Text>
       <TextInput
-        style={[styles.addInput, { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary }]}
+        style={[
+          styles.addInput,
+          { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+        ]}
         value={name}
         onChangeText={setName}
         placeholder={t('bills.household_bill_name_placeholder')}
         placeholderTextColor={c.textDisabled}
         autoCorrect={false}
+        accessibilityLabel={t('bills.household_bill_name')}
+        accessibilityHint={t('bills.hint_bill_name')}
       />
 
       {/* Assigned to */}
-      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{t('bills.household_who_pays')}</Text>
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_who_pays')}
+      </Text>
       <View style={styles.chipRow}>
         {people.map((p) => (
           <Pressable
@@ -344,14 +575,24 @@ function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () 
               assignedTo === p.id && { backgroundColor: c.primary, borderColor: c.primary },
             ]}
             onPress={() => setAssignedTo(p.id)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={p.name}
+            accessibilityState={{ selected: assignedTo === p.id }}
           >
-            <Text style={[styles.chipText, { color: assignedTo === p.id ? '#fff' : c.textPrimary }]}>{p.name}</Text>
+            <Text
+              style={[styles.chipText, { color: assignedTo === p.id ? '#fff' : c.textPrimary }]}
+            >
+              {p.name}
+            </Text>
           </Pressable>
         ))}
       </View>
 
       {/* Frequency */}
-      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{t('bills.household_how_often')}</Text>
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_how_often')}
+      </Text>
       <View style={styles.chipRow}>
         {FREQUENCIES.map((f) => (
           <Pressable
@@ -362,35 +603,54 @@ function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () 
               frequency === f && { backgroundColor: c.primary, borderColor: c.primary },
             ]}
             onPress={() => setFrequency(f)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={t(`bills.freq_${f}`)}
+            accessibilityState={{ selected: frequency === f }}
           >
-            <Text style={[styles.chipText, { color: frequency === f ? '#fff' : c.textPrimary }]}>{t(`bills.freq_${f}`)}</Text>
+            <Text style={[styles.chipText, { color: frequency === f ? '#fff' : c.textPrimary }]}>
+              {t(`bills.freq_${f}`)}
+            </Text>
           </Pressable>
         ))}
       </View>
 
       {/* Typical amount */}
-      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{t('bills.household_typical_amount')}</Text>
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_typical_amount')}
+      </Text>
       <TextInput
-        style={[styles.addInput, { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary }]}
+        style={[
+          styles.addInput,
+          { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+        ]}
         value={typicalAmount}
         onChangeText={setTypicalAmount}
         keyboardType="decimal-pad"
         placeholder="0"
         placeholderTextColor={c.textDisabled}
+        accessibilityLabel={t('bills.household_typical_amount')}
+        accessibilityHint={t('bills.hint_typical_amount')}
       />
 
       {/* Last paid date */}
-      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>{t('bills.household_last_paid_label')}</Text>
-      <Text style={[styles.fieldHint, { color: c.textDisabled }]}>{t('bills.household_last_paid_help')}</Text>
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_last_paid_label')}
+      </Text>
+      <Text style={[styles.fieldHint, { color: c.textDisabled }]}>
+        {t('bills.household_last_paid_help')}
+      </Text>
       <Pressable
         style={[styles.dateTrigger, { backgroundColor: c.background, borderColor: c.border }]}
         onPress={openAddDatePicker}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Select last paid date"
+        accessibilityLabel={t('bills.select_last_paid_date')}
       >
         <Ionicons name="calendar-outline" size={16} color={c.primary} />
-        <Text style={[styles.dateTriggerText, { color: lastPaidDate ? c.textPrimary : c.textDisabled }]}>
+        <Text
+          style={[styles.dateTriggerText, { color: lastPaidDate ? c.textPrimary : c.textDisabled }]}
+        >
           {lastPaidDate ? formatDate(lastPaidDate) : t('bills.household_tap_select_date')}
         </Text>
       </Pressable>
@@ -404,15 +664,31 @@ function AddBillForm({ people, onClose }: { people: PersonOption[]; onClose: () 
       {!!error && <Text style={[styles.formError, { color: c.negative }]}>{error}</Text>}
 
       <View style={styles.addFormActions}>
-        <Pressable style={[styles.cancelBtn, { borderColor: c.border }]} onPress={onClose}>
-          <Text style={[styles.cancelBtnText, { color: c.textSecondary }]}>{t('common.cancel')}</Text>
+        <Pressable
+          style={[styles.cancelBtn, { borderColor: c.border }]}
+          onPress={handleCancel}
+          disabled={saving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
+          accessibilityState={{ disabled: saving }}
+        >
+          <Text style={[styles.cancelBtnText, { color: c.textSecondary }]}>
+            {t('common.cancel')}
+          </Text>
         </Pressable>
         <Pressable
-          style={[styles.saveBtn, { backgroundColor: c.primary }, (saving || !name.trim() || !typicalAmount) && { backgroundColor: c.textDisabled }]}
+          style={[styles.saveBtn, { backgroundColor: isSaveDisabled ? c.textDisabled : c.primary }]}
           onPress={handleSave}
-          disabled={saving}
+          disabled={isSaveDisabled}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={saving ? t('bills.household_saving') : t('bills.household_add_bill')}
+          accessibilityState={{ disabled: isSaveDisabled }}
         >
-          <Text style={styles.saveBtnText}>{saving ? 'Saving…' : t('bills.household_add_bill')}</Text>
+          <Text style={styles.saveBtnText}>
+            {saving ? t('bills.household_saving') : t('bills.household_add_bill')}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -429,14 +705,15 @@ export function HouseholdTab(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const openAddForm  = useCallback(() => setShowAddForm(true), []);
-  const closeAddForm = useCallback(() => setShowAddForm(false), []);
+  const openAddForm = useCallback((): void => setShowAddForm(true), []);
+  const closeAddForm = useCallback((): void => setShowAddForm(false), []);
 
   const allPeople = [
     profile ? { id: profile.id, name: profile.name ?? '' } : null,
     ...housemates.map((h) => ({ id: h.id, name: h.name })),
-  ].filter((p): p is { id: string; name: string } => Boolean(p?.id && p?.name))
-   .filter((p, i, arr) => arr.findIndex((q) => q.id === p.id) === i);
+  ]
+    .filter((p): p is { id: string; name: string } => Boolean(p?.id && p?.name))
+    .filter((p, i, arr) => arr.findIndex((q) => q.id === p.id) === i);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -444,18 +721,32 @@ export function HouseholdTab(): React.JSX.Element {
 
       {bills.length === 0 && !showAddForm && (
         <View style={styles.emptySection}>
-          <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>{t('bills.household_no_bills')}</Text>
-          <Text style={[styles.emptyText, { color: c.textSecondary }]}>{t('bills.household_no_bills_hint')}</Text>
+          <Text style={[styles.emptyTitle, { color: c.textPrimary }]}>
+            {t('bills.household_no_bills')}
+          </Text>
+          <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+            {t('bills.household_no_bills_hint')}
+          </Text>
         </View>
       )}
 
-      {bills.map((bill) => <BillCard key={bill.id} bill={bill} />)}
+      {bills.map((bill) => (
+        <BillCard key={bill.id} bill={bill} />
+      ))}
 
       {showAddForm ? (
         <AddBillForm people={allPeople} onClose={closeAddForm} />
       ) : (
-        <Pressable style={[styles.addBillBtn, { borderColor: c.border }]} onPress={openAddForm}>
-          <Text style={[styles.addBillBtnText, { color: c.primary }]}>{t('bills.household_add_recurring')}</Text>
+        <Pressable
+          style={[styles.addBillBtn, { borderColor: c.border }]}
+          onPress={openAddForm}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('bills.household_add_recurring')}
+        >
+          <Text style={[styles.addBillBtnText, { color: c.primary }]}>
+            {t('bills.household_add_recurring')}
+          </Text>
         </Pressable>
       )}
     </ScrollView>
@@ -467,85 +758,184 @@ const styles = StyleSheet.create({
   content: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
 
   // Fairness
-  fairnessCard:    { borderRadius: sizes.borderRadius, padding: sizes.md, gap: sizes.sm },
-  fairnessTitle:   { fontSize: sizes.fontSm, ...font.bold, letterSpacing: 0.5, textTransform: 'uppercase' },
-  fairnessRow:     { flexDirection: 'row', alignItems: 'center', gap: sizes.xs },
-  fairnessPerson:  { width: 64, fontSize: sizes.fontSm, ...font.semibold },
-  barTrack:        { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
-  barFill:         { height: 8, borderRadius: 4 },
-  fairnessAmount:  { width: 56, fontSize: sizes.fontSm, textAlign: 'right' },
+  fairnessCard: { borderRadius: sizes.borderRadius, padding: sizes.md, gap: sizes.sm },
+  fairnessTitle: {
+    fontSize: sizes.fontSm,
+    ...font.bold,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  fairnessRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs },
+  fairnessPerson: { width: 64, fontSize: sizes.fontSm, ...font.semibold },
+  barTrack: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
+  barFill: { height: 8, borderRadius: 4 },
+  fairnessAmount: { width: 56, fontSize: sizes.fontSm, textAlign: 'right' },
   fairnessBalance: { width: 56, fontSize: sizes.fontXs, ...font.bold, textAlign: 'right' },
-  fairnessNote:    { fontSize: 11, marginTop: sizes.xs },
+  fairnessNote: { fontSize: 11, marginTop: sizes.xs },
 
   // Bill card
-  billCard:       { borderRadius: sizes.borderRadius, borderWidth: 1, padding: sizes.md, gap: sizes.sm },
-  billHeader:     { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-  billIcon:       { fontSize: 28, lineHeight: 36 },
+  billCard: { borderRadius: sizes.borderRadius, borderWidth: 1, padding: sizes.md, gap: sizes.sm },
+  billHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
+  billIcon: { fontSize: 28, lineHeight: 36 },
   billHeaderInfo: { flex: 1, gap: 4 },
-  billName:       { fontSize: sizes.fontMd, ...font.bold },
-  billMeta:       { flexDirection: 'row', alignItems: 'center', gap: sizes.xs, flexWrap: 'wrap' },
-  metaChip:       { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
-  metaChipText:   { fontSize: sizes.fontXs, ...font.semibold },
-  typicalAmount:  { fontSize: sizes.fontXs },
-  deleteBtn:      { padding: 4 },
-  billStatus:     { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
-  lastPaid:       { fontSize: sizes.fontSm, flex: 1 },
-  neverPaid:      { fontSize: sizes.fontSm, flex: 1 },
-  dueBadge:       { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 3 },
-  dueBadgeText:   { fontSize: sizes.fontXs, ...font.bold },
-  billActions:    { flexDirection: 'row', alignItems: 'center', gap: sizes.md },
-  logBtn:         { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.md, paddingVertical: 5, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
-  logBtnText:     { fontSize: sizes.fontSm, ...font.bold },
-  historyLink:    { fontSize: sizes.fontSm },
+  billName: { fontSize: sizes.fontMd, ...font.bold },
+  billMeta: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs, flexWrap: 'wrap' },
+  metaChip: {
+    borderRadius: sizes.borderRadiusFull,
+    paddingHorizontal: sizes.xs,
+    paddingVertical: 2,
+  },
+  metaChipText: { fontSize: sizes.fontXs, ...font.semibold },
+  typicalAmount: { fontSize: sizes.fontXs },
+  deleteBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  billStatus: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
+  lastPaid: { fontSize: sizes.fontSm, flex: 1 },
+  neverPaid: { fontSize: sizes.fontSm, flex: 1 },
+  dueBadge: {
+    borderRadius: sizes.borderRadiusFull,
+    paddingHorizontal: sizes.sm,
+    paddingVertical: 3,
+  },
+  dueBadgeText: { fontSize: sizes.fontXs, ...font.bold },
+  billActions: { flexDirection: 'row', alignItems: 'center', gap: sizes.md },
+  logBtn: {
+    borderRadius: sizes.borderRadiusFull,
+    paddingHorizontal: sizes.md,
+    paddingVertical: 5,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logBtnText: { fontSize: sizes.fontSm, ...font.bold },
+  historyLink: { fontSize: sizes.fontSm },
 
   // Log form
-  logForm:         { borderTopWidth: 1, paddingTop: sizes.sm, gap: sizes.sm },
-  logRow:          { flexDirection: 'row', gap: sizes.sm },
-  logAmountInput:  { flex: 1, borderRadius: sizes.borderRadiusSm, borderWidth: 1, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd },
-  logNoteInput:    { borderRadius: sizes.borderRadiusSm, borderWidth: 1, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontSm },
-  savePaymentBtn:  { borderRadius: sizes.borderRadius, paddingVertical: sizes.sm, alignItems: 'center' },
+  logForm: { borderTopWidth: 1, paddingTop: sizes.sm, gap: sizes.sm },
+  logRow: { flexDirection: 'row', gap: sizes.sm },
+  logAmountInput: {
+    flex: 1,
+    borderRadius: sizes.borderRadiusSm,
+    borderWidth: 1,
+    paddingHorizontal: sizes.sm,
+    paddingVertical: sizes.sm,
+    fontSize: sizes.fontMd,
+  },
+  logNoteInput: {
+    borderRadius: sizes.borderRadiusSm,
+    borderWidth: 1,
+    paddingHorizontal: sizes.sm,
+    paddingVertical: sizes.sm,
+    fontSize: sizes.fontSm,
+  },
+  savePaymentBtn: {
+    borderRadius: sizes.borderRadius,
+    paddingVertical: sizes.sm,
+    alignItems: 'center',
+  },
   savePaymentBtnText: { color: '#fff', ...font.bold, fontSize: sizes.fontMd },
 
   // History
-  history:       { borderTopWidth: 1, paddingTop: sizes.sm, gap: sizes.xs },
-  historyRow:    { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-  historyDate:   { fontSize: sizes.fontSm, width: 80 },
+  history: { borderTopWidth: 1, paddingTop: sizes.sm, gap: sizes.xs },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
+  historyDate: { fontSize: sizes.fontSm, width: 80 },
   historyAmount: { fontSize: sizes.fontSm, ...font.semibold },
-  historyNote:   { flex: 1, fontSize: sizes.fontSm, fontStyle: 'italic' },
+  historyNote: { flex: 1, fontSize: sizes.fontSm, fontStyle: 'italic' },
 
   // Add form
-  addForm:        { borderRadius: sizes.borderRadius, borderWidth: 1, padding: sizes.md, gap: sizes.sm },
-  addFormTitle:   { fontSize: sizes.fontMd, ...font.bold, marginBottom: sizes.xs },
-  fieldLabel:     { fontSize: sizes.fontXs, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
-  iconRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  iconChip:       { width: 56, height: 56, borderRadius: sizes.borderRadiusSm, justifyContent: 'center', alignItems: 'center', borderWidth: 2, gap: 2 },
-  iconChipEmoji:  { fontSize: 20 },
-  iconChipLabel:  { fontSize: 9, textAlign: 'center' },
-  fieldHint:      { fontSize: 11, marginTop: -2 },
+  addForm: { borderRadius: sizes.borderRadius, borderWidth: 1, padding: sizes.md, gap: sizes.sm },
+  addFormTitle: { fontSize: sizes.fontMd, ...font.bold, marginBottom: sizes.xs },
+  fieldLabel: {
+    fontSize: sizes.fontXs,
+    ...font.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+  iconChip: {
+    width: 56,
+    height: 56,
+    borderRadius: sizes.borderRadiusSm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    gap: 2,
+  },
+  iconChipEmoji: { fontSize: 20 },
+  iconChipLabel: { fontSize: 9, textAlign: 'center' },
+  fieldHint: { fontSize: 11, marginTop: -2 },
   dateTrigger: {
-    flexDirection: 'row', alignItems: 'center', gap: sizes.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sizes.sm,
     borderRadius: sizes.borderRadiusSm,
     borderWidth: 1,
-    paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, minHeight: 44,
+    paddingHorizontal: sizes.sm,
+    paddingVertical: sizes.sm,
+    minHeight: 44,
   },
   dateTriggerText: { flex: 1, fontSize: sizes.fontSm },
-  formError:      { fontSize: sizes.fontSm, marginTop: 2 },
-  addInput:       { borderRadius: sizes.borderRadiusSm, borderWidth: 1, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd },
-  chipRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  chip:           { paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 1 },
-  chipText:       { fontSize: sizes.fontSm },
-  addFormActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
-  cancelBtn:      { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadius, borderWidth: 1 },
-  cancelBtnText:  { ...font.semibold },
-  saveBtn:        { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadius },
-  saveBtnText:    { color: '#fff', ...font.bold },
+  formError: { fontSize: sizes.fontSm, marginTop: 2 },
+  addInput: {
+    borderRadius: sizes.borderRadiusSm,
+    borderWidth: 1,
+    paddingHorizontal: sizes.sm,
+    paddingVertical: sizes.sm,
+    fontSize: sizes.fontMd,
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+  chip: {
+    paddingHorizontal: sizes.sm,
+    paddingVertical: 6,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: sizes.borderRadiusFull,
+    borderWidth: 1,
+  },
+  chipText: { fontSize: sizes.fontSm },
+  addFormActions: {
+    flexDirection: 'row',
+    gap: sizes.sm,
+    justifyContent: 'flex-end',
+    marginTop: sizes.xs,
+  },
+  cancelBtn: {
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: sizes.borderRadius,
+    borderWidth: 1,
+  },
+  cancelBtnText: { ...font.semibold },
+  saveBtn: {
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: sizes.borderRadius,
+  },
+  saveBtnText: { color: '#fff', ...font.bold },
 
   // Add bill button
-  addBillBtn:     { borderWidth: 2, borderStyle: 'dashed', borderRadius: sizes.borderRadius, paddingVertical: sizes.md, alignItems: 'center' },
+  addBillBtn: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderRadius: sizes.borderRadius,
+    paddingVertical: sizes.md,
+    alignItems: 'center',
+  },
   addBillBtnText: { ...font.bold, fontSize: sizes.fontMd },
 
   // Empty
   emptySection: { alignItems: 'center', paddingVertical: sizes.xl },
-  emptyTitle:   { ...font.bold, marginBottom: sizes.xs },
-  emptyText:    { textAlign: 'center', fontSize: sizes.fontSm },
+  emptyTitle: { ...font.bold, marginBottom: sizes.xs },
+  emptyText: { textAlign: 'center', fontSize: sizes.fontSm },
 });

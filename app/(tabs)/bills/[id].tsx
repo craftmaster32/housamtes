@@ -6,7 +6,7 @@ import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import { useBillsStore, getPersonShare, CATEGORIES } from '@stores/billsStore';
+import { useBillsStore, getPersonShare, CATEGORIES, EditBillSchema } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -37,7 +37,12 @@ function formatDisplayDate(iso: string, locale: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return iso;
   const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
-  return d.toLocaleDateString(locale || undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString(locale || undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export default function BillDetailScreen(): React.JSX.Element {
@@ -47,10 +52,9 @@ export default function BillDetailScreen(): React.JSX.Element {
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
   const isLoading = useBillsStore((s) => s.isLoading);
+  const storeError = useBillsStore((s) => s.error);
   const editBill = useBillsStore((s) => s.editBill);
-  const settleBill = useBillsStore((s) => s.settleBill);
   const deleteBill = useBillsStore((s) => s.deleteBill);
-  const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
   const canDelete = role === 'owner' || role === 'admin';
@@ -58,7 +62,11 @@ export default function BillDetailScreen(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const markSeen = useBadgeStore((s) => s.markSeen);
 
-  useFocusEffect(useCallback(() => { markSeen('bills').catch(() => {}); }, [markSeen]));
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('bills').catch(() => {});
+    }, [markSeen])
+  );
 
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(bill?.title ?? '');
@@ -79,59 +87,90 @@ export default function BillDetailScreen(): React.JSX.Element {
   }, [bill, isEditing]);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [isSettling, setIsSettling] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
   const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
-  const handleBackToBills = useCallback((): void => { router.replace('/(tabs)/bills'); }, []);
+  const handleBackToBills = useCallback((): void => {
+    router.replace('/(tabs)/bills');
+  }, []);
 
-  const handleSaveEdit = useCallback(async () => {
-    const parsed = parseFloat(amount);
-    if (!title.trim()) { setError(t('bills.title_required')); return; }
-    if (isNaN(parsed) || parsed <= 0) { setError(t('bills.enter_valid_amount')); return; }
+  const handleSaveEdit = useCallback(async (): Promise<void> => {
+    if (isSaving || isDeleting) return;
     if (!bill) return;
+    const result = EditBillSchema.safeParse({
+      title: title.trim(),
+      amount: amount.replace(',', '.'),
+      date,
+      notes,
+      category,
+    });
+    if (!result.success) {
+      const path = result.error.issues[0]?.path[0];
+      setError(
+        path === 'title'
+          ? t('bills.title_required')
+          : path === 'amount'
+            ? t('bills.enter_valid_amount')
+            : t('bills.failed_save')
+      );
+      return;
+    }
     try {
       setIsSaving(true);
-      await editBill(bill.id, { title: title.trim(), amount: parsed, date, notes, category });
+      await editBill(bill.id, result.data);
+      setError('');
       setIsEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('bills.failed_save'));
+      console.error(err);
+      setError(t('bills.failed_save'));
     } finally {
       setIsSaving(false);
     }
-  }, [bill, title, amount, date, notes, category, editBill, t]);
+  }, [bill, title, amount, date, notes, category, editBill, t, isSaving, isDeleting]);
 
-  const handleSettle = useCallback(async () => {
-    if (!bill || !profile || !houseId) return;
+  const handleDelete = useCallback(async (): Promise<void> => {
+    if (!bill || !houseId || isDeleting || isSaving) return;
     try {
-      setIsSettling(true);
-      await settleBill(bill.id, profile.id, profile.name, houseId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('bills.failed_settle'));
-    } finally {
-      setIsSettling(false);
-    }
-  }, [bill, profile, houseId, settleBill, t]);
-
-  const handleDelete = useCallback(async () => {
-    if (!bill) return;
-    try {
-      await deleteBill(bill.id, houseId ?? '');
+      setIsDeleting(true);
+      await deleteBill(bill.id, houseId);
       router.replace('/(tabs)/bills');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete bill');
+      console.error(err);
+      setError(t('bills.failed_delete'));
+      setIsDeleting(false);
     }
-  }, [bill, houseId, deleteBill]);
+  }, [bill, houseId, isDeleting, isSaving, deleteBill, t]);
+
+  const handleBack = useCallback((): void => {
+    router.back();
+  }, []);
+  const handleStartEditing = useCallback((): void => {
+    setIsEditing(true);
+    setError('');
+  }, []);
+  const handleCancel = useCallback((): void => {
+    setIsEditing(false);
+    setError('');
+  }, []);
+  const handleTitleChange = useCallback((v: string): void => {
+    setTitle(v);
+    setError('');
+  }, []);
+  const handleAmountChange = useCallback((v: string): void => {
+    setAmount(v);
+    setError('');
+  }, []);
 
   if (!bill) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
           <EmptyState
-            mode={isLoading ? 'loading' : 'empty'}
+            mode={isLoading ? 'loading' : storeError ? 'error' : 'empty'}
             icon="receipt-outline"
-            title={isLoading ? 'Loading…' : t('bills.bill_not_found')}
+            title={isLoading ? t('common.loading') : (storeError ?? t('bills.bill_not_found'))}
             actionLabel={isLoading ? undefined : t('bills.back_to_bills')}
             onAction={isLoading ? undefined : handleBackToBills}
           />
@@ -147,11 +186,21 @@ export default function BillDetailScreen(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable
+            onPress={handleBack}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
             <Text style={styles.backText}>← {t('common.back')}</Text>
           </Pressable>
-          {!bill.settled && !isEditing && (
-            <Pressable onPress={() => setIsEditing(true)}>
+          {!bill.settled && !isEditing && !isDeleting && (
+            <Pressable
+              onPress={handleStartEditing}
+              style={styles.editBtn}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.edit')}
+            >
               <Text style={styles.editText}>{t('common.edit')}</Text>
             </Pressable>
           )}
@@ -174,17 +223,21 @@ export default function BillDetailScreen(): React.JSX.Element {
             <TextInput
               label={t('bills.title_label')}
               value={title}
-              onChangeText={(v) => { setTitle(v); setError(''); }}
+              onChangeText={handleTitleChange}
               mode="outlined"
               style={styles.input}
+              accessibilityLabel={t('bills.title_label')}
+              accessibilityHint={t('bills.title_hint')}
             />
             <TextInput
               label={t('bills.amount_label')}
               value={amount}
-              onChangeText={(v) => { setAmount(v); setError(''); }}
+              onChangeText={handleAmountChange}
               mode="outlined"
               style={styles.input}
               keyboardType="decimal-pad"
+              accessibilityLabel={t('bills.amount_label')}
+              accessibilityHint={t('bills.amount_hint')}
             />
             <View style={styles.dateField}>
               <Text style={styles.dateFieldLabel}>{t('bills.date_label')}</Text>
@@ -210,10 +263,16 @@ export default function BillDetailScreen(): React.JSX.Element {
               placeholder={t('bills.notes_placeholder')}
               multiline
               numberOfLines={2}
+              accessibilityLabel={t('bills.notes_label')}
+              accessibilityHint={t('bills.notes_hint')}
             />
             <View style={styles.categoryField}>
               <Text style={styles.categoryFieldLabel}>{t('bills.category')}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryScroll}
+              >
                 {CATEGORIES.map((cat) => {
                   const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
                   const selected = category === cat;
@@ -238,10 +297,18 @@ export default function BillDetailScreen(): React.JSX.Element {
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
             <View style={styles.editButtons}>
-              <Button variant="primary" onPress={handleSaveEdit} loading={isSaving} disabled={isSaving} style={styles.saveBtn}>
+              <Button
+                variant="primary"
+                onPress={handleSaveEdit}
+                loading={isSaving}
+                disabled={isSaving}
+                style={styles.saveBtn}
+              >
                 {t('common.save')}
               </Button>
-              <Button variant="ghost" onPress={() => { setIsEditing(false); setError(''); }}>{t('common.cancel')}</Button>
+              <Button variant="ghost" onPress={handleCancel} disabled={isSaving}>
+                {t('common.cancel')}
+              </Button>
             </View>
           </View>
         ) : (
@@ -254,7 +321,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.date')}</Text>
-              <Text style={styles.metaValue}>{new Date(bill.date).toLocaleDateString()}</Text>
+              <Text style={styles.metaValue}>{formatDisplayDate(bill.date, i18n.language)}</Text>
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
@@ -263,7 +330,9 @@ export default function BillDetailScreen(): React.JSX.Element {
             {bill.notes ? (
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>{t('bills.notes_label')}</Text>
-                <Text style={styles.metaValue} selectable>{bill.notes}</Text>
+                <Text style={styles.metaValue} selectable>
+                  {bill.notes}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -274,37 +343,30 @@ export default function BillDetailScreen(): React.JSX.Element {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>{t('bills.split_breakdown')}</Text>
             <Text style={styles.splitTotal}>
-              {t('bills.total')} {formatFull(bill.amount, currencyCode)} · {isCustomSplit ? t('bills.custom_split') : `${t('bills.equal_split')} ${bill.splitBetween.length}`}
+              {t('bills.total')} {formatFull(bill.amount, currencyCode)} ·{' '}
+              {isCustomSplit
+                ? t('bills.custom_split')
+                : t('bills.equal_split_count', { count: bill.splitBetween.length })}
             </Text>
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>
                 <View style={styles.splitDot} />
                 <Text style={styles.splitPerson}>{resolveName(person, housemates)}</Text>
-                <Text style={styles.splitAmount}>{formatFull(getPersonShare(bill, person), currencyCode)}</Text>
+                <Text style={styles.splitAmount}>
+                  {formatFull(getPersonShare(bill, person), currencyCode)}
+                </Text>
               </View>
             ))}
           </View>
         )}
 
         {/* Actions */}
-        {!isEditing && !bill.settled && (
-          <Button
-            variant="primary"
-            onPress={handleSettle}
-            loading={isSettling}
-            disabled={isSettling}
-            fullWidth
-            size="lg"
-            style={[styles.settleBtn, { backgroundColor: C.positive }]}
-          >
-            {t('bills.mark_settled')}
-          </Button>
-        )}
-
-        {!isEditing && canDelete && (
+        {!isEditing && canDelete && !bill.settled && (
           <Button
             variant="danger"
             onPress={handleDelete}
+            loading={isDeleting}
+            disabled={isDeleting}
             fullWidth
             size="lg"
             style={styles.deleteBtn}
@@ -326,63 +388,91 @@ export default function BillDetailScreen(): React.JSX.Element {
   );
 }
 
-const makeStyles = (C: ColorTokens) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  content: { padding: sizes.lg, gap: sizes.md, paddingBottom: sizes.xxl },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: sizes.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: sizes.xs },
-  backBtn: { padding: 4 },
-  backText: { color: C.primary, fontSize: 15, ...font.medium },
-  editText: { color: C.primary, fontSize: 15, ...font.medium },
-  card: {
-    backgroundColor: C.surface,
-    borderRadius: 16,
-    padding: sizes.lg,
-    gap: sizes.sm,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  } as never,
-  billTitle: { fontSize: 22, ...font.bold, color: C.textPrimary, letterSpacing: -0.3 },
-  billAmount: { fontSize: 34, ...font.extrabold, color: C.primary, letterSpacing: -1 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 2 },
-  metaLabel: { color: C.textSecondary, fontSize: 14, ...font.regular },
-  metaValue: { color: C.textPrimary, fontSize: 14, ...font.semibold, flexShrink: 1, textAlign: 'right' },
-  sectionTitle: { color: C.textPrimary, ...font.bold, fontSize: 15, marginBottom: sizes.xs },
-  splitTotal: { color: C.textSecondary, fontSize: 14, ...font.regular },
-  splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: 4 },
-  splitDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
-  splitPerson: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
-  splitAmount: { color: C.primary, fontSize: 15, ...font.semibold },
-  input: { backgroundColor: C.surface },
-  dateField: { gap: 4 },
-  dateFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginLeft: 4 },
-  dateTrigger: {
-    flexDirection: 'row', alignItems: 'center', gap: sizes.sm,
-    backgroundColor: C.surface, borderRadius: 4, borderWidth: 1, borderColor: C.border,
-    paddingHorizontal: 14, paddingVertical: 14, minHeight: 56,
-  },
-  dateTriggerText: { flex: 1, fontSize: 15, ...font.regular, color: C.textPrimary },
-  editButtons: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center', marginTop: sizes.xs },
-  saveBtn: { borderRadius: 14 },
-  settleBtn: { borderRadius: 14 },
-  deleteBtn: { borderRadius: 14 },
-  error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
+const makeStyles = (C: ColorTokens) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    content: { padding: sizes.lg, gap: sizes.md, paddingBottom: sizes.xxl },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: sizes.md },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: sizes.xs,
+    },
+    backBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    editBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    backText: { color: C.primary, fontSize: 15, ...font.medium },
+    editText: { color: C.primary, fontSize: 15, ...font.medium },
+    card: {
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      padding: sizes.lg,
+      gap: sizes.sm,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    billTitle: { fontSize: 22, ...font.bold, color: C.textPrimary, letterSpacing: -0.3 },
+    billAmount: { fontSize: 34, ...font.extrabold, color: C.primary, letterSpacing: -1 },
+    metaRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: 2,
+    },
+    metaLabel: { color: C.textSecondary, fontSize: 14, ...font.regular },
+    metaValue: {
+      color: C.textPrimary,
+      fontSize: 14,
+      ...font.semibold,
+      flexShrink: 1,
+      textAlign: 'right',
+    },
+    sectionTitle: { color: C.textPrimary, ...font.bold, fontSize: 15, marginBottom: sizes.xs },
+    splitTotal: { color: C.textSecondary, fontSize: 14, ...font.regular },
+    splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: 4 },
+    splitDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
+    splitPerson: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
+    splitAmount: { color: C.primary, fontSize: 15, ...font.semibold },
+    input: { backgroundColor: C.surface },
+    dateField: { gap: 4 },
+    dateFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginLeft: 4 },
+    dateTrigger: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      backgroundColor: C.surface,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      minHeight: 56,
+    },
+    dateTriggerText: { flex: 1, fontSize: 15, ...font.regular, color: C.textPrimary },
+    editButtons: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center', marginTop: sizes.xs },
+    saveBtn: { borderRadius: 14 },
+    deleteBtn: { borderRadius: 14 },
+    error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
 
-  categoryField: { gap: 4 },
-  categoryFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginLeft: 4 },
-  categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
-  catChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    minHeight: 44,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 1.5,
-    borderColor: C.primary + '55',
-    backgroundColor: C.primary + '08',
-  },
-  catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-  catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
-  catChipTextSelected: { color: C.white },
-});
+    categoryField: { gap: 4 },
+    categoryFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginLeft: 4 },
+    categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
+    catChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      minHeight: 44,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1.5,
+      borderColor: C.primary + '55',
+      backgroundColor: C.primary + '08',
+    },
+    catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
+    catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
+    catChipTextSelected: { color: C.white },
+  });
