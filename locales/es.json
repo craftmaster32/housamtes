@@ -227,6 +227,7 @@
     "select_who_paid": "Selecciona quién pagó",
     "select_split": "Selecciona al menos una persona para dividir",
     "custom_total_mismatch": "El total personalizado ₪{{entered}} no coincide con el gasto ₪{{total}}",
+    "pct_total_mismatch": "Los porcentajes deben sumar 100% (actualmente {{pct}}%)",
     "failed_save": "No se pudo guardar. Intenta de nuevo.",
     "failed_delete": "No se pudo eliminar. Intenta de nuevo.",
     "no_housemates": "No se encontraron compañeros de piso",

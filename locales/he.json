@@ -227,6 +227,7 @@
     "select_who_paid": "בחר מי שילם",
     "select_split": "בחר לפחות אדם אחד לחלוקה",
     "custom_total_mismatch": "סכום החלוקה ₪{{entered}} לא תואם לחשבון ₪{{total}}",
+    "pct_total_mismatch": "האחוזים חייבים להסתכם ל-100% (כרגע {{pct}}%)",
     "failed_save": "השמירה נכשלה. נסה שוב.",
     "failed_delete": "המחיקה נכשלה. נסה שוב.",
     "no_housemates": "לא נמצאו שותפים לדירה",
