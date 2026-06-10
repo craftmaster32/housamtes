@@ -97,7 +97,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   }, []);
 
   const handleSaveEdit = useCallback(async (): Promise<void> => {
-    if (isSaving) return;
+    if (isSaving || isDeleting) return;
     const parsed = parseFloat(amount.replace(',', '.'));
     if (!title.trim()) {
       setError(t('bills.title_required'));
@@ -119,10 +119,10 @@ export default function BillDetailScreen(): React.JSX.Element {
     } finally {
       setIsSaving(false);
     }
-  }, [bill, title, amount, date, notes, category, editBill, t, isSaving]);
+  }, [bill, title, amount, date, notes, category, editBill, t, isSaving, isDeleting]);
 
   const handleDelete = useCallback(async (): Promise<void> => {
-    if (!bill || !houseId || isDeleting) return;
+    if (!bill || !houseId || isDeleting || isSaving) return;
     try {
       setIsDeleting(true);
       await deleteBill(bill.id, houseId);
@@ -132,7 +132,24 @@ export default function BillDetailScreen(): React.JSX.Element {
       setError(t('bills.failed_delete'));
       setIsDeleting(false);
     }
-  }, [bill, houseId, isDeleting, deleteBill, t]);
+  }, [bill, houseId, isDeleting, isSaving, deleteBill, t]);
+
+  const handleBack = useCallback((): void => {
+    router.back();
+  }, []);
+  const handleStartEditing = useCallback((): void => setIsEditing(true), []);
+  const handleCancel = useCallback((): void => {
+    setIsEditing(false);
+    setError('');
+  }, []);
+  const handleTitleChange = useCallback((v: string): void => {
+    setTitle(v);
+    setError('');
+  }, []);
+  const handleAmountChange = useCallback((v: string): void => {
+    setAmount(v);
+    setError('');
+  }, []);
 
   if (!bill) {
     return (
@@ -158,16 +175,16 @@ export default function BillDetailScreen(): React.JSX.Element {
         {/* Header */}
         <View style={styles.header}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={handleBack}
             style={styles.backBtn}
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
             <Text style={styles.backText}>← {t('common.back')}</Text>
           </Pressable>
-          {!bill.settled && !isEditing && (
+          {!bill.settled && !isEditing && !isDeleting && (
             <Pressable
-              onPress={() => setIsEditing(true)}
+              onPress={handleStartEditing}
               style={styles.editBtn}
               accessibilityRole="button"
               accessibilityLabel={t('common.edit')}
@@ -194,10 +211,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             <TextInput
               label={t('bills.title_label')}
               value={title}
-              onChangeText={(v) => {
-                setTitle(v);
-                setError('');
-              }}
+              onChangeText={handleTitleChange}
               mode="outlined"
               style={styles.input}
               accessibilityLabel={t('bills.title_label')}
@@ -206,10 +220,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             <TextInput
               label={t('bills.amount_label')}
               value={amount}
-              onChangeText={(v) => {
-                setAmount(v);
-                setError('');
-              }}
+              onChangeText={handleAmountChange}
               mode="outlined"
               style={styles.input}
               keyboardType="decimal-pad"
@@ -283,14 +294,7 @@ export default function BillDetailScreen(): React.JSX.Element {
               >
                 {t('common.save')}
               </Button>
-              <Button
-                variant="ghost"
-                onPress={() => {
-                  setIsEditing(false);
-                  setError('');
-                }}
-                disabled={isSaving}
-              >
+              <Button variant="ghost" onPress={handleCancel} disabled={isSaving}>
                 {t('common.cancel')}
               </Button>
             </View>

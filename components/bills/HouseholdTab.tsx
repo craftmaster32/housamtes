@@ -148,7 +148,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     .filter((p) => p.billId === bill.id)
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
   const parsedLogAmount = parseFloat(amount.replace(',', '.'));
-  const isLogDisabled = !amount || isNaN(parsedLogAmount) || parsedLogAmount <= 0;
+  const isLogDisabled = !houseId || !amount || isNaN(parsedLogAmount) || parsedLogAmount <= 0;
 
   const handleLog = useCallback(async (): Promise<void> => {
     const parsed = parseFloat(amount.replace(',', '.'));
@@ -156,7 +156,10 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       setCardError(t('bills.enter_valid_amount'));
       return;
     }
-    if (!houseId) return;
+    if (!houseId) {
+      setCardError(t('bills.household_missing'));
+      return;
+    }
     try {
       setCardError('');
       await logPayment({ billId: bill.id, amount: parsed, paidAt: date, note }, houseId);
@@ -292,6 +295,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
               placeholder={t('bills.household_amount')}
               placeholderTextColor={c.textDisabled}
               accessibilityLabel={t('bills.household_amount')}
+              accessibilityHint={t('bills.hint_amount_paid')}
             />
             <Pressable
               style={[styles.dateTrigger, { backgroundColor: c.background, borderColor: c.border }]}
@@ -322,6 +326,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             placeholder={t('bills.household_note')}
             placeholderTextColor={c.textDisabled}
             accessibilityLabel={t('bills.household_note')}
+            accessibilityHint={t('bills.hint_optional_note')}
           />
           <Pressable
             style={[
@@ -411,7 +416,10 @@ function AddBillForm({
       setError(t('bills.household_assignee_required'));
       return;
     }
-    if (!houseId) return;
+    if (!houseId) {
+      setError(t('bills.household_missing'));
+      return;
+    }
     try {
       setSaving(true);
       const newBill = await addBill(
@@ -452,7 +460,7 @@ function AddBillForm({
   }, []);
 
   const isSaveDisabled =
-    saving || !name.trim() || !(parseFloat(typicalAmount.replace(',', '.')) > 0);
+    saving || !houseId || !name.trim() || !(parseFloat(typicalAmount.replace(',', '.')) > 0);
 
   return (
     <View style={[styles.addForm, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -504,6 +512,7 @@ function AddBillForm({
         placeholderTextColor={c.textDisabled}
         autoCorrect={false}
         accessibilityLabel={t('bills.household_bill_name')}
+        accessibilityHint={t('bills.hint_bill_name')}
       />
 
       {/* Assigned to */}
@@ -575,6 +584,7 @@ function AddBillForm({
         placeholder="0"
         placeholderTextColor={c.textDisabled}
         accessibilityLabel={t('bills.household_typical_amount')}
+        accessibilityHint={t('bills.hint_typical_amount')}
       />
 
       {/* Last paid date */}

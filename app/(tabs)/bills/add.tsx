@@ -442,7 +442,10 @@ export default function AddBillScreen(): React.JSX.Element {
             <View style={styles.chipRow} accessibilityRole="radiogroup">
               <Pressable
                 style={[styles.chip, splitType === 'equal' && styles.chipSelected]}
-                onPress={() => setSplitType('equal')}
+                onPress={() => {
+                  setSplitType('equal');
+                  setError('');
+                }}
                 accessible
                 accessibilityRole="radio"
                 accessibilityLabel={t('bills.equal')}
@@ -454,7 +457,10 @@ export default function AddBillScreen(): React.JSX.Element {
               </Pressable>
               <Pressable
                 style={[styles.chip, splitType === 'custom' && styles.chipSelected]}
-                onPress={() => setSplitType('custom')}
+                onPress={() => {
+                  setSplitType('custom');
+                  setError('');
+                }}
                 accessible
                 accessibilityRole="radio"
                 accessibilityLabel={t('bills.custom_amounts')}
@@ -466,7 +472,10 @@ export default function AddBillScreen(): React.JSX.Element {
               </Pressable>
               <Pressable
                 style={[styles.chip, splitType === 'percentage' && styles.chipSelected]}
-                onPress={() => setSplitType('percentage')}
+                onPress={() => {
+                  setSplitType('percentage');
+                  setError('');
+                }}
                 accessible
                 accessibilityRole="radio"
                 accessibilityLabel={t('bills.by_percent')}
@@ -727,7 +736,13 @@ const makeStyles = (C: ColorTokens) =>
     content: { padding: sizes.lg, gap: sizes.md, paddingBottom: 60 },
 
     header: { gap: 4, marginBottom: sizes.xs },
-    backBtn: { alignSelf: 'flex-start' },
+    backBtn: {
+      alignSelf: 'flex-start',
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     backText: { color: C.primary, fontSize: 15, ...font.semibold },
     heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
 
