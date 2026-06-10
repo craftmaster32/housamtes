@@ -147,6 +147,8 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const billPayments = payments
     .filter((p) => p.billId === bill.id)
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+  const parsedLogAmount = parseFloat(amount.replace(',', '.'));
+  const isLogDisabled = !amount || isNaN(parsedLogAmount) || parsedLogAmount <= 0;
 
   const handleLog = useCallback(async (): Promise<void> => {
     const parsed = parseFloat(amount.replace(',', '.'));
@@ -156,6 +158,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     }
     if (!houseId) return;
     try {
+      setCardError('');
       await logPayment({ billId: bill.id, amount: parsed, paidAt: date, note }, houseId);
       setLogging(false);
       setAmount(String(bill.typicalAmount));
@@ -168,11 +171,24 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
 
   const handleDeleteBill = useCallback(async (): Promise<void> => {
     try {
+      setCardError('');
       await deleteBill(bill.id);
     } catch {
       setCardError(t('bills.failed_delete'));
     }
   }, [deleteBill, bill.id, t]);
+
+  const handleDeletePayment = useCallback(
+    async (paymentId: string): Promise<void> => {
+      try {
+        setCardError('');
+        await deletePayment(paymentId);
+      } catch {
+        setCardError(t('bills.failed_delete'));
+      }
+    },
+    [deletePayment, t]
+  );
   const toggleLogging = useCallback(() => setLogging((v) => !v), []);
   const toggleShowHistory = useCallback(() => setShowHistory((v) => !v), []);
   const openLogDatePicker = useCallback(() => setShowLogDatePicker(true), []);
@@ -310,21 +326,10 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           <Pressable
             style={[
               styles.savePaymentBtn,
-              {
-                backgroundColor:
-                  !amount ||
-                  isNaN(parseFloat(amount.replace(',', '.'))) ||
-                  parseFloat(amount.replace(',', '.')) <= 0
-                    ? c.textDisabled
-                    : c.primary,
-              },
+              { backgroundColor: isLogDisabled ? c.textDisabled : c.primary },
             ]}
             onPress={handleLog}
-            disabled={
-              !amount ||
-              isNaN(parseFloat(amount.replace(',', '.'))) ||
-              parseFloat(amount.replace(',', '.')) <= 0
-            }
+            disabled={isLogDisabled}
           >
             <Text style={styles.savePaymentBtnText}>{t('bills.household_save_payment')}</Text>
           </Pressable>
@@ -347,14 +352,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
                 <Text style={[styles.historyNote, { color: c.textSecondary }]}>{p.note}</Text>
               ) : null}
               <Pressable
-                onPress={async () => {
-                  try {
-                    await deletePayment(p.id);
-                  } catch {
-                    setCardError(t('bills.failed_delete'));
-                  }
-                }}
+                onPress={() => handleDeletePayment(p.id)}
                 hitSlop={8}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('bills.delete_payment')}
               >
                 <Ionicons name="close" size={14} color={c.textSecondary} />
               </Pressable>
@@ -449,7 +451,8 @@ function AddBillForm({
     setShowAddDatePicker(false);
   }, []);
 
-  const isSaveDisabled = saving || !name.trim() || !typicalAmount;
+  const isSaveDisabled =
+    saving || !name.trim() || !(parseFloat(typicalAmount.replace(',', '.')) > 0);
 
   return (
     <View style={[styles.addForm, { backgroundColor: c.surface, borderColor: c.border }]}>

@@ -249,6 +249,7 @@
     "equal_split_count": "חלוקה שווה ÷ {{count}}",
     "mark_settled": "סמן כמקוזז",
     "delete_bill": "מחק חשבון",
+    "delete_payment": "מחק תשלום",
     "title_required": "כותרת היא שדה חובה",
     "failed_settle": "הקיזוז נכשל. נסה שוב.",
     "select_all": "בחר הכל",
