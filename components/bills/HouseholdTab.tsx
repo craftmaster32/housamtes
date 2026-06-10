@@ -666,6 +666,9 @@ function AddBillForm({
           style={[styles.cancelBtn, { borderColor: c.border }]}
           onPress={handleCancel}
           disabled={saving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
           accessibilityState={{ disabled: saving }}
         >
           <Text style={[styles.cancelBtnText, { color: c.textSecondary }]}>
@@ -676,6 +679,7 @@ function AddBillForm({
           style={[styles.saveBtn, { backgroundColor: isSaveDisabled ? c.textDisabled : c.primary }]}
           onPress={handleSave}
           disabled={isSaveDisabled}
+          accessible
           accessibilityRole="button"
           accessibilityLabel={saving ? t('bills.household_saving') : t('bills.household_add_bill')}
           accessibilityState={{ disabled: isSaveDisabled }}

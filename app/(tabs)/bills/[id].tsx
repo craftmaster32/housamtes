@@ -108,7 +108,13 @@ export default function BillDetailScreen(): React.JSX.Element {
     });
     if (!result.success) {
       const path = result.error.issues[0]?.path[0];
-      setError(path === 'title' ? t('bills.title_required') : t('bills.enter_valid_amount'));
+      setError(
+        path === 'title'
+          ? t('bills.title_required')
+          : path === 'amount'
+            ? t('bills.enter_valid_amount')
+            : t('bills.enter_valid_amount')
+      );
       return;
     }
     try {

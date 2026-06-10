@@ -20,6 +20,97 @@ import { font } from '@constants/typography';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
 
+interface AddBillPayload {
+  title: string;
+  amount: number;
+  paidBy: string;
+  splitBetween: string[];
+  splitAmounts: Record<string, number> | null;
+  category: string;
+  date: string;
+}
+
+class ValidationError extends Error {
+  constructor(
+    public readonly messageKey: string,
+    public readonly params?: Record<string, string | number>
+  ) {
+    super(messageKey);
+    this.name = 'ValidationError';
+  }
+}
+
+function parseAmount(raw: string): number {
+  const n = parseFloat(raw.trim().replace(',', '.'));
+  return isFinite(n) && n >= 0 ? n : 0;
+}
+
+function parseAddBillPayload(
+  title: string,
+  amount: string,
+  paidBy: string,
+  selectedPeople: string[],
+  splitType: SplitType,
+  customAmounts: Record<string, string>,
+  percentAmounts: Record<string, string>,
+  category: string,
+  date: string
+): AddBillPayload {
+  if (!title.trim()) throw new ValidationError('bills.enter_title');
+  const parsed = parseFloat(amount.replace(',', '.'));
+  if (!amount || isNaN(parsed) || parsed <= 0)
+    throw new ValidationError('bills.enter_valid_amount');
+  if (!paidBy) throw new ValidationError('bills.select_who_paid');
+  if (selectedPeople.length === 0) throw new ValidationError('bills.select_split');
+
+  let splitAmounts: Record<string, number> | null = null;
+  if (splitType === 'custom') {
+    const customTotal = selectedPeople.reduce(
+      (sum, id) => sum + parseAmount(customAmounts[id] ?? '0'),
+      0
+    );
+    if (Math.abs(customTotal - parsed) > 0.01)
+      throw new ValidationError('bills.custom_total_mismatch', {
+        entered: customTotal.toFixed(2),
+        total: parsed.toFixed(2),
+      });
+    splitAmounts = {};
+    for (const id of selectedPeople) {
+      splitAmounts[id] = parseAmount(customAmounts[id] ?? '0');
+    }
+  } else if (splitType === 'percentage') {
+    const pctTotal = selectedPeople.reduce(
+      (sum, id) => sum + parseAmount(percentAmounts[id] ?? '0'),
+      0
+    );
+    if (Math.abs(pctTotal - 100) > 0.1)
+      throw new ValidationError('bills.pct_total_mismatch', { pct: pctTotal.toFixed(1) });
+    splitAmounts = {};
+    let running = 0;
+    for (let i = 0; i < selectedPeople.length; i++) {
+      const id = selectedPeople[i];
+      const pct = parseAmount(percentAmounts[id] ?? '0');
+      if (i === selectedPeople.length - 1) {
+        splitAmounts[id] = Math.round((parsed - running) * 100) / 100;
+      } else {
+        const share = Math.round((pct / 100) * parsed * 100) / 100;
+        splitAmounts[id] = share;
+        running += share;
+      }
+    }
+  }
+
+  return {
+    title: title.trim(),
+    amount: parsed,
+    paidBy,
+    splitBetween: selectedPeople,
+    splitAmounts,
+    category,
+    date,
+  };
+}
+
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   rent: 'home-outline',
   groceries: 'cart-outline',
@@ -128,17 +219,11 @@ export default function AddBillScreen(): React.JSX.Element {
   }, []);
 
   const getCustomTotal = useCallback((): number => {
-    return selectedPeople.reduce(
-      (sum, id) => sum + (parseFloat((customAmounts[id] ?? '0').replace(',', '.')) || 0),
-      0
-    );
+    return selectedPeople.reduce((sum, id) => sum + parseAmount(customAmounts[id] ?? '0'), 0);
   }, [selectedPeople, customAmounts]);
 
   const getPercentTotal = useCallback((): number => {
-    return selectedPeople.reduce(
-      (sum, id) => sum + (parseFloat((percentAmounts[id] ?? '0').replace(',', '.')) || 0),
-      0
-    );
+    return selectedPeople.reduce((sum, id) => sum + parseAmount(percentAmounts[id] ?? '0'), 0);
   }, [selectedPeople, percentAmounts]);
 
   const customRemaining = totalAmount - getCustomTotal();
@@ -159,6 +244,15 @@ export default function AddBillScreen(): React.JSX.Element {
       })
       .join('  ·  ');
   }, [totalAmount, selectedPeople, percentAmounts, housemates, currencyCode, getPercentTotal]);
+
+  const equalSplitPreview = useMemo((): number => {
+    if (selectedPeople.length === 0 || totalAmount <= 0) return 0;
+    const totalCents = Math.round(totalAmount * 100);
+    const n = selectedPeople.length;
+    const baseCents = Math.floor(totalCents / n);
+    const remainderCents = totalCents - baseCents * n;
+    return (baseCents + (remainderCents > 0 ? 1 : 0)) / 100;
+  }, [totalAmount, selectedPeople]);
 
   const fillEquallyCustom = useCallback((): void => {
     const blanks = selectedPeople.filter(
@@ -206,80 +300,33 @@ export default function AddBillScreen(): React.JSX.Element {
     });
   }, [selectedPeople, percentAmounts, percentRemaining, setError]);
 
-  const handleSave = useCallback(async () => {
-    if (!title.trim()) {
-      setError(t('bills.enter_title'));
+  const handleSave = useCallback(async (): Promise<void> => {
+    let payload: AddBillPayload;
+    try {
+      payload = parseAddBillPayload(
+        title,
+        amount,
+        paidBy,
+        selectedPeople,
+        splitType,
+        customAmounts,
+        percentAmounts,
+        category,
+        date
+      );
+    } catch (err) {
+      setError(
+        err instanceof ValidationError ? t(err.messageKey, err.params) : t('bills.failed_save')
+      );
       return;
     }
-    const parsed = parseFloat(amount.replace(',', '.'));
-    if (!amount || isNaN(parsed) || parsed <= 0) {
-      setError(t('bills.enter_valid_amount'));
-      return;
-    }
-    if (!paidBy) {
-      setError(t('bills.select_who_paid'));
-      return;
-    }
-    if (selectedPeople.length === 0) {
-      setError(t('bills.select_split'));
-      return;
-    }
-
-    let splitAmounts: Record<string, number> | null = null;
-    if (splitType === 'custom') {
-      const customTotal = getCustomTotal();
-      if (Math.abs(customTotal - parsed) > 0.01) {
-        setError(
-          t('bills.custom_total_mismatch', {
-            entered: customTotal.toFixed(2),
-            total: parsed.toFixed(2),
-          })
-        );
-        return;
-      }
-      splitAmounts = {};
-      for (const id of selectedPeople) {
-        splitAmounts[id] = parseFloat((customAmounts[id] ?? '0').replace(',', '.')) || 0;
-      }
-    } else if (splitType === 'percentage') {
-      const pctTotal = getPercentTotal();
-      if (Math.abs(pctTotal - 100) > 0.1) {
-        setError(t('bills.pct_total_mismatch', { pct: pctTotal.toFixed(1) }));
-        return;
-      }
-      splitAmounts = {};
-      let running = 0;
-      for (let i = 0; i < selectedPeople.length; i++) {
-        const id = selectedPeople[i];
-        const pct = parseFloat((percentAmounts[id] ?? '0').replace(',', '.')) || 0;
-        if (i === selectedPeople.length - 1) {
-          splitAmounts[id] = Math.round((parsed - running) * 100) / 100;
-        } else {
-          const share = Math.round((pct / 100) * parsed * 100) / 100;
-          splitAmounts[id] = share;
-          running += share;
-        }
-      }
-    }
-
     if (!houseId) {
       setError(t('bills.failed_save'));
       return;
     }
     try {
       setIsLoading(true);
-      await addBill(
-        {
-          title: title.trim(),
-          amount: parsed,
-          paidBy,
-          splitBetween: selectedPeople,
-          splitAmounts,
-          category,
-          date,
-        },
-        houseId
-      );
+      await addBill({ ...payload }, houseId);
       markSeen('bills').catch(() => {});
       // Reset before navigating so stale state never persists on re-entry
       resetForm(allIds, myId);
@@ -301,8 +348,6 @@ export default function AddBillScreen(): React.JSX.Element {
     date,
     addBill,
     houseId,
-    getCustomTotal,
-    getPercentTotal,
     markSeen,
     resetForm,
     allIds,
@@ -496,8 +541,7 @@ export default function AddBillScreen(): React.JSX.Element {
             {splitType === 'equal' && totalAmount > 0 && (
               <View style={styles.previewBox}>
                 <Text style={styles.previewText}>
-                  {formatFull(totalAmount / selectedPeople.length, currencyCode)}{' '}
-                  {t('bills.per_person')}
+                  {formatFull(equalSplitPreview, currencyCode)} {t('bills.per_person')}
                 </Text>
               </View>
             )}
