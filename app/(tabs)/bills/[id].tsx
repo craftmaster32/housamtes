@@ -6,7 +6,7 @@ import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import { useBillsStore, getPersonShare, CATEGORIES } from '@stores/billsStore';
+import { useBillsStore, getPersonShare, CATEGORIES, EditBillSchema } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -98,19 +98,22 @@ export default function BillDetailScreen(): React.JSX.Element {
 
   const handleSaveEdit = useCallback(async (): Promise<void> => {
     if (isSaving || isDeleting) return;
-    const parsed = parseFloat(amount.replace(',', '.'));
-    if (!title.trim()) {
-      setError(t('bills.title_required'));
-      return;
-    }
-    if (isNaN(parsed) || parsed <= 0) {
-      setError(t('bills.enter_valid_amount'));
-      return;
-    }
     if (!bill) return;
+    const result = EditBillSchema.safeParse({
+      title: title.trim(),
+      amount: amount.replace(',', '.'),
+      date,
+      notes,
+      category,
+    });
+    if (!result.success) {
+      const path = result.error.issues[0]?.path[0];
+      setError(path === 'title' ? t('bills.title_required') : t('bills.enter_valid_amount'));
+      return;
+    }
     try {
       setIsSaving(true);
-      await editBill(bill.id, { title: title.trim(), amount: parsed, date, notes, category });
+      await editBill(bill.id, result.data);
       setError('');
       setIsEditing(false);
     } catch (err) {
@@ -399,8 +402,12 @@ const makeStyles = (C: ColorTokens) =>
       borderRadius: 16,
       padding: sizes.lg,
       gap: sizes.sm,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    } as never,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
     billTitle: { fontSize: 22, ...font.bold, color: C.textPrimary, letterSpacing: -0.3 },
     billAmount: { fontSize: 34, ...font.extrabold, color: C.primary, letterSpacing: -1 },
     metaRow: {

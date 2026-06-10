@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
@@ -5,6 +6,14 @@ import { notifyHousemates } from '@lib/notifyHousemates';
 import { useSettingsStore } from '@stores/settingsStore';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+
+export const EditBillSchema = z.object({
+  title: z.string().min(1),
+  amount: z.coerce.number().positive(),
+  date: z.string().min(1),
+  notes: z.string(),
+  category: z.string().min(1),
+});
 
 export const CATEGORIES = [
   'Rent',

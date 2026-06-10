@@ -209,7 +209,10 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     },
     [deletePayment, t]
   );
-  const toggleLogging = useCallback((): void => setLogging((v) => !v), []);
+  const toggleLogging = useCallback((): void => {
+    if (isSubmittingLog) return;
+    setLogging((v) => !v);
+  }, [isSubmittingLog]);
   const toggleShowHistory = useCallback((): void => setShowHistory((v) => !v), []);
   const openLogDatePicker = useCallback((): void => setShowLogDatePicker(true), []);
   const closeLogDatePicker = useCallback((): void => setShowLogDatePicker(false), []);
@@ -279,10 +282,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
         <Pressable
           style={[styles.logBtn, { backgroundColor: c.primary + '20' }]}
           onPress={toggleLogging}
+          disabled={isSubmittingLog}
           accessible
           accessibilityRole="button"
           accessibilityLabel={logging ? t('common.cancel') : t('bills.household_log_payment')}
-          accessibilityState={{ selected: logging }}
+          accessibilityState={{ selected: logging, disabled: isSubmittingLog }}
         >
           <Text style={[styles.logBtnText, { color: c.primary }]}>
             {logging ? t('common.cancel') : t('bills.household_log_payment')}
@@ -483,6 +487,11 @@ function AddBillForm({
     t,
   ]);
 
+  const handleCancel = useCallback((): void => {
+    if (saving) return;
+    onClose();
+  }, [saving, onClose]);
+
   const openAddDatePicker = useCallback((): void => setShowAddDatePicker(true), []);
   const closeAddDatePicker = useCallback((): void => setShowAddDatePicker(false), []);
   const handleAddDateSelect = useCallback((val: string): void => {
@@ -653,7 +662,12 @@ function AddBillForm({
       {!!error && <Text style={[styles.formError, { color: c.negative }]}>{error}</Text>}
 
       <View style={styles.addFormActions}>
-        <Pressable style={[styles.cancelBtn, { borderColor: c.border }]} onPress={onClose}>
+        <Pressable
+          style={[styles.cancelBtn, { borderColor: c.border }]}
+          onPress={handleCancel}
+          disabled={saving}
+          accessibilityState={{ disabled: saving }}
+        >
           <Text style={[styles.cancelBtnText, { color: c.textSecondary }]}>
             {t('common.cancel')}
           </Text>

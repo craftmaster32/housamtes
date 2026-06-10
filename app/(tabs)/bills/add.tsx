@@ -6,6 +6,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useBillsStore, CATEGORIES } from '@stores/billsStore';
+import { captureError } from '@lib/errorTracking';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -283,7 +284,8 @@ export default function AddBillScreen(): React.JSX.Element {
       // Reset before navigating so stale state never persists on re-entry
       resetForm(allIds, myId);
       router.replace('/(tabs)/bills');
-    } catch {
+    } catch (err) {
+      captureError(err, { houseId: houseId ?? '', userId: myId });
       setError(t('bills.failed_save'));
       setIsLoading(false);
     }
