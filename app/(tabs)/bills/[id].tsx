@@ -113,7 +113,7 @@ export default function BillDetailScreen(): React.JSX.Element {
           ? t('bills.title_required')
           : path === 'amount'
             ? t('bills.enter_valid_amount')
-            : t('bills.enter_valid_amount')
+            : t('bills.failed_save')
       );
       return;
     }

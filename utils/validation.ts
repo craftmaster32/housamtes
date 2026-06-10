@@ -1,11 +1,7 @@
 import { z } from 'zod';
 
 export const signUpSchema = z.object({
-  name: z
-    .string()
-    .min(1, 'Name is required')
-    .max(50, 'Name must be 50 characters or less')
-    .trim(),
+  name: z.string().min(1, 'Name is required').max(50, 'Name must be 50 characters or less').trim(),
   email: z
     .string()
     .min(1, 'Email is required')
@@ -19,13 +15,8 @@ export const signUpSchema = z.object({
 });
 
 export const signInSchema = z.object({
-  email: z
-    .string()
-    .min(1, 'Email is required')
-    .email('Please enter a valid email address'),
-  password: z
-    .string()
-    .min(1, 'Password is required'),
+  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
 });
 
 export const houseNameSchema = z.object({
@@ -56,7 +47,7 @@ export interface AddBillPayload {
   date: string;
 }
 
-function parseAmount(raw: string): number {
+export function parseAmount(raw: string): number {
   const n = parseFloat(raw.trim().replace(',', '.'));
   return isFinite(n) && n >= 0 ? n : 0;
 }
@@ -88,8 +79,8 @@ export function parseAndValidateAddBill(input: {
   const parsed = addBillBaseSchema.parse(input);
 
   // Parse amount
-  const amountValue = parseFloat(parsed.amount.replace(',', '.'));
-  if (isNaN(amountValue) || amountValue <= 0) {
+  const amountValue = parseAmount(parsed.amount);
+  if (amountValue <= 0) {
     throw new z.ZodError([
       {
         code: 'custom',

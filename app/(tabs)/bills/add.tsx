@@ -18,14 +18,9 @@ import { formatFull } from '@constants/currencies';
 import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
-import { parseAndValidateAddBill, type AddBillPayload } from '@utils/validation';
+import { parseAndValidateAddBill, parseAmount, type AddBillPayload } from '@utils/validation';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
-
-function parseAmount(raw: string): number {
-  const n = parseFloat(raw.trim().replace(',', '.'));
-  return isFinite(n) && n >= 0 ? n : 0;
-}
 
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   rent: 'home-outline',
@@ -122,7 +117,7 @@ export default function AddBillScreen(): React.JSX.Element {
     setError('');
   }, []);
 
-  const totalAmount = parseFloat(amount.replace(',', '.')) || 0;
+  const totalAmount = parseAmount(amount);
 
   const setPersonAmount = useCallback((id: string, value: string): void => {
     setCustomAmounts((prev) => ({ ...prev, [id]: value }));
@@ -249,13 +244,13 @@ export default function AddBillScreen(): React.JSX.Element {
     }
     try {
       setIsLoading(true);
-      await addBill({ ...payload }, houseId);
+      await addBill(payload, houseId);
       markSeen('bills').catch(() => {});
       // Reset before navigating so stale state never persists on re-entry
       resetForm(allIds, myId);
       router.replace('/(tabs)/bills');
     } catch (err) {
-      captureError(err, { houseId: houseId ?? '', userId: myId });
+      captureError(err, { houseId, userId: myId });
       setError(t('bills.failed_save'));
       setIsLoading(false);
     }
