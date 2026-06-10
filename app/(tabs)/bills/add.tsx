@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { z } from 'zod';
 import { useBillsStore, CATEGORIES } from '@stores/billsStore';
 import { captureError } from '@lib/errorTracking';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -17,98 +18,13 @@ import { formatFull } from '@constants/currencies';
 import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { parseAndValidateAddBill, type AddBillPayload } from '@utils/validation';
 
 type SplitType = 'equal' | 'custom' | 'percentage';
-
-interface AddBillPayload {
-  title: string;
-  amount: number;
-  paidBy: string;
-  splitBetween: string[];
-  splitAmounts: Record<string, number> | null;
-  category: string;
-  date: string;
-}
-
-class ValidationError extends Error {
-  constructor(
-    public readonly messageKey: string,
-    public readonly params?: Record<string, string | number>
-  ) {
-    super(messageKey);
-    this.name = 'ValidationError';
-  }
-}
 
 function parseAmount(raw: string): number {
   const n = parseFloat(raw.trim().replace(',', '.'));
   return isFinite(n) && n >= 0 ? n : 0;
-}
-
-function parseAddBillPayload(
-  title: string,
-  amount: string,
-  paidBy: string,
-  selectedPeople: string[],
-  splitType: SplitType,
-  customAmounts: Record<string, string>,
-  percentAmounts: Record<string, string>,
-  category: string,
-  date: string
-): AddBillPayload {
-  if (!title.trim()) throw new ValidationError('bills.enter_title');
-  const parsed = parseFloat(amount.replace(',', '.'));
-  if (!amount || isNaN(parsed) || parsed <= 0)
-    throw new ValidationError('bills.enter_valid_amount');
-  if (!paidBy) throw new ValidationError('bills.select_who_paid');
-  if (selectedPeople.length === 0) throw new ValidationError('bills.select_split');
-
-  let splitAmounts: Record<string, number> | null = null;
-  if (splitType === 'custom') {
-    const customTotal = selectedPeople.reduce(
-      (sum, id) => sum + parseAmount(customAmounts[id] ?? '0'),
-      0
-    );
-    if (Math.abs(customTotal - parsed) > 0.01)
-      throw new ValidationError('bills.custom_total_mismatch', {
-        entered: customTotal.toFixed(2),
-        total: parsed.toFixed(2),
-      });
-    splitAmounts = {};
-    for (const id of selectedPeople) {
-      splitAmounts[id] = parseAmount(customAmounts[id] ?? '0');
-    }
-  } else if (splitType === 'percentage') {
-    const pctTotal = selectedPeople.reduce(
-      (sum, id) => sum + parseAmount(percentAmounts[id] ?? '0'),
-      0
-    );
-    if (Math.abs(pctTotal - 100) > 0.1)
-      throw new ValidationError('bills.pct_total_mismatch', { pct: pctTotal.toFixed(1) });
-    splitAmounts = {};
-    let running = 0;
-    for (let i = 0; i < selectedPeople.length; i++) {
-      const id = selectedPeople[i];
-      const pct = parseAmount(percentAmounts[id] ?? '0');
-      if (i === selectedPeople.length - 1) {
-        splitAmounts[id] = Math.round((parsed - running) * 100) / 100;
-      } else {
-        const share = Math.round((pct / 100) * parsed * 100) / 100;
-        splitAmounts[id] = share;
-        running += share;
-      }
-    }
-  }
-
-  return {
-    title: title.trim(),
-    amount: parsed,
-    paidBy,
-    splitBetween: selectedPeople,
-    splitAmounts,
-    category,
-    date,
-  };
 }
 
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
@@ -303,7 +219,7 @@ export default function AddBillScreen(): React.JSX.Element {
   const handleSave = useCallback(async (): Promise<void> => {
     let payload: AddBillPayload;
     try {
-      payload = parseAddBillPayload(
+      payload = parseAndValidateAddBill({
         title,
         amount,
         paidBy,
@@ -312,12 +228,15 @@ export default function AddBillScreen(): React.JSX.Element {
         customAmounts,
         percentAmounts,
         category,
-        date
-      );
+        date,
+      });
     } catch (err) {
-      setError(
-        err instanceof ValidationError ? t(err.messageKey, err.params) : t('bills.failed_save')
-      );
+      if (err instanceof z.ZodError) {
+        const firstError = err.errors[0];
+        setError(t(firstError.message, firstError.params as Record<string, string | number>));
+      } else {
+        setError(t('bills.failed_save'));
+      }
       return;
     }
     if (!houseId) {
