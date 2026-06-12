@@ -38,9 +38,10 @@ const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name
 };
 
 const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
-  { label: 'Home', items: ['Rent', 'Utilities', 'Internet', 'Phone'] },
-  { label: 'Food', items: ['Groceries', 'Food'] },
-  { label: 'More', items: ['Transport', 'Entertainment', 'Health', 'Shopping', 'Travel', 'Other'] },
+  { label: 'Rent', items: ['Rent'] },
+  { label: 'Utilities', items: ['Utilities', 'Internet', 'Phone'] },
+  { label: 'Food & Shopping', items: ['Groceries', 'Food', 'Shopping'] },
+  { label: 'Other', items: ['Transport', 'Entertainment', 'Health', 'Travel', 'Other'] },
 ];
 
 function todayString(): string {
