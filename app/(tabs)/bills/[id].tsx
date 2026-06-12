@@ -6,7 +6,7 @@ import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import { useBillsStore, getPersonShare, CATEGORIES, EditBillSchema } from '@stores/billsStore';
+import { useBillsStore, getPersonShare, EditBillSchema, CATEGORY_GROUPS } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -268,32 +268,43 @@ export default function BillDetailScreen(): React.JSX.Element {
             />
             <View style={styles.categoryField}>
               <Text style={styles.categoryFieldLabel}>{t('bills.category')}</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryScroll}
-              >
-                {CATEGORIES.map((cat) => {
-                  const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
-                  const selected = category === cat;
-                  return (
-                    <Pressable
-                      key={cat}
-                      style={[styles.catChip, selected && styles.catChipSelected]}
-                      onPress={() => setCategory(cat)}
-                      accessible
-                      accessibilityRole="radio"
-                      accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
-                      accessibilityState={{ selected }}
-                    >
-                      <Ionicons name={icon} size={15} color={selected ? C.white : C.primary} />
-                      <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
-                        {t(`bills.cat_${cat.toLowerCase()}`)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+              <View style={styles.categoryGroups}>
+                {CATEGORY_GROUPS.map((group) => (
+                  <View key={group.label} style={styles.categoryGroup}>
+                    <Text style={[styles.categoryGroupLabel, { color: C.textSecondary }]}>
+                      {group.label.toUpperCase()}
+                    </Text>
+                    <View style={styles.categoryGroupChips}>
+                      {group.items.map((cat) => {
+                        const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
+                        const selected = category === cat;
+                        return (
+                          <Pressable
+                            key={cat}
+                            style={[styles.catChip, selected && styles.catChipSelected]}
+                            onPress={() => setCategory(cat)}
+                            accessible
+                            accessibilityRole="radio"
+                            accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
+                            accessibilityState={{ selected }}
+                          >
+                            <Ionicons
+                              name={icon}
+                              size={15}
+                              color={selected ? C.white : C.primary}
+                            />
+                            <Text
+                              style={[styles.catChipText, selected && styles.catChipTextSelected]}
+                            >
+                              {t(`bills.cat_${cat.toLowerCase()}`)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </View>
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
             <View style={styles.editButtons}>
@@ -459,7 +470,10 @@ const makeStyles = (C: ColorTokens) =>
 
     categoryField: { gap: 4 },
     categoryFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginLeft: 4 },
-    categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
+    categoryGroups: { gap: sizes.sm },
+    categoryGroup: { gap: 6 },
+    categoryGroupLabel: { fontSize: 11, ...font.bold, letterSpacing: 0.7 },
+    categoryGroupChips: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
     catChip: {
       flexDirection: 'row',
       alignItems: 'center',

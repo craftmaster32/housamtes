@@ -6,7 +6,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { z } from 'zod';
-import { useBillsStore, CATEGORIES } from '@stores/billsStore';
+import { useBillsStore, CATEGORIES, CATEGORY_GROUPS } from '@stores/billsStore';
 import { captureError } from '@lib/errorTracking';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
@@ -36,12 +36,6 @@ const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name
   travel: 'airplane-outline',
   other: 'receipt-outline',
 };
-
-const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
-  { label: 'Home', items: ['Rent', 'Utilities', 'Internet', 'Phone'] },
-  { label: 'Food', items: ['Groceries', 'Food'] },
-  { label: 'More', items: ['Transport', 'Entertainment', 'Health', 'Shopping', 'Travel', 'Other'] },
-];
 
 function todayString(): string {
   const d = new Date();
