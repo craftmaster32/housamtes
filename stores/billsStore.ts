@@ -22,6 +22,13 @@ export const CATEGORIES = [
   'Other',
 ];
 
+export const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
+  { label: 'Rent', items: ['Rent'] },
+  { label: 'Utilities', items: ['Utilities', 'Internet', 'Phone'] },
+  { label: 'Food & Shopping', items: ['Groceries', 'Food', 'Shopping'] },
+  { label: 'Other', items: ['Transport', 'Entertainment', 'Health', 'Travel', 'Other'] },
+];
+
 export const EditBillSchema = z.object({
   title: z.string().min(1),
   amount: z.coerce.number().positive(),

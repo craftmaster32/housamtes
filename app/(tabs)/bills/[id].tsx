@@ -6,7 +6,7 @@ import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import { useBillsStore, getPersonShare, EditBillSchema } from '@stores/billsStore';
+import { useBillsStore, getPersonShare, EditBillSchema, CATEGORY_GROUPS } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -32,13 +32,6 @@ const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name
   travel: 'airplane-outline',
   other: 'receipt-outline',
 };
-
-const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
-  { label: 'Rent', items: ['Rent'] },
-  { label: 'Utilities', items: ['Utilities', 'Internet', 'Phone'] },
-  { label: 'Food & Shopping', items: ['Groceries', 'Food', 'Shopping'] },
-  { label: 'Other', items: ['Transport', 'Entertainment', 'Health', 'Travel', 'Other'] },
-];
 
 function formatDisplayDate(iso: string, locale: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
