@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,6 +36,12 @@ const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name
   travel: 'airplane-outline',
   other: 'receipt-outline',
 };
+
+const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
+  { label: 'Home', items: ['Rent', 'Utilities', 'Internet', 'Phone'] },
+  { label: 'Food', items: ['Groceries', 'Food'] },
+  { label: 'More', items: ['Transport', 'Entertainment', 'Health', 'Shopping', 'Travel', 'Other'] },
+];
 
 function todayString(): string {
   const d = new Date();
@@ -82,6 +88,17 @@ export default function AddBillScreen(): React.JSX.Element {
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState('');
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
+
+  // If housemates finish loading after this screen is already focused,
+  // useFocusEffect won't re-fire — so seed defaults here once they arrive.
+  useEffect(() => {
+    if (allIds.length > 0 && selectedPeople.length === 0 && !title && !amount) {
+      setSelectedPeople(allIds);
+      if (!paidBy) setPaidBy(myIdRef.current || allIds[0] || '');
+    }
+    // Only run when allIds changes; the other values are just guards
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allIds]);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [date, setDate] = useState(todayString);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -621,32 +638,37 @@ export default function AddBillScreen(): React.JSX.Element {
         {/* Category */}
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.category')}</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
-          >
-            {CATEGORIES.map((cat) => {
-              const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
-              const selected = category === cat;
-              return (
-                <Pressable
-                  key={cat}
-                  style={[styles.catChip, selected && styles.catChipSelected]}
-                  onPress={() => setCategory(cat)}
-                  accessible
-                  accessibilityRole="radio"
-                  accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
-                  accessibilityState={{ selected }}
-                >
-                  <Ionicons name={icon} size={15} color={selected ? C.white : C.primary} />
-                  <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
-                    {t(`bills.cat_${cat.toLowerCase()}`)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <View style={styles.categoryGroups}>
+            {CATEGORY_GROUPS.map((group) => (
+              <View key={group.label} style={styles.categoryGroup}>
+                <Text style={[styles.categoryGroupLabel, { color: C.textSecondary }]}>
+                  {group.label.toUpperCase()}
+                </Text>
+                <View style={styles.categoryGroupChips}>
+                  {group.items.map((cat) => {
+                    const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
+                    const selected = category === cat;
+                    return (
+                      <Pressable
+                        key={cat}
+                        style={[styles.catChip, selected && styles.catChipSelected]}
+                        onPress={() => setCategory(cat)}
+                        accessible
+                        accessibilityRole="radio"
+                        accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
+                        accessibilityState={{ selected }}
+                      >
+                        <Ionicons name={icon} size={15} color={selected ? C.white : C.primary} />
+                        <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
+                          {t(`bills.cat_${cat.toLowerCase()}`)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
 
         {/* Date */}
@@ -782,7 +804,10 @@ const makeStyles = (C: ColorTokens) =>
     },
     fillBtnText: { color: C.primary, fontSize: 13, ...font.semibold },
 
-    categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
+    categoryGroups: { gap: sizes.sm },
+    categoryGroup: { gap: 6 },
+    categoryGroupLabel: { fontSize: 11, ...font.bold, letterSpacing: 0.7 },
+    categoryGroupChips: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
     catChip: {
       flexDirection: 'row',
       alignItems: 'center',

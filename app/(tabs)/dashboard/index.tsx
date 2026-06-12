@@ -382,21 +382,11 @@ function RecentExpenses(): React.JSX.Element {
                   <Text style={[styles.recentAmt, { color: c.textPrimary }]}>
                     {formatFull(bill.amount, currencyCode)}
                   </Text>
-                  <View
-                    style={[
-                      styles.recentBadge,
-                      { backgroundColor: bill.settled ? c.positive + '18' : c.surfaceSecondary },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.recentBadgeText,
-                        { color: bill.settled ? c.positive : c.textSecondary },
-                      ]}
-                    >
-                      {bill.settled ? 'Settled' : 'Pending'}
-                    </Text>
-                  </View>
+                  {bill.settled && (
+                    <View style={[styles.recentBadge, { backgroundColor: c.positive + '18' }]}>
+                      <Text style={[styles.recentBadgeText, { color: c.positive }]}>Settled</Text>
+                    </View>
+                  )}
                 </View>
               </Pressable>
             </View>
