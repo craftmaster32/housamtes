@@ -314,15 +314,21 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
     // Pre-fetch house members per house (for non-voter calculation in reminders)
     const membersByHouse = new Map<string, string[]>();
+    let membersError = false;
     if (houseIds.length > 0) {
-      const { data: memberRows } = await supabase
+      const { data: memberRows, error: membersErr } = await supabase
         .from('house_members')
         .select('house_id, user_id')
         .in('house_id', houseIds);
-      for (const m of (memberRows ?? []) as Array<{ house_id: string; user_id: string }>) {
-        const arr = membersByHouse.get(m.house_id) ?? [];
-        arr.push(m.user_id);
-        membersByHouse.set(m.house_id, arr);
+      if (membersErr) {
+        console.error('[parking-check] house_members fetch error:', membersErr.message);
+        membersError = true;
+      } else {
+        for (const m of (memberRows ?? []) as Array<{ house_id: string; user_id: string }>) {
+          const arr = membersByHouse.get(m.house_id) ?? [];
+          arr.push(m.user_id);
+          membersByHouse.set(m.house_id, arr);
+        }
       }
     }
 
@@ -493,8 +499,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
             if (sent) sentNonVoter = true;
           }
 
-          // Gate the flag on any successful notification so the batch isn't repeated on the next run
-          if (sentRequester || sentNonVoter)
+          // Gate the flag on success and only when the member list was actually available.
+          // If the member fetch errored, skip setting the flag so non-voters get reminded next run.
+          if ((sentRequester || sentNonVoter) && !membersError)
             updates.push({ id: r.id, patch: { pending_notice_sent: true } });
         }
 

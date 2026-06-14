@@ -138,7 +138,7 @@ Deno.serve(async (req: Request) => {
     ]),
   ];
 
-  const { data: prefRows } =
+  const { data: prefRows, error: prefError } =
     allUserIds.length > 0
       ? await supabase
           .from('notification_preferences')
@@ -147,7 +147,15 @@ Deno.serve(async (req: Request) => {
           )
           .eq('house_id', house_id)
           .in('user_id', allUserIds)
-      : { data: [] };
+      : { data: [], error: null };
+
+  if (prefError) {
+    console.error('[send-push] notification_preferences fetch error:', prefError.message);
+    return new Response(JSON.stringify({ error: 'An internal error occurred' }), {
+      status: 500,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
 
   const prefMap = new Map<string, Record<string, boolean>>();
   for (const row of prefRows ?? []) {
@@ -182,15 +190,21 @@ Deno.serve(async (req: Request) => {
       sound: 'default',
       priority: 'high',
     }));
-    const expoRes = await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(messages),
-    });
-    const expoBody = (await expoRes.json()) as {
-      data?: Array<{ status: string; details?: { error?: string } }>;
-    };
-    const tickets = expoBody.data ?? [];
+    let tickets: Array<{ status: string; details?: { error?: string } }> = [];
+    try {
+      const expoRes = await fetch(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(messages),
+      });
+      const expoBody = (await expoRes.json()) as {
+        data?: Array<{ status: string; details?: { error?: string } }>;
+      };
+      tickets = expoBody.data ?? [];
+    } catch (expoErr) {
+      console.error('[send-push] Expo push fetch/parse error:', expoErr);
+      // Fall through with empty tickets so web-push delivery still runs
+    }
 
     // Remove tokens that Expo says are no longer registered
     const badTokens = tickets

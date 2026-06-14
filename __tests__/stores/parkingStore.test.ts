@@ -255,13 +255,13 @@ describe('parkingStore — claim', () => {
   });
 
   it('sets current session state on successful claim', async () => {
-    mockFrom.mockReturnValue(ok({ id: 'ps2', occupant: 'Alice', start_time: '09:00' })); // insert
+    mockFrom.mockReturnValue(ok({ id: 'ps2', occupant: 'uuid-alice', start_time: '09:00' })); // insert
 
     await useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1');
 
     expect(useParkingStore.getState().current).toMatchObject({
       id: 'ps2',
-      occupant: 'Alice',
+      occupant: 'uuid-alice',
     });
   });
 

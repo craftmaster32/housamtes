@@ -565,7 +565,9 @@ export const useParkingStore = create<ParkingStore>()(
                 body: `The parking vote for ${localReservation.date} is still open — cast your vote before it expires.`,
                 data: { screen: 'parking' },
                 notificationType: 'parking_reservation',
-              }).catch((err) => captureError(err, { context: 'notify-non-voters', houseId }));
+              }).catch((err) =>
+                captureError(err, { context: 'notify-non-voters', houseId, userId })
+              );
             }
           }
 
