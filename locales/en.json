@@ -58,7 +58,8 @@
     "profile": "Profile",
     "settings": "Settings",
     "house_section": "HOUSE",
-    "me_section": "ME"
+    "me_section": "ME",
+    "more": "More"
   },
   "property": {
     "tab_issues": "Issues",
@@ -322,6 +323,10 @@
     "cat_shopping": "Shopping",
     "cat_travel": "Travel",
     "cat_other": "Other",
+    "group_rent": "Rent",
+    "group_utilities": "Utilities",
+    "group_food_shopping": "Food & Shopping",
+    "group_other": "Other",
     "pick_date": "Pick date",
     "select_payment_date": "Select payment date",
     "select_last_paid_date": "Select last paid date",
