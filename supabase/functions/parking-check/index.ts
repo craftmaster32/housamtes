@@ -248,6 +248,25 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       ...((pastPending ?? []) as Reservation[]),
     ];
 
+    // Pre-fetch votes for all pending reservations so we can tally at deadline
+    const pendingIds = allReservations.filter((r) => r.status === 'pending').map((r) => r.id);
+    const votesByReservation = new Map<string, Array<{ user_id: string; vote: string }>>();
+    if (pendingIds.length > 0) {
+      const { data: allVotes } = await supabase
+        .from('parking_reservation_votes')
+        .select('reservation_id, user_id, vote')
+        .in('reservation_id', pendingIds);
+      for (const v of (allVotes ?? []) as Array<{
+        reservation_id: string;
+        user_id: string;
+        vote: string;
+      }>) {
+        const arr = votesByReservation.get(v.reservation_id) ?? [];
+        arr.push(v);
+        votesByReservation.set(v.reservation_id, arr);
+      }
+    }
+
     // Fetch all active parking sessions
     const { data: sessions, error: sessErr } = await supabase
       .from('parking_sessions')
@@ -283,6 +302,20 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         houseTimezone = new Map(
           ((housesData ?? []) as HouseRow[]).map((h) => [h.id, h.timezone || 'UTC'])
         );
+      }
+    }
+
+    // Pre-fetch house members per house (for non-voter calculation in reminders)
+    const membersByHouse = new Map<string, string[]>();
+    if (houseIds.length > 0) {
+      const { data: memberRows } = await supabase
+        .from('house_members')
+        .select('house_id, user_id')
+        .in('house_id', houseIds);
+      for (const m of (memberRows ?? []) as Array<{ house_id: string; user_id: string }>) {
+        const arr = membersByHouse.get(m.house_id) ?? [];
+        arr.push(m.user_id);
+        membersByHouse.set(m.house_id, arr);
       }
     }
 
@@ -327,62 +360,125 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         const rName = names.get(r.requested_by) ?? 'A housemate';
         const timeStr = r.start_time ? ` at ${r.start_time}` : '';
 
-        // ── #6a: Auto-reject pending reservations strictly in the past ────────────
+        // ── #6a: Resolve pending reservations strictly in the past by vote tally ──
         if (r.status === 'pending' && r.date < today) {
-          const { error: rejErr } = await supabase
+          const castVotes = votesByReservation.get(r.id) ?? [];
+          const approveCount = castVotes.filter((v) => v.vote === 'approve').length;
+          const rejectCount = castVotes.filter((v) => v.vote === 'reject').length;
+          const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';
+
+          const { error: resolveErr } = await supabase
             .from('parking_reservations')
-            .update({ status: 'rejected' })
+            .update({ status: resolvedStatus })
             .eq('id', r.id);
-          if (rejErr) {
-            console.error('[parking-check] auto-reject (#6a) failed for', r.id, rejErr.message);
+          if (resolveErr) {
+            console.error(
+              '[parking-check] auto-resolve (#6a) failed for',
+              r.id,
+              resolveErr.message
+            );
             continue;
           }
-          await sendToUser(
-            supabase,
-            r.requested_by,
-            r.house_id,
-            '🅿️ Parking request expired',
-            `Your request for ${r.date}${timeStr} was auto-rejected — no vote was completed in time.`,
-            { screen: 'parking' }
-          );
-          continue;
-        }
-
-        // ── #6b: Auto-reject today's pending if start time has passed ─────────────
-        if (r.status === 'pending' && r.date === today) {
-          const startMins = r.start_time ? toMinutes(r.start_time) : 0;
-          if (nowMins >= startMins) {
-            const { error: rejErr } = await supabase
-              .from('parking_reservations')
-              .update({ status: 'rejected' })
-              .eq('id', r.id);
-            if (rejErr) {
-              console.error('[parking-check] auto-reject (#6b) failed for', r.id, rejErr.message);
-              continue;
-            }
+          if (resolvedStatus === 'approved') {
+            await sendToUser(
+              supabase,
+              r.requested_by,
+              r.house_id,
+              '✅ Parking approved!',
+              `Your request for ${r.date}${timeStr} was approved by the majority vote.`,
+              { screen: 'parking' }
+            );
+          } else {
             await sendToUser(
               supabase,
               r.requested_by,
               r.house_id,
               '🅿️ Parking request expired',
-              `Your request for today${timeStr} was auto-rejected — no vote was completed in time.`,
+              castVotes.length === 0
+                ? `Your request for ${r.date}${timeStr} expired — no votes were cast.`
+                : `Your request for ${r.date}${timeStr} expired — majority voted no.`,
               { screen: 'parking' }
             );
+          }
+          continue;
+        }
+
+        // ── #6b: Resolve today's pending by vote tally if start time has passed ──
+        if (r.status === 'pending' && r.date === today) {
+          const startMins = r.start_time ? toMinutes(r.start_time) : 0;
+          if (nowMins >= startMins) {
+            const castVotes = votesByReservation.get(r.id) ?? [];
+            const approveCount = castVotes.filter((v) => v.vote === 'approve').length;
+            const rejectCount = castVotes.filter((v) => v.vote === 'reject').length;
+            const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';
+
+            const { error: resolveErr } = await supabase
+              .from('parking_reservations')
+              .update({ status: resolvedStatus })
+              .eq('id', r.id);
+            if (resolveErr) {
+              console.error(
+                '[parking-check] auto-resolve (#6b) failed for',
+                r.id,
+                resolveErr.message
+              );
+              continue;
+            }
+            if (resolvedStatus === 'approved') {
+              await sendToUser(
+                supabase,
+                r.requested_by,
+                r.house_id,
+                '✅ Parking approved!',
+                `Your request for today${timeStr} was approved by the majority vote.`,
+                { screen: 'parking' }
+              );
+            } else {
+              await sendToUser(
+                supabase,
+                r.requested_by,
+                r.house_id,
+                '🅿️ Parking request expired',
+                castVotes.length === 0
+                  ? `Your request for today${timeStr} expired — no votes were cast.`
+                  : `Your request for today${timeStr} expired — majority voted no.`,
+                { screen: 'parking' }
+              );
+            }
             continue;
           }
         }
 
         // ── #6c: 24h-before notice for tomorrow's pending reservations ────────────
         if (r.status === 'pending' && r.date === tomorrow && !r.pending_notice_sent) {
-          const sent = await sendToUser(
+          const sentRequester = await sendToUser(
             supabase,
             r.requested_by,
             r.house_id,
             '⏳ Parking vote still open',
-            `Your parking request for ${r.date}${timeStr} hasn't been voted on yet.`,
+            `Your parking request for ${r.date}${timeStr} hasn't been decided yet — vote closes tomorrow.`,
             { screen: 'parking' }
           );
-          if (sent) updates.push({ id: r.id, patch: { pending_notice_sent: true } });
+
+          // Also ping anyone who hasn't voted yet
+          const houseMembers = membersByHouse.get(r.house_id) ?? [];
+          const castVotes = votesByReservation.get(r.id) ?? [];
+          const votedIds = new Set(castVotes.map((v) => v.user_id));
+          const nonVoterIds = houseMembers.filter(
+            (id) => id !== r.requested_by && !votedIds.has(id)
+          );
+          for (const voterId of nonVoterIds) {
+            await sendToUser(
+              supabase,
+              voterId,
+              r.house_id,
+              '🗳️ Vote before the deadline!',
+              `${rName} wants the spot on ${r.date}${timeStr} — vote by tomorrow or the majority decides.`,
+              { screen: 'parking' }
+            );
+          }
+
+          if (sentRequester) updates.push({ id: r.id, patch: { pending_notice_sent: true } });
         }
 
         if (r.status !== 'approved') continue;

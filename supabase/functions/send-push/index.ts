@@ -15,19 +15,21 @@ const CORS_HEADERS = {
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 const PREF_COLUMN: Record<string, string> = {
-  bill_added:           'notify_bill_added',
-  bill_settled:         'notify_bill_settled',
-  bill_due:             'notify_bill_due',
-  parking_claimed:      'notify_parking_claimed',
-  parking_reservation:  'notify_parking_reservation',
-  chore_overdue:        'notify_chore_overdue',
-  chat_message:         'notify_chat_message',
-  grocery_shared:       'notify_grocery_shared',
+  bill_added: 'notify_bill_added',
+  bill_settled: 'notify_bill_settled',
+  bill_due: 'notify_bill_due',
+  parking_claimed: 'notify_parking_claimed',
+  parking_reservation: 'notify_parking_reservation',
+  chore_overdue: 'notify_chore_overdue',
+  chat_message: 'notify_chat_message',
+  grocery_shared: 'notify_grocery_shared',
 };
 
 interface SendPushPayload {
   house_id: string;
   exclude_user_id: string;
+  /** When present, only these users receive the push (overrides exclude_user_id). */
+  include_user_ids?: string[];
   title: string;
   body: string;
   data?: Record<string, string>;
@@ -65,12 +67,13 @@ Deno.serve(async (req: Request) => {
 
   let payload: SendPushPayload;
   try {
-    payload = await req.json() as SendPushPayload;
+    payload = (await req.json()) as SendPushPayload;
   } catch {
     return new Response('Invalid JSON', { status: 400, headers: CORS_HEADERS });
   }
 
-  const { house_id, exclude_user_id, title, body, data, notification_type } = payload;
+  const { house_id, exclude_user_id, include_user_ids, title, body, data, notification_type } =
+    payload;
 
   const { data: membership } = await supabase
     .from('house_members')
@@ -100,33 +103,52 @@ Deno.serve(async (req: Request) => {
 
   await supabase.from('push_rate_log').insert({ user_id: callerId, house_id });
   // Purge entries older than 5 minutes to keep the table small
-  supabase.from('push_rate_log').delete().lt('created_at', new Date(Date.now() - 300_000).toISOString());
+  supabase
+    .from('push_rate_log')
+    .delete()
+    .lt('created_at', new Date(Date.now() - 300_000).toISOString());
 
-  // ── Fetch tokens + subscriptions for this house (excluding sender) ──────────
+  // ── Fetch tokens + subscriptions ─────────────────────────────────────────────
+  // When include_user_ids is provided, only send to those specific users.
+  // Otherwise send to all house members except the triggering user.
+  const tokenBase = supabase.from('push_tokens').select('token, user_id').eq('house_id', house_id);
+  const webBase = supabase
+    .from('web_push_subscriptions')
+    .select('endpoint, p256dh, auth, user_id')
+    .eq('house_id', house_id);
   const [tokenResult, webSubResult] = await Promise.all([
-    supabase.from('push_tokens').select('token, user_id').eq('house_id', house_id).neq('user_id', exclude_user_id),
-    supabase.from('web_push_subscriptions').select('endpoint, p256dh, auth, user_id').eq('house_id', house_id).neq('user_id', exclude_user_id),
+    include_user_ids?.length
+      ? tokenBase.in('user_id', include_user_ids)
+      : tokenBase.neq('user_id', exclude_user_id),
+    include_user_ids?.length
+      ? webBase.in('user_id', include_user_ids)
+      : webBase.neq('user_id', exclude_user_id),
   ]);
 
   const tokenRows = tokenResult.data ?? [];
   const webSubRows = webSubResult.data ?? [];
 
   // ── Fetch notification preferences for all relevant users ───────────────────
-  const allUserIds = [...new Set([
-    ...tokenRows.map((r: { user_id: string }) => r.user_id),
-    ...webSubRows.map((r: { user_id: string }) => r.user_id),
-  ])];
+  const allUserIds = [
+    ...new Set([
+      ...tokenRows.map((r: { user_id: string }) => r.user_id),
+      ...webSubRows.map((r: { user_id: string }) => r.user_id),
+    ]),
+  ];
 
-  const { data: prefRows } = allUserIds.length > 0
-    ? await supabase
-        .from('notification_preferences')
-        .select('user_id, notify_bill_added, notify_bill_settled, notify_bill_due, notify_parking_claimed, notify_parking_reservation, notify_chore_overdue, notify_chat_message, notify_grocery_shared')
-        .eq('house_id', house_id)
-        .in('user_id', allUserIds)
-    : { data: [] };
+  const { data: prefRows } =
+    allUserIds.length > 0
+      ? await supabase
+          .from('notification_preferences')
+          .select(
+            'user_id, notify_bill_added, notify_bill_settled, notify_bill_due, notify_parking_claimed, notify_parking_reservation, notify_chore_overdue, notify_chat_message, notify_grocery_shared'
+          )
+          .eq('house_id', house_id)
+          .in('user_id', allUserIds)
+      : { data: [] };
 
   const prefMap = new Map<string, Record<string, boolean>>();
-  for (const row of (prefRows ?? [])) {
+  for (const row of prefRows ?? []) {
     prefMap.set(row.user_id, row as Record<string, boolean>);
   }
 
@@ -151,19 +173,30 @@ Deno.serve(async (req: Request) => {
   let expoSent = 0;
   if (expoTokens.length > 0) {
     const messages = expoTokens.map((to) => ({
-      to, title, body, data: data ?? {}, sound: 'default', priority: 'high',
+      to,
+      title,
+      body,
+      data: data ?? {},
+      sound: 'default',
+      priority: 'high',
     }));
     const expoRes = await fetch(EXPO_PUSH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify(messages),
     });
-    const expoBody = await expoRes.json() as { data?: Array<{ status: string; details?: { error?: string } }> };
+    const expoBody = (await expoRes.json()) as {
+      data?: Array<{ status: string; details?: { error?: string } }>;
+    };
     const tickets = expoBody.data ?? [];
 
     // Remove tokens that Expo says are no longer registered
     const badTokens = tickets
-      .map((ticket, i) => (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered' ? expoTokens[i] : null))
+      .map((ticket, i) =>
+        ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered'
+          ? expoTokens[i]
+          : null
+      )
       .filter((t): t is string => t !== null);
     if (badTokens.length > 0) {
       await supabase.from('push_tokens').delete().in('token', badTokens);
@@ -179,11 +212,7 @@ Deno.serve(async (req: Request) => {
 
   const vapidContact = Deno.env.get('VAPID_CONTACT_EMAIL');
   if (vapidPublicKey && vapidPrivateKey && vapidContact && webSubRows.length > 0) {
-    webpush.setVapidDetails(
-      `mailto:${vapidContact}`,
-      vapidPublicKey,
-      vapidPrivateKey
-    );
+    webpush.setVapidDetails(`mailto:${vapidContact}`, vapidPublicKey, vapidPrivateKey);
 
     const eligibleSubs = webSubRows.filter((r: { user_id: string }) => isEnabled(r.user_id));
     const webPayload = JSON.stringify({ title, body, data: data ?? {} });
@@ -200,7 +229,10 @@ Deno.serve(async (req: Request) => {
     // Clean up expired subscriptions (HTTP 410 = subscription no longer valid)
     const expiredEndpoints: string[] = [];
     webResults.forEach((result, i) => {
-      if (result.status === 'rejected' && (result.reason as { statusCode?: number })?.statusCode === 410) {
+      if (
+        result.status === 'rejected' &&
+        (result.reason as { statusCode?: number })?.statusCode === 410
+      ) {
         expiredEndpoints.push(eligibleSubs[i].endpoint);
       }
     });
