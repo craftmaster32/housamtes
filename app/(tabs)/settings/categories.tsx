@@ -81,8 +81,8 @@ const makeStyles = (C: ColorTokens) =>
     iconPreviewText: { fontSize: 22 },
     iconPickerWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     iconPickerItem: {
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       borderRadius: 8,
       justifyContent: 'center',
       alignItems: 'center',
@@ -247,6 +247,8 @@ function CategoryForm({
           placeholderTextColor={C.textSecondary}
           autoCapitalize="words"
           maxLength={30}
+          accessibilityLabel="Category name"
+          accessibilityHint="Enter a name for this expense category"
         />
       </View>
       {showIconPicker && (
@@ -278,6 +280,10 @@ function CategoryForm({
               form.color === c && styles.colorDotSelected,
             ]}
             onPress={() => setForm((f) => ({ ...f, color: c }))}
+            hitSlop={8}
+            accessibilityRole="radio"
+            accessibilityLabel={c}
+            accessibilityState={{ checked: form.color === c }}
           />
         ))}
       </View>
@@ -379,8 +385,10 @@ export default function CategoriesScreen(): React.JSX.Element {
         await add({ name: form.name.trim(), icon: form.icon || '📦', color: form.color }, houseId);
         setShowAdd(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      } catch {
-        /* ignore */
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : 'Could not save the category. Please try again.';
+        Alert.alert('Error', msg);
       } finally {
         setSaving(false);
       }
@@ -400,8 +408,10 @@ export default function CategoriesScreen(): React.JSX.Element {
         });
         setEditCat(null);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      } catch {
-        /* ignore */
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : 'Could not update the category. Please try again.';
+        Alert.alert('Error', msg);
       } finally {
         setSaving(false);
       }
@@ -420,8 +430,16 @@ export default function CategoriesScreen(): React.JSX.Element {
             text: 'Delete',
             style: 'destructive',
             onPress: async (): Promise<void> => {
-              await remove(cat.id);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+              try {
+                await remove(cat.id);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+              } catch (err) {
+                const msg =
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not delete the category. Please try again.';
+                Alert.alert('Error', msg);
+              }
             },
           },
         ]
@@ -481,7 +499,11 @@ export default function CategoriesScreen(): React.JSX.Element {
             <CategoryRow cat={item} onEdit={setEditCat} onDelete={handleDelete} />
           )}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
-          ListEmptyComponent={isLoading ? <Text style={styles.empty}>Loading…</Text> : null}
+          ListEmptyComponent={
+            <Text style={styles.empty}>
+              {isLoading ? 'Loading…' : 'No categories yet. Tap "+ Add Category" to create one.'}
+            </Text>
+          }
         />
       </Animated.View>
     </SafeAreaView>
