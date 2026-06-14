@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
@@ -298,16 +298,17 @@ export default function BillDetailScreen(): React.JSX.Element {
                     </Pressable>
                   );
                 })}
-                <Pressable
-                  style={styles.catChipAdd}
-                  onPress={() => router.push('/(tabs)/settings/categories')}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('bills.add_category')}
-                >
-                  <Ionicons name="add" size={15} color={C.primary} />
-                  <Text style={styles.catChipAddText}>{t('bills.add_category')}</Text>
-                </Pressable>
+                <Link href="/(tabs)/settings/categories" asChild>
+                  <Pressable
+                    style={styles.catChipAdd}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={t('bills.add_category')}
+                  >
+                    <Ionicons name="add" size={15} color={C.primary} />
+                    <Text style={styles.catChipAddText}>{t('bills.add_category')}</Text>
+                  </Pressable>
+                </Link>
               </ScrollView>
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}

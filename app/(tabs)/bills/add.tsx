@@ -2,11 +2,11 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { z } from 'zod';
-import { useBillsStore, CATEGORIES, CATEGORY_GROUPS } from '@stores/billsStore';
+import { useBillsStore, CATEGORIES, DISPLAY_CATEGORIES } from '@stores/billsStore';
 import { captureError } from '@lib/errorTracking';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
@@ -637,7 +637,7 @@ export default function AddBillScreen(): React.JSX.Element {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryScroll}
           >
-            {CATEGORY_GROUPS.flatMap((g) => g.items).map((cat) => {
+            {DISPLAY_CATEGORIES.map((cat) => {
               const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
               const selected = category === cat;
               return (
@@ -657,6 +657,17 @@ export default function AddBillScreen(): React.JSX.Element {
                 </Pressable>
               );
             })}
+            <Link href="/(tabs)/settings/categories" asChild>
+              <Pressable
+                style={styles.catChipAdd}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('bills.add_category')}
+              >
+                <Ionicons name="add" size={15} color={C.primary} />
+                <Text style={styles.catChipAddText}>{t('bills.add_category')}</Text>
+              </Pressable>
+            </Link>
           </ScrollView>
         </View>
 
@@ -809,6 +820,20 @@ const makeStyles = (C: ColorTokens) =>
     catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
     catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
     catChipTextSelected: { color: C.white },
+    catChipAdd: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      minHeight: 44,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1.5,
+      borderStyle: 'dashed' as const,
+      borderColor: C.primary + '55',
+      backgroundColor: 'transparent',
+    },
+    catChipAddText: { color: C.primary, fontSize: 13, ...font.semibold },
 
     dateTrigger: {
       flexDirection: 'row',
