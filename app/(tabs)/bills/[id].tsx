@@ -6,7 +6,12 @@ import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import { useBillsStore, getPersonShare, EditBillSchema, CATEGORY_GROUPS } from '@stores/billsStore';
+import {
+  useBillsStore,
+  getPersonShare,
+  EditBillSchema,
+  DISPLAY_CATEGORIES,
+} from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -273,7 +278,7 @@ export default function BillDetailScreen(): React.JSX.Element {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoryScroll}
               >
-                {CATEGORY_GROUPS.flatMap((g) => g.items).map((cat) => {
+                {DISPLAY_CATEGORIES.map((cat) => {
                   const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
                   const selected = category === cat;
                   return (
@@ -293,6 +298,16 @@ export default function BillDetailScreen(): React.JSX.Element {
                     </Pressable>
                   );
                 })}
+                <Pressable
+                  style={styles.catChipAdd}
+                  onPress={() => router.push('/(tabs)/settings/categories')}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('bills.add_category')}
+                >
+                  <Ionicons name="add" size={15} color={C.primary} />
+                  <Text style={styles.catChipAddText}>{t('bills.add_category')}</Text>
+                </Pressable>
               </ScrollView>
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
@@ -475,4 +490,18 @@ const makeStyles = (C: ColorTokens) =>
     catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
     catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
     catChipTextSelected: { color: C.white },
+    catChipAdd: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      minHeight: 44,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1.5,
+      borderStyle: 'dashed' as const,
+      borderColor: C.primary + '55',
+      backgroundColor: 'transparent',
+    },
+    catChipAddText: { color: C.primary, fontSize: 13, ...font.semibold },
   });
