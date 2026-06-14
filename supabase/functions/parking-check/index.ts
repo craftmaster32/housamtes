@@ -469,7 +469,15 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         }
 
         // ── #6c: 24h-before notice for tomorrow's pending reservations ────────────
-        if (r.status === 'pending' && r.date === tomorrow && !r.pending_notice_sent) {
+        // Skip entirely when membersError is set — without the member list we can't
+        // notify non-voters, so we must not set pending_notice_sent either. The next
+        // cron run will retry once the member fetch recovers.
+        if (
+          r.status === 'pending' &&
+          r.date === tomorrow &&
+          !r.pending_notice_sent &&
+          !membersError
+        ) {
           const sentRequester = await sendToUser(
             supabase,
             r.requested_by,
