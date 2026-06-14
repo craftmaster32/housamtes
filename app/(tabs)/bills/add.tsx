@@ -632,37 +632,32 @@ export default function AddBillScreen(): React.JSX.Element {
         {/* Category */}
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.category')}</Text>
-          <View style={styles.categoryGroups}>
-            {CATEGORY_GROUPS.map((group) => (
-              <View key={group.label} style={styles.categoryGroup}>
-                <Text style={[styles.categoryGroupLabel, { color: C.textSecondary }]}>
-                  {t(group.label).toUpperCase()}
-                </Text>
-                <View style={styles.categoryGroupChips}>
-                  {group.items.map((cat) => {
-                    const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
-                    const selected = category === cat;
-                    return (
-                      <Pressable
-                        key={cat}
-                        style={[styles.catChip, selected && styles.catChipSelected]}
-                        onPress={() => setCategory(cat)}
-                        accessible
-                        accessibilityRole="radio"
-                        accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
-                        accessibilityState={{ selected }}
-                      >
-                        <Ionicons name={icon} size={15} color={selected ? C.white : C.primary} />
-                        <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
-                          {t(`bills.cat_${cat.toLowerCase()}`)}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            ))}
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryScroll}
+          >
+            {CATEGORY_GROUPS.flatMap((g) => g.items).map((cat) => {
+              const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
+              const selected = category === cat;
+              return (
+                <Pressable
+                  key={cat}
+                  style={[styles.catChip, selected && styles.catChipSelected]}
+                  onPress={() => setCategory(cat)}
+                  accessible
+                  accessibilityRole="radio"
+                  accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
+                  accessibilityState={{ selected }}
+                >
+                  <Ionicons name={icon} size={15} color={selected ? C.white : C.primary} />
+                  <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
+                    {t(`bills.cat_${cat.toLowerCase()}`)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
 
         {/* Date */}
@@ -798,10 +793,7 @@ const makeStyles = (C: ColorTokens) =>
     },
     fillBtnText: { color: C.primary, fontSize: 13, ...font.semibold },
 
-    categoryGroups: { gap: sizes.sm },
-    categoryGroup: { gap: 6 },
-    categoryGroupLabel: { fontSize: 11, ...font.bold, letterSpacing: 0.7 },
-    categoryGroupChips: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+    categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
     catChip: {
       flexDirection: 'row',
       alignItems: 'center',
