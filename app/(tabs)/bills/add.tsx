@@ -636,7 +636,7 @@ export default function AddBillScreen(): React.JSX.Element {
             {CATEGORY_GROUPS.map((group) => (
               <View key={group.label} style={styles.categoryGroup}>
                 <Text style={[styles.categoryGroupLabel, { color: C.textSecondary }]}>
-                  {group.label.toUpperCase()}
+                  {t(group.label).toUpperCase()}
                 </Text>
                 <View style={styles.categoryGroupChips}>
                   {group.items.map((cat) => {
