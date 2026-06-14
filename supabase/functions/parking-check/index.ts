@@ -421,7 +421,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
               r.requested_by,
               r.house_id,
               '🅿️ Parking request expired',
-              castVotes.length === 0
+              eligibleVotes.length === 0
                 ? `Your request for ${r.date}${timeStr} expired — no votes were cast.`
                 : `Your request for ${r.date}${timeStr} expired — majority voted no.`,
               { screen: 'parking' }
@@ -476,7 +476,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
                 r.requested_by,
                 r.house_id,
                 '🅿️ Parking request expired',
-                castVotes.length === 0
+                eligibleVotes.length === 0
                   ? `Your request for today${timeStr} expired — no votes were cast.`
                   : `Your request for today${timeStr} expired — majority voted no.`,
                 { screen: 'parking' }
