@@ -376,8 +376,19 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         // ── #6a: Resolve pending reservations strictly in the past by vote tally ──
         if (r.status === 'pending' && r.date < today) {
           const castVotes = votesByReservation.get(r.id) ?? [];
-          const approveCount = castVotes.filter((v) => v.vote === 'approve').length;
-          const rejectCount = castVotes.filter((v) => v.vote === 'reject').length;
+          // Filter to eligible voters (current members minus requester) so the cron
+          // tally matches the in-app tallyParkingReservationVotes logic.
+          // If membersByHouse has no entry (member fetch errored), fall back to all
+          // votes so the reservation still resolves rather than defaulting to rejected.
+          const houseMembers = membersByHouse.get(r.house_id);
+          const eligibleVotes =
+            houseMembers != null
+              ? castVotes.filter(
+                  (v) => v.user_id !== r.requested_by && houseMembers.includes(v.user_id)
+                )
+              : castVotes;
+          const approveCount = eligibleVotes.filter((v) => v.vote === 'approve').length;
+          const rejectCount = eligibleVotes.filter((v) => v.vote === 'reject').length;
           const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';
 
           const { data: resolved6a, error: resolveErr } = await supabase
@@ -424,8 +435,15 @@ Deno.serve(async (_req: Request): Promise<Response> => {
           const startMins = r.start_time ? toMinutes(r.start_time) : 0;
           if (nowMins >= startMins) {
             const castVotes = votesByReservation.get(r.id) ?? [];
-            const approveCount = castVotes.filter((v) => v.vote === 'approve').length;
-            const rejectCount = castVotes.filter((v) => v.vote === 'reject').length;
+            const houseMembers = membersByHouse.get(r.house_id);
+            const eligibleVotes =
+              houseMembers != null
+                ? castVotes.filter(
+                    (v) => v.user_id !== r.requested_by && houseMembers.includes(v.user_id)
+                  )
+                : castVotes;
+            const approveCount = eligibleVotes.filter((v) => v.vote === 'approve').length;
+            const rejectCount = eligibleVotes.filter((v) => v.vote === 'reject').length;
             const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';
 
             const { data: resolved6b, error: resolveErr } = await supabase

@@ -127,6 +127,15 @@ Deno.serve(async (req: Request) => {
       : webBase.neq('user_id', exclude_user_id),
   ]);
 
+  if (tokenResult.error || webSubResult.error) {
+    const errMsg = tokenResult.error?.message ?? webSubResult.error?.message;
+    console.error('[send-push] push recipient lookup error:', errMsg);
+    return new Response(JSON.stringify({ error: 'An internal error occurred' }), {
+      status: 500,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+
   const tokenRows = tokenResult.data ?? [];
   const webSubRows = webSubResult.data ?? [];
 
