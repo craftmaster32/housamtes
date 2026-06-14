@@ -372,7 +372,8 @@
     "clear_all": "Borrar Todo",
     "clear_all_confirm_title": "¿Borrar todo el historial?",
     "clear_all_confirm_msg": "Se eliminarán permanentemente todas las reservas pasadas. No se puede deshacer.",
-    "error_clear_all_failed": "No se pudo borrar el historial"
+    "error_clear_all_failed": "No se pudo borrar el historial",
+    "abstain_note": "¿Sin votar? La mayoría decide por ti."
   },
   "grocery": {
     "title": "Lista de compras",

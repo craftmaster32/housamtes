@@ -94,6 +94,7 @@ export interface ReserveModalProps {
 
 // ── Vote status row ────────────────────────────────────────────────────────────
 function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const voters = housemates.filter((h) => h.id !== requestedBy);
@@ -135,7 +136,7 @@ function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.El
       {hasPendingVoters && (
         <View style={styles.voteAbstainNote}>
           <Ionicons name="information-circle-outline" size={10} color={C.textSecondary + '80'} />
-          <Text style={styles.voteAbstainText}>Not voting? Majority decides without you.</Text>
+          <Text style={styles.voteAbstainText}>{t('parking.abstain_note')}</Text>
         </View>
       )}
     </View>

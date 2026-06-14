@@ -252,10 +252,17 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     const pendingIds = allReservations.filter((r) => r.status === 'pending').map((r) => r.id);
     const votesByReservation = new Map<string, Array<{ user_id: string; vote: string }>>();
     if (pendingIds.length > 0) {
-      const { data: allVotes } = await supabase
+      const { data: allVotes, error: votesErr } = await supabase
         .from('parking_reservation_votes')
         .select('reservation_id, user_id, vote')
         .in('reservation_id', pendingIds);
+      if (votesErr) {
+        console.error('[parking-check] votes fetch error:', votesErr.message);
+        return new Response(JSON.stringify({ error: 'An internal error occurred' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       for (const v of (allVotes ?? []) as Array<{
         reservation_id: string;
         user_id: string;
@@ -367,10 +374,12 @@ Deno.serve(async (_req: Request): Promise<Response> => {
           const rejectCount = castVotes.filter((v) => v.vote === 'reject').length;
           const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';
 
-          const { error: resolveErr } = await supabase
+          const { data: resolved6a, error: resolveErr } = await supabase
             .from('parking_reservations')
             .update({ status: resolvedStatus })
-            .eq('id', r.id);
+            .eq('id', r.id)
+            .eq('status', 'pending') // guard: skip if already finalized by a concurrent vote
+            .select('id');
           if (resolveErr) {
             console.error(
               '[parking-check] auto-resolve (#6a) failed for',
@@ -379,6 +388,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
             );
             continue;
           }
+          if (!resolved6a?.length) continue; // already finalized — nothing to do
           if (resolvedStatus === 'approved') {
             await sendToUser(
               supabase,
@@ -412,10 +422,12 @@ Deno.serve(async (_req: Request): Promise<Response> => {
             const rejectCount = castVotes.filter((v) => v.vote === 'reject').length;
             const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';
 
-            const { error: resolveErr } = await supabase
+            const { data: resolved6b, error: resolveErr } = await supabase
               .from('parking_reservations')
               .update({ status: resolvedStatus })
-              .eq('id', r.id);
+              .eq('id', r.id)
+              .eq('status', 'pending') // guard: skip if already finalized by a concurrent vote
+              .select('id');
             if (resolveErr) {
               console.error(
                 '[parking-check] auto-resolve (#6b) failed for',
@@ -424,6 +436,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
               );
               continue;
             }
+            if (!resolved6b?.length) continue; // already finalized — nothing to do
             if (resolvedStatus === 'approved') {
               await sendToUser(
                 supabase,
@@ -467,8 +480,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
           const nonVoterIds = houseMembers.filter(
             (id) => id !== r.requested_by && !votedIds.has(id)
           );
+          let sentNonVoter = false;
           for (const voterId of nonVoterIds) {
-            await sendToUser(
+            const sent = await sendToUser(
               supabase,
               voterId,
               r.house_id,
@@ -476,9 +490,12 @@ Deno.serve(async (_req: Request): Promise<Response> => {
               `${rName} wants the spot on ${r.date}${timeStr} — vote by tomorrow or the majority decides.`,
               { screen: 'parking' }
             );
+            if (sent) sentNonVoter = true;
           }
 
-          if (sentRequester) updates.push({ id: r.id, patch: { pending_notice_sent: true } });
+          // Gate the flag on any successful notification so the batch isn't repeated on the next run
+          if (sentRequester || sentNonVoter)
+            updates.push({ id: r.id, patch: { pending_notice_sent: true } });
         }
 
         if (r.status !== 'approved') continue;

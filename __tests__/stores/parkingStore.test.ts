@@ -354,19 +354,17 @@ describe('parkingStore — addReservation', () => {
     };
     mockFrom.mockReturnValue(ok(timedRow));
 
-    await useParkingStore
-      .getState()
-      .addReservation(
-        {
-          requestedBy: 'uuid-alice',
-          date: '2026-04-20',
-          startTime: '09:00',
-          endTime: '11:00',
-          note: 'dentist',
-        },
-        'Alice',
-        'house-1'
-      );
+    await useParkingStore.getState().addReservation(
+      {
+        requestedBy: 'uuid-alice',
+        date: '2026-04-20',
+        startTime: '09:00',
+        endTime: '11:00',
+        note: 'dentist',
+      },
+      'Alice',
+      'house-1'
+    );
 
     // Read-path: camelCase fields mapped correctly in store state
     expect(useParkingStore.getState().reservations[0]).toMatchObject({
@@ -526,6 +524,16 @@ describe('parkingStore — voteOnReservation', () => {
       votes: [{ userId: 'u1', vote: 'reject' }],
     });
     expect(mockFrom).toHaveBeenCalledTimes(3);
+
+    const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as {
+      notifyHousemates: jest.Mock;
+    };
+    expect(notifyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeUserIds: ['u2'],
+        notificationType: 'parking_reservation',
+      })
+    );
   });
 
   it('approves after everyone votes and approve has the higher count', async () => {

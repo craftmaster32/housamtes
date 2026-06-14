@@ -383,7 +383,8 @@
     "clear_all": "Clear All",
     "clear_all_confirm_title": "Clear all history?",
     "clear_all_confirm_msg": "This will permanently remove all past reservations. This can't be undone.",
-    "error_clear_all_failed": "Could not clear history"
+    "error_clear_all_failed": "Could not clear history",
+    "abstain_note": "Not voting? Majority decides without you."
   },
   "grocery": {
     "title": "Grocery List",

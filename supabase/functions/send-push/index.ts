@@ -116,11 +116,13 @@ Deno.serve(async (req: Request) => {
     .from('web_push_subscriptions')
     .select('endpoint, p256dh, auth, user_id')
     .eq('house_id', house_id);
+  // Distinguish "not provided" (use exclude path) from "explicit list, even empty" (use include path).
+  // An empty include_user_ids means send to nobody — don't fall back to broadcasting.
   const [tokenResult, webSubResult] = await Promise.all([
-    include_user_ids?.length
+    include_user_ids !== undefined
       ? tokenBase.in('user_id', include_user_ids)
       : tokenBase.neq('user_id', exclude_user_id),
-    include_user_ids?.length
+    include_user_ids !== undefined
       ? webBase.in('user_id', include_user_ids)
       : webBase.neq('user_id', exclude_user_id),
   ]);
