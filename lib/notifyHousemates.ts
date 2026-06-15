@@ -18,6 +18,8 @@ export type NotificationType =
 interface NotifyParams {
   houseId: string;
   excludeUserId: string;
+  /** When provided, only these user IDs receive the notification (overrides excludeUserId). */
+  includeUserIds?: string[];
   title: string;
   body: string;
   data?: Record<string, string>;
@@ -34,6 +36,7 @@ interface NotifyParams {
 export async function notifyHousemates({
   houseId,
   excludeUserId,
+  includeUserIds,
   title,
   body,
   data,
@@ -53,6 +56,7 @@ export async function notifyHousemates({
       body: JSON.stringify({
         house_id: houseId,
         exclude_user_id: excludeUserId,
+        ...(includeUserIds ? { include_user_ids: includeUserIds } : {}),
         title,
         body,
         data,
@@ -63,6 +67,6 @@ export async function notifyHousemates({
       throw new Error(`send-push returned ${res.status}`);
     }
   } catch (err) {
-    captureError(err, { context: 'notifyHousemates' });
+    captureError(err, { context: 'notifyHousemates', houseId, excludeUserId });
   }
 }

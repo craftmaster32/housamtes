@@ -371,7 +371,8 @@
     "clear_all": "נקה הכל",
     "clear_all_confirm_title": "לנקות את כל ההיסטוריה?",
     "clear_all_confirm_msg": "פעולה זו תמחק לצמיתות את כל ההזמנות שעברו. לא ניתן לשחזר.",
-    "error_clear_all_failed": "לא ניתן לנקות את ההיסטוריה"
+    "error_clear_all_failed": "לא ניתן לנקות את ההיסטוריה",
+    "abstain_note": "לא מצביע? הרוב מחליט בלעדיך."
   },
   "grocery": {
     "title": "רשימת קניות",

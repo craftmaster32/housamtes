@@ -83,11 +83,18 @@ export function tallyParkingReservationVotes(
   const currentVotes = Array.from(voteByUser.values());
   const approveCount = currentVotes.filter((vote) => vote === 'approve').length;
   const rejectCount = currentVotes.filter((vote) => vote === 'reject').length;
+  const votedCount = voteByUser.size;
+  const remaining = eligibleVoterIds.length - votedCount;
   const hasEveryoneVoted =
     eligibleVoterIds.length > 0 && eligibleVoterIds.every((id) => voteByUser.has(id));
 
   let status: ParkingReservationStatus = 'pending';
-  if (hasEveryoneVoted && approveCount > rejectCount) {
+  // Resolve early when the leader can no longer be overtaken by remaining votes
+  if (approveCount > rejectCount + remaining) {
+    status = 'approved';
+  } else if (rejectCount > approveCount + remaining) {
+    status = 'rejected';
+  } else if (hasEveryoneVoted && approveCount > rejectCount) {
     status = 'approved';
   } else if (hasEveryoneVoted && rejectCount > approveCount) {
     status = 'rejected';
@@ -96,7 +103,7 @@ export function tallyParkingReservationVotes(
   return {
     approveCount,
     rejectCount,
-    votedCount: voteByUser.size,
+    votedCount,
     eligibleVoterCount: eligibleVoterIds.length,
     hasEveryoneVoted,
     status,
@@ -544,6 +551,23 @@ export const useParkingStore = create<ParkingStore>()(
                 data: { screen: 'parking' },
                 notificationType: 'parking_reservation',
               });
+            }
+          } else {
+            // Vote cast but still pending — remind whoever hasn't voted yet
+            const votedUserIds = new Set(votes.map((v) => v.userId));
+            const nonVoterIds = voterIds.filter((id) => !votedUserIds.has(id));
+            if (nonVoterIds.length > 0) {
+              notifyHousemates({
+                houseId,
+                excludeUserId: userId,
+                includeUserIds: nonVoterIds,
+                title: '🗳️ Your vote is needed!',
+                body: `The parking vote for ${localReservation.date} is still open — cast your vote before it expires.`,
+                data: { screen: 'parking' },
+                notificationType: 'parking_reservation',
+              }).catch((err) =>
+                captureError(err, { context: 'notify-non-voters', houseId, userId })
+              );
             }
           }
 

@@ -28,19 +28,23 @@ import { ok, fail } from '../__helpers__/supabaseMock';
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
-const mockRpc  = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
-    rpc:  (...a: unknown[]): unknown => mockRpc(...a),
+    rpc: (...a: unknown[]): unknown => mockRpc(...a),
     channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
     removeChannel: jest.fn(),
-    auth: { getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } }) },
+    auth: {
+      getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } }),
+    },
   },
 }));
 
-jest.mock('@lib/notifyHousemates', () => ({ notifyHousemates: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@lib/notifyHousemates', () => ({
+  notifyHousemates: jest.fn().mockResolvedValue(undefined),
+}));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -102,27 +106,51 @@ describe('isDateConflict', () => {
 
   // Time-aware: overlapping slots
   it('blocks when new slot overlaps existing timed reservation', () => {
-    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
     const { conflict } = isDateConflict('2026-04-20', '10:00', '12:00', [r]);
     expect(conflict).toMatch(/Overlaps/i);
   });
 
   it('allows non-overlapping timed slots on the same day', () => {
-    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
     const { conflict } = isDateConflict('2026-04-20', '13:00', '14:00', [r]);
     expect(conflict).toBeNull();
   });
 
   // Time-aware: gap warnings
   it('warns when gap between slots is <= 60 minutes', () => {
-    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '10:00' });
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '10:00',
+    });
     const { conflict, warning } = isDateConflict('2026-04-20', '10:30', '11:30', [r]);
     expect(conflict).toBeNull();
     expect(warning).not.toBeNull();
   });
 
   it('warns more strongly when gap is <= 15 minutes', () => {
-    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '10:00' });
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '10:00',
+    });
     const { conflict, warning } = isDateConflict('2026-04-20', '10:10', '11:00', [r]);
     expect(conflict).toBeNull();
     expect(warning).toMatch(/tight/i);
@@ -136,21 +164,39 @@ describe('isDateConflict', () => {
   });
 
   it('blocks all-day request against a timed reservation (hard conflict)', () => {
-    const r = reservation({ date: '2026-04-20', requestedBy: 'Alice', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Alice',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
     const { conflict } = isDateConflict('2026-04-20', undefined, undefined, [r]);
     expect(conflict).not.toBeNull();
   });
 
   // One-sided time inputs: form is mid-entry — must never block
   it('does not conflict when only startTime is provided (endTime still empty)', () => {
-    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
     const { conflict, warning } = isDateConflict('2026-04-20', '10:00', undefined, [r]);
     expect(conflict).toBeNull();
     expect(warning).toBeNull();
   });
 
   it('does not conflict when only endTime is provided (startTime still empty)', () => {
-    const r = reservation({ date: '2026-04-20', requestedBy: 'Bob', status: 'approved', startTime: '09:00', endTime: '11:00' });
+    const r = reservation({
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '09:00',
+      endTime: '11:00',
+    });
     const { conflict, warning } = isDateConflict('2026-04-20', undefined, '12:00', [r]);
     expect(conflict).toBeNull();
     expect(warning).toBeNull();
@@ -158,8 +204,22 @@ describe('isDateConflict', () => {
 
   it('conflict takes precedence over warning when multiple reservations exist', () => {
     // r1 would produce a gap warning (30 min gap), r2 overlaps → conflict must win
-    const r1 = reservation({ id: 'r1', date: '2026-04-20', requestedBy: 'Bob',   status: 'approved', startTime: '08:00', endTime: '09:00' });
-    const r2 = reservation({ id: 'r2', date: '2026-04-20', requestedBy: 'Carol', status: 'approved', startTime: '10:00', endTime: '12:00' });
+    const r1 = reservation({
+      id: 'r1',
+      date: '2026-04-20',
+      requestedBy: 'Bob',
+      status: 'approved',
+      startTime: '08:00',
+      endTime: '09:00',
+    });
+    const r2 = reservation({
+      id: 'r2',
+      date: '2026-04-20',
+      requestedBy: 'Carol',
+      status: 'approved',
+      startTime: '10:00',
+      endTime: '12:00',
+    });
     // New slot: 09:30–11:00 — 30 min gap after r1 (warning), overlaps r2 (conflict)
     const { conflict, warning } = isDateConflict('2026-04-20', '09:30', '11:00', [r1, r2]);
     expect(conflict).not.toBeNull();
@@ -185,7 +245,7 @@ describe('parkingStore — claim', () => {
   });
 
   it('throws when the DB insert fails', async () => {
-    mockFrom.mockReturnValue(fail('unique constraint'));  // insert fails
+    mockFrom.mockReturnValue(fail('unique constraint')); // insert fails
 
     await expect(
       useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1')
@@ -195,26 +255,25 @@ describe('parkingStore — claim', () => {
   });
 
   it('sets current session state on successful claim', async () => {
-    mockFrom.mockReturnValue(ok({ id: 'ps2', occupant: 'Alice', start_time: '09:00' }));  // insert
+    mockFrom.mockReturnValue(ok({ id: 'ps2', occupant: 'uuid-alice', start_time: '09:00' })); // insert
 
     await useParkingStore.getState().claim('uuid-alice', 'Alice', 'house-1');
 
     expect(useParkingStore.getState().current).toMatchObject({
       id: 'ps2',
-      occupant: 'Alice',
+      occupant: 'uuid-alice',
     });
   });
 
   it('throws when name is empty string (profile not loaded guard)', async () => {
     // Guard added: name.trim() === '' throws before any DB call.
-    await expect(
-      useParkingStore.getState().claim('', '', 'house-1')
-    ).rejects.toThrow('User ID is required to claim parking');
+    await expect(useParkingStore.getState().claim('', '', 'house-1')).rejects.toThrow(
+      'User ID is required to claim parking'
+    );
 
     expect(mockFrom).not.toHaveBeenCalled();
     expect(useParkingStore.getState().current).toBeNull();
   });
-
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,9 +291,9 @@ describe('parkingStore — release', () => {
     useParkingStore.setState({ current: { id: 'ps1', occupant: 'Alice', startTime: '09:00' } });
     mockFrom.mockReturnValue(fail('connection lost'));
 
-    await expect(
-      useParkingStore.getState().release('house-1')
-    ).rejects.toThrow('Could not release the parking spot. Please try again.');
+    await expect(useParkingStore.getState().release('house-1')).rejects.toThrow(
+      'Could not release the parking spot. Please try again.'
+    );
 
     // Session should still be set — no rollback because release throws before set({ current: null })
     expect(useParkingStore.getState().current).not.toBeNull();
@@ -242,7 +301,7 @@ describe('parkingStore — release', () => {
 
   it('clears current session on successful release', async () => {
     useParkingStore.setState({ current: { id: 'ps1', occupant: 'Alice', startTime: '09:00' } });
-    mockFrom.mockReturnValue(ok([{ id: 'ps1' }]));  // update returns the affected row
+    mockFrom.mockReturnValue(ok([{ id: 'ps1' }])); // update returns the affected row
 
     await useParkingStore.getState().release('house-1');
 
@@ -256,8 +315,13 @@ describe('parkingStore — release', () => {
 
 describe('parkingStore — addReservation', () => {
   const baseRow = {
-    id: 'r2', requested_by: 'uuid-alice', date: '2026-04-20',
-    start_time: null, end_time: null, note: '', status: 'pending',
+    id: 'r2',
+    requested_by: 'uuid-alice',
+    date: '2026-04-20',
+    start_time: null,
+    end_time: null,
+    note: '',
+    status: 'pending',
     created_at: '2026-04-18T11:00:00Z',
   };
 
@@ -265,11 +329,13 @@ describe('parkingStore — addReservation', () => {
     useParkingStore.setState({ reservations: [] });
     mockFrom.mockReturnValue(ok(baseRow));
 
-    const id = await useParkingStore.getState().addReservation(
-      { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
-      'Alice',
-      'house-1'
-    );
+    const id = await useParkingStore
+      .getState()
+      .addReservation(
+        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+        'Alice',
+        'house-1'
+      );
 
     expect(id).toBe('r2');
     expect(useParkingStore.getState().reservations).toContainEqual(
@@ -279,23 +345,37 @@ describe('parkingStore — addReservation', () => {
 
   it('maps timed start/end fields correctly', async () => {
     useParkingStore.setState({ reservations: [] });
-    const timedRow = { ...baseRow, id: 'r3', start_time: '09:00', end_time: '11:00', note: 'dentist' };
-    mockFrom.mockReturnValue(ok(timedRow));
+    const timedRow = {
+      ...baseRow,
+      id: 'r3',
+      start_time: '09:00',
+      end_time: '11:00',
+      note: 'dentist',
+    };
+    const chain = ok(timedRow);
+    mockFrom.mockReturnValue(chain);
 
     await useParkingStore.getState().addReservation(
-      { requestedBy: 'uuid-alice', date: '2026-04-20', startTime: '09:00', endTime: '11:00', note: 'dentist' },
+      {
+        requestedBy: 'uuid-alice',
+        date: '2026-04-20',
+        startTime: '09:00',
+        endTime: '11:00',
+        note: 'dentist',
+      },
       'Alice',
       'house-1'
     );
 
     // Read-path: camelCase fields mapped correctly in store state
     expect(useParkingStore.getState().reservations[0]).toMatchObject({
-      startTime: '09:00', endTime: '11:00', note: 'dentist',
+      startTime: '09:00',
+      endTime: '11:00',
+      note: 'dentist',
     });
 
     // Write-path: snake_case fields sent to DB
-    const insertMock = (mockFrom.mock.results[0].value as Record<string, jest.Mock>).insert;
-    expect(insertMock).toHaveBeenCalledWith(
+    expect(chain.insert as jest.Mock).toHaveBeenCalledWith(
       expect.objectContaining({ start_time: '09:00', end_time: '11:00' })
     );
   });
@@ -305,11 +385,13 @@ describe('parkingStore — addReservation', () => {
     mockFrom.mockReturnValue(fail('DB error'));
 
     await expect(
-      useParkingStore.getState().addReservation(
-        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
-        'Alice',
-        'house-1'
-      )
+      useParkingStore
+        .getState()
+        .addReservation(
+          { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
+          'Alice',
+          'house-1'
+        )
     ).rejects.toThrow('Could not save the reservation. Please try again.');
 
     expect(useParkingStore.getState().reservations).toHaveLength(0);
@@ -317,11 +399,9 @@ describe('parkingStore — addReservation', () => {
 
   it('throws when houseId is empty', async () => {
     await expect(
-      useParkingStore.getState().addReservation(
-        { requestedBy: 'uuid-alice', date: '2026-04-20', note: '' },
-        'Alice',
-        ''
-      )
+      useParkingStore
+        .getState()
+        .addReservation({ requestedBy: 'uuid-alice', date: '2026-04-20', note: '' }, 'Alice', '')
     ).rejects.toThrow(/profile loads/i);
     expect(mockFrom).not.toHaveBeenCalled();
   });
@@ -330,14 +410,18 @@ describe('parkingStore — addReservation', () => {
     useParkingStore.setState({ reservations: [] });
     const notifyRow = { ...baseRow, id: 'r4', date: '2026-04-26' };
     mockFrom.mockReturnValue(ok(notifyRow));
-    const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as { notifyHousemates: jest.Mock };
+    const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as {
+      notifyHousemates: jest.Mock;
+    };
     notifyMock.mockRejectedValueOnce(new Error('push failed'));
 
-    const id = await useParkingStore.getState().addReservation(
-      { requestedBy: 'uuid-alice', date: '2026-04-26', note: '' },
-      'Alice',
-      'house-1'
-    );
+    const id = await useParkingStore
+      .getState()
+      .addReservation(
+        { requestedBy: 'uuid-alice', date: '2026-04-26', note: '' },
+        'Alice',
+        'house-1'
+      );
 
     expect(id).toBe('r4');
     expect(useParkingStore.getState().reservations).toContainEqual(
@@ -379,7 +463,9 @@ describe('parkingStore — checkReservationAutoApply', () => {
     const todayStr = localDateStr();
     useParkingStore.setState({
       current: null,
-      reservations: [reservation({ status: 'approved', date: todayStr, startTime: '00:00', endTime: '23:59' })],
+      reservations: [
+        reservation({ status: 'approved', date: todayStr, startTime: '00:00', endTime: '23:59' }),
+      ],
     });
 
     // Server says there IS already an active session (another user claimed since load)
@@ -396,12 +482,18 @@ describe('parkingStore — checkReservationAutoApply', () => {
     useParkingStore.setState({
       current: null,
       reservations: [
-        reservation({ status: 'approved', date: todayStr, startTime: '00:00', endTime: '23:59', requestedBy: 'Carol' }),
+        reservation({
+          status: 'approved',
+          date: todayStr,
+          startTime: '00:00',
+          endTime: '23:59',
+          requestedBy: 'Carol',
+        }),
       ],
     });
 
     mockFrom
-      .mockReturnValueOnce(ok(null))  // server check: no active session
+      .mockReturnValueOnce(ok(null)) // server check: no active session
       .mockReturnValueOnce(ok({ id: 'ps-new', occupant: 'Carol', start_time: '00:00' })); // insert
 
     await useParkingStore.getState().checkReservationAutoApply('house-1');
@@ -432,6 +524,16 @@ describe('parkingStore — voteOnReservation', () => {
       votes: [{ userId: 'u1', vote: 'reject' }],
     });
     expect(mockFrom).toHaveBeenCalledTimes(3);
+
+    const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as {
+      notifyHousemates: jest.Mock;
+    };
+    expect(notifyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeUserIds: ['u2'],
+        notificationType: 'parking_reservation',
+      })
+    );
   });
 
   it('approves after everyone votes and approve has the higher count', async () => {
@@ -440,17 +542,16 @@ describe('parkingStore — voteOnReservation', () => {
     });
     mockFrom
       .mockReturnValueOnce(ok())
-      .mockReturnValueOnce(ok([
-        { user_id: 'u1', vote: 'approve' },
-        { user_id: 'u2', vote: 'reject' },
-        { user_id: 'u3', vote: 'approve' },
-      ]))
-      .mockReturnValueOnce(ok([
-        { user_id: 'requester' },
-        { user_id: 'u1' },
-        { user_id: 'u2' },
-        { user_id: 'u3' },
-      ]))
+      .mockReturnValueOnce(
+        ok([
+          { user_id: 'u1', vote: 'approve' },
+          { user_id: 'u2', vote: 'reject' },
+          { user_id: 'u3', vote: 'approve' },
+        ])
+      )
+      .mockReturnValueOnce(
+        ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }, { user_id: 'u3' }])
+      )
       .mockReturnValueOnce(ok([{ id: 'r1' }]));
 
     const status = await useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1');
@@ -484,7 +585,8 @@ describe('tallyParkingReservationVotes', () => {
     expect(tally.status).toBe('rejected');
   });
 
-  it('stays pending until every eligible voter has voted', () => {
+  it('stays pending when remaining votes could still flip the result', () => {
+    // 1 reject, 1 remaining: reject (1) > approve (0) + remaining (1) → 1 > 1 → false → pending
     const tally = tallyParkingReservationVotes([{ userId: 'u1', vote: 'reject' }], ['u1', 'u2']);
 
     expect(tally.hasEveryoneVoted).toBe(false);
@@ -502,6 +604,42 @@ describe('tallyParkingReservationVotes', () => {
     );
 
     expect(tally.status).toBe('approved');
+  });
+
+  it('approves early when approval lead is irreversible (3 of 5 approve)', () => {
+    // 3 approve, 0 reject, 2 remaining: 3 > 0+2 → true → approved without waiting
+    const tally = tallyParkingReservationVotes(
+      [
+        { userId: 'u1', vote: 'approve' },
+        { userId: 'u2', vote: 'approve' },
+        { userId: 'u3', vote: 'approve' },
+      ],
+      ['u1', 'u2', 'u3', 'u4', 'u5']
+    );
+
+    expect(tally.status).toBe('approved');
+    expect(tally.hasEveryoneVoted).toBe(false);
+  });
+
+  it('rejects early when rejection lead is irreversible (2 of 3 reject)', () => {
+    // 2 reject, 0 approve, 1 remaining: 2 > 0+1 → true → rejected without waiting
+    const tally = tallyParkingReservationVotes(
+      [
+        { userId: 'u1', vote: 'reject' },
+        { userId: 'u2', vote: 'reject' },
+      ],
+      ['u1', 'u2', 'u3']
+    );
+
+    expect(tally.status).toBe('rejected');
+    expect(tally.hasEveryoneVoted).toBe(false);
+  });
+
+  it('stays pending when 1 of 2 eligible voters has approved (can still be tied)', () => {
+    // 1 approve, 0 reject, 1 remaining: 1 > 0+1 → false → pending (deadline resolves it)
+    const tally = tallyParkingReservationVotes([{ userId: 'u1', vote: 'approve' }], ['u1', 'u2']);
+
+    expect(tally.status).toBe('pending');
   });
 });
 
@@ -524,9 +662,9 @@ describe('parkingStore — cancelReservation', () => {
     useParkingStore.setState({ reservations: [reservation({ id: 'r1' })], current: null });
     mockFrom.mockReturnValue(fail('network error'));
 
-    await expect(
-      useParkingStore.getState().cancelReservation('r1', 'house-1')
-    ).rejects.toThrow('Could not cancel the reservation. Please try again.');
+    await expect(useParkingStore.getState().cancelReservation('r1', 'house-1')).rejects.toThrow(
+      'Could not cancel the reservation. Please try again.'
+    );
 
     expect(useParkingStore.getState().reservations).toHaveLength(1); // unchanged
   });

@@ -248,6 +248,32 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       ...((pastPending ?? []) as Reservation[]),
     ];
 
+    // Pre-fetch votes for all pending reservations so we can tally at deadline
+    const pendingIds = allReservations.filter((r) => r.status === 'pending').map((r) => r.id);
+    const votesByReservation = new Map<string, Array<{ user_id: string; vote: string }>>();
+    if (pendingIds.length > 0) {
+      const { data: allVotes, error: votesErr } = await supabase
+        .from('parking_reservation_votes')
+        .select('reservation_id, user_id, vote')
+        .in('reservation_id', pendingIds);
+      if (votesErr) {
+        console.error('[parking-check] votes fetch error:', votesErr.message);
+        return new Response(JSON.stringify({ error: 'An internal error occurred' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      for (const v of (allVotes ?? []) as Array<{
+        reservation_id: string;
+        user_id: string;
+        vote: string;
+      }>) {
+        const arr = votesByReservation.get(v.reservation_id) ?? [];
+        arr.push(v);
+        votesByReservation.set(v.reservation_id, arr);
+      }
+    }
+
     // Fetch all active parking sessions
     const { data: sessions, error: sessErr } = await supabase
       .from('parking_sessions')
@@ -283,6 +309,29 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         houseTimezone = new Map(
           ((housesData ?? []) as HouseRow[]).map((h) => [h.id, h.timezone || 'UTC'])
         );
+      }
+    }
+
+    // Pre-fetch house members per house (for non-voter calculation in reminders)
+    const membersByHouse = new Map<string, string[]>();
+    // Pre-seed so houses with zero DB rows get [] rather than undefined,
+    // letting #6a/#6b distinguish "no members" from "fetch failed".
+    for (const hid of houseIds) membersByHouse.set(hid, []);
+    let membersError = false;
+    if (houseIds.length > 0) {
+      const { data: memberRows, error: membersErr } = await supabase
+        .from('house_members')
+        .select('house_id, user_id')
+        .in('house_id', houseIds);
+      if (membersErr) {
+        console.error('[parking-check] house_members fetch error:', membersErr.message);
+        membersError = true;
+      } else {
+        for (const m of (memberRows ?? []) as Array<{ house_id: string; user_id: string }>) {
+          const arr = membersByHouse.get(m.house_id) ?? [];
+          arr.push(m.user_id);
+          membersByHouse.set(m.house_id, arr);
+        }
       }
     }
 
@@ -327,62 +376,164 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         const rName = names.get(r.requested_by) ?? 'A housemate';
         const timeStr = r.start_time ? ` at ${r.start_time}` : '';
 
-        // ── #6a: Auto-reject pending reservations strictly in the past ────────────
+        // ── #6a: Resolve pending reservations strictly in the past by vote tally ──
         if (r.status === 'pending' && r.date < today) {
-          const { error: rejErr } = await supabase
+          const castVotes = votesByReservation.get(r.id) ?? [];
+          // Filter to eligible voters (current members minus requester) so the cron
+          // tally matches the in-app tallyParkingReservationVotes logic.
+          // If membersByHouse has no entry (member fetch errored), fall back to all
+          // votes so the reservation still resolves rather than defaulting to rejected.
+          const houseMembers = membersByHouse.get(r.house_id) ?? [];
+          const eligibleVotes = !membersError
+            ? castVotes.filter(
+                (v) => v.user_id !== r.requested_by && houseMembers.includes(v.user_id)
+              )
+            : castVotes;
+          const approveCount = eligibleVotes.filter((v) => v.vote === 'approve').length;
+          const rejectCount = eligibleVotes.filter((v) => v.vote === 'reject').length;
+          const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';
+
+          const { data: resolved6a, error: resolveErr } = await supabase
             .from('parking_reservations')
-            .update({ status: 'rejected' })
-            .eq('id', r.id);
-          if (rejErr) {
-            console.error('[parking-check] auto-reject (#6a) failed for', r.id, rejErr.message);
+            .update({ status: resolvedStatus })
+            .eq('id', r.id)
+            .eq('status', 'pending') // guard: skip if already finalized by a concurrent vote
+            .select('id');
+          if (resolveErr) {
+            console.error(
+              '[parking-check] auto-resolve (#6a) failed for',
+              r.id,
+              resolveErr.message
+            );
             continue;
           }
-          await sendToUser(
-            supabase,
-            r.requested_by,
-            r.house_id,
-            '🅿️ Parking request expired',
-            `Your request for ${r.date}${timeStr} was auto-rejected — no vote was completed in time.`,
-            { screen: 'parking' }
-          );
-          continue;
-        }
-
-        // ── #6b: Auto-reject today's pending if start time has passed ─────────────
-        if (r.status === 'pending' && r.date === today) {
-          const startMins = r.start_time ? toMinutes(r.start_time) : 0;
-          if (nowMins >= startMins) {
-            const { error: rejErr } = await supabase
-              .from('parking_reservations')
-              .update({ status: 'rejected' })
-              .eq('id', r.id);
-            if (rejErr) {
-              console.error('[parking-check] auto-reject (#6b) failed for', r.id, rejErr.message);
-              continue;
-            }
+          if (!resolved6a?.length) continue; // already finalized — nothing to do
+          if (resolvedStatus === 'approved') {
+            await sendToUser(
+              supabase,
+              r.requested_by,
+              r.house_id,
+              '✅ Parking approved!',
+              `Your request for ${r.date}${timeStr} was approved by the majority vote.`,
+              { screen: 'parking' }
+            );
+          } else {
             await sendToUser(
               supabase,
               r.requested_by,
               r.house_id,
               '🅿️ Parking request expired',
-              `Your request for today${timeStr} was auto-rejected — no vote was completed in time.`,
+              eligibleVotes.length === 0
+                ? `Your request for ${r.date}${timeStr} expired — no votes were cast.`
+                : approveCount === rejectCount
+                  ? `Your request for ${r.date}${timeStr} expired — the vote was tied.`
+                  : `Your request for ${r.date}${timeStr} expired — majority voted no.`,
               { screen: 'parking' }
             );
+          }
+          continue;
+        }
+
+        // ── #6b: Resolve today's pending by vote tally if start time has passed ──
+        if (r.status === 'pending' && r.date === today) {
+          const startMins = r.start_time ? toMinutes(r.start_time) : 0;
+          if (nowMins >= startMins) {
+            const castVotes = votesByReservation.get(r.id) ?? [];
+            const houseMembers = membersByHouse.get(r.house_id) ?? [];
+            const eligibleVotes = !membersError
+              ? castVotes.filter(
+                  (v) => v.user_id !== r.requested_by && houseMembers.includes(v.user_id)
+                )
+              : castVotes;
+            const approveCount = eligibleVotes.filter((v) => v.vote === 'approve').length;
+            const rejectCount = eligibleVotes.filter((v) => v.vote === 'reject').length;
+            const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';
+
+            const { data: resolved6b, error: resolveErr } = await supabase
+              .from('parking_reservations')
+              .update({ status: resolvedStatus })
+              .eq('id', r.id)
+              .eq('status', 'pending') // guard: skip if already finalized by a concurrent vote
+              .select('id');
+            if (resolveErr) {
+              console.error(
+                '[parking-check] auto-resolve (#6b) failed for',
+                r.id,
+                resolveErr.message
+              );
+              continue;
+            }
+            if (!resolved6b?.length) continue; // already finalized — nothing to do
+            if (resolvedStatus === 'approved') {
+              await sendToUser(
+                supabase,
+                r.requested_by,
+                r.house_id,
+                '✅ Parking approved!',
+                `Your request for today${timeStr} was approved by the majority vote.`,
+                { screen: 'parking' }
+              );
+            } else {
+              await sendToUser(
+                supabase,
+                r.requested_by,
+                r.house_id,
+                '🅿️ Parking request expired',
+                eligibleVotes.length === 0
+                  ? `Your request for today${timeStr} expired — no votes were cast.`
+                  : approveCount === rejectCount
+                    ? `Your request for today${timeStr} expired — the vote was tied.`
+                    : `Your request for today${timeStr} expired — majority voted no.`,
+                { screen: 'parking' }
+              );
+            }
             continue;
           }
         }
 
         // ── #6c: 24h-before notice for tomorrow's pending reservations ────────────
-        if (r.status === 'pending' && r.date === tomorrow && !r.pending_notice_sent) {
-          const sent = await sendToUser(
+        // Skip entirely when membersError is set — without the member list we can't
+        // notify non-voters, so we must not set pending_notice_sent either. The next
+        // cron run will retry once the member fetch recovers.
+        if (
+          r.status === 'pending' &&
+          r.date === tomorrow &&
+          !r.pending_notice_sent &&
+          !membersError
+        ) {
+          const sentRequester = await sendToUser(
             supabase,
             r.requested_by,
             r.house_id,
             '⏳ Parking vote still open',
-            `Your parking request for ${r.date}${timeStr} hasn't been voted on yet.`,
+            `Your parking request for ${r.date}${timeStr} hasn't been decided yet — vote closes tomorrow.`,
             { screen: 'parking' }
           );
-          if (sent) updates.push({ id: r.id, patch: { pending_notice_sent: true } });
+
+          // Also ping anyone who hasn't voted yet
+          const houseMembers = membersByHouse.get(r.house_id) ?? [];
+          const castVotes = votesByReservation.get(r.id) ?? [];
+          const votedIds = new Set(castVotes.map((v) => v.user_id));
+          const nonVoterIds = houseMembers.filter(
+            (id) => id !== r.requested_by && !votedIds.has(id)
+          );
+          let sentNonVoter = false;
+          for (const voterId of nonVoterIds) {
+            const sent = await sendToUser(
+              supabase,
+              voterId,
+              r.house_id,
+              '🗳️ Vote before the deadline!',
+              `${rName} wants the spot on ${r.date}${timeStr} — vote by tomorrow or the majority decides.`,
+              { screen: 'parking' }
+            );
+            if (sent) sentNonVoter = true;
+          }
+
+          // Gate the flag on success and only when the member list was actually available.
+          // If the member fetch errored, skip setting the flag so non-voters get reminded next run.
+          if ((sentRequester || sentNonVoter) && !membersError)
+            updates.push({ id: r.id, patch: { pending_notice_sent: true } });
         }
 
         if (r.status !== 'approved') continue;

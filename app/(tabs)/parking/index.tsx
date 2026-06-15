@@ -94,36 +94,51 @@ export interface ReserveModalProps {
 
 // ── Vote status row ────────────────────────────────────────────────────────────
 function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const voters = housemates.filter((h) => h.id !== requestedBy);
   if (voters.length === 0) return <View />;
 
+  const hasPendingVoters = voters.some((h) => !votes.find((v) => v.userId === h.id));
+
   return (
-    <View style={styles.voteRow}>
-      {voters.map((h) => {
-        const v = votes.find((vote) => vote.userId === h.id);
-        const dotStyle =
-          v?.vote === 'approve'
-            ? styles.dotApprove
-            : v?.vote === 'reject'
-              ? styles.dotReject
-              : styles.dotPending;
-        const dotIcon =
-          v?.vote === 'approve' ? 'checkmark' : v?.vote === 'reject' ? 'close' : 'remove';
-        return (
-          <View key={h.id} style={styles.voteAvatarWrap}>
-            <View style={[styles.voteAvatarCircle, { backgroundColor: h.color + '30' }]}>
-              <Text style={[styles.voteAvatarInitial, { color: h.color }]}>
-                {h.name.charAt(0).toUpperCase()}
-              </Text>
+    <View style={styles.voteRowWrapper}>
+      <View style={styles.voteRow}>
+        {voters.map((h) => {
+          const v = votes.find((vote) => vote.userId === h.id);
+          const dotStyle =
+            v?.vote === 'approve'
+              ? styles.dotApprove
+              : v?.vote === 'reject'
+                ? styles.dotReject
+                : styles.dotPending;
+          const dotIcon =
+            v?.vote === 'approve' ? 'checkmark' : v?.vote === 'reject' ? 'close' : 'remove';
+          return (
+            <View key={h.id} style={styles.voteAvatarWrap}>
+              <View style={[styles.voteAvatarCircle, { backgroundColor: h.color + '30' }]}>
+                <Text style={[styles.voteAvatarInitial, { color: h.color }]}>
+                  {h.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={[styles.voteDot, dotStyle]}>
+                <Ionicons
+                  name={dotIcon as 'checkmark' | 'close' | 'remove'}
+                  size={7}
+                  color="#fff"
+                />
+              </View>
             </View>
-            <View style={[styles.voteDot, dotStyle]}>
-              <Ionicons name={dotIcon as 'checkmark' | 'close' | 'remove'} size={7} color="#fff" />
-            </View>
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
+      {hasPendingVoters && (
+        <View style={styles.voteAbstainNote} accessibilityRole="text">
+          <Ionicons name="information-circle-outline" size={10} color={C.textSecondary} />
+          <Text style={styles.voteAbstainText}>{t('parking.abstain_note')}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -1292,7 +1307,10 @@ const makeStyles = (C: ColorTokens) =>
     resActions: { gap: 6, alignItems: 'center', paddingTop: 2 },
     iconBtn: { padding: 4 },
 
-    voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    voteRowWrapper: { marginTop: 2, gap: 3 },
+    voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    voteAbstainNote: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    voteAbstainText: { fontSize: 10, ...font.regular, color: C.textSecondary, flex: 1 },
     voteAvatarWrap: { position: 'relative', width: 28, height: 28 },
     voteAvatarCircle: {
       width: 28,
