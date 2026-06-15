@@ -68,6 +68,13 @@ function localDateStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// A date far enough ahead of "now" that isReservationPastDue is always false,
+// for tests that don't care about the voting-deadline guards.
+function futureDateStr(daysAhead: number): string {
+  const d = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 beforeEach(() => {
   useParkingStore.setState({ current: null, reservations: [], isLoading: false });
   jest.clearAllMocks();
@@ -283,6 +290,13 @@ describe('isVoteChangeLocked', () => {
   it('returns true for a past date', () => {
     const now = new Date('2026-04-20T12:00:00');
     expect(isVoteChangeLocked('2020-01-01', '09:00', now)).toBe(true);
+  });
+
+  it('returns true when the lock window crosses midnight into the previous day', () => {
+    // Reservation starts at 00:10 on 2026-04-20; the 30-min lock window
+    // begins at 23:40 on 2026-04-19.
+    const now = new Date('2026-04-19T23:40:00');
+    expect(isVoteChangeLocked('2026-04-20', '00:10', now)).toBe(true);
   });
 });
 
@@ -568,7 +582,14 @@ describe('parkingStore — checkReservationAutoApply', () => {
 describe('parkingStore — voteOnReservation', () => {
   it('keeps a request pending after one reject while another voter has not voted', async () => {
     useParkingStore.setState({
-      reservations: [reservation({ id: 'r1', requestedBy: 'requester', status: 'pending' })],
+      reservations: [
+        reservation({
+          id: 'r1',
+          requestedBy: 'requester',
+          status: 'pending',
+          date: futureDateStr(7),
+        }),
+      ],
     });
     mockFrom
       .mockReturnValueOnce(ok())
@@ -597,7 +618,14 @@ describe('parkingStore — voteOnReservation', () => {
 
   it('approves after everyone votes and approve has the higher count', async () => {
     useParkingStore.setState({
-      reservations: [reservation({ id: 'r1', requestedBy: 'requester', status: 'pending' })],
+      reservations: [
+        reservation({
+          id: 'r1',
+          requestedBy: 'requester',
+          status: 'pending',
+          date: futureDateStr(7),
+        }),
+      ],
     });
     mockFrom
       .mockReturnValueOnce(ok())
@@ -620,12 +648,59 @@ describe('parkingStore — voteOnReservation', () => {
   });
 
   it('throws when upsert fails', async () => {
-    useParkingStore.setState({ reservations: [reservation({ id: 'r1', status: 'pending' })] });
+    useParkingStore.setState({
+      reservations: [reservation({ id: 'r1', status: 'pending', date: futureDateStr(7) })],
+    });
     mockFrom.mockReturnValue(fail('permission denied'));
 
     await expect(
       useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1')
     ).rejects.toThrow('Could not save your vote. Please try again.');
+  });
+
+  it('throws when the reservation is past its due time', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-04-20T09:30:00'));
+    useParkingStore.setState({
+      reservations: [
+        reservation({
+          id: 'r1',
+          requestedBy: 'requester',
+          status: 'pending',
+          date: '2026-04-20',
+          startTime: '09:00',
+        }),
+      ],
+    });
+
+    await expect(
+      useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1')
+    ).rejects.toThrow('Voting has closed for this reservation');
+    expect(mockFrom).not.toHaveBeenCalled();
+
+    jest.useRealTimers();
+  });
+
+  it('throws when the current user already voted and the change-lock window has started', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-04-20T08:35:00'));
+    useParkingStore.setState({
+      reservations: [
+        reservation({
+          id: 'r1',
+          requestedBy: 'requester',
+          status: 'pending',
+          date: '2026-04-20',
+          startTime: '09:00',
+          votes: [{ userId: 'u1', vote: 'approve' }],
+        }),
+      ],
+    });
+
+    await expect(
+      useParkingStore.getState().voteOnReservation('r1', 'reject', 'house-1')
+    ).rejects.toThrow('Your vote is locked in — the deadline is approaching');
+    expect(mockFrom).not.toHaveBeenCalled();
+
+    jest.useRealTimers();
   });
 });
 

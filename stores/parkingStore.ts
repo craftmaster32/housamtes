@@ -116,22 +116,21 @@ function toMinutes(time: string): number {
 }
 
 // Mirrors the parking-check cron's due-time check (#6a/#6b): a pending
-// reservation is "due" once its date has passed, or once its start time
-// (or start of day, if no start time) has arrived today. `offsetMinutes`
+// reservation is "due" once its date/start-time has arrived. `offsetMinutes`
 // shifts the due time earlier — used by isVoteChangeLocked to close vote
-// changes ahead of the actual deadline.
+// changes ahead of the actual deadline. Built from Date arithmetic (rather
+// than comparing date strings) so a large offset can correctly push the
+// threshold into the previous day.
 export function isReservationPastDue(
   date: string,
   startTime?: string,
   now: Date = new Date(),
   offsetMinutes = 0
 ): boolean {
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  if (date < todayStr) return true;
-  if (date > todayStr) return false;
-  const dueMinutes = (startTime ? toMinutes(startTime) : 0) - offsetMinutes;
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  return nowMinutes >= dueMinutes;
+  const [year, month, day] = date.split('-').map(Number);
+  const startMinutes = startTime ? toMinutes(startTime) : 0;
+  const dueDate = new Date(year, month - 1, day, 0, startMinutes - offsetMinutes);
+  return now.getTime() >= dueDate.getTime();
 }
 
 // Once inside this window before the due time, members who already voted can
@@ -521,6 +520,11 @@ export const useParkingStore = create<ParkingStore>()(
             throw new Error('This request is no longer pending');
           if (userId === localReservation.requestedBy)
             throw new Error('You cannot vote on your own request');
+          if (isReservationPastDue(localReservation.date, localReservation.startTime))
+            throw new Error('Voting has closed for this reservation');
+          const alreadyVoted = localReservation.votes.some((v) => v.userId === userId);
+          if (alreadyVoted && isVoteChangeLocked(localReservation.date, localReservation.startTime))
+            throw new Error('Your vote is locked in — the deadline is approaching');
 
           const { error: voteError } = await supabase
             .from('parking_reservation_votes')
