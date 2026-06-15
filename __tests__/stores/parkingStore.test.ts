@@ -352,7 +352,8 @@ describe('parkingStore — addReservation', () => {
       end_time: '11:00',
       note: 'dentist',
     };
-    mockFrom.mockReturnValue(ok(timedRow));
+    const chain = ok(timedRow);
+    mockFrom.mockReturnValue(chain);
 
     await useParkingStore.getState().addReservation(
       {
@@ -374,8 +375,7 @@ describe('parkingStore — addReservation', () => {
     });
 
     // Write-path: snake_case fields sent to DB
-    const insertMock = (mockFrom.mock.results[0].value as Record<string, jest.Mock>).insert;
-    expect(insertMock).toHaveBeenCalledWith(
+    expect(chain.insert as jest.Mock).toHaveBeenCalledWith(
       expect.objectContaining({ start_time: '09:00', end_time: '11:00' })
     );
   });

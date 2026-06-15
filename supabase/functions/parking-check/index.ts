@@ -425,7 +425,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
               '🅿️ Parking request expired',
               eligibleVotes.length === 0
                 ? `Your request for ${r.date}${timeStr} expired — no votes were cast.`
-                : `Your request for ${r.date}${timeStr} expired — majority voted no.`,
+                : approveCount === rejectCount
+                  ? `Your request for ${r.date}${timeStr} expired — the vote was tied.`
+                  : `Your request for ${r.date}${timeStr} expired — majority voted no.`,
               { screen: 'parking' }
             );
           }
@@ -479,7 +481,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
                 '🅿️ Parking request expired',
                 eligibleVotes.length === 0
                   ? `Your request for today${timeStr} expired — no votes were cast.`
-                  : `Your request for today${timeStr} expired — majority voted no.`,
+                  : approveCount === rejectCount
+                    ? `Your request for today${timeStr} expired — the vote was tied.`
+                    : `Your request for today${timeStr} expired — majority voted no.`,
                 { screen: 'parking' }
               );
             }
