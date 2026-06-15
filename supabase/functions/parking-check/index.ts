@@ -314,6 +314,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
     // Pre-fetch house members per house (for non-voter calculation in reminders)
     const membersByHouse = new Map<string, string[]>();
+    // Pre-seed so houses with zero DB rows get [] rather than undefined,
+    // letting #6a/#6b distinguish "no members" from "fetch failed".
+    for (const hid of houseIds) membersByHouse.set(hid, []);
     let membersError = false;
     if (houseIds.length > 0) {
       const { data: memberRows, error: membersErr } = await supabase
@@ -380,13 +383,12 @@ Deno.serve(async (_req: Request): Promise<Response> => {
           // tally matches the in-app tallyParkingReservationVotes logic.
           // If membersByHouse has no entry (member fetch errored), fall back to all
           // votes so the reservation still resolves rather than defaulting to rejected.
-          const houseMembers = membersByHouse.get(r.house_id);
-          const eligibleVotes =
-            houseMembers != null
-              ? castVotes.filter(
-                  (v) => v.user_id !== r.requested_by && houseMembers.includes(v.user_id)
-                )
-              : castVotes;
+          const houseMembers = membersByHouse.get(r.house_id) ?? [];
+          const eligibleVotes = !membersError
+            ? castVotes.filter(
+                (v) => v.user_id !== r.requested_by && houseMembers.includes(v.user_id)
+              )
+            : castVotes;
           const approveCount = eligibleVotes.filter((v) => v.vote === 'approve').length;
           const rejectCount = eligibleVotes.filter((v) => v.vote === 'reject').length;
           const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';
@@ -435,13 +437,12 @@ Deno.serve(async (_req: Request): Promise<Response> => {
           const startMins = r.start_time ? toMinutes(r.start_time) : 0;
           if (nowMins >= startMins) {
             const castVotes = votesByReservation.get(r.id) ?? [];
-            const houseMembers = membersByHouse.get(r.house_id);
-            const eligibleVotes =
-              houseMembers != null
-                ? castVotes.filter(
-                    (v) => v.user_id !== r.requested_by && houseMembers.includes(v.user_id)
-                  )
-                : castVotes;
+            const houseMembers = membersByHouse.get(r.house_id) ?? [];
+            const eligibleVotes = !membersError
+              ? castVotes.filter(
+                  (v) => v.user_id !== r.requested_by && houseMembers.includes(v.user_id)
+                )
+              : castVotes;
             const approveCount = eligibleVotes.filter((v) => v.vote === 'approve').length;
             const rejectCount = eligibleVotes.filter((v) => v.vote === 'reject').length;
             const resolvedStatus = approveCount > rejectCount ? 'approved' : 'rejected';

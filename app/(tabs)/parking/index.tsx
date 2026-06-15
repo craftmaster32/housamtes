@@ -134,8 +134,8 @@ function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.El
         })}
       </View>
       {hasPendingVoters && (
-        <View style={styles.voteAbstainNote}>
-          <Ionicons name="information-circle-outline" size={10} color={C.textSecondary + '80'} />
+        <View style={styles.voteAbstainNote} accessibilityRole="text">
+          <Ionicons name="information-circle-outline" size={10} color={C.textSecondary} />
           <Text style={styles.voteAbstainText}>{t('parking.abstain_note')}</Text>
         </View>
       )}
@@ -1310,7 +1310,7 @@ const makeStyles = (C: ColorTokens) =>
     voteRowWrapper: { marginTop: 2, gap: 3 },
     voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     voteAbstainNote: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    voteAbstainText: { fontSize: 10, ...font.regular, color: C.textSecondary + '90', flex: 1 },
+    voteAbstainText: { fontSize: 10, ...font.regular, color: C.textSecondary, flex: 1 },
     voteAvatarWrap: { position: 'relative', width: 28, height: 28 },
     voteAvatarCircle: {
       width: 28,

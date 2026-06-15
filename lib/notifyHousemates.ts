@@ -67,6 +67,6 @@ export async function notifyHousemates({
       throw new Error(`send-push returned ${res.status}`);
     }
   } catch (err) {
-    captureError(err, { context: 'notifyHousemates' });
+    captureError(err, { context: 'notifyHousemates', houseId, excludeUserId });
   }
 }
