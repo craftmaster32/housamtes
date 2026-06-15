@@ -357,6 +357,7 @@
     "approved": "Aprobada",
     "rejected": "Rechazada",
     "approve": "Aprobar",
+    "voting_closed": "Votación cerrada",
     "free": "Libre",
     "taken": "Ocupada",
     "history": "Historial",

@@ -19,6 +19,8 @@
 
 import {
   isDateConflict,
+  isReservationPastDue,
+  isVoteChangeLocked,
   tallyParkingReservationVotes,
   useParkingStore,
   type ParkingReservation,
@@ -224,6 +226,63 @@ describe('isDateConflict', () => {
     const { conflict, warning } = isDateConflict('2026-04-20', '09:30', '11:00', [r1, r2]);
     expect(conflict).not.toBeNull();
     expect(warning).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1b. isReservationPastDue
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('isReservationPastDue', () => {
+  it('returns true when the reservation date is in the past', () => {
+    const now = new Date('2026-04-20T12:00:00');
+    expect(isReservationPastDue('2020-01-01', undefined, now)).toBe(true);
+  });
+
+  it('returns false when the reservation date is in the future', () => {
+    const now = new Date('2026-04-20T12:00:00');
+    expect(isReservationPastDue('2099-01-01', undefined, now)).toBe(false);
+  });
+
+  it('returns true for an all-day request once its date is today', () => {
+    const now = new Date('2026-04-20T00:01:00');
+    expect(isReservationPastDue('2026-04-20', undefined, now)).toBe(true);
+  });
+
+  it('returns false for today when the start time has not arrived yet', () => {
+    const now = new Date('2026-04-20T08:00:00');
+    expect(isReservationPastDue('2026-04-20', '09:00', now)).toBe(false);
+  });
+
+  it('returns true for today once the start time has passed', () => {
+    const now = new Date('2026-04-20T09:30:00');
+    expect(isReservationPastDue('2026-04-20', '09:00', now)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1c. isVoteChangeLocked
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('isVoteChangeLocked', () => {
+  it('returns false more than 30 minutes before the start time', () => {
+    const now = new Date('2026-04-20T08:00:00');
+    expect(isVoteChangeLocked('2026-04-20', '09:00', now)).toBe(false);
+  });
+
+  it('returns true within 30 minutes of the start time', () => {
+    const now = new Date('2026-04-20T08:35:00');
+    expect(isVoteChangeLocked('2026-04-20', '09:00', now)).toBe(true);
+  });
+
+  it('returns true once the start time itself has passed', () => {
+    const now = new Date('2026-04-20T09:30:00');
+    expect(isVoteChangeLocked('2026-04-20', '09:00', now)).toBe(true);
+  });
+
+  it('returns true for a past date', () => {
+    const now = new Date('2026-04-20T12:00:00');
+    expect(isVoteChangeLocked('2020-01-01', '09:00', now)).toBe(true);
   });
 });
 

@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   useParkingStore,
   isDateConflict,
+  isReservationPastDue,
+  isVoteChangeLocked,
   type ConflictResult,
   type ParkingReservation,
   type ParkingReservationStatus,
@@ -69,6 +71,7 @@ export interface VoteRowProps {
   votes: ParkingVote[];
   housemates: Housemate[];
   requestedBy: string;
+  votingClosed?: boolean;
 }
 
 export interface ReservationCardProps {
@@ -93,14 +96,20 @@ export interface ReserveModalProps {
 }
 
 // ── Vote status row ────────────────────────────────────────────────────────────
-function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.Element {
+function VoteRow({
+  votes,
+  housemates,
+  requestedBy,
+  votingClosed = false,
+}: VoteRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const voters = housemates.filter((h) => h.id !== requestedBy);
   if (voters.length === 0) return <View />;
 
-  const hasPendingVoters = voters.some((h) => !votes.find((v) => v.userId === h.id));
+  const hasPendingVoters =
+    !votingClosed && voters.some((h) => !votes.find((v) => v.userId === h.id));
 
   return (
     <View style={styles.voteRowWrapper}>
@@ -282,6 +291,7 @@ function ReservationCard({
   const isPending = item.status === 'pending';
   const approved = item.status === 'approved';
   const rejected = item.status === 'rejected';
+  const votingClosed = isPending && isReservationPastDue(item.date, item.startTime);
 
   const statusColor = approved ? C.positive : rejected ? C.danger : C.warning;
   const statusBg = approved ? C.positive + '20' : rejected ? C.danger + '15' : C.warning + '20';
@@ -289,7 +299,9 @@ function ReservationCard({
     ? t('parking.approved')
     : rejected
       ? t('parking.rejected')
-      : t('parking.pending');
+      : votingClosed
+        ? t('parking.voting_closed')
+        : t('parking.pending');
 
   const handleCancel = useCallback(() => onCancel(item.id), [onCancel, item.id]);
   const handleClear = useCallback(() => onClear(item.id), [onClear, item.id]);
@@ -304,7 +316,10 @@ function ReservationCard({
   const handleDatePress = useCallback(() => onDatePress(item.date), [onDatePress, item.date]);
 
   const myVote = item.votes.find((v) => v.userId === currentUserId);
-  const canVote = !isOwn && isPending;
+  // Within the lock window, voters can't change their mind but non-voters can still cast a vote
+  const voteChangeLocked =
+    isPending && !votingClosed && isVoteChangeLocked(item.date, item.startTime);
+  const canVote = !isOwn && isPending && !votingClosed && !(myVote && voteChangeLocked);
   // Admin can cancel any upcoming (non-history) reservation they don't own
   const canAdminCancel = isAdmin && !isOwn && !isHistory && (isPending || approved);
   const showOwnCancel = isOwn && isPending;
@@ -356,7 +371,12 @@ function ReservationCard({
           {item.note ? ` · ${item.note}` : ''}
         </Text>
 
-        <VoteRow votes={item.votes} housemates={housemates} requestedBy={item.requestedBy} />
+        <VoteRow
+          votes={item.votes}
+          housemates={housemates}
+          requestedBy={item.requestedBy}
+          votingClosed={votingClosed}
+        />
 
         <View style={[styles.badge, { backgroundColor: statusBg }]}>
           <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>

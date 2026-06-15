@@ -358,6 +358,7 @@
     "approve": "אשר",
     "free": "פנוי",
     "taken": "תפוס",
+    "voting_closed": "ההצבעה נסגרה",
     "history": "היסטוריה",
     "error_vote_failed": "לא ניתן לשמור את ההצבעה",
     "error_clear_failed": "לא ניתן למחוק את הפריט",

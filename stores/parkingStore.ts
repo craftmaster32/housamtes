@@ -115,6 +115,38 @@ function toMinutes(time: string): number {
   return h * 60 + (m ?? 0);
 }
 
+// Mirrors the parking-check cron's due-time check (#6a/#6b): a pending
+// reservation is "due" once its date has passed, or once its start time
+// (or start of day, if no start time) has arrived today. `offsetMinutes`
+// shifts the due time earlier — used by isVoteChangeLocked to close vote
+// changes ahead of the actual deadline.
+export function isReservationPastDue(
+  date: string,
+  startTime?: string,
+  now: Date = new Date(),
+  offsetMinutes = 0
+): boolean {
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (date < todayStr) return true;
+  if (date > todayStr) return false;
+  const dueMinutes = (startTime ? toMinutes(startTime) : 0) - offsetMinutes;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return nowMinutes >= dueMinutes;
+}
+
+// Once inside this window before the due time, members who already voted can
+// no longer change their vote — non-voters can still cast a fresh vote until
+// isReservationPastDue is true.
+export const VOTE_CHANGE_LOCK_MINUTES = 30;
+
+export function isVoteChangeLocked(
+  date: string,
+  startTime?: string,
+  now: Date = new Date()
+): boolean {
+  return isReservationPastDue(date, startTime, now, VOTE_CHANGE_LOCK_MINUTES);
+}
+
 export interface ConflictResult {
   conflict: string | null;
   warning: string | null;
