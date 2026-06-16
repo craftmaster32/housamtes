@@ -250,7 +250,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
                 <Text style={[styles.optionTitle, mode === 'create' && styles.optionTitleActive]}>
                   {t('house_setup.create_house')}
                 </Text>
-                <Text style={styles.optionSub}>{"I'm the first one setting this up"}</Text>
+                <Text style={styles.optionSub}>{t('house_setup.create_house_sub')}</Text>
               </Pressable>
 
               <Pressable
@@ -274,7 +274,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
                 <Text style={[styles.optionTitle, mode === 'join' && styles.optionTitleActive]}>
                   {t('house_setup.join_house')}
                 </Text>
-                <Text style={styles.optionSub}>I have an invite code</Text>
+                <Text style={styles.optionSub}>{t('house_setup.join_house_sub')}</Text>
               </Pressable>
             </View>
 
@@ -341,9 +341,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
                     accessibilityLabel="Invite code"
                     accessibilityHint="Enter the 8-character invite code from a housemate"
                   />
-                  <Text style={styles.codeHint}>
-                    Auto-uppercase · Ask a housemate for their code
-                  </Text>
+                  <Text style={styles.codeHint}>{t('house_setup.code_hint')}</Text>
                 </View>
 
                 {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -351,10 +349,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
                 {assignedColor && (
                   <View style={styles.colorNotice}>
                     <View style={[styles.colorNoticeDot, { backgroundColor: assignedColor }]} />
-                    <Text style={styles.colorNoticeText}>
-                      Your color was updated to avoid a clash with your new housemates. Change it
-                      anytime in Profile.
-                    </Text>
+                    <Text style={styles.colorNoticeText}>{t('house_setup.color_updated')}</Text>
                   </View>
                 )}
 
@@ -368,7 +363,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
                   labelStyle={styles.buttonLabel}
                   buttonColor={C.primary}
                 >
-                  Find house
+                  {t('house_setup.find_house')}
                 </Button>
               </View>
             )}
@@ -392,9 +387,9 @@ export default function HouseSetupScreen(): React.JSX.Element {
           >
             <View style={styles.sheetHandle} />
 
-            <Text style={styles.sheetTitle}>Join this house?</Text>
+            <Text style={styles.sheetTitle}>{t('house_setup.confirm_join_title')}</Text>
             <Text style={styles.sheetSubtitle}>
-              {`We found a match for code ${inviteCode.trim().toUpperCase()}`}
+              {t('house_setup.confirm_join_subtitle', { code: inviteCode.trim().toUpperCase() })}
             </Text>
 
             {pendingHouse && (
@@ -407,7 +402,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
                   <View style={styles.memberRow}>
                     <Ionicons name="people-outline" size={13} color={C.textSecondary} />
                     <Text style={styles.memberCount}>
-                      {`${pendingHouse.memberCount} ${pendingHouse.memberCount === 1 ? 'member' : 'members'} already inside`}
+                      {t('house_setup.member_count', { count: pendingHouse.memberCount })}
                     </Text>
                   </View>
                 </View>
@@ -424,7 +419,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
               labelStyle={styles.buttonLabel}
               buttonColor="#4FB071"
             >
-              Confirm & join
+              {t('house_setup.confirm_join')}
             </Button>
 
             <Pressable
@@ -434,7 +429,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
               accessibilityLabel="Cancel"
               style={styles.cancelBtn}
             >
-              <Text style={styles.cancelText}>{"That's not my house — try again"}</Text>
+              <Text style={styles.cancelText}>{t('house_setup.wrong_house')}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -523,7 +518,7 @@ function makeStyles(C: ColorTokens) {
     },
     optionCardActive: {
       borderColor: C.primary,
-      backgroundColor: '#EAF3FF',
+      backgroundColor: C.primary + '14',
     },
     optionChip: {
       width: 52,
@@ -663,7 +658,7 @@ function makeStyles(C: ColorTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 14,
-      backgroundColor: '#EFF5FC',
+      backgroundColor: C.primary + '0D',
       borderRadius: 16,
       padding: sizes.md,
       width: '100%',
@@ -672,7 +667,7 @@ function makeStyles(C: ColorTokens) {
       width: 48,
       height: 48,
       borderRadius: 14,
-      backgroundColor: '#D6E6F9',
+      backgroundColor: C.primary + '26',
       justifyContent: 'center',
       alignItems: 'center',
       flexShrink: 0,

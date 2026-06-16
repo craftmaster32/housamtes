@@ -28,6 +28,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -130,7 +131,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
           accessibilityLabel="Go back"
         >
           <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>{t('common.back')}</Text>
         </Pressable>
         <Text style={styles.headerTitle}>{headerTitle}</Text>
         <Text style={styles.headerSubtitle}>{headerSubtitle}</Text>
@@ -263,10 +264,17 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   mode="outlined"
                   style={styles.input}
                   outlineStyle={styles.inputOutline}
-                  secureTextEntry
+                  secureTextEntry={!showConfirm}
                   returnKeyType="done"
                   onSubmitEditing={handleReset}
                   error={!!error}
+                  right={
+                    <TextInput.Icon
+                      icon={showConfirm ? 'eye-off-outline' : 'eye-outline'}
+                      color={C.textTertiary}
+                      onPress={() => setShowConfirm((v) => !v)}
+                    />
+                  }
                 />
               </View>
 

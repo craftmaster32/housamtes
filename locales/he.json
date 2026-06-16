@@ -143,7 +143,18 @@
     "enter_invite_code": "הכנס קוד הזמנה",
     "code_not_found": "קוד לא נמצא. בדוק שוב ונסה.",
     "failed_create": "יצירת הבית נכשלה",
-    "failed_join": "ההצטרפות לבית נכשלה"
+    "failed_join": "ההצטרפות לבית נכשלה",
+    "create_house_sub": "אני הראשון שמגדיר את זה",
+    "join_house_sub": "יש לי קוד הזמנה",
+    "code_hint": "אותיות גדולות אוטומטי · בקש קוד מדייר",
+    "color_updated": "הצבע שלך עודכן כדי להימנע מהתנגשות עם הדיירים החדשים. שנה אותו בכל עת בפרופיל.",
+    "find_house": "מצא בית",
+    "confirm_join_title": "להצטרף לבית הזה?",
+    "confirm_join_subtitle": "מצאנו התאמה לקוד {{code}}",
+    "member_count_one": "{{count}} דייר כבר בפנים",
+    "member_count_other": "{{count}} דיירים כבר בפנים",
+    "confirm_join": "אישור והצטרפות",
+    "wrong_house": "זה לא הבית שלי — נסה שוב"
   },
   "dashboard": {
     "greeting_morning": "בוקר טוב",

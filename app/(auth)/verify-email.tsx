@@ -47,7 +47,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
           accessibilityLabel="Back to log in"
         >
           <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>{t('common.back')}</Text>
         </Pressable>
         <Text style={styles.headerTitle}>{t('auth.check_email_title')}</Text>
         <Text style={styles.headerSubtitle}>{t('auth.check_email_body')}</Text>

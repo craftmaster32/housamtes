@@ -24,8 +24,7 @@ const AVATAR_COLORS = ['#3B6FBF', '#FF2D55', '#E0B24D', '#4FB071', '#007AFF', '#
 
 function getPasswordStrength(pw: string): 0 | 1 | 2 | 3 | 4 {
   if (pw.length === 0) return 0;
-  if (pw.length < 6) return 1;
-  if (pw.length < 8) return 2;
+  if (pw.length < 8) return 1;
   const hasUpper = /[A-Z]/.test(pw);
   const hasNum = /[0-9]/.test(pw);
   const hasSpecial = /[^A-Za-z0-9]/.test(pw);

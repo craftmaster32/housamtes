@@ -145,7 +145,18 @@
     "enter_invite_code": "Please enter an invite code",
     "code_not_found": "Invite code not found. Check it and try again.",
     "failed_create": "Failed to create house",
-    "failed_join": "Failed to join house"
+    "failed_join": "Failed to join house",
+    "create_house_sub": "I'm the first one setting this up",
+    "join_house_sub": "I have an invite code",
+    "code_hint": "Auto-uppercase · Ask a housemate for their code",
+    "color_updated": "Your color was updated to avoid a clash with your new housemates. Change it anytime in Profile.",
+    "find_house": "Find house",
+    "confirm_join_title": "Join this house?",
+    "confirm_join_subtitle": "We found a match for code {{code}}",
+    "member_count_one": "{{count}} member already inside",
+    "member_count_other": "{{count}} members already inside",
+    "confirm_join": "Confirm & join",
+    "wrong_house": "That's not my house — try again"
   },
   "dashboard": {
     "greeting_morning": "Rise and shine",

@@ -144,7 +144,18 @@
     "enter_invite_code": "Ingresa el código de invitación",
     "code_not_found": "Código no encontrado. Verifica e intenta de nuevo.",
     "failed_create": "No se pudo crear la casa",
-    "failed_join": "No se pudo unir a la casa"
+    "failed_join": "No se pudo unir a la casa",
+    "create_house_sub": "Soy el primero en configurar esto",
+    "join_house_sub": "Tengo un código de invitación",
+    "code_hint": "Mayúsculas automáticas · Pide el código a un compañero de casa",
+    "color_updated": "Tu color fue actualizado para evitar conflictos con tus nuevos compañeros. Cámbialo cuando quieras en Perfil.",
+    "find_house": "Buscar casa",
+    "confirm_join_title": "¿Unirse a esta casa?",
+    "confirm_join_subtitle": "Encontramos una coincidencia para el código {{code}}",
+    "member_count_one": "{{count}} miembro ya adentro",
+    "member_count_other": "{{count}} miembros ya adentro",
+    "confirm_join": "Confirmar y unirse",
+    "wrong_house": "Esa no es mi casa — intentar de nuevo"
   },
   "dashboard": {
     "greeting_morning": "Buenos días",
