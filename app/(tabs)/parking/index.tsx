@@ -158,12 +158,14 @@ interface DayScheduleSheetProps {
   date: string | null;
   onClose: () => void;
   currentUserId: string;
+  now: Date;
 }
 
 function DayScheduleSheet({
   date,
   onClose,
   currentUserId,
+  now,
 }: DayScheduleSheetProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -214,12 +216,16 @@ function DayScheduleSheet({
                     : r.status === 'rejected'
                       ? C.danger + '15'
                       : C.warning + '20';
+                const votingClosed =
+                  r.status === 'pending' && isReservationPastDue(r.date, r.startTime, now);
                 const statusLabel =
                   r.status === 'approved'
                     ? t('parking.approved')
                     : r.status === 'rejected'
                       ? t('parking.rejected')
-                      : t('parking.pending');
+                      : votingClosed
+                        ? t('parking.voting_closed')
+                        : t('parking.pending');
                 const timeLabel = r.startTime
                   ? `${r.startTime}${r.endTime ? ` – ${r.endTime}` : ''}`
                   : 'All day';
@@ -1139,6 +1145,7 @@ export default function ParkingScreen(): React.JSX.Element {
         date={daySheetDate}
         onClose={() => setDaySheetDate(null)}
         currentUserId={myId}
+        now={now}
       />
 
       <ReserveModal
