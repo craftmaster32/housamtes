@@ -1,9 +1,18 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signInSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -28,8 +37,9 @@ export default function LoginScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
   useEffect(() => {
@@ -53,7 +63,6 @@ export default function LoginScreen(): React.JSX.Element {
 
   const handleLogin = useCallback(async () => {
     if (lockoutRemaining > 0) return;
-
     const result = signInSchema.safeParse({ email, password });
     if (!result.success) {
       setError(result.error.errors[0].message);
@@ -63,8 +72,6 @@ export default function LoginScreen(): React.JSX.Element {
       setError('');
       await signIn(result.data.email, result.data.password);
       setFailedAttempts(0);
-      // Auth state listener in authStore will update houseId;
-      // root layout will redirect based on auth + houseId state
     } catch (err) {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
@@ -78,89 +85,132 @@ export default function LoginScreen(): React.JSX.Element {
     }
   }, [email, password, signIn, failedAttempts, lockoutRemaining, startLockout]);
 
+  const isLocked = lockoutRemaining > 0;
+
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-        <View style={styles.content}>
-          {/* Back button */}
-          <Pressable
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Text style={styles.backBtnText}>←</Text>
-          </Pressable>
-
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>Sign in to HouseMates</Text>
+    <Animated.View style={[styles.root, { opacity: fadeAnim }]}>
+      {/* Blue header */}
+      <SafeAreaView edges={['top']} style={styles.header}>
+        <View style={styles.logoRow}>
+          <View style={styles.logoChip}>
+            <Ionicons name="home" size={22} color={C.primary} />
           </View>
-
-          <TextInput
-            label="Email"
-            value={email}
-            onChangeText={(t) => { setEmail(t); setError(''); }}
-            mode="outlined"
-            style={styles.input}
-            autoFocus
-            keyboardType="email-address"
-            autoCapitalize="none"
-            returnKeyType="next"
-            onSubmitEditing={() => passwordRef.current?.focus()}
-            error={!!error}
-          />
-
-          <TextInput
-            ref={passwordRef}
-            label="Password"
-            value={password}
-            onChangeText={(t) => { setPassword(t); setError(''); }}
-            mode="outlined"
-            style={styles.input}
-            secureTextEntry={!showPassword}
-            returnKeyType="go"
-            onSubmitEditing={handleLogin}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? 'eye-off' : 'eye'}
-                onPress={() => setShowPassword((v) => !v)}
-              />
-            }
-            error={!!error}
-          />
-
-          {!!error && <Text style={styles.error}>{error}</Text>}
-
-          <Button
-            mode="contained"
-            onPress={handleLogin}
-            loading={isLoading}
-            disabled={isLoading || lockoutRemaining > 0}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
-            buttonColor={C.primary}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={lockoutRemaining > 0 ? `Locked out, wait ${lockoutRemaining} seconds` : 'Sign in'}
-          >
-            {lockoutRemaining > 0 ? `Try again in ${lockoutRemaining}s` : 'Sign in'}
-          </Button>
-
-          <Pressable
-            style={styles.forgotBtn}
-            onPress={() => router.push('/(auth)/forgot-password')}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Forgot password"
-          >
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </Pressable>
+          <Text style={styles.appName}>HouseMates</Text>
         </View>
-      </Animated.View>
-    </SafeAreaView>
+        <Text style={styles.tagline}>Your house, together.</Text>
+      </SafeAreaView>
+
+      {/* White card */}
+      <KeyboardAvoidingView
+        style={styles.cardWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Sign in</Text>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                value={email}
+                onChangeText={(t) => {
+                  setEmail(t);
+                  setError('');
+                }}
+                mode="outlined"
+                style={styles.input}
+                outlineStyle={styles.inputOutline}
+                autoFocus
+                keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                error={!!error}
+                placeholder="you@example.com"
+                placeholderTextColor={C.textTertiary}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                ref={passwordRef}
+                value={password}
+                onChangeText={(t) => {
+                  setPassword(t);
+                  setError('');
+                }}
+                mode="outlined"
+                style={styles.input}
+                outlineStyle={styles.inputOutline}
+                secureTextEntry={!showPassword}
+                returnKeyType="go"
+                onSubmitEditing={handleLogin}
+                error={!!error}
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    color={C.textTertiary}
+                    onPress={() => setShowPassword((v) => !v)}
+                  />
+                }
+              />
+              <Pressable
+                style={styles.forgotRow}
+                onPress={() => router.push('/(auth)/forgot-password')}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Forgot password"
+              >
+                <Text style={styles.forgotText}>Forgot password?</Text>
+              </Pressable>
+            </View>
+
+            {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+            <Button
+              mode="contained"
+              onPress={handleLogin}
+              loading={isLoading}
+              disabled={isLoading || isLocked}
+              style={styles.button}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
+              buttonColor={C.primary}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={isLocked ? `Locked, wait ${lockoutRemaining}s` : 'Log in'}
+            >
+              {isLocked ? `Try again in ${lockoutRemaining}s` : 'Log in'}
+            </Button>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable
+              style={styles.signupRow}
+              onPress={() => router.back()}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Don't have an account, sign up"
+            >
+              <Text style={styles.signupText}>
+                {"Don't have an account? "}
+                <Text style={styles.signupLink}>Sign up</Text>
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Animated.View>
   );
 }
 
@@ -168,70 +218,136 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: C.surface,
-    },
-    flex: { flex: 1 },
-    content: {
-      flex: 1,
-      paddingHorizontal: sizes.lg,
-      paddingTop: sizes.sm,
-      gap: sizes.md,
-    },
-    backBtn: {
-      width: sizes.touchTarget,
-      height: sizes.touchTarget,
-      justifyContent: 'center',
-      alignItems: 'flex-start',
-      marginBottom: sizes.xs,
-    },
-    backBtnText: {
-      fontSize: 24,
-      ...font.regular,
-      color: C.textPrimary,
+      backgroundColor: C.primary,
     },
     header: {
-      gap: 4,
-      marginBottom: sizes.xs,
+      backgroundColor: C.primary,
+      paddingHorizontal: sizes.lg,
+      paddingBottom: sizes.lg,
     },
-    title: {
-      fontSize: 28,
+    logoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingTop: sizes.md,
+      marginBottom: 6,
+    },
+    logoChip: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    appName: {
+      fontSize: sizes.fontXxl,
       ...font.extrabold,
-      color: C.textPrimary,
+      color: '#fff',
       letterSpacing: -0.5,
     },
-    subtitle: {
+    tagline: {
       fontSize: 15,
-      ...font.medium,
-      color: C.textSecondary,
+      ...font.regular,
+      color: 'rgba(255,255,255,0.6)',
+    },
+    cardWrapper: {
+      flex: 1,
+      backgroundColor: C.primary,
+    },
+    scrollContent: {
+      flexGrow: 1,
+    },
+    card: {
+      flex: 1,
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: sizes.lg,
+      paddingTop: 28,
+      paddingBottom: 40,
+      gap: 20,
+      minHeight: 480,
+    },
+    cardTitle: {
+      fontSize: 20,
+      ...font.bold,
+      color: C.textPrimary,
+      letterSpacing: -0.2,
+    },
+    fieldGroup: {
+      gap: 6,
+    },
+    label: {
+      fontSize: sizes.fontSm,
+      ...font.semibold,
+      color: C.textPrimary,
     },
     input: {
       backgroundColor: C.surface,
+      height: 52,
     },
-    error: {
+    inputOutline: {
+      borderRadius: 12,
+      borderColor: C.border,
+    },
+    forgotRow: {
+      alignSelf: 'flex-end',
+      paddingTop: 5,
+    },
+    forgotText: {
+      fontSize: 13,
+      ...font.medium,
+      color: C.primary,
+    },
+    errorText: {
+      fontSize: sizes.fontXs,
       ...font.regular,
       color: C.danger,
-      fontSize: sizes.fontSm,
+      marginTop: -8,
     },
     button: {
       borderRadius: 14,
-      marginTop: sizes.sm,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.28,
+      shadowRadius: 12,
+      elevation: 4,
     },
     buttonContent: {
       height: 52,
     },
     buttonLabel: {
-      fontSize: 16,
+      fontSize: sizes.fontMd,
       ...font.semibold,
-      letterSpacing: 0.2,
+      letterSpacing: 0.1,
     },
-    forgotBtn: {
-      alignSelf: 'center',
-      paddingVertical: sizes.sm,
-      paddingHorizontal: sizes.md,
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
     },
-    forgotText: {
-      fontSize: 15,
-      ...font.medium,
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: C.border,
+    },
+    dividerText: {
+      fontSize: 13,
+      ...font.regular,
+      color: C.textSecondary,
+    },
+    signupRow: {
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    signupText: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+    },
+    signupLink: {
+      ...font.semibold,
       color: C.primary,
     },
   });
