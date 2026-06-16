@@ -133,6 +133,8 @@ export default function LoginScreen(): React.JSX.Element {
                 error={!!error}
                 placeholder="you@example.com"
                 placeholderTextColor={C.textTertiary}
+                accessibilityLabel="Email address"
+                accessibilityHint="Enter your account email address"
               />
             </View>
 
@@ -152,6 +154,8 @@ export default function LoginScreen(): React.JSX.Element {
                 returnKeyType="go"
                 onSubmitEditing={handleLogin}
                 error={!!error}
+                accessibilityLabel="Password"
+                accessibilityHint="Enter your account password"
                 right={
                   <TextInput.Icon
                     icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -294,6 +298,8 @@ function makeStyles(C: ColorTokens) {
     forgotRow: {
       alignSelf: 'flex-end',
       paddingTop: 5,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
     },
     forgotText: {
       fontSize: 13,
@@ -339,7 +345,8 @@ function makeStyles(C: ColorTokens) {
     },
     signupRow: {
       alignItems: 'center',
-      paddingVertical: 4,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
     },
     signupText: {
       fontSize: sizes.fontSm,

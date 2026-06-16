@@ -68,7 +68,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
                 {pendingEmail}
               </Text>
             )}
-            <Text style={styles.hintText}>{"Didn't get it? Check your spam folder."}</Text>
+            <Text style={styles.hintText}>{t('auth.spam_hint')}</Text>
           </View>
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -128,8 +128,10 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       gap: 2,
       alignSelf: 'flex-start',
-      paddingVertical: 4,
-      marginTop: sizes.sm,
+      paddingVertical: sizes.sm,
+      paddingHorizontal: sizes.xs,
+      minHeight: sizes.touchTarget,
+      marginTop: sizes.xs,
       marginBottom: 4,
     },
     backText: {

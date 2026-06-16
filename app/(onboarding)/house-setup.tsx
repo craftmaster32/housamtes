@@ -298,6 +298,8 @@ export default function HouseSetupScreen(): React.JSX.Element {
                     error={!!error}
                     placeholder="e.g. Our Flat"
                     placeholderTextColor={C.textTertiary}
+                    accessibilityLabel="House name"
+                    accessibilityHint="Enter a name for your household, e.g. Our Flat"
                   />
                 </View>
 
@@ -336,6 +338,8 @@ export default function HouseSetupScreen(): React.JSX.Element {
                     error={!!error}
                     placeholder="XXXXXXXX"
                     placeholderTextColor={C.textTertiary}
+                    accessibilityLabel="Invite code"
+                    accessibilityHint="Enter the 8-character invite code from a housemate"
                   />
                   <Text style={styles.codeHint}>
                     Auto-uppercase · Ask a housemate for their code
@@ -463,8 +467,10 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       gap: 2,
       alignSelf: 'flex-start',
-      paddingVertical: 4,
-      marginTop: sizes.sm,
+      paddingVertical: sizes.sm,
+      paddingHorizontal: sizes.xs,
+      minHeight: sizes.touchTarget,
+      marginTop: sizes.xs,
       marginBottom: 4,
     },
     backText: {

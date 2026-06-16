@@ -154,6 +154,8 @@ export default function SignupScreen(): React.JSX.Element {
                 onSubmitEditing={() => emailRef.current?.focus()}
                 placeholder="Your name"
                 placeholderTextColor={C.textTertiary}
+                accessibilityLabel="Name input"
+                accessibilityHint="Enter your full name"
               />
             </View>
 
@@ -176,6 +178,8 @@ export default function SignupScreen(): React.JSX.Element {
                 onSubmitEditing={() => passwordRef.current?.focus()}
                 placeholder="you@example.com"
                 placeholderTextColor={C.textTertiary}
+                accessibilityLabel="Email address input"
+                accessibilityHint="Enter your email address"
               />
             </View>
 
@@ -204,6 +208,8 @@ export default function SignupScreen(): React.JSX.Element {
                   />
                 }
                 error={!!passwordError}
+                accessibilityLabel="Password input"
+                accessibilityHint="Enter a password with at least 8 characters"
               />
               {/* Strength bar */}
               {password.length > 0 && (
@@ -253,6 +259,8 @@ export default function SignupScreen(): React.JSX.Element {
                   />
                 }
                 error={!!confirmError}
+                accessibilityLabel="Confirm password input"
+                accessibilityHint="Re-enter your password to confirm it matches"
               />
               {!!confirmError && <Text style={styles.fieldError}>{confirmError}</Text>}
             </View>
@@ -302,21 +310,23 @@ export default function SignupScreen(): React.JSX.Element {
               <Text style={styles.checkText}>I confirm I am 18 years of age or older</Text>
             </Pressable>
 
-            {/* Terms */}
-            <Pressable
-              style={styles.checkRow}
-              onPress={() => {
-                setAgreedToTerms((v) => !v);
-                setError('');
-              }}
-              accessible
-              accessibilityRole="checkbox"
-              accessibilityLabel="I agree to the Terms of Service and Privacy Policy"
-              accessibilityState={{ checked: agreedToTerms }}
-            >
-              <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
-                {agreedToTerms && <Ionicons name="checkmark" size={13} color="#fff" />}
-              </View>
+            {/* Terms — checkbox and links are separate to avoid conflicting tap targets */}
+            <View style={styles.checkRow}>
+              <Pressable
+                onPress={() => {
+                  setAgreedToTerms((v) => !v);
+                  setError('');
+                }}
+                accessible
+                accessibilityRole="checkbox"
+                accessibilityLabel="I agree to the Terms of Service and Privacy Policy"
+                accessibilityState={{ checked: agreedToTerms }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
+                  {agreedToTerms && <Ionicons name="checkmark" size={13} color="#fff" />}
+                </View>
+              </Pressable>
               <Text style={styles.checkText}>
                 {'I agree to the '}
                 <Text
@@ -335,7 +345,7 @@ export default function SignupScreen(): React.JSX.Element {
                   Privacy Policy
                 </Text>
               </Text>
-            </Pressable>
+            </View>
 
             {!!error && <Text style={styles.errorText}>{error}</Text>}
 

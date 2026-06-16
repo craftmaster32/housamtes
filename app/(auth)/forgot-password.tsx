@@ -71,7 +71,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       setError(t('auth.enter_password_error'));
       return;
     }
-    if (password.length < 6) {
+    if (password.length < 8) {
       setError(t('auth.password_min_length'));
       return;
     }
@@ -85,7 +85,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       const { error: otpErr } = await supabase.auth.verifyOtp({
         email: email.trim(),
         token: code.trim(),
-        type: 'magiclink',
+        type: 'email',
       });
       if (otpErr) throw otpErr;
 
@@ -309,19 +309,14 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
         onRequestClose={handleConfirmSent}
       >
         <Pressable style={styles.backdrop} onPress={handleConfirmSent}>
-          <Pressable
-            style={styles.sheet}
-            onPress={() => {
-              /* swallow tap */
-            }}
-          >
+          <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetIconWrap}>
               <Ionicons name="checkmark" size={28} color={C.success} />
             </View>
-            <Text style={styles.sheetTitle}>Check your inbox</Text>
+            <Text style={styles.sheetTitle}>{t('auth.check_email_title')}</Text>
             <Text style={styles.sheetBody}>
-              {'Reset code sent to '}
+              {t('auth.reset_code_sent_to') + ' '}
               <Text style={{ color: C.textPrimary, ...font.semibold }}>{email.trim()}</Text>
             </Text>
             <Button
@@ -332,9 +327,9 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
               labelStyle={styles.buttonLabel}
               buttonColor={C.primary}
             >
-              Enter the code
+              {t('auth.enter_code_title')}
             </Button>
-          </Pressable>
+          </View>
         </Pressable>
       </Modal>
     </View>
@@ -358,8 +353,10 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       gap: 2,
       alignSelf: 'flex-start',
-      paddingVertical: 4,
-      marginTop: sizes.sm,
+      paddingVertical: sizes.sm,
+      paddingHorizontal: sizes.xs,
+      minHeight: sizes.touchTarget,
+      marginTop: sizes.xs,
       marginBottom: 4,
     },
     backText: {
