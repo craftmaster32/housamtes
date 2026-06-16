@@ -228,7 +228,7 @@ function makeStyles(C: ColorTokens) {
       borderBottomWidth: 1,
       borderBottomColor: C.border,
     },
-    backBtn: { width: 40, alignItems: 'flex-start' },
+    backBtn: { width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center' },
     title: { fontSize: 17, ...font.bold, color: C.textPrimary },
     content: { padding: sizes.lg, gap: sizes.sm, paddingBottom: 40 },
     sectionLabel: {
