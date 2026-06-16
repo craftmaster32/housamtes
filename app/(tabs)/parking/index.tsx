@@ -83,6 +83,7 @@ export interface ReservationCardProps {
   onClear: (id: string) => void;
   onDatePress: (date: string) => void;
   isHistory: boolean;
+  now: Date;
 }
 
 export interface ReserveModalProps {
@@ -267,6 +268,7 @@ function ReservationCard({
   onClear,
   onDatePress,
   isHistory,
+  now,
 }: ReservationCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -291,7 +293,7 @@ function ReservationCard({
   const isPending = item.status === 'pending';
   const approved = item.status === 'approved';
   const rejected = item.status === 'rejected';
-  const votingClosed = isPending && isReservationPastDue(item.date, item.startTime);
+  const votingClosed = isPending && isReservationPastDue(item.date, item.startTime, now);
 
   const statusColor = approved ? C.positive : rejected ? C.danger : C.warning;
   const statusBg = approved ? C.positive + '20' : rejected ? C.danger + '15' : C.warning + '20';
@@ -318,7 +320,7 @@ function ReservationCard({
   const myVote = item.votes.find((v) => v.userId === currentUserId);
   // Within the lock window, voters can't change their mind but non-voters can still cast a vote
   const voteChangeLocked =
-    isPending && !votingClosed && isVoteChangeLocked(item.date, item.startTime);
+    isPending && !votingClosed && isVoteChangeLocked(item.date, item.startTime, now);
   const canVote = !isOwn && isPending && !votingClosed && !(myVote && voteChangeLocked);
   // Admin can cancel any upcoming (non-history) reservation they don't own
   const canAdminCancel = isAdmin && !isOwn && !isHistory && (isPending || approved);
@@ -753,6 +755,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const [showReserve, setShowReserve] = useState(false);
   const [daySheetDate, setDaySheetDate] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [now, setNow] = useState(() => new Date());
 
   const handleDatePress = useCallback((date: string) => setDaySheetDate(date), []);
 
@@ -762,11 +765,13 @@ export default function ParkingScreen(): React.JSX.Element {
     const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (appStateRef.current !== 'active' && nextState === 'active') {
         checkReservationAutoApply(houseId);
+        setNow(new Date());
       }
       appStateRef.current = nextState;
     });
     const interval = setInterval(() => {
       checkReservationAutoApply(houseId ?? '');
+      setNow(new Date());
     }, 60_000);
     return (): void => {
       sub.remove();
@@ -985,6 +990,7 @@ export default function ParkingScreen(): React.JSX.Element {
           onClear={handleClear}
           onDatePress={handleDatePress}
           isHistory={item.isHistory}
+          now={now}
         />
       );
     },
@@ -996,6 +1002,7 @@ export default function ParkingScreen(): React.JSX.Element {
       handleClear,
       handleDatePress,
       handleClearAll,
+      now,
       C,
       t,
       styles,
