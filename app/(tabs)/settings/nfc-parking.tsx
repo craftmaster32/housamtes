@@ -73,16 +73,20 @@ export default function NfcParkingScreen(): React.JSX.Element {
           onPress: async (): Promise<void> => {
             if (!userId) return;
             setIsLoading(true);
-            const { data, error } = await supabase.rpc('reset_nfc_parking_token', {
-              p_user_id: userId,
-            });
-            if (error || !data) {
-              setIsLoading(false);
+            try {
+              const { data, error } = await supabase.rpc('reset_nfc_parking_token', {
+                p_user_id: userId,
+              });
+              if (error || !data) {
+                Alert.alert('Error', 'Could not reset the token. Please try again.');
+                return;
+              }
+              setToken(data as string);
+            } catch {
               Alert.alert('Error', 'Could not reset the token. Please try again.');
-              return;
+            } finally {
+              setIsLoading(false);
             }
-            setToken(data as string);
-            setIsLoading(false);
           },
         },
       ]
@@ -137,6 +141,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
                   onPress={handleShareToken}
                   accessibilityRole="button"
                   accessibilityLabel="Share token"
+                  accessibilityHint="Opens share sheet so you can copy the token"
                 >
                   <Ionicons name="share-outline" size={16} color={C.primary} />
                   <Text style={styles.copyBtnText}>Share / Copy</Text>
@@ -146,6 +151,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
                   onPress={handleRegenerate}
                   accessibilityRole="button"
                   accessibilityLabel="Reset token"
+                  accessibilityHint="Generates a new token, your current NFC tag will stop working"
                 >
                   <Text style={styles.resetBtnText}>Reset</Text>
                 </Pressable>

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, CURRENCIES, type ThemeMode } from '@stores/settingsStore';
@@ -412,20 +412,18 @@ export default function SettingsScreen(): React.JSX.Element {
 
           <Text style={styles.sectionLabel}>INTEGRATIONS</Text>
           <View style={styles.card}>
-            <Pressable
-              style={styles.row}
-              onPress={() => router.push('/(tabs)/settings/nfc-parking')}
-              accessibilityRole="button"
-            >
-              <Text style={styles.icon}>📡</Text>
-              <View style={styles.info}>
-                <Text style={styles.label}>NFC Parking Tag</Text>
-                <Text style={styles.description}>
-                  Toggle your spot by tapping a tag in your car
-                </Text>
-              </View>
-              <Text style={styles.chevron}>›</Text>
-            </Pressable>
+            <Link href="/(tabs)/settings/nfc-parking" asChild>
+              <Pressable style={styles.row} accessibilityRole="button">
+                <Text style={styles.icon}>📡</Text>
+                <View style={styles.info}>
+                  <Text style={styles.label}>NFC Parking Tag</Text>
+                  <Text style={styles.description}>
+                    Toggle your spot by tapping a tag in your car
+                  </Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
+            </Link>
           </View>
 
           <Text style={styles.sectionLabel}>LEGAL</Text>

@@ -34,6 +34,14 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function toMinutes(time: string): number {
+  const parts = time.split(':');
+  if (parts.length < 2) return 0;
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
+}
+
 function todayInTimezone(tz: string): { dateStr: string; nowMinutes: number } {
   const now = new Date();
   const dtf = new Intl.DateTimeFormat('en-CA', {
@@ -203,12 +211,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const blocked = ((reservations ?? []) as ReservationRow[]).find((r) => {
       if (r.requested_by === userId) return false;
-      const start = r.start_time
-        ? parseInt(r.start_time.split(':')[0], 10) * 60 + parseInt(r.start_time.split(':')[1], 10)
-        : 0;
-      const end = r.end_time
-        ? parseInt(r.end_time.split(':')[0], 10) * 60 + parseInt(r.end_time.split(':')[1], 10)
-        : 24 * 60;
+      const start = r.start_time ? toMinutes(r.start_time) : 0;
+      const end = r.end_time ? toMinutes(r.end_time) : 24 * 60;
       return nowMinutes >= start && nowMinutes < end;
     });
 

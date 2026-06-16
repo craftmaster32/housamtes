@@ -31,7 +31,8 @@ BEGIN
   v_new_token := gen_random_uuid();
 
   UPDATE profiles
-    SET nfc_parking_token = v_new_token
+    SET nfc_parking_token = v_new_token,
+        updated_at = NOW()
   WHERE id = p_user_id;
 
   GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
