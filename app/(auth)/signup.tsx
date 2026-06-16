@@ -345,7 +345,7 @@ export default function SignupScreen(): React.JSX.Element {
                 accessibilityRole="checkbox"
                 accessibilityLabel="I agree to the Terms of Service and Privacy Policy"
                 accessibilityState={{ checked: agreedToTerms }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
                 <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
                   {agreedToTerms && <Ionicons name="checkmark" size={13} color="#fff" />}
@@ -533,6 +533,7 @@ function makeStyles(C: ColorTokens) {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: sizes.sm,
+      minHeight: sizes.touchTarget,
     },
     checkbox: {
       width: 22,

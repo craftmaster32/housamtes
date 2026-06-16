@@ -136,10 +136,11 @@ export default function HouseSetupScreen(): React.JSX.Element {
         throw new Error(t('house_setup.code_not_found'));
       }
 
-      const { count } = await supabase
+      const { count, error: countErr } = await supabase
         .from('house_members')
         .select('*', { count: 'exact', head: true })
         .eq('house_id', house.id);
+      if (countErr) throw new Error(t('house_setup.failed_join'));
 
       joinAttemptsRef.current = 0;
       joinLockedUntilRef.current = null;
@@ -187,8 +188,11 @@ export default function HouseSetupScreen(): React.JSX.Element {
         if (myProfile && takenColors.has(myProfile.avatar_color)) {
           const freeColor = COLORS.find((c) => !takenColors.has(c));
           if (freeColor) {
-            await supabase.from('profiles').update({ avatar_color: freeColor }).eq('id', user.id);
-            setAssignedColor(freeColor);
+            const { error: colorErr } = await supabase
+              .from('profiles')
+              .update({ avatar_color: freeColor })
+              .eq('id', user.id);
+            if (!colorErr) setAssignedColor(freeColor);
           }
         }
       }

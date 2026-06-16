@@ -232,6 +232,8 @@ function makeStyles(C: ColorTokens) {
     },
     backToLogin: {
       paddingVertical: sizes.sm,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
     },
     backToLoginText: {
       fontSize: sizes.fontSm,
