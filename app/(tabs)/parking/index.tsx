@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   useParkingStore,
   isDateConflict,
+  isReservationPastDue,
+  isVoteChangeLocked,
   type ConflictResult,
   type ParkingReservation,
   type ParkingReservationStatus,
@@ -69,6 +71,7 @@ export interface VoteRowProps {
   votes: ParkingVote[];
   housemates: Housemate[];
   requestedBy: string;
+  votingClosed?: boolean;
 }
 
 export interface ReservationCardProps {
@@ -80,6 +83,7 @@ export interface ReservationCardProps {
   onClear: (id: string) => void;
   onDatePress: (date: string) => void;
   isHistory: boolean;
+  now: Date;
 }
 
 export interface ReserveModalProps {
@@ -93,14 +97,20 @@ export interface ReserveModalProps {
 }
 
 // ── Vote status row ────────────────────────────────────────────────────────────
-function VoteRow({ votes, housemates, requestedBy }: VoteRowProps): React.JSX.Element {
+function VoteRow({
+  votes,
+  housemates,
+  requestedBy,
+  votingClosed = false,
+}: VoteRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const voters = housemates.filter((h) => h.id !== requestedBy);
   if (voters.length === 0) return <View />;
 
-  const hasPendingVoters = voters.some((h) => !votes.find((v) => v.userId === h.id));
+  const hasPendingVoters =
+    !votingClosed && voters.some((h) => !votes.find((v) => v.userId === h.id));
 
   return (
     <View style={styles.voteRowWrapper}>
@@ -148,12 +158,14 @@ interface DayScheduleSheetProps {
   date: string | null;
   onClose: () => void;
   currentUserId: string;
+  now: Date;
 }
 
 function DayScheduleSheet({
   date,
   onClose,
   currentUserId,
+  now,
 }: DayScheduleSheetProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -204,12 +216,16 @@ function DayScheduleSheet({
                     : r.status === 'rejected'
                       ? C.danger + '15'
                       : C.warning + '20';
+                const votingClosed =
+                  r.status === 'pending' && isReservationPastDue(r.date, r.startTime, now);
                 const statusLabel =
                   r.status === 'approved'
                     ? t('parking.approved')
                     : r.status === 'rejected'
                       ? t('parking.rejected')
-                      : t('parking.pending');
+                      : votingClosed
+                        ? t('parking.voting_closed')
+                        : t('parking.pending');
                 const timeLabel = r.startTime
                   ? `${r.startTime}${r.endTime ? ` – ${r.endTime}` : ''}`
                   : 'All day';
@@ -258,6 +274,7 @@ function ReservationCard({
   onClear,
   onDatePress,
   isHistory,
+  now,
 }: ReservationCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -282,6 +299,7 @@ function ReservationCard({
   const isPending = item.status === 'pending';
   const approved = item.status === 'approved';
   const rejected = item.status === 'rejected';
+  const votingClosed = isPending && isReservationPastDue(item.date, item.startTime, now);
 
   const statusColor = approved ? C.positive : rejected ? C.danger : C.warning;
   const statusBg = approved ? C.positive + '20' : rejected ? C.danger + '15' : C.warning + '20';
@@ -289,7 +307,9 @@ function ReservationCard({
     ? t('parking.approved')
     : rejected
       ? t('parking.rejected')
-      : t('parking.pending');
+      : votingClosed
+        ? t('parking.voting_closed')
+        : t('parking.pending');
 
   const handleCancel = useCallback(() => onCancel(item.id), [onCancel, item.id]);
   const handleClear = useCallback(() => onClear(item.id), [onClear, item.id]);
@@ -304,7 +324,10 @@ function ReservationCard({
   const handleDatePress = useCallback(() => onDatePress(item.date), [onDatePress, item.date]);
 
   const myVote = item.votes.find((v) => v.userId === currentUserId);
-  const canVote = !isOwn && isPending;
+  // Within the lock window, voters can't change their mind but non-voters can still cast a vote
+  const voteChangeLocked =
+    isPending && !votingClosed && isVoteChangeLocked(item.date, item.startTime, now);
+  const canVote = !isOwn && isPending && !votingClosed && !(myVote && voteChangeLocked);
   // Admin can cancel any upcoming (non-history) reservation they don't own
   const canAdminCancel = isAdmin && !isOwn && !isHistory && (isPending || approved);
   const showOwnCancel = isOwn && isPending;
@@ -356,7 +379,12 @@ function ReservationCard({
           {item.note ? ` · ${item.note}` : ''}
         </Text>
 
-        <VoteRow votes={item.votes} housemates={housemates} requestedBy={item.requestedBy} />
+        <VoteRow
+          votes={item.votes}
+          housemates={housemates}
+          requestedBy={item.requestedBy}
+          votingClosed={votingClosed}
+        />
 
         <View style={[styles.badge, { backgroundColor: statusBg }]}>
           <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
@@ -733,6 +761,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const [showReserve, setShowReserve] = useState(false);
   const [daySheetDate, setDaySheetDate] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [now, setNow] = useState(() => new Date());
 
   const handleDatePress = useCallback((date: string) => setDaySheetDate(date), []);
 
@@ -742,11 +771,13 @@ export default function ParkingScreen(): React.JSX.Element {
     const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (appStateRef.current !== 'active' && nextState === 'active') {
         checkReservationAutoApply(houseId);
+        setNow(new Date());
       }
       appStateRef.current = nextState;
     });
     const interval = setInterval(() => {
       checkReservationAutoApply(houseId ?? '');
+      setNow(new Date());
     }, 60_000);
     return (): void => {
       sub.remove();
@@ -965,6 +996,7 @@ export default function ParkingScreen(): React.JSX.Element {
           onClear={handleClear}
           onDatePress={handleDatePress}
           isHistory={item.isHistory}
+          now={now}
         />
       );
     },
@@ -976,6 +1008,7 @@ export default function ParkingScreen(): React.JSX.Element {
       handleClear,
       handleDatePress,
       handleClearAll,
+      now,
       C,
       t,
       styles,
@@ -1112,6 +1145,7 @@ export default function ParkingScreen(): React.JSX.Element {
         date={daySheetDate}
         onClose={() => setDaySheetDate(null)}
         currentUserId={myId}
+        now={now}
       />
 
       <ReserveModal
