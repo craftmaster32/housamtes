@@ -12,6 +12,7 @@ import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signInSchema } from '@utils/validation';
@@ -23,6 +24,7 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
 
 export default function LoginScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -78,12 +80,12 @@ export default function LoginScreen(): React.JSX.Element {
       if (newAttempts >= MAX_ATTEMPTS) {
         setFailedAttempts(0);
         startLockout();
-        setError(`Too many failed attempts. Please wait ${LOCKOUT_SECONDS} seconds.`);
+        setError(t('auth.lockout_error', { seconds: LOCKOUT_SECONDS }));
       } else {
-        setError(err instanceof Error ? err.message : 'Sign in failed');
+        setError(err instanceof Error ? err.message : t('auth.sign_in_failed'));
       }
     }
-  }, [email, password, signIn, failedAttempts, lockoutRemaining, startLockout]);
+  }, [email, password, signIn, failedAttempts, lockoutRemaining, startLockout, t]);
 
   const isLocked = lockoutRemaining > 0;
 
@@ -112,10 +114,10 @@ export default function LoginScreen(): React.JSX.Element {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Sign in</Text>
+            <Text style={styles.cardTitle}>{t('auth.sign_in')}</Text>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>{t('auth.email')}</Text>
               <TextInput
                 value={email}
                 onChangeText={(t) => {
@@ -139,7 +141,7 @@ export default function LoginScreen(): React.JSX.Element {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>{t('auth.password')}</Text>
               <TextInput
                 ref={passwordRef}
                 value={password}
@@ -169,9 +171,9 @@ export default function LoginScreen(): React.JSX.Element {
                 onPress={() => router.push('/(auth)/forgot-password')}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel="Forgot password"
+                accessibilityLabel={t('auth.forgot_password')}
               >
-                <Text style={styles.forgotText}>Forgot password?</Text>
+                <Text style={styles.forgotText}>{t('auth.forgot_password')}</Text>
               </Pressable>
             </View>
 
@@ -188,9 +190,11 @@ export default function LoginScreen(): React.JSX.Element {
               buttonColor={C.primary}
               accessible
               accessibilityRole="button"
-              accessibilityLabel={isLocked ? `Locked, wait ${lockoutRemaining}s` : 'Log in'}
+              accessibilityLabel={
+                isLocked ? t('auth.lockout_wait', { seconds: lockoutRemaining }) : t('auth.log_in')
+              }
             >
-              {isLocked ? `Try again in ${lockoutRemaining}s` : 'Log in'}
+              {isLocked ? t('auth.lockout_wait', { seconds: lockoutRemaining }) : t('auth.log_in')}
             </Button>
 
             <View style={styles.dividerRow}>
@@ -204,11 +208,11 @@ export default function LoginScreen(): React.JSX.Element {
               onPress={() => router.back()}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Don't have an account, sign up"
+              accessibilityLabel={t('auth.no_account_prompt') + ' ' + t('auth.sign_up')}
             >
               <Text style={styles.signupText}>
-                {"Don't have an account? "}
-                <Text style={styles.signupLink}>Sign up</Text>
+                {t('auth.no_account_prompt') + ' '}
+                <Text style={styles.signupLink}>{t('auth.sign_up')}</Text>
               </Text>
             </Pressable>
           </View>

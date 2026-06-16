@@ -33,7 +33,6 @@ function getPasswordStrength(pw: string): 0 | 1 | 2 | 3 | 4 {
   return 2;
 }
 
-const STRENGTH_LABELS = ['', 'Weak', 'Fair', 'Good', 'Strong'];
 const STRENGTH_COLORS = ['', '#D9534F', '#E0B24D', '#4FB071', '#3B6FBF'];
 
 export default function SignupScreen(): React.JSX.Element {
@@ -58,6 +57,16 @@ export default function SignupScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const strengthLabels = useMemo(
+    () => [
+      '',
+      t('auth.strength_weak'),
+      t('auth.strength_fair'),
+      t('auth.strength_good'),
+      t('auth.strength_strong'),
+    ],
+    [t]
+  );
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
@@ -66,10 +75,12 @@ export default function SignupScreen(): React.JSX.Element {
   const strength = getPasswordStrength(password);
   const passwordError =
     passwordTouched && password.length > 0 && password.length < 8
-      ? 'Password must be at least 8 characters'
+      ? t('auth.password_min_length')
       : null;
   const confirmError =
-    confirmPassword.length > 0 && confirmPassword !== password ? 'Passwords do not match' : null;
+    confirmPassword.length > 0 && confirmPassword !== password
+      ? t('auth.passwords_no_match')
+      : null;
 
   const canSubmit =
     !isLoading &&
@@ -82,11 +93,11 @@ export default function SignupScreen(): React.JSX.Element {
 
   const handleSignup = useCallback(async () => {
     if (!confirmedAge) {
-      setError('Please confirm that you are 18 or older to continue.');
+      setError(t('auth.age_confirm_error'));
       return;
     }
     if (!agreedToTerms) {
-      setError('Please agree to the Terms of Service and Privacy Policy to continue.');
+      setError(t('auth.terms_agree_error'));
       return;
     }
     const result = signUpSchema.safeParse({ name, email, password });
@@ -134,7 +145,7 @@ export default function SignupScreen(): React.JSX.Element {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Create your account</Text>
+            <Text style={styles.cardTitle}>{t('auth.create_account_title')}</Text>
 
             {/* Name */}
             <View style={styles.fieldGroup}>
@@ -151,7 +162,7 @@ export default function SignupScreen(): React.JSX.Element {
                 autoFocus
                 returnKeyType="next"
                 onSubmitEditing={() => emailRef.current?.focus()}
-                placeholder="Your name"
+                placeholder={t('auth.name_placeholder')}
                 placeholderTextColor={C.textTertiary}
                 accessibilityLabel="Name input"
                 accessibilityHint="Enter your full name"
@@ -226,7 +237,7 @@ export default function SignupScreen(): React.JSX.Element {
                   </View>
                   {strength > 0 && (
                     <Text style={[styles.strengthLabel, { color: STRENGTH_COLORS[strength] }]}>
-                      {STRENGTH_LABELS[strength]}
+                      {strengthLabels[strength]}
                     </Text>
                   )}
                 </View>
@@ -236,7 +247,7 @@ export default function SignupScreen(): React.JSX.Element {
 
             {/* Confirm password */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Confirm password</Text>
+              <Text style={styles.label}>{t('auth.confirm_password')}</Text>
               <TextInput
                 ref={confirmRef}
                 value={confirmPassword}
@@ -306,7 +317,7 @@ export default function SignupScreen(): React.JSX.Element {
               <View style={[styles.checkbox, confirmedAge && styles.checkboxChecked]}>
                 {confirmedAge && <Ionicons name="checkmark" size={13} color="#fff" />}
               </View>
-              <Text style={styles.checkText}>I confirm I am 18 years of age or older</Text>
+              <Text style={styles.checkText}>{t('auth.confirm_age')}</Text>
             </Pressable>
 
             {/* Terms — checkbox and links are separate to avoid conflicting tap targets */}
@@ -327,21 +338,21 @@ export default function SignupScreen(): React.JSX.Element {
                 </View>
               </Pressable>
               <Text style={styles.checkText}>
-                {'I agree to the '}
+                {t('auth.terms_prefix')}
                 <Text
                   style={styles.checkLink}
                   onPress={() => router.push('/(auth)/terms')}
                   accessibilityRole="link"
                 >
-                  Terms of Service
+                  {t('auth.terms_of_service')}
                 </Text>
-                {' and '}
+                {t('auth.terms_and')}
                 <Text
                   style={styles.checkLink}
                   onPress={() => router.push('/(auth)/privacy-policy')}
                   accessibilityRole="link"
                 >
-                  Privacy Policy
+                  {t('auth.privacy_policy')}
                 </Text>
               </Text>
             </View>
@@ -369,11 +380,11 @@ export default function SignupScreen(): React.JSX.Element {
               onPress={() => router.replace('/(auth)/login')}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Already have an account, log in"
+              accessibilityLabel={t('auth.have_account_prompt') + ' ' + t('auth.log_in')}
             >
               <Text style={styles.loginText}>
-                {'Already have an account? '}
-                <Text style={styles.loginLink}>Log in</Text>
+                {t('auth.have_account_prompt') + ' '}
+                <Text style={styles.loginLink}>{t('auth.log_in')}</Text>
               </Text>
             </Pressable>
           </View>

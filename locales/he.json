@@ -106,7 +106,26 @@
     "password_updated_body": "עכשיו אפשר להיכנס עם הסיסמה החדשה.",
     "reset_title": "הגדר סיסמה חדשה",
     "reset_subtitle": "בחר סיסמה חזקה לחשבון.",
-    "by_continuing": "בהמשך אתה מסכים לתנאי השירות"
+    "by_continuing": "בהמשך אתה מסכים לתנאי השירות",
+    "log_in": "כניסה",
+    "lockout_error": "יותר מדי ניסיונות כושלים. אנא המתן {{seconds}} שניות.",
+    "lockout_wait": "נסה שוב בעוד {{seconds}}ש",
+    "no_account_prompt": "אין לך חשבון?",
+    "sign_up": "הרשמה",
+    "create_account_title": "צור את חשבונך",
+    "name_placeholder": "שמך",
+    "confirm_age": "אני מאשר שאני בן 18 או יותר",
+    "terms_prefix": "אני מסכים ל",
+    "terms_of_service": "תנאי השימוש",
+    "terms_and": " ו",
+    "privacy_policy": "מדיניות הפרטיות",
+    "age_confirm_error": "אנא אשר שאתה בן 18 או יותר להמשיך.",
+    "terms_agree_error": "אנא הסכם לתנאי השימוש ולמדיניות הפרטיות להמשיך.",
+    "have_account_prompt": "כבר יש לך חשבון?",
+    "strength_weak": "חלשה",
+    "strength_fair": "בינונית",
+    "strength_good": "טובה",
+    "strength_strong": "חזקה"
   },
   "welcome": {
     "tagline": "מגורים משותפים, פשוט יותר.",
@@ -154,7 +173,8 @@
     "member_count_one": "{{count}} דייר כבר בפנים",
     "member_count_other": "{{count}} דיירים כבר בפנים",
     "confirm_join": "אישור והצטרפות",
-    "wrong_house": "זה לא הבית שלי — נסה שוב"
+    "wrong_house": "זה לא הבית שלי — נסה שוב",
+    "too_many_attempts": "יותר מדי ניסיונות. אנא המתן {{seconds}}ש לפני ניסיון נוסף."
   },
   "dashboard": {
     "greeting_morning": "בוקר טוב",

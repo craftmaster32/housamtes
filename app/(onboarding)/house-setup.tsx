@@ -108,7 +108,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
   const handleFindHouse = useCallback(async () => {
     if (joinLockedUntilRef.current && new Date() < joinLockedUntilRef.current) {
       const secondsLeft = Math.ceil((joinLockedUntilRef.current.getTime() - Date.now()) / 1000);
-      setError(`Too many attempts. Please wait ${secondsLeft}s before trying again.`);
+      setError(t('house_setup.too_many_attempts', { seconds: secondsLeft }));
       return;
     }
     if (!inviteCode.trim()) {
@@ -357,7 +357,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
                   mode="contained"
                   onPress={handleFindHouse}
                   loading={isLoading}
-                  disabled={isLoading || inviteCode.trim().length < 6}
+                  disabled={isLoading || inviteCode.trim().length < 8}
                   style={styles.button}
                   contentStyle={styles.buttonContent}
                   labelStyle={styles.buttonLabel}
@@ -692,6 +692,8 @@ function makeStyles(C: ColorTokens) {
     },
     cancelBtn: {
       paddingVertical: sizes.sm,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
     },
     cancelText: {
       fontSize: 13,

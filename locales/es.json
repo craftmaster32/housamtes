@@ -107,7 +107,26 @@
     "password_updated_body": "Ya puedes iniciar sesión con tu nueva contraseña.",
     "reset_title": "Establecer nueva contraseña",
     "reset_subtitle": "Elige una contraseña segura para tu cuenta.",
-    "by_continuing": "Al continuar aceptas nuestros Términos de Servicio"
+    "by_continuing": "Al continuar aceptas nuestros Términos de Servicio",
+    "log_in": "Iniciar sesión",
+    "lockout_error": "Demasiados intentos fallidos. Por favor espera {{seconds}} segundos.",
+    "lockout_wait": "Intenta de nuevo en {{seconds}}s",
+    "no_account_prompt": "¿No tienes cuenta?",
+    "sign_up": "Regístrate",
+    "create_account_title": "Crea tu cuenta",
+    "name_placeholder": "Tu nombre",
+    "confirm_age": "Confirmo que tengo 18 años o más",
+    "terms_prefix": "Estoy de acuerdo con los ",
+    "terms_of_service": "Términos de Servicio",
+    "terms_and": " y la ",
+    "privacy_policy": "Política de Privacidad",
+    "age_confirm_error": "Por favor confirma que tienes 18 años o más para continuar.",
+    "terms_agree_error": "Por favor acepta los Términos de Servicio y la Política de Privacidad para continuar.",
+    "have_account_prompt": "¿Ya tienes cuenta?",
+    "strength_weak": "Débil",
+    "strength_fair": "Regular",
+    "strength_good": "Buena",
+    "strength_strong": "Fuerte"
   },
   "welcome": {
     "tagline": "Convivencia, simplificada.",
@@ -155,7 +174,8 @@
     "member_count_one": "{{count}} miembro ya adentro",
     "member_count_other": "{{count}} miembros ya adentro",
     "confirm_join": "Confirmar y unirse",
-    "wrong_house": "Esa no es mi casa — intenta de nuevo"
+    "wrong_house": "Esa no es mi casa — intenta de nuevo",
+    "too_many_attempts": "Demasiados intentos. Por favor espera {{seconds}}s antes de intentar de nuevo."
   },
   "dashboard": {
     "greeting_morning": "Buenos días",

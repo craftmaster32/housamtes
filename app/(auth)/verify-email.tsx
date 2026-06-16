@@ -44,7 +44,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
           onPress={() => router.replace('/(auth)/login')}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Back to log in"
+          accessibilityLabel={t('auth.go_to_sign_in')}
         >
           <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
           <Text style={styles.backText}>{t('common.back')}</Text>
@@ -100,7 +100,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             onPress={() => router.replace('/(auth)/login')}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Back to log in"
+            accessibilityLabel={t('auth.go_to_sign_in')}
             style={styles.backToLogin}
           >
             <Text style={styles.backToLoginText}>{t('auth.go_to_sign_in')}</Text>

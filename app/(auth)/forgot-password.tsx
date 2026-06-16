@@ -128,7 +128,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
           }}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.back')}
         >
           <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
           <Text style={styles.backText}>{t('common.back')}</Text>
@@ -203,7 +203,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 buttonColor={C.primary}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel="Send reset code"
+                accessibilityLabel={t('auth.send_code')}
               >
                 {t('auth.send_code')}
               </Button>
@@ -291,7 +291,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 buttonColor={C.primary}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel="Update password"
+                accessibilityLabel={t('auth.update_password')}
               >
                 {t('auth.update_password')}
               </Button>
