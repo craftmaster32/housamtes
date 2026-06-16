@@ -155,7 +155,7 @@
     "member_count_one": "{{count}} miembro ya adentro",
     "member_count_other": "{{count}} miembros ya adentro",
     "confirm_join": "Confirmar y unirse",
-    "wrong_house": "Esa no es mi casa — intentar de nuevo"
+    "wrong_house": "Esa no es mi casa — intenta de nuevo"
   },
   "dashboard": {
     "greeting_morning": "Buenos días",
