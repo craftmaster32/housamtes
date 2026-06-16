@@ -106,13 +106,24 @@ async function notifyHousemates(
     priority: 'high',
   }));
 
-  await fetch(EXPO_PUSH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(messages),
-  }).catch(() => {
-    // Non-fatal — don't let a push failure block the toggle response
-  });
+  const delays = [500, 1000, 2000];
+  for (let attempt = 0; attempt < delays.length; attempt++) {
+    try {
+      const res = await fetch(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(messages),
+      });
+      if (res.ok) return;
+      console.warn(`[parking-toggle] push attempt ${attempt + 1} returned ${res.status}`);
+    } catch (err) {
+      console.warn(`[parking-toggle] push attempt ${attempt + 1} threw:`, err);
+    }
+    if (attempt < delays.length - 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
+    }
+  }
+  console.error('[parking-toggle] All push attempts failed');
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {

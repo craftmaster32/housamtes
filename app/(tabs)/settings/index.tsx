@@ -415,6 +415,7 @@ export default function SettingsScreen(): React.JSX.Element {
             <Pressable
               style={styles.row}
               onPress={() => router.push('/(tabs)/settings/nfc-parking')}
+              accessibilityRole="button"
             >
               <Text style={styles.icon}>📡</Text>
               <View style={styles.info}>

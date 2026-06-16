@@ -21,6 +21,7 @@ SECURITY DEFINER
 AS $$
 DECLARE
   v_new_token uuid;
+  v_rows_updated integer;
 BEGIN
   -- Users can only reset their own token
   IF auth.uid() IS DISTINCT FROM p_user_id THEN
@@ -32,6 +33,11 @@ BEGIN
   UPDATE profiles
     SET nfc_parking_token = v_new_token
   WHERE id = p_user_id;
+
+  GET DIAGNOSTICS v_rows_updated = ROW_COUNT;
+  IF v_rows_updated = 0 THEN
+    RAISE EXCEPTION 'Profile not found for user %', p_user_id;
+  END IF;
 
   RETURN v_new_token;
 END;

@@ -32,20 +32,21 @@ export default function NfcParkingScreen(): React.JSX.Element {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    supabase
-      .from('profiles')
-      .select('nfc_parking_token')
-      .eq('id', userId)
-      .single()
-      .then(({ data, error }): void => {
+    void (async (): Promise<void> => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('nfc_parking_token')
+          .eq('id', userId)
+          .single();
         if (cancelled) return;
-        if (error || !data) {
-          setIsLoading(false);
-          return;
+        if (!error && data) {
+          setToken((data as { nfc_parking_token: string }).nfc_parking_token);
         }
-        setToken((data as { nfc_parking_token: string }).nfc_parking_token);
-        setIsLoading(false);
-      });
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
     return (): void => {
       cancelled = true;
     };
@@ -268,6 +269,7 @@ function makeStyles(C: ColorTokens) {
       gap: 6,
       paddingHorizontal: 14,
       paddingVertical: 8,
+      minHeight: 44,
       borderRadius: 8,
       borderWidth: 1.5,
       borderColor: C.primary,
@@ -277,9 +279,11 @@ function makeStyles(C: ColorTokens) {
     resetBtn: {
       paddingHorizontal: 14,
       paddingVertical: 8,
+      minHeight: 44,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: C.border,
+      justifyContent: 'center',
     },
     resetBtnText: { fontSize: 14, ...font.semibold, color: C.textSecondary },
     errorText: { fontSize: 14, color: C.negative, ...font.regular, textAlign: 'center' },
