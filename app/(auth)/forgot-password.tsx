@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
+import { signInSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -38,8 +39,9 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const handleSendCode = useCallback(async () => {
-    if (!email.trim()) {
-      setError(t('auth.email'));
+    const emailResult = signInSchema.pick({ email: true }).safeParse({ email: email.trim() });
+    if (!emailResult.success) {
+      setError(emailResult.error.errors[0].message);
       return;
     }
     setIsLoading(true);
@@ -187,6 +189,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   error={!!error}
                   placeholder="you@example.com"
                   placeholderTextColor={C.textTertiary}
+                  accessibilityLabel="Email address"
+                  accessibilityHint="Enter your email to receive a reset code"
                 />
               </View>
 
@@ -226,6 +230,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   returnKeyType="next"
                   maxLength={8}
                   error={!!error}
+                  accessibilityLabel="Verification code"
+                  accessibilityHint="Enter the 6-digit code from your email"
                 />
               </View>
 
@@ -243,6 +249,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   secureTextEntry={!showPassword}
                   returnKeyType="next"
                   error={!!error}
+                  accessibilityLabel="New password"
+                  accessibilityHint="Enter your new password, at least 8 characters"
                   right={
                     <TextInput.Icon
                       icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -268,6 +276,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   returnKeyType="done"
                   onSubmitEditing={handleReset}
                   error={!!error}
+                  accessibilityLabel="Confirm new password"
+                  accessibilityHint="Re-enter your new password to confirm it matches"
                   right={
                     <TextInput.Icon
                       icon={showConfirm ? 'eye-off-outline' : 'eye-outline'}

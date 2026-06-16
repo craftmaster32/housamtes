@@ -205,7 +205,7 @@ export default function LoginScreen(): React.JSX.Element {
 
             <Pressable
               style={styles.signupRow}
-              onPress={() => router.back()}
+              onPress={() => router.replace('/(auth)/signup')}
               accessible
               accessibilityRole="button"
               accessibilityLabel={t('auth.no_account_prompt') + ' ' + t('auth.sign_up')}

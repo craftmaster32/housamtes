@@ -100,6 +100,10 @@ export default function SignupScreen(): React.JSX.Element {
       setError(t('auth.terms_agree_error'));
       return;
     }
+    if (password !== confirmPassword) {
+      setError(t('auth.passwords_no_match'));
+      return;
+    }
     const result = signUpSchema.safeParse({ name, email, password });
     if (!result.success) {
       setError(result.error.errors[0].message);
@@ -119,7 +123,17 @@ export default function SignupScreen(): React.JSX.Element {
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.something_went_wrong'));
     }
-  }, [name, email, password, selectedColor, confirmedAge, agreedToTerms, signUp, t]);
+  }, [
+    name,
+    email,
+    password,
+    confirmPassword,
+    selectedColor,
+    confirmedAge,
+    agreedToTerms,
+    signUp,
+    t,
+  ]);
 
   return (
     <Animated.View style={[styles.root, { opacity: fadeAnim }]}>
@@ -502,9 +516,9 @@ function makeStyles(C: ColorTokens) {
       gap: sizes.sm,
     },
     colorDot: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       justifyContent: 'center',
       alignItems: 'center',
     },

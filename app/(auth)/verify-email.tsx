@@ -84,7 +84,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             mode="outlined"
             onPress={handleResend}
             loading={isResending}
-            disabled={isResending}
+            disabled={isResending || !pendingEmail}
             style={styles.ghostButton}
             contentStyle={styles.buttonContent}
             labelStyle={[styles.buttonLabel, { color: C.textPrimary }]}

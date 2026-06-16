@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { COLORS } from '@stores/housematesStore';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -100,6 +101,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
 
       setHouseId(house.id);
     } catch (err) {
+      captureError(err, { context: 'house-create', userId: user?.id ?? '' });
       setError(err instanceof Error ? err.message : t('house_setup.failed_create'));
       setIsLoading(false);
     }
@@ -141,9 +143,11 @@ export default function HouseSetupScreen(): React.JSX.Element {
 
       joinAttemptsRef.current = 0;
       joinLockedUntilRef.current = null;
+      // Supabase infers string | null from .select('id, name'); column is NOT NULL in schema
       setPendingHouse({ id: house.id, name: house.name as string, memberCount: count ?? 0 });
       setShowConfirm(true);
     } catch (err) {
+      captureError(err, { context: 'house-find', userId: user?.id ?? '' });
       setError(err instanceof Error ? err.message : t('house_setup.failed_join'));
     } finally {
       setIsLoading(false);
@@ -192,6 +196,11 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setShowConfirm(false);
       setHouseId(pendingHouse.id);
     } catch (err) {
+      captureError(err, {
+        context: 'house-confirm-join',
+        houseId: pendingHouse?.id ?? '',
+        userId: user?.id ?? '',
+      });
       setError(err instanceof Error ? err.message : t('house_setup.failed_join'));
       setShowConfirm(false);
       setIsLoading(false);
