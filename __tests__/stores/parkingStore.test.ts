@@ -706,6 +706,35 @@ describe('parkingStore — voteOnReservation', () => {
       jest.useRealTimers();
     }
   });
+
+  it('allows a non-voter to cast an initial vote during the change-lock window', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-04-20T08:35:00'));
+    try {
+      useParkingStore.setState({
+        reservations: [
+          reservation({
+            id: 'r1',
+            requestedBy: 'requester',
+            status: 'pending',
+            date: '2026-04-20',
+            startTime: '09:00',
+            votes: [],
+          }),
+        ],
+      });
+      mockFrom
+        .mockReturnValueOnce(ok())
+        .mockReturnValueOnce(ok([{ user_id: 'u1', vote: 'approve' }]))
+        .mockReturnValueOnce(ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }]));
+
+      const status = await useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1');
+
+      expect(status).toBe('pending');
+      expect(mockFrom).toHaveBeenCalledTimes(3);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe('tallyParkingReservationVotes', () => {
