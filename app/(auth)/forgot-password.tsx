@@ -177,6 +177,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   }}
                   mode="outlined"
                   style={styles.input}
+                  contentStyle={styles.inputText}
                   outlineStyle={styles.inputOutline}
                   autoFocus
                   keyboardType="email-address"
@@ -221,6 +222,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   }}
                   mode="outlined"
                   style={styles.input}
+                  contentStyle={styles.inputText}
                   outlineStyle={styles.inputOutline}
                   autoFocus
                   keyboardType="number-pad"
@@ -242,6 +244,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   }}
                   mode="outlined"
                   style={styles.input}
+                  contentStyle={styles.inputText}
                   outlineStyle={styles.inputOutline}
                   secureTextEntry={!showPassword}
                   returnKeyType="next"
@@ -268,6 +271,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   }}
                   mode="outlined"
                   style={styles.input}
+                  contentStyle={styles.inputText}
                   outlineStyle={styles.inputOutline}
                   secureTextEntry={!showConfirm}
                   returnKeyType="done"
@@ -424,6 +428,9 @@ function makeStyles(C: ColorTokens) {
     input: {
       backgroundColor: C.surface,
       height: 52,
+    },
+    inputText: {
+      color: C.textPrimary,
     },
     inputOutline: {
       borderRadius: 12,

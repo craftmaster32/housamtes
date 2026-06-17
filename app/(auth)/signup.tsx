@@ -174,6 +174,7 @@ export default function SignupScreen(): React.JSX.Element {
                 }}
                 mode="outlined"
                 style={styles.input}
+                contentStyle={styles.inputText}
                 outlineStyle={styles.inputOutline}
                 autoFocus
                 returnKeyType="next"
@@ -197,6 +198,7 @@ export default function SignupScreen(): React.JSX.Element {
                 }}
                 mode="outlined"
                 style={styles.input}
+                contentStyle={styles.inputText}
                 outlineStyle={styles.inputOutline}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -222,6 +224,7 @@ export default function SignupScreen(): React.JSX.Element {
                 onBlur={() => setPasswordTouched(true)}
                 mode="outlined"
                 style={[styles.input, !!passwordError && styles.inputError]}
+                contentStyle={styles.inputText}
                 outlineStyle={[styles.inputOutline, !!passwordError && styles.inputOutlineError]}
                 secureTextEntry={!showPassword}
                 returnKeyType="next"
@@ -273,6 +276,7 @@ export default function SignupScreen(): React.JSX.Element {
                 }}
                 mode="outlined"
                 style={[styles.input, !!confirmError && styles.inputError]}
+                contentStyle={styles.inputText}
                 outlineStyle={[styles.inputOutline, !!confirmError && styles.inputOutlineError]}
                 secureTextEntry={!showConfirm}
                 returnKeyType="done"
@@ -480,6 +484,9 @@ function makeStyles(C: ColorTokens) {
     input: {
       backgroundColor: C.surface,
       height: 52,
+    },
+    inputText: {
+      color: C.textPrimary,
     },
     inputOutline: {
       borderRadius: 12,
