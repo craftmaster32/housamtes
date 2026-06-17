@@ -791,6 +791,17 @@ export default function SettingsScreen(): React.JSX.Element {
             ))}
           </View>
 
+          {/* Integrations */}
+          <SectionDivider label="Integrations" />
+          <View style={styles.menuGroup}>
+            <MenuItem
+              icon="📡"
+              label="NFC Parking Tag"
+              sub="Toggle your spot by tapping a tag in your car"
+              onPress={() => router.push('/(tabs)/settings/nfc-parking')}
+            />
+          </View>
+
           {/* About */}
           <SectionDivider label={t('settings.about_section')} />
           <View style={styles.menuGroup}>
