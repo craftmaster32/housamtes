@@ -39,15 +39,14 @@ export default function VerifyEmailScreen(): React.JSX.Element {
         </View>
 
         <Text style={styles.title}>{t('auth.check_email_title')}</Text>
-        <Text style={styles.subtitle}>
-          {t('auth.check_email_sent_to')}
-        </Text>
+        <Text style={styles.subtitle}>{t('auth.check_email_sent_to')}</Text>
         {!!pendingEmail && (
-          <Text style={styles.email} selectable>{pendingEmail}</Text>
+          <Text style={styles.email} selectable>
+            {pendingEmail}
+          </Text>
         )}
-        <Text style={styles.instructions}>
-          {t('auth.check_email_body')}
-        </Text>
+        {!pendingEmail && <Text style={styles.error}>{t('auth.no_pending_email')}</Text>}
+        <Text style={styles.instructions}>{t('auth.check_email_body')}</Text>
 
         {!!error && <Text style={styles.error}>{error}</Text>}
 
@@ -70,10 +69,10 @@ export default function VerifyEmailScreen(): React.JSX.Element {
 
         <Pressable
           onPress={handleResend}
-          disabled={isResending}
+          disabled={isResending || !pendingEmail}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Resend verification email"
+          accessibilityLabel={t('auth.resend_email')}
           style={styles.resendBtn}
         >
           <Text style={styles.resendText}>
