@@ -22,6 +22,7 @@ export const CATEGORIES = [
   'Other',
 ];
 
+// Alias used by bill screens for the horizontal category chip picker
 export const DISPLAY_CATEGORIES = CATEGORIES;
 
 export const CATEGORY_GROUPS: { label: string; items: string[] }[] = [

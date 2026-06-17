@@ -1,8 +1,18 @@
 import { useCallback, useState, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Switch, Pressable, Alert, Modal, Platform, Animated } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Switch,
+  Pressable,
+  Alert,
+  Modal,
+  Platform,
+  Animated,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, CURRENCIES, type ThemeMode } from '@stores/settingsStore';
@@ -23,20 +33,23 @@ export default function SettingsScreen(): React.JSX.Element {
   const setCurrency = useSettingsStore((s) => s.setCurrency);
   const themeMode = useSettingsStore((s) => s.themeMode);
   const setThemeMode = useSettingsStore((s) => s.setThemeMode);
-  const handleSelectMode = useCallback((mode: ThemeMode) => (): void => {
-    setThemeMode(mode);
-  }, [setThemeMode]);
+  const handleSelectMode = useCallback(
+    (mode: ThemeMode) => (): void => {
+      setThemeMode(mode);
+    },
+    [setThemeMode]
+  );
   const leaveHouse = useAuthStore((s) => s.leaveHouse);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const houseName = useHousematesStore((s) => s.houseName);
   const bills = useBillsStore((s) => s.bills);
   const addProposal = useVotingStore((s) => s.addProposal);
-  const calConnected    = useCalendarSyncStore((s) => s.connected);
-  const calAutoSync     = useCalendarSyncStore((s) => s.autoSync);
-  const calConnect      = useCalendarSyncStore((s) => s.connect);
-  const calDisconnect   = useCalendarSyncStore((s) => s.disconnect);
-  const calSetAutoSync  = useCalendarSyncStore((s) => s.setAutoSync);
+  const calConnected = useCalendarSyncStore((s) => s.connected);
+  const calAutoSync = useCalendarSyncStore((s) => s.autoSync);
+  const calConnect = useCalendarSyncStore((s) => s.connect);
+  const calDisconnect = useCalendarSyncStore((s) => s.disconnect);
+  const calSetAutoSync = useCalendarSyncStore((s) => s.setAutoSync);
 
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showDebtModal, setShowDebtModal] = useState(false);
@@ -74,7 +87,10 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const handleLeavePress = useCallback((): void => {
     const myId = profile?.id ?? '';
-    const balances = calculateBalances(bills.filter((b) => !b.settled), myId);
+    const balances = calculateBalances(
+      bills.filter((b) => !b.settled),
+      myId
+    );
     const owed = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
     if (owed > 0.01) {
       setDebtAmount(owed);
@@ -135,19 +151,27 @@ export default function SettingsScreen(): React.JSX.Element {
                 accessibilityState={{ selected: themeMode === mode }}
               >
                 <Ionicons
-                  name={mode === 'dark' ? 'moon-outline' : mode === 'light' ? 'sunny-outline' : 'phone-portrait-outline'}
+                  name={
+                    mode === 'dark'
+                      ? 'moon-outline'
+                      : mode === 'light'
+                        ? 'sunny-outline'
+                        : 'phone-portrait-outline'
+                  }
                   size={22}
                   color={themeMode === mode ? C.primary : C.textSecondary}
                   style={styles.iconNative}
                 />
                 <View style={styles.info}>
                   <Text style={[styles.label, themeMode === mode && styles.selectedLabel]}>
-                    {mode === 'system' ? t('settings.appearance_system') : mode === 'light' ? t('settings.appearance_light') : t('settings.appearance_dark')}
+                    {mode === 'system'
+                      ? t('settings.appearance_system')
+                      : mode === 'light'
+                        ? t('settings.appearance_light')
+                        : t('settings.appearance_dark')}
                   </Text>
                 </View>
-                {themeMode === mode && (
-                  <Ionicons name="checkmark" size={20} color={C.primary} />
-                )}
+                {themeMode === mode && <Ionicons name="checkmark" size={20} color={C.primary} />}
               </Pressable>
             ))}
           </View>
@@ -164,10 +188,20 @@ export default function SettingsScreen(): React.JSX.Element {
                   accessibilityRole="button"
                   accessibilityState={{ selected: currency === c.symbol }}
                 >
-                  <Text style={[styles.currencyChipText, currency === c.symbol && styles.currencyChipTextActive]}>
+                  <Text
+                    style={[
+                      styles.currencyChipText,
+                      currency === c.symbol && styles.currencyChipTextActive,
+                    ]}
+                  >
                     {c.symbol}
                   </Text>
-                  <Text style={[styles.currencyChipLabel, currency === c.symbol && styles.currencyChipLabelActive]}>
+                  <Text
+                    style={[
+                      styles.currencyChipLabel,
+                      currency === c.symbol && styles.currencyChipLabelActive,
+                    ]}
+                  >
                     {c.label.split('(')[0].trim()}
                   </Text>
                 </Pressable>
@@ -181,10 +215,7 @@ export default function SettingsScreen(): React.JSX.Element {
             {features.map((feature, index) => (
               <View
                 key={feature.key}
-                style={[
-                  styles.row,
-                  index < features.length - 1 && styles.rowBorder,
-                ]}
+                style={[styles.row, index < features.length - 1 && styles.rowBorder]}
               >
                 <Text style={styles.icon}>{feature.icon}</Text>
                 <View style={styles.info}>
@@ -237,7 +268,9 @@ export default function SettingsScreen(): React.JSX.Element {
                   <Text style={styles.icon}>📋</Text>
                   <View style={styles.info}>
                     <Text style={styles.label}>Auto-add house events</Text>
-                    <Text style={styles.description}>New house events go straight to your calendar</Text>
+                    <Text style={styles.description}>
+                      New house events go straight to your calendar
+                    </Text>
                   </View>
                   <Switch
                     value={calAutoSync.events}
@@ -252,7 +285,9 @@ export default function SettingsScreen(): React.JSX.Element {
                   <Text style={styles.icon}>🚗</Text>
                   <View style={styles.info}>
                     <Text style={styles.label}>Auto-add parking</Text>
-                    <Text style={styles.description}>Reservations added as pending, updated when approved</Text>
+                    <Text style={styles.description}>
+                      Reservations added as pending, updated when approved
+                    </Text>
                   </View>
                   <Switch
                     value={calAutoSync.parking}
@@ -270,16 +305,19 @@ export default function SettingsScreen(): React.JSX.Element {
           {/* ── House ── */}
           <Text style={styles.sectionLabel}>YOUR HOUSE</Text>
           <View style={styles.card}>
-            <Pressable
-              style={styles.row}
-              onPress={handleLeavePress}
-              accessibilityRole="button"
-            >
-              <Ionicons name="exit-outline" size={22} color={C.negative} style={styles.iconNative} />
+            <Pressable style={styles.row} onPress={handleLeavePress} accessibilityRole="button">
+              <Ionicons
+                name="exit-outline"
+                size={22}
+                color={C.negative}
+                style={styles.iconNative}
+              />
               <View style={styles.info}>
                 <Text style={[styles.label, { color: C.negative }]}>Leave House</Text>
                 <Text style={styles.description}>
-                  {houseName ? `Leave "${houseName}" and join or create a new house` : 'Leave this house and start fresh'}
+                  {houseName
+                    ? `Leave "${houseName}" and join or create a new house`
+                    : 'Leave this house and start fresh'}
                 </Text>
               </View>
               <Text style={styles.chevron}>›</Text>
@@ -300,7 +338,8 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <Text style={styles.modalTitle}>Leave House?</Text>
                 <Text style={styles.modalBody}>
-                  You will be removed from{houseName ? ` "${houseName}"` : ' the current house'}. Your data will stay but you{`'`}ll need to join or create a new house.
+                  You will be removed from{houseName ? ` "${houseName}"` : ' the current house'}.
+                  Your data will stay but you{`'`}ll need to join or create a new house.
                 </Text>
                 <Pressable
                   style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
@@ -308,7 +347,9 @@ export default function SettingsScreen(): React.JSX.Element {
                   disabled={leaving}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.modalBtnDangerText}>{leaving ? 'Leaving…' : 'Yes, Leave House'}</Text>
+                  <Text style={styles.modalBtnDangerText}>
+                    {leaving ? 'Leaving…' : 'Yes, Leave House'}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={styles.modalBtnCancel}
@@ -335,11 +376,15 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <Text style={styles.modalTitle}>Settle Up First</Text>
                 <Text style={styles.modalBody}>
-                  You owe your housemates {debtAmount.toFixed(2)}. Please settle your balance before leaving, or ask the house to vote on approving your departure.
+                  You owe your housemates {debtAmount.toFixed(2)}. Please settle your balance before
+                  leaving, or ask the house to vote on approving your departure.
                 </Text>
                 <Pressable
                   style={[styles.modalBtnPrimary]}
-                  onPress={() => { setShowDebtModal(false); router.push('/(tabs)/bills'); }}
+                  onPress={() => {
+                    setShowDebtModal(false);
+                    router.push('/(tabs)/bills');
+                  }}
                   accessibilityRole="button"
                 >
                   <Text style={styles.modalBtnPrimaryText}>Settle Up</Text>
@@ -350,7 +395,9 @@ export default function SettingsScreen(): React.JSX.Element {
                   disabled={requestingVote}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.modalBtnSecondaryText}>{requestingVote ? 'Creating vote…' : 'Request a Vote to Leave'}</Text>
+                  <Text style={styles.modalBtnSecondaryText}>
+                    {requestingVote ? 'Creating vote…' : 'Request a Vote to Leave'}
+                  </Text>
                 </Pressable>
                 <Pressable
                   style={styles.modalBtnCancel}
@@ -363,9 +410,28 @@ export default function SettingsScreen(): React.JSX.Element {
             </Pressable>
           </Modal>
 
+          <Text style={styles.sectionLabel}>INTEGRATIONS</Text>
+          <View style={styles.card}>
+            <Link href="/(tabs)/settings/nfc-parking" asChild>
+              <Pressable style={styles.row} accessibilityRole="button">
+                <Text style={styles.icon}>📡</Text>
+                <View style={styles.info}>
+                  <Text style={styles.label}>NFC Parking Tag</Text>
+                  <Text style={styles.description}>
+                    Toggle your spot by tapping a tag in your car
+                  </Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
+            </Link>
+          </View>
+
           <Text style={styles.sectionLabel}>LEGAL</Text>
           <View style={styles.card}>
-            <Pressable style={[styles.row, styles.rowBorder]} onPress={() => router.push('/(tabs)/settings/privacy-policy')}>
+            <Pressable
+              style={[styles.row, styles.rowBorder]}
+              onPress={() => router.push('/(tabs)/settings/privacy-policy')}
+            >
               <Text style={styles.icon}>🔒</Text>
               <Text style={[styles.label, { flex: 1 }]}>{t('settings.privacy')}</Text>
               <Text style={styles.chevron}>›</Text>
@@ -446,31 +512,93 @@ function makeStyles(C: ColorTokens) {
     iconNative: { width: 32, textAlign: 'center' },
 
     currencyChip: {
-      flexDirection: 'row', alignItems: 'center', gap: 6,
-      paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
-      borderWidth: 1.5, borderColor: C.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: C.border,
       backgroundColor: C.background,
     },
     currencyChipActive: {
-      borderColor: C.primary, backgroundColor: C.primary + '12',
+      borderColor: C.primary,
+      backgroundColor: C.primary + '12',
     },
     currencyChipText: { fontSize: 16, ...font.bold, color: C.textSecondary },
     currencyChipTextActive: { color: C.primary },
     currencyChipLabel: { fontSize: 12, ...font.regular, color: C.textSecondary },
     currencyChipLabelActive: { color: C.primary },
 
-    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-    modalBox: { backgroundColor: C.surface, borderRadius: 20, padding: 24, width: '100%', maxWidth: 360, gap: 12, alignItems: 'center' },
-    modalIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.negative + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    modalBox: {
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      padding: 24,
+      width: '100%',
+      maxWidth: 360,
+      gap: 12,
+      alignItems: 'center',
+    },
+    modalIconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: C.negative + '15',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
     modalTitle: { fontSize: 18, ...font.extrabold, color: C.textPrimary, textAlign: 'center' },
-    modalBody: { fontSize: 14, ...font.regular, color: C.textSecondary, textAlign: 'center', lineHeight: 20 },
-    modalBtnDanger: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: C.negative, alignItems: 'center', marginTop: 4 },
+    modalBody: {
+      fontSize: 14,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    modalBtnDanger: {
+      width: '100%',
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: C.negative,
+      alignItems: 'center',
+      marginTop: 4,
+    },
     modalBtnDangerText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    modalBtnPrimary: { width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: C.primary, alignItems: 'center', marginTop: 4 },
+    modalBtnPrimary: {
+      width: '100%',
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: C.primary,
+      alignItems: 'center',
+      marginTop: 4,
+    },
     modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    modalBtnSecondary: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: C.primary, alignItems: 'center' },
+    modalBtnSecondary: {
+      width: '100%',
+      paddingVertical: 12,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: C.primary,
+      alignItems: 'center',
+    },
     modalBtnSecondaryText: { fontSize: 15, ...font.semibold, color: C.primary },
-    modalBtnCancel: { width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+    modalBtnCancel: {
+      width: '100%',
+      paddingVertical: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.border,
+      alignItems: 'center',
+    },
     modalBtnCancelText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
   });
 }
