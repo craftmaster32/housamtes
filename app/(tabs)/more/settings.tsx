@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Link, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -794,12 +794,14 @@ export default function SettingsScreen(): React.JSX.Element {
           {/* Integrations */}
           <SectionDivider label="Integrations" />
           <View style={styles.menuGroup}>
-            <MenuItem
-              icon="📡"
-              label="NFC Parking Tag"
-              sub="Toggle your spot by tapping a tag in your car"
-              onPress={() => router.push('/(tabs)/settings/nfc-parking')}
-            />
+            <Link href="/(tabs)/settings/nfc-parking" asChild>
+              <MenuItem
+                icon="📡"
+                label="NFC Parking Tag"
+                sub="Toggle your spot by tapping a tag in your car"
+                onPress={() => {}}
+              />
+            </Link>
           </View>
 
           {/* About */}
