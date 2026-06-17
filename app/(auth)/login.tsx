@@ -120,8 +120,8 @@ export default function LoginScreen(): React.JSX.Element {
               <Text style={styles.label}>{t('auth.email')}</Text>
               <TextInput
                 value={email}
-                onChangeText={(t) => {
-                  setEmail(t);
+                onChangeText={(v) => {
+                  setEmail(v);
                   setError('');
                 }}
                 mode="outlined"
@@ -145,8 +145,8 @@ export default function LoginScreen(): React.JSX.Element {
               <TextInput
                 ref={passwordRef}
                 value={password}
-                onChangeText={(t) => {
-                  setPassword(t);
+                onChangeText={(v) => {
+                  setPassword(v);
                   setError('');
                 }}
                 mode="outlined"

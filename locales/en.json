@@ -86,6 +86,7 @@
     "sending": "Sending…",
     "resend_email": "Didn't get it? Resend email",
     "could_not_resend": "Could not resend. Try again.",
+    "no_pending_email": "No email address found. Please go back and try signing up again.",
     "spam_hint": "Didn't get it? Check your spam folder.",
     "reset_code_sent_to": "Reset code sent to",
     "forgot_title": "Forgot password?",

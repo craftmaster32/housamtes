@@ -68,6 +68,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
                 {pendingEmail}
               </Text>
             )}
+            {!pendingEmail && <Text style={styles.errorText}>{t('auth.no_pending_email')}</Text>}
             <Text style={styles.hintText}>{t('auth.spam_hint')}</Text>
           </View>
 
@@ -91,7 +92,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             textColor={C.textPrimary}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Resend verification email"
+            accessibilityLabel={t('auth.resend_email')}
           >
             {isResending ? t('auth.sending') : t('auth.resend_email')}
           </Button>

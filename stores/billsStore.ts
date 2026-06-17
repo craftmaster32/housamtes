@@ -22,6 +22,8 @@ export const CATEGORIES = [
   'Other',
 ];
 
+export const DISPLAY_CATEGORIES = CATEGORIES;
+
 export const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
   { label: 'bills.group_rent', items: ['Rent'] },
   { label: 'bills.group_utilities', items: ['Utilities', 'Internet', 'Phone'] },

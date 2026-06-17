@@ -29,7 +29,7 @@ function getPasswordStrength(pw: string): 0 | 1 | 2 | 3 | 4 {
   const hasNum = /[0-9]/.test(pw);
   const hasSpecial = /[^A-Za-z0-9]/.test(pw);
   if (hasUpper && hasNum && hasSpecial) return 4;
-  if (hasUpper || hasNum || hasSpecial) return 3;
+  if (hasUpper && hasNum) return 3;
   return 2;
 }
 
