@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
-import { signInSchema } from '@utils/validation';
+import { signInSchema, signUpSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -70,12 +70,9 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       setError(t('auth.enter_code_error'));
       return;
     }
-    if (!password) {
-      setError(t('auth.enter_password_error'));
-      return;
-    }
-    if (password.length < 8) {
-      setError(t('auth.password_min_length'));
+    const pwResult = signUpSchema.shape.password.safeParse(password);
+    if (!pwResult.success) {
+      setError(pwResult.error.errors[0].message);
       return;
     }
     if (password !== confirm) {
@@ -228,7 +225,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   autoFocus
                   keyboardType="number-pad"
                   returnKeyType="next"
-                  maxLength={8}
+                  maxLength={6}
                   error={!!error}
                   accessibilityLabel="Verification code"
                   accessibilityHint="Enter the 6-digit code from your email"
@@ -327,7 +324,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
         onRequestClose={handleConfirmSent}
       >
         <Pressable style={styles.backdrop} onPress={handleConfirmSent}>
-          <View style={styles.sheet}>
+          <Pressable style={styles.sheet} onPress={() => {}} accessible={false}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetIconWrap}>
               <Ionicons name="checkmark" size={28} color={C.success} />
@@ -347,7 +344,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
             >
               {t('auth.enter_code_title')}
             </Button>
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>

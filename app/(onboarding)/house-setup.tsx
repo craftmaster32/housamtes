@@ -192,7 +192,11 @@ export default function HouseSetupScreen(): React.JSX.Element {
               .from('profiles')
               .update({ avatar_color: freeColor })
               .eq('id', user.id);
-            if (!colorErr) setAssignedColor(freeColor);
+            if (!colorErr) {
+              setAssignedColor(freeColor);
+            } else {
+              captureError(colorErr, { context: 'house-color-update', userId: user?.id ?? '' });
+            }
           }
         }
       }
@@ -397,6 +401,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
             onPress={() => {
               /* swallow */
             }}
+            accessible={false}
           >
             <View style={styles.sheetHandle} />
 
@@ -430,7 +435,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
               style={[styles.button, styles.confirmButton]}
               contentStyle={styles.buttonContent}
               labelStyle={styles.buttonLabel}
-              buttonColor="#4FB071"
+              buttonColor={C.success}
             >
               {t('house_setup.confirm_join')}
             </Button>

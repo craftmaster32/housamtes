@@ -89,6 +89,8 @@ export default function SignupScreen(): React.JSX.Element {
     !passwordError &&
     !confirmError &&
     password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /[0-9]/.test(password) &&
     confirmPassword === password;
 
   const handleSignup = useCallback(async () => {
