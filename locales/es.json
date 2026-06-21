@@ -107,7 +107,9 @@
     "reset_subtitle": "Elige una contraseña segura para tu cuenta.",
     "by_continuing": "Al continuar aceptas nuestros Términos de Servicio",
     "show_password": "Mostrar contraseña",
-    "hide_password": "Ocultar contraseña"
+    "hide_password": "Ocultar contraseña",
+    "locked_out": "Bloqueado, espera {{n}} segundos",
+    "try_again_in": "Intenta en {{n}}s"
   },
   "welcome": {
     "tagline": "Convivencia, simplificada.",

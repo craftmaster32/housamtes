@@ -156,10 +156,14 @@ export default function LoginScreen(): React.JSX.Element {
             accessible
             accessibilityRole="button"
             accessibilityLabel={
-              lockoutRemaining > 0 ? `Locked out, wait ${lockoutRemaining} seconds` : 'Sign in'
+              lockoutRemaining > 0
+                ? t('auth.locked_out', { n: lockoutRemaining })
+                : t('auth.sign_in')
             }
           >
-            {lockoutRemaining > 0 ? `Try again in ${lockoutRemaining}s` : 'Sign in'}
+            {lockoutRemaining > 0
+              ? t('auth.try_again_in', { n: lockoutRemaining })
+              : t('auth.sign_in')}
           </Button>
 
           <Pressable

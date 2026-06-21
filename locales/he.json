@@ -106,7 +106,9 @@
     "reset_subtitle": "בחר סיסמה חזקה לחשבון.",
     "by_continuing": "בהמשך אתה מסכים לתנאי השירות",
     "show_password": "הצג סיסמה",
-    "hide_password": "הסתר סיסמה"
+    "hide_password": "הסתר סיסמה",
+    "locked_out": "נחסמת, המתן {{n}} שניות",
+    "try_again_in": "נסה שוב בעוד {{n}}ש'"
   },
   "welcome": {
     "tagline": "מגורים משותפים, פשוט יותר.",
