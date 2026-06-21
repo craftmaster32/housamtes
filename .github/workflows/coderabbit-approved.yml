@@ -49,4 +49,4 @@ jobs:
 
             **🚀 Ready to merge**
             One sentence confirming the PR is good to go, or flagging if something needs attention first.
-          claude_args: --max-turns 10
+          claude_args: --max-turns 5

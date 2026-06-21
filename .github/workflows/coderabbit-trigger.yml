@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   trigger-review:
-    if: github.actor != 'claude[bot]' && github.actor != 'github-actions[bot]'
+    # Always trigger — including after Claude's fix commits, so the loop continues
     runs-on: ubuntu-latest
 
     steps:

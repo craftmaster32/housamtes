@@ -76,4 +76,4 @@ jobs:
             - Run `npx tsc --noEmit` to confirm no TypeScript errors after your changes
             - Commit with message: "fix: address CodeRabbit review comments"
             - Do NOT post any PR comment — stay silent, just fix and commit
-          claude_args: --max-turns 30
+          claude_args: --max-turns 15
