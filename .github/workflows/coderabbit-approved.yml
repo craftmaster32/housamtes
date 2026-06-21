@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
   id-token: write
 
 jobs:
@@ -30,8 +31,57 @@ jobs:
             core.setOutput('is_clean', isClean.toString());
             core.info(`CodeRabbit satisfied: ${isClean}`);
 
-      - name: Checkout PR branch
+      - name: Check if full review has already been requested
+        id: state
         if: steps.check.outputs.is_clean == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const { data: labels } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            const hasLabel = labels.some(l => l.name === 'coderabbit-full-reviewed');
+            core.setOutput('full_review_done', hasLabel.toString());
+            core.info(`Full review already requested: ${hasLabel}`);
+
+      - name: Request full CodeRabbit review
+        if: steps.check.outputs.is_clean == 'true' && steps.state.outputs.full_review_done == 'false'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            // Ensure the tracking label exists in the repo
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'coderabbit-full-reviewed',
+                color: '0075ca',
+                description: 'Full CodeRabbit review requested for this PR',
+              });
+            } catch (e) {
+              // Label already exists, that is fine
+            }
+            // Mark this PR so the next clean review triggers safe-to-merge
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: ['coderabbit-full-reviewed'],
+            });
+            // Trigger the full review
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: '@coderabbitai review',
+            });
+            core.info('Full CodeRabbit review requested — waiting for result');
+
+      - name: Checkout PR branch
+        if: steps.check.outputs.is_clean == 'true' && steps.state.outputs.full_review_done == 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -39,20 +89,21 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Post Claude final review
-        if: steps.check.outputs.is_clean == 'true'
+        if: steps.check.outputs.is_clean == 'true' && steps.state.outputs.full_review_done == 'true'
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: "coderabbitai[bot]"
           prompt: |
-            CodeRabbit has reviewed this PR and found no more issues. The automated fix loop is complete.
+            CodeRabbit has completed a full review of this PR and found no more issues.
+            The incremental fix loop and full review are both clean.
 
             Now do a final independent review of all the changed files in this PR.
             Look at the diff carefully — think of yourself as a senior reviewer seeing this code for the first time.
 
             Post a PR comment with these sections:
 
-            **✅ CodeRabbit approved**
+            **✅ CodeRabbit full review approved**
 
             **🔍 Claude's final review**
             Any bugs, type safety gaps, edge cases, missing error handling, accessibility issues,
@@ -62,3 +113,19 @@ jobs:
             **🚀 Ready to merge**
             One sentence confirming the PR is good to go, or flagging if something needs attention first.
           claude_args: --max-turns 5
+
+      - name: Remove full-review label
+        if: steps.check.outputs.is_clean == 'true' && steps.state.outputs.full_review_done == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                name: 'coderabbit-full-reviewed',
+              });
+            } catch (e) {
+              // Already removed, no problem
+            }
