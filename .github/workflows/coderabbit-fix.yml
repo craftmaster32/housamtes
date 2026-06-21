@@ -1,0 +1,72 @@
+name: Auto-fix CodeRabbit Review
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fix-coderabbit:
+    # Only run when CodeRabbit submits a review
+    if: contains(github.event.review.user.login, 'coderabbit')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Collect all CodeRabbit feedback on this PR
+        id: feedback
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const review = context.payload.review;
+
+            // Inline review comments (on specific lines)
+            const { data: inlineComments } = await github.rest.pulls.listReviewComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+
+            const coderabbitInline = inlineComments
+              .filter(c => c.user.login.includes('coderabbit'))
+              .map(c => `📍 ${c.path} (line ${c.line || c.original_line}):\n${c.body}`)
+              .join('\n\n---\n\n');
+
+            const summary = review.body || '(no summary)';
+            const combined = [
+              'REVIEW SUMMARY:',
+              summary,
+              '',
+              'INLINE COMMENTS:',
+              coderabbitInline || '(none)',
+            ].join('\n');
+
+            core.setOutput('feedback', combined);
+            core.info('Feedback collected:\n' + combined.substring(0, 800));
+
+      - name: Fix issues with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            CodeRabbit reviewed this PR and left the feedback below. Your job is to fix every issue it raised.
+
+            ${{ steps.feedback.outputs.feedback }}
+
+            Rules you must follow:
+            - Only fix what CodeRabbit explicitly flagged — do not touch unrelated code
+            - No `any` types; use `unknown` + narrowing instead
+            - All functions need explicit return types
+            - No inline styles in React Native components
+            - After making changes, run `npx tsc --noEmit` to confirm no TypeScript errors
+            - Commit your fixes with the message: "fix: address CodeRabbit review comments"
+          claude_args: --max-turns 20
