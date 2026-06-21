@@ -11,17 +11,26 @@ permissions:
 
 jobs:
   fix-coderabbit:
-    # Run when CodeRabbit flags issues (not when it approves — that's handled by coderabbit-approved.yml)
     if: >-
       ${{
         github.event.review.user.type == 'Bot' &&
-        contains(fromJSON('["coderabbitai[bot]"]'), github.event.review.user.login) &&
-        github.event.review.state != 'approved'
+        contains(fromJSON('["coderabbitai[bot]"]'), github.event.review.user.login)
       }}
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check if CodeRabbit has actionable issues
+        id: check
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const body = context.payload.review.body || '';
+            const hasIssues = /Actionable comments posted: [1-9]/.test(body);
+            core.setOutput('has_issues', hasIssues.toString());
+            core.info(`Has issues: ${hasIssues}`);
+
       - name: Checkout PR branch
+        if: steps.check.outputs.has_issues == 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.ref }}
@@ -29,6 +38,7 @@ jobs:
           persist-credentials: false
 
       - name: Collect all CodeRabbit feedback on this PR
+        if: steps.check.outputs.has_issues == 'true'
         id: feedback
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
@@ -59,6 +69,7 @@ jobs:
             core.setOutput('feedback', combined);
 
       - name: Fix issues with Claude
+        if: steps.check.outputs.has_issues == 'true'
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
