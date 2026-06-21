@@ -670,10 +670,43 @@ export const useParkingStore = create<ParkingStore>()(
         }
       },
       checkReservationAutoApply: async (houseId: string): Promise<void> => {
-        const { current, reservations } = get();
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+        // Resolve past-due pending reservations using the same logic as the cron
+        const pendingDue = get().reservations.filter(
+          (r) => r.status === 'pending' && isReservationPastDue(r.date, r.startTime, now)
+        );
+        if (pendingDue.length > 0) {
+          const { data: memberRows } = await supabase
+            .from('house_members')
+            .select('user_id')
+            .eq('house_id', houseId);
+          const memberIds = ((memberRows ?? []) as { user_id: string }[]).map((m) => m.user_id);
+
+          for (const r of pendingDue) {
+            const voterIds = memberIds.filter((id) => id !== r.requestedBy);
+            const tally = tallyParkingReservationVotes(r.votes, voterIds);
+            const resolvedStatus: ParkingReservationStatus =
+              tally.approveCount > tally.rejectCount ? 'approved' : 'rejected';
+            const { data: updated } = await supabase
+              .from('parking_reservations')
+              .update({ status: resolvedStatus })
+              .eq('id', r.id)
+              .eq('status', 'pending')
+              .select('id');
+            if (updated?.length) {
+              set({
+                reservations: get().reservations.map((res) =>
+                  res.id === r.id ? { ...res, status: resolvedStatus } : res
+                ),
+              });
+            }
+          }
+        }
+
+        const { current, reservations } = get();
 
         const dueReservation = reservations.find((r) => {
           if (r.status !== 'approved' || r.date !== todayStr) return false;
