@@ -4,6 +4,7 @@ import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { signInSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -25,6 +26,7 @@ export default function LoginScreen(): React.JSX.Element {
   const passwordRef = useRef<RNTextInput>(null);
   const lockoutTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -56,7 +58,7 @@ export default function LoginScreen(): React.JSX.Element {
 
     const result = signInSchema.safeParse({ email, password });
     if (!result.success) {
-      setError(result.error.errors[0].message);
+      setError(t(result.error.errors[0].message));
       return;
     }
     try {
@@ -76,7 +78,7 @@ export default function LoginScreen(): React.JSX.Element {
         setError(err instanceof Error ? err.message : 'Sign in failed');
       }
     }
-  }, [email, password, signIn, failedAttempts, lockoutRemaining, startLockout]);
+  }, [email, password, signIn, failedAttempts, lockoutRemaining, startLockout, t]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -101,7 +103,10 @@ export default function LoginScreen(): React.JSX.Element {
           <TextInput
             label="Email"
             value={email}
-            onChangeText={(t) => { setEmail(t); setError(''); }}
+            onChangeText={(v) => {
+              setEmail(v);
+              setError('');
+            }}
             mode="outlined"
             style={styles.input}
             autoFocus
@@ -116,7 +121,10 @@ export default function LoginScreen(): React.JSX.Element {
             ref={passwordRef}
             label="Password"
             value={password}
-            onChangeText={(t) => { setPassword(t); setError(''); }}
+            onChangeText={(v) => {
+              setPassword(v);
+              setError('');
+            }}
             mode="outlined"
             style={styles.input}
             secureTextEntry={!showPassword}
@@ -126,6 +134,9 @@ export default function LoginScreen(): React.JSX.Element {
               <TextInput.Icon
                 icon={showPassword ? 'eye-off' : 'eye'}
                 onPress={() => setShowPassword((v) => !v)}
+                accessibilityLabel={
+                  showPassword ? t('auth.hide_password') : t('auth.show_password')
+                }
               />
             }
             error={!!error}
@@ -144,7 +155,9 @@ export default function LoginScreen(): React.JSX.Element {
             buttonColor={C.primary}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={lockoutRemaining > 0 ? `Locked out, wait ${lockoutRemaining} seconds` : 'Sign in'}
+            accessibilityLabel={
+              lockoutRemaining > 0 ? `Locked out, wait ${lockoutRemaining} seconds` : 'Sign in'
+            }
           >
             {lockoutRemaining > 0 ? `Try again in ${lockoutRemaining}s` : 'Sign in'}
           </Button>

@@ -36,7 +36,7 @@ export default function SignupScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  const handleSignup = useCallback(async () => {
+  const handleSignup = useCallback(async (): Promise<void> => {
     if (!confirmedAge) {
       setError('Please confirm that you are 18 or older to continue.');
       return;
@@ -47,12 +47,17 @@ export default function SignupScreen(): React.JSX.Element {
     }
     const result = signUpSchema.safeParse({ name, email, password });
     if (!result.success) {
-      setError(result.error.errors[0].message);
+      setError(t(result.error.errors[0].message));
       return;
     }
     try {
       setError('');
-      const { needsVerification } = await signUp(result.data.email, result.data.password, result.data.name, selectedColor);
+      const { needsVerification } = await signUp(
+        result.data.email,
+        result.data.password,
+        result.data.name,
+        selectedColor
+      );
       if (needsVerification) {
         router.replace('/(auth)/verify-email');
       }
@@ -85,7 +90,10 @@ export default function SignupScreen(): React.JSX.Element {
           <TextInput
             label={t('auth.your_name')}
             value={name}
-            onChangeText={(v) => { setName(v); setError(''); }}
+            onChangeText={(v) => {
+              setName(v);
+              setError('');
+            }}
             mode="outlined"
             style={styles.input}
             autoFocus
@@ -98,7 +106,10 @@ export default function SignupScreen(): React.JSX.Element {
             ref={emailRef}
             label={t('auth.email')}
             value={email}
-            onChangeText={(v) => { setEmail(v); setError(''); }}
+            onChangeText={(v) => {
+              setEmail(v);
+              setError('');
+            }}
             mode="outlined"
             style={styles.input}
             keyboardType="email-address"
@@ -112,7 +123,10 @@ export default function SignupScreen(): React.JSX.Element {
             ref={passwordRef}
             label={t('auth.password')}
             value={password}
-            onChangeText={(v) => { setPassword(v); setError(''); }}
+            onChangeText={(v) => {
+              setPassword(v);
+              setError('');
+            }}
             mode="outlined"
             style={styles.input}
             secureTextEntry={!showPassword}
@@ -147,9 +161,7 @@ export default function SignupScreen(): React.JSX.Element {
                     selectedColor === c && styles.colorDotSelected,
                   ]}
                 >
-                  {selectedColor === c && (
-                    <Text style={styles.colorCheck}>✓</Text>
-                  )}
+                  {selectedColor === c && <Text style={styles.colorCheck}>✓</Text>}
                 </View>
               </Pressable>
             ))}
@@ -157,7 +169,10 @@ export default function SignupScreen(): React.JSX.Element {
 
           <Pressable
             style={styles.termsRow}
-            onPress={() => { setConfirmedAge((v) => !v); setError(''); }}
+            onPress={() => {
+              setConfirmedAge((v) => !v);
+              setError('');
+            }}
             accessible
             accessibilityRole="checkbox"
             accessibilityLabel="I confirm I am 18 or older"
@@ -171,7 +186,10 @@ export default function SignupScreen(): React.JSX.Element {
 
           <Pressable
             style={styles.termsRow}
-            onPress={() => { setAgreedToTerms((v) => !v); setError(''); }}
+            onPress={() => {
+              setAgreedToTerms((v) => !v);
+              setError('');
+            }}
             accessible
             accessibilityRole="checkbox"
             accessibilityLabel="I agree to the Terms of Service and Privacy Policy"
