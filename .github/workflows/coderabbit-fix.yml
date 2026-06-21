@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
   id-token: write
 
 jobs:
@@ -32,6 +33,22 @@ jobs:
             const hasIssues = /Actionable comments posted: [1-9]\d*/.test(body);
             core.setOutput('has_issues', hasIssues.toString());
             core.info(`Has issues: ${hasIssues}`);
+
+      - name: Reset full-review state
+        if: steps.check.outputs.has_issues == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                name: 'coderabbit-full-reviewed',
+              });
+            } catch (e) {
+              // Label not on this PR — that is fine
+            }
 
       - name: Checkout PR branch
         if: steps.check.outputs.has_issues == 'true'
@@ -77,6 +94,7 @@ jobs:
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_bots: "coderabbitai[bot]"
           prompt: |
             CodeRabbit reviewed this PR and flagged the issues below. Fix every one of them silently.
 
