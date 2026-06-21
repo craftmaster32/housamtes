@@ -6,9 +6,7 @@ on:
 
 permissions:
   contents: write
-  issues: write
   pull-requests: write
-  id-token: write
 
 jobs:
   check-and-deploy:
@@ -31,12 +29,15 @@ jobs:
         run: npm ci
 
       - name: TypeScript check
+        id: tsc
         run: npx tsc --noEmit
 
       - name: Lint
+        id: lint
         run: npm run lint
 
       - name: Tests
+        id: test
         run: npm test -- --passWithNoTests
 
       - name: Install Vercel CLI
@@ -52,7 +53,7 @@ jobs:
         run: npm run deploy
 
       - name: Auto-fix on failure
-        if: failure()
+        if: steps.tsc.outcome == 'failure' || steps.lint.outcome == 'failure' || steps.test.outcome == 'failure'
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
