@@ -53,20 +53,34 @@ jobs:
             core.setOutput('feedback', combined);
             core.info('Feedback collected:\n' + combined.substring(0, 800));
 
-      - name: Fix issues with Claude
+      - name: Fix issues and post review with Claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            CodeRabbit reviewed this PR and left the feedback below. Your job is to fix every issue it raised.
+            CodeRabbit reviewed this PR and left the feedback below. Do the following two things in order:
 
+            STEP 1 — FIX ALL ISSUES:
             ${{ steps.feedback.outputs.feedback }}
 
-            Rules you must follow:
-            - Only fix what CodeRabbit explicitly flagged — do not touch unrelated code
+            Rules for fixing:
+            - Fix every issue CodeRabbit flagged — do not skip any
+            - Only touch what CodeRabbit flagged — do not change unrelated code
             - No `any` types; use `unknown` + narrowing instead
             - All functions need explicit return types
             - No inline styles in React Native components
-            - After making changes, run `npx tsc --noEmit` to confirm no TypeScript errors
+            - Run `npx tsc --noEmit` to confirm no TypeScript errors after your changes
             - Commit your fixes with the message: "fix: address CodeRabbit review comments"
-          claude_args: --max-turns 20
+
+            STEP 2 — POST A PR COMMENT:
+            After committing the fixes, post a comment on this PR with the following sections:
+
+            **🔧 What I fixed**
+            A bullet list of every CodeRabbit issue you fixed and exactly what you changed.
+
+            **🔍 Additional observations**
+            Any other issues you noticed in the changed files that CodeRabbit did not flag — bugs, type safety gaps, missing error handling, accessibility issues, etc. Be specific (file + line).
+
+            **✅ Status**
+            Confirm that `npx tsc --noEmit` passed and the fixes are committed.
+          claude_args: --max-turns 30
