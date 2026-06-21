@@ -39,7 +39,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
-          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Collect all CodeRabbit feedback on this PR
         if: steps.check.outputs.has_issues == 'true'

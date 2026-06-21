@@ -5,8 +5,8 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
-  issues: write
+  contents: write
+  pull-requests: write
 
 jobs:
   check-and-deploy:
@@ -17,6 +17,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -28,39 +29,48 @@ jobs:
         run: npm ci
 
       - name: TypeScript check
+        id: tsc
         run: npx tsc --noEmit
 
       - name: Lint
+        id: lint
         run: npm run lint
 
       - name: Tests
+        id: test
         run: npm test -- --passWithNoTests
 
       - name: Install Vercel CLI
+        if: success()
         run: npm install -g vercel@latest
 
       - name: Deploy to Vercel
+        if: success()
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: npm run deploy
 
-      - name: Notify on failure
-        if: failure()
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      - name: Auto-fix on failure
+        if: steps.tsc.outcome == 'failure' || steps.lint.outcome == 'failure' || steps.test.outcome == 'failure'
+        uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
-          script: |
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '🚨 Post-merge checks failed on main',
-              body: [
-                'The post-merge checks failed after the latest merge to main.',
-                '',
-                `**Failed run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-                '',
-                'Please investigate and fix before deploying again.',
-              ].join('\n'),
-              labels: ['bug'],
-            });
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            The post-merge checks failed on main. Investigate and fix everything.
+
+            Run these to find what is broken:
+            - `npx tsc --noEmit` for TypeScript errors
+            - `npm run lint` for lint errors
+            - `npm test -- --passWithNoTests` for test failures
+
+            Then:
+            1. Create a new branch: `fix/post-merge-$(date +%Y%m%d%H%M)`
+            2. Fix every failure — no skipping, no `any` types, no inline styles, explicit return types
+            3. Confirm all three checks pass before committing
+            4. Commit with message: "fix: resolve post-merge check failures"
+            5. Push the branch and open a PR titled "fix: post-merge check failures"
+
+            Follow all rules in CLAUDE.md strictly.
+          claude_args: --max-turns 20
