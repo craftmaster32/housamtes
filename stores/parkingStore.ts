@@ -680,14 +680,16 @@ export const useParkingStore = create<ParkingStore>()(
             (r) => r.status === 'pending' && isReservationPastDue(r.date, r.startTime, now)
           );
           if (pendingDue.length > 0) {
-            const { data: memberRows } = await supabase
+            const { data: memberRows, error: membersError } = await supabase
               .from('house_members')
               .select('user_id')
               .eq('house_id', houseId);
             const memberIds = ((memberRows ?? []) as { user_id: string }[]).map((m) => m.user_id);
 
             for (const r of pendingDue) {
-              const voterIds = memberIds.filter((id) => id !== r.requestedBy);
+              const voterIds = membersError
+                ? r.votes.map((v) => v.userId).filter((id) => id !== r.requestedBy)
+                : memberIds.filter((id) => id !== r.requestedBy);
               const tally = tallyParkingReservationVotes(r.votes, voterIds);
               const resolvedStatus: ParkingReservationStatus =
                 tally.approveCount > tally.rejectCount ? 'approved' : 'rejected';
@@ -711,13 +713,8 @@ export const useParkingStore = create<ParkingStore>()(
 
           const dueReservation = reservations.find((r) => {
             if (r.status !== 'approved' || r.date !== todayStr) return false;
-            const startMinutes = r.startTime
-              ? parseInt(r.startTime.split(':')[0], 10) * 60 +
-                parseInt(r.startTime.split(':')[1], 10)
-              : 0;
-            const endMinutes = r.endTime
-              ? parseInt(r.endTime.split(':')[0], 10) * 60 + parseInt(r.endTime.split(':')[1], 10)
-              : 24 * 60;
+            const startMinutes = r.startTime ? toMinutes(r.startTime) : 0;
+            const endMinutes = r.endTime ? toMinutes(r.endTime) : 24 * 60;
             return nowMinutes >= startMinutes && nowMinutes < endMinutes;
           });
 
@@ -735,7 +732,9 @@ export const useParkingStore = create<ParkingStore>()(
               .insert({ house_id: houseId, occupant: dueReservation.requestedBy, is_active: true })
               .select()
               .single();
-            if (!error && data) {
+            if (error) {
+              captureError(error, { context: 'checkReservationAutoApply:insertSession', houseId });
+            } else if (data) {
               set({
                 current: { id: data.id, occupant: data.occupant, startTime: data.start_time },
               });
