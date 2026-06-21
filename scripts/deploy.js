@@ -122,18 +122,25 @@ fs.writeFileSync(
   JSON.stringify(vercelConfig, null, 2)
 );
 
-// 4c. Copy the .vercel project link from root into dist
+// 4c. Copy the .vercel project link from root into dist, or create from env vars (CI)
 if (fs.existsSync(rootVercel)) {
   if (fs.existsSync(distVercel)) fs.rmSync(distVercel, { recursive: true });
   fs.cpSync(rootVercel, distVercel, { recursive: true });
   console.log('✓ Vercel project link copied');
+} else if (process.env.VERCEL_ORG_ID && process.env.VERCEL_PROJECT_ID) {
+  fs.mkdirSync(distVercel, { recursive: true });
+  fs.writeFileSync(
+    path.join(distVercel, 'project.json'),
+    JSON.stringify({ orgId: process.env.VERCEL_ORG_ID, projectId: process.env.VERCEL_PROJECT_ID })
+  );
+  console.log('✓ Vercel project link created from env vars');
 } else {
   console.warn('\n⚠ No .vercel folder at root — run "vercel link" from c:/homeapp first');
 }
 
 // 5. Deploy
-
 console.log('\n▶ Deploying to Vercel...');
-execSync('vercel --prod --yes', { cwd: distDir, stdio: 'inherit' });
+const tokenFlag = process.env.VERCEL_TOKEN ? `--token ${process.env.VERCEL_TOKEN}` : '';
+execSync(`vercel --prod --yes ${tokenFlag}`.trim(), { cwd: distDir, stdio: 'inherit' });
 
 console.log('\n✓ Done! housemates-five.vercel.app is live');
