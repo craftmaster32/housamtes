@@ -84,7 +84,10 @@ jobs:
             - No `any` types; use `unknown` + narrowing instead
             - All functions need explicit return types
             - No inline styles in React Native components
-            - Run `npx tsc --noEmit` to confirm no TypeScript errors after your changes
-            - Commit with message: "fix: address CodeRabbit review comments"
+            - IMPORTANT: commit after every single individual fix — do not batch them into one commit at the end.
+              This way if you hit a turn limit, completed fixes are already saved and the loop can continue.
+              Commit message for each: "fix: address CodeRabbit review comments"
+            - After each commit, move on to the next issue
+            - Run `npx tsc --noEmit` once at the end to confirm no TypeScript errors
             - Do NOT post any PR comment — stay silent, just fix and commit
           claude_args: --max-turns 15
