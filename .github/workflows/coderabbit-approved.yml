@@ -43,6 +43,7 @@ jobs:
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_bots: "coderabbitai[bot]"
           prompt: |
             CodeRabbit has reviewed this PR and found no more issues. The automated fix loop is complete.
 
