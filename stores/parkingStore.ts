@@ -670,72 +670,79 @@ export const useParkingStore = create<ParkingStore>()(
         }
       },
       checkReservationAutoApply: async (houseId: string): Promise<void> => {
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        try {
+          const now = new Date();
+          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-        // Resolve past-due pending reservations using the same logic as the cron
-        const pendingDue = get().reservations.filter(
-          (r) => r.status === 'pending' && isReservationPastDue(r.date, r.startTime, now)
-        );
-        if (pendingDue.length > 0) {
-          const { data: memberRows } = await supabase
-            .from('house_members')
-            .select('user_id')
-            .eq('house_id', houseId);
-          const memberIds = ((memberRows ?? []) as { user_id: string }[]).map((m) => m.user_id);
+          // Resolve past-due pending reservations using the same logic as the cron
+          const pendingDue = get().reservations.filter(
+            (r) => r.status === 'pending' && isReservationPastDue(r.date, r.startTime, now)
+          );
+          if (pendingDue.length > 0) {
+            const { data: memberRows } = await supabase
+              .from('house_members')
+              .select('user_id')
+              .eq('house_id', houseId);
+            const memberIds = ((memberRows ?? []) as { user_id: string }[]).map((m) => m.user_id);
 
-          for (const r of pendingDue) {
-            const voterIds = memberIds.filter((id) => id !== r.requestedBy);
-            const tally = tallyParkingReservationVotes(r.votes, voterIds);
-            const resolvedStatus: ParkingReservationStatus =
-              tally.approveCount > tally.rejectCount ? 'approved' : 'rejected';
-            const { data: updated } = await supabase
-              .from('parking_reservations')
-              .update({ status: resolvedStatus })
-              .eq('id', r.id)
-              .eq('status', 'pending')
-              .select('id');
-            if (updated?.length) {
+            for (const r of pendingDue) {
+              const voterIds = memberIds.filter((id) => id !== r.requestedBy);
+              const tally = tallyParkingReservationVotes(r.votes, voterIds);
+              const resolvedStatus: ParkingReservationStatus =
+                tally.approveCount > tally.rejectCount ? 'approved' : 'rejected';
+              const { data: updated } = await supabase
+                .from('parking_reservations')
+                .update({ status: resolvedStatus })
+                .eq('id', r.id)
+                .eq('status', 'pending')
+                .select('id');
+              if (updated?.length) {
+                set({
+                  reservations: get().reservations.map((res) =>
+                    res.id === r.id ? { ...res, status: resolvedStatus } : res
+                  ),
+                });
+              }
+            }
+          }
+
+          const { current, reservations } = get();
+
+          const dueReservation = reservations.find((r) => {
+            if (r.status !== 'approved' || r.date !== todayStr) return false;
+            const startMinutes = r.startTime
+              ? parseInt(r.startTime.split(':')[0], 10) * 60 +
+                parseInt(r.startTime.split(':')[1], 10)
+              : 0;
+            const endMinutes = r.endTime
+              ? parseInt(r.endTime.split(':')[0], 10) * 60 + parseInt(r.endTime.split(':')[1], 10)
+              : 24 * 60;
+            return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+          });
+
+          if (dueReservation && !current) {
+            const { data: activeCheck } = await supabase
+              .from('parking_sessions')
+              .select('id')
+              .eq('house_id', houseId)
+              .eq('is_active', true)
+              .maybeSingle();
+            if (activeCheck) return;
+
+            const { data, error } = await supabase
+              .from('parking_sessions')
+              .insert({ house_id: houseId, occupant: dueReservation.requestedBy, is_active: true })
+              .select()
+              .single();
+            if (!error && data) {
               set({
-                reservations: get().reservations.map((res) =>
-                  res.id === r.id ? { ...res, status: resolvedStatus } : res
-                ),
+                current: { id: data.id, occupant: data.occupant, startTime: data.start_time },
               });
             }
           }
-        }
-
-        const { current, reservations } = get();
-
-        const dueReservation = reservations.find((r) => {
-          if (r.status !== 'approved' || r.date !== todayStr) return false;
-          const startMinutes = r.startTime
-            ? parseInt(r.startTime.split(':')[0], 10) * 60 + parseInt(r.startTime.split(':')[1], 10)
-            : 0;
-          const endMinutes = r.endTime
-            ? parseInt(r.endTime.split(':')[0], 10) * 60 + parseInt(r.endTime.split(':')[1], 10)
-            : 24 * 60;
-          return nowMinutes >= startMinutes && nowMinutes < endMinutes;
-        });
-
-        if (dueReservation && !current) {
-          const { data: activeCheck } = await supabase
-            .from('parking_sessions')
-            .select('id')
-            .eq('house_id', houseId)
-            .eq('is_active', true)
-            .maybeSingle();
-          if (activeCheck) return;
-
-          const { data, error } = await supabase
-            .from('parking_sessions')
-            .insert({ house_id: houseId, occupant: dueReservation.requestedBy, is_active: true })
-            .select()
-            .single();
-          if (!error && data) {
-            set({ current: { id: data.id, occupant: data.occupant, startTime: data.start_time } });
-          }
+        } catch (err) {
+          captureError(err, { context: 'checkReservationAutoApply', houseId });
         }
       },
     }),
