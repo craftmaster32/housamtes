@@ -173,10 +173,11 @@ jobs:
             core.info('Full CodeRabbit review requested — waiting for result');
 
       # ── Step 2: Full review also clean ───────────────────────────────────
-      # Use GH_PAT to dispatch claude-final-review.yml via workflow_dispatch.
-      # GITHUB_TOKEN cannot trigger new workflow runs; PAT can.
-      # claude-code-action supports workflow_dispatch but not status events.
-      - name: Dispatch Claude final review
+      # Post a @claude trigger comment using GH_PAT so it fires workflows.
+      # GITHUB_TOKEN events do NOT trigger other workflow runs (GitHub security).
+      # claude-code-action can't run Claude in workflow_dispatch without PR context —
+      # issue_comment is the proven mechanism (same pattern as coderabbit-fix.yml).
+      - name: Post Claude final-review trigger
         if: >-
           ${{
             steps.pr.outputs.found == 'true' &&
@@ -187,14 +188,28 @@ jobs:
         with:
           github-token: ${{ secrets.GH_PAT }}
           script: |
-            await github.rest.actions.createWorkflowDispatch({
+            const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'claude-final-review.yml',
-              ref: 'main',
-              inputs: {
-                pr_number: '${{ steps.pr.outputs.number }}',
-                head_sha: '${{ steps.pr.outputs.head_sha }}',
-              },
+              issue_number: prNumber,
+              body: [
+                '@claude [AUTOMATED-FINAL-REVIEW]',
+                '',
+                'CodeRabbit has approved this PR after a full review — no actionable issues remain.',
+                '',
+                'Please do a final independent code review:',
+                '1. Run `git diff origin/main...HEAD` to see all changed files',
+                '2. Review every change for bugs, type safety issues, edge cases, missing error handling, or security problems',
+                '3. Respond with your review using these three sections:',
+                '',
+                '**✅ CodeRabbit full review approved**',
+                '',
+                '**🔍 Claude\'s final review**',
+                'Note any issues you find (file name + line number). If everything looks clean, say so clearly.',
+                '',
+                '**🚀 Ready to merge**',
+                'One sentence: is this PR safe to merge?',
+              ].join('\n'),
             });
-            core.info('Claude final review dispatched via workflow_dispatch');
+            core.info('Claude final-review trigger comment posted');
