@@ -1,8 +1,8 @@
 name: Auto-fix CodeRabbit Review
 
 on:
-  pull_request_review:
-    types: [submitted]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
@@ -14,13 +14,13 @@ jobs:
   fix-coderabbit:
     if: >-
       ${{
-        github.event.review.user.type == 'Bot' &&
-        contains(fromJSON('["coderabbitai[bot]"]'), github.event.review.user.login) &&
-        github.event.review.commit_id == github.event.pull_request.head.sha
+        github.event.comment.user.type == 'Bot' &&
+        github.event.comment.user.login == 'coderabbitai[bot]' &&
+        github.event.issue.pull_request != null
       }}
     runs-on: ubuntu-latest
     concurrency:
-      group: coderabbit-fix-${{ github.event.pull_request.number }}
+      group: coderabbit-fix-${{ github.event.issue.number }}
       cancel-in-progress: true
 
     steps:
@@ -29,7 +29,7 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const body = context.payload.review.body || '';
+            const body = context.payload.comment.body || '';
             const hasIssues = /Actionable comments posted: [1-9]\d*/.test(body);
             core.setOutput('has_issues', hasIssues.toString());
             core.info(`Has issues: ${hasIssues}`);
@@ -43,18 +43,31 @@ jobs:
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
+                issue_number: context.issue.number,
                 name: 'coderabbit-full-reviewed',
               });
             } catch (e) {
               // Label not on this PR — that is fine
             }
 
+      - name: Get PR head ref
+        if: steps.check.outputs.has_issues == 'true'
+        id: pr
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            core.setOutput('head_ref', pr.data.head.ref);
+
       - name: Checkout PR branch
         if: steps.check.outputs.has_issues == 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ steps.pr.outputs.head_ref }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -64,8 +77,7 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const prNumber = context.payload.pull_request.number;
-            const review = context.payload.review;
+            const prNumber = context.issue.number;
 
             const { data: inlineComments } = await github.rest.pulls.listReviewComments({
               owner: context.repo.owner,
@@ -78,7 +90,7 @@ jobs:
               .map(c => `📍 ${c.path} (line ${c.line || c.original_line}):\n${c.body}`)
               .join('\n\n---\n\n');
 
-            const summary = review.body || '(no summary)';
+            const summary = context.payload.comment.body || '(no summary)';
             const combined = [
               'REVIEW SUMMARY:',
               summary,
