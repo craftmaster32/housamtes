@@ -189,6 +189,17 @@ jobs:
           github-token: ${{ secrets.GH_PAT }}
           script: |
             const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+            // Idempotency: only post once — multiple status events can fire step 2
+            const { data: existing } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 50,
+            });
+            if (existing.some(c => c.body.includes('[AUTOMATED-FINAL-REVIEW]'))) {
+              core.info('Trigger comment already posted — skipping duplicate');
+              return;
+            }
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
