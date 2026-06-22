@@ -96,7 +96,6 @@ jobs:
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           show_full_output: "true"
           prompt: |
             CodeRabbit has completed a full review of this PR and found no more issues.
