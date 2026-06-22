@@ -1,8 +1,7 @@
 name: Claude Final Review on CodeRabbit Approval
 
 on:
-  pull_request_review:
-    types: [submitted]
+  status:
 
 permissions:
   contents: read
@@ -12,47 +11,101 @@ permissions:
 
 jobs:
   final-review:
+    # Only run when CodeRabbit sets a success status on a commit
     if: >-
       ${{
-        github.event.review.user.type == 'Bot' &&
-        contains(fromJSON('["coderabbitai[bot]"]'), github.event.review.user.login) &&
-        github.event.review.commit_id == github.event.pull_request.head.sha
+        github.event.context == 'CodeRabbit' &&
+        github.event.state == 'success'
       }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check if CodeRabbit has no more issues
-        id: check
+      - name: Find open PR for this commit
+        id: pr
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const body = context.payload.review.body || '';
-            const isClean = !(/Actionable comments posted: [1-9]\d*/.test(body));
-            core.setOutput('is_clean', isClean.toString());
-            core.info(`CodeRabbit satisfied: ${isClean}`);
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.payload.sha,
+            });
+            const openPR = prs.find(pr => pr.state === 'open');
+            if (!openPR) {
+              core.info('No open PR for this commit — skipping');
+              core.setOutput('found', 'false');
+              return;
+            }
+            core.setOutput('found', 'true');
+            core.setOutput('number', openPR.number.toString());
+            core.setOutput('head_sha', openPR.head.sha);
+            core.info(`Found PR #${openPR.number}`);
 
-      - name: Check if full review has already been requested
+      - name: Check if CodeRabbit approved (no fresh issues)
+        id: check
+        if: steps.pr.outputs.found == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+
+            // Get the commit's authored date — only look at CodeRabbit comments after this push
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.sha,
+            });
+            const commitDate = new Date(commit.commit.author.date);
+            core.info(`Commit date: ${commitDate.toISOString()}`);
+
+            // Look for any CodeRabbit issue comment posted after this commit
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 50,
+              sort: 'created',
+              direction: 'desc',
+            });
+
+            const freshIssues = comments.find(c =>
+              c.user.login === 'coderabbitai[bot]' &&
+              new Date(c.created_at) >= commitDate &&
+              /Actionable comments posted: [1-9]\d*/.test(c.body)
+            );
+
+            const isClean = !freshIssues;
+            core.setOutput('is_clean', isClean.toString());
+            core.info(`CodeRabbit approved (no fresh issues): ${isClean}`);
+
+      - name: Check full-review label state
         id: state
-        if: steps.check.outputs.is_clean == 'true'
+        if: steps.pr.outputs.found == 'true' && steps.check.outputs.is_clean == 'true'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const { data: labels } = await github.rest.issues.listLabelsOnIssue({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
+              issue_number: parseInt('${{ steps.pr.outputs.number }}'),
             });
             const hasLabel = labels.some(l => l.name === 'coderabbit-full-reviewed');
             core.setOutput('full_review_done', hasLabel.toString());
             core.info(`Full review already requested: ${hasLabel}`);
 
+      # ── Step 1: First clean review ────────────────────────────────────────
+      # Mark the PR and request a thorough full review from CodeRabbit
       - name: Request full CodeRabbit review
-        if: steps.check.outputs.is_clean == 'true' && steps.state.outputs.full_review_done == 'false'
+        if: >-
+          ${{
+            steps.pr.outputs.found == 'true' &&
+            steps.check.outputs.is_clean == 'true' &&
+            steps.state.outputs.full_review_done == 'false'
+          }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const prNumber = context.payload.pull_request.number;
-            // Ensure the tracking label exists in the repo
+            const prNumber = parseInt('${{ steps.pr.outputs.number }}');
             try {
               await github.rest.issues.createLabel({
                 owner: context.repo.owner,
@@ -62,16 +115,14 @@ jobs:
                 description: 'Full CodeRabbit review requested for this PR',
               });
             } catch (e) {
-              // Label already exists, that is fine
+              // Label already exists
             }
-            // Mark this PR so the next clean review triggers safe-to-merge
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
               labels: ['coderabbit-full-reviewed'],
             });
-            // Trigger the full review
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -80,19 +131,31 @@ jobs:
             });
             core.info('Full CodeRabbit review requested — waiting for result');
 
+      # ── Step 2: Full review also clean ───────────────────────────────────
+      # Label was set in step 1 and CodeRabbit's full review came back clean too
       - name: Checkout PR branch
-        if: steps.check.outputs.is_clean == 'true' && steps.state.outputs.full_review_done == 'true'
+        if: >-
+          ${{
+            steps.pr.outputs.found == 'true' &&
+            steps.check.outputs.is_clean == 'true' &&
+            steps.state.outputs.full_review_done == 'true'
+          }}
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ steps.pr.outputs.head_sha }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Post Claude final review
-        if: steps.check.outputs.is_clean == 'true' && steps.state.outputs.full_review_done == 'true'
+        if: >-
+          ${{
+            steps.pr.outputs.found == 'true' &&
+            steps.check.outputs.is_clean == 'true' &&
+            steps.state.outputs.full_review_done == 'true'
+          }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -123,7 +186,12 @@ jobs:
           claude_args: --max-turns 5
 
       - name: Remove full-review label
-        if: steps.check.outputs.is_clean == 'true' && steps.state.outputs.full_review_done == 'true'
+        if: >-
+          ${{
+            steps.pr.outputs.found == 'true' &&
+            steps.check.outputs.is_clean == 'true' &&
+            steps.state.outputs.full_review_done == 'true'
+          }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
@@ -131,7 +199,7 @@ jobs:
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
+                issue_number: parseInt('${{ steps.pr.outputs.number }}'),
                 name: 'coderabbit-full-reviewed',
               });
             } catch (e) {
