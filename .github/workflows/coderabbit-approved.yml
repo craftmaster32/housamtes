@@ -25,14 +25,17 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+            // listPullRequestsAssociatedWithCommit only reliably works for merged commits.
+            // Instead list all open PRs and match on head SHA.
+            const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              commit_sha: context.payload.sha,
+              state: 'open',
+              per_page: 100,
             });
-            const openPR = prs.find(pr => pr.state === 'open');
+            const openPR = prs.find(pr => pr.head.sha === context.payload.sha);
             if (!openPR) {
-              core.info('No open PR for this commit — skipping');
+              core.info(`No open PR with head SHA ${context.payload.sha} — skipping`);
               core.setOutput('found', 'false');
               return;
             }
