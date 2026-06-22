@@ -1,66 +1,58 @@
 name: Claude Final Review
 
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        required: true
-        type: string
-      head_sha:
-        required: true
-        type: string
+  issue_comment:
+    types: [created]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
   id-token: write
 
 jobs:
   review:
+    # Only run on the specific automated trigger comment (not general @claude mentions)
+    if: >-
+      ${{
+        github.event.issue.pull_request != null &&
+        contains(github.event.comment.body, '[AUTOMATED-FINAL-REVIEW]')
+      }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: claude-final-review-${{ github.event.issue.number }}
+      cancel-in-progress: true
 
     steps:
+      - name: Get PR head ref
+        id: pr
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            core.setOutput('head_ref', pr.data.head.ref);
+
       - name: Checkout PR branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ inputs.head_sha }}
+          ref: ${{ steps.pr.outputs.head_ref }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Claude final review
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.pr_number }}
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          trigger_phrase: "@claude"
           show_full_output: "true"
-          prompt: |
-            CodeRabbit has completed a full review of this PR and found no more issues.
-            The incremental fix loop and full review are both clean.
-
-            Do a final independent review of all the changed files in this PR.
-            Run: git diff origin/main...HEAD
-            Look at the diff carefully — think of yourself as a senior reviewer seeing this code for the first time.
-
-            Then post a PR comment using this bash command:
-            gh pr comment $PR_NUMBER --body "<your full review here>"
-
-            The comment body must include these three sections:
-
-            **✅ CodeRabbit full review approved**
-
-            **🔍 Claude's final review**
-            Any bugs, type safety gaps, edge cases, missing error handling, accessibility issues,
-            or security problems you notice in the changed files. Be specific (file + line).
-            If everything looks clean, say so clearly.
-
-            **🚀 Ready to merge**
-            One sentence confirming the PR is good to go, or flagging if something needs attention first.
           claude_args: --max-turns 5
 
       - name: Remove full-review label
+        if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
@@ -68,7 +60,7 @@ jobs:
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: parseInt('${{ inputs.pr_number }}'),
+                issue_number: context.issue.number,
                 name: 'coderabbit-full-reviewed',
               });
             } catch (e) {}
