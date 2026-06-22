@@ -25,14 +25,17 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+            // listPullRequestsAssociatedWithCommit only works for merged commits.
+            // List all open PRs and match by head SHA instead.
+            const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              commit_sha: context.payload.sha,
+              state: 'open',
+              per_page: 100,
             });
-            const openPR = prs.find(pr => pr.state === 'open');
+            const openPR = prs.find(pr => pr.head.sha === context.payload.sha);
             if (!openPR) {
-              core.info('No open PR for this commit — skipping');
+              core.info(`No open PR with head SHA ${context.payload.sha} — skipping`);
               core.setOutput('found', 'false');
               return;
             }
@@ -85,14 +88,51 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
+            const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+
             const { data: labels } = await github.rest.issues.listLabelsOnIssue({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: parseInt('${{ steps.pr.outputs.number }}'),
+              issue_number: prNumber,
             });
             const hasLabel = labels.some(l => l.name === 'coderabbit-full-reviewed');
-            core.setOutput('full_review_done', hasLabel.toString());
-            core.info(`Full review already requested: ${hasLabel}`);
+
+            if (!hasLabel) {
+              core.setOutput('full_review_done', 'false');
+              core.info('Full review not yet requested');
+              return;
+            }
+
+            // Label is present — but only proceed to step 2 if this status event
+            // was created AFTER we posted the '@coderabbitai review' comment.
+            // Without this check, a stale status event from step 1 triggers step 2
+            // immediately before CodeRabbit has had time to do the full review.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 50,
+              sort: 'created',
+              direction: 'desc',
+            });
+
+            const reviewRequest = comments.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.trim() === '@coderabbitai review'
+            );
+
+            if (reviewRequest) {
+              const requestTime = new Date(reviewRequest.created_at);
+              const statusTime = new Date(context.payload.created_at);
+              if (statusTime <= requestTime) {
+                core.info(`Status (${statusTime.toISOString()}) predates review request (${requestTime.toISOString()}) — waiting for CodeRabbit to finish`);
+                core.setOutput('full_review_done', 'waiting');
+                return;
+              }
+            }
+
+            core.setOutput('full_review_done', 'true');
+            core.info('Full review done and status is fresh');
 
       # ── Step 1: First clean review ────────────────────────────────────────
       # Mark the PR and request a thorough full review from CodeRabbit
