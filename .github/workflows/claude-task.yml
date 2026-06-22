@@ -15,11 +15,13 @@ permissions:
 jobs:
   claude-task:
     # Only owner, members, and collaborators can trigger — prevents API key abuse by strangers
+    # Exclude automated final-review trigger comments (handled by claude-final-review.yml)
     if: >-
       ${{
         (
           github.event_name == 'issue_comment' &&
           contains(github.event.comment.body, '@claude') &&
+          !contains(github.event.comment.body, '[AUTOMATED-FINAL-REVIEW]') &&
           contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
         ) ||
         (
