@@ -94,7 +94,7 @@ jobs:
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          allowed_bots: "coderabbitai[bot]"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           show_full_output: "true"
           prompt: |
             You are running in CI as an automated agent. The CLAUDE.md rule about "never push without owner permission" does NOT apply here — this workflow is the authorised push mechanism. You MUST commit and push.
