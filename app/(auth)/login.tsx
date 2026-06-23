@@ -58,7 +58,7 @@ export default function LoginScreen(): React.JSX.Element {
 
     const result = signInSchema.safeParse({ email, password });
     if (!result.success) {
-      setError(t(result.error.errors[0].message));
+      setError(result.error.errors[0].message);
       return;
     }
     try {
@@ -114,6 +114,8 @@ export default function LoginScreen(): React.JSX.Element {
             autoCapitalize="none"
             returnKeyType="next"
             onSubmitEditing={() => passwordRef.current?.focus()}
+            accessibilityLabel="Email"
+            accessibilityHint="Enter your email address"
             error={!!error}
           />
 
@@ -130,6 +132,8 @@ export default function LoginScreen(): React.JSX.Element {
             secureTextEntry={!showPassword}
             returnKeyType="go"
             onSubmitEditing={handleLogin}
+            accessibilityLabel="Password"
+            accessibilityHint="Enter your password"
             right={
               <TextInput.Icon
                 icon={showPassword ? 'eye-off' : 'eye'}

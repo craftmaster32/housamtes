@@ -47,7 +47,7 @@ export default function SignupScreen(): React.JSX.Element {
     }
     const result = signUpSchema.safeParse({ name, email, password });
     if (!result.success) {
-      setError(t(result.error.errors[0].message));
+      setError(result.error.errors[0].message);
       return;
     }
     try {
@@ -99,6 +99,8 @@ export default function SignupScreen(): React.JSX.Element {
             autoFocus
             returnKeyType="next"
             onSubmitEditing={() => emailRef.current?.focus()}
+            accessibilityLabel={t('auth.your_name')}
+            accessibilityHint="Enter your display name"
             error={!!error}
           />
 
@@ -116,6 +118,8 @@ export default function SignupScreen(): React.JSX.Element {
             autoCapitalize="none"
             returnKeyType="next"
             onSubmitEditing={() => passwordRef.current?.focus()}
+            accessibilityLabel={t('auth.email')}
+            accessibilityHint="Enter your email address"
             error={!!error}
           />
 
@@ -132,6 +136,8 @@ export default function SignupScreen(): React.JSX.Element {
             secureTextEntry={!showPassword}
             returnKeyType="go"
             onSubmitEditing={handleSignup}
+            accessibilityLabel={t('auth.password')}
+            accessibilityHint="Enter your password"
             right={
               <TextInput.Icon
                 icon={showPassword ? 'eye-off' : 'eye'}
