@@ -1,0 +1,45 @@
+name: Claude Task
+
+on:
+  issues:
+    types: [opened, assigned]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  claude-task:
+    # Only owner, members, and collaborators can trigger — prevents API key abuse by strangers
+    # Exclude automated final-review trigger comments (handled by claude-final-review.yml)
+    if: >-
+      ${{
+        (
+          github.event_name == 'issue_comment' &&
+          contains(github.event.comment.body, '@claude') &&
+          !contains(github.event.comment.body, '[AUTOMATED-FINAL-REVIEW]') &&
+          contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+        ) ||
+        (
+          github.event_name == 'issues' &&
+          contains(github.event.issue.body, '@claude') &&
+          contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)
+        )
+      }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Claude
+        uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
+        with:
+          claude_args: --max-turns 30

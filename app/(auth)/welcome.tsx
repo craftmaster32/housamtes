@@ -37,7 +37,6 @@ export default function WelcomeScreen(): React.JSX.Element {
       <SafeAreaView style={styles.top} edges={['top']}>
         <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
           <View style={styles.topContent}>
-
             {/* Logo */}
             <View style={styles.logoWrap}>
               <View style={styles.logo}>
@@ -75,9 +74,9 @@ export default function WelcomeScreen(): React.JSX.Element {
           buttonColor={C.primary}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Create a new house"
+          accessibilityLabel={t('welcome.create_house')}
         >
-          Create a House
+          {t('welcome.create_house')}
         </Button>
 
         <Button
@@ -88,9 +87,9 @@ export default function WelcomeScreen(): React.JSX.Element {
           labelStyle={[styles.primaryButtonLabel, { color: C.primary }]}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Join an existing house"
+          accessibilityLabel={t('welcome.join_house')}
         >
-          Join a House
+          {t('welcome.join_house')}
         </Button>
 
         <Button
@@ -100,14 +99,12 @@ export default function WelcomeScreen(): React.JSX.Element {
           labelStyle={styles.textButtonLabel}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Log in to existing account"
+          accessibilityLabel={t('welcome.sign_in_prompt')}
         >
-          Already have an account? Sign in
+          {t('welcome.sign_in_prompt')}
         </Button>
 
-        <Text style={styles.termsText}>
-          {t('auth.by_continuing')}
-        </Text>
+        <Text style={styles.termsText}>{t('auth.by_continuing')}</Text>
       </View>
     </View>
   );

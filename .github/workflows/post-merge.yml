@@ -1,0 +1,82 @@
+name: Post-merge checks and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        id: tsc
+        run: npx tsc --noEmit
+
+      - name: Lint
+        id: lint
+        run: npm run lint
+
+      - name: Tests
+        id: test
+        run: npm test -- --passWithNoTests
+
+      - name: Install Vercel CLI
+        if: success()
+        run: npm install -g vercel@latest
+
+      - name: Deploy to Vercel
+        if: success()
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_PROJECT_ID }}
+          EXPO_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.EXPO_PUBLIC_VAPID_PUBLIC_KEY }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+        run: npm run deploy
+
+      - name: Auto-fix on failure
+        if: steps.tsc.outcome == 'failure' || steps.lint.outcome == 'failure' || steps.test.outcome == 'failure'
+        uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            The post-merge checks failed on main. Investigate and fix everything.
+
+            Run these to find what is broken:
+            - `npx tsc --noEmit` for TypeScript errors
+            - `npm run lint` for lint errors
+            - `npm test -- --passWithNoTests` for test failures
+
+            Then:
+            1. Create a new branch: `fix/post-merge-$(date +%Y%m%d%H%M)`
+            2. Fix every failure — no skipping, no `any` types, no inline styles, explicit return types
+            3. Confirm all three checks pass before committing
+            4. Commit with message: "fix: resolve post-merge check failures"
+            5. Push the branch and open a PR titled "fix: post-merge check failures"
+
+            Follow all rules in CLAUDE.md strictly.
+          claude_args: --max-turns 20

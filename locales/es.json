@@ -106,7 +106,11 @@
     "password_updated_body": "Ya puedes iniciar sesión con tu nueva contraseña.",
     "reset_title": "Establecer nueva contraseña",
     "reset_subtitle": "Elige una contraseña segura para tu cuenta.",
-    "by_continuing": "Al continuar aceptas nuestros Términos de Servicio"
+    "by_continuing": "Al continuar aceptas nuestros Términos de Servicio",
+    "show_password": "Mostrar contraseña",
+    "hide_password": "Ocultar contraseña",
+    "locked_out": "Bloqueado, espera {{n}} segundos",
+    "try_again_in": "Intenta en {{n}}s"
   },
   "welcome": {
     "tagline": "Convivencia, simplificada.",
@@ -114,7 +118,10 @@
     "feature_chores": "🏠  Tareas y mantenimiento",
     "feature_chat": "💬  Chat de casa",
     "get_started": "Comenzar",
-    "sign_in": "Iniciar sesión"
+    "sign_in": "Iniciar sesión",
+    "create_house": "Crear una casa",
+    "join_house": "Unirse a una casa",
+    "sign_in_prompt": "¿Ya tienes cuenta? Iniciar sesión"
   },
   "onboarding": {
     "slide1_title": "Bienvenido a HouseMates",
