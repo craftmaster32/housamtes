@@ -104,7 +104,11 @@
     "password_updated_body": "עכשיו אפשר להיכנס עם הסיסמה החדשה.",
     "reset_title": "הגדר סיסמה חדשה",
     "reset_subtitle": "בחר סיסמה חזקה לחשבון.",
-    "by_continuing": "בהמשך אתה מסכים לתנאי השירות"
+    "by_continuing": "בהמשך אתה מסכים לתנאי השירות",
+    "show_password": "הצג סיסמה",
+    "hide_password": "הסתר סיסמה",
+    "locked_out": "נחסמת, המתן {{n}} שניות",
+    "try_again_in": "נסה שוב בעוד {{n}}ש'"
   },
   "welcome": {
     "tagline": "מגורים משותפים, פשוט יותר.",
@@ -112,7 +116,10 @@
     "feature_chores": "🏠  מטלות ותחזוקה",
     "feature_chat": "💬  צ׳אט בית",
     "get_started": "בואו נתחיל",
-    "sign_in": "כניסה"
+    "sign_in": "כניסה",
+    "create_house": "צור בית",
+    "join_house": "הצטרף לבית",
+    "sign_in_prompt": "כבר יש לך חשבון? כניסה"
   },
   "onboarding": {
     "slide1_title": "ברוכים הבאים ל-HouseMates",

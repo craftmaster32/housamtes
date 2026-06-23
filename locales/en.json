@@ -106,7 +106,11 @@
     "password_updated_body": "You can now sign in with your new password.",
     "reset_title": "Set new password",
     "reset_subtitle": "Choose a strong password for your account.",
-    "by_continuing": "By continuing you agree to our Terms of Service"
+    "by_continuing": "By continuing you agree to our Terms of Service",
+    "show_password": "Show password",
+    "hide_password": "Hide password",
+    "locked_out": "Locked out, wait {{n}} seconds",
+    "try_again_in": "Try again in {{n}}s"
   },
   "welcome": {
     "tagline": "Shared living, simplified.",
@@ -114,7 +118,10 @@
     "feature_chores": "🏠  Chores & maintenance",
     "feature_chat": "💬  House chat",
     "get_started": "Get started",
-    "sign_in": "Sign in"
+    "sign_in": "Sign in",
+    "create_house": "Create a house",
+    "join_house": "Join a house",
+    "sign_in_prompt": "Already have an account? Sign in"
   },
   "onboarding": {
     "slide1_title": "Welcome to HouseMates",
