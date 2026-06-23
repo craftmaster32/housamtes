@@ -142,6 +142,9 @@ export default function SignupScreen(): React.JSX.Element {
               <TextInput.Icon
                 icon={showPassword ? 'eye-off' : 'eye'}
                 onPress={() => setShowPassword((v) => !v)}
+                accessibilityLabel={
+                  showPassword ? t('auth.hide_password') : t('auth.show_password')
+                }
               />
             }
             error={!!error}
