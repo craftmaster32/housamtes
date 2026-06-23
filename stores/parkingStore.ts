@@ -693,12 +693,20 @@ export const useParkingStore = create<ParkingStore>()(
               const tally = tallyParkingReservationVotes(r.votes, voterIds);
               const resolvedStatus: ParkingReservationStatus =
                 tally.approveCount > tally.rejectCount ? 'approved' : 'rejected';
-              const { data: updated } = await supabase
+              const { data: updated, error: updateErr } = await supabase
                 .from('parking_reservations')
                 .update({ status: resolvedStatus })
                 .eq('id', r.id)
                 .eq('status', 'pending')
                 .select('id');
+              if (updateErr) {
+                captureError(updateErr, {
+                  context: 'checkReservationAutoApply:updateStatus',
+                  houseId,
+                  reservationId: r.id,
+                });
+                continue;
+              }
               if (updated?.length) {
                 set({
                   reservations: get().reservations.map((res) =>
@@ -719,12 +727,19 @@ export const useParkingStore = create<ParkingStore>()(
           });
 
           if (dueReservation && !current) {
-            const { data: activeCheck } = await supabase
+            const { data: activeCheck, error: activeCheckError } = await supabase
               .from('parking_sessions')
               .select('id')
               .eq('house_id', houseId)
               .eq('is_active', true)
               .maybeSingle();
+            if (activeCheckError) {
+              captureError(activeCheckError, {
+                context: 'checkReservationAutoApply:activeSessionCheck',
+                houseId,
+              });
+              return;
+            }
             if (activeCheck) return;
 
             const { data, error } = await supabase
