@@ -542,7 +542,7 @@ describe('parkingStore — checkReservationAutoApply', () => {
           status: 'pending',
           date: todayStr,
           startTime: '00:00',
-          endTime: '23:59',
+          endTime: undefined,
           votes: [{ userId: 'u1', vote: 'approve' }],
         }),
       ],
