@@ -73,6 +73,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('auth.resend_email')}
+          accessibilityState={{ disabled: isResending || !pendingEmail }}
           style={styles.resendBtn}
         >
           <Text style={styles.resendText}>
