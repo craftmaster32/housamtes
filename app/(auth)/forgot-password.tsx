@@ -38,7 +38,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
-  const handleSendCode = useCallback(async () => {
+  const handleSendCode = useCallback(async (): Promise<void> => {
     const emailResult = signInSchema.pick({ email: true }).safeParse({ email: email.trim() });
     if (!emailResult.success) {
       setError(mapZodError(emailResult.error.errors[0].message, t));
@@ -65,7 +65,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     setStep('code');
   }, []);
 
-  const handleReset = useCallback(async () => {
+  const handleReset = useCallback(async (): Promise<void> => {
     if (!code.trim()) {
       setError(t('auth.enter_code_error'));
       return;
@@ -92,7 +92,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       const { error: updateErr } = await supabase.auth.updateUser({ password });
       if (updateErr) throw updateErr;
 
-      await supabase.auth.signOut();
+      await supabase.auth.signOut().catch(() => undefined);
       setDone(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -106,9 +106,16 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     }
   }, [code, email, password, confirm, t]);
 
-  const headerTitle = step === 'email' ? t('auth.forgot_title') : t('auth.enter_code_title');
-  const headerSubtitle =
-    step === 'email' ? t('auth.forgot_subtitle') : t('auth.enter_code_subtitle');
+  const headerTitle = done
+    ? t('auth.password_updated_title')
+    : step === 'email'
+      ? t('auth.forgot_title')
+      : t('auth.enter_code_title');
+  const headerSubtitle = done
+    ? t('auth.password_updated_body')
+    : step === 'email'
+      ? t('auth.forgot_subtitle')
+      : t('auth.enter_code_subtitle');
 
   return (
     <View style={styles.root}>
@@ -117,6 +124,10 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
         <Pressable
           style={styles.backBtn}
           onPress={() => {
+            if (done) {
+              router.replace('/(auth)/login');
+              return;
+            }
             if (step === 'code') {
               setStep('email');
               setError('');
@@ -187,8 +198,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   error={!!error}
                   placeholder="you@example.com"
                   placeholderTextColor={C.textTertiary}
-                  accessibilityLabel="Email address"
-                  accessibilityHint="Enter your email to receive a reset code"
+                  accessibilityLabel={t('auth.email')}
+                  accessibilityHint={t('auth.email_reset_hint')}
                 />
               </View>
 
@@ -229,8 +240,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   returnKeyType="next"
                   maxLength={6}
                   error={!!error}
-                  accessibilityLabel="Verification code"
-                  accessibilityHint="Enter the 6-digit code from your email"
+                  accessibilityLabel={t('auth.verification_code_label')}
+                  accessibilityHint={t('auth.verification_code_hint')}
                 />
               </View>
 
@@ -249,8 +260,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   secureTextEntry={!showPassword}
                   returnKeyType="next"
                   error={!!error}
-                  accessibilityLabel="New password"
-                  accessibilityHint="Enter your new password, at least 8 characters"
+                  accessibilityLabel={t('auth.new_password')}
+                  accessibilityHint={t('auth.new_password_hint')}
                   right={
                     <TextInput.Icon
                       icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -280,8 +291,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                   returnKeyType="done"
                   onSubmitEditing={handleReset}
                   error={!!error}
-                  accessibilityLabel="Confirm new password"
-                  accessibilityHint="Re-enter your new password to confirm it matches"
+                  accessibilityLabel={t('auth.confirm_password')}
+                  accessibilityHint={t('auth.confirm_password_hint')}
                   right={
                     <TextInput.Icon
                       icon={showConfirm ? 'eye-off-outline' : 'eye-outline'}
@@ -341,8 +352,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
             </View>
             <Text style={styles.sheetTitle}>{t('auth.check_email_title')}</Text>
             <Text style={styles.sheetBody}>
-              {t('auth.reset_code_sent_to') + ' '}
-              <Text style={{ color: C.textPrimary, ...font.semibold }}>{email.trim()}</Text>
+              {t('auth.reset_code_sent_to', { email: email.trim() })}
             </Text>
             <Button
               mode="contained"

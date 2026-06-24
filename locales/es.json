@@ -89,7 +89,12 @@
     "could_not_resend": "No pudimos reenviar. Intenta de nuevo.",
     "no_pending_email": "No se encontró dirección de email. Vuelve atrás e intenta registrarte de nuevo.",
     "spam_hint": "¿No llegó? Revisa tu carpeta de spam.",
-    "reset_code_sent_to": "Código de restablecimiento enviado a",
+    "reset_code_sent_to": "Código de restablecimiento enviado a {{email}}",
+    "email_reset_hint": "Ingresa tu email para recibir un código de restablecimiento",
+    "verification_code_label": "Código de verificación",
+    "verification_code_hint": "Ingresa el código de 6 dígitos de tu email",
+    "new_password_hint": "Ingresa tu nueva contraseña, al menos 8 caracteres",
+    "confirm_password_hint": "Vuelve a ingresar tu nueva contraseña para confirmar",
     "forgot_title": "¿Olvidaste tu contraseña?",
     "forgot_subtitle": "Ingresa tu email y te enviaremos un código de 6 dígitos.",
     "send_code": "Enviar código",
@@ -147,7 +152,12 @@
     "sign_in": "Iniciar sesión",
     "create_house": "Crear una casa",
     "join_house": "Unirse a una casa",
-    "sign_in_prompt": "¿Ya tienes cuenta? Iniciar sesión"
+    "sign_in_prompt": "¿Ya tienes cuenta? Iniciar sesión",
+    "app_tagline": "Tu casa, juntos.",
+    "feature_split_bills": "Divide gastos equitativamente",
+    "feature_track_chores": "Organiza las tareas juntos",
+    "feature_group_chat": "Un chat grupal de casa",
+    "logo_label": "Logo de HouseMates"
   },
   "onboarding": {
     "slide1_title": "Bienvenido a HouseMates",

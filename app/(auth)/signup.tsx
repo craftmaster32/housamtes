@@ -73,9 +73,18 @@ export default function SignupScreen(): React.JSX.Element {
   }, [fadeAnim]);
 
   const strength = getPasswordStrength(password);
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
   const passwordError =
-    passwordTouched && password.length > 0 && password.length < 8
-      ? t('auth.password_min_length')
+    passwordTouched && password.length > 0
+      ? !hasMinLength
+        ? t('auth.password_min_length')
+        : !hasUppercase
+          ? t('auth.password_needs_uppercase')
+          : !hasNumber
+            ? t('auth.password_needs_number')
+            : null
       : null;
   const confirmError =
     confirmPassword.length > 0 && confirmPassword !== password
@@ -88,12 +97,13 @@ export default function SignupScreen(): React.JSX.Element {
     agreedToTerms &&
     !passwordError &&
     !confirmError &&
-    password.length >= 8 &&
-    /[A-Z]/.test(password) &&
-    /[0-9]/.test(password) &&
+    hasMinLength &&
+    hasUppercase &&
+    hasNumber &&
     confirmPassword === password;
 
-  const handleSignup = useCallback(async () => {
+  const handleSignup = useCallback(async (): Promise<void> => {
+    if (isLoading) return;
     if (!confirmedAge) {
       setError(t('auth.age_confirm_error'));
       return;
@@ -133,6 +143,7 @@ export default function SignupScreen(): React.JSX.Element {
     selectedColor,
     confirmedAge,
     agreedToTerms,
+    isLoading,
     signUp,
     t,
   ]);

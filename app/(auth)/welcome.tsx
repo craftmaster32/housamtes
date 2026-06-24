@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useCallback } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,10 +22,14 @@ export default function WelcomeScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  const handleCreateHouse = async (): Promise<void> => {
-    await AsyncStorage.removeItem(ONBOARDING_INTENT_KEY);
+  const handleCreateHouse = useCallback(async (): Promise<void> => {
+    try {
+      await AsyncStorage.removeItem(ONBOARDING_INTENT_KEY);
+    } catch {
+      // best-effort cleanup
+    }
     router.push('/(auth)/signup');
-  };
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -36,26 +40,26 @@ export default function WelcomeScreen(): React.JSX.Element {
             style={styles.iconChip}
             accessible
             accessibilityRole="image"
-            accessibilityLabel="HouseMates logo"
+            accessibilityLabel={t('welcome.logo_label')}
           >
             <Ionicons name="home" size={32} color={C.primary} />
           </View>
 
           <Text style={styles.appName}>HouseMates</Text>
-          <Text style={styles.tagline}>Your house, together.</Text>
+          <Text style={styles.tagline}>{t('welcome.app_tagline')}</Text>
 
           <View style={styles.features}>
             <View style={styles.featureRow}>
               <Ionicons name="receipt-outline" size={18} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.featureText}>Split bills fairly</Text>
+              <Text style={styles.featureText}>{t('welcome.feature_split_bills')}</Text>
             </View>
             <View style={styles.featureRow}>
               <Ionicons name="checkmark-circle-outline" size={18} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.featureText}>Track chores together</Text>
+              <Text style={styles.featureText}>{t('welcome.feature_track_chores')}</Text>
             </View>
             <View style={styles.featureRow}>
               <Ionicons name="chatbubbles-outline" size={18} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.featureText}>One house group chat</Text>
+              <Text style={styles.featureText}>{t('welcome.feature_group_chat')}</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -72,9 +76,9 @@ export default function WelcomeScreen(): React.JSX.Element {
           labelStyle={styles.primaryButtonLabel}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Get started — create or join a house"
+          accessibilityLabel={t('welcome.get_started')}
         >
-          Get Started
+          {t('welcome.get_started')}
         </Button>
 
         <Button
@@ -84,9 +88,9 @@ export default function WelcomeScreen(): React.JSX.Element {
           labelStyle={styles.textButtonLabel}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Sign in to an existing account"
+          accessibilityLabel={t('welcome.sign_in_prompt')}
         >
-          Already have an account? Sign in
+          {t('welcome.sign_in_prompt')}
         </Button>
 
         <Text style={styles.terms}>{t('auth.by_continuing')}</Text>

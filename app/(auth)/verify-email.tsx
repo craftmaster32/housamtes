@@ -21,7 +21,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
-  const handleResend = useCallback(async () => {
+  const handleResend = useCallback(async (): Promise<void> => {
     if (!pendingEmail) return;
     try {
       setIsResending(true);

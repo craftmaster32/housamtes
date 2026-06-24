@@ -88,7 +88,12 @@
     "could_not_resend": "לא הצלחנו לשלוח. נסה שוב.",
     "no_pending_email": "לא נמצאה כתובת אימייל. חזור ונסה להירשם שוב.",
     "spam_hint": "לא קיבלת? בדוק את תיקיית הספאם.",
-    "reset_code_sent_to": "קוד האיפוס נשלח אל",
+    "reset_code_sent_to": "קוד האיפוס נשלח אל {{email}}",
+    "email_reset_hint": "הזן את האימייל שלך כדי לקבל קוד איפוס",
+    "verification_code_label": "קוד אימות",
+    "verification_code_hint": "הזן את הקוד בן 6 הספרות מהאימייל",
+    "new_password_hint": "הזן סיסמה חדשה, לפחות 8 תווים",
+    "confirm_password_hint": "הזן שוב את הסיסמה החדשה לאישור",
     "forgot_title": "שכחת סיסמה?",
     "forgot_subtitle": "הכנס את האימייל ונשלח לך קוד בן 6 ספרות.",
     "send_code": "שלח קוד",
@@ -146,7 +151,12 @@
     "sign_in": "כניסה",
     "create_house": "צור בית",
     "join_house": "הצטרף לבית",
-    "sign_in_prompt": "כבר יש לך חשבון? כניסה"
+    "sign_in_prompt": "כבר יש לך חשבון? כניסה",
+    "app_tagline": "הבית שלכם, ביחד.",
+    "feature_split_bills": "חלוקת חשבונות הוגנת",
+    "feature_track_chores": "מעקב מטלות יחד",
+    "feature_group_chat": "צ׳אט קבוצתי אחד",
+    "logo_label": "לוגו HouseMates"
   },
   "onboarding": {
     "slide1_title": "ברוכים הבאים ל-HouseMates",

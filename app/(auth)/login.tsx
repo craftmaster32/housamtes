@@ -63,8 +63,8 @@ export default function LoginScreen(): React.JSX.Element {
     }, 1000);
   }, []);
 
-  const handleLogin = useCallback(async () => {
-    if (lockoutRemaining > 0) return;
+  const handleLogin = useCallback(async (): Promise<void> => {
+    if (isLoading || lockoutRemaining > 0) return;
     const result = signInSchema.safeParse({ email, password });
     if (!result.success) {
       setError(mapZodError(result.error.errors[0].message, t));
@@ -85,7 +85,7 @@ export default function LoginScreen(): React.JSX.Element {
         setError(err instanceof Error ? err.message : t('auth.sign_in_failed'));
       }
     }
-  }, [email, password, signIn, failedAttempts, lockoutRemaining, startLockout, t]);
+  }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
   const isLocked = lockoutRemaining > 0;
 
