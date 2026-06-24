@@ -23,7 +23,9 @@
       "Bash(curl -s http://localhost:8082/status)",
       "Bash(curl -s \"http://localhost:8081/\")",
       "Bash(ipconfig)",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "mcp__02d66320-8c2e-4ac2-ac3c-d3c62c52b242__adobe_mandatory_init",
+      "mcp__02d66320-8c2e-4ac2-ac3c-d3c62c52b242__import-claude-design-from-url"
     ]
   }
 }
