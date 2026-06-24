@@ -176,3 +176,11 @@ export const groceryItemSchema = z.object({
   name: z.string().min(1, 'Item name is required').max(100).trim(),
   quantity: z.string().max(20).trim(),
 });
+
+export const inviteSchema = z.object({
+  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
+});
+
+export function isValidHouseName(name: string): boolean {
+  return name.trim().length >= 1 && name.trim().length <= 60;
+}
