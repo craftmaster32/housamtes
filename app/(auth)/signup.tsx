@@ -10,12 +10,12 @@ import {
 } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { signUpSchema } from '@utils/validation';
+import { signUpSchema, mapZodError } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -108,7 +108,7 @@ export default function SignupScreen(): React.JSX.Element {
     }
     const result = signUpSchema.safeParse({ name, email, password });
     if (!result.success) {
-      setError(result.error.errors[0].message);
+      setError(mapZodError(result.error.errors[0].message, t));
       return;
     }
     try {
@@ -234,6 +234,9 @@ export default function SignupScreen(): React.JSX.Element {
                     icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     color={C.textTertiary}
                     onPress={() => setShowPassword((v) => !v)}
+                    accessibilityLabel={
+                      showPassword ? t('common.hide_password') : t('common.show_password')
+                    }
                   />
                 }
                 error={!!passwordError}
@@ -286,6 +289,9 @@ export default function SignupScreen(): React.JSX.Element {
                     icon={showConfirm ? 'eye-off-outline' : 'eye-outline'}
                     color={C.textTertiary}
                     onPress={() => setShowConfirm((v) => !v)}
+                    accessibilityLabel={
+                      showConfirm ? t('common.hide_password') : t('common.show_password')
+                    }
                   />
                 }
                 error={!!confirmError}
@@ -359,21 +365,17 @@ export default function SignupScreen(): React.JSX.Element {
               </Pressable>
               <Text style={styles.checkText}>
                 {t('auth.terms_prefix')}
-                <Text
-                  style={styles.checkLink}
-                  onPress={() => router.push('/(auth)/terms')}
-                  accessibilityRole="link"
-                >
-                  {t('auth.terms_of_service')}
-                </Text>
+                <Link href="/(auth)/terms" asChild>
+                  <Text style={styles.checkLink} accessibilityRole="link">
+                    {t('auth.terms_of_service')}
+                  </Text>
+                </Link>
                 {t('auth.terms_and')}
-                <Text
-                  style={styles.checkLink}
-                  onPress={() => router.push('/(auth)/privacy-policy')}
-                  accessibilityRole="link"
-                >
-                  {t('auth.privacy_policy')}
-                </Text>
+                <Link href="/(auth)/privacy-policy" asChild>
+                  <Text style={styles.checkLink} accessibilityRole="link">
+                    {t('auth.privacy_policy')}
+                  </Text>
+                </Link>
               </Text>
             </View>
 

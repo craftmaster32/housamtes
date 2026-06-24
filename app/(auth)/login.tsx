@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { signInSchema } from '@utils/validation';
+import { signInSchema, mapZodError } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -67,7 +67,7 @@ export default function LoginScreen(): React.JSX.Element {
     if (lockoutRemaining > 0) return;
     const result = signInSchema.safeParse({ email, password });
     if (!result.success) {
-      setError(result.error.errors[0].message);
+      setError(mapZodError(result.error.errors[0].message, t));
       return;
     }
     try {
@@ -165,6 +165,9 @@ export default function LoginScreen(): React.JSX.Element {
                     icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     color={C.textTertiary}
                     onPress={() => setShowPassword((v) => !v)}
+                    accessibilityLabel={
+                      showPassword ? t('common.hide_password') : t('common.show_password')
+                    }
                   />
                 }
               />

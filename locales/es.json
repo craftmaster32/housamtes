@@ -39,7 +39,9 @@
     "all": "Todos",
     "optional": "opcional",
     "new": "Nuevo",
-    "or": "o"
+    "or": "o",
+    "show_password": "Mostrar contraseña",
+    "hide_password": "Ocultar contraseña"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -127,7 +129,14 @@
     "strength_weak": "Débil",
     "strength_fair": "Regular",
     "strength_good": "Buena",
-    "strength_strong": "Fuerte"
+    "strength_strong": "Fuerte",
+    "email_required": "El email es obligatorio",
+    "invalid_email": "Por favor ingresa un email válido",
+    "password_required": "La contraseña es obligatoria",
+    "name_required": "El nombre es obligatorio",
+    "name_too_long": "El nombre debe tener 50 caracteres o menos",
+    "password_needs_uppercase": "Incluye al menos una letra mayúscula",
+    "password_needs_number": "Incluye al menos un número"
   },
   "welcome": {
     "tagline": "Convivencia, simplificada.",

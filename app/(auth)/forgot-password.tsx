@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
-import { signInSchema, signUpSchema } from '@utils/validation';
+import { signInSchema, signUpSchema, mapZodError } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -41,7 +41,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const handleSendCode = useCallback(async () => {
     const emailResult = signInSchema.pick({ email: true }).safeParse({ email: email.trim() });
     if (!emailResult.success) {
-      setError(emailResult.error.errors[0].message);
+      setError(mapZodError(emailResult.error.errors[0].message, t));
       return;
     }
     setIsLoading(true);
@@ -72,7 +72,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     }
     const pwResult = signUpSchema.shape.password.safeParse(password);
     if (!pwResult.success) {
-      setError(pwResult.error.errors[0].message);
+      setError(mapZodError(pwResult.error.errors[0].message, t));
       return;
     }
     if (password !== confirm) {
@@ -256,6 +256,9 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                       icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
                       color={C.textTertiary}
                       onPress={() => setShowPassword((v) => !v)}
+                      accessibilityLabel={
+                        showPassword ? t('common.hide_password') : t('common.show_password')
+                      }
                     />
                   }
                 />
@@ -284,6 +287,9 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                       icon={showConfirm ? 'eye-off-outline' : 'eye-outline'}
                       color={C.textTertiary}
                       onPress={() => setShowConfirm((v) => !v)}
+                      accessibilityLabel={
+                        showConfirm ? t('common.hide_password') : t('common.show_password')
+                      }
                     />
                   }
                 />

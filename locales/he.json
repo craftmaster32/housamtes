@@ -38,7 +38,9 @@
     "all": "הכל",
     "optional": "אופציונלי",
     "new": "חדש",
-    "or": "או"
+    "or": "או",
+    "show_password": "הצג סיסמה",
+    "hide_password": "הסתר סיסמה"
   },
   "nav": {
     "dashboard": "ראשי",
@@ -126,7 +128,14 @@
     "strength_weak": "חלשה",
     "strength_fair": "בינונית",
     "strength_good": "טובה",
-    "strength_strong": "חזקה"
+    "strength_strong": "חזקה",
+    "email_required": "יש להזין אימייל",
+    "invalid_email": "אנא הזן כתובת אימייל תקינה",
+    "password_required": "יש להזין סיסמה",
+    "name_required": "יש להזין שם",
+    "name_too_long": "השם חייב להכיל עד 50 תווים",
+    "password_needs_uppercase": "יש לכלול לפחות אות גדולה אחת",
+    "password_needs_number": "יש לכלול לפחות ספרה אחת"
   },
   "welcome": {
     "tagline": "מגורים משותפים, פשוט יותר.",

@@ -39,7 +39,9 @@
     "all": "All",
     "optional": "optional",
     "new": "New",
-    "or": "or"
+    "or": "or",
+    "show_password": "Show password",
+    "hide_password": "Hide password"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -128,7 +130,14 @@
     "strength_weak": "Weak",
     "strength_fair": "Fair",
     "strength_good": "Good",
-    "strength_strong": "Strong"
+    "strength_strong": "Strong",
+    "email_required": "Email is required",
+    "invalid_email": "Please enter a valid email address",
+    "password_required": "Password is required",
+    "name_required": "Name is required",
+    "name_too_long": "Name must be 50 characters or less",
+    "password_needs_uppercase": "Include at least one uppercase letter",
+    "password_needs_number": "Include at least one number"
   },
   "welcome": {
     "tagline": "Shared living, simplified.",
