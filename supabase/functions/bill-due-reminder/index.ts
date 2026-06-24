@@ -42,6 +42,19 @@ Deno.serve(async (_req: Request) => {
     });
   }
 
+  // Currency symbols per house — fetched once to avoid hardcoding ₪
+  const houseCurrency = new Map<string, string>();
+  const houseIds = [...new Set(bills.map((b: { house_id: string }) => b.house_id))];
+  if (houseIds.length > 0) {
+    const { data: houseRows } = await supabase
+      .from('houses')
+      .select('id, currency')
+      .in('id', houseIds);
+    for (const h of (houseRows ?? []) as Array<{ id: string; currency?: string }>) {
+      houseCurrency.set(h.id, h.currency ?? '₪');
+    }
+  }
+
   let totalSent = 0;
 
   for (const bill of bills) {
@@ -85,10 +98,11 @@ Deno.serve(async (_req: Request) => {
 
     if (eligibleTokens.length === 0) continue;
 
+    const currency = houseCurrency.get(bill.house_id) ?? '₪';
     const messages = eligibleTokens.map((to: string) => ({
       to,
       title: `⏰ Bill due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`,
-      body: `${bill.title} — ₪${Number(bill.amount).toFixed(2)} due on ${bill.date}`,
+      body: `${bill.title} — ${currency}${Number(bill.amount).toFixed(2)} due on ${bill.date}`,
       sound: 'default',
       data: { screen: 'bills' },
     }));

@@ -29,6 +29,7 @@ export default function TabsLayout(): React.JSX.Element {
       <Tabs.Screen name="voting/index" />
       <Tabs.Screen name="condition/index" options={{ href: null }} />
       <Tabs.Screen name="property/index" />
+      <Tabs.Screen name="games/index" options={{ href: null }} />
     </Tabs>
   );
 }

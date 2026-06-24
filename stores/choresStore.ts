@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { notifyHousemates } from '@lib/notifyHousemates';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 
@@ -98,6 +99,18 @@ export const useChoresStore = create<ChoresStore>()(
           createdAt: data.created_at,
         };
         set({ chores: [...get().chores, chore] });
+        const userId = useAuthStore.getState().profile?.id ?? '';
+        const displayName = useAuthStore.getState().profile?.name ?? 'Someone';
+        if (userId) {
+          void notifyHousemates({
+            houseId,
+            excludeUserId: userId,
+            title: '🧹 New chore added',
+            body: `${displayName} added "${name}". Time to pitch in!`,
+            data: { screen: 'chores' },
+            notificationType: 'chore_overdue',
+          }).catch((err) => captureError(err, { context: 'notify-chore-added', houseId }));
+        }
       },
       toggleChore: async (id): Promise<void> => {
         const chore = get().chores.find((c) => c.id === id);
@@ -114,6 +127,21 @@ export const useChoresStore = create<ChoresStore>()(
             c.id === id ? { ...c, isComplete: isDone, completedAt } : c
           ),
         });
+        if (isDone) {
+          const houseId = useAuthStore.getState().houseId;
+          const userId = useAuthStore.getState().profile?.id ?? '';
+          const displayName = useAuthStore.getState().profile?.name ?? 'Someone';
+          if (houseId && userId) {
+            void notifyHousemates({
+              houseId,
+              excludeUserId: userId,
+              title: '✅ Chore done!',
+              body: `${displayName} finished "${chore.name}". One less thing to worry about 🎉`,
+              data: { screen: 'chores' },
+              notificationType: 'chore_overdue',
+            }).catch((err) => captureError(err, { context: 'notify-chore-done', houseId }));
+          }
+        }
       },
       claimChore: async (id, userId): Promise<void> => {
         const { error } = await supabase.from('chores').update({ assigned_to: userId }).eq('id', id);
