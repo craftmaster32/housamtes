@@ -97,7 +97,7 @@ export default function RootLayout(): React.JSX.Element | null {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     ionicons: require('../assets/fonts/Ionicons.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    MaterialCommunityIcons: require('../assets/fonts/MaterialCommunityIcons.ttf'),
+    'material-community': require('../assets/fonts/MaterialCommunityIcons.ttf'),
   });
 
   const initialize = useAuthStore((s) => s.initialize);
