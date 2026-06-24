@@ -1,8 +1,15 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
-  View, SectionList, ScrollView, StyleSheet, Pressable,
-  useWindowDimensions, Platform,
+  View,
+  SectionList,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+  useWindowDimensions,
+  Platform,
 } from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { AnimatedListItem } from '@components/shared/AnimatedListItem';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,7 +17,11 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  useBillsStore, calculateAllNetBalances, calculateSimplifiedBalancesForUser, settleDebts, type Bill,
+  useBillsStore,
+  calculateAllNetBalances,
+  calculateSimplifiedBalancesForUser,
+  settleDebts,
+  type Bill,
 } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
@@ -58,17 +69,19 @@ function formatDateLabel(dateStr: string): string {
   if (dateStr === todayStr) return 'Today';
   if (dateStr === yestStr) return 'Yesterday';
   return new Date(dateStr + 'T12:00:00').toLocaleDateString([], {
-    weekday: 'short', month: 'short', day: 'numeric',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
   });
 }
 
 // ── Bill row card ─────────────────────────────────────────────────────────────
 function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
-  const c            = useThemedColors();
+  const c = useThemedColors();
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const housemates = useHousematesStore((s) => s.housemates);
-  const share    = bill.amount / Math.max(bill.splitBetween.length, 1);
-  const icon     = getCategoryIcon(bill.category ?? '');
+  const share = bill.amount / Math.max(bill.splitBetween.length, 1);
+  const icon = getCategoryIcon(bill.category ?? '');
   return (
     <Pressable
       style={({ pressed }) => [
@@ -83,13 +96,15 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
       onPress={() => router.push(`/(tabs)/bills/${bill.id}`)}
       accessibilityRole="button"
     >
-      <View style={[styles.billIconWrap, {
-        backgroundColor: bill.settled ? c.surfaceSecondary : c.primary + '12',
-      }]}>
-        <Ionicons
-          name={icon} size={18}
-          color={bill.settled ? c.textSecondary : c.primary}
-        />
+      <View
+        style={[
+          styles.billIconWrap,
+          {
+            backgroundColor: bill.settled ? c.surfaceSecondary : c.primary + '12',
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={18} color={bill.settled ? c.textSecondary : c.primary} />
       </View>
       <View style={styles.billInfo}>
         <Text
@@ -104,9 +119,13 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
       </View>
       <View style={styles.billRight}>
         {bill.settled && (
-          <Pill tone="success" style={styles.settledBadge}>✓ Settled</Pill>
+          <Pill tone="success" style={styles.settledBadge}>
+            ✓ Settled
+          </Pill>
         )}
-        <Text style={[styles.billAmount, { color: bill.settled ? c.textSecondary : c.textPrimary }]}>
+        <Text
+          style={[styles.billAmount, { color: bill.settled ? c.textSecondary : c.textPrimary }]}
+        >
           {formatFull(bill.amount, currencyCode)}
         </Text>
         <Ionicons name="chevron-forward" size={14} color={c.textSecondary} />
@@ -117,15 +136,15 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
 
 // ── Settle Up panel ───────────────────────────────────────────────────────────
 function SettleUpPanel(): React.JSX.Element {
-  const c            = useThemedColors();
+  const c = useThemedColors();
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const bills      = useBillsStore((s) => s.bills);
+  const bills = useBillsStore((s) => s.bills);
   const housemates = useHousematesStore((s) => s.housemates);
   const avatarById = new Map(housemates.map((h) => [h.id, h.avatarUrl]));
   const householdBills = useRecurringBillsStore((s) => s.bills);
-  const payments   = useRecurringBillsStore((s) => s.payments);
+  const payments = useRecurringBillsStore((s) => s.payments);
 
-  const sharedNet       = calculateAllNetBalances(bills.filter((b) => !b.settled));
+  const sharedNet = calculateAllNetBalances(bills.filter((b) => !b.settled));
   const householdFairness = calculateFairness(householdBills, payments);
 
   const combined = new Map<string, number>(sharedNet);
@@ -138,7 +157,9 @@ function SettleUpPanel(): React.JSX.Element {
     return (
       <View style={styles.settleAllGood}>
         <Ionicons name="checkmark-circle" size={20} color={c.positive} />
-        <Text style={[styles.settleAllGoodText, { color: c.positive }]}>Everyone is settled up!</Text>
+        <Text style={[styles.settleAllGoodText, { color: c.positive }]}>
+          Everyone is settled up!
+        </Text>
       </View>
     );
   }
@@ -147,25 +168,49 @@ function SettleUpPanel(): React.JSX.Element {
     <View style={styles.settleList}>
       {settlements.map((s, idx) => {
         const fromName = resolveName(s.from, housemates);
-        const toName   = resolveName(s.to, housemates);
+        const toName = resolveName(s.to, housemates);
         return (
-          <View key={idx} style={[styles.settleRow, { backgroundColor: c.background, borderColor: c.border }]}>
+          <View
+            key={idx}
+            style={[styles.settleRow, { backgroundColor: c.background, borderColor: c.border }]}
+          >
             <View style={[styles.settleAvatar, { backgroundColor: c.primary + '22' }]}>
-              {avatarById.get(s.from)
-                ? <Image source={{ uri: avatarById.get(s.from) }} style={styles.settleAvatarImg} contentFit="cover" />
-                : <Text style={[styles.settleAvatarText, { color: c.primary }]}>{fromName[0]?.toUpperCase()}</Text>
-              }
+              {avatarById.get(s.from) ? (
+                <Image
+                  source={{ uri: avatarById.get(s.from) }}
+                  style={styles.settleAvatarImg}
+                  contentFit="cover"
+                />
+              ) : (
+                <Text style={[styles.settleAvatarText, { color: c.primary }]}>
+                  {fromName[0]?.toUpperCase()}
+                </Text>
+              )}
             </View>
             <Text style={[styles.settleName, { color: c.textPrimary }]}>{fromName}</Text>
-            <Ionicons name="arrow-forward" size={12} color={c.textSecondary} style={styles.settleArrow} />
+            <Ionicons
+              name="arrow-forward"
+              size={12}
+              color={c.textSecondary}
+              style={styles.settleArrow}
+            />
             <View style={[styles.settleAvatar, { backgroundColor: c.primary + '22' }]}>
-              {avatarById.get(s.to)
-                ? <Image source={{ uri: avatarById.get(s.to) }} style={styles.settleAvatarImg} contentFit="cover" />
-                : <Text style={[styles.settleAvatarText, { color: c.primary }]}>{toName[0]?.toUpperCase()}</Text>
-              }
+              {avatarById.get(s.to) ? (
+                <Image
+                  source={{ uri: avatarById.get(s.to) }}
+                  style={styles.settleAvatarImg}
+                  contentFit="cover"
+                />
+              ) : (
+                <Text style={[styles.settleAvatarText, { color: c.primary }]}>
+                  {toName[0]?.toUpperCase()}
+                </Text>
+              )}
             </View>
             <Text style={[styles.settleName, { color: c.textPrimary }]}>{toName}</Text>
-            <Text style={[styles.settleAmt, { color: c.textPrimary }]}>{formatFull(s.amount, currencyCode)}</Text>
+            <Text style={[styles.settleAmt, { color: c.textPrimary }]}>
+              {formatFull(s.amount, currencyCode)}
+            </Text>
           </View>
         );
       })}
@@ -175,33 +220,37 @@ function SettleUpPanel(): React.JSX.Element {
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function BillsScreen(): React.JSX.Element {
-  const c          = useThemedColors();
-  const { t }      = useTranslation();
-  const { width }  = useWindowDimensions();
-  const isWide     = width >= 680;
+  const c = useThemedColors();
+  const { t } = useTranslation();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 680;
 
-  const markSeen   = useBadgeStore((s) => s.markSeen);
-  useFocusEffect(useCallback(() => { markSeen('bills').catch(() => {}); }, [markSeen]));
+  const markSeen = useBadgeStore((s) => s.markSeen);
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('bills').catch(() => {});
+    }, [markSeen])
+  );
 
-  const bills      = useBillsStore((s) => s.bills);
-  const isLoading  = useBillsStore((s) => s.isLoading);
-  const error      = useBillsStore((s) => s.error);
-  const loadBills  = useBillsStore((s) => s.load);
-  const profile    = useAuthStore((s) => s.profile);
-  const houseId    = useAuthStore((s) => s.houseId) ?? '';
+  const bills = useBillsStore((s) => s.bills);
+  const isLoading = useBillsStore((s) => s.isLoading);
+  const error = useBillsStore((s) => s.error);
+  const loadBills = useBillsStore((s) => s.load);
+  const profile = useAuthStore((s) => s.profile);
+  const houseId = useAuthStore((s) => s.houseId) ?? '';
   const currencyCode = useSettingsStore((s) => s.currencyCode);
 
-  const [filter, setFilter]     = useState<BillFilter>('one-off');
-  const { openRecurring }       = useLocalSearchParams<{ openRecurring?: string }>();
+  const [filter, setFilter] = useState<BillFilter>('one-off');
+  const { openRecurring } = useLocalSearchParams<{ openRecurring?: string }>();
   useEffect(() => {
     if (openRecurring === '1') setFilter('recurring');
   }, [openRecurring]);
   const [showSettle, setShowSettle] = useState(false);
 
   const householdBills = useRecurringBillsStore((s) => s.bills);
-  const payments       = useRecurringBillsStore((s) => s.payments);
+  const payments = useRecurringBillsStore((s) => s.payments);
 
-  const myId       = profile?.id ?? '';
+  const myId = profile?.id ?? '';
   const activeBills = bills.filter((b) => !b.settled);
 
   const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
@@ -210,8 +259,10 @@ export default function BillsScreen(): React.JSX.Element {
   }
   const sharedBalances = calculateSimplifiedBalancesForUser(combinedNet, myId);
 
-  const totalOwed  = sharedBalances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
-  const totalOwe   = sharedBalances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
+  const totalOwed = sharedBalances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
+  const totalOwe = sharedBalances
+    .filter((b) => b.amount < 0)
+    .reduce((s, b) => s + Math.abs(b.amount), 0);
   const netBalance = totalOwed - totalOwe;
 
   const billSections = useMemo(() => {
@@ -229,7 +280,11 @@ export default function BillsScreen(): React.JSX.Element {
   }, [bills]);
 
   const renderBill = useCallback(
-    ({ item }: { item: Bill }): React.JSX.Element => <BillCard bill={item} />,
+    ({ item, index }: { item: Bill; index: number }): React.JSX.Element => (
+      <AnimatedListItem index={index}>
+        <BillCard bill={item} />
+      </AnimatedListItem>
+    ),
     []
   );
 
@@ -262,16 +317,25 @@ export default function BillsScreen(): React.JSX.Element {
 
   // Sticky top bar — always visible above the scroll area
   const topBar = (
-    <View style={[styles.topBar, isWide && styles.topBarWide]}>
+    <Animated.View
+      entering={FadeIn.duration(350)}
+      style={[styles.topBar, isWide && styles.topBarWide]}
+    >
       <View style={styles.pageHeader}>
         <View>
           <Text style={[styles.pageTitle, { color: c.textPrimary }]}>Bills</Text>
-          <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>{'Expenses & balances'}</Text>
+          <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>
+            {'Expenses & balances'}
+          </Text>
         </View>
         <Pressable
           style={({ pressed }) => [
             styles.addBtn,
-            { backgroundColor: c.primary, transform: [{ scale: pressed ? 0.96 : 1 }], opacity: pressed ? 0.88 : 1 },
+            {
+              backgroundColor: c.primary,
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+              opacity: pressed ? 0.88 : 1,
+            },
           ]}
           onPress={() => router.push('/(tabs)/bills/add')}
           accessibilityRole="button"
@@ -282,7 +346,9 @@ export default function BillsScreen(): React.JSX.Element {
         </Pressable>
       </View>
 
-      <View style={[styles.filterRow, { backgroundColor: c.surfaceSecondary, borderColor: c.border }]}>
+      <View
+        style={[styles.filterRow, { backgroundColor: c.surfaceSecondary, borderColor: c.border }]}
+      >
         <Pressable
           style={({ pressed }) => [
             styles.filterTab,
@@ -294,8 +360,18 @@ export default function BillsScreen(): React.JSX.Element {
           accessibilityRole="tab"
           accessibilityState={{ selected: filter === 'one-off' }}
         >
-          <Ionicons name="receipt-outline" size={14} color={filter === 'one-off' ? '#fff' : c.textSecondary} />
-          <Text style={[styles.filterTabText, { color: filter === 'one-off' ? '#fff' : c.textSecondary }, filter === 'one-off' && styles.filterTabTextActive]}>
+          <Ionicons
+            name="receipt-outline"
+            size={14}
+            color={filter === 'one-off' ? '#fff' : c.textSecondary}
+          />
+          <Text
+            style={[
+              styles.filterTabText,
+              { color: filter === 'one-off' ? '#fff' : c.textSecondary },
+              filter === 'one-off' && styles.filterTabTextActive,
+            ]}
+          >
             One-off expenses
           </Text>
           {bills.length > 0 && filter === 'one-off' && (
@@ -315,40 +391,69 @@ export default function BillsScreen(): React.JSX.Element {
           accessibilityRole="tab"
           accessibilityState={{ selected: filter === 'recurring' }}
         >
-          <Ionicons name="repeat-outline" size={14} color={filter === 'recurring' ? '#fff' : c.textSecondary} />
-          <Text style={[styles.filterTabText, { color: filter === 'recurring' ? '#fff' : c.textSecondary }, filter === 'recurring' && styles.filterTabTextActive]}>
+          <Ionicons
+            name="repeat-outline"
+            size={14}
+            color={filter === 'recurring' ? '#fff' : c.textSecondary}
+          />
+          <Text
+            style={[
+              styles.filterTabText,
+              { color: filter === 'recurring' ? '#fff' : c.textSecondary },
+              filter === 'recurring' && styles.filterTabTextActive,
+            ]}
+          >
             Recurring bills
           </Text>
         </Pressable>
       </View>
-    </View>
+    </Animated.View>
   );
 
   const ListHeader = (
-    <View style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}>
-
+    <Animated.View
+      entering={FadeInDown.duration(400)}
+      style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}
+    >
       {/* ── Balance stats ────────────────────────────────────────── */}
       <View style={[styles.balanceCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={styles.balanceStat}>
           <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>Owed to you</Text>
-          <Text style={[styles.balanceStatNum, { color: totalOwed > 0 ? c.positive : c.textPrimary }]}>
+          <Text
+            style={[styles.balanceStatNum, { color: totalOwed > 0 ? c.positive : c.textPrimary }]}
+          >
             {formatFull(totalOwed, currencyCode)}
           </Text>
         </View>
         <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
         <View style={styles.balanceStat}>
           <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>Net balance</Text>
-          <Text style={[styles.balanceStatNum, { color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textPrimary }]}>
-            {netBalance > 0 ? '+' : ''}{formatFull(Math.abs(netBalance), currencyCode)}
+          <Text
+            style={[
+              styles.balanceStatNum,
+              { color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textPrimary },
+            ]}
+          >
+            {netBalance > 0 ? '+' : ''}
+            {formatFull(Math.abs(netBalance), currencyCode)}
           </Text>
-          <Text style={[styles.balanceStatTag, { color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textSecondary }]}>
+          <Text
+            style={[
+              styles.balanceStatTag,
+              {
+                color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textSecondary,
+              },
+            ]}
+          >
             {netBalance > 0 ? 'You are owed' : netBalance < 0 ? 'You owe' : 'All settled'}
           </Text>
         </View>
         <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
         <View style={styles.balanceStat}>
           <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>You owe</Text>
-          <Text style={[styles.balanceStatNum, { color: totalOwe > 0 ? c.negative : c.textPrimary }]}>
+          <Text
+            style={[styles.balanceStatNum, { color: totalOwe > 0 ? c.negative : c.textPrimary }]}
+          >
             {formatFull(totalOwe, currencyCode)}
           </Text>
         </View>
@@ -359,7 +464,10 @@ export default function BillsScreen(): React.JSX.Element {
         <Pressable
           style={({ pressed }) => [
             styles.settleCard,
-            { borderColor: showSettle ? c.positive + '60' : c.positive + '35', backgroundColor: c.surface },
+            {
+              borderColor: showSettle ? c.positive + '60' : c.positive + '35',
+              backgroundColor: c.surface,
+            },
             pressed && { opacity: 0.85 },
           ]}
           onPress={() => setShowSettle((v) => !v)}
@@ -376,11 +484,17 @@ export default function BillsScreen(): React.JSX.Element {
             <Text style={[styles.settleCardHint, { color: c.textSecondary }]}>
               {showSettle ? 'Hide' : 'See transfers'}
             </Text>
-            <Ionicons name={showSettle ? 'chevron-up' : 'chevron-down'} size={16} color={c.textSecondary} />
+            <Ionicons
+              name={showSettle ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={c.textSecondary}
+            />
           </View>
           {showSettle && (
             <View style={styles.settleContent}>
-              <Text style={[styles.settleCardSub, { color: c.textSecondary }]}>Minimum transfers to clear all balances</Text>
+              <Text style={[styles.settleCardSub, { color: c.textSecondary }]}>
+                Minimum transfers to clear all balances
+              </Text>
               <SettleUpPanel />
             </View>
           )}
@@ -398,12 +512,17 @@ export default function BillsScreen(): React.JSX.Element {
       {filter === 'one-off' && bills.length > 0 && (
         <View style={styles.listCountRow}>
           <Text style={[styles.eyebrow, { color: c.textSecondary }]}>ALL EXPENSES</Text>
-          <View style={[styles.countPill, { backgroundColor: c.surfaceSecondary, borderColor: c.border }]}>
+          <View
+            style={[
+              styles.countPill,
+              { backgroundColor: c.surfaceSecondary, borderColor: c.border },
+            ]}
+          >
             <Text style={[styles.countPillText, { color: c.textSecondary }]}>{bills.length}</Text>
           </View>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 
   if (filter === 'recurring') {
@@ -436,7 +555,9 @@ export default function BillsScreen(): React.JSX.Element {
         ListHeaderComponent={ListHeader}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionDateHeader}>
-            <Text style={[styles.sectionDateText, { color: c.textSecondary }]}>{section.title}</Text>
+            <Text style={[styles.sectionDateText, { color: c.textSecondary }]}>
+              {section.title}
+            </Text>
           </View>
         )}
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -455,16 +576,16 @@ export default function BillsScreen(): React.JSX.Element {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container:    { flex: 1 },
-  flex:         { flex: 1 },
-  centered:     { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  listContent:  {
+  container: { flex: 1 },
+  flex: { flex: 1 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  listContent: {
     paddingBottom: Platform.OS === 'web' ? sizes.bottomTabBarHeight : sizes.bottomTabContentPadding,
   },
 
-  topBar:         { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4, gap: 12 },
-  topBarWide:     { paddingHorizontal: 24 },
-  listHeaderWrap:     { paddingHorizontal: 16, paddingTop: 12, gap: 14 },
+  topBar: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4, gap: 12 },
+  topBarWide: { paddingHorizontal: 24 },
+  listHeaderWrap: { paddingHorizontal: 16, paddingTop: 12, gap: 14 },
   listHeaderWrapWide: { paddingHorizontal: 24 },
 
   // ── Page header
@@ -473,11 +594,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
-  pageTitle:    { fontSize: 28, ...font.extrabold, letterSpacing: -0.8 },
+  pageTitle: { fontSize: 28, ...font.extrabold, letterSpacing: -0.8 },
   pageSubtitle: { fontSize: 13, ...font.regular, marginTop: 2 },
   addBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingVertical: 11, paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
     borderRadius: 12,
     shadowColor: '#4F78B6',
     shadowOffset: { width: 0, height: 4 },
@@ -490,7 +614,8 @@ const styles = StyleSheet.create({
   // ── Balance card
   balanceCard: {
     flexDirection: 'row',
-    borderRadius: 20, borderWidth: 1,
+    borderRadius: 20,
+    borderWidth: 1,
     padding: 20,
     alignItems: 'flex-start',
     shadowColor: '#000',
@@ -499,16 +624,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  balanceStat:      { flex: 1, alignItems: 'center', gap: 3 },
-  balanceDivider:   { width: 1, height: 52, alignSelf: 'center' },
+  balanceStat: { flex: 1, alignItems: 'center', gap: 3 },
+  balanceDivider: { width: 1, height: 52, alignSelf: 'center' },
   balanceStatLabel: { fontSize: 12, ...font.medium, textAlign: 'center' },
-  balanceStatNum:   { fontSize: 22, ...font.extrabold, letterSpacing: -0.5, textAlign: 'center' },
-  balanceStatTag:   { fontSize: 11, ...font.semibold, textAlign: 'center' },
+  balanceStatNum: { fontSize: 22, ...font.extrabold, letterSpacing: -0.5, textAlign: 'center' },
+  balanceStatTag: { fontSize: 11, ...font.semibold, textAlign: 'center' },
 
   // ── Settle card
   settleCard: {
-    borderRadius: 16, borderWidth: 1,
-    paddingHorizontal: 16, paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -516,59 +643,98 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   settleCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  settleIconWrap:   { width: 32, height: 32, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-  settleCardTitle:  { flex: 1, fontSize: 15, ...font.semibold },
-  settleCardHint:   { fontSize: 13, ...font.regular },
-  settleContent:    { marginTop: 12, gap: 10 },
-  settleCardSub:    { fontSize: 13, ...font.regular, lineHeight: 18 },
+  settleIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settleCardTitle: { flex: 1, fontSize: 15, ...font.semibold },
+  settleCardHint: { fontSize: 13, ...font.regular },
+  settleContent: { marginTop: 12, gap: 10 },
+  settleCardSub: { fontSize: 13, ...font.regular, lineHeight: 18 },
 
-  settleAllGood:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+  settleAllGood: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   settleAllGoodText: { fontSize: 14, ...font.semibold },
-  settleList:        { gap: 8 },
+  settleList: { gap: 8 },
   settleRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderWidth: 1,
   },
-  settleAvatar:     { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  settleAvatarImg:  { width: 28, height: 28 },
+  settleAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  settleAvatarImg: { width: 28, height: 28 },
   settleAvatarText: { fontSize: 12, ...font.bold },
-  settleName:       { fontSize: 13, ...font.semibold },
-  settleArrow:      { marginHorizontal: 2 },
-  settleAmt:        { marginLeft: 'auto' as never, fontSize: 14, ...font.bold },
+  settleName: { fontSize: 13, ...font.semibold },
+  settleArrow: { marginHorizontal: 2 },
+  settleAmt: { marginLeft: 'auto' as never, fontSize: 14, ...font.bold },
 
   // ── Filter tabs
   filterRow: {
-    flexDirection: 'row', gap: 8,
-    borderRadius: 14, padding: 4,
+    flexDirection: 'row',
+    gap: 8,
+    borderRadius: 14,
+    padding: 4,
     borderWidth: 1,
   },
   filterTab: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 10, borderRadius: 11, minHeight: 44,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 11,
+    minHeight: 44,
   },
-  filterTabText:       { fontSize: 13, ...font.semibold },
+  filterTabText: { fontSize: 13, ...font.semibold },
   filterTabTextActive: { color: '#fff' },
-  filterBadge:         { backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 },
-  filterBadgeText:     { fontSize: 11, ...font.bold, color: '#fff' },
+  filterBadge: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  filterBadgeText: { fontSize: 11, ...font.bold, color: '#fff' },
 
   householdWrap: { minHeight: 200 },
 
   // ── One-off list header
   listCountRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
-  eyebrow:      { fontSize: 11, ...font.bold, letterSpacing: 0.8, textTransform: 'uppercase' },
-  countPill:    { minHeight: 20, paddingHorizontal: 8, borderRadius: 9999, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  eyebrow: { fontSize: 11, ...font.bold, letterSpacing: 0.8, textTransform: 'uppercase' },
+  countPill: {
+    minHeight: 20,
+    paddingHorizontal: 8,
+    borderRadius: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
   countPillText: { fontSize: 11, ...font.bold },
 
   // ── Date section header
   sectionDateHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
-  sectionDateText:   { fontSize: 12, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.7 },
+  sectionDateText: { fontSize: 12, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.7 },
 
   // ── Bill row card
   billCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
     marginHorizontal: 16,
@@ -578,18 +744,31 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
   },
-  billIconWrap: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  billInfo:     { flex: 1 },
-  billTitle:    { fontSize: 15, ...font.semibold },
-  billMeta:     { fontSize: 12, ...font.regular, marginTop: 2 },
+  billIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  billInfo: { flex: 1 },
+  billTitle: { fontSize: 15, ...font.semibold },
+  billMeta: { fontSize: 12, ...font.regular, marginTop: 2 },
   settledBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, marginRight: 4 },
   settledBadgeText: { fontSize: 10, ...font.semibold },
-  billRight:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  billAmount:   { fontSize: 16, ...font.bold },
+  billRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  billAmount: { fontSize: 16, ...font.bold },
 
   // ── Empty state
-  emptyWrap:     { alignItems: 'center', paddingVertical: 48, gap: 10, paddingHorizontal: 24 },
-  emptyIconWrap: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center' },
-  emptyTitle:    { fontSize: 16, ...font.bold },
-  emptyText:     { fontSize: 14, ...font.regular, textAlign: 'center', lineHeight: 20 },
+  emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 10, paddingHorizontal: 24 },
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyTitle: { fontSize: 16, ...font.bold },
+  emptyText: { fontSize: 14, ...font.regular, textAlign: 'center', lineHeight: 20 },
 });
