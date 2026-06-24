@@ -63,6 +63,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
     if (!pendingEmail) return;
     try {
       setIsResending(true);
+      setResent(false);
       setError('');
       await resendVerification(pendingEmail);
       setResent(true);

@@ -99,7 +99,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       const { error: otpErr } = await supabase.auth.verifyOtp({
         email: email.trim(),
         token: code.trim(),
-        type: 'magiclink',
+        type: 'recovery',
       });
       if (otpErr) throw otpErr;
 
@@ -248,7 +248,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 autoFocus
                 keyboardType="number-pad"
                 returnKeyType="next"
-                maxLength={8}
+                maxLength={6}
                 accessibilityLabel={t('auth.verification_code_label')}
                 accessibilityHint={t('auth.verification_code_hint')}
                 error={!!error}
