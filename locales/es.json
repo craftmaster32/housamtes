@@ -144,7 +144,10 @@
     "feature_chores": "🏠  Tareas y mantenimiento",
     "feature_chat": "💬  Chat de casa",
     "get_started": "Comenzar",
-    "sign_in": "Iniciar sesión"
+    "sign_in": "Iniciar sesión",
+    "create_house": "Crear una casa",
+    "join_house": "Unirse a una casa",
+    "sign_in_prompt": "¿Ya tienes cuenta? Iniciar sesión"
   },
   "onboarding": {
     "slide1_title": "Bienvenido a HouseMates",

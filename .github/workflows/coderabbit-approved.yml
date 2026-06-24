@@ -1,0 +1,226 @@
+name: Claude Final Review on CodeRabbit Approval
+
+on:
+  status:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  final-review:
+    # Only run when CodeRabbit sets a success status on a commit
+    if: >-
+      ${{
+        github.event.context == 'CodeRabbit' &&
+        github.event.state == 'success'
+      }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Find open PR for this commit
+        id: pr
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            // listPullRequestsAssociatedWithCommit only works for merged commits.
+            // List all open PRs and match by head SHA instead.
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const openPR = prs.find(pr => pr.head.sha === context.payload.sha);
+            if (!openPR) {
+              core.info(`No open PR with head SHA ${context.payload.sha} — skipping`);
+              core.setOutput('found', 'false');
+              return;
+            }
+            core.setOutput('found', 'true');
+            core.setOutput('number', openPR.number.toString());
+            core.setOutput('head_sha', openPR.head.sha);
+            core.setOutput('head_ref', openPR.head.ref);
+            core.info(`Found PR #${openPR.number}`);
+
+      - name: Check if CodeRabbit approved (no fresh issues)
+        id: check
+        if: steps.pr.outputs.found == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+
+            // Get the commit's authored date — only look at CodeRabbit comments after this push
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.sha,
+            });
+            const commitDate = new Date(commit.commit.author.date);
+            core.info(`Commit date: ${commitDate.toISOString()}`);
+
+            // Look for any CodeRabbit issue comment posted after this commit
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 50,
+              sort: 'created',
+              direction: 'desc',
+            });
+
+            const freshIssues = comments.find(c =>
+              c.user.login === 'coderabbitai[bot]' &&
+              new Date(c.created_at) >= commitDate &&
+              /Actionable comments posted: [1-9]\d*/.test(c.body)
+            );
+
+            const isClean = !freshIssues;
+            core.setOutput('is_clean', isClean.toString());
+            core.info(`CodeRabbit approved (no fresh issues): ${isClean}`);
+
+      - name: Check full-review label state
+        id: state
+        if: steps.pr.outputs.found == 'true' && steps.check.outputs.is_clean == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+
+            const { data: labels } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const hasLabel = labels.some(l => l.name === 'coderabbit-full-reviewed');
+
+            if (!hasLabel) {
+              core.setOutput('full_review_done', 'false');
+              core.info('Full review not yet requested');
+              return;
+            }
+
+            // Label is present — but only proceed to step 2 if this status event
+            // was created AFTER we posted the '@coderabbitai review' comment.
+            // Without this check, a stale status event from step 1 triggers step 2
+            // immediately before CodeRabbit has had time to do the full review.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 50,
+              sort: 'created',
+              direction: 'desc',
+            });
+
+            const reviewRequest = comments.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.trim() === '@coderabbitai review'
+            );
+
+            if (reviewRequest) {
+              const requestTime = new Date(reviewRequest.created_at);
+              const statusTime = new Date(context.payload.created_at);
+              if (statusTime <= requestTime) {
+                core.info(`Status (${statusTime.toISOString()}) predates review request (${requestTime.toISOString()}) — waiting for CodeRabbit to finish`);
+                core.setOutput('full_review_done', 'waiting');
+                return;
+              }
+            }
+
+            core.setOutput('full_review_done', 'true');
+            core.info('Full review done and status is fresh');
+
+      # ── Step 1: First clean review ────────────────────────────────────────
+      # Mark the PR and request a thorough full review from CodeRabbit
+      - name: Request full CodeRabbit review
+        if: >-
+          ${{
+            steps.pr.outputs.found == 'true' &&
+            steps.check.outputs.is_clean == 'true' &&
+            steps.state.outputs.full_review_done == 'false'
+          }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'coderabbit-full-reviewed',
+                color: '0075ca',
+                description: 'Full CodeRabbit review requested for this PR',
+              });
+            } catch (e) {
+              // Label already exists
+            }
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: ['coderabbit-full-reviewed'],
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: '@coderabbitai review',
+            });
+            core.info('Full CodeRabbit review requested — waiting for result');
+
+      # ── Step 2: Full review also clean ───────────────────────────────────
+      # Post a @claude trigger comment using GH_PAT so it fires workflows.
+      # GITHUB_TOKEN events do NOT trigger other workflow runs (GitHub security).
+      # claude-code-action can't run Claude in workflow_dispatch without PR context —
+      # issue_comment is the proven mechanism (same pattern as coderabbit-fix.yml).
+      - name: Post Claude final-review trigger
+        if: >-
+          ${{
+            steps.pr.outputs.found == 'true' &&
+            steps.check.outputs.is_clean == 'true' &&
+            steps.state.outputs.full_review_done == 'true'
+          }}
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ secrets.GH_PAT }}
+          script: |
+            const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+            // Idempotency: only post once — multiple status events can fire step 2
+            const { data: existing } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 50,
+            });
+            if (existing.some(c => c.body.includes('[AUTOMATED-FINAL-REVIEW]'))) {
+              core.info('Trigger comment already posted — skipping duplicate');
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: [
+                '@claude [AUTOMATED-FINAL-REVIEW]',
+                '',
+                'CodeRabbit has approved this PR after a full review — no actionable issues remain.',
+                '',
+                'Please do a final independent code review:',
+                '1. Run `git diff origin/main...HEAD` to see all changed files',
+                '2. Review every change for bugs, type safety issues, edge cases, missing error handling, or security problems',
+                '3. Respond with your review using these three sections:',
+                '',
+                '**✅ CodeRabbit full review approved**',
+                '',
+                '**🔍 Claude\'s final review**',
+                'Note any issues you find (file name + line number). If everything looks clean, say so clearly.',
+                '',
+                '**🚀 Ready to merge**',
+                'One sentence: is this PR safe to merge?',
+              ].join('\n'),
+            });
+            core.info('Claude final-review trigger comment posted');

@@ -143,7 +143,10 @@
     "feature_chores": "🏠  מטלות ותחזוקה",
     "feature_chat": "💬  צ׳אט בית",
     "get_started": "בואו נתחיל",
-    "sign_in": "כניסה"
+    "sign_in": "כניסה",
+    "create_house": "צור בית",
+    "join_house": "הצטרף לבית",
+    "sign_in_prompt": "כבר יש לך חשבון? כניסה"
   },
   "onboarding": {
     "slide1_title": "ברוכים הבאים ל-HouseMates",
