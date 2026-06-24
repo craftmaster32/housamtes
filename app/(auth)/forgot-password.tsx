@@ -63,10 +63,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     setIsLoading(true);
     setError('');
     try {
-      const { error: err } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: { shouldCreateUser: false },
-      });
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim());
       if (err) throw err;
       setStep('code');
     } catch {
@@ -136,6 +133,9 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
             contentStyle={styles.buttonContent}
             labelStyle={styles.buttonLabel}
             buttonColor={C.primary}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.go_to_sign_in')}
           >
             {t('auth.go_to_sign_in')}
           </Button>
@@ -230,6 +230,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel={t('auth.send_reset_link')}
+                accessibilityState={{ disabled: isLoading }}
               >
                 {t('auth.send_reset_link')}
               </Button>
@@ -301,6 +302,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel={t('auth.update_password')}
+                accessibilityState={{ disabled: isLoading }}
               >
                 {t('auth.update_password')}
               </Button>
@@ -311,6 +313,10 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 disabled={isLoading}
                 labelStyle={styles.resendLabel}
                 textColor={C.primary}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('auth.resend_code')}
+                accessibilityState={{ disabled: isLoading }}
               >
                 {t('auth.resend_code')}
               </Button>
