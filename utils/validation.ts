@@ -176,3 +176,7 @@ export const groceryItemSchema = z.object({
   name: z.string().min(1, 'Item name is required').max(100).trim(),
   quantity: z.string().max(20).trim(),
 });
+
+export const inviteCodeSchema = z.object({
+  code: z.string().length(6, 'Invite code must be 6 characters').toUpperCase(),
+});
