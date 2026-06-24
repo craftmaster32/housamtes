@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
+import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -23,6 +24,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
+  const signOut = useAuthStore((s) => s.signOut);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -83,7 +85,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       setError(t('auth.enter_password_error'));
       return;
     }
-    if (password.length < 6) {
+    if (password.length < 8) {
       setError(t('auth.password_min_length'));
       return;
     }
@@ -104,7 +106,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       const { error: updateErr } = await supabase.auth.updateUser({ password });
       if (updateErr) throw updateErr;
 
-      await supabase.auth.signOut().catch(() => undefined);
+      await signOut();
       setDone(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -116,7 +118,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [code, email, password, confirm, t]);
+  }, [code, email, password, confirm, signOut, t]);
 
   if (done) {
     return (

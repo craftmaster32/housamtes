@@ -317,6 +317,8 @@ function makeStyles(C: ColorTokens) {
     forgotBtn: {
       alignSelf: 'flex-end',
       paddingVertical: sizes.xs,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
     },
     forgotText: {
       fontSize: 14,

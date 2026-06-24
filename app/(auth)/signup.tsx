@@ -24,8 +24,8 @@ function getPasswordStrength(pw: string): { level: PasswordStrength; color: stri
   const hasSpecial = /[^A-Za-z0-9]/.test(pw);
   const score = [hasMinLength, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
 
-  if (score <= 1) return { level: 'weak', color: '#D9534F' };
-  if (score <= 2) return { level: 'fair', color: '#E0B24D' };
+  if (!hasMinLength || score <= 1) return { level: 'weak', color: '#D9534F' };
+  if (score <= 3) return { level: 'fair', color: '#E0B24D' };
   return { level: 'strong', color: '#4FB071' };
 }
 
@@ -87,7 +87,7 @@ export default function SignupScreen(): React.JSX.Element {
 
   const strength = password.length > 0 ? getPasswordStrength(password) : null;
   const passwordError =
-    passwordTouched && password.length > 0 && strength?.level === 'weak'
+    passwordTouched && password.length > 0 && password.length < 8
       ? t('auth.password_min_length')
       : null;
 
@@ -165,6 +165,7 @@ export default function SignupScreen(): React.JSX.Element {
             returnKeyType="next"
             onSubmitEditing={() => emailRef.current?.focus()}
             accessibilityLabel={t('auth.your_name')}
+            accessibilityHint={t('auth.name_hint')}
           />
 
           <TextInput
@@ -183,7 +184,6 @@ export default function SignupScreen(): React.JSX.Element {
             onSubmitEditing={() => passwordRef.current?.focus()}
             accessibilityLabel={t('auth.email')}
             accessibilityHint={t('auth.email_hint')}
-            error={!!error && !passwordError}
           />
 
           <View style={styles.passwordBlock}>
@@ -202,6 +202,7 @@ export default function SignupScreen(): React.JSX.Element {
               returnKeyType="next"
               onSubmitEditing={() => confirmRef.current?.focus()}
               accessibilityLabel={t('auth.password')}
+              accessibilityHint={t('auth.password_hint')}
               right={
                 <TextInput.Icon
                   icon={showPassword ? 'eye-off' : 'eye'}
@@ -253,6 +254,7 @@ export default function SignupScreen(): React.JSX.Element {
             returnKeyType="go"
             onSubmitEditing={handleSignup}
             accessibilityLabel={t('auth.confirm_password')}
+            accessibilityHint={t('auth.confirm_password_hint')}
             right={
               <TextInput.Icon
                 icon={showConfirm ? 'eye-off' : 'eye'}

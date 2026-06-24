@@ -73,6 +73,10 @@ export default function VerifyEmailScreen(): React.JSX.Element {
     }
   }, [pendingEmail, resendVerification, t]);
 
+  const handleGoBack = useCallback((): void => {
+    router.replace('/(auth)/signup');
+  }, []);
+
   return (
     <View style={styles.root}>
       <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
@@ -134,7 +138,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
           </Button>
 
           <Pressable
-            onPress={() => router.replace('/(auth)/signup')}
+            onPress={handleGoBack}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('auth.wrong_email_go_back')}
@@ -179,7 +183,7 @@ function makeStyles(C: ColorTokens) {
       width: 88,
       height: 88,
       borderRadius: 26,
-      backgroundColor: '#EAF3FF',
+      backgroundColor: C.secondary,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: sizes.xs,
@@ -227,7 +231,7 @@ function makeStyles(C: ColorTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: sizes.xs,
-      backgroundColor: '#EBF7EF',
+      backgroundColor: 'rgba(79,176,113,0.1)',
       paddingVertical: sizes.xs,
       paddingHorizontal: sizes.md,
       borderRadius: 10,
