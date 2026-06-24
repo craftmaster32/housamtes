@@ -272,6 +272,9 @@ export default function RootLayout(): React.JSX.Element | null {
 
   // Re-fetch all data when app comes back to foreground — iOS drops the
   // WebSocket connection when backgrounded, so realtime misses updates.
+  const foregroundDeferred = useRef<ReturnType<
+    typeof InteractionManager.runAfterInteractions
+  > | null>(null);
   useEffect(() => {
     if (!houseId) return;
     const sub = AppState.addEventListener('change', (state) => {
@@ -279,7 +282,8 @@ export default function RootLayout(): React.JSX.Element | null {
         loadHousemates(houseId);
         loadBills(houseId);
         loadRecurringBills(houseId);
-        InteractionManager.runAfterInteractions(() => {
+        foregroundDeferred.current?.cancel();
+        foregroundDeferred.current = InteractionManager.runAfterInteractions(() => {
           loadParking(houseId);
           loadGrocery(houseId);
           loadChores(houseId);
@@ -291,7 +295,10 @@ export default function RootLayout(): React.JSX.Element | null {
         });
       }
     });
-    return (): void => sub.remove();
+    return (): void => {
+      foregroundDeferred.current?.cancel();
+      sub.remove();
+    };
   }, [
     houseId,
     loadHousemates,
