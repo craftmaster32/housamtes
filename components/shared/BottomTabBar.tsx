@@ -53,17 +53,14 @@ const TABS: TabItem[] = [
   { id: 'more', icon: 'grid-outline', iconActive: 'grid', label: 'More', route: '' },
 ];
 
-function AnimatedIcon({
-  active,
-  name,
-  size,
-  color,
-}: {
+interface AnimatedIconProps {
   active: boolean;
-  name: React.ComponentProps<typeof Ionicons>['name'];
+  name: IoniconName;
   size: number;
   color: string;
-}): React.JSX.Element {
+}
+
+function AnimatedIcon({ active, name, size, color }: AnimatedIconProps): React.JSX.Element {
   const scale = useSharedValue(1);
 
   useEffect(() => {
@@ -93,6 +90,7 @@ export function BottomTabBar(): React.JSX.Element {
   };
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  const isMoreOpen = useMorePopupStore((s) => s.isOpen);
   const openMore = useMorePopupStore((s) => s.open);
   const closeMore = useMorePopupStore((s) => s.close);
   const closeProfile = useProfilePopupStore((s) => s.close);
@@ -137,10 +135,10 @@ export function BottomTabBar(): React.JSX.Element {
 
   const isActive = useCallback(
     (id: string): boolean => {
-      if (id === 'more') return false;
+      if (id === 'more') return isMoreOpen;
       return pathname.includes(`/${id}`);
     },
-    [pathname]
+    [isMoreOpen, pathname]
   );
 
   const handleTab = useCallback(
