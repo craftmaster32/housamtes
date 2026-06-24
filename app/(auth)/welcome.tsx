@@ -1,14 +1,14 @@
-import { useMemo, useEffect, useRef, useCallback } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { useMemo, useRef, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Animated } from 'react-native';
 import { Text, Button } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { font } from '@constants/typography';
 
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
 
@@ -16,13 +16,35 @@ export default function WelcomeScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const fadeTop = useRef(new Animated.Value(0)).current;
+  const slideCard = useRef(new Animated.Value(40)).current;
+  const fadeCard = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+    Animated.sequence([
+      Animated.timing(fadeTop, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.spring(slideCard, {
+          toValue: 0,
+          tension: 60,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeCard, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [fadeTop, slideCard, fadeCard]);
 
-  const handleCreateHouse = useCallback(async (): Promise<void> => {
+  const handleGetStarted = useCallback(async (): Promise<void> => {
     try {
       await AsyncStorage.removeItem(ONBOARDING_INTENT_KEY);
     } catch {
@@ -33,8 +55,7 @@ export default function WelcomeScreen(): React.JSX.Element {
 
   return (
     <View style={styles.root}>
-      {/* Blue top section */}
-      <Animated.View style={[styles.top, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.top, { opacity: fadeTop }]}>
         <SafeAreaView edges={['top']} style={styles.topInner}>
           <View
             style={styles.iconChip}
@@ -46,34 +67,30 @@ export default function WelcomeScreen(): React.JSX.Element {
           </View>
 
           <Text style={styles.appName}>HouseMates</Text>
-          <Text style={styles.tagline}>{t('welcome.app_tagline')}</Text>
-
-          <View style={styles.features}>
-            <View style={styles.featureRow}>
-              <Ionicons name="receipt-outline" size={18} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.featureText}>{t('welcome.feature_split_bills')}</Text>
-            </View>
-            <View style={styles.featureRow}>
-              <Ionicons name="checkmark-circle-outline" size={18} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.featureText}>{t('welcome.feature_track_chores')}</Text>
-            </View>
-            <View style={styles.featureRow}>
-              <Ionicons name="chatbubbles-outline" size={18} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.featureText}>{t('welcome.feature_group_chat')}</Text>
-            </View>
-          </View>
+          <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
         </SafeAreaView>
       </Animated.View>
 
-      {/* White bottom card */}
-      <View style={styles.card}>
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            opacity: fadeCard,
+            transform: [{ translateY: slideCard }],
+          },
+        ]}
+      >
+        <Text style={styles.cardHeading}>{t('welcome.card_heading')}</Text>
+        <Text style={styles.cardBody}>{t('welcome.card_body')}</Text>
+
         <Button
           mode="contained"
           buttonColor={C.primary}
-          onPress={handleCreateHouse}
+          onPress={handleGetStarted}
           style={styles.primaryButton}
           contentStyle={styles.primaryButtonContent}
           labelStyle={styles.primaryButtonLabel}
+          icon={({ color }) => <Ionicons name="arrow-forward" size={18} color={color} />}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('welcome.get_started')}
@@ -82,19 +99,21 @@ export default function WelcomeScreen(): React.JSX.Element {
         </Button>
 
         <Button
-          mode="text"
+          mode="outlined"
           onPress={() => router.push('/(auth)/login')}
-          style={styles.textButton}
-          labelStyle={styles.textButtonLabel}
+          style={styles.outlinedButton}
+          contentStyle={styles.outlinedButtonContent}
+          labelStyle={styles.outlinedButtonLabel}
+          textColor={C.textPrimary}
           accessible
           accessibilityRole="button"
-          accessibilityLabel={t('welcome.sign_in_prompt')}
+          accessibilityLabel={t('welcome.log_in')}
         >
-          {t('welcome.sign_in_prompt')}
+          {t('welcome.log_in')}
         </Button>
 
         <Text style={styles.terms}>{t('auth.by_continuing')}</Text>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -138,32 +157,26 @@ function makeStyles(C: ColorTokens) {
       textAlign: 'center',
       marginTop: sizes.sm,
     },
-    features: {
-      marginTop: sizes.lg,
-      gap: 12,
-      width: '100%',
-    },
-    featureRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingHorizontal: sizes.md,
-      paddingVertical: 10,
-      backgroundColor: 'rgba(255,255,255,0.10)',
-      borderRadius: 14,
-    },
-    featureText: {
-      fontSize: 14,
-      ...font.medium,
-      color: 'rgba(255,255,255,0.85)',
-    },
     card: {
       backgroundColor: C.surface,
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
       padding: sizes.xl,
       paddingBottom: 40,
-      gap: 12,
+      gap: 16,
+    },
+    cardHeading: {
+      fontSize: 26,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.5,
+    },
+    cardBody: {
+      fontSize: 15,
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: 22,
+      marginBottom: sizes.sm,
     },
     primaryButton: {
       borderRadius: 14,
@@ -175,25 +188,31 @@ function makeStyles(C: ColorTokens) {
     },
     primaryButtonContent: {
       height: 52,
+      flexDirection: 'row-reverse',
     },
     primaryButtonLabel: {
       fontSize: 16,
       ...font.semibold,
     },
-    textButton: {
+    outlinedButton: {
       borderRadius: 14,
+      borderColor: C.border,
+      borderWidth: 1.5,
     },
-    textButtonLabel: {
-      fontSize: 15,
-      ...font.medium,
-      color: C.primary,
+    outlinedButtonContent: {
+      height: 52,
+    },
+    outlinedButtonLabel: {
+      fontSize: 16,
+      ...font.semibold,
+      color: C.textPrimary,
     },
     terms: {
       fontSize: 11,
       ...font.regular,
       color: C.textTertiary,
       textAlign: 'center',
-      marginTop: sizes.sm,
+      marginTop: sizes.xs,
     },
   });
 }

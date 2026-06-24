@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -9,6 +9,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { StepProgress } from '@components/shared/StepProgress';
 
 export default function VerifyEmailScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -21,10 +22,48 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideIcon = useRef(new Animated.Value(20)).current;
+  const scaleIcon = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.spring(slideIcon, {
+          toValue: 0,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleIcon, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [fadeAnim, slideIcon, scaleIcon]);
+
+  const steps = useMemo(
+    () => [
+      { label: t('auth.step_account') },
+      { label: t('auth.step_verify') },
+      { label: t('auth.step_house') },
+    ],
+    [t]
+  );
+
   const handleResend = useCallback(async (): Promise<void> => {
     if (!pendingEmail) return;
     try {
       setIsResending(true);
+      setResent(false);
       setError('');
       await resendVerification(pendingEmail);
       setResent(true);
@@ -35,41 +74,43 @@ export default function VerifyEmailScreen(): React.JSX.Element {
     }
   }, [pendingEmail, resendVerification, t]);
 
+  const handleGoBack = useCallback((): void => {
+    router.replace('/(auth)/signup');
+  }, []);
+
   return (
     <View style={styles.root}>
-      {/* Blue inner header */}
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => router.replace('/(auth)/login')}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('auth.go_to_sign_in')}
-        >
-          <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.backText}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('auth.check_email_title')}</Text>
-        <Text style={styles.headerSubtitle}>{t('auth.check_email_body')}</Text>
-      </SafeAreaView>
+      <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+        <SafeAreaView edges={['top']} style={styles.headerInner}>
+          <StepProgress steps={steps} currentStep={1} />
+        </SafeAreaView>
+      </Animated.View>
 
-      {/* White card */}
-      <View style={styles.cardWrapper}>
+      <Animated.View style={[styles.cardWrapper, { opacity: fadeAnim }]}>
         <View style={styles.card}>
-          {/* Envelope illustration */}
-          <View style={styles.envelopeWrap}>
+          <Animated.View
+            style={[
+              styles.envelopeWrap,
+              {
+                transform: [{ translateY: slideIcon }, { scale: scaleIcon }],
+              },
+            ]}
+          >
             <Ionicons name="mail" size={44} color={C.primary} />
-          </View>
+            <View style={styles.checkBadge}>
+              <Ionicons name="checkmark-circle" size={20} color={C.success} />
+            </View>
+          </Animated.View>
 
           <View style={styles.textBlock}>
-            <Text style={styles.bodyText}>{t('auth.check_email_sent_to')}</Text>
+            <Text style={styles.heading}>{t('auth.check_inbox_title')}</Text>
             {!!pendingEmail && (
-              <Text style={styles.emailText} selectable>
-                {pendingEmail}
+              <Text style={styles.bodyText}>
+                {t('auth.check_inbox_body', { email: pendingEmail })}
               </Text>
             )}
             {!pendingEmail && <Text style={styles.errorText}>{t('auth.no_pending_email')}</Text>}
-            <Text style={styles.hintText}>{t('auth.spam_hint')}</Text>
+            <Text style={styles.hintText}>{t('auth.link_expires')}</Text>
           </View>
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -92,22 +133,22 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             textColor={C.textPrimary}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={t('auth.resend_email')}
+            accessibilityLabel={t('auth.resend_email_short')}
           >
-            {isResending ? t('auth.sending') : t('auth.resend_email')}
+            {isResending ? t('auth.sending') : t('auth.resend_email_short')}
           </Button>
 
           <Pressable
-            onPress={() => router.replace('/(auth)/login')}
+            onPress={handleGoBack}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={t('auth.go_to_sign_in')}
-            style={styles.backToLogin}
+            accessibilityLabel={t('auth.wrong_email_go_back')}
+            style={styles.goBackLink}
           >
-            <Text style={styles.backToLoginText}>{t('auth.go_to_sign_in')}</Text>
+            <Text style={styles.goBackText}>{t('auth.wrong_email_go_back')}</Text>
           </Pressable>
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -116,53 +157,25 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: C.primary,
+      backgroundColor: C.surface,
     },
     header: {
-      backgroundColor: C.primary,
+      backgroundColor: C.surface,
       paddingHorizontal: sizes.lg,
-      paddingBottom: 28,
-      gap: 8,
+      paddingTop: sizes.sm,
+      paddingBottom: sizes.sm,
     },
-    backBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-      alignSelf: 'flex-start',
-      paddingVertical: sizes.sm,
-      paddingHorizontal: sizes.xs,
-      minHeight: sizes.touchTarget,
-      marginTop: sizes.xs,
-      marginBottom: 4,
-    },
-    backText: {
-      fontSize: 15.5,
-      ...font.medium,
-      color: 'rgba(255,255,255,0.85)',
-    },
-    headerTitle: {
-      fontSize: 22,
-      ...font.extrabold,
-      color: '#fff',
-      letterSpacing: -0.5,
-    },
-    headerSubtitle: {
-      fontSize: 15,
-      ...font.regular,
-      color: 'rgba(255,255,255,0.65)',
-      lineHeight: 22,
+    headerInner: {
+      paddingTop: sizes.xs,
     },
     cardWrapper: {
       flex: 1,
-      backgroundColor: C.primary,
     },
     card: {
       flex: 1,
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
       paddingHorizontal: sizes.lg,
-      paddingTop: 36,
+      paddingTop: 24,
       paddingBottom: 40,
       alignItems: 'center',
       gap: 20,
@@ -171,14 +184,29 @@ function makeStyles(C: ColorTokens) {
       width: 88,
       height: 88,
       borderRadius: 26,
-      backgroundColor: '#EAF3FF',
+      backgroundColor: C.secondary,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: sizes.xs,
     },
+    checkBadge: {
+      position: 'absolute',
+      bottom: -4,
+      right: -4,
+      backgroundColor: C.surface,
+      borderRadius: 12,
+      padding: 2,
+    },
     textBlock: {
       alignItems: 'center',
       gap: 8,
+    },
+    heading: {
+      fontSize: 24,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.3,
+      textAlign: 'center',
     },
     bodyText: {
       fontSize: 15,
@@ -187,17 +215,12 @@ function makeStyles(C: ColorTokens) {
       textAlign: 'center',
       lineHeight: 22,
     },
-    emailText: {
-      fontSize: 15,
-      ...font.semibold,
-      color: C.primary,
-      textAlign: 'center',
-    },
     hintText: {
       fontSize: 13,
       ...font.regular,
       color: C.textTertiary,
       textAlign: 'center',
+      marginTop: 4,
     },
     errorText: {
       fontSize: sizes.fontXs,
@@ -209,7 +232,7 @@ function makeStyles(C: ColorTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: sizes.xs,
-      backgroundColor: '#EBF7EF',
+      backgroundColor: 'rgba(79,176,113,0.1)',
       paddingVertical: sizes.xs,
       paddingHorizontal: sizes.md,
       borderRadius: 10,
@@ -231,12 +254,12 @@ function makeStyles(C: ColorTokens) {
       ...font.semibold,
       letterSpacing: 0.1,
     },
-    backToLogin: {
+    goBackLink: {
       paddingVertical: sizes.sm,
       minHeight: sizes.touchTarget,
       justifyContent: 'center',
     },
-    backToLoginText: {
+    goBackText: {
       fontSize: sizes.fontSm,
       ...font.medium,
       color: C.primary,

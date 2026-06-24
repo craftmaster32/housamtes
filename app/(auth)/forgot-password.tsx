@@ -1,20 +1,12 @@
-import { useState, useCallback, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
-import { signInSchema, signUpSchema, mapZodError } from '@utils/validation';
+import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -28,31 +20,52 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
-  const [showSentSheet, setShowSentSheet] = useState(false);
 
+  const signOut = useAuthStore((s) => s.signOut);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
+  const fadeHeader = useRef(new Animated.Value(0)).current;
+  const slideCard = useRef(new Animated.Value(30)).current;
+  const fadeCard = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(fadeHeader, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.spring(slideCard, {
+          toValue: 0,
+          tension: 65,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeCard, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [fadeHeader, slideCard, fadeCard]);
+
   const handleSendCode = useCallback(async (): Promise<void> => {
-    const emailResult = signInSchema.pick({ email: true }).safeParse({ email: email.trim() });
-    if (!emailResult.success) {
-      setError(mapZodError(emailResult.error.errors[0].message, t));
+    if (!email.trim()) {
+      setError(t('auth.email'));
       return;
     }
     setIsLoading(true);
     setError('');
     try {
-      const { error: err } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: { shouldCreateUser: false },
-      });
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim());
       if (err) throw err;
-      setShowSentSheet(true);
+      setStep('code');
     } catch {
       setError(t('auth.could_not_send_code'));
     } finally {
@@ -60,19 +73,17 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     }
   }, [email, t]);
 
-  const handleConfirmSent = useCallback(() => {
-    setShowSentSheet(false);
-    setStep('code');
-  }, []);
-
   const handleReset = useCallback(async (): Promise<void> => {
     if (!code.trim()) {
       setError(t('auth.enter_code_error'));
       return;
     }
-    const pwResult = signUpSchema.shape.password.safeParse(password);
-    if (!pwResult.success) {
-      setError(mapZodError(pwResult.error.errors[0].message, t));
+    if (!password) {
+      setError(t('auth.enter_password_error'));
+      return;
+    }
+    if (password.length < 8) {
+      setError(t('auth.password_min_length'));
       return;
     }
     if (password !== confirm) {
@@ -85,14 +96,14 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       const { error: otpErr } = await supabase.auth.verifyOtp({
         email: email.trim(),
         token: code.trim(),
-        type: 'email',
+        type: 'recovery',
       });
       if (otpErr) throw otpErr;
 
       const { error: updateErr } = await supabase.auth.updateUser({ password });
       if (updateErr) throw updateErr;
 
-      await supabase.auth.signOut().catch(() => undefined);
+      await signOut();
       setDone(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -104,106 +115,108 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [code, email, password, confirm, t]);
+  }, [code, email, password, confirm, signOut, t]);
 
-  const headerTitle = done
-    ? t('auth.password_updated_title')
-    : step === 'email'
-      ? t('auth.forgot_title')
-      : t('auth.enter_code_title');
-  const headerSubtitle = done
-    ? t('auth.password_updated_body')
-    : step === 'email'
-      ? t('auth.forgot_subtitle')
-      : t('auth.enter_code_subtitle');
+  if (done) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView edges={['top']} style={styles.successContainer}>
+          <View style={styles.successIcon}>
+            <Ionicons name="checkmark-circle" size={56} color={C.success} />
+          </View>
+          <Text style={styles.successTitle}>{t('auth.password_updated_title')}</Text>
+          <Text style={styles.successBody}>{t('auth.password_updated_body')}</Text>
+          <Button
+            mode="contained"
+            onPress={() => router.replace('/(auth)/login')}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
+            buttonColor={C.primary}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.go_to_sign_in')}
+          >
+            {t('auth.go_to_sign_in')}
+          </Button>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
-      {/* Blue inner header */}
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => {
-            if (done) {
-              router.replace('/(auth)/login');
-              return;
-            }
-            if (step === 'code') {
-              setStep('email');
-              setError('');
-              setCode('');
-            } else {
-              router.back();
-            }
-          }}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-        >
-          <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
-          <Text style={styles.backText}>{t('common.back')}</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>{headerTitle}</Text>
-        <Text style={styles.headerSubtitle}>{headerSubtitle}</Text>
-      </SafeAreaView>
+      <Animated.View style={[styles.header, { opacity: fadeHeader }]}>
+        <SafeAreaView edges={['top']} style={styles.headerInner}>
+          <Pressable
+            style={styles.backBtn}
+            onPress={() => {
+              if (done) {
+                router.replace('/(auth)/login');
+                return;
+              }
+              if (step === 'code') {
+                setStep('email');
+                setError('');
+                setCode('');
+              } else {
+                router.back();
+              }
+            }}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
+            <Text style={styles.backText}>{t('common.back')}</Text>
+          </Pressable>
+          <Text style={styles.headerTitle}>
+            {done
+              ? t('auth.password_updated_title')
+              : step === 'email'
+                ? t('auth.forgot_title')
+                : t('auth.enter_code_title')}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            {step === 'email'
+              ? t('auth.forgot_subtitle')
+              : t('auth.reset_code_sent_to', { email: email.trim() })}
+          </Text>
+        </SafeAreaView>
+      </Animated.View>
 
-      {/* White card */}
-      <KeyboardAvoidingView
-        style={styles.cardWrapper}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <Animated.View
+        style={[
+          styles.cardWrapper,
+          {
+            opacity: fadeCard,
+            transform: [{ translateY: slideCard }],
+          },
+        ]}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-          showsVerticalScrollIndicator={false}
-        >
-          {done ? (
-            <View style={[styles.card, styles.cardCentered]}>
-              <View style={styles.successIcon}>
-                <Ionicons name="checkmark-circle" size={52} color={C.success} />
-              </View>
-              <Text style={styles.successTitle}>{t('auth.password_updated_title')}</Text>
-              <Text style={styles.successBody}>{t('auth.password_updated_body')}</Text>
-              <Button
-                mode="contained"
-                onPress={() => router.replace('/(auth)/login')}
-                style={styles.button}
-                contentStyle={styles.buttonContent}
-                labelStyle={styles.buttonLabel}
-                buttonColor={C.primary}
-              >
-                {t('auth.go_to_sign_in')}
-              </Button>
-            </View>
-          ) : step === 'email' ? (
-            <View style={styles.card}>
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>{t('auth.email')}</Text>
-                <TextInput
-                  value={email}
-                  onChangeText={(v) => {
-                    setEmail(v);
-                    setError('');
-                  }}
-                  mode="outlined"
-                  style={styles.input}
-                  contentStyle={styles.inputText}
-                  outlineStyle={styles.inputOutline}
-                  autoFocus
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  returnKeyType="send"
-                  onSubmitEditing={handleSendCode}
-                  error={!!error}
-                  placeholder="you@example.com"
-                  placeholderTextColor={C.textTertiary}
-                  accessibilityLabel={t('auth.email')}
-                  accessibilityHint={t('auth.email_reset_hint')}
-                />
-              </View>
+        <View style={styles.card}>
+          {step === 'email' ? (
+            <>
+              <TextInput
+                label={t('auth.email')}
+                value={email}
+                onChangeText={(v) => {
+                  setEmail(v);
+                  setError('');
+                }}
+                mode="outlined"
+                style={styles.input}
+                autoFocus
+                keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="send"
+                onSubmitEditing={handleSendCode}
+                accessibilityLabel={t('auth.email')}
+                accessibilityHint={t('auth.email_reset_hint')}
+                error={!!error}
+              />
 
-              {!!error && <Text style={styles.errorText}>{error}</Text>}
+              {!!error && <Text style={styles.error}>{error}</Text>}
 
               <Button
                 mode="contained"
@@ -216,97 +229,66 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 buttonColor={C.primary}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel={t('auth.send_code')}
+                accessibilityLabel={t('auth.send_reset_link')}
+                accessibilityState={{ disabled: isLoading }}
               >
-                {t('auth.send_code')}
+                {t('auth.send_reset_link')}
               </Button>
-            </View>
+            </>
           ) : (
-            <View style={styles.card}>
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>{t('auth.code_from_email')}</Text>
-                <TextInput
-                  value={code}
-                  onChangeText={(v) => {
-                    setCode(v);
-                    setError('');
-                  }}
-                  mode="outlined"
-                  style={styles.input}
-                  contentStyle={styles.inputText}
-                  outlineStyle={styles.inputOutline}
-                  autoFocus
-                  keyboardType="number-pad"
-                  returnKeyType="next"
-                  maxLength={6}
-                  error={!!error}
-                  accessibilityLabel={t('auth.verification_code_label')}
-                  accessibilityHint={t('auth.verification_code_hint')}
-                />
-              </View>
+            <>
+              <TextInput
+                label={t('auth.verification_code_label')}
+                value={code}
+                onChangeText={(v) => {
+                  setCode(v);
+                  setError('');
+                }}
+                mode="outlined"
+                style={styles.input}
+                autoFocus
+                keyboardType="number-pad"
+                returnKeyType="next"
+                maxLength={6}
+                accessibilityLabel={t('auth.verification_code_label')}
+                accessibilityHint={t('auth.verification_code_hint')}
+                error={!!error}
+              />
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>{t('auth.new_password')}</Text>
-                <TextInput
-                  value={password}
-                  onChangeText={(v) => {
-                    setPassword(v);
-                    setError('');
-                  }}
-                  mode="outlined"
-                  style={styles.input}
-                  contentStyle={styles.inputText}
-                  outlineStyle={styles.inputOutline}
-                  secureTextEntry={!showPassword}
-                  returnKeyType="next"
-                  error={!!error}
-                  accessibilityLabel={t('auth.new_password')}
-                  accessibilityHint={t('auth.new_password_hint')}
-                  right={
-                    <TextInput.Icon
-                      icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      color={C.textTertiary}
-                      onPress={() => setShowPassword((v) => !v)}
-                      accessibilityLabel={
-                        showPassword ? t('common.hide_password') : t('common.show_password')
-                      }
-                    />
-                  }
-                />
-              </View>
+              <TextInput
+                label={t('auth.new_password')}
+                value={password}
+                onChangeText={(v) => {
+                  setPassword(v);
+                  setError('');
+                }}
+                mode="outlined"
+                style={styles.input}
+                secureTextEntry
+                returnKeyType="next"
+                accessibilityLabel={t('auth.new_password')}
+                accessibilityHint={t('auth.new_password_hint')}
+                error={!!error}
+              />
 
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>{t('auth.confirm_password')}</Text>
-                <TextInput
-                  value={confirm}
-                  onChangeText={(v) => {
-                    setConfirm(v);
-                    setError('');
-                  }}
-                  mode="outlined"
-                  style={styles.input}
-                  contentStyle={styles.inputText}
-                  outlineStyle={styles.inputOutline}
-                  secureTextEntry={!showConfirm}
-                  returnKeyType="done"
-                  onSubmitEditing={handleReset}
-                  error={!!error}
-                  accessibilityLabel={t('auth.confirm_password')}
-                  accessibilityHint={t('auth.confirm_password_hint')}
-                  right={
-                    <TextInput.Icon
-                      icon={showConfirm ? 'eye-off-outline' : 'eye-outline'}
-                      color={C.textTertiary}
-                      onPress={() => setShowConfirm((v) => !v)}
-                      accessibilityLabel={
-                        showConfirm ? t('common.hide_password') : t('common.show_password')
-                      }
-                    />
-                  }
-                />
-              </View>
+              <TextInput
+                label={t('auth.confirm_password')}
+                value={confirm}
+                onChangeText={(v) => {
+                  setConfirm(v);
+                  setError('');
+                }}
+                mode="outlined"
+                style={styles.input}
+                secureTextEntry
+                returnKeyType="done"
+                onSubmitEditing={handleReset}
+                accessibilityLabel={t('auth.confirm_password')}
+                accessibilityHint={t('auth.confirm_password_hint')}
+                error={!!error}
+              />
 
-              {!!error && <Text style={styles.errorText}>{error}</Text>}
+              {!!error && <Text style={styles.error}>{error}</Text>}
 
               <Button
                 mode="contained"
@@ -320,6 +302,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel={t('auth.update_password')}
+                accessibilityState={{ disabled: isLoading }}
               >
                 {t('auth.update_password')}
               </Button>
@@ -328,45 +311,19 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 mode="text"
                 onPress={handleSendCode}
                 disabled={isLoading}
-                labelStyle={{ color: C.primary }}
+                labelStyle={styles.resendLabel}
+                textColor={C.primary}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('auth.resend_code')}
+                accessibilityState={{ disabled: isLoading }}
               >
                 {t('auth.resend_code')}
               </Button>
-            </View>
+            </>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      {/* "Code sent" bottom sheet */}
-      <Modal
-        visible={showSentSheet}
-        transparent
-        animationType="slide"
-        onRequestClose={handleConfirmSent}
-      >
-        <Pressable style={styles.backdrop} onPress={handleConfirmSent}>
-          <Pressable style={styles.sheet} onPress={() => {}} accessible={false}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.sheetIconWrap}>
-              <Ionicons name="checkmark" size={28} color={C.success} />
-            </View>
-            <Text style={styles.sheetTitle}>{t('auth.check_email_title')}</Text>
-            <Text style={styles.sheetBody}>
-              {t('auth.reset_code_sent_to', { email: email.trim() })}
-            </Text>
-            <Button
-              mode="contained"
-              onPress={handleConfirmSent}
-              style={styles.button}
-              contentStyle={styles.buttonContent}
-              labelStyle={styles.buttonLabel}
-              buttonColor={C.primary}
-            >
-              {t('auth.enter_code_title')}
-            </Button>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -381,6 +338,9 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
       paddingBottom: 28,
+      gap: 8,
+    },
+    headerInner: {
       gap: 8,
     },
     backBtn: {
@@ -415,75 +375,54 @@ function makeStyles(C: ColorTokens) {
       flex: 1,
       backgroundColor: C.primary,
     },
-    scrollContent: {
-      flexGrow: 1,
-    },
     card: {
       flex: 1,
       backgroundColor: C.surface,
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
       paddingHorizontal: sizes.lg,
-      paddingTop: 28,
+      paddingTop: 32,
       paddingBottom: 40,
-      gap: 20,
-      minHeight: 400,
-    },
-    cardCentered: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    fieldGroup: {
-      gap: 6,
-    },
-    label: {
-      fontSize: sizes.fontSm,
-      ...font.semibold,
-      color: C.textPrimary,
+      gap: sizes.md,
     },
     input: {
       backgroundColor: C.surface,
-      height: 52,
     },
-    inputText: {
-      color: C.textPrimary,
-    },
-    inputOutline: {
-      borderRadius: 12,
-      borderColor: C.border,
-    },
-    errorText: {
-      fontSize: sizes.fontXs,
+    error: {
       ...font.regular,
       color: C.danger,
-      marginTop: -8,
+      fontSize: sizes.fontSm,
     },
     button: {
       borderRadius: 14,
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.28,
-      shadowRadius: 12,
-      elevation: 4,
+      marginTop: sizes.sm,
     },
-    buttonContent: { height: 52 },
+    buttonContent: {
+      height: 52,
+    },
     buttonLabel: {
-      fontSize: sizes.fontMd,
+      fontSize: 16,
       ...font.semibold,
-      letterSpacing: 0.1,
+      letterSpacing: 0.2,
+    },
+    resendLabel: {
+      fontSize: 14,
+      ...font.medium,
+    },
+    successContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: sizes.xl,
+      gap: sizes.md,
+      backgroundColor: C.surface,
     },
     successIcon: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: '#EBF7EF',
-      justifyContent: 'center',
-      alignItems: 'center',
       marginBottom: sizes.sm,
     },
     successTitle: {
-      fontSize: 20,
-      ...font.bold,
+      fontSize: 24,
+      ...font.extrabold,
       color: C.textPrimary,
       textAlign: 'center',
     },
@@ -493,48 +432,6 @@ function makeStyles(C: ColorTokens) {
       color: C.textSecondary,
       textAlign: 'center',
       lineHeight: 22,
-    },
-    // Bottom sheet
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(12,20,35,0.52)',
-      justifyContent: 'flex-end',
-    },
-    sheet: {
-      backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
-      paddingHorizontal: sizes.lg,
-      paddingTop: sizes.md,
-      paddingBottom: 40,
-      gap: 16,
-      alignItems: 'center',
-    },
-    sheetHandle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: C.border,
-      marginBottom: sizes.sm,
-    },
-    sheetIconWrap: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      backgroundColor: '#EBF7EF',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    sheetTitle: {
-      fontSize: 18,
-      ...font.bold,
-      color: C.textPrimary,
-    },
-    sheetBody: {
-      fontSize: sizes.fontSm,
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
     },
   });
 }

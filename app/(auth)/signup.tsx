@@ -1,53 +1,45 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
-import { router, Link } from 'expo-router';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { signUpSchema, mapZodError } from '@utils/validation';
+import { signUpSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { StepProgress } from '@components/shared/StepProgress';
 
-const AVATAR_COLORS = ['#3B6FBF', '#FF2D55', '#E0B24D', '#4FB071', '#007AFF', '#AF52DE'];
+const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
 
-function getPasswordStrength(pw: string): 0 | 1 | 2 | 3 | 4 {
-  if (pw.length === 0) return 0;
-  if (pw.length < 8) return 1;
+type PasswordStrength = 'weak' | 'fair' | 'strong';
+
+function getPasswordStrength(pw: string): { level: PasswordStrength; color: string } {
+  const hasMinLength = pw.length >= 8;
   const hasUpper = /[A-Z]/.test(pw);
-  const hasNum = /[0-9]/.test(pw);
+  const hasNumber = /[0-9]/.test(pw);
   const hasSpecial = /[^A-Za-z0-9]/.test(pw);
-  if (hasUpper && hasNum && hasSpecial) return 4;
-  if (hasUpper && hasNum) return 3;
-  return 2;
-}
+  const score = [hasMinLength, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
 
-const STRENGTH_COLORS = ['', '#D9534F', '#E0B24D', '#4FB071', '#3B6FBF'];
+  if (!hasMinLength || score <= 1) return { level: 'weak', color: '#D9534F' };
+  if (score <= 3) return { level: 'fair', color: '#E0B24D' };
+  return { level: 'strong', color: '#4FB071' };
+}
 
 export default function SignupScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [confirmedAge, setConfirmedAge] = useState(false);
-  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [selectedColor] = useState(AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]);
   const [error, setError] = useState('');
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const signUp = useAuthStore((s) => s.signUp);
   const isLoading = useAuthStore((s) => s.isLoading);
   const emailRef = useRef<RNTextInput>(null);
@@ -56,69 +48,58 @@ export default function SignupScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const strengthLabels = useMemo(
+
+  const fadeHeader = useRef(new Animated.Value(0)).current;
+  const slideCard = useRef(new Animated.Value(30)).current;
+  const fadeCard = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(fadeHeader, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.spring(slideCard, {
+          toValue: 0,
+          tension: 65,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeCard, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [fadeHeader, slideCard, fadeCard]);
+
+  const steps = useMemo(
     () => [
-      '',
-      t('auth.strength_weak'),
-      t('auth.strength_fair'),
-      t('auth.strength_good'),
-      t('auth.strength_strong'),
+      { label: t('auth.step_account') },
+      { label: t('auth.step_verify') },
+      { label: t('auth.step_house') },
     ],
     [t]
   );
 
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-  }, [fadeAnim]);
-
-  const strength = getPasswordStrength(password);
-  const hasMinLength = password.length >= 8;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
+  const strength = password.length > 0 ? getPasswordStrength(password) : null;
   const passwordError =
-    passwordTouched && password.length > 0
-      ? !hasMinLength
-        ? t('auth.password_min_length')
-        : !hasUppercase
-          ? t('auth.password_needs_uppercase')
-          : !hasNumber
-            ? t('auth.password_needs_number')
-            : null
+    passwordTouched && password.length > 0 && password.length < 8
+      ? t('auth.password_min_length')
       : null;
-  const confirmError =
-    confirmPassword.length > 0 && confirmPassword !== password
-      ? t('auth.passwords_no_match')
-      : null;
-
-  const canSubmit =
-    !isLoading &&
-    confirmedAge &&
-    agreedToTerms &&
-    !passwordError &&
-    !confirmError &&
-    hasMinLength &&
-    hasUppercase &&
-    hasNumber &&
-    confirmPassword === password;
 
   const handleSignup = useCallback(async (): Promise<void> => {
     if (isLoading) return;
-    if (!confirmedAge) {
-      setError(t('auth.age_confirm_error'));
-      return;
-    }
-    if (!agreedToTerms) {
-      setError(t('auth.terms_agree_error'));
-      return;
-    }
-    if (password !== confirmPassword) {
+    if (password !== confirmPw) {
       setError(t('auth.passwords_no_match'));
       return;
     }
     const result = signUpSchema.safeParse({ name, email, password });
     if (!result.success) {
-      setError(mapZodError(result.error.errors[0].message, t));
+      setError(result.error.errors[0].message);
       return;
     }
     try {
@@ -135,295 +116,187 @@ export default function SignupScreen(): React.JSX.Element {
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.something_went_wrong'));
     }
-  }, [
-    name,
-    email,
-    password,
-    confirmPassword,
-    selectedColor,
-    confirmedAge,
-    agreedToTerms,
-    isLoading,
-    signUp,
-    t,
-  ]);
+  }, [name, email, password, confirmPw, selectedColor, isLoading, signUp, t]);
 
   return (
-    <Animated.View style={[styles.root, { opacity: fadeAnim }]}>
-      {/* Blue header */}
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <View style={styles.logoRow}>
-          <View style={styles.logoChip}>
-            <Ionicons name="home" size={22} color={C.primary} />
-          </View>
-          <Text style={styles.appName}>HouseMates</Text>
-        </View>
-        <Text style={styles.tagline}>Your house, together.</Text>
-      </SafeAreaView>
+    <View style={styles.root}>
+      <Animated.View style={[styles.header, { opacity: fadeHeader }]}>
+        <SafeAreaView edges={['top']} style={styles.headerInner}>
+          <StepProgress steps={steps} currentStep={0} />
+        </SafeAreaView>
+      </Animated.View>
 
-      {/* White card */}
-      <KeyboardAvoidingView
-        style={styles.cardWrapper}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <Animated.View
+        style={[
+          styles.cardWrapper,
+          {
+            opacity: fadeCard,
+            transform: [{ translateY: slideCard }],
+          },
+        ]}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          style={styles.card}
+          contentContainerStyle={styles.cardContent}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t('auth.create_account_title')}</Text>
-
-            {/* Name */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>{t('auth.your_name')}</Text>
-              <TextInput
-                value={name}
-                onChangeText={(v) => {
-                  setName(v);
-                  setError('');
-                }}
-                mode="outlined"
-                style={styles.input}
-                contentStyle={styles.inputText}
-                outlineStyle={styles.inputOutline}
-                autoFocus
-                returnKeyType="next"
-                onSubmitEditing={() => emailRef.current?.focus()}
-                placeholder={t('auth.name_placeholder')}
-                placeholderTextColor={C.textTertiary}
-                accessibilityLabel="Name input"
-                accessibilityHint="Enter your full name"
-              />
+          <View style={styles.brandRow}>
+            <View style={styles.logoChip}>
+              <Ionicons name="home" size={18} color={C.primary} />
             </View>
+            <Text style={styles.brandName}>HouseMates</Text>
+          </View>
 
-            {/* Email */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>{t('auth.email')}</Text>
-              <TextInput
-                ref={emailRef}
-                value={email}
-                onChangeText={(v) => {
-                  setEmail(v);
-                  setError('');
-                }}
-                mode="outlined"
-                style={styles.input}
-                contentStyle={styles.inputText}
-                outlineStyle={styles.inputOutline}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
-                placeholder="you@example.com"
-                placeholderTextColor={C.textTertiary}
-                accessibilityLabel="Email address input"
-                accessibilityHint="Enter your email address"
-              />
-            </View>
+          <View style={styles.headerBlock}>
+            <Text style={styles.title}>{t('auth.create_account')}</Text>
+            <Text style={styles.subtitle}>{t('auth.free_to_use')}</Text>
+          </View>
 
-            {/* Password */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>{t('auth.password')}</Text>
-              <TextInput
-                ref={passwordRef}
-                value={password}
-                onChangeText={(v) => {
-                  setPassword(v);
-                  setError('');
-                }}
-                onBlur={() => setPasswordTouched(true)}
-                mode="outlined"
-                style={[styles.input, !!passwordError && styles.inputError]}
-                contentStyle={styles.inputText}
-                outlineStyle={[styles.inputOutline, !!passwordError && styles.inputOutlineError]}
-                secureTextEntry={!showPassword}
-                returnKeyType="next"
-                onSubmitEditing={() => confirmRef.current?.focus()}
-                right={
-                  <TextInput.Icon
-                    icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    color={C.textTertiary}
-                    onPress={() => setShowPassword((v) => !v)}
-                    accessibilityLabel={
-                      showPassword ? t('common.hide_password') : t('common.show_password')
-                    }
-                  />
-                }
-                error={!!passwordError}
-                accessibilityLabel="Password input"
-                accessibilityHint="Enter a password with at least 8 characters"
-              />
-              {/* Strength bar */}
-              {password.length > 0 && (
-                <View style={styles.strengthWrap}>
-                  <View style={styles.strengthBar}>
-                    {[1, 2, 3, 4].map((i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.strengthSegment,
-                          { backgroundColor: i <= strength ? STRENGTH_COLORS[strength] : C.border },
-                        ]}
-                      />
-                    ))}
-                  </View>
-                  {strength > 0 && (
-                    <Text style={[styles.strengthLabel, { color: STRENGTH_COLORS[strength] }]}>
-                      {strengthLabels[strength]}
-                    </Text>
-                  )}
-                </View>
-              )}
-              {!!passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
-            </View>
+          <TextInput
+            label={t('auth.your_name')}
+            value={name}
+            onChangeText={(v) => {
+              setName(v);
+              setError('');
+            }}
+            mode="outlined"
+            style={styles.input}
+            autoFocus
+            returnKeyType="next"
+            onSubmitEditing={() => emailRef.current?.focus()}
+            accessibilityLabel={t('auth.your_name')}
+            accessibilityHint={t('auth.name_hint')}
+          />
 
-            {/* Confirm password */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>{t('auth.confirm_password')}</Text>
-              <TextInput
-                ref={confirmRef}
-                value={confirmPassword}
-                onChangeText={(v) => {
-                  setConfirmPassword(v);
-                  setError('');
-                }}
-                mode="outlined"
-                style={[styles.input, !!confirmError && styles.inputError]}
-                contentStyle={styles.inputText}
-                outlineStyle={[styles.inputOutline, !!confirmError && styles.inputOutlineError]}
-                secureTextEntry={!showConfirm}
-                returnKeyType="done"
-                onSubmitEditing={handleSignup}
-                right={
-                  <TextInput.Icon
-                    icon={showConfirm ? 'eye-off-outline' : 'eye-outline'}
-                    color={C.textTertiary}
-                    onPress={() => setShowConfirm((v) => !v)}
-                    accessibilityLabel={
-                      showConfirm ? t('common.hide_password') : t('common.show_password')
-                    }
-                  />
-                }
-                error={!!confirmError}
-                accessibilityLabel="Confirm password input"
-                accessibilityHint="Re-enter your password to confirm it matches"
-              />
-              {!!confirmError && <Text style={styles.fieldError}>{confirmError}</Text>}
-            </View>
+          <TextInput
+            ref={emailRef}
+            label={t('auth.email')}
+            value={email}
+            onChangeText={(v) => {
+              setEmail(v);
+              setError('');
+            }}
+            mode="outlined"
+            style={styles.input}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            accessibilityLabel={t('auth.email')}
+            accessibilityHint={t('auth.email_hint')}
+          />
 
-            {/* Avatar colour */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>{t('auth.pick_colour')}</Text>
-              <View style={styles.colorRow}>
-                {AVATAR_COLORS.map((c) => (
-                  <Pressable
-                    key={c}
-                    onPress={() => setSelectedColor(c)}
-                    accessible
-                    accessibilityRole="radio"
-                    accessibilityLabel={`Color ${c}`}
-                    accessibilityState={{ checked: selectedColor === c }}
-                  >
-                    <View
-                      style={[
-                        styles.colorDot,
-                        { backgroundColor: c },
-                        selectedColor === c && styles.colorDotSelected,
-                      ]}
-                    >
-                      {selectedColor === c && <Ionicons name="checkmark" size={18} color="#fff" />}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {/* Age confirmation */}
-            <Pressable
-              style={styles.checkRow}
-              onPress={() => {
-                setConfirmedAge((v) => !v);
+          <View style={styles.passwordBlock}>
+            <TextInput
+              ref={passwordRef}
+              label={t('auth.password')}
+              value={password}
+              onChangeText={(v) => {
+                setPassword(v);
                 setError('');
               }}
-              accessible
-              accessibilityRole="checkbox"
-              accessibilityLabel="I confirm I am 18 or older"
-              accessibilityState={{ checked: confirmedAge }}
-            >
-              <View style={[styles.checkbox, confirmedAge && styles.checkboxChecked]}>
-                {confirmedAge && <Ionicons name="checkmark" size={13} color="#fff" />}
-              </View>
-              <Text style={styles.checkText}>{t('auth.confirm_age')}</Text>
-            </Pressable>
-
-            {/* Terms — checkbox and links are separate to avoid conflicting tap targets */}
-            <View style={styles.checkRow}>
-              <Pressable
-                onPress={() => {
-                  setAgreedToTerms((v) => !v);
-                  setError('');
-                }}
-                accessible
-                accessibilityRole="checkbox"
-                accessibilityLabel="I agree to the Terms of Service and Privacy Policy"
-                accessibilityState={{ checked: agreedToTerms }}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              >
-                <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
-                  {agreedToTerms && <Ionicons name="checkmark" size={13} color="#fff" />}
+              onBlur={() => setPasswordTouched(true)}
+              mode="outlined"
+              style={styles.input}
+              secureTextEntry={!showPassword}
+              returnKeyType="next"
+              onSubmitEditing={() => confirmRef.current?.focus()}
+              accessibilityLabel={t('auth.password')}
+              accessibilityHint={t('auth.password_hint')}
+              right={
+                <TextInput.Icon
+                  icon={showPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowPassword((v) => !v)}
+                  accessibilityLabel={
+                    showPassword ? t('auth.hide_password') : t('auth.show_password')
+                  }
+                />
+              }
+              error={!!passwordError}
+            />
+            {!!passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
+            {strength && (
+              <View style={styles.strengthRow}>
+                <View style={styles.strengthBarBg}>
+                  <View
+                    style={[
+                      styles.strengthBarFill,
+                      {
+                        backgroundColor: strength.color,
+                        width:
+                          strength.level === 'weak'
+                            ? '33%'
+                            : strength.level === 'fair'
+                              ? '66%'
+                              : '100%',
+                      },
+                    ]}
+                  />
                 </View>
-              </Pressable>
-              <Text style={styles.checkText}>
-                {t('auth.terms_prefix')}
-                <Link href="/(auth)/terms" asChild>
-                  <Text style={styles.checkLink} accessibilityRole="link">
-                    {t('auth.terms_of_service')}
-                  </Text>
-                </Link>
-                {t('auth.terms_and')}
-                <Link href="/(auth)/privacy-policy" asChild>
-                  <Text style={styles.checkLink} accessibilityRole="link">
-                    {t('auth.privacy_policy')}
-                  </Text>
-                </Link>
-              </Text>
-            </View>
-
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
-
-            <Button
-              mode="contained"
-              onPress={handleSignup}
-              loading={isLoading}
-              disabled={!canSubmit}
-              style={styles.button}
-              contentStyle={styles.buttonContent}
-              labelStyle={styles.buttonLabel}
-              buttonColor={canSubmit ? C.primary : undefined}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Create account"
-            >
-              {t('auth.create_account')}
-            </Button>
-
-            <Pressable
-              style={styles.loginRow}
-              onPress={() => router.replace('/(auth)/login')}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('auth.have_account_prompt') + ' ' + t('auth.log_in')}
-            >
-              <Text style={styles.loginText}>
-                {t('auth.have_account_prompt') + ' '}
-                <Text style={styles.loginLink}>{t('auth.log_in')}</Text>
-              </Text>
-            </Pressable>
+                <Text style={[styles.strengthLabel, { color: strength.color }]}>
+                  {t(`auth.strength_${strength.level}`)}
+                </Text>
+              </View>
+            )}
           </View>
+
+          <TextInput
+            ref={confirmRef}
+            label={t('auth.confirm_password')}
+            value={confirmPw}
+            onChangeText={(v) => {
+              setConfirmPw(v);
+              setError('');
+            }}
+            mode="outlined"
+            style={styles.input}
+            secureTextEntry={!showConfirm}
+            returnKeyType="go"
+            onSubmitEditing={handleSignup}
+            accessibilityLabel={t('auth.confirm_password')}
+            accessibilityHint={t('auth.confirm_password_hint')}
+            right={
+              <TextInput.Icon
+                icon={showConfirm ? 'eye-off' : 'eye'}
+                onPress={() => setShowConfirm((v) => !v)}
+                accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
+              />
+            }
+            error={!!error && error === t('auth.passwords_no_match')}
+          />
+
+          {!!error && <Text style={styles.error}>{error}</Text>}
+
+          <Button
+            mode="contained"
+            onPress={handleSignup}
+            loading={isLoading}
+            disabled={isLoading}
+            style={styles.button}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
+            buttonColor={C.primary}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.create_account')}
+          >
+            {t('auth.create_account')}
+          </Button>
+
+          <Pressable
+            style={styles.loginLink}
+            onPress={() => router.push('/(auth)/login')}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.has_account_login')}
+          >
+            <Text style={styles.loginText}>
+              {t('auth.has_account')} <Text style={styles.loginTextBold}>{t('auth.log_in')}</Text>
+            </Text>
+          </Pressable>
         </ScrollView>
-      </KeyboardAvoidingView>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -431,190 +304,125 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: C.primary,
+      backgroundColor: C.surface,
     },
     header: {
-      backgroundColor: C.primary,
+      backgroundColor: C.surface,
       paddingHorizontal: sizes.lg,
-      paddingBottom: sizes.lg,
+      paddingTop: sizes.sm,
+      paddingBottom: sizes.sm,
     },
-    logoRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      paddingTop: sizes.md,
-      marginBottom: 6,
-    },
-    logoChip: {
-      width: 46,
-      height: 46,
-      borderRadius: 12,
-      backgroundColor: 'rgba(255,255,255,0.92)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    appName: {
-      fontSize: sizes.fontXxl,
-      ...font.extrabold,
-      color: '#fff',
-      letterSpacing: -0.5,
-    },
-    tagline: {
-      fontSize: 15,
-      ...font.regular,
-      color: 'rgba(255,255,255,0.6)',
+    headerInner: {
+      paddingTop: sizes.xs,
     },
     cardWrapper: {
       flex: 1,
-      backgroundColor: C.primary,
-    },
-    scrollContent: {
-      flexGrow: 1,
     },
     card: {
+      flex: 1,
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
-      paddingHorizontal: sizes.lg,
-      paddingTop: 28,
-      paddingBottom: 48,
-      gap: 20,
     },
-    cardTitle: {
-      fontSize: 20,
+    cardContent: {
+      paddingHorizontal: sizes.lg,
+      paddingTop: sizes.sm,
+      paddingBottom: sizes.xl,
+      gap: sizes.md,
+    },
+    brandRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    logoChip: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      backgroundColor: C.secondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    brandName: {
+      fontSize: 16,
       ...font.bold,
       color: C.textPrimary,
       letterSpacing: -0.2,
     },
-    fieldGroup: {
-      gap: 6,
+    headerBlock: {
+      gap: 4,
     },
-    label: {
-      fontSize: sizes.fontSm,
-      ...font.semibold,
+    title: {
+      fontSize: 28,
+      ...font.extrabold,
       color: C.textPrimary,
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: 15,
+      ...font.regular,
+      color: C.textSecondary,
     },
     input: {
       backgroundColor: C.surface,
-      height: 52,
     },
-    inputText: {
-      color: C.textPrimary,
+    passwordBlock: {
+      gap: 6,
     },
-    inputOutline: {
-      borderRadius: 12,
-      borderColor: C.border,
+    fieldError: {
+      fontSize: 12,
+      ...font.regular,
+      color: C.danger,
+      marginLeft: 4,
     },
-    inputError: {
-      backgroundColor: '#FFF8F8',
-    },
-    inputOutlineError: {
-      borderColor: C.danger,
-    },
-    strengthWrap: {
-      gap: 4,
-      marginTop: 6,
-    },
-    strengthBar: {
+    strengthRow: {
       flexDirection: 'row',
-      gap: 4,
+      alignItems: 'center',
+      gap: 8,
     },
-    strengthSegment: {
+    strengthBarBg: {
       flex: 1,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: C.border,
+      overflow: 'hidden',
+    },
+    strengthBarFill: {
       height: 4,
       borderRadius: 2,
     },
     strengthLabel: {
-      fontSize: 11,
-      ...font.medium,
-    },
-    fieldError: {
-      fontSize: sizes.fontXs,
-      ...font.regular,
-      color: C.danger,
-    },
-    colorRow: {
-      flexDirection: 'row',
-      gap: sizes.sm,
-    },
-    colorDot: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    colorDotSelected: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 6,
-      elevation: 3,
-    },
-    checkRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: sizes.sm,
-      minHeight: sizes.touchTarget,
-    },
-    checkbox: {
-      width: 22,
-      height: 22,
-      borderRadius: 6,
-      borderWidth: 1.5,
-      borderColor: C.border,
-      backgroundColor: C.surface,
-      justifyContent: 'center',
-      alignItems: 'center',
-      flexShrink: 0,
-      marginTop: 1,
-    },
-    checkboxChecked: {
-      backgroundColor: C.primary,
-      borderColor: C.primary,
-    },
-    checkText: {
-      flex: 1,
-      fontSize: 13,
-      ...font.regular,
-      color: C.textSecondary,
-      lineHeight: 20,
-    },
-    checkLink: {
-      color: C.primary,
+      fontSize: 12,
       ...font.semibold,
     },
-    errorText: {
-      fontSize: sizes.fontXs,
+    error: {
       ...font.regular,
       color: C.danger,
+      fontSize: sizes.fontSm,
     },
     button: {
       borderRadius: 14,
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.28,
-      shadowRadius: 12,
-      elevation: 4,
+      marginTop: sizes.xs,
     },
     buttonContent: {
       height: 52,
     },
     buttonLabel: {
-      fontSize: sizes.fontMd,
+      fontSize: 16,
       ...font.semibold,
-      letterSpacing: 0.1,
-    },
-    loginRow: {
-      alignItems: 'center',
-      paddingVertical: 4,
-    },
-    loginText: {
-      fontSize: sizes.fontSm,
-      ...font.regular,
-      color: C.textSecondary,
+      letterSpacing: 0.2,
     },
     loginLink: {
+      alignSelf: 'center',
+      paddingVertical: sizes.sm,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
+    },
+    loginText: {
+      fontSize: 15,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+    },
+    loginTextBold: {
       ...font.semibold,
       color: C.primary,
     },
