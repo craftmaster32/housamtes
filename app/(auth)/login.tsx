@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, ScrollView } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signInSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -29,10 +30,33 @@ export default function LoginScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const fadeHeader = useRef(new Animated.Value(0)).current;
+  const slideCard = useRef(new Animated.Value(30)).current;
+  const fadeCard = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+    Animated.sequence([
+      Animated.timing(fadeHeader, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.spring(slideCard, {
+          toValue: 0,
+          tension: 65,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeCard, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [fadeHeader, slideCard, fadeCard]);
 
   useEffect(() => {
     return (): void => {
@@ -53,8 +77,8 @@ export default function LoginScreen(): React.JSX.Element {
     }, 1000);
   }, []);
 
-  const handleLogin = useCallback(async () => {
-    if (lockoutRemaining > 0) return;
+  const handleLogin = useCallback(async (): Promise<void> => {
+    if (isLoading || lockoutRemaining > 0) return;
 
     const result = signInSchema.safeParse({ email, password });
     if (!result.success) {
@@ -65,43 +89,60 @@ export default function LoginScreen(): React.JSX.Element {
       setError('');
       await signIn(result.data.email, result.data.password);
       setFailedAttempts(0);
-      // Auth state listener in authStore will update houseId;
-      // root layout will redirect based on auth + houseId state
     } catch (err) {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
       if (newAttempts >= MAX_ATTEMPTS) {
         setFailedAttempts(0);
         startLockout();
-        setError(`Too many failed attempts. Please wait ${LOCKOUT_SECONDS} seconds.`);
+        setError(t('auth.too_many_attempts', { n: LOCKOUT_SECONDS }));
       } else {
-        setError(err instanceof Error ? err.message : 'Sign in failed');
+        setError(err instanceof Error ? err.message : t('auth.sign_in_failed'));
       }
     }
-  }, [email, password, signIn, failedAttempts, lockoutRemaining, startLockout, t]);
+  }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-        <View style={styles.content}>
-          {/* Back button */}
+    <View style={styles.root}>
+      <Animated.View style={[styles.header, { opacity: fadeHeader }]}>
+        <SafeAreaView edges={['top']} style={styles.headerInner}>
           <Pressable
             style={styles.backBtn}
             onPress={() => router.back()}
-            accessible={true}
+            accessible
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.back')}
           >
-            <Text style={styles.backBtnText}>←</Text>
+            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
+            <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
 
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>Sign in to HouseMates</Text>
+          <View style={styles.brandRow}>
+            <View style={styles.logoChip}>
+              <Ionicons name="home" size={20} color={C.primary} />
+            </View>
+            <Text style={styles.brandName}>HouseMates</Text>
           </View>
+          <Text style={styles.headerTagline}>{t('welcome.tagline')}</Text>
+        </SafeAreaView>
+      </Animated.View>
 
+      <Animated.View
+        style={[
+          styles.cardWrapper,
+          {
+            opacity: fadeCard,
+            transform: [{ translateY: slideCard }],
+          },
+        ]}
+      >
+        <ScrollView
+          style={styles.card}
+          contentContainerStyle={styles.cardContent}
+          keyboardShouldPersistTaps="handled"
+        >
           <TextInput
-            label="Email"
+            label={t('auth.email')}
             value={email}
             onChangeText={(v) => {
               setEmail(v);
@@ -114,14 +155,14 @@ export default function LoginScreen(): React.JSX.Element {
             autoCapitalize="none"
             returnKeyType="next"
             onSubmitEditing={() => passwordRef.current?.focus()}
-            accessibilityLabel="Email"
-            accessibilityHint="Enter your email address"
+            accessibilityLabel={t('auth.email')}
+            accessibilityHint={t('auth.email_hint')}
             error={!!error}
           />
 
           <TextInput
             ref={passwordRef}
-            label="Password"
+            label={t('auth.password')}
             value={password}
             onChangeText={(v) => {
               setPassword(v);
@@ -132,8 +173,8 @@ export default function LoginScreen(): React.JSX.Element {
             secureTextEntry={!showPassword}
             returnKeyType="go"
             onSubmitEditing={handleLogin}
-            accessibilityLabel="Password"
-            accessibilityHint="Enter your password"
+            accessibilityLabel={t('auth.password')}
+            accessibilityHint={t('auth.password_hint')}
             right={
               <TextInput.Icon
                 icon={showPassword ? 'eye-off' : 'eye'}
@@ -145,6 +186,16 @@ export default function LoginScreen(): React.JSX.Element {
             }
             error={!!error}
           />
+
+          <Pressable
+            style={styles.forgotBtn}
+            onPress={() => router.push('/(auth)/forgot-password')}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.forgot_password')}
+          >
+            <Text style={styles.forgotText}>{t('auth.forgot_password')}</Text>
+          </Pressable>
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
@@ -167,21 +218,25 @@ export default function LoginScreen(): React.JSX.Element {
           >
             {lockoutRemaining > 0
               ? t('auth.try_again_in', { n: lockoutRemaining })
-              : t('auth.sign_in')}
+              : isLoading
+                ? t('auth.signing_in')
+                : t('auth.sign_in')}
           </Button>
 
           <Pressable
-            style={styles.forgotBtn}
-            onPress={() => router.push('/(auth)/forgot-password')}
-            accessible={true}
+            style={styles.signupLink}
+            onPress={() => router.push('/(auth)/signup')}
+            accessible
             accessibilityRole="button"
-            accessibilityLabel="Forgot password"
+            accessibilityLabel={t('auth.no_account_signup')}
           >
-            <Text style={styles.forgotText}>Forgot password?</Text>
+            <Text style={styles.signupText}>
+              {t('auth.no_account')} <Text style={styles.signupTextBold}>{t('auth.sign_up')}</Text>
+            </Text>
           </Pressable>
-        </View>
+        </ScrollView>
       </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -189,44 +244,84 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: C.surface,
-    },
-    flex: { flex: 1 },
-    content: {
-      flex: 1,
-      paddingHorizontal: sizes.lg,
-      paddingTop: sizes.sm,
-      gap: sizes.md,
-    },
-    backBtn: {
-      width: sizes.touchTarget,
-      height: sizes.touchTarget,
-      justifyContent: 'center',
-      alignItems: 'flex-start',
-      marginBottom: sizes.xs,
-    },
-    backBtnText: {
-      fontSize: 24,
-      ...font.regular,
-      color: C.textPrimary,
+      backgroundColor: C.primary,
     },
     header: {
-      gap: 4,
-      marginBottom: sizes.xs,
+      backgroundColor: C.primary,
+      paddingHorizontal: sizes.lg,
+      paddingBottom: 28,
     },
-    title: {
-      fontSize: 28,
-      ...font.extrabold,
-      color: C.textPrimary,
-      letterSpacing: -0.5,
+    headerInner: {
+      gap: 6,
     },
-    subtitle: {
-      fontSize: 15,
+    backBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      alignSelf: 'flex-start',
+      paddingVertical: sizes.sm,
+      paddingHorizontal: sizes.xs,
+      minHeight: sizes.touchTarget,
+      marginTop: sizes.xs,
+      marginBottom: 4,
+    },
+    backText: {
+      fontSize: 15.5,
       ...font.medium,
-      color: C.textSecondary,
+      color: 'rgba(255,255,255,0.85)',
+    },
+    brandRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    logoChip: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    brandName: {
+      fontSize: 20,
+      ...font.bold,
+      color: '#fff',
+      letterSpacing: -0.3,
+    },
+    headerTagline: {
+      fontSize: 15,
+      ...font.regular,
+      color: 'rgba(255,255,255,0.65)',
+      lineHeight: 22,
+    },
+    cardWrapper: {
+      flex: 1,
+      backgroundColor: C.primary,
+    },
+    card: {
+      flex: 1,
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+    },
+    cardContent: {
+      paddingHorizontal: sizes.lg,
+      paddingTop: 32,
+      paddingBottom: 40,
+      gap: sizes.md,
     },
     input: {
       backgroundColor: C.surface,
+    },
+    forgotBtn: {
+      alignSelf: 'flex-end',
+      paddingVertical: sizes.xs,
+    },
+    forgotText: {
+      fontSize: 14,
+      ...font.medium,
+      color: C.primary,
     },
     error: {
       ...font.regular,
@@ -235,7 +330,7 @@ function makeStyles(C: ColorTokens) {
     },
     button: {
       borderRadius: 14,
-      marginTop: sizes.sm,
+      marginTop: sizes.xs,
     },
     buttonContent: {
       height: 52,
@@ -245,14 +340,20 @@ function makeStyles(C: ColorTokens) {
       ...font.semibold,
       letterSpacing: 0.2,
     },
-    forgotBtn: {
+    signupLink: {
       alignSelf: 'center',
       paddingVertical: sizes.sm,
-      paddingHorizontal: sizes.md,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
     },
-    forgotText: {
+    signupText: {
       fontSize: 15,
-      ...font.medium,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+    },
+    signupTextBold: {
+      ...font.semibold,
       color: C.primary,
     },
   });

@@ -1,13 +1,15 @@
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { StepProgress } from '@components/shared/StepProgress';
 
 export default function VerifyEmailScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -17,7 +19,47 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
 
-  const handleResend = useCallback(async () => {
+  const C = useThemedColors();
+  const styles = useMemo(() => makeStyles(C), [C]);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideIcon = useRef(new Animated.Value(20)).current;
+  const scaleIcon = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.spring(slideIcon, {
+          toValue: 0,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleIcon, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [fadeAnim, slideIcon, scaleIcon]);
+
+  const steps = useMemo(
+    () => [
+      { label: t('auth.step_account') },
+      { label: t('auth.step_verify') },
+      { label: t('auth.step_house') },
+    ],
+    [t]
+  );
+
+  const handleResend = useCallback(async (): Promise<void> => {
     if (!pendingEmail) return;
     try {
       setIsResending(true);
@@ -32,120 +74,191 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   }, [pendingEmail, resendVerification, t]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.iconCircle}>
-          <Text style={styles.icon}>✉️</Text>
-        </View>
+    <View style={styles.root}>
+      <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+        <SafeAreaView edges={['top']} style={styles.headerInner}>
+          <StepProgress steps={steps} currentStep={1} />
+        </SafeAreaView>
+      </Animated.View>
 
-        <Text style={styles.title}>{t('auth.check_email_title')}</Text>
-        <Text style={styles.subtitle}>{t('auth.check_email_sent_to')}</Text>
-        {!!pendingEmail && (
-          <Text style={styles.email} selectable>
-            {pendingEmail}
-          </Text>
-        )}
-        <Text style={styles.instructions}>{t('auth.check_email_body')}</Text>
+      <Animated.View style={[styles.cardWrapper, { opacity: fadeAnim }]}>
+        <View style={styles.card}>
+          <Animated.View
+            style={[
+              styles.envelopeWrap,
+              {
+                transform: [{ translateY: slideIcon }, { scale: scaleIcon }],
+              },
+            ]}
+          >
+            <Ionicons name="mail" size={44} color={C.primary} />
+            <View style={styles.checkBadge}>
+              <Ionicons name="checkmark-circle" size={20} color={C.success} />
+            </View>
+          </Animated.View>
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
-
-        {resent && (
-          <View style={styles.resentBanner}>
-            <Text style={styles.resentText}>{t('auth.email_sent')}</Text>
+          <View style={styles.textBlock}>
+            <Text style={styles.heading}>{t('auth.check_inbox_title')}</Text>
+            {!!pendingEmail && (
+              <Text style={styles.bodyText}>
+                {t('auth.check_inbox_body', { email: pendingEmail })}
+              </Text>
+            )}
+            {!pendingEmail && <Text style={styles.errorText}>{t('auth.no_pending_email')}</Text>}
+            <Text style={styles.hintText}>{t('auth.link_expires')}</Text>
           </View>
-        )}
 
-        <Button
-          mode="contained"
-          onPress={() => router.replace('/(auth)/login')}
-          style={styles.button}
-          contentStyle={styles.buttonContent}
-          labelStyle={styles.buttonLabel}
-          buttonColor={colors.primary}
-        >
-          {t('auth.go_to_sign_in')}
-        </Button>
+          {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-        <Pressable
-          onPress={handleResend}
-          disabled={isResending}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('auth.resend_email')}
-          style={styles.resendBtn}
-        >
-          <Text style={styles.resendText}>
-            {isResending ? t('auth.sending') : t('auth.resend_email')}
-          </Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+          {resent && (
+            <View style={styles.resentBanner}>
+              <Ionicons name="checkmark-circle" size={16} color={C.success} />
+              <Text style={styles.resentText}>{t('auth.email_sent')}</Text>
+            </View>
+          )}
+
+          <Button
+            mode="outlined"
+            onPress={handleResend}
+            loading={isResending}
+            disabled={isResending || !pendingEmail}
+            style={styles.ghostButton}
+            contentStyle={styles.buttonContent}
+            labelStyle={[styles.buttonLabel, { color: C.textPrimary }]}
+            textColor={C.textPrimary}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.resend_email_short')}
+          >
+            {isResending ? t('auth.sending') : t('auth.resend_email_short')}
+          </Button>
+
+          <Pressable
+            onPress={() => router.replace('/(auth)/signup')}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.wrong_email_go_back')}
+            style={styles.goBackLink}
+          >
+            <Text style={styles.goBackText}>{t('auth.wrong_email_go_back')}</Text>
+          </Pressable>
+        </View>
+      </Animated.View>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.white },
-  content: {
-    flex: 1,
-    paddingHorizontal: sizes.xl,
-    paddingTop: sizes.xxl,
-    alignItems: 'center',
-    gap: sizes.md,
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryLight + '33',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: sizes.sm,
-  },
-  icon: { fontSize: 36 },
-  title: {
-    fontSize: 26,
-    ...font.extrabold,
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 15,
-    ...font.regular,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: -sizes.xs,
-  },
-  email: {
-    fontSize: 15,
-    ...font.semibold,
-    color: colors.primary,
-    textAlign: 'center',
-  },
-  instructions: {
-    fontSize: 14,
-    ...font.regular,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: sizes.sm,
-  },
-  error: {
-    color: colors.danger,
-    fontSize: sizes.fontSm,
-    ...font.regular,
-    textAlign: 'center',
-  },
-  resentBanner: {
-    backgroundColor: colors.positive + '20',
-    paddingVertical: sizes.xs,
-    paddingHorizontal: sizes.md,
-    borderRadius: 10,
-  },
-  resentText: { color: colors.positive, ...font.semibold, fontSize: 14 },
-  button: { borderRadius: 14, width: '100%' },
-  buttonContent: { height: 52 },
-  buttonLabel: { fontSize: 16, ...font.semibold, letterSpacing: 0.2 },
-  resendBtn: { paddingVertical: sizes.sm },
-  resendText: { color: colors.primary, fontSize: 14, ...font.medium },
-});
+function makeStyles(C: ColorTokens) {
+  return StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: C.surface,
+    },
+    header: {
+      backgroundColor: C.surface,
+      paddingHorizontal: sizes.lg,
+      paddingTop: sizes.sm,
+      paddingBottom: sizes.sm,
+    },
+    headerInner: {
+      paddingTop: sizes.xs,
+    },
+    cardWrapper: {
+      flex: 1,
+    },
+    card: {
+      flex: 1,
+      backgroundColor: C.surface,
+      paddingHorizontal: sizes.lg,
+      paddingTop: 24,
+      paddingBottom: 40,
+      alignItems: 'center',
+      gap: 20,
+    },
+    envelopeWrap: {
+      width: 88,
+      height: 88,
+      borderRadius: 26,
+      backgroundColor: '#EAF3FF',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: sizes.xs,
+    },
+    checkBadge: {
+      position: 'absolute',
+      bottom: -4,
+      right: -4,
+      backgroundColor: C.surface,
+      borderRadius: 12,
+      padding: 2,
+    },
+    textBlock: {
+      alignItems: 'center',
+      gap: 8,
+    },
+    heading: {
+      fontSize: 24,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.3,
+      textAlign: 'center',
+    },
+    bodyText: {
+      fontSize: 15,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+    hintText: {
+      fontSize: 13,
+      ...font.regular,
+      color: C.textTertiary,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+    errorText: {
+      fontSize: sizes.fontXs,
+      ...font.regular,
+      color: C.danger,
+      textAlign: 'center',
+    },
+    resentBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.xs,
+      backgroundColor: '#EBF7EF',
+      paddingVertical: sizes.xs,
+      paddingHorizontal: sizes.md,
+      borderRadius: 10,
+    },
+    resentText: {
+      color: C.success,
+      ...font.semibold,
+      fontSize: 14,
+    },
+    ghostButton: {
+      borderRadius: 14,
+      width: '100%',
+      borderColor: C.border,
+      borderWidth: 1.5,
+    },
+    buttonContent: { height: 52 },
+    buttonLabel: {
+      fontSize: sizes.fontMd,
+      ...font.semibold,
+      letterSpacing: 0.1,
+    },
+    goBackLink: {
+      paddingVertical: sizes.sm,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
+    },
+    goBackText: {
+      fontSize: sizes.fontSm,
+      ...font.medium,
+      color: C.primary,
+      textAlign: 'center',
+    },
+  });
+}

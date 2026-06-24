@@ -1,10 +1,11 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -13,99 +14,106 @@ const ONBOARDING_INTENT_KEY = 'onboarding_intent';
 
 export default function WelcomeScreen(): React.JSX.Element {
   const { t } = useTranslation();
-
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const fadeTop = useRef(new Animated.Value(0)).current;
+  const slideCard = useRef(new Animated.Value(40)).current;
+  const fadeCard = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+    Animated.sequence([
+      Animated.timing(fadeTop, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.spring(slideCard, {
+          toValue: 0,
+          tension: 60,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeCard, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [fadeTop, slideCard, fadeCard]);
 
-  const handleCreateHouse = async (): Promise<void> => {
-    await AsyncStorage.removeItem(ONBOARDING_INTENT_KEY);
+  const handleGetStarted = useCallback(async (): Promise<void> => {
+    try {
+      await AsyncStorage.removeItem(ONBOARDING_INTENT_KEY);
+    } catch {
+      // best-effort cleanup
+    }
     router.push('/(auth)/signup');
-  };
-
-  const handleJoinHouse = async (): Promise<void> => {
-    await AsyncStorage.setItem(ONBOARDING_INTENT_KEY, 'join');
-    router.push('/(auth)/signup');
-  };
+  }, []);
 
   return (
     <View style={styles.root}>
-      {/* TOP SECTION */}
-      <SafeAreaView style={styles.top} edges={['top']}>
-        <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-          <View style={styles.topContent}>
-            {/* Logo */}
-            <View style={styles.logoWrap}>
-              <View style={styles.logo}>
-                <Text style={styles.logoText}>H</Text>
-              </View>
-            </View>
-
-            <Text style={styles.appName}>HouseMates</Text>
-            <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
-
-            {/* Feature pills */}
-            <View style={styles.pillsRow}>
-              <View style={styles.pill}>
-                <Text style={styles.pillText}>{t('welcome.feature_bills')}</Text>
-              </View>
-              <View style={styles.pill}>
-                <Text style={styles.pillText}>{t('welcome.feature_chores')}</Text>
-              </View>
-              <View style={styles.pill}>
-                <Text style={styles.pillText}>{t('welcome.feature_chat')}</Text>
-              </View>
-            </View>
+      <Animated.View style={[styles.top, { opacity: fadeTop }]}>
+        <SafeAreaView edges={['top']} style={styles.topInner}>
+          <View
+            style={styles.iconChip}
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={t('welcome.logo_label')}
+          >
+            <Ionicons name="home" size={32} color={C.primary} />
           </View>
-        </Animated.View>
-      </SafeAreaView>
 
-      {/* BOTTOM SECTION */}
-      <View style={styles.bottom}>
+          <Text style={styles.appName}>HouseMates</Text>
+          <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
+        </SafeAreaView>
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            opacity: fadeCard,
+            transform: [{ translateY: slideCard }],
+          },
+        ]}
+      >
+        <Text style={styles.cardHeading}>{t('welcome.card_heading')}</Text>
+        <Text style={styles.cardBody}>{t('welcome.card_body')}</Text>
+
         <Button
           mode="contained"
-          onPress={handleCreateHouse}
+          buttonColor={C.primary}
+          onPress={handleGetStarted}
           style={styles.primaryButton}
           contentStyle={styles.primaryButtonContent}
           labelStyle={styles.primaryButtonLabel}
-          buttonColor={C.primary}
-          accessible={true}
+          icon={({ color }) => <Ionicons name="arrow-forward" size={18} color={color} />}
+          accessible
           accessibilityRole="button"
-          accessibilityLabel={t('welcome.create_house')}
+          accessibilityLabel={t('welcome.get_started')}
         >
-          {t('welcome.create_house')}
+          {t('welcome.get_started')}
         </Button>
 
         <Button
           mode="outlined"
-          onPress={handleJoinHouse}
-          style={styles.outlinedButton}
-          contentStyle={styles.primaryButtonContent}
-          labelStyle={[styles.primaryButtonLabel, { color: C.primary }]}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel={t('welcome.join_house')}
-        >
-          {t('welcome.join_house')}
-        </Button>
-
-        <Button
-          mode="text"
           onPress={() => router.push('/(auth)/login')}
-          style={styles.textButton}
-          labelStyle={styles.textButtonLabel}
-          accessible={true}
+          style={styles.outlinedButton}
+          contentStyle={styles.outlinedButtonContent}
+          labelStyle={styles.outlinedButtonLabel}
+          textColor={C.textPrimary}
+          accessible
           accessibilityRole="button"
-          accessibilityLabel={t('welcome.sign_in_prompt')}
+          accessibilityLabel={t('welcome.log_in')}
         >
-          {t('welcome.sign_in_prompt')}
+          {t('welcome.log_in')}
         </Button>
 
-        <Text style={styles.termsText}>{t('auth.by_continuing')}</Text>
-      </View>
+        <Text style={styles.terms}>{t('auth.by_continuing')}</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -116,113 +124,95 @@ function makeStyles(C: ColorTokens) {
       flex: 1,
       backgroundColor: C.primary,
     },
-    flex: { flex: 1 },
     top: {
       flex: 1.4,
       backgroundColor: C.primary,
     },
-    topContent: {
+    topInner: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: sizes.xl,
-      gap: sizes.md,
     },
-    logoWrap: {
-      marginBottom: sizes.xs,
-      borderRadius: 24,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    logo: {
-      width: 100,
-      height: 100,
-      borderRadius: 24,
-      borderCurve: 'continuous',
-      backgroundColor: '#fff',
-      justifyContent: 'center',
+    iconChip: {
+      width: 72,
+      height: 72,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.92)',
       alignItems: 'center',
-    } as never,
-    logoText: {
-      fontSize: 52,
-      ...font.extrabold,
-      color: C.primary,
-      letterSpacing: -2,
+      justifyContent: 'center',
     },
     appName: {
-      fontSize: 36,
+      fontSize: 34,
       ...font.extrabold,
       color: '#fff',
       letterSpacing: -1,
-      marginTop: sizes.xs,
+      marginTop: sizes.md,
+      textAlign: 'center',
     },
     tagline: {
       fontSize: 16,
-      ...font.medium,
-      color: '#fff',
-      opacity: 0.75,
+      ...font.regular,
+      color: 'rgba(255,255,255,0.72)',
       textAlign: 'center',
-    },
-    pillsRow: {
-      flexDirection: 'column',
-      gap: sizes.xs,
       marginTop: sizes.sm,
-      alignItems: 'center',
     },
-    pill: {
-      backgroundColor: 'rgba(255,255,255,0.10)',
-      borderRadius: sizes.borderRadiusFull,
-      paddingHorizontal: sizes.md,
-      paddingVertical: 8,
-    },
-    pillText: {
-      fontSize: 14,
-      ...font.medium,
-      color: '#fff',
-      opacity: 0.92,
-    },
-    bottom: {
+    card: {
       backgroundColor: C.surface,
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
-      padding: 32,
+      padding: sizes.xl,
       paddingBottom: 40,
-      gap: 4,
+      gap: 16,
+    },
+    cardHeading: {
+      fontSize: 26,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.5,
+    },
+    cardBody: {
+      fontSize: 15,
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: 22,
+      marginBottom: sizes.sm,
     },
     primaryButton: {
       borderRadius: 14,
-      marginBottom: 4,
-    },
-    outlinedButton: {
-      borderRadius: 14,
-      borderColor: C.primary,
-      marginBottom: 4,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.28,
+      shadowRadius: 12,
+      elevation: 4,
     },
     primaryButtonContent: {
       height: 52,
+      flexDirection: 'row-reverse',
     },
     primaryButtonLabel: {
       fontSize: 16,
       ...font.semibold,
-      letterSpacing: 0.2,
     },
-    textButton: {
+    outlinedButton: {
       borderRadius: 14,
+      borderColor: C.border,
+      borderWidth: 1.5,
     },
-    textButtonLabel: {
+    outlinedButtonContent: {
+      height: 52,
+    },
+    outlinedButtonLabel: {
       fontSize: 16,
-      ...font.medium,
-      color: C.primary,
+      ...font.semibold,
+      color: C.textPrimary,
     },
-    termsText: {
+    terms: {
       fontSize: 11,
       ...font.regular,
       color: C.textTertiary,
       textAlign: 'center',
-      marginTop: sizes.sm,
+      marginTop: sizes.xs,
     },
   });
 }
