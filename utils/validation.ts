@@ -1,4 +1,21 @@
 import { z } from 'zod';
+import type { TFunction } from 'i18next';
+
+const ZOD_MESSAGE_TO_I18N: Record<string, string> = {
+  'Name is required': 'auth.name_required',
+  'Name must be 50 characters or less': 'auth.name_too_long',
+  'Email is required': 'auth.email_required',
+  'Please enter a valid email address': 'auth.invalid_email',
+  'Password is required': 'auth.password_required',
+  'Password must be at least 8 characters': 'auth.password_min_length',
+  'Include at least one uppercase letter': 'auth.password_needs_uppercase',
+  'Include at least one number': 'auth.password_needs_number',
+};
+
+export function mapZodError(message: string, t: TFunction): string {
+  const key = ZOD_MESSAGE_TO_I18N[message];
+  return key ? t(key) : message;
+}
 
 export const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required').max(50, 'Name must be 50 characters or less').trim(),

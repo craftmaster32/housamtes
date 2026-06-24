@@ -1,12 +1,23 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Animated,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { COLORS } from '@stores/housematesStore';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -21,16 +32,24 @@ function getDeviceTimezone(): string {
   }
 }
 
-type Tab = 'create' | 'join';
+type Mode = 'create' | 'join';
+
+interface PendingHouse {
+  id: string;
+  name: string;
+  memberCount: number;
+}
 
 export default function HouseSetupScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>('create');
+  const [mode, setMode] = useState<Mode>('create');
   const [houseName, setHouseName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [assignedColor, setAssignedColor] = useState<string | null>(null);
+  const [pendingHouse, setPendingHouse] = useState<PendingHouse | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
   const joinAttemptsRef = useRef(0);
   const joinLockedUntilRef = useRef<Date | null>(null);
   const user = useAuthStore((s) => s.user);
@@ -41,27 +60,16 @@ export default function HouseSetupScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
-  const onBackPress = useCallback(() => {
-    signOut();
-  }, [signOut]);
-  const onSelectCreate = useCallback(() => {
-    setTab('create');
-    setError('');
-  }, [setTab, setError]);
-  const onSelectJoin = useCallback(() => {
-    setTab('join');
-    setError('');
-  }, [setTab, setError]);
+  useEffect(() => {
+    Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+  }, [fadeAnim]);
 
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_INTENT_KEY)
       .then((intent) => {
         if (intent === 'join') {
-          setTab('join');
+          setMode('join');
           AsyncStorage.removeItem(ONBOARDING_INTENT_KEY).catch(() => {});
         }
       })
@@ -93,15 +101,16 @@ export default function HouseSetupScreen(): React.JSX.Element {
 
       setHouseId(house.id);
     } catch (err) {
+      captureError(err, { context: 'house-create', userId: user?.id ?? '' });
       setError(err instanceof Error ? err.message : t('house_setup.failed_create'));
       setIsLoading(false);
     }
   }, [houseName, user, setHouseId, t]);
 
-  const handleJoin = useCallback(async () => {
+  const handleFindHouse = useCallback(async () => {
     if (joinLockedUntilRef.current && new Date() < joinLockedUntilRef.current) {
       const secondsLeft = Math.ceil((joinLockedUntilRef.current.getTime() - Date.now()) / 1000);
-      setError(`Too many attempts. Please wait ${secondsLeft}s before trying again.`);
+      setError(t('house_setup.too_many_attempts', { seconds: secondsLeft }));
       return;
     }
     if (!inviteCode.trim()) {
@@ -114,7 +123,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
     try {
       const { data: house, error: houseErr } = await supabase
         .from('houses')
-        .select('id')
+        .select('id, name')
         .eq('invite_code', inviteCode.trim().toUpperCase())
         .maybeSingle();
       if (houseErr) throw new Error(t('house_setup.failed_join'));
@@ -126,23 +135,42 @@ export default function HouseSetupScreen(): React.JSX.Element {
         }
         throw new Error(t('house_setup.code_not_found'));
       }
+
+      const { count, error: countErr } = await supabase
+        .from('house_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('house_id', house.id);
+      if (countErr) throw new Error(t('house_setup.failed_join'));
+
       joinAttemptsRef.current = 0;
       joinLockedUntilRef.current = null;
+      // Supabase infers string | null from .select('id, name'); column is NOT NULL in schema
+      setPendingHouse({ id: house.id, name: house.name as string, memberCount: count ?? 0 });
+      setShowConfirm(true);
+    } catch (err) {
+      captureError(err, { context: 'house-find', userId: user?.id ?? '' });
+      setError(err instanceof Error ? err.message : t('house_setup.failed_join'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [inviteCode, user, t]);
 
+  const handleConfirmJoin = useCallback(async () => {
+    if (!pendingHouse || !user) return;
+    setIsLoading(true);
+    setError('');
+    try {
       const { error: memberErr } = await supabase
         .from('house_members')
-        .insert({ house_id: house.id, user_id: user.id });
-      // 23505 = duplicate key: user is already a member — treat as success
+        .insert({ house_id: pendingHouse.id, user_id: user.id });
       if (memberErr && memberErr.code !== '23505') throw new Error(t('house_setup.failed_join'));
 
-      // Reload membership so role & permissions reflect the new house
       await reloadMembership();
 
-      // Enforce unique color per house: if another member shares this user's color, auto-assign a free one
       const { data: otherMembers } = await supabase
         .from('house_members')
         .select('user_id')
-        .eq('house_id', house.id)
+        .eq('house_id', pendingHouse.id)
         .neq('user_id', user.id);
 
       if (otherMembers && otherMembers.length > 0) {
@@ -160,145 +188,271 @@ export default function HouseSetupScreen(): React.JSX.Element {
         if (myProfile && takenColors.has(myProfile.avatar_color)) {
           const freeColor = COLORS.find((c) => !takenColors.has(c));
           if (freeColor) {
-            await supabase.from('profiles').update({ avatar_color: freeColor }).eq('id', user.id);
-            setAssignedColor(freeColor);
+            const { error: colorErr } = await supabase
+              .from('profiles')
+              .update({ avatar_color: freeColor })
+              .eq('id', user.id);
+            if (!colorErr) {
+              setAssignedColor(freeColor);
+            } else {
+              captureError(colorErr, { context: 'house-color-update', userId: user?.id ?? '' });
+            }
           }
         }
       }
+
+      setShowConfirm(false);
+      setHouseId(pendingHouse.id);
     } catch (err) {
+      captureError(err, {
+        context: 'house-confirm-join',
+        houseId: pendingHouse?.id ?? '',
+        userId: user?.id ?? '',
+      });
       setError(err instanceof Error ? err.message : t('house_setup.failed_join'));
+      setShowConfirm(false);
       setIsLoading(false);
     }
-  }, [inviteCode, user, reloadMembership, t]);
+  }, [pendingHouse, user, reloadMembership, setHouseId, t]);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.logoRow}>
-            <View style={styles.logo}>
-              <Text style={styles.logoText}>N</Text>
-            </View>
-          </View>
+    <Animated.View style={[styles.root, { opacity: fadeAnim }]}>
+      {/* Blue inner header */}
+      <SafeAreaView edges={['top']} style={styles.header}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={() => signOut()}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Back to login"
+        >
+          <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
+          <Text style={styles.backText}>{t('house_setup.back_to_login')}</Text>
+        </Pressable>
+        <Text style={styles.headerTitle}>{t('house_setup.title')}</Text>
+        <Text style={styles.headerSubtitle}>{t('house_setup.subtitle')}</Text>
+      </SafeAreaView>
 
-          <Pressable
-            style={styles.backBtn}
-            onPress={onBackPress}
-            accessible={true}
-            accessibilityRole="button"
-            accessibilityLabel="Back to login"
-          >
-            <Text style={styles.backBtnText}>← {t('house_setup.back_to_login')}</Text>
-          </Pressable>
-
-          <View style={styles.titleBlock}>
-            <Text style={styles.title}>{t('house_setup.title')}</Text>
-            <Text style={styles.subtitle}>{t('house_setup.subtitle')}</Text>
-          </View>
-
-          {/* Tab strip */}
-          <View style={styles.tabs}>
-            <Pressable
-              style={[styles.tab, tab === 'create' && styles.tabActive]}
-              onPress={onSelectCreate}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel="Create house"
-              accessibilityState={{ selected: tab === 'create' }}
-            >
-              <Text style={[styles.tabLabel, tab === 'create' && styles.tabLabelActive]}>
-                {t('house_setup.create_house')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, tab === 'join' && styles.tabActive]}
-              onPress={onSelectJoin}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel="Join house"
-              accessibilityState={{ selected: tab === 'join' }}
-            >
-              <Text style={[styles.tabLabel, tab === 'join' && styles.tabLabelActive]}>
-                {t('house_setup.join_house')}
-              </Text>
-            </Pressable>
-          </View>
-
-          {tab === 'create' ? (
-            <View style={styles.form}>
-              <TextInput
-                label={t('house_setup.house_name_placeholder')}
-                value={houseName}
-                onChangeText={(v) => {
-                  setHouseName(v);
+      {/* White card */}
+      <KeyboardAvoidingView
+        style={styles.cardWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card}>
+            {/* Option cards */}
+            <View style={styles.optionGrid}>
+              <Pressable
+                style={[styles.optionCard, mode === 'create' && styles.optionCardActive]}
+                onPress={() => {
+                  setMode('create');
                   setError('');
                 }}
-                mode="outlined"
-                style={styles.input}
-                autoFocus
-                returnKeyType="go"
-                onSubmitEditing={handleCreate}
-                error={!!error}
-              />
-              {!!error && <Text style={styles.error}>{error}</Text>}
-              <Button
-                mode="contained"
-                onPress={handleCreate}
-                loading={isLoading}
-                disabled={isLoading}
-                style={styles.button}
-                contentStyle={styles.buttonContent}
-                labelStyle={styles.buttonLabel}
-                buttonColor={C.primary}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Create a new house"
+                accessibilityState={{ selected: mode === 'create' }}
               >
-                {t('house_setup.create_house')}
-              </Button>
-            </View>
-          ) : (
-            <View style={styles.form}>
-              <Text style={styles.hint}>{t('house_setup.invite_code_hint')}</Text>
-              <TextInput
-                label={t('house_setup.invite_code')}
-                value={inviteCode}
-                onChangeText={(v) => {
-                  setInviteCode(v.toUpperCase());
-                  setError('');
-                }}
-                mode="outlined"
-                style={[styles.input, styles.codeInput]}
-                autoCapitalize="characters"
-                autoFocus
-                returnKeyType="go"
-                onSubmitEditing={handleJoin}
-                error={!!error}
-              />
-              {!!error && <Text style={styles.error}>{error}</Text>}
-              {assignedColor && (
-                <View style={styles.colorNotice}>
-                  <View style={[styles.colorNoticeDot, { backgroundColor: assignedColor }]} />
-                  <Text style={styles.colorNoticeText}>
-                    Your color was updated to avoid a clash with your new housemates. Change it
-                    anytime in Profile.
-                  </Text>
+                <View style={[styles.optionChip, mode === 'create' && styles.optionChipActive]}>
+                  <Ionicons
+                    name="home-outline"
+                    size={24}
+                    color={mode === 'create' ? C.primary : C.textSecondary}
+                  />
                 </View>
-              )}
-              <Button
-                mode="contained"
-                onPress={handleJoin}
-                loading={isLoading}
-                disabled={isLoading}
-                style={styles.button}
-                contentStyle={styles.buttonContent}
-                labelStyle={styles.buttonLabel}
-                buttonColor={C.primary}
+                <Text style={[styles.optionTitle, mode === 'create' && styles.optionTitleActive]}>
+                  {t('house_setup.create_house')}
+                </Text>
+                <Text style={styles.optionSub}>{t('house_setup.create_house_sub')}</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.optionCard, mode === 'join' && styles.optionCardActive]}
+                onPress={() => {
+                  setMode('join');
+                  setError('');
+                }}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="Join an existing house"
+                accessibilityState={{ selected: mode === 'join' }}
               >
-                {t('house_setup.join_house')}
-              </Button>
+                <View style={[styles.optionChip, mode === 'join' && styles.optionChipActive]}>
+                  <Ionicons
+                    name="key-outline"
+                    size={24}
+                    color={mode === 'join' ? C.primary : C.textSecondary}
+                  />
+                </View>
+                <Text style={[styles.optionTitle, mode === 'join' && styles.optionTitleActive]}>
+                  {t('house_setup.join_house')}
+                </Text>
+                <Text style={styles.optionSub}>{t('house_setup.join_house_sub')}</Text>
+              </Pressable>
             </View>
-          )}
+
+            {/* Form */}
+            {mode === 'create' ? (
+              <View style={styles.form}>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>{t('house_setup.house_name_placeholder')}</Text>
+                  <TextInput
+                    value={houseName}
+                    onChangeText={(v) => {
+                      setHouseName(v);
+                      setError('');
+                    }}
+                    mode="outlined"
+                    style={styles.input}
+                    outlineStyle={styles.inputOutline}
+                    autoFocus
+                    returnKeyType="go"
+                    onSubmitEditing={handleCreate}
+                    error={!!error}
+                    placeholder="e.g. Our Flat"
+                    placeholderTextColor={C.textTertiary}
+                    accessibilityLabel="House name"
+                    accessibilityHint="Enter a name for your household, e.g. Our Flat"
+                  />
+                </View>
+
+                {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+                <Button
+                  mode="contained"
+                  onPress={handleCreate}
+                  loading={isLoading}
+                  disabled={isLoading}
+                  style={styles.button}
+                  contentStyle={styles.buttonContent}
+                  labelStyle={styles.buttonLabel}
+                  buttonColor={C.primary}
+                >
+                  {t('house_setup.create_house')}
+                </Button>
+              </View>
+            ) : (
+              <View style={styles.form}>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>{t('house_setup.invite_code')}</Text>
+                  <TextInput
+                    value={inviteCode}
+                    onChangeText={(v) => {
+                      setInviteCode(v.toUpperCase());
+                      setError('');
+                    }}
+                    mode="outlined"
+                    style={[styles.input, styles.codeInput]}
+                    outlineStyle={styles.inputOutline}
+                    autoCapitalize="characters"
+                    autoFocus
+                    returnKeyType="go"
+                    onSubmitEditing={handleFindHouse}
+                    error={!!error}
+                    placeholder="XXXXXXXX"
+                    placeholderTextColor={C.textTertiary}
+                    accessibilityLabel="Invite code"
+                    accessibilityHint="Enter the 8-character invite code from a housemate"
+                  />
+                  <Text style={styles.codeHint}>{t('house_setup.code_hint')}</Text>
+                </View>
+
+                {!!error && <Text style={styles.errorText}>{error}</Text>}
+
+                {assignedColor && (
+                  <View style={styles.colorNotice}>
+                    <View style={[styles.colorNoticeDot, { backgroundColor: assignedColor }]} />
+                    <Text style={styles.colorNoticeText}>{t('house_setup.color_updated')}</Text>
+                  </View>
+                )}
+
+                <Button
+                  mode="contained"
+                  onPress={handleFindHouse}
+                  loading={isLoading}
+                  disabled={isLoading || inviteCode.trim().length < 8}
+                  style={styles.button}
+                  contentStyle={styles.buttonContent}
+                  labelStyle={styles.buttonLabel}
+                  buttonColor={C.primary}
+                >
+                  {t('house_setup.find_house')}
+                </Button>
+              </View>
+            )}
+          </View>
         </ScrollView>
-      </Animated.View>
-    </SafeAreaView>
+      </KeyboardAvoidingView>
+
+      {/* Join confirmation bottom sheet */}
+      <Modal
+        visible={showConfirm}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowConfirm(false)}
+      >
+        <Pressable style={styles.backdrop} onPress={() => setShowConfirm(false)}>
+          <Pressable
+            style={styles.sheet}
+            onPress={() => {
+              /* swallow */
+            }}
+            accessible={false}
+          >
+            <View style={styles.sheetHandle} />
+
+            <Text style={styles.sheetTitle}>{t('house_setup.confirm_join_title')}</Text>
+            <Text style={styles.sheetSubtitle}>
+              {t('house_setup.confirm_join_subtitle', { code: inviteCode.trim().toUpperCase() })}
+            </Text>
+
+            {pendingHouse && (
+              <View style={styles.houseCard}>
+                <View style={styles.houseChip}>
+                  <Ionicons name="home-outline" size={22} color={C.primary} />
+                </View>
+                <View style={styles.houseInfo}>
+                  <Text style={styles.houseName}>{pendingHouse.name}</Text>
+                  <View style={styles.memberRow}>
+                    <Ionicons name="people-outline" size={13} color={C.textSecondary} />
+                    <Text style={styles.memberCount}>
+                      {t('house_setup.member_count', { count: pendingHouse.memberCount })}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            <Button
+              mode="contained"
+              onPress={handleConfirmJoin}
+              loading={isLoading}
+              disabled={isLoading}
+              style={[styles.button, styles.confirmButton]}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
+              buttonColor={C.success}
+            >
+              {t('house_setup.confirm_join')}
+            </Button>
+
+            <Pressable
+              onPress={() => setShowConfirm(false)}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+              style={styles.cancelBtn}
+            >
+              <Text style={styles.cancelText}>{t('house_setup.wrong_house')}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </Animated.View>
   );
 }
 
@@ -311,95 +465,136 @@ function generateCode(): string {
 
 function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: C.surface },
-    flex: { flex: 1 },
-    content: {
-      paddingHorizontal: sizes.lg,
-      paddingBottom: sizes.xl,
-      gap: sizes.md,
-    },
-    logoRow: { alignItems: 'center', marginTop: sizes.xl },
-    logo: {
-      width: 64,
-      height: 64,
-      borderRadius: sizes.borderRadiusLg,
-      borderCurve: 'continuous',
+    root: {
+      flex: 1,
       backgroundColor: C.primary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    } as never,
-    logoText: {
-      fontSize: 32,
-      ...font.extrabold,
-      color: '#fff',
+    },
+    header: {
+      backgroundColor: C.primary,
+      paddingHorizontal: sizes.lg,
+      paddingBottom: 28,
+      gap: 8,
     },
     backBtn: {
-      paddingVertical: sizes.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
       alignSelf: 'flex-start',
+      paddingVertical: sizes.sm,
+      paddingHorizontal: sizes.xs,
+      minHeight: sizes.touchTarget,
+      marginTop: sizes.xs,
+      marginBottom: 4,
     },
-    backBtnText: {
-      fontSize: 14,
+    backText: {
+      fontSize: 15.5,
       ...font.medium,
-      color: C.textSecondary,
+      color: 'rgba(255,255,255,0.85)',
     },
-    titleBlock: { gap: 6, marginBottom: sizes.xs },
-    title: {
-      fontSize: 28,
+    headerTitle: {
+      fontSize: 22,
       ...font.extrabold,
-      color: C.textPrimary,
+      color: '#fff',
       letterSpacing: -0.5,
-      textAlign: 'center',
     },
-    subtitle: {
+    headerSubtitle: {
       fontSize: 15,
       ...font.regular,
+      color: 'rgba(255,255,255,0.65)',
+      lineHeight: 22,
+    },
+    cardWrapper: {
+      flex: 1,
+      backgroundColor: C.primary,
+    },
+    scrollContent: {
+      flexGrow: 1,
+    },
+    card: {
+      flex: 1,
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: sizes.lg,
+      paddingTop: 28,
+      paddingBottom: 48,
+      gap: 24,
+      minHeight: 480,
+    },
+    optionGrid: {
+      flexDirection: 'row',
+      gap: 14,
+    },
+    optionCard: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      borderRadius: 16,
+      padding: sizes.md,
+      alignItems: 'center',
+      gap: 8,
+    },
+    optionCardActive: {
+      borderColor: C.primary,
+      backgroundColor: C.primary + '14',
+    },
+    optionChip: {
+      width: 52,
+      height: 52,
+      borderRadius: 14,
+      backgroundColor: C.surfaceSecondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    optionChipActive: {
+      backgroundColor: 'rgba(59,111,191,0.14)',
+    },
+    optionTitle: {
+      fontSize: sizes.fontSm,
+      ...font.bold,
       color: C.textSecondary,
       textAlign: 'center',
     },
-    tabs: {
-      flexDirection: 'row',
-      gap: sizes.sm,
-      backgroundColor: C.background,
-      borderRadius: sizes.borderRadiusFull,
-      padding: 4,
+    optionTitleActive: {
+      color: C.textPrimary,
     },
-    tab: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: sizes.borderRadiusFull,
-      alignItems: 'center',
-    },
-    tabActive: {
-      backgroundColor: C.primary,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    tabLabel: {
-      fontSize: 14,
-      ...font.semibold,
-      color: C.textSecondary,
-    },
-    tabLabelActive: {
-      color: '#fff',
-    },
-    form: { gap: sizes.sm, marginTop: sizes.xs },
-    hint: {
-      fontSize: sizes.fontSm,
+    optionSub: {
+      fontSize: 12,
       ...font.regular,
       color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: 16,
     },
-    input: { backgroundColor: C.surface },
-    codeInput: { letterSpacing: 4, fontSize: sizes.fontXl },
-    error: {
+    form: {
+      gap: 16,
+    },
+    fieldGroup: {
+      gap: 6,
+    },
+    label: {
       fontSize: sizes.fontSm,
+      ...font.semibold,
+      color: C.textPrimary,
+    },
+    input: {
+      backgroundColor: C.surface,
+      height: 52,
+    },
+    inputOutline: {
+      borderRadius: 12,
+      borderColor: C.border,
+    },
+    codeInput: {
+      letterSpacing: 4,
+      fontSize: sizes.fontXl,
+    },
+    codeHint: {
+      fontSize: 11,
+      ...font.regular,
+      color: C.textTertiary,
+    },
+    errorText: {
+      fontSize: sizes.fontXs,
       ...font.regular,
       color: C.danger,
     },
@@ -425,16 +620,105 @@ function makeStyles(C: ColorTokens) {
       lineHeight: 18,
     },
     button: {
-      marginTop: sizes.sm,
       borderRadius: 14,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.28,
+      shadowRadius: 12,
+      elevation: 4,
     },
-    buttonContent: {
-      height: 52,
+    confirmButton: {
+      shadowColor: '#4FB071',
+      width: '100%',
     },
+    buttonContent: { height: 52 },
     buttonLabel: {
-      fontSize: 16,
+      fontSize: sizes.fontMd,
       ...font.semibold,
-      letterSpacing: 0.2,
+      letterSpacing: 0.1,
+    },
+    // Bottom sheet
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(12,20,35,0.52)',
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      backgroundColor: C.surface,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingHorizontal: sizes.lg,
+      paddingTop: sizes.md,
+      paddingBottom: 48,
+      gap: 16,
+      alignItems: 'center',
+    },
+    sheetHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: C.border,
+      marginBottom: sizes.sm,
+    },
+    sheetTitle: {
+      fontSize: 20,
+      ...font.bold,
+      color: C.textPrimary,
+      textAlign: 'center',
+    },
+    sheetSubtitle: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+    },
+    houseCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      backgroundColor: C.primary + '0D',
+      borderRadius: 16,
+      padding: sizes.md,
+      width: '100%',
+    },
+    houseChip: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: C.primary + '26',
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexShrink: 0,
+    },
+    houseInfo: {
+      gap: 4,
+    },
+    houseName: {
+      fontSize: 17,
+      ...font.bold,
+      color: C.textPrimary,
+    },
+    memberRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    memberCount: {
+      fontSize: 13,
+      ...font.regular,
+      color: C.textSecondary,
+    },
+    cancelBtn: {
+      paddingVertical: sizes.sm,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
+    },
+    cancelText: {
+      fontSize: 13,
+      ...font.regular,
+      color: C.textSecondary,
+      textDecorationLine: 'underline',
+      textAlign: 'center',
     },
   });
 }
