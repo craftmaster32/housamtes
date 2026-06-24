@@ -96,6 +96,8 @@ export default function RootLayout(): React.JSX.Element | null {
     Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     ionicons: require('../assets/fonts/Ionicons.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    MaterialCommunityIcons: require('../assets/fonts/MaterialCommunityIcons.ttf'),
   });
 
   const initialize = useAuthStore((s) => s.initialize);
@@ -153,7 +155,10 @@ export default function RootLayout(): React.JSX.Element | null {
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token') ?? '';
         if (accessToken && hashParams.get('type') === 'recovery') {
-          await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
         }
       }
     };
@@ -164,7 +169,9 @@ export default function RootLayout(): React.JSX.Element | null {
     });
 
     // App already open and deep link arrives
-    const sub = Linking.addEventListener('url', ({ url }) => { handleUrl(url); });
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      handleUrl(url);
+    });
     return (): void => sub.remove();
   }, []);
 
@@ -195,7 +202,15 @@ export default function RootLayout(): React.JSX.Element | null {
     } else if (user && houseId && !inTabs) {
       router.replace('/(tabs)/dashboard');
     }
-  }, [user, houseId, authStable, segmentsKey, currentScreen, isPasswordRecovery, needsTermsAcceptance]);
+  }, [
+    user,
+    houseId,
+    authStable,
+    segmentsKey,
+    currentScreen,
+    isPasswordRecovery,
+    needsTermsAcceptance,
+  ]);
 
   useEffect(() => {
     if (!houseId) return;
@@ -228,10 +243,20 @@ export default function RootLayout(): React.JSX.Element | null {
       useConditionStore.getState().unsubscribe();
     };
   }, [
-    houseId, user,
-    loadHousemates, loadBills, loadRecurringBills, loadParking, loadGrocery,
-    loadChores, loadEvents, loadAnnouncements, loadMaintenance,
-    loadVoting, loadCondition, loadNotificationPrefs,
+    houseId,
+    user,
+    loadHousemates,
+    loadBills,
+    loadRecurringBills,
+    loadParking,
+    loadGrocery,
+    loadChores,
+    loadEvents,
+    loadAnnouncements,
+    loadMaintenance,
+    loadVoting,
+    loadCondition,
+    loadNotificationPrefs,
   ]);
 
   // Re-fetch all data when app comes back to foreground — iOS drops the
@@ -256,9 +281,17 @@ export default function RootLayout(): React.JSX.Element | null {
     return (): void => sub.remove();
   }, [
     houseId,
-    loadHousemates, loadBills, loadRecurringBills, loadParking, loadGrocery,
-    loadChores, loadEvents, loadAnnouncements, loadMaintenance,
-    loadVoting, loadCondition,
+    loadHousemates,
+    loadBills,
+    loadRecurringBills,
+    loadParking,
+    loadGrocery,
+    loadChores,
+    loadEvents,
+    loadAnnouncements,
+    loadMaintenance,
+    loadVoting,
+    loadCondition,
   ]);
 
   const showChrome = !!user && !!houseId && !needsTermsAcceptance;
@@ -283,26 +316,37 @@ export default function RootLayout(): React.JSX.Element | null {
 
   // Stack must always render — navigation happens via useEffect above
   return (
-    <GestureHandlerRootView style={[styles.gestureRoot, { backgroundColor: c.background, direction: getIsRTL(language) ? 'rtl' : 'ltr' }]}>
-    <PaperProvider theme={paperTheme}>
-      <StatusBar style="light" />
-      <ErrorBoundary>
-        <View style={[styles.root, { direction: getIsRTL(language) ? 'rtl' : 'ltr', backgroundColor: c.background }]} {...backSwipe.panHandlers}>
-          {showChrome && <TopBar />}
-          <View style={styles.content}>
-            <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
-          </View>
-          {showChrome && <BottomTabBar />}
-          {showChrome && <MorePopup />}
-          {showChrome && <ProfilePopup />}
-          {(isLoading || !fontsLoaded) && (
-            <View style={styles.splash}>
-              <ActivityIndicator size="large" color={darkColors.primary} />
+    <GestureHandlerRootView
+      style={[
+        styles.gestureRoot,
+        { backgroundColor: c.background, direction: getIsRTL(language) ? 'rtl' : 'ltr' },
+      ]}
+    >
+      <PaperProvider theme={paperTheme}>
+        <StatusBar style="light" />
+        <ErrorBoundary>
+          <View
+            style={[
+              styles.root,
+              { direction: getIsRTL(language) ? 'rtl' : 'ltr', backgroundColor: c.background },
+            ]}
+            {...backSwipe.panHandlers}
+          >
+            {showChrome && <TopBar />}
+            <View style={styles.content}>
+              <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
             </View>
-          )}
-        </View>
-      </ErrorBoundary>
-    </PaperProvider>
+            {showChrome && <BottomTabBar />}
+            {showChrome && <MorePopup />}
+            {showChrome && <ProfilePopup />}
+            {(isLoading || !fontsLoaded) && (
+              <View style={styles.splash}>
+                <ActivityIndicator size="large" color={darkColors.primary} />
+              </View>
+            )}
+          </View>
+        </ErrorBoundary>
+      </PaperProvider>
     </GestureHandlerRootView>
   );
 }
@@ -311,5 +355,14 @@ const styles = StyleSheet.create({
   gestureRoot: { flex: 1 },
   root: { flex: 1, overflow: 'hidden' },
   content: { flex: 1, minHeight: 0 },
-  splash: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: darkColors.background },
+  splash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: darkColors.background,
+  },
 });
