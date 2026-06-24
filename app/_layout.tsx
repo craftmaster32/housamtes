@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, PanResponder, AppState } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  PanResponder,
+  AppState,
+  InteractionManager,
+} from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { initErrorTracking } from '@lib/errorTracking';
@@ -214,22 +221,26 @@ export default function RootLayout(): React.JSX.Element | null {
 
   useEffect(() => {
     if (!houseId) return;
-    if (user?.id) {
-      loadNotificationPrefs(user.id, houseId);
-      registerWebPush(user.id, houseId);
-    }
     loadHousemates(houseId);
     loadBills(houseId);
     loadRecurringBills(houseId);
-    loadParking(houseId);
-    loadGrocery(houseId);
-    loadChores(houseId);
-    loadEvents(houseId);
-    loadAnnouncements(houseId);
-    loadMaintenance(houseId);
-    loadVoting(houseId);
-    loadCondition(houseId);
+
+    const deferred = InteractionManager.runAfterInteractions(() => {
+      loadParking(houseId);
+      loadGrocery(houseId);
+      loadChores(houseId);
+      loadEvents(houseId);
+      loadAnnouncements(houseId);
+      loadMaintenance(houseId);
+      loadVoting(houseId);
+      loadCondition(houseId);
+      if (user?.id) {
+        loadNotificationPrefs(user.id, houseId);
+        registerWebPush(user.id, houseId);
+      }
+    });
     return (): void => {
+      deferred.cancel();
       useHousematesStore.getState().unsubscribe();
       useBillsStore.getState().unsubscribe();
       useRecurringBillsStore.getState().unsubscribe();
@@ -268,14 +279,16 @@ export default function RootLayout(): React.JSX.Element | null {
         loadHousemates(houseId);
         loadBills(houseId);
         loadRecurringBills(houseId);
-        loadParking(houseId);
-        loadGrocery(houseId);
-        loadChores(houseId);
-        loadEvents(houseId);
-        loadAnnouncements(houseId);
-        loadMaintenance(houseId);
-        loadVoting(houseId);
-        loadCondition(houseId);
+        InteractionManager.runAfterInteractions(() => {
+          loadParking(houseId);
+          loadGrocery(houseId);
+          loadChores(houseId);
+          loadEvents(houseId);
+          loadAnnouncements(houseId);
+          loadMaintenance(houseId);
+          loadVoting(houseId);
+          loadCondition(houseId);
+        });
       }
     });
     return (): void => sub.remove();
