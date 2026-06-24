@@ -582,8 +582,20 @@ export const useParkingStore = create<ParkingStore>()(
               notifyHousemates({
                 houseId,
                 excludeUserId: userId,
+                includeUserIds: [localReservation.requestedBy],
                 title: '✅ You got the spot!',
                 body: `Parking confirmed for ${localReservation.date}${localReservation.startTime ? ` at ${localReservation.startTime}` : ''}. You're welcome 🤝`,
+                data: { screen: 'parking' },
+                notificationType: 'parking_reservation',
+              });
+            }
+            if (statusWasUpdated && newStatus === 'rejected') {
+              notifyHousemates({
+                houseId,
+                excludeUserId: userId,
+                includeUserIds: [localReservation.requestedBy],
+                title: '❌ Request denied',
+                body: `Your parking request for ${localReservation.date} was voted down.`,
                 data: { screen: 'parking' },
                 notificationType: 'parking_reservation',
               });
@@ -605,6 +617,17 @@ export const useParkingStore = create<ParkingStore>()(
                 captureError(err, { context: 'notify-non-voters', houseId, userId })
               );
             }
+            notifyHousemates({
+              houseId,
+              excludeUserId: userId,
+              includeUserIds: [localReservation.requestedBy],
+              title: '🗳️ Vote received!',
+              body: `Your parking request for ${localReservation.date} is still open — ${votes.length}/${voterIds.length} votes in.`,
+              data: { screen: 'parking' },
+              notificationType: 'parking_reservation',
+            }).catch((err) =>
+              captureError(err, { context: 'notify-requester-vote-progress', houseId, userId })
+            );
           }
 
           // Optimistic local update while realtime syncs

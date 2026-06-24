@@ -665,12 +665,20 @@ describe('parkingStore — voteOnReservation', () => {
     expect(notifyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         includeUserIds: ['u2'],
+        title: '🗳️ Your vote is needed!',
+        notificationType: 'parking_reservation',
+      })
+    );
+    expect(notifyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeUserIds: ['requester'],
+        title: '🗳️ Vote received!',
         notificationType: 'parking_reservation',
       })
     );
   });
 
-  it('approves after everyone votes and approve has the higher count', async () => {
+  it('sends approved notification only to the requester', async () => {
     useParkingStore.setState({
       reservations: [
         reservation({
@@ -699,6 +707,56 @@ describe('parkingStore — voteOnReservation', () => {
 
     expect(status).toBe('approved');
     expect(useParkingStore.getState().reservations[0].status).toBe('approved');
+
+    const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as {
+      notifyHousemates: jest.Mock;
+    };
+    expect(notifyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeUserIds: ['requester'],
+        title: '✅ You got the spot!',
+      })
+    );
+    expect(notifyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: '🗳️ Your vote is needed!' })
+    );
+  });
+
+  it('sends rejected notification only to the requester', async () => {
+    useParkingStore.setState({
+      reservations: [
+        reservation({
+          id: 'r1',
+          requestedBy: 'requester',
+          status: 'pending',
+          date: futureDateStr(7),
+        }),
+      ],
+    });
+    mockFrom
+      .mockReturnValueOnce(ok())
+      .mockReturnValueOnce(
+        ok([
+          { user_id: 'u1', vote: 'reject' },
+          { user_id: 'u2', vote: 'reject' },
+        ])
+      )
+      .mockReturnValueOnce(ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }]))
+      .mockReturnValueOnce(ok([{ id: 'r1' }]));
+
+    const status = await useParkingStore.getState().voteOnReservation('r1', 'reject', 'house-1');
+
+    expect(status).toBe('rejected');
+
+    const { notifyHousemates: notifyMock } = jest.requireMock('@lib/notifyHousemates') as {
+      notifyHousemates: jest.Mock;
+    };
+    expect(notifyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeUserIds: ['requester'],
+        title: '❌ Request denied',
+      })
+    );
   });
 
   it('throws when upsert fails', async () => {
