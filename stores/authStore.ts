@@ -12,15 +12,27 @@ const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
 const CURRENT_TERMS_VERSION = '2026-05-10';
 
 async function savePendingEmail(email: string): Promise<void> {
-  try { await AsyncStorage.setItem(PENDING_EMAIL_KEY, email); } catch { /* non-fatal */ }
+  try {
+    await AsyncStorage.setItem(PENDING_EMAIL_KEY, email);
+  } catch {
+    /* non-fatal */
+  }
 }
 
 async function loadPendingEmail(): Promise<string | null> {
-  try { return await AsyncStorage.getItem(PENDING_EMAIL_KEY); } catch { return null; }
+  try {
+    return await AsyncStorage.getItem(PENDING_EMAIL_KEY);
+  } catch {
+    return null;
+  }
 }
 
 async function clearPendingEmail(): Promise<void> {
-  try { await AsyncStorage.removeItem(PENDING_EMAIL_KEY); } catch { /* non-fatal */ }
+  try {
+    await AsyncStorage.removeItem(PENDING_EMAIL_KEY);
+  } catch {
+    /* non-fatal */
+  }
 }
 
 // ── Persistent house cache ────────────────────────────────────────────────────
@@ -49,7 +61,9 @@ async function cacheHouseId(userId: string, houseId: string): Promise<void> {
     } else {
       await getSecureStore().setItemAsync(HOUSE_CACHE_PREFIX + userId, houseId);
     }
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 }
 
 async function getCachedHouseId(userId: string): Promise<string | null> {
@@ -61,7 +75,9 @@ async function getCachedHouseId(userId: string): Promise<string | null> {
       return null;
     }
     return await getSecureStore().getItemAsync(HOUSE_CACHE_PREFIX + userId);
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function clearCachedHouseId(userId: string): Promise<void> {
@@ -73,7 +89,9 @@ async function clearCachedHouseId(userId: string): Promise<void> {
     } else {
       await getSecureStore().deleteItemAsync(HOUSE_CACHE_PREFIX + userId);
     }
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 }
 
 // Map raw Supabase error messages to user-friendly text so internal
@@ -114,8 +132,15 @@ export interface MemberPermissions {
 export type MemberRole = 'owner' | 'admin' | 'member';
 
 export const DEFAULT_PERMISSIONS: MemberPermissions = {
-  bills: true, grocery: true, parking: true, chores: true,
-  chat: true, photos: true, voting: true, maintenance: true, condition: true,
+  bills: true,
+  grocery: true,
+  parking: true,
+  chores: true,
+  chat: true,
+  photos: true,
+  voting: true,
+  maintenance: true,
+  condition: true,
 };
 
 export interface Profile {
@@ -140,7 +165,12 @@ interface AuthStore {
   isPasswordRecovery: boolean;
   needsTermsAcceptance: boolean;
   initialize: () => Promise<void>;
-  signUp: (email: string, password: string, name: string, avatarColor: string) => Promise<{ needsVerification: boolean }>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    avatarColor: string
+  ) => Promise<{ needsVerification: boolean }>;
   resendVerification: (email: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -218,7 +248,15 @@ export const useAuthStore = create<AuthStore>()(
               hasCurrentConsent(session.user.id),
             ]);
             identifyUser(session.user.id);
-            set({ user: session.user, session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, needsTermsAcceptance: !consentOk });
+            set({
+              user: session.user,
+              session,
+              profile,
+              houseId: memberData.houseId,
+              role: memberData.role,
+              permissions: memberData.permissions,
+              needsTermsAcceptance: !consentOk,
+            });
             if (memberData.houseId) {
               registerPushToken(session.user.id, memberData.houseId);
               registerWebPush(session.user.id, memberData.houseId);
@@ -230,7 +268,14 @@ export const useAuthStore = create<AuthStore>()(
               unregisterWebPush(prev.user.id, prev.houseId);
             }
             clearUser();
-            set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
+            set({
+              user: null,
+              session: null,
+              profile: null,
+              houseId: null,
+              role: null,
+              permissions: DEFAULT_PERMISSIONS,
+            });
           }
         });
 
@@ -239,7 +284,10 @@ export const useAuthStore = create<AuthStore>()(
         if (restoredEmail) set({ pendingEmail: restoredEmail });
 
         try {
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession();
           // Invalid / expired refresh token — clear it so the user is redirected to login
           if (sessionError) {
             await supabase.auth.signOut().catch(() => {});
@@ -253,7 +301,16 @@ export const useAuthStore = create<AuthStore>()(
               hasCurrentConsent(session.user.id),
             ]);
             identifyUser(session.user.id);
-            set({ user: session.user, session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, needsTermsAcceptance: !consentOk, isLoading: false });
+            set({
+              user: session.user,
+              session,
+              profile,
+              houseId: memberData.houseId,
+              role: memberData.role,
+              permissions: memberData.permissions,
+              needsTermsAcceptance: !consentOk,
+              isLoading: false,
+            });
             if (memberData.houseId) {
               registerPushToken(session.user.id, memberData.houseId);
               registerWebPush(session.user.id, memberData.houseId);
@@ -269,7 +326,12 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      signUp: async (email, password, name, avatarColor): Promise<{ needsVerification: boolean }> => {
+      signUp: async (
+        email,
+        password,
+        name,
+        avatarColor
+      ): Promise<{ needsVerification: boolean }> => {
         set({ isLoading: true, error: null });
         try {
           const { data, error } = await supabase.auth.signUp({
@@ -281,13 +343,20 @@ export const useAuthStore = create<AuthStore>()(
           if (data.user) {
             // Record consent immediately after account creation (clickwrap legal evidence).
             // Best-effort — failure here must not block account creation.
-            supabase.from('user_consents').insert({
-              user_id: data.user.id,
-              terms_version: CURRENT_TERMS_VERSION,
-              platform: Platform.OS,
-            }).then(({ error: consentErr }) => {
-              if (consentErr) captureError(consentErr, { context: 'record-consent', userId: data.user?.id ?? '' });
-            });
+            supabase
+              .from('user_consents')
+              .insert({
+                user_id: data.user.id,
+                terms_version: CURRENT_TERMS_VERSION,
+                platform: Platform.OS,
+              })
+              .then(({ error: consentErr }) => {
+                if (consentErr)
+                  captureError(consentErr, {
+                    context: 'record-consent',
+                    userId: data.user?.id ?? '',
+                  });
+              });
 
             // If session is null, email confirmation is required.
             // The handle_new_user trigger already created the profile row — no insert needed here.
@@ -296,7 +365,10 @@ export const useAuthStore = create<AuthStore>()(
               savePendingEmail(email).catch(() => {});
               return { needsVerification: true };
             }
-            const profile = await fetchProfile(data.user.id, data.user.user_metadata as Record<string, unknown>);
+            const profile = await fetchProfile(
+              data.user.id,
+              data.user.user_metadata as Record<string, unknown>
+            );
             set({ user: data.user, session: data.session, profile, isLoading: false });
           }
           return { needsVerification: false };
@@ -324,7 +396,17 @@ export const useAuthStore = create<AuthStore>()(
               hasCurrentConsent(data.user.id),
             ]);
             clearPendingEmail().catch(() => {});
-            set({ user: data.user, session: data.session, profile, houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions, needsTermsAcceptance: !consentOk, isLoading: false, pendingEmail: null });
+            set({
+              user: data.user,
+              session: data.session,
+              profile,
+              houseId: memberData.houseId,
+              role: memberData.role,
+              permissions: memberData.permissions,
+              needsTermsAcceptance: !consentOk,
+              isLoading: false,
+              pendingEmail: null,
+            });
             if (memberData.houseId) {
               registerPushToken(data.user.id, memberData.houseId);
               registerWebPush(data.user.id, memberData.houseId);
@@ -350,16 +432,21 @@ export const useAuthStore = create<AuthStore>()(
         // (e.g. expired token will cause signOut to fail but user should still be logged out locally)
         await supabase.auth.signOut().catch(() => {});
         clearPendingEmail().catch(() => {});
-        set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS, pendingEmail: null });
+        set({
+          user: null,
+          session: null,
+          profile: null,
+          houseId: null,
+          role: null,
+          permissions: DEFAULT_PERMISSIONS,
+          pendingEmail: null,
+        });
       },
 
       updateProfile: async (name: string): Promise<void> => {
         const { user } = useAuthStore.getState();
         if (!user) return;
-        const { error } = await supabase
-          .from('profiles')
-          .update({ name })
-          .eq('id', user.id);
+        const { error } = await supabase.from('profiles').update({ name }).eq('id', user.id);
         if (error) throw new Error('Could not update name. Please try again.');
         set((s) => ({ profile: s.profile ? { ...s.profile, name } : s.profile }));
       },
@@ -378,24 +465,34 @@ export const useAuthStore = create<AuthStore>()(
         });
         if (verifyError) throw new Error('Current password is incorrect.');
         if (newPassword.length < 8) throw new Error('Password must be at least 8 characters.');
-        if (!/[A-Z]/.test(newPassword)) throw new Error('Password must include at least one uppercase letter.');
-        if (!/[0-9]/.test(newPassword)) throw new Error('Password must include at least one number.');
+        if (!/[A-Z]/.test(newPassword))
+          throw new Error('Password must include at least one uppercase letter.');
+        if (!/[0-9]/.test(newPassword))
+          throw new Error('Password must include at least one number.');
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) throw new Error('Could not update password. Please try again.');
         // Sign out all other sessions (other devices) so only this device stays logged in
         await supabase.auth.signOut({ scope: 'others' });
       },
 
-      uploadAvatar: async (uri: string, mimeType = 'image/jpeg', base64?: string): Promise<void> => {
+      uploadAvatar: async (
+        uri: string,
+        mimeType = 'image/jpeg',
+        base64?: string
+      ): Promise<void> => {
         const { user } = useAuthStore.getState();
         if (!user) return;
         const path = `${user.id}/avatar`;
         const { buffer, contentType } = await resolveUploadData(uri, mimeType, base64);
-        if (buffer.byteLength > 5 * 1024 * 1024) throw new Error('Photo must be under 5 MB. Please crop or compress the image.');
+        if (buffer.byteLength > 5 * 1024 * 1024)
+          throw new Error('Photo must be under 5 MB. Please crop or compress the image.');
         const { error: uploadError } = await supabase.storage
           .from('profiles')
           .upload(path, buffer, { contentType, upsert: true });
-        if (uploadError) { captureError(uploadError, { context: 'upload-avatar' }); throw new Error('Could not upload photo. Please try again.'); }
+        if (uploadError) {
+          captureError(uploadError, { context: 'upload-avatar' });
+          throw new Error('Could not upload photo. Please try again.');
+        }
         // Store a marker so fetchProfile knows a photo exists.
         // We do NOT store a signed/public URL because those can expire or be inaccessible
         // if the bucket public flag isn't set — instead we always generate a fresh signed URL.
@@ -404,13 +501,18 @@ export const useAuthStore = create<AuthStore>()(
           .from('profiles')
           .update({ avatar_url: placeholder })
           .eq('id', user.id);
-        if (updateError) { captureError(updateError, { context: 'update-avatar-url' }); throw new Error('Could not save photo. Please try again.'); }
+        if (updateError) {
+          captureError(updateError, { context: 'update-avatar-url' });
+          throw new Error('Could not save photo. Please try again.');
+        }
         // Generate a signed URL for immediate display (bypasses public-bucket requirement)
         const { data: signed } = await supabase.storage
           .from('profiles')
           .createSignedUrl(path, 60 * 60 * 24 * 365);
         if (!signed?.signedUrl) throw new Error('Could not generate photo URL. Please try again.');
-        set((s) => ({ profile: s.profile ? { ...s.profile, avatarUrl: signed.signedUrl } : s.profile }));
+        set((s) => ({
+          profile: s.profile ? { ...s.profile, avatarUrl: signed.signedUrl } : s.profile,
+        }));
       },
 
       removeAvatar: async (): Promise<void> => {
@@ -426,22 +528,31 @@ export const useAuthStore = create<AuthStore>()(
         if (!user) return;
         const path = `${user.id}/cover`;
         const { buffer, contentType } = await resolveUploadData(uri, mimeType, base64);
-        if (buffer.byteLength > 10 * 1024 * 1024) throw new Error('Cover photo must be under 10 MB. Please use a smaller image.');
+        if (buffer.byteLength > 10 * 1024 * 1024)
+          throw new Error('Cover photo must be under 10 MB. Please use a smaller image.');
         const { error: uploadError } = await supabase.storage
           .from('profiles')
           .upload(path, buffer, { contentType, upsert: true });
-        if (uploadError) { captureError(uploadError, { context: 'upload-cover' }); throw new Error('Could not upload cover photo. Please try again.'); }
+        if (uploadError) {
+          captureError(uploadError, { context: 'upload-cover' });
+          throw new Error('Could not upload cover photo. Please try again.');
+        }
         const placeholder = `profiles:${path}`;
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ cover_url: placeholder })
           .eq('id', user.id);
-        if (updateError) { captureError(updateError, { context: 'update-cover-url' }); throw new Error('Could not save cover photo. Please try again.'); }
+        if (updateError) {
+          captureError(updateError, { context: 'update-cover-url' });
+          throw new Error('Could not save cover photo. Please try again.');
+        }
         const { data: signed } = await supabase.storage
           .from('profiles')
           .createSignedUrl(path, 60 * 60 * 24 * 365);
         if (!signed?.signedUrl) throw new Error('Could not generate cover URL. Please try again.');
-        set((s) => ({ profile: s.profile ? { ...s.profile, coverUrl: signed.signedUrl } : s.profile }));
+        set((s) => ({
+          profile: s.profile ? { ...s.profile, coverUrl: signed.signedUrl } : s.profile,
+        }));
       },
 
       removeCover: async (): Promise<void> => {
@@ -462,7 +573,11 @@ export const useAuthStore = create<AuthStore>()(
         const { user } = useAuthStore.getState();
         if (!user) return;
         const memberData = await fetchMemberData(user.id);
-        set({ houseId: memberData.houseId, role: memberData.role, permissions: memberData.permissions });
+        set({
+          houseId: memberData.houseId,
+          role: memberData.role,
+          permissions: memberData.permissions,
+        });
       },
 
       leaveHouse: async (): Promise<void> => {
@@ -474,7 +589,9 @@ export const useAuthStore = create<AuthStore>()(
             .delete()
             .eq('user_id', user.id)
             .eq('house_id', houseId);
-        } catch { /* non-fatal */ }
+        } catch {
+          /* non-fatal */
+        }
         // Unregister push tokens so ex-housemates don't receive stale notifications
         unregisterPushToken(user.id, houseId);
         unregisterWebPush(user.id, houseId);
@@ -499,12 +616,22 @@ export const useAuthStore = create<AuthStore>()(
           },
         });
         if (!res.ok) {
-          const body = await res.json().catch(() => ({})) as { error?: string };
-          throw new Error(body.error ?? 'Could not delete account. Please try again or contact support@housemates.app.');
+          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(
+            body.error ??
+              'Could not delete account. Please try again or contact support@housemates.app.'
+          );
         }
         // Clear all local state — the auth user is now gone server-side
         await clearCachedHouseId(user.id).catch(() => {});
-        set({ user: null, session: null, profile: null, houseId: null, role: null, permissions: DEFAULT_PERMISSIONS });
+        set({
+          user: null,
+          session: null,
+          profile: null,
+          houseId: null,
+          role: null,
+          permissions: DEFAULT_PERMISSIONS,
+        });
       },
 
       acceptUpdatedTerms: async (): Promise<void> => {
@@ -589,20 +716,16 @@ async function fetchProfile(
     // Generate fresh signed URLs so photos work regardless of bucket public flag.
     // The DB value may be a placeholder ('profiles:userId/avatar'), a legacy URL,
     // or anything truthy — we only care that a file was uploaded, not the stored value.
-    let avatarUrl: string | undefined;
-    let coverUrl: string | undefined;
-    if (data.avatar_url) {
-      const { data: signed } = await supabase.storage
-        .from('profiles')
-        .createSignedUrl(`${userId}/avatar`, 60 * 60 * 24 * 365);
-      avatarUrl = signed?.signedUrl;
-    }
-    if (data.cover_url) {
-      const { data: signed } = await supabase.storage
-        .from('profiles')
-        .createSignedUrl(`${userId}/cover`, 60 * 60 * 24 * 365);
-      coverUrl = signed?.signedUrl;
-    }
+    const [avatarSigned, coverSigned] = await Promise.all([
+      data.avatar_url
+        ? supabase.storage.from('profiles').createSignedUrl(`${userId}/avatar`, 60 * 60 * 24 * 365)
+        : Promise.resolve(null),
+      data.cover_url
+        ? supabase.storage.from('profiles').createSignedUrl(`${userId}/cover`, 60 * 60 * 24 * 365)
+        : Promise.resolve(null),
+    ]);
+    const avatarUrl = avatarSigned?.data?.signedUrl;
+    const coverUrl = coverSigned?.data?.signedUrl;
     return { id: data.id, name: data.name, avatarColor: data.avatar_color, avatarUrl, coverUrl };
   }
 
@@ -615,7 +738,9 @@ async function fetchProfile(
   return { id: userId, name, avatarColor };
 }
 
-async function fetchMemberData(userId: string): Promise<{ houseId: string | null; role: MemberRole | null; permissions: MemberPermissions }> {
+async function fetchMemberData(
+  userId: string
+): Promise<{ houseId: string | null; role: MemberRole | null; permissions: MemberPermissions }> {
   // Order by joined_at DESC so the most recently joined house wins when a user
   // belongs to multiple houses (e.g. left one and joined another).
   const { data, error } = await supabase
