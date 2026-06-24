@@ -85,6 +85,7 @@
     "sending": "Enviando…",
     "resend_email": "¿No lo recibiste? Reenviar email",
     "could_not_resend": "No pudimos reenviar. Intenta de nuevo.",
+    "no_pending_email": "No se encontró dirección de email. Vuelve atrás e intenta registrarte de nuevo.",
     "forgot_title": "¿Olvidaste tu contraseña?",
     "forgot_subtitle": "Ingresa tu email y te enviaremos un código de 6 dígitos.",
     "send_code": "Enviar código",
