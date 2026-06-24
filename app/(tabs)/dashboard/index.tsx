@@ -44,6 +44,7 @@ import { useTranslation } from 'react-i18next';
 import { SpendingCard } from '@components/profile/SpendingCard';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
+import { DadJokeCard } from '@components/shared/DadJokeCard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string, t: (key: string) => string): string {
@@ -1627,6 +1628,33 @@ export default function DashboardScreen(): React.JSX.Element {
               <ActivityFeed />
             </View>
           </Animated.View>
+
+          {/* ── Dad Joke + Games ──────────────────────────────────────── */}
+          <Animated.View entering={FadeInDown.delay(540).duration(450)} style={styles.row}>
+            <View style={styles.colFull}>
+              <DadJokeCard />
+            </View>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(600).duration(450)} style={styles.row}>
+            <Pressable
+              style={[styles.gamesLink, { backgroundColor: c.surface, borderColor: c.border }]}
+              onPress={() => router.push('/(tabs)/games')}
+              accessibilityRole="button"
+              accessibilityLabel="Open games and fun"
+            >
+              <View style={[styles.gamesIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                <Text style={styles.gamesIcon}>🎮</Text>
+              </View>
+              <View style={styles.gamesTextWrap}>
+                <Text style={[styles.gamesTitle, { color: c.textPrimary }]}>Games & Fun</Text>
+                <Text style={[styles.gamesSub, { color: c.textSecondary }]}>
+                  Word Scramble, Dad Jokes & more
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={c.textDisabled} />
+            </Pressable>
+          </Animated.View>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -2085,4 +2113,25 @@ const styles = StyleSheet.create({
   calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   calLegendDot: { width: 6, height: 6, borderRadius: 3 },
   calLegendLabel: { fontSize: 10, ...font.regular },
+
+  // ── Games link
+  gamesLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: sizes.borderRadiusLg,
+    padding: sizes.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+  },
+  gamesIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gamesIcon: { fontSize: 20 },
+  gamesTextWrap: { flex: 1, gap: 1 },
+  gamesTitle: { fontSize: 15, ...font.semibold },
+  gamesSub: { fontSize: 12, ...font.regular },
 });

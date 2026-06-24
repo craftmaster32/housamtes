@@ -17,6 +17,7 @@ const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const PREF_COLUMN: Record<string, string> = {
   bill_added: 'notify_bill_added',
   bill_settled: 'notify_bill_settled',
+  bill_deleted: 'notify_bill_added',
   bill_due: 'notify_bill_due',
   parking_claimed: 'notify_parking_claimed',
   parking_reservation: 'notify_parking_reservation',
