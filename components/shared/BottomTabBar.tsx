@@ -61,7 +61,7 @@ interface AnimatedIconProps {
 }
 
 function AnimatedIcon({ active, name, size, color }: AnimatedIconProps): React.JSX.Element {
-  const scale = useSharedValue(1);
+  const scale = useSharedValue(active ? 1.15 : 1);
 
   useEffect(() => {
     scale.value = withSpring(active ? 1.15 : 1, { damping: 12, stiffness: 200 });
