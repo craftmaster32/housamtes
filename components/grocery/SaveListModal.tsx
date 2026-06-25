@@ -59,7 +59,7 @@ export function SaveListModal({
     } finally {
       setIsSaving(false);
     }
-  }, [listName, isPrivate, isSaving, onSaveNew, onClose]);
+  }, [listName, isPrivate, isSaving, onSaveNew, onClose, t]);
 
   const handleUpdate = useCallback(async (): Promise<void> => {
     if (isSaving) return;
@@ -73,7 +73,7 @@ export function SaveListModal({
     } finally {
       setIsSaving(false);
     }
-  }, [isSaving, onUpdate, onClose]);
+  }, [isSaving, onUpdate, onClose, t]);
 
   const handleSkip = useCallback((): void => {
     setListName('');

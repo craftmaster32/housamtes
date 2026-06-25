@@ -52,7 +52,7 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
     } finally {
       setIsSaving(false);
     }
-  }, [item, comment, onSaveComment, onClose, isSaving]);
+  }, [item, comment, onSaveComment, onClose, isSaving, t]);
 
   const addedByName = item ? (item.addedBy === myId ? t('common.you') : (housemate?.name ?? t('common.someone'))) : '';
   const timeAgo     = item ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true }) : '';

@@ -126,7 +126,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
           {diffAmt !== null && (
             <View style={styles.diffBadge}>
               <Text style={styles.diffBadgeText}>
-                {isDown ? '↓' : '↑'} {isDown ? 'Down' : 'Up'} {currency}{diffAmt}
+                {isDown ? '↓' : '↑'} {isDown ? t('spending.down') : t('spending.up')} {currency}{diffAmt}
               </Text>
             </View>
           )}
@@ -134,7 +134,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
 
         {/* Bar chart */}
         <View style={styles.chartWrap}>
-          <Text style={styles.chartLabel}>Past {period} months</Text>
+          <Text style={styles.chartLabel}>{t('spending.past_months', { count: period })}</Text>
           <View style={styles.barsRow}>
             {chartData.map((m) => {
               const isLatest = m.month === current?.month;
@@ -152,7 +152,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
           </View>
           {highest && lowest && chartData.length > 1 && (
             <Text style={styles.chartNote}>
-              Highest: {highest.label.split(' ')[0]} • Lowest: {lowest.label.split(' ')[0]}
+              {t('spending.highest')}: {highest.label.split(' ')[0]} • {t('spending.lowest')}: {lowest.label.split(' ')[0]}
             </Text>
           )}
         </View>
@@ -161,11 +161,11 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         {diff !== null && previous && (
           <View style={styles.compareRow}>
             <Text style={styles.compareAmt}>
-              {isDown ? '↓' : '↑'} {fmtFull(Math.abs(diff), currency)} {isDown ? 'less' : 'more'}
+              {isDown ? '↓' : '↑'} {fmtFull(Math.abs(diff), currency)} {isDown ? t('spending.less') : t('spending.more')}
             </Text>
-            <Text style={styles.compareSub}>Compared to {previous.label.split(' ')[0]}</Text>
+            <Text style={styles.compareSub}>{t('spending.compared_to', { month: previous.label.split(' ')[0] })}</Text>
             {pct !== null && (
-              <Text style={styles.comparePct}>{pct}% {isDown ? 'lower' : 'higher'} this month</Text>
+              <Text style={styles.comparePct}>{pct}% {isDown ? t('spending.lower_this_month') : t('spending.higher_this_month')}</Text>
             )}
           </View>
         )}

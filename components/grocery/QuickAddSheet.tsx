@@ -68,7 +68,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
     } finally {
       setIsSharing(false);
     }
-  }, [staged, isSharing, onShareItems, onClose]);
+  }, [staged, isSharing, onShareItems, onClose, t]);
 
   const handleClose = useCallback((): void => {
     setStaged([]);

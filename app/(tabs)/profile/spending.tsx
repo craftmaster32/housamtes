@@ -511,7 +511,7 @@ export default function SpendingScreen(): React.JSX.Element {
       });
     }
     return result;
-  }, [selectedMonth, previousMonth, viewMode]);
+  }, [selectedMonth, previousMonth, viewMode, t]);
 
   const renderItem = useCallback(
     ({ item }: { item: CategoryRowItem }) => (
