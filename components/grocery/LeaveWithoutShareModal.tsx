@@ -1,6 +1,7 @@
 import { View, Modal, Pressable, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -17,6 +18,7 @@ export function LeaveWithoutShareModal({
   onLeave,
   onStayAndShare,
 }: LeaveWithoutShareModalProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = makeStyles(C);
 

@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Animated, { FadeIn, FadeInDown, BounceIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -21,6 +22,7 @@ type GameTab = 'scramble' | 'jokes';
 
 // ── Word Scramble Game ───────────────────────────────────────────────────────
 function WordScrambleGame(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const [challenge, setChallenge] = useState<WordChallenge>(getRandomChallenge);
   const [scrambled, setScrambled] = useState(() => scrambleWord(challenge.word));
@@ -77,11 +79,11 @@ function WordScrambleGame(): React.JSX.Element {
       {/* Score bar */}
       <View style={[styles.scoreBar, { backgroundColor: c.surfaceSecondary }]}>
         <View style={styles.scorePart}>
-          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>Score</Text>
+          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.score')}</Text>
           <Text style={[styles.scoreValue, { color: c.primary }]}>{score}</Text>
         </View>
         <View style={styles.scorePart}>
-          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>Round</Text>
+          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.round')}</Text>
           <Text style={[styles.scoreValue, { color: c.textPrimary }]}>{round}</Text>
         </View>
         <View style={styles.scorePart}>

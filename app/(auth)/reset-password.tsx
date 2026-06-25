@@ -74,7 +74,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           onPress={() => router.back()}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.back')}
         >
           <Text style={styles.backBtnText}>←</Text>
         </Pressable>
@@ -121,7 +121,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           buttonColor={colors.primary}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Update password"
+          accessibilityLabel={t('auth.update_password')}
         >
           {t('auth.update_password')}
         </Button>

@@ -224,7 +224,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
           onPress={() => signOut()}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Back to login"
+          accessibilityLabel={t('house_setup.back_to_login')}
         >
           <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
           <Text style={styles.backText}>{t('house_setup.back_to_login')}</Text>
@@ -254,7 +254,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
                 }}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel="Create a new house"
+                accessibilityLabel={t('house_setup.create_house')}
                 accessibilityState={{ selected: mode === 'create' }}
               >
                 <View style={[styles.optionChip, mode === 'create' && styles.optionChipActive]}>
@@ -278,7 +278,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
                 }}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel="Join an existing house"
+                accessibilityLabel={t('house_setup.join_house')}
                 accessibilityState={{ selected: mode === 'join' }}
               >
                 <View style={[styles.optionChip, mode === 'join' && styles.optionChipActive]}>
@@ -313,10 +313,10 @@ export default function HouseSetupScreen(): React.JSX.Element {
                     returnKeyType="go"
                     onSubmitEditing={handleCreate}
                     error={!!error}
-                    placeholder="e.g. Our Flat"
+                    placeholder={t('house_setup.house_name_placeholder')}
                     placeholderTextColor={C.textTertiary}
-                    accessibilityLabel="House name"
-                    accessibilityHint="Enter a name for your household, e.g. Our Flat"
+                    accessibilityLabel={t('house_setup.house_name_label')}
+                    accessibilityHint={t('house_setup.house_name_hint')}
                   />
                 </View>
 
@@ -355,8 +355,8 @@ export default function HouseSetupScreen(): React.JSX.Element {
                     error={!!error}
                     placeholder="XXXXXXXX"
                     placeholderTextColor={C.textTertiary}
-                    accessibilityLabel="Invite code"
-                    accessibilityHint="Enter the 8-character invite code from a housemate"
+                    accessibilityLabel={t('house_setup.invite_code')}
+                    accessibilityHint={t('house_setup.invite_code_hint')}
                   />
                   <Text style={styles.codeHint}>{t('house_setup.code_hint')}</Text>
                 </View>
@@ -444,7 +444,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
               onPress={() => setShowConfirm(false)}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Cancel"
+              accessibilityLabel={t('common.cancel')}
               style={styles.cancelBtn}
             >
               <Text style={styles.cancelText}>{t('house_setup.wrong_house')}</Text>

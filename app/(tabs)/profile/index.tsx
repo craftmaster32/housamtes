@@ -91,7 +91,7 @@ function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JS
       {shown.map((h, i) => (
         <View
           key={h.id}
-          style={[s.stackAvatar, { backgroundColor: h.avatarUrl ? 'transparent' : h.color, marginLeft: i === 0 ? 0 : -10 }]}
+          style={[s.stackAvatar, { backgroundColor: h.avatarUrl ? 'transparent' : h.color, marginStart: i === 0 ? 0 : -10 }]}
         >
           {h.avatarUrl
             ? <Image source={{ uri: h.avatarUrl }} style={s.stackAvatarImg} contentFit="cover" accessibilityLabel={h.name} />
@@ -1240,7 +1240,7 @@ function makeStyles(C: ColorTokens) {
     profileRowTitle: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
     profileRowSub:   { fontSize: 13, ...font.regular, color: C.textSecondary },
 
-    rowDivider: { height: 1, backgroundColor: C.border, marginLeft: 40 + sizes.sm },
+    rowDivider: { height: 1, backgroundColor: C.border, marginStart: 40 + sizes.sm },
 
     // Activity
     dayLabel: {

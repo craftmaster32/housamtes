@@ -88,7 +88,7 @@ export default function IntroScreen(): React.JSX.Element {
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         {/* Skip button */}
         {!isLast && (
-          <Pressable onPress={handleSkip} style={styles.skipBtn} accessible accessibilityRole="button" accessibilityLabel="Skip intro">
+          <Pressable onPress={handleSkip} style={styles.skipBtn} accessible accessibilityRole="button" accessibilityLabel={t('onboarding.skip')}>
             <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
           </Pressable>
         )}

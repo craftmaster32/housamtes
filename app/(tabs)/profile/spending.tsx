@@ -871,7 +871,7 @@ function makeStyles(C: ColorTokens) {
     },
     catBarFill: { height: 4, borderRadius: 2 },
     catMyShare: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    catChevron: { marginLeft: 4 },
+    catChevron: { marginStart: 4 },
 
     // Drill-down accordion
     drillDown: {

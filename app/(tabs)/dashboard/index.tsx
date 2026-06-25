@@ -41,6 +41,8 @@ import { sizes } from '@constants/sizes';
 import { useThemedColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { useTranslation } from 'react-i18next';
+import { isRTL } from '@lib/i18n';
+import { useLanguageStore } from '@stores/languageStore';
 import { SpendingCard } from '@components/profile/SpendingCard';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
@@ -53,27 +55,28 @@ function greetingText(name: string, t: (key: string) => string): string {
   return `${t(`dashboard.${timeKey}`)}, ${name}`;
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('common.just_now');
+  if (mins < 60) return t('common.minutes_ago', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t('common.hours_ago', { n: hours });
   return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-function parkingAge(startTime: string): string {
+function parkingAge(startTime: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const diff = Date.now() - new Date(startTime).getTime();
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
-  if (h > 0) return `${h}h ${m > 0 ? `${m}m` : ''}`.trimEnd();
-  if (m > 0) return `${m} min`;
-  return 'Just now';
+  if (h > 0) return m > 0 ? t('dashboard.parking_age_hours', { h, m }) : t('dashboard.parking_age_hours_only', { h });
+  if (m > 0) return t('dashboard.parking_age_mins', { m });
+  return t('common.just_now');
 }
 
-function todayDateLabel(): string {
-  return new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+function todayDateLabel(lang: string): string {
+  const locale = lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
+  return new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 const CATEGORY_ICON_MAP: Record<string, { name: string; color: string; bg: string }> = {
@@ -117,6 +120,7 @@ function WidgetCard({ children, style, onPress }: WidgetCardProps): React.JSX.El
 
 // ── Balance Hero Card ─────────────────────────────────────────────────────────
 function BalanceHeroCard(): React.JSX.Element {
+  const { t } = useTranslation();
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const bills = useBillsStore((s) => s.bills);
   const profile = useAuthStore((s) => s.profile);
@@ -145,23 +149,23 @@ function BalanceHeroCard(): React.JSX.Element {
       style={styles.balanceHero}
       onPress={() => router.push('/(tabs)/bills')}
       accessibilityRole="button"
-      accessibilityLabel={`Balance: ${isOwed ? 'you are owed' : 'you owe'} ${formatFull(Math.abs(netAmount), currencyCode)}`}
+      accessibilityLabel={`${isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')} ${formatFull(Math.abs(netAmount), currencyCode)}`}
     >
       {/* Decorative circle */}
       <View style={styles.balanceHeroDeco} />
 
       <View style={styles.balanceHeroTop}>
         <Text style={styles.balanceHeroLabel}>
-          {balances.length === 0 ? 'All settled up' : isOwed ? "You're owed" : 'You owe'}
+          {balances.length === 0 ? t('dashboard.balance_all_settled') : isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')}
         </Text>
         {newBills > 0 && (
           <View style={styles.balanceHeroNewBadge}>
-            <Text style={styles.balanceHeroNewBadgeText}>{newBills} new</Text>
+            <Text style={styles.balanceHeroNewBadgeText}>{t('dashboard.new_count', { n: newBills })}</Text>
           </View>
         )}
         {peopleCount > 0 && (
           <Text style={styles.balanceHeroSub}>
-            across {peopleCount} housemate{peopleCount !== 1 ? 's' : ''}
+            {peopleCount !== 1 ? t('dashboard.balance_across_plural', { count: peopleCount }) : t('dashboard.balance_across', { count: peopleCount })}
           </Text>
         )}
       </View>
@@ -175,14 +179,14 @@ function BalanceHeroCard(): React.JSX.Element {
             onPress={() => router.push('/(tabs)/bills')}
             accessibilityRole="button"
           >
-            <Text style={styles.balanceHeroSettleBtnText}>Settle up</Text>
+            <Text style={styles.balanceHeroSettleBtnText}>{t('dashboard.settle_up')}</Text>
           </Pressable>
           <Pressable
             style={styles.balanceHeroDetailsBtn}
             onPress={() => router.push('/(tabs)/bills')}
             accessibilityRole="button"
           >
-            <Text style={styles.balanceHeroDetailsBtnText}>Details →</Text>
+            <Text style={styles.balanceHeroDetailsBtnText}>{t('dashboard.details')}</Text>
           </Pressable>
         </View>
       )}
@@ -192,6 +196,7 @@ function BalanceHeroCard(): React.JSX.Element {
 
 // ── Today at Home ─────────────────────────────────────────────────────────────
 function TodayAtHome(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const current = useParkingStore((s) => s.current);
   const claim = useParkingStore((s) => s.claim);
@@ -232,8 +237,8 @@ function TodayAtHome(): React.JSX.Element {
       }
     } catch (err) {
       Alert.alert(
-        'Parking error',
-        err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+        t('dashboard.parking_error'),
+        err instanceof Error ? err.message : t('common.failed_try_again')
       );
     } finally {
       setIsParkingBusy(false);
@@ -241,16 +246,16 @@ function TodayAtHome(): React.JSX.Element {
   }, [isParkingBusy, isFree, isMine, claim, release, myId, myName, houseId]);
 
   const parkingSubLabel = isParkingBusy
-    ? 'On it…'
+    ? t('common.on_it')
     : isFree
-      ? 'First come, first parked'
+      ? t('dashboard.parking_first_come')
       : isMine
-        ? 'Done? Free it up'
-        : `by ${resolveName(current?.occupant ?? '', housemates).split(' ')[0]}`;
+        ? t('dashboard.parking_free_it_up')
+        : t('dashboard.parking_by', { name: resolveName(current?.occupant ?? '', housemates).split(' ')[0] });
 
   return (
     <View style={styles.todaySection}>
-      <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Today at home</Text>
+      <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{t('dashboard.today_at_home')}</Text>
       <View style={styles.todayRow}>
         {isEnabled('parking') && (
           <Pressable
@@ -259,7 +264,7 @@ function TodayAtHome(): React.JSX.Element {
             disabled={!myId || !houseId || isParkingBusy}
             accessibilityRole="button"
             accessibilityLabel={
-              isFree ? 'Claim parking spot' : isMine ? 'Release parking spot' : 'View parking'
+              isFree ? t('dashboard.claim_parking_spot') : isMine ? t('dashboard.release_parking_spot') : t('dashboard.view_parking')
             }
             accessibilityState={{
               disabled: Boolean(!myId || !houseId || isParkingBusy),
@@ -279,9 +284,9 @@ function TodayAtHome(): React.JSX.Element {
                 />
               )}
             </View>
-            <Text style={styles.todayCardCat}>PARKING</Text>
+            <Text style={styles.todayCardCat}>{t('dashboard.parking_label')}</Text>
             <Text style={[styles.todayCardStatus, { color: c.textPrimary }]}>
-              {isFree ? 'Free' : 'In use'}
+              {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
             </Text>
             <Text
               style={[
@@ -302,12 +307,12 @@ function TodayAtHome(): React.JSX.Element {
             <View style={[styles.todayIconWrap, { backgroundColor: '#0A1E30' }]}>
               <Ionicons name="checkmark-done-outline" size={20} color="#4F78B6" />
             </View>
-            <Text style={styles.todayCardCat}>CHORES</Text>
+            <Text style={styles.todayCardCat}>{t('dashboard.chores_label')}</Text>
             <Text style={[styles.todayCardStatus, { color: c.textPrimary }]}>
               {totalChores - pendingChores}/{totalChores}
             </Text>
             <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {pendingChores === 0 ? 'Smashed it! 🎉' : "Someone's on it"}
+              {pendingChores === 0 ? t('dashboard.chores_smashed') : t('dashboard.chores_someone_on_it')}
             </Text>
           </Pressable>
         )}
@@ -320,10 +325,10 @@ function TodayAtHome(): React.JSX.Element {
             <View style={[styles.todayIconWrap, { backgroundColor: '#2A1E0A' }]}>
               <Ionicons name="cart-outline" size={20} color="#E0B24D" />
             </View>
-            <Text style={styles.todayCardCat}>GROCERY</Text>
+            <Text style={styles.todayCardCat}>{t('dashboard.grocery_label')}</Text>
             <Text style={[styles.todayCardStatus, { color: c.textPrimary }]}>{groceryPending}</Text>
             <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {groceryPending === 1 ? 'item' : 'items'} to buy
+              {t(groceryPending === 1 ? 'dashboard.items_to_buy_one' : 'dashboard.items_to_buy_other')}
             </Text>
           </Pressable>
         )}
@@ -334,6 +339,7 @@ function TodayAtHome(): React.JSX.Element {
 
 // ── Recent Expenses ───────────────────────────────────────────────────────────
 function RecentExpenses(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const bills = useBillsStore((s) => s.bills);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
@@ -352,9 +358,9 @@ function RecentExpenses(): React.JSX.Element {
   return (
     <View style={styles.recentSection}>
       <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>Recent expenses</Text>
+        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{t('dashboard.recent_expenses')}</Text>
         <Pressable onPress={() => router.push('/(tabs)/bills')} accessibilityRole="button">
-          <Text style={[styles.sectionSeeAll, { color: c.primary }]}>See all ›</Text>
+          <Text style={[styles.sectionSeeAll, { color: c.primary }]}>{t('dashboard.see_all')}</Text>
         </Pressable>
       </View>
       <View style={[styles.recentCard, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -376,7 +382,7 @@ function RecentExpenses(): React.JSX.Element {
                     {bill.title}
                   </Text>
                   <Text style={[styles.recentSub, { color: c.textSecondary }]}>
-                    Paid by {resolveName(bill.paidBy, housemates)} · {timeAgo(bill.createdAt)}
+                    {t('dashboard.paid_by_name', { name: resolveName(bill.paidBy, housemates), time: timeAgo(bill.createdAt, t) })}
                   </Text>
                 </View>
                 <View style={styles.recentRight}>
@@ -385,7 +391,7 @@ function RecentExpenses(): React.JSX.Element {
                   </Text>
                   {bill.settled && (
                     <View style={[styles.recentBadge, { backgroundColor: c.positive + '18' }]}>
-                      <Text style={[styles.recentBadgeText, { color: c.positive }]}>Settled</Text>
+                      <Text style={[styles.recentBadgeText, { color: c.positive }]}>{t('bills.settled')}</Text>
                     </View>
                   )}
                 </View>
@@ -400,6 +406,7 @@ function RecentExpenses(): React.JSX.Element {
 
 // ── Chore Card ────────────────────────────────────────────────────────────────
 function ChoreCard(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const chores = useChoresStore((s) => s.chores);
   const toggleChore = useChoresStore((s) => s.toggleChore);
@@ -417,7 +424,7 @@ function ChoreCard(): React.JSX.Element {
         <View style={[styles.cardIconWrap, { backgroundColor: '#1A1000' }]}>
           <Ionicons name="checkmark-done-outline" size={18} color="#E0B24D" />
         </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Your Chore</Text>
+        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.your_chore')}</Text>
         {newChores > 0 ? (
           <View style={styles.cardBadge}>
             <Text style={styles.cardBadgeText}>{newChores}</Text>
@@ -425,7 +432,7 @@ function ChoreCard(): React.JSX.Element {
         ) : chores.length > 0 ? (
           <View style={[styles.badgePill, { backgroundColor: c.surfaceSecondary }]}>
             <Text style={[styles.badgePillText, { color: c.textSecondary }]}>
-              {done.length}/{chores.length} done
+              {t('dashboard.x_of_y_done', { done: done.length, total: chores.length })}
             </Text>
           </View>
         ) : null}
@@ -447,7 +454,7 @@ function ChoreCard(): React.JSX.Element {
             accessibilityRole="button"
           >
             <Ionicons name="checkmark" size={14} color={c.positive} />
-            <Text style={[styles.doneBtnText, { color: c.positive }]}>Mark as Done</Text>
+            <Text style={[styles.doneBtnText, { color: c.positive }]}>{t('dashboard.mark_done')}</Text>
           </Pressable>
         </>
       ) : pending.length > 0 ? (
@@ -456,7 +463,7 @@ function ChoreCard(): React.JSX.Element {
             {pending[0].name}
           </Text>
           <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-            {"Nobody's stepped up yet"}
+            {t('dashboard.nobody_stepped_up')}
           </Text>
         </>
       ) : (
@@ -465,7 +472,7 @@ function ChoreCard(): React.JSX.Element {
             <Ionicons name="checkmark-circle" size={32} color={c.positive} />
           </View>
           <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-            All done! Screenshot this as proof.
+            {t('dashboard.all_done_proof')}
           </Text>
         </>
       )}
@@ -475,6 +482,7 @@ function ChoreCard(): React.JSX.Element {
 
 // ── Parking Card ──────────────────────────────────────────────────────────────
 function ParkingCard(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const current = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
@@ -506,8 +514,8 @@ function ParkingCard(): React.JSX.Element {
       await release(houseId ?? '', myName);
     } catch (err) {
       Alert.alert(
-        'Parking error',
-        err instanceof Error ? err.message : 'Could not release the parking spot. Please try again.'
+        t('dashboard.parking_error'),
+        err instanceof Error ? err.message : t('common.failed_try_again')
       );
     }
   }, [release, houseId, myName]);
@@ -522,14 +530,14 @@ function ParkingCard(): React.JSX.Element {
             color={isFree ? c.positive : c.negative}
           />
         </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Parking Spot</Text>
+        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.parking_spot_title')}</Text>
         {newReservations > 0 ? (
           <View style={styles.cardBadge}>
             <Text style={styles.cardBadgeText}>{newReservations}</Text>
           </View>
         ) : pendingCount > 0 ? (
           <View style={[styles.badgePill, { backgroundColor: '#E0B24D' }]}>
-            <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{pendingCount} pending</Text>
+            <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{pendingCount} {t('parking.pending').toLowerCase()}</Text>
           </View>
         ) : (
           <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
@@ -543,35 +551,36 @@ function ParkingCard(): React.JSX.Element {
       >
         <Text style={[styles.parkingStatusText, { color: isFree ? c.positive : c.negative }]}>
           {isFree
-            ? 'Available now'
+            ? t('dashboard.available_now')
             : isMine
-              ? 'Your car'
+              ? t('dashboard.your_car')
               : resolveName(current?.occupant ?? '', housemates)}
         </Text>
         {current && !isFree && (
           <Text style={[styles.parkingAge, { color: c.textSecondary }]}>
-            {parkingAge(current.startTime)}
+            {parkingAge(current.startTime, t)}
           </Text>
         )}
       </View>
       <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
         {isFree
-          ? 'Empty spot — free real estate 🏎️'
+          ? t('dashboard.empty_spot')
           : isMine
-            ? `Your car's been there ${parkingAge(current?.startTime ?? '')}`
-            : `Used by ${resolveName(current?.occupant ?? '', housemates)} · ${parkingAge(current?.startTime ?? '')}`}
+            ? t('dashboard.your_car_been_there', { time: parkingAge(current?.startTime ?? '', t) })
+            : t('dashboard.used_by_time', { name: resolveName(current?.occupant ?? '', housemates), time: parkingAge(current?.startTime ?? '', t) })}
       </Text>
       {pendingFromOthers.map((r) => (
         <View key={r.id} style={[styles.parkingPendingRow, { backgroundColor: '#2A1A00' }]}>
           <View style={styles.parkingPendingInfo}>
             <Ionicons name="time-outline" size={14} color="#E0B24D" />
             <Text style={[styles.parkingPendingText, { color: '#E0B24D', flex: 1 }]}>
-              {resolveName(r.requestedBy, housemates)} wants {r.date}
-              {r.startTime ? ` at ${r.startTime}` : ''}
+              {r.startTime
+                ? t('dashboard.wants_date_at', { name: resolveName(r.requestedBy, housemates), date: r.date, time: r.startTime })
+                : t('dashboard.wants_date', { name: resolveName(r.requestedBy, housemates), date: r.date })}
             </Text>
           </View>
           <View style={[styles.approveBtn, { backgroundColor: c.positive }]}>
-            <Text style={styles.approveBtnText}>Vote</Text>
+            <Text style={styles.approveBtnText}>{t('dashboard.vote')}</Text>
           </View>
         </View>
       ))}
@@ -620,13 +629,13 @@ function ParkingCard(): React.JSX.Element {
             ]}
           >
             {myReservation.status === 'approved'
-              ? 'Your spot confirmed'
+              ? t('dashboard.spot_confirmed')
               : myReservation.status === 'rejected'
-                ? 'Request rejected'
-                : 'Your request pending'}
+                ? t('dashboard.request_rejected')
+                : t('dashboard.request_pending')}
             {' · '}
             {myReservation.date}
-            {myReservation.startTime ? ` at ${myReservation.startTime}` : ''}
+            {myReservation.startTime ? ` ${myReservation.startTime}` : ''}
           </Text>
         </View>
       )}
@@ -638,7 +647,7 @@ function ParkingCard(): React.JSX.Element {
             handleClaim();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Claim parking spot"
+          accessibilityLabel={t('dashboard.claim_parking_spot')}
         >
           <Ionicons name="car" size={14} color="#fff" />
           <Text style={styles.claimBtnText}>Claim Spot</Text>
@@ -652,7 +661,7 @@ function ParkingCard(): React.JSX.Element {
             handleRelease();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Release parking spot"
+          accessibilityLabel={t('dashboard.release_parking_spot')}
         >
           <Ionicons name="exit-outline" size={14} color={c.negative} />
           <Text style={[styles.releaseBtnText, { color: c.negative }]}>Release Spot</Text>
@@ -678,6 +687,7 @@ function GroceryWidgetRow({
   onDelete,
   onLongPress,
 }: GroceryWidgetRowProps): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const swipeRef = useRef<Swipeable>(null);
   const canDelete = item.addedBy === myId;
@@ -722,7 +732,7 @@ function GroceryWidgetRow({
         style={styles.widgetSwipeDelete}
         onPress={handleDelete}
         accessibilityRole="button"
-        accessibilityLabel="Delete item"
+        accessibilityLabel={t('grocery.delete_item')}
       >
         <Ionicons name="trash-outline" size={16} color="#fff" />
       </Pressable>
@@ -771,7 +781,7 @@ function GroceryWidgetRow({
             name="chatbubble-ellipses-outline"
             size={12}
             color={c.textSecondary}
-            accessibilityLabel="Has a note"
+            accessibilityLabel={t('dashboard.has_note')}
           />
         )}
       </Pressable>
@@ -780,6 +790,7 @@ function GroceryWidgetRow({
 }
 
 function GroceryWidget(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const items = useGroceryStore((s) => s.items);
   const addItem = useGroceryStore((s) => s.addItem);
@@ -833,7 +844,7 @@ function GroceryWidget(): React.JSX.Element {
     if (!n) return;
     const numPart = qty.trim();
     if (numPart && !/^\d+$/.test(numPart)) {
-      setAddError('Quantity must be a whole number.');
+      setAddError(t('dashboard.qty_whole_number'));
       return;
     }
     const quantityStr = numPart ? numPart + unit : unit ? `1${unit}` : '';
@@ -844,7 +855,7 @@ function GroceryWidget(): React.JSX.Element {
       setUnit('');
       setAddError(null);
     } catch {
-      setAddError('Could not add item. Try again.');
+      setAddError(t('dashboard.could_not_add_item'));
     }
   }, [input, qty, unit, addItem, myId, houseId, draftEnabled]);
 
@@ -855,7 +866,7 @@ function GroceryWidget(): React.JSX.Element {
     try {
       await publishDraftItems(myId, houseId ?? '');
     } catch {
-      setAddError('Could not share draft. Try again.');
+      setAddError(t('dashboard.could_not_share_draft'));
     } finally {
       setIsPublishing(false);
     }
@@ -888,7 +899,7 @@ function GroceryWidget(): React.JSX.Element {
     myDraftItems.length > 0 ? (
       <>
         <View style={styles.groceryDraftHeader}>
-          <Text style={styles.groceryDraftTitle}>📝 My Draft</Text>
+          <Text style={styles.groceryDraftTitle}>{t('dashboard.my_draft')}</Text>
           <Pressable
             onPress={handlePublish}
             disabled={isPublishing || !myId}
@@ -899,7 +910,7 @@ function GroceryWidget(): React.JSX.Element {
             accessible
             accessibilityRole="button"
             accessibilityState={{ disabled: isPublishing || !myId }}
-            accessibilityLabel="Share draft with housemates"
+            accessibilityLabel={t('dashboard.shared_label')}
           >
             {isPublishing ? (
               <ActivityIndicator size="small" color="#E0B24D" />
@@ -919,7 +930,7 @@ function GroceryWidget(): React.JSX.Element {
           />
         ))}
         {sharedPending.length > 0 && (
-          <Text style={[styles.grocerySharedLabel, { color: c.textSecondary }]}>🏠 Shared</Text>
+          <Text style={[styles.grocerySharedLabel, { color: c.textSecondary }]}>{t('dashboard.shared_label')}</Text>
         )}
       </>
     ) : null;
@@ -931,14 +942,14 @@ function GroceryWidget(): React.JSX.Element {
           <View style={[styles.cardIconWrap, { backgroundColor: '#0A2418' }]}>
             <Ionicons name="cart-outline" size={18} color="#4FB071" />
           </View>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Shared Groceries</Text>
+          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.shared_groceries')}</Text>
           {newGrocery > 0 ? (
             <View style={styles.cardBadge}>
               <Text style={styles.cardBadgeText}>{newGrocery}</Text>
             </View>
           ) : (
             <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button">
-              <Text style={[styles.viewAll, { color: c.primary }]}>View all</Text>
+              <Text style={[styles.viewAll, { color: c.primary }]}>{t('dashboard.view_all')}</Text>
             </Pressable>
           )}
         </View>
@@ -956,23 +967,23 @@ function GroceryWidget(): React.JSX.Element {
               setInput(t);
               if (addError) setAddError(null);
             }}
-            placeholder="Add an item..."
+            placeholder={t('dashboard.add_item_placeholder')}
             placeholderTextColor={c.textSecondary}
             returnKeyType="next"
             onSubmitEditing={handleAdd}
-            accessibilityLabel="Grocery item name"
+            accessibilityLabel={t('dashboard.shared_groceries')}
           />
           <View style={[styles.groceryQtySep, { backgroundColor: c.border }]} />
           <TextInput
             style={[styles.groceryQtyInput, { color: c.textPrimary }]}
             value={qty}
             onChangeText={setQty}
-            placeholder="Qty"
+            placeholder={t('grocery.qty_label')}
             placeholderTextColor={c.textSecondary}
             keyboardType="number-pad"
             returnKeyType="done"
             onSubmitEditing={handleAdd}
-            accessibilityLabel="Quantity"
+            accessibilityLabel={t('grocery.qty_label')}
           />
           {input.trim().length > 0 && (
             <Pressable
@@ -980,7 +991,7 @@ function GroceryWidget(): React.JSX.Element {
               onPress={handleAdd}
               style={[styles.groceryAddBtn, { backgroundColor: c.primary }]}
               accessibilityRole="button"
-              accessibilityLabel="Add item"
+              accessibilityLabel={t('common.add')}
               accessibilityState={{ disabled: false }}
             >
               <Ionicons name="return-down-back-outline" size={15} color="#fff" />
@@ -1004,7 +1015,7 @@ function GroceryWidget(): React.JSX.Element {
               onPress={unitPressHandlers[u]}
               accessibilityRole="button"
               accessibilityState={{ selected: unit === u }}
-              accessibilityLabel={`Unit ${u}`}
+              accessibilityLabel={`${t('grocery.unit_label')} ${u}`}
             >
               <Text
                 style={[
@@ -1033,7 +1044,7 @@ function GroceryWidget(): React.JSX.Element {
           ListEmptyComponent={
             myDraftItems.length === 0 ? (
               <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-                Nothing here. Someone go shopping.
+                {t('dashboard.grocery_empty')}
               </Text>
             ) : null
           }
@@ -1054,6 +1065,7 @@ function GroceryWidget(): React.JSX.Element {
 
 // ── Votes Widget ──────────────────────────────────────────────────────────────
 function VotesWidget(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const proposals = useVotingStore((s) => s.proposals);
   const profile = useAuthStore((s) => s.profile);
@@ -1072,10 +1084,10 @@ function VotesWidget(): React.JSX.Element {
           <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
             <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
           </View>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Active Votes</Text>
+          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.active_votes')}</Text>
         </View>
         <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-          No drama today. Suspicious.
+          {t('dashboard.no_drama')}
         </Text>
       </WidgetCard>
     );
@@ -1091,15 +1103,15 @@ function VotesWidget(): React.JSX.Element {
 
   type BadgeState = { label: string; bg: string; color: string };
   const badge: BadgeState = ((): BadgeState => {
-    if (!myVote) return { label: 'Vote now', bg: c.danger + '20', color: c.danger };
+    if (!myVote) return { label: t('dashboard.vote_now'), bg: c.danger + '20', color: c.danger };
     if (!allVoted)
       return {
-        label: `Waiting (${totalVotes}/${totalPeople})`,
+        label: t('dashboard.waiting_votes', { voted: totalVotes, total: totalPeople }),
         bg: c.textSecondary + '18',
         color: c.textSecondary,
       };
-    if (yesCount > noCount) return { label: 'Passed', bg: c.positive + '20', color: c.positive };
-    return { label: 'Rejected', bg: c.negative + '20', color: c.negative };
+    if (yesCount > noCount) return { label: t('dashboard.passed'), bg: c.positive + '20', color: c.positive };
+    return { label: t('dashboard.rejected'), bg: c.negative + '20', color: c.negative };
   })();
 
   return (
@@ -1108,7 +1120,7 @@ function VotesWidget(): React.JSX.Element {
         <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
           <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
         </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Active Votes</Text>
+        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.active_votes')}</Text>
         {newVotes > 0 ? (
           <View style={styles.cardBadge}>
             <Text style={styles.cardBadgeText}>{newVotes}</Text>
@@ -1123,7 +1135,7 @@ function VotesWidget(): React.JSX.Element {
         {top.title}
       </Text>
       <View style={styles.voteBarRow}>
-        <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>Yes</Text>
+        <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>{t('common.yes')}</Text>
         <View style={[styles.voteTrack, { backgroundColor: c.surfaceSecondary }]}>
           <View
             style={[
@@ -1135,7 +1147,7 @@ function VotesWidget(): React.JSX.Element {
         <Text style={[styles.voteCount, { color: c.textPrimary }]}>{yesCount}</Text>
       </View>
       <View style={styles.voteBarRow}>
-        <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>No</Text>
+        <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>{t('common.no')}</Text>
         <View style={[styles.voteTrack, { backgroundColor: c.surfaceSecondary }]}>
           <View
             style={[
@@ -1151,27 +1163,24 @@ function VotesWidget(): React.JSX.Element {
 }
 
 // ── Mini Calendar Widget ──────────────────────────────────────────────────────
-const CAL_MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
+const CAL_MONTH_KEYS = [
+  'dashboard.cal_month_jan', 'dashboard.cal_month_feb', 'dashboard.cal_month_mar',
+  'dashboard.cal_month_apr', 'dashboard.cal_month_may', 'dashboard.cal_month_jun',
+  'dashboard.cal_month_jul', 'dashboard.cal_month_aug', 'dashboard.cal_month_sep',
+  'dashboard.cal_month_oct', 'dashboard.cal_month_nov', 'dashboard.cal_month_dec',
 ];
-const CAL_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const CAL_DAY_KEYS = [
+  'dashboard.cal_day_sun', 'dashboard.cal_day_mon', 'dashboard.cal_day_tue',
+  'dashboard.cal_day_wed', 'dashboard.cal_day_thu', 'dashboard.cal_day_fri',
+  'dashboard.cal_day_sat',
+];
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function MiniCalendarWidget(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const events = useEventsStore((s) => s.events);
   const reservations = useParkingStore((s) => s.reservations);
@@ -1239,12 +1248,12 @@ function MiniCalendarWidget(): React.JSX.Element {
           style={styles.calTitleRow}
           onPress={() => router.push('/(tabs)/calendar')}
           accessibilityRole="button"
-          accessibilityLabel="Open calendar"
+          accessibilityLabel={t('dashboard.open_calendar')}
         >
           <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
             <Ionicons name="calendar-outline" size={18} color="#6366f1" />
           </View>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Calendar</Text>
+          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.calendar')}</Text>
           <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
         </Pressable>
         <View style={styles.calNavRow}>
@@ -1252,19 +1261,19 @@ function MiniCalendarWidget(): React.JSX.Element {
             onPress={prevMonth}
             style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]}
             accessibilityRole="button"
-            accessibilityLabel="Previous month"
+            accessibilityLabel={t('dashboard.prev_month')}
             hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
             <Ionicons name="chevron-back" size={15} color={c.textSecondary} />
           </Pressable>
           <Text style={[styles.calMonthLabel, { color: c.textPrimary }]}>
-            {CAL_MONTHS[viewMonth].slice(0, 3)} {viewYear}
+            {t(CAL_MONTH_KEYS[viewMonth])} {viewYear}
           </Text>
           <Pressable
             onPress={nextMonth}
             style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]}
             accessibilityRole="button"
-            accessibilityLabel="Next month"
+            accessibilityLabel={t('dashboard.next_month')}
             hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
             <Ionicons name="chevron-forward" size={15} color={c.textSecondary} />
@@ -1272,9 +1281,9 @@ function MiniCalendarWidget(): React.JSX.Element {
         </View>
       </View>
       <View style={styles.calWeekRow}>
-        {CAL_DAYS.map((d, i) => (
+        {CAL_DAY_KEYS.map((key, i) => (
           <Text key={i} style={[styles.calWeekDay, { color: c.textSecondary }]}>
-            {d}
+            {t(key)}
           </Text>
         ))}
       </View>
@@ -1326,10 +1335,10 @@ function MiniCalendarWidget(): React.JSX.Element {
       <View style={styles.calLegend}>
         {(
           [
-            ['#6366f1', 'Events'],
-            ['#ef4444', 'Recurring'],
-            ['#22c55e', 'Chores'],
-            ['#f59e0b', 'Parking'],
+            ['#6366f1', t('dashboard.cal_events')],
+            ['#ef4444', t('dashboard.cal_recurring')],
+            ['#22c55e', t('dashboard.cal_chores')],
+            ['#f59e0b', t('dashboard.cal_parking')],
           ] as [string, string][]
         ).map(([col, label]) => (
           <View key={label} style={styles.calLegendItem}>
@@ -1358,7 +1367,8 @@ function buildActivityEvents(
   groceryItems: GroceryItem[],
   chores: Chore[],
   myId: string,
-  housemates: Housemate[]
+  housemates: Housemate[],
+  t: (key: string, opts?: Record<string, unknown>) => string
 ): ActivityEvent[] {
   const events: ActivityEvent[] = [];
   const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -1370,8 +1380,8 @@ function buildActivityEvents(
         icon: 'card-outline',
         iconColor: '#FF4757',
         iconBg: '#2A0A0A',
-        actor: b.paidBy === myId ? 'You' : resolveName(b.paidBy, housemates),
-        text: `added a bill — ${b.title}`,
+        actor: b.paidBy === myId ? t('common.you') : resolveName(b.paidBy, housemates),
+        text: t('dashboard.activity_added_bill', { title: b.title }),
         time: b.createdAt,
       });
     });
@@ -1383,8 +1393,8 @@ function buildActivityEvents(
         icon: 'cart-outline',
         iconColor: '#4FB071',
         iconBg: '#0A2418',
-        actor: i.addedBy === myId ? 'You' : resolveName(i.addedBy, housemates),
-        text: `added "${i.name}" to groceries`,
+        actor: i.addedBy === myId ? t('common.you') : resolveName(i.addedBy, housemates),
+        text: t('dashboard.activity_added_grocery', { name: i.name }),
         time: i.createdAt,
       });
     });
@@ -1397,11 +1407,11 @@ function buildActivityEvents(
         iconColor: '#E0B24D',
         iconBg: '#1A1000',
         actor: !ch.claimedBy
-          ? 'Someone'
+          ? t('common.someone')
           : ch.claimedBy === myId
-            ? 'You'
+            ? t('common.you')
             : resolveName(ch.claimedBy, housemates),
-        text: `completed "${ch.name}"`,
+        text: t('dashboard.activity_completed_chore', { name: ch.name }),
         time: ch.completedAt!,
       });
     });
@@ -1409,6 +1419,7 @@ function buildActivityEvents(
 }
 
 function ActivityFeed(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const bills = useBillsStore((s) => s.bills);
   const groceryItems = useGroceryStore((s) => s.items);
@@ -1417,8 +1428,8 @@ function ActivityFeed(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const myId = profile?.id ?? '';
   const events = useMemo(
-    () => buildActivityEvents(bills, groceryItems, chores, myId, housemates),
-    [bills, groceryItems, chores, myId, housemates]
+    () => buildActivityEvents(bills, groceryItems, chores, myId, housemates, t),
+    [bills, groceryItems, chores, myId, housemates, t]
   );
 
   return (
@@ -1427,11 +1438,11 @@ function ActivityFeed(): React.JSX.Element {
         <View style={[styles.cardIconWrap, { backgroundColor: '#0A1A30' }]}>
           <Ionicons name="pulse-outline" size={18} color="#4F78B6" />
         </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>Recent Activity</Text>
+        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.recent_activity')}</Text>
       </View>
       {events.length === 0 ? (
         <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-          Eerie silence this week. What are you all up to?
+          {t('dashboard.eerie_silence')}
         </Text>
       ) : (
         events.map((event) => (
@@ -1445,7 +1456,7 @@ function ActivityFeed(): React.JSX.Element {
                 {event.text}
               </Text>
               <Text style={[styles.activityTime, { color: c.textSecondary }]}>
-                {timeAgo(event.time)}
+                {timeAgo(event.time, t)}
               </Text>
             </View>
           </View>
@@ -1459,6 +1470,7 @@ function ActivityFeed(): React.JSX.Element {
 export default function DashboardScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
+  const currentLanguage = useLanguageStore((s) => s.currentLanguage);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const houseName = useHousematesStore((s) => s.houseName);
@@ -1482,7 +1494,7 @@ export default function DashboardScreen(): React.JSX.Element {
           {/* ── Hero greeting ─────────────────────────────────────────── */}
           <Animated.View entering={FadeIn.duration(400)} style={styles.hero}>
             <View style={styles.heroLeft}>
-              <Text style={[styles.heroDate, { color: c.textSecondary }]}>{todayDateLabel()}</Text>
+              <Text style={[styles.heroDate, { color: c.textSecondary }]}>{todayDateLabel(currentLanguage)}</Text>
               <Text style={[styles.greeting, { color: c.textPrimary }]}>
                 {greetingText(myName, t)}
               </Text>
@@ -1502,7 +1514,7 @@ export default function DashboardScreen(): React.JSX.Element {
                 onPress={openProfile}
                 accessible={true}
                 accessibilityRole="button"
-                accessibilityLabel="Open profile menu"
+                accessibilityLabel={t('dashboard.open_profile')}
                 accessibilityState={{ selected: false }}
               >
                 {profile?.avatarUrl ? (
@@ -1532,10 +1544,10 @@ export default function DashboardScreen(): React.JSX.Element {
                   },
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Add new expense"
+                accessibilityLabel={t('dashboard.add_expense_btn')}
               >
                 <Ionicons name="add" size={16} color="#fff" />
-                <Text style={styles.quickBtnText}>Expense</Text>
+                <Text style={styles.quickBtnText}>{t('dashboard.expense_btn')}</Text>
               </Pressable>
             </Link>
             <Link asChild href="/(tabs)/bills?openRecurring=1">
@@ -1550,10 +1562,10 @@ export default function DashboardScreen(): React.JSX.Element {
                   },
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Add house bill"
+                accessibilityLabel={t('dashboard.add_house_bill_btn')}
               >
                 <Ionicons name="home-outline" size={16} color={c.primary} />
-                <Text style={[styles.quickBtnOutlineText, { color: c.primary }]}>House Bill</Text>
+                <Text style={[styles.quickBtnOutlineText, { color: c.primary }]}>{t('dashboard.house_bill_btn')}</Text>
               </Pressable>
             </Link>
           </Animated.View>
@@ -1641,15 +1653,15 @@ export default function DashboardScreen(): React.JSX.Element {
               style={[styles.gamesLink, { backgroundColor: c.surface, borderColor: c.border }]}
               onPress={() => router.push('/(tabs)/games')}
               accessibilityRole="button"
-              accessibilityLabel="Open games and fun"
+              accessibilityLabel={t('dashboard.games_fun')}
             >
               <View style={[styles.gamesIconWrap, { backgroundColor: '#FEF3C7' }]}>
                 <Text style={styles.gamesIcon}>🎮</Text>
               </View>
               <View style={styles.gamesTextWrap}>
-                <Text style={[styles.gamesTitle, { color: c.textPrimary }]}>Games & Fun</Text>
+                <Text style={[styles.gamesTitle, { color: c.textPrimary }]}>{t('dashboard.games_fun')}</Text>
                 <Text style={[styles.gamesSub, { color: c.textSecondary }]}>
-                  Word Scramble, Dad Jokes & more
+                  {t('dashboard.games_sub')}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={c.textDisabled} />
@@ -1748,7 +1760,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     ...font.regular,
     color: 'rgba(255,255,255,0.55)',
-    marginLeft: 'auto',
+    marginStart: 'auto',
   },
   balanceHeroNewBadge: {
     backgroundColor: '#D9534F',
@@ -2010,7 +2022,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 48,
     borderRadius: 10,
-    marginRight: 4,
+    marginEnd: 4,
   },
   widgetSwipeUncheck: { backgroundColor: '#94a3b8' },
   widgetSwipeDelete: {
@@ -2019,7 +2031,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 48,
     borderRadius: 10,
-    marginLeft: 4,
+    marginStart: 4,
   },
   groceryItemText: { flex: 1, fontSize: 14, ...font.regular },
   groceryItemDone: { textDecorationLine: 'line-through' },

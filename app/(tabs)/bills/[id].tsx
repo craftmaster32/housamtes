@@ -454,7 +454,7 @@ const makeStyles = (C: ColorTokens) =>
     splitAmount: { color: C.primary, fontSize: 15, ...font.semibold },
     input: { backgroundColor: C.surface },
     dateField: { gap: 4 },
-    dateFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginLeft: 4 },
+    dateFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginStart: 4 },
     dateTrigger: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -474,7 +474,7 @@ const makeStyles = (C: ColorTokens) =>
     error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
 
     categoryField: { gap: 4 },
-    categoryFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginLeft: 4 },
+    categoryFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginStart: 4 },
     categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
     catChip: {
       flexDirection: 'row',

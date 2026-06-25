@@ -3,6 +3,7 @@ import { View, StyleSheet, FlatList, Pressable, TextInput, Alert, Animated } fro
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import {
   useExpenseCategoriesStore,
@@ -147,7 +148,7 @@ const makeStyles = (C: ColorTokens) =>
     sep: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: C.border,
-      marginLeft: sizes.md + 36 + 10,
+      marginStart: sizes.md + 36 + 10,
     },
     empty: { textAlign: 'center', color: C.textSecondary, fontSize: 14, paddingVertical: 24 },
   });
@@ -224,6 +225,7 @@ function CategoryForm({
   saving: boolean;
 }): React.JSX.Element {
   const C = useThemedColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [form, setForm] = useState<FormState>(initial);
   const [showIconPicker, setShowIconPicker] = useState(false);
@@ -235,7 +237,7 @@ function CategoryForm({
           style={[styles.iconPreviewBtn, showIconPicker && styles.iconPreviewBtnActive]}
           onPress={() => setShowIconPicker((v) => !v)}
           accessibilityRole="button"
-          accessibilityLabel="Choose icon"
+          accessibilityLabel={t('categories.choose_icon')}
         >
           <Text style={styles.iconPreviewText}>{form.icon || '📦'}</Text>
         </Pressable>
@@ -243,12 +245,12 @@ function CategoryForm({
           value={form.name}
           onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
           style={styles.nameInput}
-          placeholder="Category name"
+          placeholder={t('categories.category_name')}
           placeholderTextColor={C.textSecondary}
           autoCapitalize="words"
           maxLength={30}
-          accessibilityLabel="Category name"
-          accessibilityHint="Enter a name for this expense category"
+          accessibilityLabel={t('categories.category_name')}
+          accessibilityHint={t('categories.category_name_hint')}
         />
       </View>
       {showIconPicker && (
@@ -296,10 +298,10 @@ function CategoryForm({
           disabled={saving || !form.name.trim()}
           accessibilityRole="button"
         >
-          <Text style={styles.btnSaveText}>{saving ? 'Saving…' : 'Save'}</Text>
+          <Text style={styles.btnSaveText}>{saving ? t('categories.saving') : t('categories.save')}</Text>
         </Pressable>
         <Pressable onPress={onCancel} style={styles.btnCancel} accessibilityRole="button">
-          <Text style={styles.btnCancelText}>Cancel</Text>
+          <Text style={styles.btnCancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
     </View>
@@ -317,6 +319,7 @@ function CategoryRow({
   onDelete: (cat: ExpenseCategory) => void;
 }): React.JSX.Element {
   const C = useThemedColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={styles.catRow}>
@@ -325,7 +328,7 @@ function CategoryRow({
       </View>
       <View style={styles.catInfo}>
         <Text style={styles.catName}>{cat.name}</Text>
-        {cat.isDefault && <Text style={styles.catDefault}>Default</Text>}
+        {cat.isDefault && <Text style={styles.catDefault}>{t('categories.default')}</Text>}
       </View>
       <View style={[styles.colorSwatch, { backgroundColor: cat.color }]} />
       {!cat.isDefault && (
@@ -336,7 +339,7 @@ function CategoryRow({
             hitSlop={8}
             accessibilityRole="button"
           >
-            <Text style={styles.rowBtnEdit}>Edit</Text>
+            <Text style={styles.rowBtnEdit}>{t('categories.edit')}</Text>
           </Pressable>
           <Pressable
             onPress={() => onDelete(cat)}
@@ -344,7 +347,7 @@ function CategoryRow({
             hitSlop={8}
             accessibilityRole="button"
           >
-            <Text style={styles.rowBtnDelete}>Delete</Text>
+            <Text style={styles.rowBtnDelete}>{t('categories.delete')}</Text>
           </Pressable>
         </>
       )}
@@ -354,6 +357,7 @@ function CategoryRow({
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function CategoriesScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const houseId = useAuthStore((s) => s.houseId);
   const categories = useExpenseCategoriesStore((s) => s.categories);
   const isLoading = useExpenseCategoriesStore((s) => s.isLoading);
@@ -387,13 +391,13 @@ export default function CategoriesScreen(): React.JSX.Element {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
         const msg =
-          err instanceof Error ? err.message : 'Could not save the category. Please try again.';
-        Alert.alert('Error', msg);
+          err instanceof Error ? err.message : t('categories.could_not_save');
+        Alert.alert(t('common.error'), msg);
       } finally {
         setSaving(false);
       }
     },
-    [houseId, add]
+    [houseId, add, t]
   );
 
   const handleUpdate = useCallback(
@@ -410,8 +414,8 @@ export default function CategoriesScreen(): React.JSX.Element {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
         const msg =
-          err instanceof Error ? err.message : 'Could not update the category. Please try again.';
-        Alert.alert('Error', msg);
+          err instanceof Error ? err.message : t('categories.could_not_update');
+        Alert.alert(t('common.error'), msg);
       } finally {
         setSaving(false);
       }
@@ -422,12 +426,12 @@ export default function CategoriesScreen(): React.JSX.Element {
   const handleDelete = useCallback(
     (cat: ExpenseCategory) => {
       Alert.alert(
-        'Delete Category',
-        `Remove "${cat.name}"? Bills with this category will keep the name but it won't appear as an option.`,
+        t('categories.delete_title'),
+        t('categories.delete_confirm', { name: cat.name }),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: 'Delete',
+            text: t('common.delete'),
             style: 'destructive',
             onPress: async (): Promise<void> => {
               try {
@@ -437,15 +441,15 @@ export default function CategoriesScreen(): React.JSX.Element {
                 const msg =
                   err instanceof Error
                     ? err.message
-                    : 'Could not delete the category. Please try again.';
-                Alert.alert('Error', msg);
+                    : t('categories.could_not_delete');
+                Alert.alert(t('common.error'), msg);
               }
             },
           },
         ]
       );
     },
-    [remove]
+    [remove, t]
   );
 
   return (
@@ -458,10 +462,9 @@ export default function CategoriesScreen(): React.JSX.Element {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <View>
-              <Text style={styles.screenTitle}>Expense Categories</Text>
+              <Text style={styles.screenTitle}>{t('categories.title')}</Text>
               <Text style={styles.screenSub}>
-                These categories appear when adding bills. They also group your spending on the
-                profile page.
+                {t('categories.subtitle')}
               </Text>
 
               {showAdd && (
@@ -488,11 +491,11 @@ export default function CategoriesScreen(): React.JSX.Element {
                   onPress={() => setShowAdd(true)}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.addBtnText}>+ Add Category</Text>
+                  <Text style={styles.addBtnText}>{t('categories.add_category')}</Text>
                 </Pressable>
               )}
 
-              <Text style={styles.listHeader}>ALL CATEGORIES</Text>
+              <Text style={styles.listHeader}>{t('categories.all_categories')}</Text>
             </View>
           }
           renderItem={({ item }) => (
@@ -501,7 +504,7 @@ export default function CategoriesScreen(): React.JSX.Element {
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           ListEmptyComponent={
             <Text style={styles.empty}>
-              {isLoading ? 'Loading…' : 'No categories yet. Tap "+ Add Category" to create one.'}
+              {isLoading ? t('common.loading') : t('categories.no_categories')}
             </Text>
           }
         />

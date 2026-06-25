@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -183,6 +184,7 @@ interface TimePickerProps {
 }
 
 export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Element {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [rawInput, setRawInput]   = useState('');
   const inputRef = useRef<TextInput>(null);
@@ -227,10 +229,10 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
         style={pickerStyles.addBtn}
         onPress={() => onChange('09:00')}
         accessibilityRole="button"
-        accessibilityLabel="Add a time"
+        accessibilityLabel={t('common.add_a_time')}
       >
         <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
-        <Text style={pickerStyles.addBtnText}>Add time</Text>
+        <Text style={pickerStyles.addBtnText}>{t('common.add_time')}</Text>
       </Pressable>
     );
   }
@@ -253,15 +255,15 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
           autoFocus
           selectTextOnFocus
           returnKeyType="done"
-          accessibilityLabel="Enter time manually"
-          accessibilityHint="Type a time in HH:MM format"
+          accessibilityLabel={t('common.enter_time_manually')}
+          accessibilityHint={t('common.time_format_hint')}
         />
         <Pressable
           style={pickerStyles.cancelBtn}
           onPress={() => setIsEditing(false)}
           accessibilityRole="button"
         >
-          <Text style={pickerStyles.cancelText}>Cancel</Text>
+          <Text style={pickerStyles.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
     );
@@ -297,7 +299,7 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
           style={pickerStyles.editBtn}
           onPress={startEditing}
           accessibilityRole="button"
-          accessibilityLabel="Type time manually"
+          accessibilityLabel={t('common.type_time_manually')}
         >
           <Ionicons name="pencil-outline" size={18} color={colors.textSecondary} />
         </Pressable>
@@ -307,9 +309,9 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
         style={pickerStyles.clearBtn}
         onPress={() => onChange('')}
         accessibilityRole="button"
-        accessibilityLabel="Clear time"
+        accessibilityLabel={t('common.clear_time')}
       >
-        <Text style={pickerStyles.clearText}>Clear time</Text>
+        <Text style={pickerStyles.clearText}>{t('common.clear_time')}</Text>
       </Pressable>
     </View>
   );

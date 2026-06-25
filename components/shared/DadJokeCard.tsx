@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -19,6 +20,7 @@ const CATEGORY_EMOJI: Record<DadJoke['category'], string> = {
 
 export function DadJokeCard(): React.JSX.Element {
   const c = useThemedColors();
+  const { t } = useTranslation();
   const [joke, setJoke] = useState<DadJoke>(getDailyJoke);
   const [revealed, setRevealed] = useState(false);
   const [key, setKey] = useState(0);
@@ -39,7 +41,7 @@ export function DadJokeCard(): React.JSX.Element {
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={styles.header}>
         <Text style={styles.emoji}>{CATEGORY_EMOJI[joke.category]}</Text>
-        <Text style={[styles.title, { color: c.textPrimary }]}>Dad Joke of the Day</Text>
+        <Text style={[styles.title, { color: c.textPrimary }]}>{t('games.dad_joke_of_the_day')}</Text>
         <View style={[styles.categoryPill, { backgroundColor: c.primary + '18' }]}>
           <Text style={[styles.categoryText, { color: c.primary }]}>{joke.category}</Text>
         </View>
@@ -58,9 +60,9 @@ export function DadJokeCard(): React.JSX.Element {
             onPress={handleReveal}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Reveal punchline"
+            accessibilityLabel={t('games.reveal_punchline')}
           >
-            <Text style={[styles.revealText, { color: c.primary }]}>Tap to reveal 👀</Text>
+            <Text style={[styles.revealText, { color: c.primary }]}>{t('games.tap_to_reveal')}</Text>
           </Pressable>
         )}
       </Animated.View>
@@ -72,9 +74,9 @@ export function DadJokeCard(): React.JSX.Element {
             onPress={handleNext}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Next joke"
+            accessibilityLabel={t('games.next_joke')}
           >
-            <Text style={[styles.nextText, { color: c.textSecondary }]}>Another one 🎲</Text>
+            <Text style={[styles.nextText, { color: c.textSecondary }]}>{t('games.another_one')}</Text>
           </Pressable>
         </Animated.View>
       )}

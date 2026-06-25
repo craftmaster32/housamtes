@@ -288,7 +288,7 @@ export default function AddBillScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <EmptyState mode="loading" title="Loading…" />
+          <EmptyState mode="loading" title={t('common.loading')} />
         </View>
       </SafeAreaView>
     );
