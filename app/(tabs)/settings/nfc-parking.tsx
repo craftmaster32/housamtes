@@ -7,11 +7,13 @@ import {
   Alert,
   ActivityIndicator,
   Share,
+  I18nManager,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -22,6 +24,7 @@ const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/parking-toggle`;
 
 export default function NfcParkingScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const userId = useAuthStore((s) => s.profile?.id);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -63,12 +66,12 @@ export default function NfcParkingScreen(): React.JSX.Element {
 
   const handleRegenerate = useCallback((): void => {
     Alert.alert(
-      'Reset NFC Token?',
-      'Your current NFC tag will stop working. You will need to update your Apple Shortcut with the new token.',
+      t('nfc_parking.reset_title'),
+      t('nfc_parking.reset_body'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Reset',
+          text: t('common.reset'),
           style: 'destructive',
           onPress: async (): Promise<void> => {
             if (!userId) return;
@@ -78,12 +81,12 @@ export default function NfcParkingScreen(): React.JSX.Element {
                 p_user_id: userId,
               });
               if (error || !data) {
-                Alert.alert('Error', 'Could not reset the token. Please try again.');
+                Alert.alert(t('common.error'), t('nfc_parking.reset_error'));
                 return;
               }
               setToken(data as string);
             } catch {
-              Alert.alert('Error', 'Could not reset the token. Please try again.');
+              Alert.alert(t('common.error'), t('nfc_parking.reset_error'));
             } finally {
               setIsLoading(false);
             }
@@ -91,7 +94,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
         },
       ]
     );
-  }, [userId]);
+  }, [userId, t]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -100,11 +103,11 @@ export default function NfcParkingScreen(): React.JSX.Element {
           onPress={() => router.back()}
           style={styles.backBtn}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('nfc_parking.go_back')}
         >
-          <Ionicons name="chevron-back" size={24} color={C.primary} />
+          <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={C.primary} />
         </Pressable>
-        <Text style={styles.title}>NFC Parking Tag</Text>
+        <Text style={styles.title}>{t('nfc_parking.title')}</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -112,18 +115,16 @@ export default function NfcParkingScreen(): React.JSX.Element {
         <View style={styles.card}>
           <View style={styles.iconRow}>
             <Text style={styles.nfcIcon}>📡</Text>
-            <Text style={styles.cardTitle}>How it works</Text>
+            <Text style={styles.cardTitle}>{t('nfc_parking.how_it_works')}</Text>
           </View>
           <Text style={styles.cardBody}>
-            Stick an NFC tag in your car. Set up an Apple Shortcut that calls this function when you
-            tap the tag — it claims the spot when you arrive and releases it when you leave.
-            Everything happens in the background with the screen off.
+            {t('nfc_parking.how_it_works_body')}
           </Text>
         </View>
 
-        <Text style={styles.sectionLabel}>STEP 1 — YOUR SECRET TOKEN</Text>
+        <Text style={styles.sectionLabel}>{t('nfc_parking.step1_title')}</Text>
         <Text style={styles.hint}>
-          This token proves it&apos;s you. Never share it with anyone.
+          {t('nfc_parking.step1_hint')}
         </Text>
         <View style={styles.card}>
           {isLoading ? (
@@ -140,30 +141,30 @@ export default function NfcParkingScreen(): React.JSX.Element {
                   style={styles.copyBtn}
                   onPress={handleShareToken}
                   accessibilityRole="button"
-                  accessibilityLabel="Share token"
-                  accessibilityHint="Opens share sheet so you can copy the token"
+                  accessibilityLabel={t('nfc_parking.share_token')}
+                  accessibilityHint={t('nfc_parking.share_token_hint')}
                 >
                   <Ionicons name="share-outline" size={16} color={C.primary} />
-                  <Text style={styles.copyBtnText}>Share / Copy</Text>
+                  <Text style={styles.copyBtnText}>{t('nfc_parking.share_copy')}</Text>
                 </Pressable>
                 <Pressable
                   style={styles.resetBtn}
                   onPress={handleRegenerate}
                   accessibilityRole="button"
-                  accessibilityLabel="Reset token"
-                  accessibilityHint="Generates a new token, your current NFC tag will stop working"
+                  accessibilityLabel={t('nfc_parking.reset_token')}
+                  accessibilityHint={t('nfc_parking.reset_token_hint')}
                 >
-                  <Text style={styles.resetBtnText}>Reset</Text>
+                  <Text style={styles.resetBtnText}>{t('common.reset')}</Text>
                 </Pressable>
               </View>
             </>
           ) : (
-            <Text style={styles.errorText}>Could not load your token. Please try again.</Text>
+            <Text style={styles.errorText}>{t('nfc_parking.load_error')}</Text>
           )}
         </View>
 
-        <Text style={styles.sectionLabel}>STEP 2 — EDGE FUNCTION URL</Text>
-        <Text style={styles.hint}>This is the address your Shortcut will call.</Text>
+        <Text style={styles.sectionLabel}>{t('nfc_parking.step2_title')}</Text>
+        <Text style={styles.hint}>{t('nfc_parking.step2_hint')}</Text>
         <View style={styles.card}>
           <Text style={styles.tokenText} selectable>
             {FUNCTION_URL}
@@ -172,26 +173,26 @@ export default function NfcParkingScreen(): React.JSX.Element {
             style={styles.copyBtn}
             onPress={handleShareUrl}
             accessibilityRole="button"
-            accessibilityLabel="Share URL"
+            accessibilityLabel={t('nfc_parking.share_url')}
           >
             <Ionicons name="share-outline" size={16} color={C.primary} />
-            <Text style={styles.copyBtnText}>Share / Copy</Text>
+            <Text style={styles.copyBtnText}>{t('nfc_parking.share_copy')}</Text>
           </Pressable>
         </View>
 
-        <Text style={styles.sectionLabel}>STEP 3 — SET UP APPLE SHORTCUTS</Text>
+        <Text style={styles.sectionLabel}>{t('nfc_parking.step3_title')}</Text>
         <View style={styles.card}>
-          {[
-            'Open the Shortcuts app on your iPhone.',
-            'Tap Automation → New Automation → NFC.',
-            'Tap "Scan" and hold your phone near the tag to register it. Give it a name like "Car Tag".',
-            'Add action: Get Contents of URL.',
-            `Set the URL to your Function URL (Step 2).`,
-            'Set Method to POST.',
-            'Tap Add Header → Name: Authorization, Value: Bearer <paste your token>.',
-            'Turn off "Ask Before Running" so it runs silently.',
-            'Tap Done. Tap the tag to test — the parking spot should toggle!',
-          ].map((step, i) => (
+          {([
+            t('nfc_parking.step3_1'),
+            t('nfc_parking.step3_2'),
+            t('nfc_parking.step3_3'),
+            t('nfc_parking.step3_4'),
+            t('nfc_parking.step3_5'),
+            t('nfc_parking.step3_6'),
+            t('nfc_parking.step3_7'),
+            t('nfc_parking.step3_8'),
+            t('nfc_parking.step3_9'),
+          ] as string[]).map((step, i) => (
             <View key={i} style={[styles.stepRow, i > 0 && styles.stepBorder]}>
               <View style={styles.stepNum}>
                 <Text style={styles.stepNumText}>{i + 1}</Text>
@@ -201,13 +202,12 @@ export default function NfcParkingScreen(): React.JSX.Element {
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>NFC TAG</Text>
+        <Text style={styles.sectionLabel}>{t('nfc_parking.nfc_tag_title')}</Text>
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.icon}>🏷️</Text>
             <Text style={styles.cardBody}>
-              Any NTAG213, NTAG215, or NTAG216 tag works. You can buy a pack of 10 for a few dollars
-              on Amazon. Stick one on your dashboard or sun visor.
+              {t('nfc_parking.nfc_tag_body')}
             </Text>
           </View>
         </View>

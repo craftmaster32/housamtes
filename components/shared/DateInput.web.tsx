@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
@@ -9,10 +10,11 @@ interface DateInputProps {
 }
 
 export function DateInput({ value, onChange, style }: DateInputProps): React.JSX.Element {
+  const { t } = useTranslation();
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const [yr, mo, dy] = value ? value.split('-') : ['', '', ''];
-  const displayText = value ? `${dy}/${mo}/${yr}` : 'Select date';
+  const displayText = value ? `${dy}/${mo}/${yr}` : t('bills.pick_date');
 
   return (
     // Wrapper div handles all clicks and calls showPicker() on the hidden input.

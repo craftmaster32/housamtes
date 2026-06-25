@@ -1318,5 +1318,43 @@
     "no_spending_yet": "Sin gastos aún",
     "add_bills_hint": "Agrega algunos gastos para ver el desglose.",
     "no_spending_for": "Sin gastos para este período"
+  },
+  "nfc_parking": {
+    "title": "Etiqueta NFC de estacionamiento",
+    "go_back": "Volver",
+    "how_it_works": "Cómo funciona",
+    "how_it_works_body": "Pega una etiqueta NFC en tu auto. Configura un atajo de Apple que llame a esta función cuando toques la etiqueta — reclama el lugar al llegar y lo libera al irte. Todo sucede en segundo plano con la pantalla apagada.",
+    "step1_title": "PASO 1 — TU TOKEN SECRETO",
+    "step1_hint": "Este token demuestra que eres tú. Nunca lo compartas con nadie.",
+    "share_token": "Compartir token",
+    "share_token_hint": "Abre la hoja de compartir para copiar el token",
+    "share_copy": "Compartir / Copiar",
+    "reset_token": "Restablecer token",
+    "reset_token_hint": "Genera un nuevo token, tu etiqueta NFC actual dejará de funcionar",
+    "reset_title": "¿Restablecer token NFC?",
+    "reset_body": "Tu etiqueta NFC actual dejará de funcionar. Deberás actualizar tu atajo de Apple con el nuevo token.",
+    "reset_error": "No se pudo restablecer el token. Inténtalo de nuevo.",
+    "load_error": "No se pudo cargar tu token. Inténtalo de nuevo.",
+    "step2_title": "PASO 2 — URL DE LA FUNCIÓN",
+    "step2_hint": "Esta es la dirección que tu atajo llamará.",
+    "share_url": "Compartir URL",
+    "step3_title": "PASO 3 — CONFIGURAR ATAJOS DE APPLE",
+    "step3_1": "Abre la app Atajos en tu iPhone.",
+    "step3_2": "Toca Automatización → Nueva automatización → NFC.",
+    "step3_3": "Toca \"Escanear\" y acerca tu teléfono a la etiqueta para registrarla. Dale un nombre como \"Etiqueta del auto\".",
+    "step3_4": "Agrega acción: Obtener contenido de URL.",
+    "step3_5": "Establece la URL a tu URL de función (Paso 2).",
+    "step3_6": "Establece el método a POST.",
+    "step3_7": "Toca Agregar encabezado → Nombre: Authorization, Valor: Bearer <pega tu token>.",
+    "step3_8": "Desactiva \"Preguntar antes de ejecutar\" para que se ejecute silenciosamente.",
+    "step3_9": "Toca Listo. Toca la etiqueta para probar — ¡el lugar de estacionamiento debería alternarse!",
+    "nfc_tag_title": "ETIQUETA NFC",
+    "nfc_tag_body": "Cualquier etiqueta NTAG213, NTAG215 o NTAG216 funciona. Puedes comprar un paquete de 10 por unos pocos dólares en Amazon. Pégala en el tablero o en la visera."
+  },
+  "legal": {
+    "go_back": "Volver",
+    "privacy_title": "Política de privacidad",
+    "terms_title": "Términos de servicio",
+    "last_updated": "Última actualización: {{date}}"
   }
 }

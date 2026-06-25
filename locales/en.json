@@ -1317,5 +1317,43 @@
     "no_spending_yet": "No spending yet",
     "add_bills_hint": "Add some bills to see your spending breakdown.",
     "no_spending_for": "No spending for this period"
+  },
+  "nfc_parking": {
+    "title": "NFC Parking Tag",
+    "go_back": "Go back",
+    "how_it_works": "How it works",
+    "how_it_works_body": "Stick an NFC tag in your car. Set up an Apple Shortcut that calls this function when you tap the tag — it claims the spot when you arrive and releases it when you leave. Everything happens in the background with the screen off.",
+    "step1_title": "STEP 1 — YOUR SECRET TOKEN",
+    "step1_hint": "This token proves it's you. Never share it with anyone.",
+    "share_token": "Share token",
+    "share_token_hint": "Opens share sheet so you can copy the token",
+    "share_copy": "Share / Copy",
+    "reset_token": "Reset token",
+    "reset_token_hint": "Generates a new token, your current NFC tag will stop working",
+    "reset_title": "Reset NFC Token?",
+    "reset_body": "Your current NFC tag will stop working. You will need to update your Apple Shortcut with the new token.",
+    "reset_error": "Could not reset the token. Please try again.",
+    "load_error": "Could not load your token. Please try again.",
+    "step2_title": "STEP 2 — EDGE FUNCTION URL",
+    "step2_hint": "This is the address your Shortcut will call.",
+    "share_url": "Share URL",
+    "step3_title": "STEP 3 — SET UP APPLE SHORTCUTS",
+    "step3_1": "Open the Shortcuts app on your iPhone.",
+    "step3_2": "Tap Automation → New Automation → NFC.",
+    "step3_3": "Tap \"Scan\" and hold your phone near the tag to register it. Give it a name like \"Car Tag\".",
+    "step3_4": "Add action: Get Contents of URL.",
+    "step3_5": "Set the URL to your Function URL (Step 2).",
+    "step3_6": "Set Method to POST.",
+    "step3_7": "Tap Add Header → Name: Authorization, Value: Bearer <paste your token>.",
+    "step3_8": "Turn off \"Ask Before Running\" so it runs silently.",
+    "step3_9": "Tap Done. Tap the tag to test — the parking spot should toggle!",
+    "nfc_tag_title": "NFC TAG",
+    "nfc_tag_body": "Any NTAG213, NTAG215, or NTAG216 tag works. You can buy a pack of 10 for a few dollars on Amazon. Stick one on your dashboard or sun visor."
+  },
+  "legal": {
+    "go_back": "Go back",
+    "privacy_title": "Privacy Policy",
+    "terms_title": "Terms of Service",
+    "last_updated": "Last updated: {{date}}"
   }
 }

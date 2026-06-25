@@ -1,8 +1,10 @@
 import { useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Animated, I18nManager } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -26,6 +28,7 @@ function sectionStyles(C: ColorTokens) {
 }
 
 export default function PrivacyPolicyScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -38,11 +41,14 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <Text style={styles.backText}>← Back</Text>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
+            <View style={styles.backRow}>
+              <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
+              <Text style={styles.backText}>{t('common.back')}</Text>
+            </View>
           </Pressable>
-          <Text style={styles.heading}>Privacy Policy</Text>
-          <Text style={styles.updated}>Last updated: 10 May 2026</Text>
+          <Text style={styles.heading}>{t('legal.privacy_title')}</Text>
+          <Text style={styles.updated}>{t('legal.last_updated', { date: '10 May 2026' })}</Text>
         </View>
         <ScrollView contentContainerStyle={styles.content}>
 
@@ -142,6 +148,7 @@ function makeStyles(C: ColorTokens) {
     flex: { flex: 1 },
     header: { padding: sizes.lg, gap: 4 },
     backBtn: { marginBottom: sizes.sm },
+    backRow: { flexDirection: 'row', alignItems: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
     updated: { color: C.textSecondary, fontSize: 13, ...font.regular },

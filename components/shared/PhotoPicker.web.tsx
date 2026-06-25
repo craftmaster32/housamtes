@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PhotoPickerProps {
   photos: string[]; // full data URLs
@@ -30,6 +31,7 @@ async function compressImage(file: File): Promise<string> {
 }
 
 export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProps): React.JSX.Element {
+  const { t } = useTranslation();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -116,7 +118,7 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
             width: 'fit-content',
           }}
         >
-          {loading ? '⏳ Processing…' : '📷 Add photos'}
+          {loading ? `⏳ ${t('common.loading')}` : `📷 ${t('photos.add_photo')}`}
         </div>
       )}
 
