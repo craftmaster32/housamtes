@@ -1250,6 +1250,11 @@
     "perm_maintenance": "Maintenance",
     "perm_condition": "Property Condition"
   },
+  "not_found": {
+    "title": "Page not found",
+    "message": "This screen doesn't exist. Let's get you back home.",
+    "go_to_dashboard": "Go to Dashboard"
+  },
   "categories": {
     "title": "Expense Categories",
     "subtitle": "These categories appear when adding bills. They also group your spending on the profile page.",

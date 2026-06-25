@@ -1,12 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet, I18nManager } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTHS   = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAY_KEYS = ['cal_day_sun', 'cal_day_mon', 'cal_day_tue', 'cal_day_wed', 'cal_day_thu', 'cal_day_fri', 'cal_day_sat'] as const;
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -18,6 +19,7 @@ interface CalendarPickerProps {
 }
 
 export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.JSX.Element {
+  const { t } = useTranslation();
   const today = new Date();
   const initDate = value ? new Date(value + 'T12:00:00') : today;
   const [viewYear, setViewYear]   = useState(initDate.getFullYear());
@@ -51,18 +53,18 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
   return (
     <View style={styles.picker}>
       <View style={styles.header}>
-        <Pressable onPress={prevMonth} style={styles.navBtn} accessibilityRole="button">
-          <Ionicons name="chevron-back" size={16} color={colors.primary} />
+        <Pressable onPress={prevMonth} style={styles.navBtn} accessibilityRole="button" accessibilityLabel={t('dashboard.prev_month')}>
+          <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={16} color={colors.primary} />
         </Pressable>
         <Text style={styles.monthLabel}>{MONTHS[viewMonth]} {viewYear}</Text>
-        <Pressable onPress={nextMonth} style={styles.navBtn} accessibilityRole="button">
-          <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+        <Pressable onPress={nextMonth} style={styles.navBtn} accessibilityRole="button" accessibilityLabel={t('dashboard.next_month')}>
+          <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.primary} />
         </Pressable>
       </View>
 
       <View style={styles.weekRow}>
-        {WEEKDAYS.map((d) => (
-          <Text key={d} style={styles.weekDay}>{d}</Text>
+        {DAY_KEYS.map((dk) => (
+          <Text key={dk} style={styles.weekDay}>{t(`dashboard.${dk}`)}</Text>
         ))}
       </View>
 

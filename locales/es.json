@@ -1137,6 +1137,11 @@
     "join_instructions": "Los compañeros se unen creando una cuenta e ingresando tu código. No puedes agregarlos manualmente — así los datos de todos quedan privados y seguros.",
     "loading": "Cargando…"
   },
+  "not_found": {
+    "title": "Página no encontrada",
+    "message": "Esta pantalla no existe. Volvamos al inicio.",
+    "go_to_dashboard": "Ir al inicio"
+  },
   "categories": {
     "title": "Categorías de gastos",
     "subtitle": "Estas categorías aparecen al agregar gastos. También agrupan tus gastos en la página de perfil.",

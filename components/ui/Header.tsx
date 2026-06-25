@@ -2,9 +2,10 @@
 // Standard screen header with optional back chevron + right-side slot.
 
 import { ReactNode, useCallback } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
 import { type } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -17,6 +18,7 @@ export interface Props {
 }
 
 export function Header({ title, back = false, onBack, right }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const handleBack = useCallback(() => {
     if (onBack) onBack();
@@ -30,10 +32,10 @@ export function Header({ title, back = false, onBack, right }: Props): React.JSX
           <Pressable
             onPress={handleBack}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.back')}
             style={styles.iconBtn}
           >
-            <Ionicons name="chevron-back" size={24} color={C.textPrimary} />
+            <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={C.textPrimary} />
           </Pressable>
         )}
       </View>

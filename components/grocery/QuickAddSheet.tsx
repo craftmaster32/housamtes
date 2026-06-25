@@ -13,6 +13,7 @@ import {
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -28,6 +29,7 @@ interface QuickAddSheetProps {
 }
 
 export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = makeStyles(C);
   const inputRef = useRef<TextInput>(null);
@@ -62,7 +64,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
       setInputText('');
       onClose();
     } catch {
-      setError('Could not share items. Please try again.');
+      setError(t('grocery.could_not_share_items'));
     } finally {
       setIsSharing(false);
     }
@@ -91,10 +93,10 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Quick Share ⚡</Text>
-              <Text style={styles.subtitle}>Goes straight to the shared list — no draft needed</Text>
+              <Text style={styles.title}>{t('grocery.quick_share')} ⚡</Text>
+              <Text style={styles.subtitle}>{t('grocery.quick_share_hint')}</Text>
             </View>
-            <Pressable onPress={handleClose} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close">
+            <Pressable onPress={handleClose} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel={t('common.close')}>
               <Ionicons name="close" size={22} color={C.textSecondary} />
             </Pressable>
           </View>
@@ -105,7 +107,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
               ref={inputRef}
               value={inputText}
               onChangeText={(v) => { setInputText(v); setError(null); }}
-              placeholder="Add item..."
+              placeholder={t('grocery.add_item_dot_dot_dot')}
               placeholderTextColor={C.textSecondary}
               style={styles.input}
               returnKeyType="done"
@@ -113,15 +115,15 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
               onSubmitEditing={handleAdd}
               autoFocus
               accessible
-              accessibilityLabel="Item name"
-              accessibilityHint="Type a grocery item and tap the plus button to add it to the list"
+              accessibilityLabel={t('grocery.item_name')}
+              accessibilityHint={t('grocery.item_name_hint')}
             />
             <Pressable
               style={[styles.addBtn, !inputText.trim() && styles.addBtnOff]}
               onPress={handleAdd}
               disabled={!inputText.trim()}
               accessibilityRole="button"
-              accessibilityLabel="Add item to list"
+              accessibilityLabel={t('grocery.add_item_to_list')}
             >
               <Text style={styles.addBtnText}>+</Text>
             </Pressable>
@@ -144,7 +146,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
                     onPress={() => handleRemove(item.key)}
                     style={styles.removeBtn}
                     accessibilityRole="button"
-                    accessibilityLabel={`Remove ${item.name}`}
+                    accessibilityLabel={t('grocery.remove_item', { name: item.name })}
                   >
                     <Ionicons name="close-circle" size={18} color={C.textDisabled} />
                   </Pressable>
@@ -160,7 +162,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
               onPress={handleShareAll}
               disabled={staged.length === 0 || isSharing}
               accessibilityRole="button"
-              accessibilityLabel={`Share ${staged.length} items`}
+              accessibilityLabel={t('grocery.share_items_count', { count: staged.length })}
               accessibilityState={{ disabled: staged.length === 0 }}
             >
               {isSharing
@@ -169,7 +171,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
                   <>
                     <Ionicons name="share-social-outline" size={18} color="#fff" />
                     <Text style={styles.shareBtnText}>
-                      {staged.length === 0 ? 'Add items first' : `Share ${staged.length} item${staged.length === 1 ? '' : 's'}`}
+                      {staged.length === 0 ? t('grocery.add_items_first') : t('grocery.share_items_count', { count: staged.length })}
                     </Text>
                   </>
                 )
@@ -203,7 +205,7 @@ function makeStyles(C: ColorTokens) {
     inputRow: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
       borderRadius: 12, borderWidth: 1, borderColor: C.border,
-      backgroundColor: C.surfaceSecondary, paddingRight: 6, paddingLeft: 4, height: 50,
+      backgroundColor: C.surfaceSecondary, paddingEnd: 6, paddingStart: 4, height: 50,
     },
     input: {
       flex: 1, height: '100%', paddingHorizontal: 10,

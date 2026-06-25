@@ -1,11 +1,12 @@
 import { useCallback } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, I18nManager } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
@@ -27,6 +28,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null {
+  const { t } = useTranslation();
   const c        = useColors();
   const insets   = useSafeAreaInsets();
   const openProfile = useProfilePopupStore((s) => s.open);
@@ -71,9 +73,9 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
         style={styles.iconBtn}
         onPress={handleBack}
         accessibilityRole="button"
-        accessibilityLabel="Go back"
+        accessibilityLabel={t('common.back')}
       >
-        <Ionicons name="chevron-back" size={24} color={c.primary} />
+        <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={c.primary} />
       </Pressable>
 
       <Text style={[styles.appName, { color: c.primary }]}>HouseMates</Text>
@@ -83,7 +85,7 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
         style={styles.iconBtn}
         onPress={handleProfilePress}
         accessibilityRole="button"
-        accessibilityLabel="Open profile"
+        accessibilityLabel={t('dashboard.open_profile')}
       >
         <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) }]}>
           {profile?.avatarUrl

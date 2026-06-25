@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +24,7 @@ const OVERLAY = 'rgba(0,0,0,0.72)';
 const { width: SW } = Dimensions.get('window');
 
 export function AvatarCropModal({ visible, imageUri, imageWidth, imageHeight, onConfirm, onCancel }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const [processing, setProcessing] = useState(false);
   const [cropAreaH, setCropAreaH] = useState(0);
 
@@ -131,15 +133,15 @@ export function AvatarCropModal({ visible, imageUri, imageWidth, imageHeight, on
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={onCancel} disabled={processing} accessibilityRole="button" style={styles.headerSide}>
-            <Text style={styles.headerBtn}>Cancel</Text>
+            <Text style={styles.headerBtn}>{t('common.cancel')}</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>Adjust Photo</Text>
+          <Text style={styles.headerTitle}>{t('profile.crop_photo')}</Text>
           <View style={styles.headerSide}>
             {processing
               ? <ActivityIndicator size="small" color={colors.primary} />
               : (
                 <Pressable onPress={handleConfirm} accessibilityRole="button">
-                  <Text style={[styles.headerBtn, styles.headerBtnPrimary]}>Use Photo</Text>
+                  <Text style={[styles.headerBtn, styles.headerBtnPrimary]}>{t('profile.use_photo')}</Text>
                 </Pressable>
               )
             }
@@ -182,7 +184,7 @@ export function AvatarCropModal({ visible, imageUri, imageWidth, imageHeight, on
           )}
         </View>
 
-        <Text style={styles.hint}>Pinch to zoom · Drag to reposition</Text>
+        <Text style={styles.hint}>{t('profile.drag_pinch')}</Text>
       </SafeAreaView>
       </GestureHandlerRootView>
     </Modal>

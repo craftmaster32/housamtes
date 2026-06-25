@@ -4,6 +4,7 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { useSpendingStore, type CategorySpend, type MonthSpend, type DrillDownItem } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -73,6 +74,7 @@ interface InsightCardProps {
 }
 
 function InsightCard({ insight, error, isLoading, onRefresh }: InsightCardProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   return (
@@ -87,7 +89,7 @@ function InsightCard({ insight, error, isLoading, onRefresh }: InsightCardProps)
             style={styles.refreshBtn}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Refresh insight"
+            accessibilityLabel={t('spending.refresh_insight')}
             accessibilityState={{ disabled: isLoading }}
           >
             {isLoading
@@ -100,7 +102,7 @@ function InsightCard({ insight, error, isLoading, onRefresh }: InsightCardProps)
           <Text style={styles.insightCardText}>{insight}</Text>
         ) : (
           <Text style={[styles.insightCardEmpty, error ? styles.insightCardError : null]}>
-            {isLoading ? 'Generating insight…' : error ?? 'No insight yet — add some bills first.'}
+            {isLoading ? t('spending.generating_insight') : error ?? t('spending.no_insight_yet')}
           </Text>
         )}
       </View>
@@ -116,6 +118,7 @@ interface OverviewCardProps {
 }
 
 function OverviewCard({ current, previous, currency, viewMode }: OverviewCardProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const isPersonal   = viewMode === 'personal';
@@ -136,7 +139,7 @@ function OverviewCard({ current, previous, currency, viewMode }: OverviewCardPro
       <Text style={styles.overviewMonth}>{current.label}</Text>
       <View style={styles.overviewRow}>
         <View style={styles.overviewBlock}>
-          <Text style={styles.overviewLbl}>{isPersonal ? 'My spending' : 'House total'}</Text>
+          <Text style={styles.overviewLbl}>{isPersonal ? t('spending.my_spending') : t('spending.house_total')}</Text>
           <Text style={styles.overviewAmt}>
             {fmtFull(isPersonal ? current.total : current.houseTotal, currency)}
           </Text>
@@ -151,14 +154,14 @@ function OverviewCard({ current, previous, currency, viewMode }: OverviewCardPro
         </View>
         <View style={styles.overviewDivider} />
         <View style={styles.overviewBlock}>
-          <Text style={styles.overviewLbl}>{isPersonal ? 'House total' : 'Your share'}</Text>
+          <Text style={styles.overviewLbl}>{isPersonal ? t('spending.house_total') : t('spending.your_share')}</Text>
           <Text style={styles.overviewAmt}>
             {fmtFull(isPersonal ? current.houseTotal : current.total, currency)}
           </Text>
           {sharePct > 0 && (
             <View style={[styles.overviewBadge, { backgroundColor: C.primary + '12' }]}>
               <Text style={[styles.overviewBadgeText, { color: C.primary }]}>
-                {sharePct}% of house
+                {t('spending.pct_of_house', { pct: sharePct })}
               </Text>
             </View>
           )}
@@ -167,8 +170,8 @@ function OverviewCard({ current, previous, currency, viewMode }: OverviewCardPro
       {previous && (
         <Text style={styles.overviewCompare}>
           {isPersonal
-            ? `Compared to ${previous.label}: you spent ${fmtShort(previous.total, currency)}, house was ${fmtShort(previous.houseTotal, currency)}`
-            : `Compared to ${previous.label}: house was ${fmtShort(previous.houseTotal, currency)}, your share was ${fmtShort(previous.total, currency)}`
+            ? t('spending.compare_personal', { month: previous.label, spent: fmtShort(previous.total, currency), house: fmtShort(previous.houseTotal, currency) })
+            : t('spending.compare_house', { month: previous.label, house: fmtShort(previous.houseTotal, currency), share: fmtShort(previous.total, currency) })
           }
         </Text>
       )}
@@ -187,6 +190,7 @@ interface MonthlyChartProps {
 }
 
 function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, onSetHouseView, onSetPersonalView }: MonthlyChartProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const chartData  = months.slice(0, 6).reverse();
@@ -205,10 +209,10 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, 
             accessible
             accessibilityRole="tab"
             accessibilityState={{ selected: !isPersonal }}
-            accessibilityLabel="Show all house spending"
+            accessibilityLabel={t('spending.show_house_spending')}
           >
             <Ionicons name="home-outline" size={14} color={!isPersonal ? C.primary : 'rgba(255,255,255,0.70)'} />
-            <Text style={[styles.chartSegText, !isPersonal && styles.chartSegTextActive]}>House</Text>
+            <Text style={[styles.chartSegText, !isPersonal && styles.chartSegTextActive]}>{t('spending.house_label')}</Text>
           </Pressable>
           <Pressable
             style={[styles.chartSegBtn, isPersonal && styles.chartSegBtnActive]}
@@ -216,13 +220,13 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, 
             accessible
             accessibilityRole="tab"
             accessibilityState={{ selected: isPersonal }}
-            accessibilityLabel="Show my personal spending"
+            accessibilityLabel={t('spending.show_personal_spending')}
           >
             <Ionicons name="person-outline" size={14} color={isPersonal ? C.primary : 'rgba(255,255,255,0.70)'} />
-            <Text style={[styles.chartSegText, isPersonal && styles.chartSegTextActive]}>Personal</Text>
+            <Text style={[styles.chartSegText, isPersonal && styles.chartSegTextActive]}>{t('spending.personal_label')}</Text>
           </Pressable>
         </View>
-        <Text style={styles.chartTitle}>MONTHLY TREND — TAP A MONTH</Text>
+        <Text style={styles.chartTitle}>{t('spending.monthly_trend')}</Text>
         <View style={styles.barsRow}>
           {chartData.map((m, i) => {
             const monthsIdx  = chartData.length - 1 - i;
@@ -240,7 +244,7 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, 
                 onPress={() => onSelectMonth(monthsIdx)}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel={`View spending for ${m.label}`}
+                accessibilityLabel={t('spending.view_month', { month: m.label })}
                 accessibilityState={{ selected: isSelected }}
               >
                 <Text style={[styles.barAmt, isSelected && styles.barAmtSelected]}>
@@ -268,17 +272,17 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, 
           {isPersonal ? (
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: '#fff' }]} />
-              <Text style={styles.legendText}>Personal</Text>
+              <Text style={styles.legendText}>{t('spending.personal_label')}</Text>
             </View>
           ) : (
             <>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: '#fff' }]} />
-                <Text style={styles.legendText}>House</Text>
+                <Text style={styles.legendText}>{t('spending.house_label')}</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: 'rgba(255,255,255,0.38)' }]} />
-                <Text style={styles.legendText}>Your share</Text>
+                <Text style={styles.legendText}>{t('spending.your_share')}</Text>
               </View>
             </>
           )}
@@ -296,6 +300,7 @@ interface CategoryRowProps {
 }
 
 function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const { cat, myAmount, prevHouseAmount, sectionTotal, drillDownItems } = item;
@@ -314,7 +319,7 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
       onPress={canExpand ? handlePress : undefined}
       accessible
       accessibilityRole={canExpand ? 'button' : 'none'}
-      accessibilityLabel={`${cat.name}, ${fmtFull(cat.amount, currency)}${canExpand ? ', tap to see details' : ''}`}
+      accessibilityLabel={`${cat.name}, ${fmtFull(cat.amount, currency)}${canExpand ? `, ${t('spending.tap_details')}` : ''}`}
       accessibilityState={canExpand ? { expanded: isExpanded } : undefined}
     >
       <View style={[styles.catIcon, { backgroundColor: cat.color + '18' }]}>
@@ -344,7 +349,7 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
           <View style={[styles.catBarFill, { width: `${barPct}%` as `${number}%`, backgroundColor: cat.color }]} />
         </View>
         {myAmount > 0 && (
-          <Text style={styles.catMyShare}>Your share: {fmtFull(myAmount, currency)}</Text>
+          <Text style={styles.catMyShare}>{t('spending.your_share')}: {fmtFull(myAmount, currency)}</Text>
         )}
         {isExpanded && drillDownItems.length > 0 && (
           <View style={styles.drillDown}>
@@ -355,7 +360,7 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
                   hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
                   accessible
                   accessibilityRole="link"
-                  accessibilityLabel={`Open bill: ${d.title}`}
+                  accessibilityLabel={t('spending.open_bill', { title: d.title })}
                 >
                   <Text style={styles.drillDownType}>·</Text>
                   <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
@@ -399,6 +404,7 @@ function SpendingSectionHeader({ title, icon, total, currency }: SectionHeaderPr
 // ── Main screen ────────────────────────────────────────────────────────────────
 
 export default function SpendingScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('house');
@@ -490,7 +496,7 @@ export default function SpendingScreen(): React.JSX.Element {
     const result: SpendingSection[] = [];
     if (houseBillCats.length > 0) {
       result.push({
-        title: 'House Bills',
+        title: t('spending.house_bills_section'),
         icon: '🏠',
         total: houseBillTotal,
         data: houseBillCats.map((c) => toCatRow(c, houseBillTotal)),
@@ -498,7 +504,7 @@ export default function SpendingScreen(): React.JSX.Element {
     }
     if (lifestyleCats.length > 0) {
       result.push({
-        title: 'Lifestyle',
+        title: t('spending.lifestyle_section'),
         icon: '🛍️',
         total: lifestyleTotal,
         data: lifestyleCats.map((c) => toCatRow(c, lifestyleTotal)),
@@ -546,11 +552,11 @@ export default function SpendingScreen(): React.JSX.Element {
         style={styles.backBtn}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Go back"
+        accessibilityLabel={t('common.back')}
       >
         <Ionicons name="chevron-back" size={24} color={C.textPrimary} />
       </Pressable>
-      <Text style={styles.title}>Spending Analysis</Text>
+      <Text style={styles.title}>{t('spending.spending_analysis')}</Text>
       <View style={styles.backBtn} />
     </View>
   );
@@ -571,16 +577,16 @@ export default function SpendingScreen(): React.JSX.Element {
       <SafeAreaView style={styles.container}>
         {pageHeader}
         <View style={styles.centered}>
-          <Text style={styles.errorTitle}>Could not load spending</Text>
+          <Text style={styles.errorTitle}>{t('spending.could_not_load')}</Text>
           <Text style={styles.errorText}>{error}</Text>
           <Pressable
             style={styles.retryBtn}
             onPress={handleRetry}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Retry loading spending data"
+            accessibilityLabel={t('spending.retry_loading')}
           >
-            <Text style={styles.retryBtnText}>Try again</Text>
+            <Text style={styles.retryBtnText}>{t('bills.retry')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -614,10 +620,10 @@ export default function SpendingScreen(): React.JSX.Element {
           onPress={handleJumpToCurrent}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Jump to current month"
+          accessibilityLabel={t('spending.jump_to_current')}
         >
           <Ionicons name="arrow-forward-circle-outline" size={16} color={C.primary} />
-          <Text style={styles.jumpBtnText}>Jump to current month</Text>
+          <Text style={styles.jumpBtnText}>{t('spending.jump_to_current')}</Text>
         </Pressable>
       )}
 
@@ -627,7 +633,7 @@ export default function SpendingScreen(): React.JSX.Element {
 
       {sections.length > 0 && (
         <Text style={styles.breakdownTitle}>
-          {selectedMonth?.label ?? ''} breakdown
+          {t('spending.breakdown_title', { month: selectedMonth?.label ?? '' })}
         </Text>
       )}
     </View>
@@ -648,11 +654,11 @@ export default function SpendingScreen(): React.JSX.Element {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No spending yet</Text>
+              <Text style={styles.emptyTitle}>{t('spending.no_spending_yet')}</Text>
               <Text style={styles.emptyText}>
                 {selectedIdx === 0
-                  ? 'Add some bills and they\'ll appear here.'
-                  : `No spending recorded for ${selectedMonth?.label ?? 'this month'}.`}
+                  ? t('spending.add_bills_hint')
+                  : t('spending.no_spending_for', { month: selectedMonth?.label ?? t('spending.this_month') })}
               </Text>
             </View>
           ) : null

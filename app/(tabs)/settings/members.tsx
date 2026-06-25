@@ -4,22 +4,23 @@ import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore, type Housemate, type MemberPermissions, type MemberRole } from '@stores/housematesStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
-const PERMISSION_LABELS: Array<{ key: keyof MemberPermissions; label: string; icon: string }> = [
-  { key: 'bills',       label: 'Bills & Payments',   icon: '💰' },
-  { key: 'grocery',     label: 'Grocery List',        icon: '🛒' },
-  { key: 'parking',     label: 'Parking',             icon: '🚗' },
-  { key: 'chores',      label: 'Chores',              icon: '🧹' },
-  { key: 'chat',        label: 'House Chat',          icon: '💬' },
-  { key: 'photos',      label: 'Photos',              icon: '📷' },
-  { key: 'voting',      label: 'Voting',              icon: '🗳️' },
-  { key: 'maintenance', label: 'Maintenance',         icon: '🔧' },
-  { key: 'condition',   label: 'Property Condition',  icon: '📋' },
+const PERMISSION_KEYS: Array<{ key: keyof MemberPermissions; tKey: string; icon: string }> = [
+  { key: 'bills',       tKey: 'members.perm_bills',       icon: '💰' },
+  { key: 'grocery',     tKey: 'members.perm_grocery',     icon: '🛒' },
+  { key: 'parking',     tKey: 'members.perm_parking',     icon: '🚗' },
+  { key: 'chores',      tKey: 'members.perm_chores',      icon: '🧹' },
+  { key: 'chat',        tKey: 'members.perm_chat',        icon: '💬' },
+  { key: 'photos',      tKey: 'members.perm_photos',      icon: '📷' },
+  { key: 'voting',      tKey: 'members.perm_voting',      icon: '🗳️' },
+  { key: 'maintenance', tKey: 'members.perm_maintenance', icon: '🔧' },
+  { key: 'condition',   tKey: 'members.perm_condition',   icon: '📋' },
 ];
 
 const makeStyles = (C: ColorTokens) => StyleSheet.create({
@@ -68,9 +69,10 @@ function MemberCard({
   onTogglePermission: (memberId: string, key: keyof MemberPermissions, value: boolean) => void;
   onChangeRole: (member: Housemate) => void;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const roleLabel = member.role === 'owner' ? '👑 Owner' : member.role === 'admin' ? '🛡 Admin' : 'Member';
+  const roleLabel = member.role === 'owner' ? `👑 ${t('members.owner')}` : member.role === 'admin' ? `🛡 ${t('members.admin')}` : t('members.member');
 
   return (
     <View style={styles.memberCard}>
@@ -82,13 +84,13 @@ function MemberCard({
           }
         </View>
         <View style={styles.memberMeta}>
-          <Text style={styles.memberName}>{member.name}{isMe ? ' (you)' : ''}</Text>
+          <Text style={styles.memberName}>{member.name}{isMe ? ` ${t('members.you_suffix')}` : ''}</Text>
           <Text style={styles.memberRole}>{roleLabel}</Text>
         </View>
         {canEdit && !isMe && member.role !== 'owner' && (
           <View style={styles.changeRoleBtn}>
             <Text style={styles.changeRoleBtnText} onPress={() => onChangeRole(member)}>
-              Change role ›
+              {t('members.change_role')}
             </Text>
           </View>
         )}
@@ -96,11 +98,11 @@ function MemberCard({
 
       {canEdit && !isMe && (
         <View style={styles.permWrap}>
-          <Text style={styles.permTitle}>What can {member.name} see?</Text>
-          {PERMISSION_LABELS.map(({ key, label, icon }) => (
+          <Text style={styles.permTitle}>{t('members.what_can_see', { name: member.name })}</Text>
+          {PERMISSION_KEYS.map(({ key, tKey, icon }) => (
             <View key={key} style={styles.permRow}>
               <Text style={styles.permIcon}>{icon}</Text>
-              <Text style={styles.permLabel}>{label}</Text>
+              <Text style={styles.permLabel}>{t(tKey)}</Text>
               <Switch
                 value={member.permissions[key]}
                 onValueChange={(v) => onTogglePermission(member.memberId, key, v)}
@@ -113,7 +115,7 @@ function MemberCard({
       )}
 
       {isMe && (
-        <Text style={styles.permNote}>Your own permissions are managed by the house owner.</Text>
+        <Text style={styles.permNote}>{t('members.your_permissions_note')}</Text>
       )}
     </View>
   );
@@ -121,6 +123,7 @@ function MemberCard({
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function MembersScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const myUserId   = useAuthStore((s) => s.user?.id);
   const myRole     = useAuthStore((s) => s.role);
   const houseId    = useAuthStore((s) => s.houseId);
@@ -150,22 +153,22 @@ export default function MembersScreen(): React.JSX.Element {
 
   const handleChangeRole = useCallback((member: Housemate) => {
     const options: MemberRole[] = member.role === 'admin' ? ['member'] : ['admin', 'member'];
-    const labels: Record<MemberRole, string> = { owner: 'Owner', admin: 'Admin', member: 'Member' };
+    const labels: Record<MemberRole, string> = { owner: t('members.owner'), admin: t('members.admin'), member: t('members.member') };
     Alert.alert(
-      `Change ${member.name}'s role`,
-      'Admins can also manage categories and member permissions.',
+      t('members.change_role_title', { name: member.name }),
+      t('members.change_role_body'),
       [
         ...options.map((r) => ({
-          text: `Make ${labels[r]}`,
+          text: t('members.make_role', { role: labels[r] }),
           onPress: async (): Promise<void> => {
             await updateRole(member.memberId, r);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
           },
         })),
-        { text: 'Cancel', style: 'cancel' as const },
+        { text: t('common.cancel'), style: 'cancel' as const },
       ]
     );
-  }, [updateRole]);
+  }, [updateRole, t]);
 
   const canEdit = myRole === 'owner' || myRole === 'admin';
 
@@ -179,9 +182,9 @@ export default function MembersScreen(): React.JSX.Element {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <View>
-              <Text style={styles.screenTitle}>Member Permissions</Text>
+              <Text style={styles.screenTitle}>{t('members.title')}</Text>
               <Text style={styles.screenSub}>
-                Control what each housemate can access in HouseMates. Owners and admins always have full access.
+                {t('members.subtitle')}
               </Text>
             </View>
           }
@@ -195,7 +198,7 @@ export default function MembersScreen(): React.JSX.Element {
             />
           )}
           ItemSeparatorComponent={() => <View style={{ height: sizes.md }} />}
-          ListEmptyComponent={<Text style={styles.empty}>No members found.</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{t('members.no_members')}</Text>}
         />
       </Animated.View>
     </SafeAreaView>

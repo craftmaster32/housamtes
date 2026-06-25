@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -34,6 +35,7 @@ export function SaveListModal({
   onSkip,
   onClose,
 }: SaveListModalProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = makeStyles(C);
 
@@ -53,7 +55,7 @@ export function SaveListModal({
       setIsPrivate(false);
       onClose();
     } catch {
-      setError('Could not save the list. Please try again.');
+      setError(t('grocery.could_not_save_list'));
     } finally {
       setIsSaving(false);
     }
@@ -67,7 +69,7 @@ export function SaveListModal({
       await onUpdate();
       onClose();
     } catch {
-      setError('Could not update the list. Please try again.');
+      setError(t('grocery.could_not_update_list'));
     } finally {
       setIsSaving(false);
     }
@@ -97,11 +99,9 @@ export function SaveListModal({
           {mode === 'update' ? (
             /* ── Update mode ──────────────────────────────────────────────── */
             <>
-              <Text style={styles.title}>Update saved list?</Text>
+              <Text style={styles.title}>{t('grocery.update_saved_list')}</Text>
               <Text style={styles.body}>
-                Save your changes to{' '}
-                <Text style={styles.bodyBold}>{existingListName}</Text>
-                {' '}so it reflects what you just shared.
+                {t('grocery.update_saved_list_body', { name: existingListName })}
               </Text>
               {!!error && <Text style={styles.errorText}>{error}</Text>}
               <Pressable
@@ -112,23 +112,23 @@ export function SaveListModal({
               >
                 {isSaving
                   ? <ActivityIndicator size="small" color="#fff" />
-                  : <Text style={styles.primaryBtnText}>Yes, update the list</Text>
+                  : <Text style={styles.primaryBtnText}>{t('grocery.yes_update_list')}</Text>
                 }
               </Pressable>
               <Pressable style={styles.skipBtn} onPress={handleSkip} accessibilityRole="button">
-                <Text style={styles.skipBtnText}>No, just this time</Text>
+                <Text style={styles.skipBtnText}>{t('grocery.no_just_this_time')}</Text>
               </Pressable>
             </>
           ) : (
             /* ── Save new mode ────────────────────────────────────────────── */
             <>
-              <Text style={styles.title}>Save this list?</Text>
-              <Text style={styles.body}>Give it a name and reuse it anytime — great for your regular weekly shop.</Text>
+              <Text style={styles.title}>{t('grocery.save_this_list')}</Text>
+              <Text style={styles.body}>{t('grocery.save_this_list_body')}</Text>
 
               <TextInput
                 value={listName}
                 onChangeText={(v) => { setListName(v); setError(null); }}
-                placeholder="List name, e.g. Weekly Shop"
+                placeholder={t('grocery.list_name_placeholder')}
                 placeholderTextColor={C.textSecondary}
                 style={styles.nameInput}
                 maxLength={60}
@@ -136,15 +136,15 @@ export function SaveListModal({
                 autoFocus
                 accessible
                 accessibilityRole="text"
-                accessibilityLabel="List name"
-                accessibilityHint="Enter a name for your shopping list"
+                accessibilityLabel={t('grocery.list_name')}
+                accessibilityHint={t('grocery.list_name_hint')}
                 accessibilityState={{ disabled: false }}
               />
 
               <View style={styles.privateRow}>
                 <View>
-                  <Text style={styles.privateLabel}>Keep private</Text>
-                  <Text style={styles.privateSub}>Only you can see and edit this list</Text>
+                  <Text style={styles.privateLabel}>{t('grocery.keep_private')}</Text>
+                  <Text style={styles.privateSub}>{t('grocery.keep_private_hint')}</Text>
                 </View>
                 <Switch
                   value={isPrivate}
@@ -152,7 +152,7 @@ export function SaveListModal({
                   trackColor={{ false: C.border, true: C.primary }}
                   thumbColor="#fff"
                   accessibilityRole="switch"
-                  accessibilityLabel="Private list"
+                  accessibilityLabel={t('grocery.private_list')}
                 />
               </View>
 
@@ -169,13 +169,13 @@ export function SaveListModal({
                   : (
                     <>
                       <Ionicons name="bookmark" size={16} color="#fff" />
-                      <Text style={styles.primaryBtnText}>Save list</Text>
+                      <Text style={styles.primaryBtnText}>{t('grocery.save_list')}</Text>
                     </>
                   )
                 }
               </Pressable>
               <Pressable style={styles.skipBtn} onPress={handleSkip} accessibilityRole="button">
-                <Text style={styles.skipBtnText}>{"One-time, don't save"}</Text>
+                <Text style={styles.skipBtnText}>{t('grocery.one_time_dont_save')}</Text>
               </Pressable>
             </>
           )}

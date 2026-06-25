@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useSpendingStore } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
@@ -20,6 +21,7 @@ function fmt(n: number, sym: string): string {
 }
 
 export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const months         = useSpendingStore((s) => s.months);
   const isLoading      = useSpendingStore((s) => s.isLoading);
   const insight        = useSpendingStore((s) => s.insight);
@@ -42,14 +44,14 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   }, []);
 
   const current  = months[0];
-  const monthLabel = current?.label.split(' ')[0].toUpperCase() ?? 'THIS MONTH';
+  const monthLabel = current?.label.split(' ')[0].toUpperCase() ?? t('spending.this_month');
 
   if (isLoading) {
     return (
       <View style={styles.card}>
         <View style={styles.decoCircle} />
         <View style={styles.pad}>
-          <Text style={styles.label}>{monthLabel} SPENDING</Text>
+          <Text style={styles.label}>{monthLabel} {t('spending.spending_label')}</Text>
           <ActivityIndicator color={colors.white} size="small" style={{ marginTop: 8 }} />
         </View>
       </View>
@@ -66,25 +68,25 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
       onPress={handleOpen}
       accessible
       accessibilityRole="button"
-      accessibilityLabel="View full spending analysis"
+      accessibilityLabel={t('spending.view_spending')}
     >
       <View style={styles.decoCircle} />
       <View style={styles.decoCircleSm} />
 
       <View style={styles.pad}>
         {/* Header */}
-        <Text style={styles.label}>{monthLabel} SPENDING</Text>
+        <Text style={styles.label}>{monthLabel} {t('spending.spending_label')}</Text>
 
         {/* House total */}
         <View style={styles.totalsRow}>
           <View style={styles.totalBlock}>
             <Text style={styles.totalAmt}>{fmt(houseTotal, currency)}</Text>
-            <Text style={styles.totalSub}>House total</Text>
+            <Text style={styles.totalSub}>{t('spending.house_total')}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.totalBlock}>
             <Text style={styles.totalAmt}>{fmt(myShare, currency)}</Text>
-            <Text style={styles.totalSub}>Your share {sharePct > 0 ? `(${sharePct}%)` : ''}</Text>
+            <Text style={styles.totalSub}>{t('spending.your_share')} {sharePct > 0 ? `(${sharePct}%)` : ''}</Text>
           </View>
         </View>
 
@@ -100,14 +102,14 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
           ) : insightError ? (
             <>
               <Ionicons name="warning-outline" size={14} color="rgba(255,255,255,0.74)" />
-              <Text style={styles.insightText} numberOfLines={1}>AI insight unavailable</Text>
+              <Text style={styles.insightText} numberOfLines={1}>{t('spending.ai_unavailable')}</Text>
             </>
           ) : null}
         </View>
 
         {/* CTA */}
         <View style={styles.ctaRow}>
-          <Text style={styles.ctaText}>Full analysis</Text>
+          <Text style={styles.ctaText}>{t('spending.full_analysis')}</Text>
           <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.80)" />
         </View>
       </View>

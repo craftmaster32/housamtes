@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { View, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { Text } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
@@ -12,6 +13,7 @@ interface PhotoPickerProps {
 }
 
 export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProps): React.JSX.Element {
+  const { t } = useTranslation();
   const handlePick = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
@@ -54,7 +56,7 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
 
       {photos.length < maxPhotos && (
         <Pressable style={styles.addBtn} onPress={handlePick}>
-          <Text style={styles.addBtnText}>📷 Add photos</Text>
+          <Text style={styles.addBtnText}>{t('photos.add_photo')}</Text>
         </Pressable>
       )}
     </View>
@@ -64,7 +66,7 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
 const styles = StyleSheet.create({
   container: { gap: sizes.sm },
   thumbnailRow: { flexDirection: 'row' },
-  thumbWrap: { position: 'relative', marginRight: sizes.sm },
+  thumbWrap: { position: 'relative', marginEnd: sizes.sm },
   thumb: { width: 80, height: 80, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border },
   removeBtn: {
     position: 'absolute', top: -6, right: -6,

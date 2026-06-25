@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
+import { useTranslation } from 'react-i18next';
 import { useSpendingStore } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
@@ -32,6 +33,7 @@ function fmtFull(n: number, currency: string): string {
 }
 
 export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Element {
+  const { t } = useTranslation();
   const months    = useSpendingStore((s) => s.months);
   const isLoading = useSpendingStore((s) => s.isLoading);
   const load      = useSpendingStore((s) => s.load);
@@ -70,8 +72,8 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
       <View style={styles.card}>
         <View style={styles.decoCircle} />
         <View style={styles.pad}>
-          <Text style={styles.labelText}>MY SPENDING</Text>
-          <Text style={styles.loadingText}>Loading…</Text>
+          <Text style={styles.labelText}>{t('spending.spending_label')}</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </View>
     );
@@ -82,9 +84,9 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
       <View style={styles.card}>
         <View style={styles.decoCircle} />
         <View style={styles.pad}>
-          <Text style={styles.labelText}>MY SPENDING</Text>
+          <Text style={styles.labelText}>{t('spending.spending_label')}</Text>
           <Text style={styles.amountText}>{currency}0.00</Text>
-          <Text style={styles.emptyNote}>No expenses recorded yet.</Text>
+          <Text style={styles.emptyNote}>{t('spending.no_expenses_recorded')}</Text>
         </View>
       </View>
     );
@@ -99,7 +101,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.labelText}>
-            {current ? `${current.label.split(' ')[0].toUpperCase()} SPENDING` : 'MY SPENDING'}
+            {current ? `${current.label.split(' ')[0].toUpperCase()} ${t('spending.spending_label')}` : t('spending.spending_label')}
           </Text>
           <View style={styles.pills}>
             {PERIODS.map((p) => (
@@ -247,7 +249,7 @@ const styles = StyleSheet.create({
   barFill: { width: 20, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.32)' },
   barFillLatest: { backgroundColor: colors.white },
   barLbl: { fontSize: 11, ...font.regular, color: 'rgba(255,255,255,0.84)' },
-  chartNote: { fontSize: 12, ...font.regular, color: colors.white, opacity: 0.84, textAlign: 'right' },
+  chartNote: { fontSize: 12, ...font.regular, color: colors.white, opacity: 0.84, alignSelf: 'flex-end' },
 
   compareRow: { alignItems: 'flex-start', gap: 2 },
   compareAmt: { fontSize: 16, ...font.extrabold, color: colors.white },

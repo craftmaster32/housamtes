@@ -1,5 +1,6 @@
 import React from 'react';
 import { Platform, View, TextInput as RNTextInput, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
@@ -10,6 +11,7 @@ interface DateInputProps {
 }
 
 export function DateInput({ value, onChange, style }: DateInputProps): React.JSX.Element {
+  const { t } = useTranslation();
   // Ref to the hidden <input type="date"> so we can call showPicker() on click.
   // showPicker() called from a PARENT element's onClick reliably opens the calendar,
   // unlike calling it from the input's own onClick (which conflicts with native focus behavior).
@@ -17,7 +19,7 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
 
   if (Platform.OS === 'web') {
     const [yr, mo, dy] = value ? value.split('-') : ['', '', ''];
-    const displayText = value ? `${dy}/${mo}/${yr}` : 'Select date';
+    const displayText = value ? `${dy}/${mo}/${yr}` : t('bills.pick_date');
 
     return React.createElement(
       'div',
