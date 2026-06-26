@@ -32,8 +32,14 @@ function fmtFull(n: number, currency: string): string {
   return `${currency}${n.toFixed(2)}`;
 }
 
+function monthNameFromKey(monthKey: string, locale: string): string {
+  const [y, m] = monthKey.split('-');
+  return new Date(Number(y), Number(m) - 1, 1)
+    .toLocaleDateString(locale, { month: 'short' }).toUpperCase();
+}
+
 export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const months    = useSpendingStore((s) => s.months);
   const isLoading = useSpendingStore((s) => s.isLoading);
   const load      = useSpendingStore((s) => s.load);
@@ -101,7 +107,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.labelText}>
-            {current ? t('spending.month_spending_header', { month: current.label.split(' ')[0].toUpperCase() }) : t('spending.spending_label')}
+            {current ? t('spending.month_spending_header', { month: monthNameFromKey(current.month, i18n.language) }) : t('spending.spending_label')}
           </Text>
           <View style={styles.pills}>
             {PERIODS.map((p) => (
@@ -152,7 +158,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
           </View>
           {highest && lowest && chartData.length > 1 && (
             <Text style={styles.chartNote}>
-              {t('spending.highest')}: {highest.label.split(' ')[0]} • {t('spending.lowest')}: {lowest.label.split(' ')[0]}
+              {t('spending.highest')}: {monthNameFromKey(highest.month, i18n.language)} • {t('spending.lowest')}: {monthNameFromKey(lowest.month, i18n.language)}
             </Text>
           )}
         </View>
@@ -163,7 +169,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
             <Text style={styles.compareAmt}>
               {isDown ? '↓' : '↑'} {fmtFull(Math.abs(diff), currency)} {isDown ? t('spending.less') : t('spending.more')}
             </Text>
-            <Text style={styles.compareSub}>{t('spending.compared_to', { month: previous.label.split(' ')[0] })}</Text>
+            <Text style={styles.compareSub}>{t('spending.compared_to', { month: monthNameFromKey(previous.month, i18n.language) })}</Text>
             {pct !== null && (
               <Text style={styles.comparePct}>{pct}% {isDown ? t('spending.lower_this_month') : t('spending.higher_this_month')}</Text>
             )}

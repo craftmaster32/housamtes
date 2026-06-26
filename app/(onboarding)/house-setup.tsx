@@ -445,7 +445,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
               onPress={() => setShowConfirm(false)}
               accessible
               accessibilityRole="button"
-              accessibilityLabel={t('common.cancel')}
+              accessibilityLabel={t('house_setup.wrong_house')}
               style={styles.cancelBtn}
             >
               <Text style={styles.cancelText}>{t('house_setup.wrong_house')}</Text>

@@ -7,6 +7,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useThemedColors } from '@constants/colors';
@@ -23,7 +24,7 @@ export interface GroceryItemDetailModalProps {
 }
 
 export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveComment }: GroceryItemDetailModalProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeModalStyles(), []);
   const housemate = useHousematesStore((st) => st.housemates.find((h) => h.id === item?.addedBy));
@@ -55,7 +56,8 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
   }, [item, comment, onSaveComment, onClose, isSaving, t]);
 
   const addedByName = item ? (item.addedBy === myId ? t('common.you') : (housemate?.name ?? t('common.someone'))) : '';
-  const timeAgo     = item ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true }) : '';
+  const dateFnsLocale = ({ en: enUS, es: dateFnsEs, he: dateFnsHe } as const)[i18n.language as 'en' | 'es' | 'he'] ?? enUS;
+  const timeAgo     = item ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: dateFnsLocale }) : '';
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>

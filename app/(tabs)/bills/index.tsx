@@ -60,7 +60,7 @@ function getCategoryIcon(category: string): React.ComponentProps<typeof Ionicons
 }
 
 // ── Date label ────────────────────────────────────────────────────────────────
-function formatDateLabel(dateStr: string, t: (key: string) => string): string {
+function formatDateLabel(dateStr: string, locale: string, t: (key: string) => string): string {
   const today = new Date();
   const pad = (n: number): string => String(n).padStart(2, '0');
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
@@ -69,7 +69,7 @@ function formatDateLabel(dateStr: string, t: (key: string) => string): string {
   const yestStr = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
   if (dateStr === todayStr) return t('common.today');
   if (dateStr === yestStr) return t('common.yesterday');
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString([], {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString(locale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -224,7 +224,7 @@ function SettleUpPanel(): React.JSX.Element {
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function BillsScreen(): React.JSX.Element {
   const c = useThemedColors();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
 
@@ -277,10 +277,10 @@ export default function BillsScreen(): React.JSX.Element {
       groups[key].push(bill);
     }
     return Object.entries(groups).map(([date, data]) => ({
-      title: formatDateLabel(date, t),
+      title: formatDateLabel(date, i18n.language, t),
       data,
     }));
-  }, [bills, t]);
+  }, [bills, i18n.language, t]);
 
   const renderBill = useCallback(
     ({ item, index }: { item: Bill; index: number }): React.JSX.Element => (

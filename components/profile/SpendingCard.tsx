@@ -20,8 +20,14 @@ function fmt(n: number, sym: string): string {
   return `${sym}${n.toFixed(0)}`;
 }
 
+function monthNameFromKey(monthKey: string, locale: string): string {
+  const [y, m] = monthKey.split('-');
+  return new Date(Number(y), Number(m) - 1, 1)
+    .toLocaleDateString(locale, { month: 'short' }).toUpperCase();
+}
+
 export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const months         = useSpendingStore((s) => s.months);
   const isLoading      = useSpendingStore((s) => s.isLoading);
   const insight        = useSpendingStore((s) => s.insight);
@@ -44,7 +50,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   }, []);
 
   const current  = months[0];
-  const monthName = current?.label.split(' ')[0].toUpperCase() ?? '';
+  const monthName = current ? monthNameFromKey(current.month, i18n.language) : '';
 
   if (isLoading) {
     return (

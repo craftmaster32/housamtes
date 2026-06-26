@@ -419,7 +419,7 @@ function DayCell({
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function CalendarScreen(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const events                       = useEventsStore((s) => s.events);
   const isLoading                    = useEventsStore((s) => s.isLoading);
   const storeError                   = useEventsStore((s) => s.error);
@@ -715,7 +715,7 @@ export default function CalendarScreen(): React.JSX.Element {
             <Text style={styles.eventsSectionTitle}>
               {selectedDate === todayStr
                 ? t('calendar.today')
-                : new Date(selectedDate + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                : new Date(selectedDate + 'T12:00:00').toLocaleDateString(i18n.language, { weekday: 'short', month: 'short', day: 'numeric' })}
             </Text>
             <Pressable style={styles.addDayBtn} onPress={handleOpenAdd} accessibilityRole="button">
               <Ionicons name="add-circle-outline" size={18} color={C.primary} />

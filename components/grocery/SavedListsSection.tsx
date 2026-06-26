@@ -49,7 +49,7 @@ export function SavedListsSection({
       Haptics.selectionAsync().catch(() => {});
       onLoadList(list);
     }
-  }, [hasDraftItems, onLoadList]);
+  }, [hasDraftItems, onLoadList, t]);
 
   const handleDelete = useCallback((list: GroceryList): void => {
     Alert.alert(
@@ -63,7 +63,7 @@ export function SavedListsSection({
         },
       ]
     );
-  }, [onDeleteList]);
+  }, [onDeleteList, t]);
 
   return (
     <View style={styles.container}>

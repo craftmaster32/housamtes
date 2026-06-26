@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimensions, Alert, I18nManager } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimensions, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname, Link } from 'expo-router';

@@ -716,7 +716,7 @@ function GroceryWidgetRow({
         style={[styles.widgetSwipeCheck, item.isChecked && styles.widgetSwipeUncheck]}
         onPress={handleToggle}
         accessibilityRole="button"
-        accessibilityLabel={item.isChecked ? 'Mark as needed' : 'Mark as done'}
+        accessibilityLabel={item.isChecked ? t('grocery.mark_as_needed') : t('grocery.mark_as_done')}
       >
         <Ionicons
           name={item.isChecked ? 'arrow-undo-outline' : 'checkmark'}
@@ -759,7 +759,7 @@ function GroceryWidgetRow({
         delayLongPress={400}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: item.isChecked }}
-        accessibilityHint={onLongPress ? 'Long press for details and notes' : undefined}
+        accessibilityHint={onLongPress ? t('grocery.long_press_hint') : undefined}
       >
         <Ionicons
           name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}

@@ -731,7 +731,7 @@ export default function GroceryScreen(): React.JSX.Element {
     } catch {
       setAddError(t('grocery.could_not_end_run'));
     }
-  }, [endRun]);
+  }, [endRun, t]);
 
   const handleEndRun = useCallback((): void => {
     Alert.alert(
@@ -747,7 +747,7 @@ export default function GroceryScreen(): React.JSX.Element {
         },
       ]
     );
-  }, [doEndRun]);
+  }, [doEndRun, t]);
 
   const onToggle = useCallback(
     (id: string): void => {

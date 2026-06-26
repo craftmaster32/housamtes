@@ -620,6 +620,7 @@
     "failed_add": "Failed to add item. Try again.",
     "mark_as_done": "Mark as done",
     "mark_as_needed": "Mark as needed",
+    "long_press_hint": "Long press for details and notes",
     "delete_item": "Delete item",
     "checked_count": "{{count}} checked",
     "unit_label": "Unit",
@@ -1264,7 +1265,7 @@
     "could_not_create_vote": "Could not create the vote. Please try again.",
     "approve_leave_title": "Approve {{name}}'s departure?",
     "approve_leave_body": "{{name}} wants to leave the house. They have an outstanding balance of {{amount}}. Do you approve?",
-    "back_rtl": "Back →"
+    "back_rtl": "Profile →"
   },
   "members": {
     "title": "Member Permissions",
@@ -1341,8 +1342,10 @@
     "no_insight_yet": "No insight yet",
     "my_spending": "MY SPENDING",
     "pct_of_house": "{{pct}}% of house",
-    "compare_personal": "Show personal spending",
-    "compare_house": "Show house spending",
+    "show_personal_spending": "Show personal spending",
+    "show_house_spending": "Show house spending",
+    "compare_personal": "Compared to {{month}}, you spent {{spent}} and the house spent {{house}}.",
+    "compare_house": "Compared to {{month}}, the house spent {{house}} and your share was {{share}}.",
     "house_label": "House",
     "personal_label": "Personal",
     "monthly_trend": "Monthly Trend",
