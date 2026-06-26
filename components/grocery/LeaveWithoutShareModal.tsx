@@ -1,4 +1,4 @@
-import { View, Modal, Pressable, StyleSheet } from 'react-native';
+import { View, Modal, Pressable, StyleSheet, I18nManager } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -45,7 +45,7 @@ export function LeaveWithoutShareModal({
             accessibilityRole="button"
             accessibilityLabel={t('grocery.go_back_and_share')}
           >
-            <Ionicons name="arrow-back" size={16} color="#fff" />
+            <Ionicons name={I18nManager.isRTL ? 'arrow-forward' : 'arrow-back'} size={16} color="#fff" />
             <Text style={styles.primaryBtnText}>{t('grocery.stay_and_share')}</Text>
           </Pressable>
 

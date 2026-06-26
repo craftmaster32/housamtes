@@ -499,6 +499,7 @@
     "group_other": "Otros",
     "add_category": "Añadir",
     "pick_date": "Elegir fecha",
+    "date_format_hint": "Ingrese fecha en formato DD/MM/AAAA",
     "select_payment_date": "Seleccionar fecha de pago",
     "select_last_paid_date": "Seleccionar última fecha de pago",
     "prev_month": "Mes anterior",

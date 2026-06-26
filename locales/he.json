@@ -499,6 +499,7 @@
     "group_other": "אחר",
     "add_category": "הוסף",
     "pick_date": "בחר תאריך",
+    "date_format_hint": "הזן תאריך בפורמט DD/MM/YYYY",
     "select_payment_date": "בחר תאריך תשלום",
     "select_last_paid_date": "בחר תאריך תשלום אחרון",
     "prev_month": "חודש קודם",

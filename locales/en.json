@@ -498,6 +498,7 @@
     "group_other": "Other",
     "add_category": "Add",
     "pick_date": "Pick date",
+    "date_format_hint": "Enter date in DD/MM/YYYY format",
     "select_payment_date": "Select payment date",
     "select_last_paid_date": "Select last paid date",
     "prev_month": "Previous month",
