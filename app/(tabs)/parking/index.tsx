@@ -1036,8 +1036,12 @@ export default function ParkingScreen(): React.JSX.Element {
                   {isFree
                     ? t('parking.free_real_estate')
                     : isMine
-                      ? t('parking.your_car_since', { time: formatTime(current!.startTime) })
-                      : t('parking.took_spot_since', { name: resolveName(current?.occupant ?? '', housemates), time: formatTime(current!.startTime) })}
+                      ? current!.startTime
+                        ? t('parking.your_car_since', { time: formatTime(current!.startTime) })
+                        : t('parking.your_car_all_day')
+                      : current!.startTime
+                        ? t('parking.took_spot_since', { name: resolveName(current?.occupant ?? '', housemates), time: formatTime(current!.startTime) })
+                        : t('parking.took_spot_all_day', { name: resolveName(current?.occupant ?? '', housemates) })}
                 </Text>
               </View>
 
