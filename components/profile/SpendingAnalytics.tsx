@@ -101,7 +101,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.labelText}>
-            {current ? `${current.label.split(' ')[0].toUpperCase()} ${t('spending.spending_label')}` : t('spending.spending_label')}
+            {current ? t('spending.month_spending_header', { month: current.label.split(' ')[0].toUpperCase() }) : t('spending.spending_label')}
           </Text>
           <View style={styles.pills}>
             {PERIODS.map((p) => (

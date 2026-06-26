@@ -81,7 +81,7 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
         style={styles.input}
         value={value}
         onChangeText={onChange}
-        placeholder="DD/MM/YYYY"
+        placeholder={t('bills.pick_date')}
         placeholderTextColor={colors.textDisabled}
       />
     </View>

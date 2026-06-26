@@ -108,7 +108,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
 const styles = StyleSheet.create({
   picker: { backgroundColor: colors.surfaceSecondary, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  navBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 16, backgroundColor: colors.white },
+  navBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 22, backgroundColor: colors.white },
   monthLabel: { fontSize: 14, ...font.bold, color: colors.textPrimary },
   weekRow: { flexDirection: 'row', marginBottom: 2 },
   weekDay: { flex: 1, textAlign: 'center', fontSize: 10, ...font.bold, color: colors.textSecondary, paddingVertical: 2 },

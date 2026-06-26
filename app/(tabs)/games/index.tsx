@@ -287,6 +287,7 @@ function JokeBrowser(): React.JSX.Element {
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function GamesScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const [tab, setTab] = useState<GameTab>('scramble');
 

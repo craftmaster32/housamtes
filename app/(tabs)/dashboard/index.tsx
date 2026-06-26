@@ -56,14 +56,15 @@ function greetingText(name: string, t: (key: string) => string): string {
   return `${t(`dashboard.${timeKey}`)}, ${name}`;
 }
 
-function timeAgo(iso: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+function timeAgo(iso: string, t: (key: string, opts?: Record<string, unknown>) => string, lang: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return t('common.just_now');
   if (mins < 60) return t('common.minutes_ago', { n: mins });
   const hours = Math.floor(mins / 60);
   if (hours < 24) return t('common.hours_ago', { n: hours });
-  return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const locale = lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
+  return new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 function parkingAge(startTime: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
@@ -345,6 +346,7 @@ function RecentExpenses(): React.JSX.Element {
   const bills = useBillsStore((s) => s.bills);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const housemates = useHousematesStore((s) => s.housemates);
+  const language = useLanguageStore((s) => s.language);
 
   const recent = useMemo(
     () =>
@@ -383,7 +385,7 @@ function RecentExpenses(): React.JSX.Element {
                     {bill.title}
                   </Text>
                   <Text style={[styles.recentSub, { color: c.textSecondary }]}>
-                    {t('dashboard.paid_by_name', { name: resolveName(bill.paidBy, housemates), time: timeAgo(bill.createdAt, t) })}
+                    {t('dashboard.paid_by_name', { name: resolveName(bill.paidBy, housemates), time: timeAgo(bill.createdAt, t, language) })}
                   </Text>
                 </View>
                 <View style={styles.recentRight}>
@@ -1282,8 +1284,8 @@ function MiniCalendarWidget(): React.JSX.Element {
         </View>
       </View>
       <View style={styles.calWeekRow}>
-        {CAL_DAY_KEYS.map((key, i) => (
-          <Text key={i} style={[styles.calWeekDay, { color: c.textSecondary }]}>
+        {CAL_DAY_KEYS.map((key) => (
+          <Text key={key} style={[styles.calWeekDay, { color: c.textSecondary }]}>
             {t(key)}
           </Text>
         ))}
@@ -1427,6 +1429,7 @@ function ActivityFeed(): React.JSX.Element {
   const chores = useChoresStore((s) => s.chores);
   const profile = useAuthStore((s) => s.profile);
   const housemates = useHousematesStore((s) => s.housemates);
+  const language = useLanguageStore((s) => s.language);
   const myId = profile?.id ?? '';
   const events = useMemo(
     () => buildActivityEvents(bills, groceryItems, chores, myId, housemates, t),
@@ -1457,7 +1460,7 @@ function ActivityFeed(): React.JSX.Element {
                 {event.text}
               </Text>
               <Text style={[styles.activityTime, { color: c.textSecondary }]}>
-                {timeAgo(event.time, t)}
+                {timeAgo(event.time, t, language)}
               </Text>
             </View>
           </View>

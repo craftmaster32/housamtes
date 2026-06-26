@@ -7,7 +7,6 @@ import {
   Alert,
   ActivityIndicator,
   Share,
-  I18nManager,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +18,8 @@ import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/parking-toggle`;
@@ -26,6 +27,8 @@ const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/parking-toggle`;
 export default function NfcParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const userId = useAuthStore((s) => s.profile?.id);
+  const language = useLanguageStore((s) => s.language);
+  const isRTLMode = isRTL(language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -105,7 +108,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('nfc_parking.go_back')}
         >
-          <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={C.primary} />
+          <Ionicons name={isRTLMode ? 'chevron-forward' : 'chevron-back'} size={24} color={C.primary} />
         </Pressable>
         <Text style={styles.title}>{t('nfc_parking.title')}</Text>
         <View style={styles.backBtn} />

@@ -44,14 +44,14 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   }, []);
 
   const current  = months[0];
-  const monthLabel = current?.label.split(' ')[0].toUpperCase() ?? t('spending.this_month');
+  const monthName = current?.label.split(' ')[0].toUpperCase() ?? '';
 
   if (isLoading) {
     return (
       <View style={styles.card}>
         <View style={styles.decoCircle} />
         <View style={styles.pad}>
-          <Text style={styles.label}>{monthLabel} {t('spending.spending_label')}</Text>
+          <Text style={styles.label}>{monthName ? t('spending.month_spending_header', { month: monthName }) : t('spending.spending_label')}</Text>
           <ActivityIndicator color={colors.white} size="small" style={{ marginTop: 8 }} />
         </View>
       </View>
@@ -75,7 +75,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
       <View style={styles.pad}>
         {/* Header */}
-        <Text style={styles.label}>{monthLabel} {t('spending.spending_label')}</Text>
+        <Text style={styles.label}>{monthName ? t('spending.month_spending_header', { month: monthName }) : t('spending.spending_label')}</Text>
 
         {/* House total */}
         <View style={styles.totalsRow}>

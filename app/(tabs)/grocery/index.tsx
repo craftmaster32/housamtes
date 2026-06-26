@@ -98,7 +98,7 @@ function elapsedLabel(startedAt: string, t: (key: string, opts?: Record<string, 
   const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
   if (mins < 1) return t('grocery.just_started');
   if (mins < 60) return t('grocery.mins_at_store', { mins });
-  return t('grocery.hours_at_store', { hours: `${Math.floor(mins / 60)}h ${mins % 60}m` });
+  return t('grocery.hours_at_store', { h: Math.floor(mins / 60), m: mins % 60 });
 }
 
 // ── Item row ───────────────────────────────────────────────────────────────────

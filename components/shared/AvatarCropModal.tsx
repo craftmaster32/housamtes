@@ -140,7 +140,7 @@ export function AvatarCropModal({ visible, imageUri, imageWidth, imageHeight, on
             {processing
               ? <ActivityIndicator size="small" color={colors.primary} />
               : (
-                <Pressable onPress={handleConfirm} accessibilityRole="button">
+                <Pressable onPress={handleConfirm} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   <Text style={[styles.headerBtn, styles.headerBtnPrimary]}>{t('profile.use_photo')}</Text>
                 </Pressable>
               )

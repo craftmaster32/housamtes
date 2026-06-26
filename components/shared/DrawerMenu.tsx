@@ -221,7 +221,7 @@ export function DrawerMenu(): React.JSX.Element {
                   {houseName || (housemates.length > 0 ? t('common.person', { count: housemates.length }) : 'HouseMates')}
                 </Text>
               </View>
-              <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textSecondary} />
+              <Ionicons name={isRTLMode ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textSecondary} />
             </Pressable>
             </Link>
 

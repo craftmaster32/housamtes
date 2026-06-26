@@ -161,8 +161,12 @@ export default function MembersScreen(): React.JSX.Element {
         ...options.map((r) => ({
           text: t('members.make_role', { role: labels[r] }),
           onPress: async (): Promise<void> => {
-            await updateRole(member.memberId, r);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            try {
+              await updateRole(member.memberId, r);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            } catch {
+              Alert.alert(t('common.error'), t('members.role_update_failed'));
+            }
           },
         })),
         { text: t('common.cancel'), style: 'cancel' as const },

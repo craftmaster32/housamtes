@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native'
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -108,22 +108,13 @@ export default function AcceptTermsScreen(): React.JSX.Element {
               {agreed && <Ionicons name="checkmark" size={14} color={'#fff'} />}
             </View>
             <Text style={styles.termsText}>
-              {t('auth.accept_terms_agree_prefix')}
-              <Text
-                style={styles.termsLink}
-                onPress={() => router.push('/(auth)/terms')}
-                accessibilityRole="link"
-              >
-                {t('auth.accept_terms_tos')}
-              </Text>
-              {` ${t('common.and')} `}
-              <Text
-                style={styles.termsLink}
-                onPress={() => router.push('/(auth)/privacy-policy')}
-                accessibilityRole="link"
-              >
-                {t('auth.accept_terms_privacy')}
-              </Text>
+              <Trans
+                i18nKey="auth.accept_terms_agree_full"
+                components={{
+                  tos: <Text style={styles.termsLink} onPress={() => router.push('/(auth)/terms')} accessibilityRole="link" />,
+                  privacy: <Text style={styles.termsLink} onPress={() => router.push('/(auth)/privacy-policy')} accessibilityRole="link" />,
+                }}
+              />
             </Text>
           </Pressable>
 

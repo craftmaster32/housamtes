@@ -439,7 +439,7 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <Text style={styles.modalTitle}>{t('settings.leave_house_title')}</Text>
                 <Text style={styles.modalBody}>
-                  {t('settings.leave_house_body', { name: houseName ? ` "${houseName}"` : '' })}
+                  {t(houseName ? 'settings.leave_house_body_named' : 'settings.leave_house_body', { name: houseName })}
                 </Text>
                 <Pressable
                   style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
