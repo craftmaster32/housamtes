@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: sizes.sm,
-    marginLeft: sizes.xs,
+    marginStart: sizes.xs,
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   gridItem: {

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Pressable, TextInput } from 'react-native';
+import { View, StyleSheet, Pressable, TextInput, I18nManager } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -299,11 +299,11 @@ export default function GamesScreen(): React.JSX.Element {
           style={styles.backBtn}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('games.go_back')}
         >
-          <Ionicons name="chevron-back" size={24} color={c.textPrimary} />
+          <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={c.textPrimary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: c.textPrimary }]}>Games & Fun</Text>
+        <Text style={[styles.headerTitle, { color: c.textPrimary }]}>{t('games.title')}</Text>
         <View style={styles.backBtn} />
       </View>
 

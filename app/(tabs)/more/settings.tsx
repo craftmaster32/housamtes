@@ -851,7 +851,7 @@ function makeStyles(C: ColorTokens) {
       letterSpacing: 1.2,
       marginBottom: sizes.sm,
       marginTop: sizes.xs,
-      marginLeft: 4,
+      marginStart: 4,
     },
     menuGroup: {
       backgroundColor: C.surface,

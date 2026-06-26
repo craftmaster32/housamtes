@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, I18nManager } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -167,7 +167,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
-            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
+            <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color="rgba(255,255,255,0.85)" />
             <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
           <Text style={styles.headerTitle}>

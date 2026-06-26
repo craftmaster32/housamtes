@@ -7,6 +7,7 @@ import {
   Pressable,
   useWindowDimensions,
   Platform,
+  I18nManager,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
@@ -129,7 +130,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
         >
           {formatFull(bill.amount, currencyCode)}
         </Text>
-        <Ionicons name="chevron-forward" size={14} color={c.textSecondary} />
+        <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color={c.textSecondary} />
       </View>
     </Pressable>
   );

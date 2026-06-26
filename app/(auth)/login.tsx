@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Animated, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, ScrollView, I18nManager } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -113,7 +113,7 @@ export default function LoginScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
-            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
+            <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color="rgba(255,255,255,0.85)" />
             <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
 

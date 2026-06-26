@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, SectionList, Animated } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator, SectionList, Animated, I18nManager } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, Link } from 'expo-router';
@@ -365,7 +365,7 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
                   <Text style={styles.drillDownType}>·</Text>
                   <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
                   <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
-                  <Ionicons name="chevron-forward" size={12} color={C.textSecondary} />
+                  <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={12} color={C.textSecondary} />
                 </Pressable>
               </Link>
             ) : (
@@ -554,7 +554,7 @@ export default function SpendingScreen(): React.JSX.Element {
         accessibilityRole="button"
         accessibilityLabel={t('common.back')}
       >
-        <Ionicons name="chevron-back" size={24} color={C.textPrimary} />
+        <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={C.textPrimary} />
       </Pressable>
       <Text style={styles.title}>{t('spending.spending_analysis')}</Text>
       <View style={styles.backBtn} />

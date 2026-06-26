@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   Alert,
+  I18nManager,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
@@ -540,7 +541,7 @@ function ParkingCard(): React.JSX.Element {
             <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{pendingCount} {t('parking.pending').toLowerCase()}</Text>
           </View>
         ) : (
-          <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
+          <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={c.textSecondary} />
         )}
       </View>
       <View
@@ -1254,7 +1255,7 @@ function MiniCalendarWidget(): React.JSX.Element {
             <Ionicons name="calendar-outline" size={18} color="#6366f1" />
           </View>
           <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.calendar')}</Text>
-          <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
+          <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={c.textSecondary} />
         </Pressable>
         <View style={styles.calNavRow}>
           <Pressable
@@ -1264,7 +1265,7 @@ function MiniCalendarWidget(): React.JSX.Element {
             accessibilityLabel={t('dashboard.prev_month')}
             hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
-            <Ionicons name="chevron-back" size={15} color={c.textSecondary} />
+            <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={15} color={c.textSecondary} />
           </Pressable>
           <Text style={[styles.calMonthLabel, { color: c.textPrimary }]}>
             {t(CAL_MONTH_KEYS[viewMonth])} {viewYear}
@@ -1276,7 +1277,7 @@ function MiniCalendarWidget(): React.JSX.Element {
             accessibilityLabel={t('dashboard.next_month')}
             hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
-            <Ionicons name="chevron-forward" size={15} color={c.textSecondary} />
+            <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={15} color={c.textSecondary} />
           </Pressable>
         </View>
       </View>
@@ -1664,7 +1665,7 @@ export default function DashboardScreen(): React.JSX.Element {
                   {t('dashboard.games_sub')}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={c.textDisabled} />
+              <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textDisabled} />
             </Pressable>
           </Animated.View>
         </ScrollView>

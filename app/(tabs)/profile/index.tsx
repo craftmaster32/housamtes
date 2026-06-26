@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, Animated, type GestureResponderEvent } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, Animated, I18nManager, type GestureResponderEvent } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -77,7 +77,7 @@ function ProfileRow({
         <Text style={s.profileRowTitle}>{title}</Text>
         <Text style={s.profileRowSub}>{sub}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={C.textSecondary} />
+      <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={C.textSecondary} />
     </Pressable>
   );
 }

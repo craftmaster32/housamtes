@@ -8,6 +8,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  I18nManager,
 } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -226,7 +227,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('house_setup.back_to_login')}
         >
-          <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
+          <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color="rgba(255,255,255,0.85)" />
           <Text style={styles.backText}>{t('house_setup.back_to_login')}</Text>
         </Pressable>
         <Text style={styles.headerTitle}>{t('house_setup.title')}</Text>

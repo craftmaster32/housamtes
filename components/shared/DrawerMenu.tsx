@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimensions, Alert } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimensions, Alert, I18nManager } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname, Link } from 'expo-router';
@@ -221,7 +221,7 @@ export function DrawerMenu(): React.JSX.Element {
                   {houseName || (housemates.length > 0 ? t('common.person', { count: housemates.length }) : 'HouseMates')}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
+              <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textSecondary} />
             </Pressable>
             </Link>
 

@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator, I18nManager } from 'react-native';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -110,7 +110,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
         {/* CTA */}
         <View style={styles.ctaRow}>
           <Text style={styles.ctaText}>{t('spending.full_analysis')}</Text>
-          <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.80)" />
+          <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color="rgba(255,255,255,0.80)" />
         </View>
       </View>
     </Pressable>
