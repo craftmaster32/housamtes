@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   decoCircleSm: {
     position: 'absolute',
     bottom: -40,
-    right: 22,
+    end: 22,
     width: 100,
     height: 100,
     borderRadius: 50,

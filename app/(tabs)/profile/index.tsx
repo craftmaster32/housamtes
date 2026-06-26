@@ -1078,7 +1078,7 @@ function makeStyles(C: ColorTokens) {
     coverBadge: {
       position: 'absolute',
       bottom: 8,
-      right: 8,
+      end: 8,
       width: 28,
       height: 28,
       borderRadius: 14,
@@ -1101,7 +1101,7 @@ function makeStyles(C: ColorTokens) {
     decoCircleTR: {
       position: 'absolute',
       top: 60,
-      right: 40,
+      end: 40,
       width: 38,
       height: 38,
       borderRadius: 19,
@@ -1133,7 +1133,7 @@ function makeStyles(C: ColorTokens) {
     avatarBadge: {
       position: 'absolute',
       bottom: 2,
-      right: 2,
+      end: 2,
       width: 28,
       height: 28,
       borderRadius: 14,

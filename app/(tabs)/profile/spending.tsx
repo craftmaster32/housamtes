@@ -745,7 +745,7 @@ function makeStyles(C: ColorTokens) {
     chartCardDeco: {
       position: 'absolute',
       bottom: -44,
-      right: 16,
+      end: 16,
       width: 110,
       height: 110,
       borderRadius: 55,

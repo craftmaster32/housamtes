@@ -132,7 +132,7 @@ const makeStyles = (C: ColorTokens) =>
     unselectedCircle: {
       position: 'absolute',
       bottom: 5,
-      right: 5,
+      end: 5,
       width: 24,
       height: 24,
       borderRadius: 12,
