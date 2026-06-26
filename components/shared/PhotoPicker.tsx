@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   thumbWrap: { position: 'relative', marginEnd: sizes.sm },
   thumb: { width: 80, height: 80, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: colors.border },
   removeBtn: {
-    position: 'absolute', top: -6, right: -6,
+    position: 'absolute', top: -6, end: -6,
     width: 20, height: 20, borderRadius: 10,
     backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center',
   },

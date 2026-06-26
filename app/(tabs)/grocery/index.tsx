@@ -569,20 +569,22 @@ export default function GroceryScreen(): React.JSX.Element {
 
     const firstIndex = new Map<string, number>();
     const map = new Map<string, SectionData>();
+    const keyOrder: string[] = [];
     for (let i = 0; i < sharedItems.length; i++) {
       const item = sharedItems[i];
       const cat = detectCategory(item.name);
-      const catTitle = t(cat.labelKey);
-      if (!map.has(catTitle)) {
-        map.set(catTitle, { title: catTitle, icon: cat.icon, sectionType: 'shared', data: [] });
-        firstIndex.set(catTitle, i);
+      const stableKey = cat.labelKey;
+      if (!map.has(stableKey)) {
+        map.set(stableKey, { title: t(stableKey), icon: cat.icon, sectionType: 'shared', data: [] });
+        firstIndex.set(stableKey, i);
+        keyOrder.push(stableKey);
       }
-      map.get(catTitle)!.data.push(item);
+      map.get(stableKey)!.data.push(item);
     }
     result.push(
-      ...Array.from(map.values()).sort(
-        (a, b) => (firstIndex.get(a.title) ?? 99) - (firstIndex.get(b.title) ?? 99)
-      )
+      ...keyOrder
+        .sort((a, b) => (firstIndex.get(a) ?? 99) - (firstIndex.get(b) ?? 99))
+        .map((k) => map.get(k)!)
     );
     return result;
   }, [items, myId, t]);

@@ -34,34 +34,28 @@ export function LeaveWithoutShareModal({
           <View style={styles.iconWrap}>
             <Ionicons name="document-text-outline" size={32} color="rgb(133,77,14)" />
           </View>
-          <Text style={styles.title}>Share before leaving?</Text>
+          <Text style={styles.title}>{t('grocery.share_before_leaving')}</Text>
           <Text style={styles.body}>
-            You have{' '}
-            <Text style={styles.bodyBold}>{draftCount} item{draftCount === 1 ? '' : 's'}</Text>
-            {' '}in your draft that your housemates cannot see yet.
-            {'\n\n'}
-            If you leave now, your draft will be{' '}
-            <Text style={styles.bodyBold}>deleted in 24 hours</Text>
-            {' '}unless you come back and share it.
+            {t('grocery.draft_unsaved_body', { count: draftCount })}
           </Text>
 
           <Pressable
             style={styles.primaryBtn}
             onPress={onStayAndShare}
             accessibilityRole="button"
-            accessibilityLabel="Go back and share"
+            accessibilityLabel={t('grocery.go_back_and_share')}
           >
             <Ionicons name="arrow-back" size={16} color="#fff" />
-            <Text style={styles.primaryBtnText}>Stay and share</Text>
+            <Text style={styles.primaryBtnText}>{t('grocery.stay_and_share')}</Text>
           </Pressable>
 
           <Pressable
             style={styles.leaveBtn}
             onPress={onLeave}
             accessibilityRole="button"
-            accessibilityLabel="Leave without sharing — draft saved for 24 hours"
+            accessibilityLabel={t('grocery.leave_without_sharing_hint')}
           >
-            <Text style={styles.leaveBtnText}>{'Leave for now — I\'ll share later'}</Text>
+            <Text style={styles.leaveBtnText}>{t('grocery.leave_for_now')}</Text>
           </Pressable>
         </View>
       </View>

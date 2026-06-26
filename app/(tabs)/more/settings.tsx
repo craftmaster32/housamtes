@@ -198,7 +198,7 @@ export default function SettingsScreen(): React.JSX.Element {
         t('settings.notifications_blocked_body')
       );
     }
-  }, [user?.id, houseId]);
+  }, [user?.id, houseId, t]);
 
   const handleLeavePress = useCallback((): void => {
     const myId = profile?.id ?? '';
@@ -226,7 +226,7 @@ export default function SettingsScreen(): React.JSX.Element {
     } finally {
       setLeaving(false);
     }
-  }, [leaveHouse]);
+  }, [leaveHouse, t]);
 
   const handleRequestLeaveVote = useCallback(async (): Promise<void> => {
     if (!profile || !houseId) return;
@@ -245,7 +245,7 @@ export default function SettingsScreen(): React.JSX.Element {
     } finally {
       setRequestingVote(false);
     }
-  }, [profile, houseId, debtAmount, addProposal]);
+  }, [profile, houseId, debtAmount, addProposal, t]);
 
   const prefs = useNotificationStore((s) => s.prefs);
   const updatePrefs = useNotificationStore((s) => s.update);

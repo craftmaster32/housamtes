@@ -33,6 +33,7 @@ export default function NotFoundScreen(): React.JSX.Element {
         <Pressable
           style={({ pressed }) => [styles.btn, pressed && { opacity: 0.8 }]}
           onPress={() => router.replace('/(tabs)/dashboard')}
+          accessible
           accessibilityRole="button"
           accessibilityLabel={t('not_found.go_to_dashboard')}
         >

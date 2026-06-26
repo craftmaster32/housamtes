@@ -47,9 +47,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             style={styles.retryBtn}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Retry"
+            accessibilityLabel={i18next.t('common.retry')}
           >
-            <Text style={styles.retryText}>Retry</Text>
+            <Text style={styles.retryText}>{i18next.t('common.retry')}</Text>
           </Pressable>
         </View>
       );

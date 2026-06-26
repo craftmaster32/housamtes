@@ -1471,7 +1471,7 @@ function ActivityFeed(): React.JSX.Element {
 export default function DashboardScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
-  const currentLanguage = useLanguageStore((s) => s.currentLanguage);
+  const currentLanguage = useLanguageStore((s) => s.language);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const houseName = useHousematesStore((s) => s.houseName);

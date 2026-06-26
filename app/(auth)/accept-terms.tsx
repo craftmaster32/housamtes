@@ -150,7 +150,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
             style={styles.signOutBtn}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={t('profile.sign_out')}
+            accessibilityLabel={t('auth.sign_out_instead')}
           >
             <Text style={styles.signOutText}>{t('auth.sign_out_instead')}</Text>
           </Pressable>

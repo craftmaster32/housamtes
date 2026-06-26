@@ -44,7 +44,14 @@
     "someone": "Someone",
     "error": "Error",
     "on_it": "On it…",
-    "and": "and"
+    "and": "and",
+    "retry": "Retry",
+    "add_a_time": "Add a time",
+    "add_time": "Add time",
+    "enter_time_manually": "Enter time manually",
+    "time_format_hint": "Enter time in HH:MM format",
+    "type_time_manually": "Type time manually",
+    "clear_time": "Clear time"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -890,6 +897,25 @@
   },
   "calendar": {
     "title": "Calendar",
+    "month_january": "January",
+    "month_february": "February",
+    "month_march": "March",
+    "month_april": "April",
+    "month_may": "May",
+    "month_june": "June",
+    "month_july": "July",
+    "month_august": "August",
+    "month_september": "September",
+    "month_october": "October",
+    "month_november": "November",
+    "month_december": "December",
+    "weekday_su": "Su",
+    "weekday_mo": "Mo",
+    "weekday_tu": "Tu",
+    "weekday_we": "We",
+    "weekday_th": "Th",
+    "weekday_fr": "Fr",
+    "weekday_sa": "Sa",
     "synced_subtitle": "Synced with your calendar",
     "house_schedule": "House schedule",
     "add_event": "Add Event",
@@ -929,6 +955,12 @@
     "save_error": "Could not save event. Try again.",
     "loading": "Loading…",
     "parking_pending": "Parking (pending)",
+    "legend_event": "Event",
+    "legend_parking": "Parking",
+    "legend_parking_pending": "Parking (pending)",
+    "legend_bill": "Bill",
+    "legend_chore": "Chore",
+    "legend_personal": "Personal",
     "today": "Today",
     "add": "Add",
     "nothing_scheduled": "Nothing scheduled — tap Add to create an event",
@@ -1102,6 +1134,7 @@
     "library_permission_body": "Photo library access is required to choose a photo.",
     "cover_permission_body": "Photo library access is required to choose a cover photo.",
     "profile_photo": "Profile photo",
+    "profile_photo_of": "{{name}}'s profile photo",
     "choose_option": "Choose an option",
     "take_photo": "Take photo",
     "choose_from_library": "Choose from library",
@@ -1224,7 +1257,7 @@
     "could_not_leave": "Could not leave the house. Please try again.",
     "could_not_update_timezone": "Could not update timezone. Please try again.",
     "could_not_create_vote": "Could not create the vote. Please try again.",
-    "back_rtl": "פרופיל →"
+    "back_rtl": "Back →"
   },
   "members": {
     "title": "Member Permissions",
@@ -1354,6 +1387,7 @@
     "go_back": "Go back",
     "privacy_title": "Privacy Policy",
     "terms_title": "Terms of Service",
-    "last_updated": "Last updated: {{date}}"
+    "last_updated": "Last updated: {{date}}",
+    "legal_date": "10 May 2026"
   }
 }

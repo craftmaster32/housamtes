@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_KEYS = ['cal_month_jan','cal_month_feb','cal_month_mar','cal_month_apr','cal_month_may','cal_month_jun','cal_month_jul','cal_month_aug','cal_month_sep','cal_month_oct','cal_month_nov','cal_month_dec'] as const;
 const DAY_KEYS = ['cal_day_sun', 'cal_day_mon', 'cal_day_tue', 'cal_day_wed', 'cal_day_thu', 'cal_day_fri', 'cal_day_sat'] as const;
 
 function toYMD(d: Date): string {
@@ -56,7 +56,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
         <Pressable onPress={prevMonth} style={styles.navBtn} accessibilityRole="button" accessibilityLabel={t('dashboard.prev_month')}>
           <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={16} color={colors.primary} />
         </Pressable>
-        <Text style={styles.monthLabel}>{MONTHS[viewMonth]} {viewYear}</Text>
+        <Text style={styles.monthLabel}>{t(`bills.${MONTH_KEYS[viewMonth]}`)} {viewYear}</Text>
         <Pressable onPress={nextMonth} style={styles.navBtn} accessibilityRole="button" accessibilityLabel={t('dashboard.next_month')}>
           <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.primary} />
         </Pressable>

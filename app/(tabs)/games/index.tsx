@@ -87,7 +87,7 @@ function WordScrambleGame(): React.JSX.Element {
           <Text style={[styles.scoreValue, { color: c.textPrimary }]}>{round}</Text>
         </View>
         <View style={styles.scorePart}>
-          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>Streak</Text>
+          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.streak')}</Text>
           <Text style={[styles.scoreValue, { color: streak >= 3 ? '#F59E0B' : c.textPrimary }]}>
             {streak > 0 ? `${streak}🔥` : '0'}
           </Text>

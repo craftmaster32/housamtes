@@ -48,7 +48,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
             </View>
           </Pressable>
           <Text style={styles.heading}>{t('legal.privacy_title')}</Text>
-          <Text style={styles.updated}>{t('legal.last_updated', { date: '10 May 2026' })}</Text>
+          <Text style={styles.updated}>{t('legal.last_updated', { date: t('legal.legal_date') })}</Text>
         </View>
         <ScrollView contentContainerStyle={styles.content}>
 

@@ -48,18 +48,18 @@ const TYPE_META: Record<CalendarEvent['type'], { icon: string; color: string }> 
   personal:          { icon: '👤', color: '#8b5cf6' },
 };
 
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTHS   = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WEEKDAY_KEYS = ['weekday_su','weekday_mo','weekday_tu','weekday_we','weekday_th','weekday_fr','weekday_sa'] as const;
+const MONTH_KEYS   = ['month_january','month_february','month_march','month_april','month_may','month_june','month_july','month_august','month_september','month_october','month_november','month_december'] as const;
+const SHORT_MONTH_KEYS = ['cal_month_jan','cal_month_feb','cal_month_mar','cal_month_apr','cal_month_may','cal_month_jun','cal_month_jul','cal_month_aug','cal_month_sep','cal_month_oct','cal_month_nov','cal_month_dec'] as const;
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function formatShortDate(ymd: string): string {
+function formatShortDate(ymd: string, t: (key: string) => string): string {
   const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return ymd;
-  return `${SHORT_MONTHS[parseInt(m[2]) - 1]} ${parseInt(m[3])}`;
+  return `${t(`bills.${SHORT_MONTH_KEYS[parseInt(m[2]) - 1]}`)} ${parseInt(m[3])}`;
 }
 
 function expandRecurringDates(
@@ -664,7 +664,7 @@ export default function CalendarScreen(): React.JSX.Element {
           <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button">
             <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
           </Pressable>
-          <Text style={styles.monthTitle}>{MONTHS[viewMonth]} {viewYear}</Text>
+          <Text style={styles.monthTitle}>{t(`calendar.${MONTH_KEYS[viewMonth]}`)} {viewYear}</Text>
           <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button">
             <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={C.primary} />
           </Pressable>
@@ -673,8 +673,8 @@ export default function CalendarScreen(): React.JSX.Element {
         {/* Calendar grid */}
         <View style={styles.calCard}>
           <View style={styles.weekRow}>
-            {WEEKDAYS.map((d) => (
-              <Text key={d} style={styles.weekDay}>{d}</Text>
+            {WEEKDAY_KEYS.map((key) => (
+              <Text key={key} style={styles.weekDay}>{t(`calendar.${key}`)}</Text>
             ))}
           </View>
           {[0, 1, 2, 3, 4, 5].map((row) => (
@@ -703,7 +703,7 @@ export default function CalendarScreen(): React.JSX.Element {
             <View key={type} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
               <Text style={styles.legendLabel}>
-                {meta.icon} {type === 'parking-pending' ? t('calendar.parking_pending') : type.charAt(0).toUpperCase() + type.slice(1)}
+                {meta.icon} {t(`calendar.legend_${type.replace('-', '_')}`)}
               </Text>
             </View>
           ))}
@@ -737,7 +737,7 @@ export default function CalendarScreen(): React.JSX.Element {
                   ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
                   : null;
                 const dateRangeLabel = item.endDate && item.endDate !== item.date
-                  ? `${formatShortDate(item.date)} – ${formatShortDate(item.endDate)}`
+                  ? `${formatShortDate(item.date, t)} – ${formatShortDate(item.endDate, t)}`
                   : null;
                 const syncKey = (item.type === 'parking' || item.type === 'parking-pending')
                   ? `pk-${item.sourceId}`
