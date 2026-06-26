@@ -1133,6 +1133,7 @@ export default function GroceryScreen(): React.JSX.Element {
                         accessible
                         accessibilityRole="search"
                         accessibilityLabel={t('grocery.add_item_a11y')}
+                        accessibilityHint={t('grocery.add_item_hint')}
                       />
                       <Pressable
                         style={[
@@ -1199,6 +1200,7 @@ export default function GroceryScreen(): React.JSX.Element {
                           accessible
                           accessibilityRole="text"
                           accessibilityLabel={t('grocery.custom_quantity')}
+                          accessibilityHint={t('grocery.custom_qty_hint')}
                         />
                       )}
                     </View>

@@ -190,13 +190,17 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const handleEnableWebPush = useCallback(async (): Promise<void> => {
     if (!user?.id || !houseId) return;
-    const result = await enableWebPush(user.id, houseId);
-    setWebPushStatus(result);
-    if (result === 'denied') {
-      Alert.alert(
-        t('settings.notifications_blocked_title'),
-        t('settings.notifications_blocked_body')
-      );
+    try {
+      const result = await enableWebPush(user.id, houseId);
+      setWebPushStatus(result);
+      if (result === 'denied') {
+        Alert.alert(
+          t('settings.notifications_blocked_title'),
+          t('settings.notifications_blocked_body')
+        );
+      }
+    } catch {
+      Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
     }
   }, [user?.id, houseId, t]);
 

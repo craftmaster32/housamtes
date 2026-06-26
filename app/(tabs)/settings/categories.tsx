@@ -420,7 +420,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         setSaving(false);
       }
     },
-    [editCat, update]
+    [editCat, update, t]
   );
 
   const handleDelete = useCallback(

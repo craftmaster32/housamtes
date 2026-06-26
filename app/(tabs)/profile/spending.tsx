@@ -622,7 +622,7 @@ export default function SpendingScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('spending.jump_to_current')}
         >
-          <Ionicons name="arrow-forward-circle-outline" size={16} color={C.primary} />
+          <Ionicons name={I18nManager.isRTL ? 'arrow-back-circle-outline' : 'arrow-forward-circle-outline'} size={16} color={C.primary} />
           <Text style={styles.jumpBtnText}>{t('spending.jump_to_current')}</Text>
         </Pressable>
       )}

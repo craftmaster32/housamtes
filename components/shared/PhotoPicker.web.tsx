@@ -100,8 +100,10 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
 
       {/* Add button */}
       {photos.length < maxPhotos && (
-        <div
+        <button
+          type="button"
           onClick={() => !loading && inputRef.current?.click()}
+          disabled={loading}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -119,7 +121,7 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
           }}
         >
           {loading ? `⏳ ${t('common.loading')}` : `📷 ${t('photos.add_photo')}`}
-        </div>
+        </button>
       )}
 
       <input

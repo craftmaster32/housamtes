@@ -42,7 +42,6 @@ import { sizes } from '@constants/sizes';
 import { useThemedColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { useTranslation } from 'react-i18next';
-import { isRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 import { SpendingCard } from '@components/profile/SpendingCard';
 import { UserAvatar } from '@components/shared/UserAvatar';
@@ -245,7 +244,7 @@ function TodayAtHome(): React.JSX.Element {
     } finally {
       setIsParkingBusy(false);
     }
-  }, [isParkingBusy, isFree, isMine, claim, release, myId, myName, houseId]);
+  }, [isParkingBusy, isFree, isMine, claim, release, myId, myName, houseId, t]);
 
   const parkingSubLabel = isParkingBusy
     ? t('common.on_it')
@@ -521,7 +520,7 @@ function ParkingCard(): React.JSX.Element {
         err instanceof Error ? err.message : t('common.failed_try_again')
       );
     }
-  }, [release, houseId, myName]);
+  }, [release, houseId, myName, t]);
 
   return (
     <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
@@ -540,7 +539,7 @@ function ParkingCard(): React.JSX.Element {
           </View>
         ) : pendingCount > 0 ? (
           <View style={[styles.badgePill, { backgroundColor: '#E0B24D' }]}>
-            <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{pendingCount} {t('parking.pending').toLowerCase()}</Text>
+            <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{t('dashboard.pending_count', { count: pendingCount })}</Text>
           </View>
         ) : (
           <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={c.textSecondary} />
@@ -653,7 +652,7 @@ function ParkingCard(): React.JSX.Element {
           accessibilityLabel={t('dashboard.claim_parking_spot')}
         >
           <Ionicons name="car" size={14} color="#fff" />
-          <Text style={styles.claimBtnText}>Claim Spot</Text>
+          <Text style={styles.claimBtnText}>{t('dashboard.claim_spot')}</Text>
         </Pressable>
       )}
       {isMine && (
@@ -667,7 +666,7 @@ function ParkingCard(): React.JSX.Element {
           accessibilityLabel={t('dashboard.release_parking_spot')}
         >
           <Ionicons name="exit-outline" size={14} color={c.negative} />
-          <Text style={[styles.releaseBtnText, { color: c.negative }]}>Release Spot</Text>
+          <Text style={[styles.releaseBtnText, { color: c.negative }]}>{t('dashboard.release_spot')}</Text>
         </Pressable>
       )}
     </WidgetCard>
@@ -725,7 +724,7 @@ function GroceryWidgetRow({
         />
       </Pressable>
     ),
-    [item.isChecked, handleToggle]
+    [item.isChecked, handleToggle, t]
   );
 
   const renderDeleteAction = useCallback(
@@ -740,7 +739,7 @@ function GroceryWidgetRow({
         <Ionicons name="trash-outline" size={16} color="#fff" />
       </Pressable>
     ),
-    [handleDelete]
+    [handleDelete, t]
   );
 
   return (
@@ -860,7 +859,7 @@ function GroceryWidget(): React.JSX.Element {
     } catch {
       setAddError(t('dashboard.could_not_add_item'));
     }
-  }, [input, qty, unit, addItem, myId, houseId, draftEnabled]);
+  }, [input, qty, unit, addItem, myId, houseId, draftEnabled, t]);
 
   const handlePublish = useCallback(async (): Promise<void> => {
     if (isPublishing || !myId) return;
@@ -873,7 +872,7 @@ function GroceryWidget(): React.JSX.Element {
     } finally {
       setIsPublishing(false);
     }
-  }, [publishDraftItems, myId, houseId, isPublishing]);
+  }, [publishDraftItems, myId, houseId, isPublishing, t]);
 
   const handleToggle = useCallback(
     (id: string): void => {
@@ -913,7 +912,7 @@ function GroceryWidget(): React.JSX.Element {
             accessible
             accessibilityRole="button"
             accessibilityState={{ disabled: isPublishing || !myId }}
-            accessibilityLabel={t('dashboard.shared_label')}
+            accessibilityLabel={t('grocery.share_draft_a11y')}
           >
             {isPublishing ? (
               <ActivityIndicator size="small" color="#E0B24D" />
@@ -1018,7 +1017,7 @@ function GroceryWidget(): React.JSX.Element {
               onPress={unitPressHandlers[u]}
               accessibilityRole="button"
               accessibilityState={{ selected: unit === u }}
-              accessibilityLabel={`${t('grocery.unit_label')} ${u}`}
+              accessibilityLabel={t('grocery.unit_preset', { u })}
             >
               <Text
                 style={[
