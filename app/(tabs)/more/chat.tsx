@@ -109,7 +109,7 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     bubble: {
       backgroundColor: C.surface,
       borderRadius: 18,
-      borderBottomLeftRadius: 4,
+      borderBottomStartRadius: 4,
       padding: 10,
       paddingHorizontal: 13,
       maxWidth: '72%',
@@ -122,8 +122,8 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     },
     bubbleMine: {
       backgroundColor: C.primary,
-      borderBottomLeftRadius: 18,
-      borderBottomRightRadius: 4,
+      borderBottomStartRadius: 18,
+      borderBottomEndRadius: 4,
     },
 
     author: { color: C.primary, fontSize: 11, ...font.bold, marginBottom: 1 },
