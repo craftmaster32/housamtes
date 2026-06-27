@@ -59,7 +59,7 @@ function toYMD(d: Date): string {
 function formatShortDate(ymd: string, t: (key: string) => string): string {
   const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return ymd;
-  return `${t(`bills.${SHORT_MONTH_KEYS[parseInt(m[2]) - 1]}`)} ${parseInt(m[3])}`;
+  return `${t(`dashboard.${SHORT_MONTH_KEYS[parseInt(m[2]) - 1]}`)} ${parseInt(m[3])}`;
 }
 
 function expandRecurringDates(
@@ -661,11 +661,11 @@ export default function CalendarScreen(): React.JSX.Element {
 
         {/* Month nav */}
         <View style={styles.monthHeader}>
-          <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button">
+          <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button" accessibilityLabel={t('dashboard.prev_month')}>
             <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
           </Pressable>
           <Text style={styles.monthTitle}>{t(`calendar.${MONTH_KEYS[viewMonth]}`)} {viewYear}</Text>
-          <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button">
+          <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button" accessibilityLabel={t('dashboard.next_month')}>
             <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={C.primary} />
           </Pressable>
         </View>
@@ -900,7 +900,7 @@ function makeStyles(C: ColorTokens) {
 
     monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: sizes.xs },
     monthTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    navBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20, backgroundColor: C.surfaceSecondary },
+    navBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 22, backgroundColor: C.surfaceSecondary },
 
     calCard: { backgroundColor: C.surface, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: C.border, padding: sizes.sm, overflow: 'hidden' },
     weekRow: { flexDirection: 'row', marginBottom: 4 },

@@ -17,7 +17,10 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
   const handlePick = useCallback(async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') return;
+      if (status !== 'granted') {
+        Alert.alert(t('common.error'), t('photos.permission_denied_body'));
+        return;
+      }
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,

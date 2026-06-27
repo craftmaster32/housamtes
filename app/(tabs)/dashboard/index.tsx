@@ -150,7 +150,9 @@ function BalanceHeroCard(): React.JSX.Element {
       style={styles.balanceHero}
       onPress={() => router.push('/(tabs)/bills')}
       accessibilityRole="button"
-      accessibilityLabel={`${isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')} ${formatFull(Math.abs(netAmount), currencyCode)}`}
+      accessibilityLabel={balances.length === 0
+        ? t('dashboard.balance_all_settled')
+        : `${isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')} ${formatFull(Math.abs(netAmount), currencyCode)}`}
     >
       {/* Decorative circle */}
       <View style={styles.balanceHeroDeco} />
@@ -974,6 +976,7 @@ function GroceryWidget(): React.JSX.Element {
             returnKeyType="next"
             onSubmitEditing={handleAdd}
             accessibilityLabel={t('dashboard.shared_groceries')}
+            accessibilityHint={t('grocery.add_item_hint')}
           />
           <View style={[styles.groceryQtySep, { backgroundColor: c.border }]} />
           <TextInput
@@ -986,6 +989,7 @@ function GroceryWidget(): React.JSX.Element {
             returnKeyType="done"
             onSubmitEditing={handleAdd}
             accessibilityLabel={t('grocery.qty_label')}
+            accessibilityHint={t('grocery.custom_qty_hint')}
           />
           {input.trim().length > 0 && (
             <Pressable

@@ -255,7 +255,7 @@ function makeStyles(C: ColorTokens) {
       gap: 6,
     },
     backBtn: {
-      flexDirection: 'row',
+      flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 2,
       alignSelf: 'flex-start',

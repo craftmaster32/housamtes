@@ -482,7 +482,7 @@ export default function GroceryScreen(): React.JSX.Element {
         console.warn('Failed to restore grocery preferences', err);
         setAddError(t('grocery.failed_restore_prefs'));
       });
-  }, [draftEnabled]);
+  }, [draftEnabled, t]);
 
   // Fetch saved lists on mount
   useEffect((): void => {
@@ -610,7 +610,7 @@ export default function GroceryScreen(): React.JSX.Element {
         setIsAdding(false);
       }
     },
-    [itemName, resolvedQty, myId, houseId, addItem, isAdding, effectiveMode]
+    [itemName, resolvedQty, myId, houseId, addItem, isAdding, effectiveMode, t]
   );
 
   const handlePublishDraft = useCallback(async (): Promise<void> => {
@@ -642,7 +642,7 @@ export default function GroceryScreen(): React.JSX.Element {
     } finally {
       setIsPublishing(false);
     }
-  }, [publishDraftItems, myId, houseId, isPublishing, myDraftItems, currentDraftSourceListId]);
+  }, [publishDraftItems, myId, houseId, isPublishing, myDraftItems, currentDraftSourceListId, t]);
 
   // ── Saved lists handlers ───────────────────────────────────────────────────
   const handleLoadList = useCallback(
@@ -655,7 +655,7 @@ export default function GroceryScreen(): React.JSX.Element {
         setAddError(t('grocery.could_not_load_list'));
       }
     },
-    [loadListIntoDraft, myId, houseId]
+    [loadListIntoDraft, myId, houseId, t]
   );
 
   const handleDeleteList = useCallback(
@@ -666,7 +666,7 @@ export default function GroceryScreen(): React.JSX.Element {
         setAddError(t('grocery.could_not_delete_list'));
       }
     },
-    [deleteSavedList]
+    [deleteSavedList, t]
   );
 
   // ── Save list modal handlers ───────────────────────────────────────────────
@@ -684,7 +684,7 @@ export default function GroceryScreen(): React.JSX.Element {
         );
       }
     },
-    [createSavedList, houseId, myId, myName, pendingPublishedItems]
+    [createSavedList, houseId, myId, myName, pendingPublishedItems, t]
   );
 
   const handleUpdateList = useCallback(async (): Promise<void> => {
@@ -722,7 +722,7 @@ export default function GroceryScreen(): React.JSX.Element {
     } catch {
       setAddError(t('grocery.could_not_start_run'));
     }
-  }, [startRun, myId, myName]);
+  }, [startRun, myId, myName, t]);
 
   const doEndRun = useCallback(async (): Promise<void> => {
     try {
@@ -913,7 +913,7 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
       );
     },
-    [handlePublishDraft, isPublishing, myId, styles]
+    [handlePublishDraft, isPublishing, myId, styles, t]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;

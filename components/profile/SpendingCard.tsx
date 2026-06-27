@@ -92,7 +92,11 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
           <View style={styles.divider} />
           <View style={styles.totalBlock}>
             <Text style={styles.totalAmt}>{fmt(myShare, currency)}</Text>
-            <Text style={styles.totalSub}>{t('spending.your_share')} {sharePct > 0 ? `(${sharePct}%)` : ''}</Text>
+            <Text style={styles.totalSub}>
+              {sharePct > 0
+                ? t('spending.your_share_with_pct', { percent: sharePct })
+                : t('spending.your_share')}
+            </Text>
           </View>
         </View>
 
