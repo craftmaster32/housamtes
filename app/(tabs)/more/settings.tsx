@@ -198,6 +198,8 @@ export default function SettingsScreen(): React.JSX.Element {
           t('settings.notifications_blocked_title'),
           t('settings.notifications_blocked_body')
         );
+      } else if (result === 'unavailable') {
+        Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
       }
     } catch {
       Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
@@ -304,7 +306,7 @@ export default function SettingsScreen(): React.JSX.Element {
         setSavingTimezone(false);
       }
     },
-    [houseId, updateTimezone]
+    [houseId, updateTimezone, t]
   );
 
   const timezoneLabel = TIMEZONES.find((t) => t.id === houseTimezone)?.label ?? houseTimezone;

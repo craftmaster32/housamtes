@@ -1204,16 +1204,16 @@ function MiniCalendarWidget(): React.JSX.Element {
     };
     const billNameById = new Map(recurringBills.map((b) => [b.id, b.name]));
     events.forEach((e) => push(e.date, e.title, '#6366f1'));
-    reservations.forEach((r) => push(r.date, 'Parking', '#f59e0b'));
+    reservations.forEach((r) => push(r.date, t('dashboard.cal_parking'), '#f59e0b'));
     if (showRecurring)
       recurringPayments.forEach((p) =>
-        push(p.paidAt, billNameById.get(p.billId) ?? 'Recurring', '#ef4444')
+        push(p.paidAt, billNameById.get(p.billId) ?? t('dashboard.cal_recurring'), '#ef4444')
       );
     chores.forEach((ch) => {
       if (ch.recurrence === 'once' && ch.recurrenceDay) push(ch.recurrenceDay, ch.name, '#22c55e');
     });
     return map;
-  }, [events, reservations, recurringPayments, recurringBills, chores, showRecurring]);
+  }, [events, reservations, recurringPayments, recurringBills, chores, showRecurring, t]);
 
   const grid = useMemo((): Date[] => {
     const first = new Date(viewYear, viewMonth, 1);

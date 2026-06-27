@@ -14,7 +14,7 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     flex: { flex: 1 },
     header: { padding: sizes.lg, gap: 4 },
     backBtn: { marginBottom: sizes.sm },
-    backRow: { flexDirection: 'row', alignItems: 'center' },
+    backRow: { flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
     updated: { color: C.textSecondary, fontSize: 13, ...font.regular },
@@ -50,7 +50,7 @@ export default function TermsScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Pressable onPress={handleBackPress} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
+          <Pressable onPress={handleBackPress} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
             <View style={styles.backRow}>
               <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
               <Text style={styles.backText}>{t('common.back')}</Text>

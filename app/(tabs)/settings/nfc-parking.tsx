@@ -26,7 +26,7 @@ const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/parking-toggle`;
 
 export default function NfcParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const userId = useAuthStore((s) => s.profile?.id);
+  const userId = useAuthStore((s) => s.user?.id);
   const language = useLanguageStore((s) => s.language);
   const isRTLMode = isRTL(language);
   const C = useThemedColors();

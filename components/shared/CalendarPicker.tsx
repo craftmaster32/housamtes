@@ -56,7 +56,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
         <Pressable onPress={prevMonth} style={styles.navBtn} accessibilityRole="button" accessibilityLabel={t('dashboard.prev_month')}>
           <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={16} color={colors.primary} />
         </Pressable>
-        <Text style={styles.monthLabel}>{t(`bills.${MONTH_KEYS[viewMonth]}`)} {viewYear}</Text>
+        <Text style={styles.monthLabel}>{t(`dashboard.${MONTH_KEYS[viewMonth]}`)} {viewYear}</Text>
         <Pressable onPress={nextMonth} style={styles.navBtn} accessibilityRole="button" accessibilityLabel={t('dashboard.next_month')}>
           <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.primary} />
         </Pressable>

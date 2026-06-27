@@ -85,7 +85,7 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
                 )}
                 <UserAvatar userId={item.addedBy} size={20} />
                 <Text style={[s.metaText, { color: C.textSecondary }]}>
-                  {addedByName} · {timeAgo}
+                  {t('grocery.added_by_meta', { name: addedByName, time: timeAgo })}
                 </Text>
               </View>
 

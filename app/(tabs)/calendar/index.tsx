@@ -212,7 +212,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
     } finally {
       setSaving(false);
     }
-  }, [title, date, showEndDate, endDate, startTime, endTime, notes, recurrence, showRecEnd, recurrenceEnd, editingEvent, addEvent, editEvent, profile, houseId, syncHouseEvent, handleClose]);
+  }, [title, date, showEndDate, endDate, startTime, endTime, notes, recurrence, showRecEnd, recurrenceEnd, editingEvent, addEvent, editEvent, profile, houseId, syncHouseEvent, handleClose, t]);
 
   const handleModalShow = useCallback((): void => {
     Keyboard.dismiss();

@@ -162,7 +162,11 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
               onPress={handleShareAll}
               disabled={staged.length === 0 || isSharing}
               accessibilityRole="button"
-              accessibilityLabel={t('grocery.share_items_count', { count: staged.length })}
+              accessibilityLabel={
+                staged.length === 0
+                  ? t('grocery.add_items_first')
+                  : t('grocery.share_items_count', { count: staged.length })
+              }
               accessibilityState={{ disabled: staged.length === 0 }}
             >
               {isSharing

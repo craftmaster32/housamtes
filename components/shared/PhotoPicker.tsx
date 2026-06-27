@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { View, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Image, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
@@ -15,25 +15,29 @@ interface PhotoPickerProps {
 export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProps): React.JSX.Element {
   const { t } = useTranslation();
   const handlePick = useCallback(async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') return;
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') return;
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.75,
-      base64: true,
-      selectionLimit: maxPhotos - photos.length,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.75,
+        base64: true,
+        selectionLimit: maxPhotos - photos.length,
+      });
 
-    if (result.canceled) return;
+      if (result.canceled) return;
 
-    const dataUrls = result.assets
-      .filter((a) => a.base64)
-      .map((a) => `data:image/jpeg;base64,${a.base64 ?? ''}`);
+      const dataUrls = result.assets
+        .filter((a) => a.base64)
+        .map((a) => `data:image/jpeg;base64,${a.base64 ?? ''}`);
 
-    onChange([...photos, ...dataUrls]);
-  }, [photos, onChange, maxPhotos]);
+      onChange([...photos, ...dataUrls]);
+    } catch {
+      Alert.alert(t('common.error'), t('photos.pick_failed'));
+    }
+  }, [photos, onChange, maxPhotos, t]);
 
   const removePhoto = useCallback((idx: number) => {
     onChange(photos.filter((_, i) => i !== idx));

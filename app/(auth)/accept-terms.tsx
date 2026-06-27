@@ -96,17 +96,18 @@ export default function AcceptTermsScreen(): React.JSX.Element {
             </View>
           </View>
 
-          <Pressable
-            style={styles.termsRow}
-            onPress={() => { setAgreed((v) => !v); setError(''); }}
-            accessible
-            accessibilityRole="checkbox"
-            accessibilityLabel={t('auth.accept_terms_agree_label')}
-            accessibilityState={{ checked: agreed }}
-          >
-            <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-              {agreed && <Ionicons name="checkmark" size={14} color={'#fff'} />}
-            </View>
+          <View style={styles.termsRow}>
+            <Pressable
+              onPress={() => { setAgreed((v) => !v); setError(''); }}
+              accessible
+              accessibilityRole="checkbox"
+              accessibilityLabel={t('auth.accept_terms_agree_label')}
+              accessibilityState={{ checked: agreed }}
+            >
+              <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                {agreed && <Ionicons name="checkmark" size={14} color={'#fff'} />}
+              </View>
+            </Pressable>
             <Text style={styles.termsText}>
               <Trans
                 i18nKey="auth.accept_terms_agree_full"
@@ -116,7 +117,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
                 }}
               />
             </Text>
-          </Pressable>
+          </View>
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 

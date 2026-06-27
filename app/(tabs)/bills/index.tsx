@@ -192,7 +192,7 @@ function SettleUpPanel(): React.JSX.Element {
             </View>
             <Text style={[styles.settleName, { color: c.textPrimary }]}>{fromName}</Text>
             <Ionicons
-              name="arrow-forward"
+              name={I18nManager.isRTL ? 'arrow-back' : 'arrow-forward'}
               size={12}
               color={c.textSecondary}
               style={styles.settleArrow}

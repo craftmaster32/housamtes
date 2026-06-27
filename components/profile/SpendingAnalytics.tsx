@@ -151,7 +151,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
                   <View style={styles.barTrack}>
                     <View style={[styles.barFill, { height: barH }, isLatest && styles.barFillLatest]} />
                   </View>
-                  <Text style={styles.barLbl}>{m.label.split(' ')[0].slice(0, 3)}</Text>
+                  <Text style={styles.barLbl}>{monthNameFromKey(m.month, i18n.language)}</Text>
                 </View>
               );
             })}

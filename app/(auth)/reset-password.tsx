@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, I18nManager } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
@@ -76,7 +77,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
         >
-          <Text style={styles.backBtnText}>←</Text>
+          <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={colors.primary} />
         </Pressable>
 
         <View style={styles.header}>
@@ -147,11 +148,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-start',
     marginBottom: sizes.xs,
-  },
-  backBtnText: {
-    fontSize: 24,
-    ...font.regular,
-    color: colors.textPrimary,
   },
   header: {
     gap: 4,

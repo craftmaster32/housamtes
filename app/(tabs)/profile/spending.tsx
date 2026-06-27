@@ -40,6 +40,12 @@ function fmtShort(n: number, sym: string): string {
   return `${sym}${n.toFixed(0)}`;
 }
 
+function monthNameFromKey(monthKey: string, locale: string): string {
+  const [y, m] = monthKey.split('-');
+  return new Date(Number(y), Number(m) - 1, 1)
+    .toLocaleDateString(locale, { month: 'short' }).toUpperCase();
+}
+
 function pctChange(current: number, previous: number): number | null {
   if (previous === 0) return null;
   return Math.round(((current - previous) / previous) * 100);
@@ -82,7 +88,7 @@ function InsightCard({ insight, error, isLoading, onRefresh }: InsightCardProps)
       <View style={styles.insightCardDeco} />
       <View style={styles.insightCardPad}>
         <View style={styles.insightCardHeader}>
-          <Text style={styles.insightCardLabel}>✨  AI INSIGHT</Text>
+          <Text style={styles.insightCardLabel}>✨  {t('spending.ai_insight')}</Text>
           <Pressable
             onPress={onRefresh}
             disabled={isLoading}
@@ -190,7 +196,7 @@ interface MonthlyChartProps {
 }
 
 function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, onSetHouseView, onSetPersonalView }: MonthlyChartProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const chartData  = months.slice(0, 6).reverse();
@@ -261,7 +267,7 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, 
                   )}
                 </View>
                 <Text style={[styles.barLbl, isSelected && styles.barLblSelected]}>
-                  {m.label.split(' ')[0].slice(0, 3)}
+                  {monthNameFromKey(m.month, i18n.language)}
                 </Text>
                 {isSelected && <View style={styles.barSelDot} />}
               </Pressable>

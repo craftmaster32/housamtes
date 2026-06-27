@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { View, StyleSheet, Pressable, Animated, I18nManager } from 'react-native';
+import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
@@ -10,6 +10,8 @@ import { useTranslation } from 'react-i18next';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
@@ -29,6 +31,8 @@ interface TopBarProps {
 
 export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null {
   const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const isRTLMode = isRTL(language);
   const c        = useColors();
   const insets   = useSafeAreaInsets();
   const openProfile = useProfilePopupStore((s) => s.open);
@@ -75,7 +79,7 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
         accessibilityRole="button"
         accessibilityLabel={t('common.back')}
       >
-        <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={c.primary} />
+        <Ionicons name={isRTLMode ? 'chevron-forward' : 'chevron-back'} size={24} color={c.primary} />
       </Pressable>
 
       <Text style={[styles.appName, { color: c.primary }]}>HouseMates</Text>

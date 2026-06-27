@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, StyleSheet, FlatList, Switch, Alert, Animated } from 'react-native';
+import { View, StyleSheet, FlatList, Switch, Alert, Animated, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -88,11 +88,15 @@ function MemberCard({
           <Text style={styles.memberRole}>{roleLabel}</Text>
         </View>
         {canEdit && !isMe && member.role !== 'owner' && (
-          <View style={styles.changeRoleBtn}>
-            <Text style={styles.changeRoleBtnText} onPress={() => onChangeRole(member)}>
+          <Pressable
+            style={styles.changeRoleBtn}
+            onPress={() => onChangeRole(member)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.changeRoleBtnText}>
               {t('members.change_role')}
             </Text>
-          </View>
+          </Pressable>
         )}
       </View>
 
