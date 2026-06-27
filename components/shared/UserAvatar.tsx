@@ -21,7 +21,7 @@ export function UserAvatar({ userId, size = 24 }: UserAvatarProps): React.JSX.El
   const { t } = useTranslation();
   const housemate   = useHousematesStore((s) => s.housemates.find((h) => h.id === userId));
   const avatarUrl   = housemate?.avatarUrl ?? null;
-  const displayName = housemate?.name ?? '?';
+  const displayName = housemate?.name?.trim() || '?';
   const a11yLabel = t('profile.profile_photo_of', { name: displayName });
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={a11yLabel} style={[styles.container, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : nameToColor(displayName) }]}>

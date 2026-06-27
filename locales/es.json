@@ -902,7 +902,8 @@
     "another_one": "Otra más 🎲",
     "next_joke": "Siguiente chiste",
     "word_scramble_game": "Juego de palabras desordenadas",
-    "dad_jokes": "Chistes de papá"
+    "dad_jokes": "Chistes de papá",
+    "dad_joke_of_the_day": "Chiste del día"
   },
   "calendar": {
     "title": "Calendario",

@@ -46,6 +46,12 @@ function monthNameFromKey(monthKey: string, locale: string): string {
     .toLocaleDateString(locale, { month: 'short' }).toUpperCase();
 }
 
+function localizedMonthLabel(monthKey: string, locale: string): string {
+  const [y, m] = monthKey.split('-');
+  return new Date(Number(y), Number(m) - 1, 1)
+    .toLocaleDateString(locale, { month: 'short', year: 'numeric' });
+}
+
 function pctChange(current: number, previous: number): number | null {
   if (previous === 0) return null;
   return Math.round(((current - previous) / previous) * 100);
@@ -124,7 +130,7 @@ interface OverviewCardProps {
 }
 
 function OverviewCard({ current, previous, currency, viewMode }: OverviewCardProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const isPersonal   = viewMode === 'personal';
@@ -142,7 +148,7 @@ function OverviewCard({ current, previous, currency, viewMode }: OverviewCardPro
 
   return (
     <View style={styles.overviewCard}>
-      <Text style={styles.overviewMonth}>{current.label}</Text>
+      <Text style={styles.overviewMonth}>{localizedMonthLabel(current.month, i18n.language)}</Text>
       <View style={styles.overviewRow}>
         <View style={styles.overviewBlock}>
           <Text style={styles.overviewLbl}>{isPersonal ? t('spending.my_spending') : t('spending.house_total')}</Text>
@@ -176,8 +182,8 @@ function OverviewCard({ current, previous, currency, viewMode }: OverviewCardPro
       {previous && (
         <Text style={styles.overviewCompare}>
           {isPersonal
-            ? t('spending.compare_personal', { month: previous.label, spent: fmtShort(previous.total, currency), house: fmtShort(previous.houseTotal, currency) })
-            : t('spending.compare_house', { month: previous.label, house: fmtShort(previous.houseTotal, currency), share: fmtShort(previous.total, currency) })
+            ? t('spending.compare_personal', { month: localizedMonthLabel(previous.month, i18n.language), spent: fmtShort(previous.total, currency), house: fmtShort(previous.houseTotal, currency) })
+            : t('spending.compare_house', { month: localizedMonthLabel(previous.month, i18n.language), house: fmtShort(previous.houseTotal, currency), share: fmtShort(previous.total, currency) })
           }
         </Text>
       )}
@@ -250,7 +256,7 @@ function MonthlyChart({ months, currency, selectedIdx, onSelectMonth, viewMode, 
                 onPress={() => onSelectMonth(monthsIdx)}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel={t('spending.view_month', { month: m.label })}
+                accessibilityLabel={t('spending.view_month', { month: localizedMonthLabel(m.month, i18n.language) })}
                 accessibilityState={{ selected: isSelected }}
               >
                 <Text style={[styles.barAmt, isSelected && styles.barAmtSelected]}>
@@ -639,7 +645,7 @@ export default function SpendingScreen(): React.JSX.Element {
 
       {sections.length > 0 && (
         <Text style={styles.breakdownTitle}>
-          {t('spending.breakdown_title', { month: selectedMonth?.label ?? '' })}
+          {t('spending.breakdown_title', { month: selectedMonth ? localizedMonthLabel(selectedMonth.month, i18n.language) : '' })}
         </Text>
       )}
     </View>
@@ -664,7 +670,7 @@ export default function SpendingScreen(): React.JSX.Element {
               <Text style={styles.emptyText}>
                 {selectedIdx === 0
                   ? t('spending.add_bills_hint')
-                  : t('spending.no_spending_for', { month: selectedMonth?.label ?? t('spending.this_month') })}
+                  : t('spending.no_spending_for', { month: selectedMonth ? localizedMonthLabel(selectedMonth.month, i18n.language) : t('spending.this_month') })}
               </Text>
             </View>
           ) : null

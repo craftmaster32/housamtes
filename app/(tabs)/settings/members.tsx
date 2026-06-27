@@ -93,7 +93,9 @@ function MemberCard({
           <Pressable
             style={styles.changeRoleBtn}
             onPress={() => onChangeRole(member)}
+            accessible
             accessibilityRole="button"
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <Text style={styles.changeRoleBtnText}>
               {t('members.change_role')}
