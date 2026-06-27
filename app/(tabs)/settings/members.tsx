@@ -84,7 +84,9 @@ function MemberCard({
           }
         </View>
         <View style={styles.memberMeta}>
-          <Text style={styles.memberName}>{member.name}{isMe ? ` ${t('members.you_suffix')}` : ''}</Text>
+          <Text style={styles.memberName}>
+            {isMe ? t('members.name_with_you', { name: member.name }) : member.name}
+          </Text>
           <Text style={styles.memberRole}>{roleLabel}</Text>
         </View>
         {canEdit && !isMe && member.role !== 'owner' && (

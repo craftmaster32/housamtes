@@ -19,7 +19,7 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
 
   if (Platform.OS === 'web') {
     const [yr, mo, dy] = value ? value.split('-') : ['', '', ''];
-    const displayText = value ? `${dy}/${mo}/${yr}` : t('bills.pick_date');
+    const displayText = value ? `${dy}/${mo}/${yr}` : t('common.pick_date');
 
     return React.createElement(
       'div',

@@ -51,7 +51,8 @@
     "enter_time_manually": "הזן שעה ידנית",
     "time_format_hint": "הזן שעה בפורמט HH:MM",
     "type_time_manually": "הקלד שעה ידנית",
-    "clear_time": "נקה שעה"
+    "clear_time": "נקה שעה",
+    "pick_date": "בחר תאריך"
   },
   "nav": {
     "dashboard": "ראשי",
@@ -1280,6 +1281,7 @@
     "admin": "מנהל",
     "member": "חבר",
     "you_suffix": "(אתה)",
+    "name_with_you": "{{name}} (אתה)",
     "change_role": "שנה תפקיד ›",
     "what_can_see": "מה {{name}} יכול לראות?",
     "your_permissions_note": "ההרשאות שלך מנוהלות על ידי בעל הבית.",

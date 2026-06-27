@@ -51,7 +51,8 @@
     "enter_time_manually": "Ingrese hora manualmente",
     "time_format_hint": "Ingrese hora en formato HH:MM",
     "type_time_manually": "Escriba la hora manualmente",
-    "clear_time": "Borrar hora"
+    "clear_time": "Borrar hora",
+    "pick_date": "Elegir fecha"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -1305,6 +1306,7 @@
     "admin": "Admin",
     "member": "Miembro",
     "you_suffix": "(tú)",
+    "name_with_you": "{{name}} (tú)",
     "change_role": "Cambiar rol ›",
     "what_can_see": "¿Qué puede ver {{name}}?",
     "your_permissions_note": "Tus permisos son gestionados por el dueño de la casa.",

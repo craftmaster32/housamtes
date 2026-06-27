@@ -14,7 +14,7 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const [yr, mo, dy] = value ? value.split('-') : ['', '', ''];
-  const displayText = value ? `${dy}/${mo}/${yr}` : t('bills.pick_date');
+  const displayText = value ? `${dy}/${mo}/${yr}` : t('common.pick_date');
 
   return (
     // Wrapper div handles all clicks and calls showPicker() on the hidden input.

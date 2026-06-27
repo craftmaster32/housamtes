@@ -51,7 +51,8 @@
     "enter_time_manually": "Enter time manually",
     "time_format_hint": "Enter time in HH:MM format",
     "type_time_manually": "Type time manually",
-    "clear_time": "Clear time"
+    "clear_time": "Clear time",
+    "pick_date": "Pick date"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -1280,6 +1281,7 @@
     "admin": "Admin",
     "member": "Member",
     "you_suffix": "(you)",
+    "name_with_you": "{{name}} (you)",
     "change_role": "Change role ›",
     "what_can_see": "What can {{name}} see?",
     "your_permissions_note": "Your own permissions are managed by the house owner.",
