@@ -62,7 +62,7 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
       )}
 
       {photos.length < maxPhotos && (
-        <Pressable style={styles.addBtn} onPress={handlePick}>
+        <Pressable style={styles.addBtn} onPress={handlePick} accessible accessibilityRole="button" accessibilityLabel={t('photos.add_photo')}>
           <Text style={styles.addBtnText}>{t('photos.add_photo')}</Text>
         </Pressable>
       )}

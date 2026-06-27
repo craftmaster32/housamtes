@@ -10,11 +10,13 @@ interface DateInputProps {
 }
 
 export function DateInput({ value, onChange, style }: DateInputProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const [yr, mo, dy] = value ? value.split('-') : ['', '', ''];
-  const displayText = value ? `${dy}/${mo}/${yr}` : t('common.pick_date');
+  const locale = i18n.language === 'he' ? 'he-IL' : i18n.language === 'es' ? 'es-ES' : 'en-GB';
+  const displayText = value
+    ? new Date(value + 'T12:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
+    : t('common.pick_date');
 
   return (
     // Wrapper div handles all clicks and calls showPicker() on the hidden input.

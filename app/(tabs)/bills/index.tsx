@@ -120,7 +120,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
           {bill.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {t('bills.paid_by_each', { name: resolveName(bill.paidBy, housemates), amount: formatFull(share, currencyCode) })}
+          {t('bills.paid_by_each', { name: resolveName(bill.paidBy, housemates, t('common.unknown')), amount: formatFull(share, currencyCode) })}
         </Text>
       </View>
       <View style={styles.billRight}>

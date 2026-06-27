@@ -583,8 +583,8 @@ function ParkingCard(): React.JSX.Element {
             <Ionicons name="time-outline" size={14} color="#E0B24D" />
             <Text style={[styles.parkingPendingText, { color: '#E0B24D', flex: 1 }]}>
               {r.startTime
-                ? t('dashboard.wants_date_at', { name: resolveName(r.requestedBy, housemates, t('common.unknown')), date: r.date, time: r.startTime })
-                : t('dashboard.wants_date', { name: resolveName(r.requestedBy, housemates, t('common.unknown')), date: r.date })}
+                ? t('dashboard.wants_date_at', { name: resolveName(r.requestedBy, housemates, t('common.unknown')), date: new Date(r.date + 'T12:00:00').toLocaleDateString(language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB', { month: 'short', day: 'numeric' }), time: r.startTime })
+                : t('dashboard.wants_date', { name: resolveName(r.requestedBy, housemates, t('common.unknown')), date: new Date(r.date + 'T12:00:00').toLocaleDateString(language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB', { month: 'short', day: 'numeric' }) })}
             </Text>
           </View>
           <View style={[styles.approveBtn, { backgroundColor: c.positive }]}>
@@ -642,7 +642,7 @@ function ParkingCard(): React.JSX.Element {
                 ? t('dashboard.request_rejected')
                 : t('dashboard.request_pending')}
             {' · '}
-            {myReservation.date}
+            {new Date(myReservation.date + 'T12:00:00').toLocaleDateString(language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB', { month: 'short', day: 'numeric' })}
             {myReservation.startTime ? ` ${myReservation.startTime}` : ''}
           </Text>
         </View>

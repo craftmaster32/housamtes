@@ -1351,6 +1351,7 @@
     "past_months": "Últimos {{count}} meses",
     "highest": "Más alto",
     "lowest": "Más bajo",
+    "chart_note": "Más alto: {{highestMonth}} • Más bajo: {{lowestMonth}}",
     "less": "menos",
     "more": "más",
     "compare_less": "↓ {{amount}} menos",

@@ -567,14 +567,14 @@ function ReserveModal({
     current && date === todayStr
       ? current.occupant === myId
         ? t('parking.currently_using_you')
-        : t('parking.currently_using_other', { name: resolveName(current.occupant, housemates) })
+        : t('parking.currently_using_other', { name: resolveName(current.occupant, housemates, t('common.unknown')) })
       : null;
   const conflictResult: ConflictResult = isDateConflict(
     date,
     startTime || undefined,
     endTime || undefined,
     reservations,
-    (id: string): string => resolveName(id, housemates)
+    (id: string): string => resolveName(id, housemates, t('common.unknown'))
   );
   const dateConflict = conflictResult.conflict;
   const dateWarning = conflictResult.warning;
@@ -1041,8 +1041,8 @@ export default function ParkingScreen(): React.JSX.Element {
                         ? t('parking.your_car_since', { time: formatTime(current!.startTime, language) })
                         : t('parking.your_car_all_day')
                       : current!.startTime
-                        ? t('parking.took_spot_since', { name: resolveName(current?.occupant ?? '', housemates), time: formatTime(current!.startTime, language) })
-                        : t('parking.took_spot_all_day', { name: resolveName(current?.occupant ?? '', housemates) })}
+                        ? t('parking.took_spot_since', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')), time: formatTime(current!.startTime, language) })
+                        : t('parking.took_spot_all_day', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')) })}
                 </Text>
               </View>
 

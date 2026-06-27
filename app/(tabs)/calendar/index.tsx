@@ -659,7 +659,7 @@ export default function CalendarScreen(): React.JSX.Element {
               {connected ? t('calendar.synced_subtitle') : t('calendar.house_schedule')}
             </Text>
           </View>
-          <Pressable style={styles.addBtn} onPress={handleOpenAdd} accessibilityRole="button">
+          <Pressable style={[styles.addBtn, { minHeight: 44 }]} onPress={handleOpenAdd} accessible accessibilityRole="button">
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={styles.addBtnText}>{t('calendar.add_event')}</Text>
           </Pressable>
@@ -723,7 +723,7 @@ export default function CalendarScreen(): React.JSX.Element {
                 ? t('calendar.today')
                 : new Date(selectedDate + 'T12:00:00').toLocaleDateString(i18n.language, { weekday: 'short', month: 'short', day: 'numeric' })}
             </Text>
-            <Pressable style={styles.addDayBtn} onPress={handleOpenAdd} accessibilityRole="button">
+            <Pressable style={[styles.addDayBtn, { minHeight: 44 }]} onPress={handleOpenAdd} accessible accessibilityRole="button" hitSlop={8}>
               <Ionicons name="add-circle-outline" size={18} color={C.primary} />
               <Text style={styles.addDayBtnText}>{t('calendar.add')}</Text>
             </Pressable>

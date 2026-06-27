@@ -237,6 +237,7 @@ function CategoryForm({
         <Pressable
           style={[styles.iconPreviewBtn, showIconPicker && styles.iconPreviewBtnActive]}
           onPress={() => setShowIconPicker((v) => !v)}
+          accessible
           accessibilityRole="button"
           accessibilityLabel={t('categories.choose_icon')}
         >
@@ -297,11 +298,13 @@ function CategoryForm({
             if (form.name.trim()) onSave(form);
           }}
           disabled={saving || !form.name.trim()}
+          accessible
           accessibilityRole="button"
+          accessibilityState={{ disabled: saving || !form.name.trim() }}
         >
           <Text style={styles.btnSaveText}>{saving ? t('categories.saving') : t('categories.save')}</Text>
         </Pressable>
-        <Pressable onPress={onCancel} style={styles.btnCancel} accessibilityRole="button">
+        <Pressable onPress={onCancel} style={styles.btnCancel} accessible accessibilityRole="button">
           <Text style={styles.btnCancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
@@ -338,6 +341,7 @@ function CategoryRow({
             onPress={() => onEdit(cat)}
             style={styles.rowBtn}
             hitSlop={8}
+            accessible
             accessibilityRole="button"
           >
             <Text style={styles.rowBtnEdit}>{t('categories.edit')}</Text>
@@ -346,6 +350,7 @@ function CategoryRow({
             onPress={() => onDelete(cat)}
             style={styles.rowBtn}
             hitSlop={8}
+            accessible
             accessibilityRole="button"
           >
             <Text style={styles.rowBtnDelete}>{t('categories.delete')}</Text>
@@ -486,6 +491,7 @@ export default function CategoriesScreen(): React.JSX.Element {
                 <Pressable
                   style={styles.addBtn}
                   onPress={() => setShowAdd(true)}
+                  accessible
                   accessibilityRole="button"
                 >
                   <Text style={styles.addBtnText}>{t('categories.add_category')}</Text>

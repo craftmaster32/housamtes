@@ -160,7 +160,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
           </View>
           {highest && lowest && chartData.length > 1 && (
             <Text style={styles.chartNote}>
-              {t('spending.highest')}: {monthNameFromKey(highest.month, i18n.language)} • {t('spending.lowest')}: {monthNameFromKey(lowest.month, i18n.language)}
+              {t('spending.chart_note', { highestMonth: monthNameFromKey(highest.month, i18n.language), lowestMonth: monthNameFromKey(lowest.month, i18n.language) })}
             </Text>
           )}
         </View>
