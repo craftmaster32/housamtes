@@ -244,7 +244,7 @@ export default function LoginScreen(): React.JSX.Element {
   );
 }
 
-function makeStyles(C: ColorTokens, rtl: boolean) {
+function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: {
       flex: 1,
