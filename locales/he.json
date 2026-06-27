@@ -52,7 +52,8 @@
     "time_format_hint": "הזן שעה בפורמט HH:MM",
     "type_time_manually": "הקלד שעה ידנית",
     "clear_time": "נקה שעה",
-    "pick_date": "בחר תאריך"
+    "pick_date": "בחר תאריך",
+    "unknown": "לא ידוע"
   },
   "nav": {
     "dashboard": "ראשי",
@@ -675,6 +676,8 @@
     "no_saved_lists_hint": "אחרי שיתוף טיוטה, בחר \"שמור רשימה\" כדי ליצור תבניות.",
     "item_count_one": "{{count}} פריט",
     "item_count_other": "{{count}} פריטים",
+    "item_count_yours_one": "פריט {{count}} · שלך",
+    "item_count_yours_other": "{{count}} פריטים · שלך",
     "yours_suffix": " · שלך",
     "load": "טען",
     "replace_draft": "החלף טיוטה?",

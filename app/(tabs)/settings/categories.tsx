@@ -3,6 +3,7 @@ import { View, StyleSheet, FlatList, Pressable, TextInput, Alert, Animated } fro
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import * as Sentry from '@sentry/react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import {
@@ -390,9 +391,8 @@ export default function CategoriesScreen(): React.JSX.Element {
         setShowAdd(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : t('categories.could_not_save');
-        Alert.alert(t('common.error'), msg);
+        Sentry.captureException(err, { extra: { houseId } });
+        Alert.alert(t('common.error'), t('categories.could_not_save'));
       } finally {
         setSaving(false);
       }
@@ -413,9 +413,8 @@ export default function CategoriesScreen(): React.JSX.Element {
         setEditCat(null);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : t('categories.could_not_update');
-        Alert.alert(t('common.error'), msg);
+        Sentry.captureException(err, { extra: { houseId, categoryId: editCat.id } });
+        Alert.alert(t('common.error'), t('categories.could_not_update'));
       } finally {
         setSaving(false);
       }
@@ -438,11 +437,8 @@ export default function CategoriesScreen(): React.JSX.Element {
                 await remove(cat.id);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
               } catch (err) {
-                const msg =
-                  err instanceof Error
-                    ? err.message
-                    : t('categories.could_not_delete');
-                Alert.alert(t('common.error'), msg);
+                Sentry.captureException(err, { extra: { houseId, categoryId: cat.id } });
+                Alert.alert(t('common.error'), t('categories.could_not_delete'));
               }
             },
           },

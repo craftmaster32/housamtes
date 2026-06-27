@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated, I18nManager } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 function Section({ title, children }: { title: string; children: string }): React.JSX.Element {
   const C = useThemedColors();
@@ -30,7 +32,9 @@ function sectionStyles(C: ColorTokens) {
 export default function PrivacyPolicyScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -43,7 +47,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
             <View style={styles.backRow}>
-              <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
+              <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
               <Text style={styles.backText}>{t('common.back')}</Text>
             </View>
           </Pressable>
@@ -142,13 +146,13 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
   );
 }
 
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens, rtl: boolean) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     header: { padding: sizes.lg, gap: 4 },
     backBtn: { marginBottom: sizes.sm },
-    backRow: { flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
+    backRow: { flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
     updated: { color: C.textSecondary, fontSize: 13, ...font.regular },

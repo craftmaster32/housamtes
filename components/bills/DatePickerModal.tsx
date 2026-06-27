@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { View, Modal, Pressable, StyleSheet, I18nManager } from 'react-native';
+import { View, Modal, Pressable, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { isRTL } from '@lib/i18n';
 
 function getMonthName(year: number, month: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month));
@@ -131,7 +132,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
               accessibilityLabel={t('bills.prev_month')}
               accessibilityState={{ disabled: false }}
             >
-              <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.textPrimary} />
+              <Ionicons name={isRTL(i18n.language) ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.textPrimary} />
             </Pressable>
             <Text style={styles.monthLabel}>{monthLabel} {viewYear}</Text>
             <Pressable
@@ -142,7 +143,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
               accessibilityLabel={t('bills.next_month')}
               accessibilityState={{ disabled: false }}
             >
-              <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={20} color={colors.textPrimary} />
+              <Ionicons name={isRTL(i18n.language) ? 'chevron-back' : 'chevron-forward'} size={20} color={colors.textPrimary} />
             </Pressable>
           </View>
 

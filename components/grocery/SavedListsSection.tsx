@@ -116,8 +116,12 @@ export function SavedListsSection({
                   <Text style={styles.listName} numberOfLines={1}>{list.name}</Text>
                 </View>
                 <Text style={styles.listMeta}>
-                  {t('grocery.item_count', { count: list.items.length })}
-                  {list.createdBy === myId ? t('grocery.yours_suffix') : ''}
+                  {t(
+                    list.createdBy === myId
+                      ? 'grocery.item_count_yours'
+                      : 'grocery.item_count',
+                    { count: list.items.length }
+                  )}
                 </Text>
               </View>
 

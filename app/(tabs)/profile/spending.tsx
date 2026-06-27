@@ -416,7 +416,7 @@ function SpendingSectionHeader({ title, icon, total, currency }: SectionHeaderPr
 // ── Main screen ────────────────────────────────────────────────────────────────
 
 export default function SpendingScreen(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('house');

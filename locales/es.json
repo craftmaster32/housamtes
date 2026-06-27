@@ -52,7 +52,8 @@
     "time_format_hint": "Ingrese hora en formato HH:MM",
     "type_time_manually": "Escriba la hora manualmente",
     "clear_time": "Borrar hora",
-    "pick_date": "Elegir fecha"
+    "pick_date": "Elegir fecha",
+    "unknown": "Desconocido"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -650,6 +651,8 @@
     "no_saved_lists_hint": "Después de compartir un borrador, elige \"Guardar lista\" para crear tus plantillas.",
     "item_count_one": "{{count}} artículo",
     "item_count_other": "{{count}} artículos",
+    "item_count_yours_one": "{{count}} artículo · tuya",
+    "item_count_yours_other": "{{count}} artículos · tuya",
     "yours_suffix": " · tuya",
     "load": "Cargar",
     "replace_draft": "¿Reemplazar borrador?",

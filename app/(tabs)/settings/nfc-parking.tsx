@@ -105,6 +105,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
         <Pressable
           onPress={() => router.back()}
           style={styles.backBtn}
+          accessible
           accessibilityRole="button"
           accessibilityLabel={t('nfc_parking.go_back')}
         >
@@ -143,6 +144,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
                 <Pressable
                   style={styles.copyBtn}
                   onPress={handleShareToken}
+                  accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('nfc_parking.share_token')}
                   accessibilityHint={t('nfc_parking.share_token_hint')}
@@ -153,6 +155,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
                 <Pressable
                   style={styles.resetBtn}
                   onPress={handleRegenerate}
+                  accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('nfc_parking.reset_token')}
                   accessibilityHint={t('nfc_parking.reset_token_hint')}
@@ -175,6 +178,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
           <Pressable
             style={styles.copyBtn}
             onPress={handleShareUrl}
+            accessible
             accessibilityRole="button"
             accessibilityLabel={t('nfc_parking.share_url')}
           >

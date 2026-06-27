@@ -205,7 +205,7 @@ function ItemRow({
     } finally {
       setIsSaving(false);
     }
-  }, [editName, editQty, item.id, onUpdate, isSaving]);
+  }, [editName, editQty, item.id, onUpdate, isSaving, t]);
 
   if (isEditing) {
     return (
@@ -786,7 +786,7 @@ export default function GroceryScreen(): React.JSX.Element {
     clearChecked(houseId).catch(() => {
       Alert.alert(t('grocery.could_not_clear'), t('grocery.something_went_wrong'));
     });
-  }, [clearChecked, houseId]);
+  }, [clearChecked, houseId, t]);
   const handleLongPress = useCallback((item: GroceryItem): void => {
     setSelectedItem(item);
   }, []);
@@ -807,7 +807,7 @@ export default function GroceryScreen(): React.JSX.Element {
       setAddMode(prev);
       setAddError(t('grocery.could_not_save_pref'));
     });
-  }, [addMode]);
+  }, [addMode, t]);
   const handleSetPrivate = useCallback((): void => {
     setAddError(null);
     const prev = addMode;
@@ -816,7 +816,7 @@ export default function GroceryScreen(): React.JSX.Element {
       setAddMode(prev);
       setAddError(t('grocery.could_not_save_pref'));
     });
-  }, [addMode]);
+  }, [addMode, t]);
   const handleToggleDraft = useCallback((value: boolean): void => {
     setAddError(null);
     setIsDraftOn(value);
@@ -824,7 +824,7 @@ export default function GroceryScreen(): React.JSX.Element {
       setIsDraftOn(!value);
       setAddError(t('grocery.could_not_save_pref'));
     });
-  }, []);
+  }, [t]);
 
   const handleItemNameChange = useCallback((v: string): void => {
     setItemName(v);

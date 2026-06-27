@@ -52,7 +52,8 @@
     "time_format_hint": "Enter time in HH:MM format",
     "type_time_manually": "Type time manually",
     "clear_time": "Clear time",
-    "pick_date": "Pick date"
+    "pick_date": "Pick date",
+    "unknown": "Unknown"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -679,6 +680,8 @@
     "no_saved_lists_hint": "After sharing a draft, choose \"Save list\" to build your templates.",
     "item_count_one": "{{count}} item",
     "item_count_other": "{{count}} items",
+    "item_count_yours_one": "{{count}} item · yours",
+    "item_count_yours_other": "{{count}} items · yours",
     "yours_suffix": " · yours",
     "load": "Load",
     "replace_draft": "Replace draft?",
