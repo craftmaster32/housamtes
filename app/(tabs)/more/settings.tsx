@@ -427,7 +427,7 @@ export default function SettingsScreen(): React.JSX.Element {
                     : t('settings.leave_house_desc_default')}
                 </Text>
               </View>
-              <Text style={[styles.menuChevron, { color: C.negative }]}>›</Text>
+              <Text style={[styles.menuChevron, { color: C.negative }]}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
             </Pressable>
           </View>
 

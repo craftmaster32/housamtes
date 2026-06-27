@@ -76,6 +76,7 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
       <Pressable
         style={styles.iconBtn}
         onPress={handleBack}
+        accessible
         accessibilityRole="button"
         accessibilityLabel={t('common.back')}
       >
@@ -88,6 +89,7 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
       <Pressable
         style={styles.iconBtn}
         onPress={handleProfilePress}
+        accessible
         accessibilityRole="button"
         accessibilityLabel={t('dashboard.open_profile')}
       >

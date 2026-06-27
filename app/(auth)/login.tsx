@@ -262,7 +262,7 @@ function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.
       flexDirection: rtl ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 2,
-      alignSelf: 'flex-start',
+      alignSelf: rtl ? 'flex-end' : 'flex-start',
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xs,
       minHeight: sizes.touchTarget,

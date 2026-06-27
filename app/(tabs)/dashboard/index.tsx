@@ -254,7 +254,7 @@ function TodayAtHome(): React.JSX.Element {
       ? t('dashboard.parking_first_come')
       : isMine
         ? t('dashboard.parking_free_it_up')
-        : t('dashboard.parking_by', { name: resolveName(current?.occupant ?? '', housemates).split(' ')[0] });
+        : t('dashboard.parking_by', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')).split(' ')[0] });
 
   return (
     <View style={styles.todaySection}>
@@ -388,7 +388,7 @@ function RecentExpenses(): React.JSX.Element {
                     {bill.title}
                   </Text>
                   <Text style={[styles.recentSub, { color: c.textSecondary }]}>
-                    {t('dashboard.paid_by_name', { name: resolveName(bill.paidBy, housemates), time: timeAgo(bill.createdAt, t, language) })}
+                    {t('dashboard.paid_by_name', { name: resolveName(bill.paidBy, housemates, t('common.unknown')), time: timeAgo(bill.createdAt, t, language) })}
                   </Text>
                 </View>
                 <View style={styles.recentRight}>
@@ -562,7 +562,7 @@ function ParkingCard(): React.JSX.Element {
             ? t('dashboard.available_now')
             : isMine
               ? t('dashboard.your_car')
-              : resolveName(current?.occupant ?? '', housemates)}
+              : resolveName(current?.occupant ?? '', housemates, t('common.unknown'))}
         </Text>
         {current && !isFree && (
           <Text style={[styles.parkingAge, { color: c.textSecondary }]}>
@@ -575,7 +575,7 @@ function ParkingCard(): React.JSX.Element {
           ? t('dashboard.empty_spot')
           : isMine
             ? t('dashboard.your_car_been_there', { time: parkingAge(current?.startTime ?? '', t) })
-            : t('dashboard.used_by_time', { name: resolveName(current?.occupant ?? '', housemates), time: parkingAge(current?.startTime ?? '', t) })}
+            : t('dashboard.used_by_time', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')), time: parkingAge(current?.startTime ?? '', t) })}
       </Text>
       {pendingFromOthers.map((r) => (
         <View key={r.id} style={[styles.parkingPendingRow, { backgroundColor: '#2A1A00' }]}>
@@ -583,8 +583,8 @@ function ParkingCard(): React.JSX.Element {
             <Ionicons name="time-outline" size={14} color="#E0B24D" />
             <Text style={[styles.parkingPendingText, { color: '#E0B24D', flex: 1 }]}>
               {r.startTime
-                ? t('dashboard.wants_date_at', { name: resolveName(r.requestedBy, housemates), date: r.date, time: r.startTime })
-                : t('dashboard.wants_date', { name: resolveName(r.requestedBy, housemates), date: r.date })}
+                ? t('dashboard.wants_date_at', { name: resolveName(r.requestedBy, housemates, t('common.unknown')), date: r.date, time: r.startTime })
+                : t('dashboard.wants_date', { name: resolveName(r.requestedBy, housemates, t('common.unknown')), date: r.date })}
             </Text>
           </View>
           <View style={[styles.approveBtn, { backgroundColor: c.positive }]}>
@@ -1392,7 +1392,7 @@ function buildActivityEvents(
         icon: 'card-outline',
         iconColor: '#FF4757',
         iconBg: '#2A0A0A',
-        actor: b.paidBy === myId ? t('common.you') : resolveName(b.paidBy, housemates),
+        actor: b.paidBy === myId ? t('common.you') : resolveName(b.paidBy, housemates, t('common.unknown')),
         text: t('dashboard.activity_added_bill', { title: b.title }),
         time: b.createdAt,
       });
@@ -1405,7 +1405,7 @@ function buildActivityEvents(
         icon: 'cart-outline',
         iconColor: '#4FB071',
         iconBg: '#0A2418',
-        actor: i.addedBy === myId ? t('common.you') : resolveName(i.addedBy, housemates),
+        actor: i.addedBy === myId ? t('common.you') : resolveName(i.addedBy, housemates, t('common.unknown')),
         text: t('dashboard.activity_added_grocery', { name: i.name }),
         time: i.createdAt,
       });
@@ -1422,7 +1422,7 @@ function buildActivityEvents(
           ? t('common.someone')
           : ch.claimedBy === myId
             ? t('common.you')
-            : resolveName(ch.claimedBy, housemates),
+            : resolveName(ch.claimedBy, housemates, t('common.unknown')),
         text: t('dashboard.activity_completed_chore', { name: ch.name }),
         time: ch.completedAt!,
       });

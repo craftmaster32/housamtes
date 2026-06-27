@@ -155,6 +155,9 @@ function WordScrambleGame(): React.JSX.Element {
             onSubmitEditing={handleSubmit}
             returnKeyType="go"
             maxLength={challenge.word.length + 2}
+            accessible
+            accessibilityLabel={t('games.answer_field')}
+            accessibilityHint={t('games.answer_field_hint')}
           />
           <Pressable
             style={[

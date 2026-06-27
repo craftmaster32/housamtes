@@ -908,7 +908,9 @@
     "next_joke": "בדיחה הבאה",
     "word_scramble_game": "תפזורת מילים",
     "dad_jokes": "בדיחות אבא",
-    "dad_joke_of_the_day": "בדיחת אבא של היום"
+    "dad_joke_of_the_day": "בדיחת אבא של היום",
+    "answer_field": "התשובה שלך",
+    "answer_field_hint": "הקלד את המילה המפוענחת"
   },
   "calendar": {
     "title": "לוח שנה",
@@ -1371,7 +1373,7 @@
     "monthly_trend": "מגמה חודשית",
     "view_month": "צפה ב-{{month}}",
     "tap_details": "לחץ לפרטים",
-    "open_bill": "פתח חשבון",
+    "open_bill": "פתח חשבון: {{title}}, {{amount}}",
     "house_bills_section": "חשבונות בית",
     "lifestyle_section": "סגנון חיים",
     "spending_analysis": "ניתוח הוצאות",

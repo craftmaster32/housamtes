@@ -229,7 +229,7 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
         style={pickerStyles.addBtn}
         onPress={() => onChange('09:00')}
         accessibilityRole="button"
-        accessibilityLabel={t('common.add_a_time')}
+        accessibilityLabel={t('common.add_time')}
       >
         <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
         <Text style={pickerStyles.addBtnText}>{t('common.add_time')}</Text>

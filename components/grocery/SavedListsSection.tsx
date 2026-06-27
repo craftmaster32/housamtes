@@ -71,6 +71,7 @@ export function SavedListsSection({
       <Pressable
         style={styles.headerRow}
         onPress={handleToggle}
+        accessible
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={t('grocery.saved_lists_count', { count: lists.length })}
@@ -131,6 +132,7 @@ export function SavedListsSection({
                   <Pressable
                     style={styles.iconBtn}
                     onPress={() => handleDelete(list)}
+                    accessible
                     accessibilityRole="button"
                     accessibilityLabel={t('grocery.delete_name', { name: list.name })}
                   >
@@ -140,6 +142,7 @@ export function SavedListsSection({
                 <Pressable
                   style={styles.loadBtn}
                   onPress={() => handleLoad(list)}
+                  accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('grocery.load_into_draft', { name: list.name })}
                 >

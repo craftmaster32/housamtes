@@ -125,7 +125,7 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
                   accessible
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isSaving }}
-                  accessibilityLabel={t('grocery.save_note')}
+                  accessibilityLabel={isSaving ? t('grocery.saving') : t('grocery.save_note')}
                 >
                   <Text style={[s.btnText, s.btnPrimaryText]}>{isSaving ? t('grocery.saving') : t('grocery.save_note')}</Text>
                 </Pressable>

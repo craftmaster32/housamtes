@@ -908,7 +908,9 @@
     "next_joke": "Next joke",
     "word_scramble_game": "Word Scramble game",
     "dad_jokes": "Dad Jokes",
-    "dad_joke_of_the_day": "Dad Joke of the Day"
+    "dad_joke_of_the_day": "Dad Joke of the Day",
+    "answer_field": "Your answer",
+    "answer_field_hint": "Type the unscrambled word"
   },
   "calendar": {
     "title": "Calendar",
@@ -1371,7 +1373,7 @@
     "monthly_trend": "Monthly Trend",
     "view_month": "View {{month}}",
     "tap_details": "Tap for details",
-    "open_bill": "Open bill",
+    "open_bill": "Open bill: {{title}}, {{amount}}",
     "house_bills_section": "House Bills",
     "lifestyle_section": "Lifestyle",
     "spending_analysis": "Spending Analysis",

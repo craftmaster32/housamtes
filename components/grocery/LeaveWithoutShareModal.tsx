@@ -46,6 +46,7 @@ export function LeaveWithoutShareModal({
           <Pressable
             style={styles.primaryBtn}
             onPress={onStayAndShare}
+            accessible
             accessibilityRole="button"
             accessibilityLabel={t('grocery.go_back_and_share')}
           >
@@ -56,6 +57,7 @@ export function LeaveWithoutShareModal({
           <Pressable
             style={styles.leaveBtn}
             onPress={onLeave}
+            accessible
             accessibilityRole="button"
             accessibilityLabel={t('grocery.leave_for_now')}
             accessibilityHint={t('grocery.leave_without_sharing_hint')}

@@ -376,7 +376,7 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
                   hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
                   accessible
                   accessibilityRole="link"
-                  accessibilityLabel={t('spending.open_bill', { title: d.title })}
+                  accessibilityLabel={t('spending.open_bill', { title: d.title, amount: fmtFull(d.amount, currency) })}
                 >
                   <Text style={styles.drillDownType}>·</Text>
                   <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>

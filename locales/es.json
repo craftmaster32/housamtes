@@ -908,7 +908,9 @@
     "next_joke": "Siguiente chiste",
     "word_scramble_game": "Juego de palabras desordenadas",
     "dad_jokes": "Chistes de papá",
-    "dad_joke_of_the_day": "Chiste del día"
+    "dad_joke_of_the_day": "Chiste del día",
+    "answer_field": "Tu respuesta",
+    "answer_field_hint": "Escribe la palabra desordenada"
   },
   "calendar": {
     "title": "Calendario",
@@ -1371,7 +1373,7 @@
     "monthly_trend": "Tendencia mensual",
     "view_month": "Ver {{month}}",
     "tap_details": "Toca para detalles",
-    "open_bill": "Abrir gasto",
+    "open_bill": "Abrir gasto: {{title}}, {{amount}}",
     "house_bills_section": "Gastos del hogar",
     "lifestyle_section": "Estilo de vida",
     "spending_analysis": "Análisis de gastos",

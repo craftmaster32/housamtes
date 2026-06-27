@@ -99,6 +99,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
           <View style={styles.termsRow}>
             <Pressable
               onPress={() => { setAgreed((v) => !v); setError(''); }}
+              hitSlop={11}
               accessible
               accessibilityRole="checkbox"
               accessibilityLabel={t('auth.accept_terms_agree_label')}
