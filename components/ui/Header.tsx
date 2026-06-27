@@ -35,6 +35,7 @@ export function Header({ title, back = false, onBack, right }: Props): React.JSX
         {back && (
           <Pressable
             onPress={handleBack}
+            accessible
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
             style={styles.iconBtn}

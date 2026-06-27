@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Pressable, TextInput, I18nManager } from 'react-native';
+import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,8 @@ import { router } from 'expo-router';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import {
   scrambleWord,
   getRandomChallenge,
@@ -289,6 +291,8 @@ function JokeBrowser(): React.JSX.Element {
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function GamesScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const c = useThemedColors();
   const [tab, setTab] = useState<GameTab>('scramble');
 
@@ -303,7 +307,7 @@ export default function GamesScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('games.go_back')}
         >
-          <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={c.textPrimary} />
+          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={c.textPrimary} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: c.textPrimary }]}>{t('games.title')}</Text>
         <View style={styles.backBtn} />

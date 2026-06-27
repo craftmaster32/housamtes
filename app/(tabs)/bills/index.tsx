@@ -7,7 +7,6 @@ import {
   Pressable,
   useWindowDimensions,
   Platform,
-  I18nManager,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
@@ -37,6 +36,8 @@ import { Pill } from '@components/ui';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 type BillFilter = 'recurring' | 'one-off';
 
@@ -81,6 +82,8 @@ function formatDateLabel(dateStr: string, locale: string, t: (key: string) => st
 function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const housemates = useHousematesStore((s) => s.housemates);
   const share = bill.amount / Math.max(bill.splitBetween.length, 1);
@@ -131,7 +134,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
         >
           {formatFull(bill.amount, currencyCode)}
         </Text>
-        <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color={c.textSecondary} />
+        <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={14} color={c.textSecondary} />
       </View>
     </Pressable>
   );
@@ -141,6 +144,8 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
 function SettleUpPanel(): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const bills = useBillsStore((s) => s.bills);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -193,7 +198,7 @@ function SettleUpPanel(): React.JSX.Element {
             </View>
             <Text style={[styles.settleName, { color: c.textPrimary }]}>{fromName}</Text>
             <Ionicons
-              name={I18nManager.isRTL ? 'arrow-back' : 'arrow-forward'}
+              name={rtl ? 'arrow-back' : 'arrow-forward'}
               size={12}
               color={c.textSecondary}
               style={styles.settleArrow}

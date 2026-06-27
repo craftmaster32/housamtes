@@ -360,6 +360,7 @@ function CategoryRow({
 export default function CategoriesScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const houseId = useAuthStore((s) => s.houseId);
+  const userId = useAuthStore((s) => s.user?.id);
   const categories = useExpenseCategoriesStore((s) => s.categories);
   const isLoading = useExpenseCategoriesStore((s) => s.isLoading);
   const load = useExpenseCategoriesStore((s) => s.load);
@@ -391,7 +392,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         setShowAdd(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
-        Sentry.captureException(err, { extra: { houseId } });
+        Sentry.captureException(err, { extra: { houseId, userId } });
         Alert.alert(t('common.error'), t('categories.could_not_save'));
       } finally {
         setSaving(false);
@@ -413,7 +414,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         setEditCat(null);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
-        Sentry.captureException(err, { extra: { houseId, categoryId: editCat.id } });
+        Sentry.captureException(err, { extra: { houseId, userId, categoryId: editCat.id } });
         Alert.alert(t('common.error'), t('categories.could_not_update'));
       } finally {
         setSaving(false);
@@ -437,7 +438,7 @@ export default function CategoriesScreen(): React.JSX.Element {
                 await remove(cat.id);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
               } catch (err) {
-                Sentry.captureException(err, { extra: { houseId, categoryId: cat.id } });
+                Sentry.captureException(err, { extra: { houseId, userId, categoryId: cat.id } });
                 Alert.alert(t('common.error'), t('categories.could_not_delete'));
               }
             },

@@ -871,8 +871,8 @@ export default function ParkingScreen(): React.JSX.Element {
         }
         return;
       }
-      release(pinnedHouseId, myName).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : t('parking.failed_release');
+      release(pinnedHouseId, myName).catch(() => {
+        const msg = t('parking.failed_release');
         if (Platform.OS === 'web') {
           window.alert(msg);
         } else {

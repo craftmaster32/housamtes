@@ -53,7 +53,9 @@
     "type_time_manually": "הקלד שעה ידנית",
     "clear_time": "נקה שעה",
     "pick_date": "בחר תאריך",
-    "unknown": "לא ידוע"
+    "unknown": "לא ידוע",
+    "something_went_wrong": "משהו השתבש.",
+    "error_boundary_message": "אירעה שגיאה בלתי צפויה. נסה שוב."
   },
   "nav": {
     "dashboard": "ראשי",
@@ -1347,7 +1349,7 @@
     "lowest": "הנמוך ביותר",
     "less": "פחות",
     "more": "יותר",
-    "compared_to": "לעומת",
+    "compared_to": "לעומת {{month}}",
     "lower_this_month": "נמוך יותר החודש",
     "higher_this_month": "גבוה יותר החודש",
     "ai_insight": "תובנת AI",
@@ -1372,10 +1374,10 @@
     "could_not_load": "לא ניתן לטעון נתוני הוצאות",
     "retry_loading": "נסה שוב",
     "jump_to_current": "קפוץ לחודש הנוכחי",
-    "breakdown_title": "פירוט",
+    "breakdown_title": "פירוט {{month}}",
     "no_spending_yet": "אין הוצאות עדיין",
     "add_bills_hint": "הוסף חשבונות כדי לראות את פירוט ההוצאות.",
-    "no_spending_for": "אין הוצאות לתקופה זו"
+    "no_spending_for": "אין הוצאות ל-{{month}}"
   },
   "nfc_parking": {
     "title": "תג NFC לחניה",

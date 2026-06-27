@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, Animated, I18nManager, type GestureResponderEvent } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, Animated, type GestureResponderEvent } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -19,6 +19,8 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import type { Bill } from '@stores/billsStore';
 import type { Housemate } from '@stores/housematesStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 function isSameDay(d: Date, ref: Date): boolean {
@@ -62,6 +64,8 @@ function ProfileRow({
   title: string; sub: string; onPress: () => void;
 }): React.JSX.Element {
   const C = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const s = useMemo(() => makeStyles(C), [C]);
   return (
     <Pressable
@@ -77,7 +81,7 @@ function ProfileRow({
         <Text style={s.profileRowTitle}>{title}</Text>
         <Text style={s.profileRowSub}>{sub}</Text>
       </View>
-      <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={C.textSecondary} />
+      <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={C.textSecondary} />
     </Pressable>
   );
 }

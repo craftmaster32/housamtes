@@ -28,7 +28,9 @@ const makeStyles = (C: ColorTokens, rtl: boolean) => StyleSheet.create({
 
 function Section({ title, children }: { title: string; children: string }): React.JSX.Element {
   const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>

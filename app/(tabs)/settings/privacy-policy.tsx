@@ -45,7 +45,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessible accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
             <View style={styles.backRow}>
               <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
               <Text style={styles.backText}>{t('common.back')}</Text>
