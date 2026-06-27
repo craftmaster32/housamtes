@@ -167,7 +167,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
                   ? t('grocery.add_items_first')
                   : t('grocery.share_items_count', { count: staged.length })
               }
-              accessibilityState={{ disabled: staged.length === 0 }}
+              accessibilityState={{ disabled: staged.length === 0 || isSharing }}
             >
               {isSharing
                 ? <ActivityIndicator size="small" color="#fff" />

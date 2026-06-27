@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, I18nManager } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 interface Props {
   houseId: string;
@@ -28,6 +30,8 @@ function monthNameFromKey(monthKey: string, locale: string): string {
 
 export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const months         = useSpendingStore((s) => s.months);
   const isLoading      = useSpendingStore((s) => s.isLoading);
   const insight        = useSpendingStore((s) => s.insight);
@@ -120,7 +124,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
         {/* CTA */}
         <View style={styles.ctaRow}>
           <Text style={styles.ctaText}>{t('spending.full_analysis')}</Text>
-          <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={14} color="rgba(255,255,255,0.80)" />
+          <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={14} color="rgba(255,255,255,0.80)" />
         </View>
       </View>
     </Pressable>

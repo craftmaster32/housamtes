@@ -60,7 +60,7 @@ export function DadJokeCard(): React.JSX.Element {
             onPress={handleReveal}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={t('games.reveal_punchline')}
+            accessibilityLabel={t('games.tap_to_reveal')}
           >
             <Text style={[styles.revealText, { color: c.primary }]}>{t('games.tap_to_reveal')}</Text>
           </Pressable>
@@ -74,7 +74,7 @@ export function DadJokeCard(): React.JSX.Element {
             onPress={handleNext}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={t('games.next_joke')}
+            accessibilityLabel={t('games.another_one')}
           >
             <Text style={[styles.nextText, { color: c.textSecondary }]}>{t('games.another_one')}</Text>
           </Pressable>

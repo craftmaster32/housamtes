@@ -68,7 +68,7 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
             <>
               <View style={s.header}>
                 <Text style={[s.title, { color: C.textPrimary }]}>{t('grocery.item_details')}</Text>
-                <Pressable onPress={onClose} style={s.closeBtn} accessibilityRole="button" accessibilityLabel={t('grocery.close_details')}>
+                <Pressable onPress={onClose} style={s.closeBtn} accessible accessibilityRole="button" accessibilityLabel={t('grocery.close_details')}>
                   <Ionicons name="close" size={22} color={C.textSecondary} />
                 </Pressable>
               </View>
@@ -112,6 +112,7 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
                 <Pressable
                   onPress={onClose}
                   style={[s.btn, { borderColor: C.border }]}
+                  accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('common.cancel')}
                 >
@@ -121,6 +122,7 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
                   onPress={handleSave}
                   disabled={isSaving}
                   style={[s.btn, s.btnPrimary, { backgroundColor: C.primary }, isSaving && s.btnOff]}
+                  accessible
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isSaving }}
                   accessibilityLabel={t('grocery.save_note')}

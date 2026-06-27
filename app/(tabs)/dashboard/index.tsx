@@ -363,9 +363,11 @@ function RecentExpenses(): React.JSX.Element {
     <View style={styles.recentSection}>
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{t('dashboard.recent_expenses')}</Text>
-        <Pressable onPress={() => router.push('/(tabs)/bills')} accessibilityRole="button">
-          <Text style={[styles.sectionSeeAll, { color: c.primary }]}>{t('dashboard.see_all')}</Text>
-        </Pressable>
+        <Link href="/(tabs)/bills" asChild>
+          <Pressable accessibilityRole="button">
+            <Text style={[styles.sectionSeeAll, { color: c.primary }]}>{t('dashboard.see_all')}</Text>
+          </Pressable>
+        </Link>
       </View>
       <View style={[styles.recentCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         {recent.map((bill, idx) => {
@@ -977,7 +979,7 @@ function GroceryWidget(): React.JSX.Element {
             placeholderTextColor={c.textSecondary}
             returnKeyType="next"
             onSubmitEditing={handleAdd}
-            accessibilityLabel={t('dashboard.shared_groceries')}
+            accessibilityLabel={t('grocery.add_item_a11y')}
             accessibilityHint={t('grocery.add_item_hint')}
           />
           <View style={[styles.groceryQtySep, { backgroundColor: c.border }]} />

@@ -40,8 +40,8 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function formatTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 function parseDateParts(
@@ -747,6 +747,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const clearAllHistory = useParkingStore((s) => s.clearAllHistory);
   const checkReservationAutoApply = useParkingStore((s) => s.checkReservationAutoApply);
 
+  const language = useLanguageStore((s) => s.language);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
@@ -1037,10 +1038,10 @@ export default function ParkingScreen(): React.JSX.Element {
                     ? t('parking.free_real_estate')
                     : isMine
                       ? current!.startTime
-                        ? t('parking.your_car_since', { time: formatTime(current!.startTime) })
+                        ? t('parking.your_car_since', { time: formatTime(current!.startTime, language) })
                         : t('parking.your_car_all_day')
                       : current!.startTime
-                        ? t('parking.took_spot_since', { name: resolveName(current?.occupant ?? '', housemates), time: formatTime(current!.startTime) })
+                        ? t('parking.took_spot_since', { name: resolveName(current?.occupant ?? '', housemates), time: formatTime(current!.startTime, language) })
                         : t('parking.took_spot_all_day', { name: resolveName(current?.occupant ?? '', housemates) })}
                 </Text>
               </View>

@@ -321,7 +321,7 @@ const pickerStyles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'flex-start',
-    paddingVertical: 8, paddingHorizontal: 14,
+    minHeight: 44, paddingVertical: 8, paddingHorizontal: 14,
     borderRadius: 20, borderWidth: 1,
     borderColor: colors.primary, backgroundColor: colors.secondary,
   },
@@ -335,7 +335,7 @@ const pickerStyles = StyleSheet.create({
     fontSize: 26, ...font.semibold, color: colors.textPrimary,
     letterSpacing: 3, textAlign: 'center',
   },
-  cancelBtn: { paddingVertical: 8, paddingHorizontal: 4 },
+  cancelBtn: { minHeight: 44, justifyContent: 'center' as const, paddingVertical: 8, paddingHorizontal: 4 },
   cancelText: { fontSize: 14, ...font.medium, color: colors.textSecondary },
 
   wrap: { gap: 8 },
@@ -353,11 +353,12 @@ const pickerStyles = StyleSheet.create({
     fontSize: 30, ...font.bold, color: colors.textPrimary, marginHorizontal: 4,
   },
   editBtn: {
+    minWidth: 44, minHeight: 44, justifyContent: 'center' as const, alignItems: 'center' as const,
     padding: 10, borderRadius: 20,
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1, borderColor: colors.border,
   },
 
-  clearBtn: { alignSelf: 'flex-start' },
+  clearBtn: { alignSelf: 'flex-start' as const, minHeight: 44, justifyContent: 'center' as const },
   clearText: { fontSize: 12, ...font.regular, color: colors.textSecondary, textDecorationLine: 'underline' },
 });
