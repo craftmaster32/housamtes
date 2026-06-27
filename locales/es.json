@@ -292,7 +292,9 @@
     "your_car": "Tu coche",
     "empty_spot": "¡Plaza libre! Tómala antes de que alguien más lo haga. 🏎️",
     "your_car_been_there": "Tu coche lleva ahí {{time}}",
+    "your_car_all_day": "Tu coche lleva ahí todo el día",
     "used_by_time": "Usado por {{name}} · {{time}}",
+    "used_by_all_day": "Usado por {{name}} · todo el día",
     "spot_confirmed": "Tu plaza confirmada",
     "request_rejected": "Solicitud rechazada",
     "request_pending": "Tu solicitud pendiente",
@@ -910,7 +912,7 @@
     "dad_jokes": "Chistes de papá",
     "dad_joke_of_the_day": "Chiste del día",
     "answer_field": "Tu respuesta",
-    "answer_field_hint": "Escribe la palabra desordenada"
+    "answer_field_hint": "Escribe la palabra ordenada"
   },
   "calendar": {
     "title": "Calendario",
@@ -1359,6 +1361,8 @@
     "compared_to": "Comparado con {{month}}",
     "lower_this_month": "más bajo este mes",
     "higher_this_month": "más alto este mes",
+    "compare_pct_lower": "{{pct}}% más bajo este mes",
+    "compare_pct_higher": "{{pct}}% más alto este mes",
     "ai_insight": "ANÁLISIS IA",
     "refresh_insight": "Actualizar análisis",
     "generating_insight": "Generando análisis…",

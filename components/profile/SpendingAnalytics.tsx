@@ -175,7 +175,11 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
             </Text>
             <Text style={styles.compareSub}>{t('spending.compared_to', { month: monthNameFromKey(previous.month, i18n.language) })}</Text>
             {pct !== null && (
-              <Text style={styles.comparePct}>{pct}% {isDown ? t('spending.lower_this_month') : t('spending.higher_this_month')}</Text>
+              <Text style={styles.comparePct}>
+                {isDown
+                  ? t('spending.compare_pct_lower', { pct })
+                  : t('spending.compare_pct_higher', { pct })}
+              </Text>
             )}
           </View>
         )}

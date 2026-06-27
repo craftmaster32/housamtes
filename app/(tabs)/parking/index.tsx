@@ -857,7 +857,7 @@ export default function ParkingScreen(): React.JSX.Element {
 
   const handleReleaseOther = useCallback((): void => {
     const pinnedSessionId = current?.id ?? '';
-    const occupantName = resolveName(current?.occupant ?? '', housemates);
+    const occupantName = resolveName(current?.occupant ?? '', housemates, t('common.unknown'));
     const pinnedHouseId = houseId ?? '';
 
     const doRelease = (): void => {

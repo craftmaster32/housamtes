@@ -61,6 +61,10 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
     window.open(src, '_blank');
   }, []);
 
+  const handleAddClick = React.useCallback((): void => {
+    if (!loading) inputRef.current?.click();
+  }, [loading]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Thumbnails */}
@@ -102,7 +106,7 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
       {photos.length < maxPhotos && (
         <button
           type="button"
-          onClick={() => !loading && inputRef.current?.click()}
+          onClick={handleAddClick}
           disabled={loading}
           style={{
             display: 'inline-flex',

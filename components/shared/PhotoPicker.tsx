@@ -14,7 +14,7 @@ interface PhotoPickerProps {
 
 export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProps): React.JSX.Element {
   const { t } = useTranslation();
-  const handlePick = useCallback(async () => {
+  const handlePick = useCallback(async (): Promise<void> => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {

@@ -58,10 +58,11 @@ function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function formatShortDate(ymd: string, t: (key: string) => string): string {
+function formatShortDate(ymd: string, lang: string): string {
   const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return ymd;
-  return `${t(`dashboard.${SHORT_MONTH_KEYS[parseInt(m[2]) - 1]}`)} ${parseInt(m[3])}`;
+  const locale = lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
+  return new Date(ymd + 'T12:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 function expandRecurringDates(
@@ -743,7 +744,7 @@ export default function CalendarScreen(): React.JSX.Element {
                   ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
                   : null;
                 const dateRangeLabel = item.endDate && item.endDate !== item.date
-                  ? `${formatShortDate(item.date, t)} – ${formatShortDate(item.endDate, t)}`
+                  ? `${formatShortDate(item.date, i18n.language)} – ${formatShortDate(item.endDate, i18n.language)}`
                   : null;
                 const syncKey = (item.type === 'parking' || item.type === 'parking-pending')
                   ? `pk-${item.sourceId}`

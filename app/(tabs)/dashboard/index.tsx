@@ -564,7 +564,7 @@ function ParkingCard(): React.JSX.Element {
               ? t('dashboard.your_car')
               : resolveName(current?.occupant ?? '', housemates, t('common.unknown'))}
         </Text>
-        {current && !isFree && (
+        {current && !isFree && current.startTime && (
           <Text style={[styles.parkingAge, { color: c.textSecondary }]}>
             {parkingAge(current.startTime, t)}
           </Text>
@@ -574,8 +574,12 @@ function ParkingCard(): React.JSX.Element {
         {isFree
           ? t('dashboard.empty_spot')
           : isMine
-            ? t('dashboard.your_car_been_there', { time: parkingAge(current?.startTime ?? '', t) })
-            : t('dashboard.used_by_time', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')), time: parkingAge(current?.startTime ?? '', t) })}
+            ? current?.startTime
+              ? t('dashboard.your_car_been_there', { time: parkingAge(current.startTime, t) })
+              : t('dashboard.your_car_all_day')
+            : current?.startTime
+              ? t('dashboard.used_by_time', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')), time: parkingAge(current.startTime, t) })
+              : t('dashboard.used_by_all_day', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')) })}
       </Text>
       {pendingFromOthers.map((r) => (
         <View key={r.id} style={[styles.parkingPendingRow, { backgroundColor: '#2A1A00' }]}>
