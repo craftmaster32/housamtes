@@ -11,7 +11,7 @@ import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 
-const makeStyles = (C: ColorTokens, rtl: boolean) => StyleSheet.create({
+const makeStyles = (C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> => StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     header: { padding: sizes.lg, gap: 4 },
@@ -56,7 +56,7 @@ export default function TermsScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Pressable onPress={handleBackPress} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
+          <Pressable onPress={handleBackPress} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessible accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
             <View style={styles.backRow}>
               <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
               <Text style={styles.backText}>{t('common.back')}</Text>

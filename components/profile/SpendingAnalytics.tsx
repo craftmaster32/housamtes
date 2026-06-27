@@ -132,7 +132,9 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
           {diffAmt !== null && (
             <View style={styles.diffBadge}>
               <Text style={styles.diffBadgeText}>
-                {isDown ? '↓' : '↑'} {isDown ? t('spending.down') : t('spending.up')} {currency}{diffAmt}
+                {isDown
+                  ? t('spending.diff_badge_down', { amount: `${currency}${diffAmt}` })
+                  : t('spending.diff_badge_up', { amount: `${currency}${diffAmt}` })}
               </Text>
             </View>
           )}
@@ -167,7 +169,9 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         {diff !== null && previous && (
           <View style={styles.compareRow}>
             <Text style={styles.compareAmt}>
-              {isDown ? '↓' : '↑'} {fmtFull(Math.abs(diff), currency)} {isDown ? t('spending.less') : t('spending.more')}
+              {isDown
+                ? t('spending.compare_less', { amount: fmtFull(Math.abs(diff), currency) })
+                : t('spending.compare_more', { amount: fmtFull(Math.abs(diff), currency) })}
             </Text>
             <Text style={styles.compareSub}>{t('spending.compared_to', { month: monthNameFromKey(previous.month, i18n.language) })}</Text>
             {pct !== null && (

@@ -398,7 +398,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         setSaving(false);
       }
     },
-    [houseId, add, t]
+    [houseId, userId, add, t]
   );
 
   const handleUpdate = useCallback(
@@ -420,7 +420,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         setSaving(false);
       }
     },
-    [editCat, update, t]
+    [houseId, userId, editCat, update, t]
   );
 
   const handleDelete = useCallback(
@@ -446,7 +446,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         ]
       );
     },
-    [remove, t]
+    [houseId, userId, remove, t]
   );
 
   return (

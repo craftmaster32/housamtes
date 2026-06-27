@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   Alert,
-  I18nManager,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
@@ -43,6 +42,7 @@ import { useThemedColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { useTranslation } from 'react-i18next';
 import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { SpendingCard } from '@components/profile/SpendingCard';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
@@ -488,6 +488,8 @@ function ChoreCard(): React.JSX.Element {
 function ParkingCard(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const current = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
   const claim = useParkingStore((s) => s.claim);
@@ -544,7 +546,7 @@ function ParkingCard(): React.JSX.Element {
             <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{t('dashboard.pending_count', { count: pendingCount })}</Text>
           </View>
         ) : (
-          <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={c.textSecondary} />
+          <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={c.textSecondary} />
         )}
       </View>
       <View
@@ -1188,6 +1190,8 @@ function toYMD(d: Date): string {
 function MiniCalendarWidget(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const events = useEventsStore((s) => s.events);
   const reservations = useParkingStore((s) => s.reservations);
   const recurringBills = useRecurringBillsStore((s) => s.bills);
@@ -1260,7 +1264,7 @@ function MiniCalendarWidget(): React.JSX.Element {
             <Ionicons name="calendar-outline" size={18} color="#6366f1" />
           </View>
           <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.calendar')}</Text>
-          <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={16} color={c.textSecondary} />
+          <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={c.textSecondary} />
         </Pressable>
         <View style={styles.calNavRow}>
           <Pressable
@@ -1270,7 +1274,7 @@ function MiniCalendarWidget(): React.JSX.Element {
             accessibilityLabel={t('dashboard.prev_month')}
             hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
-            <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={15} color={c.textSecondary} />
+            <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={15} color={c.textSecondary} />
           </Pressable>
           <Text style={[styles.calMonthLabel, { color: c.textPrimary }]}>
             {t(CAL_MONTH_KEYS[viewMonth])} {viewYear}
@@ -1282,7 +1286,7 @@ function MiniCalendarWidget(): React.JSX.Element {
             accessibilityLabel={t('dashboard.next_month')}
             hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
-            <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={15} color={c.textSecondary} />
+            <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={15} color={c.textSecondary} />
           </Pressable>
         </View>
       </View>
@@ -1478,6 +1482,7 @@ export default function DashboardScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const currentLanguage = useLanguageStore((s) => s.language);
+  const rtl = isRTL(currentLanguage);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const houseName = useHousematesStore((s) => s.houseName);
@@ -1671,7 +1676,7 @@ export default function DashboardScreen(): React.JSX.Element {
                   {t('dashboard.games_sub')}
                 </Text>
               </View>
-              <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textDisabled} />
+              <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textDisabled} />
             </Pressable>
           </Animated.View>
         </ScrollView>

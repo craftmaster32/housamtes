@@ -30,7 +30,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
 
   const fadeHeader = useRef(new Animated.Value(0)).current;
   const slideCard = useRef(new Animated.Value(30)).current;
@@ -332,7 +332,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   );
 }
 
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: {
       flex: 1,
@@ -348,10 +348,10 @@ function makeStyles(C: ColorTokens) {
       gap: 8,
     },
     backBtn: {
-      flexDirection: 'row',
+      flexDirection: rtl ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 2,
-      alignSelf: 'flex-start',
+      alignSelf: rtl ? 'flex-end' : 'flex-start',
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xs,
       minHeight: sizes.touchTarget,

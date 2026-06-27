@@ -34,7 +34,7 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
 
       const dataUrls = result.assets
         .filter((a) => a.base64)
-        .map((a) => `data:image/jpeg;base64,${a.base64 ?? ''}`);
+        .map((a) => `data:${a.mimeType ?? 'image/jpeg'};base64,${a.base64 ?? ''}`);
 
       onChange([...photos, ...dataUrls]);
     } catch {

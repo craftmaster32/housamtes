@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, SectionList, Animated, I18nManager } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator, SectionList, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, Link } from 'expo-router';
@@ -11,6 +11,8 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -314,6 +316,8 @@ interface CategoryRowProps {
 function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
   const { cat, myAmount, prevHouseAmount, sectionTotal, drillDownItems } = item;
   const pct       = pctChange(cat.amount, prevHouseAmount);
@@ -377,7 +381,7 @@ function CategoryRow({ item, currency, isExpanded, onToggle }: CategoryRowProps)
                   <Text style={styles.drillDownType}>·</Text>
                   <Text style={styles.drillDownTitle} numberOfLines={1}>{d.title}</Text>
                   <Text style={styles.drillDownAmt}>{fmtFull(d.amount, currency)}</Text>
-                  <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={12} color={C.textSecondary} />
+                  <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={12} color={C.textSecondary} />
                 </Pressable>
               </Link>
             ) : (
@@ -421,6 +425,8 @@ export default function SpendingScreen(): React.JSX.Element {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('house');
 
+  const language       = useLanguageStore((s) => s.language);
+  const rtl            = isRTL(language);
   const profile        = useAuthStore((s) => s.profile);
   const houseId        = useAuthStore((s) => s.houseId);
   const months         = useSpendingStore((s) => s.months);
@@ -566,7 +572,7 @@ export default function SpendingScreen(): React.JSX.Element {
         accessibilityRole="button"
         accessibilityLabel={t('common.back')}
       >
-        <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={24} color={C.textPrimary} />
+        <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={C.textPrimary} />
       </Pressable>
       <Text style={styles.title}>{t('spending.spending_analysis')}</Text>
       <View style={styles.backBtn} />
@@ -634,7 +640,7 @@ export default function SpendingScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('spending.jump_to_current')}
         >
-          <Ionicons name={I18nManager.isRTL ? 'arrow-back-circle-outline' : 'arrow-forward-circle-outline'} size={16} color={C.primary} />
+          <Ionicons name={rtl ? 'arrow-back-circle-outline' : 'arrow-forward-circle-outline'} size={16} color={C.primary} />
           <Text style={styles.jumpBtnText}>{t('spending.jump_to_current')}</Text>
         </Pressable>
       )}

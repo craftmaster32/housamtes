@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert, Keyboard, Animated, I18nManager } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Platform, Alert, Keyboard, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { usePersonalCalendar } from '@hooks/usePersonalCalendar';
 import { openGoogleCalendar, downloadIcs } from '@utils/calendarWeb';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { addWeeks, addMonths, addYears } from 'date-fns';
@@ -111,7 +113,9 @@ function useRecurrenceOptions(): Array<{ label: string; value: EventRecurrence |
 function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFormModalProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
-  const formStyles = useMemo(() => makeFormStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const formStyles = useMemo(() => makeFormStyles(C, rtl), [C, rtl]);
   const RECURRENCE_OPTIONS = useRecurrenceOptions();
 
   const addEvent       = useEventsStore((s) => s.addEvent);
@@ -420,6 +424,8 @@ function DayCell({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function CalendarScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const events                       = useEventsStore((s) => s.events);
   const isLoading                    = useEventsStore((s) => s.isLoading);
   const storeError                   = useEventsStore((s) => s.error);
@@ -662,11 +668,11 @@ export default function CalendarScreen(): React.JSX.Element {
         {/* Month nav */}
         <View style={styles.monthHeader}>
           <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button" accessibilityLabel={t('dashboard.prev_month')}>
-            <Ionicons name={I18nManager.isRTL ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
+            <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
           </Pressable>
           <Text style={styles.monthTitle}>{t(`calendar.${MONTH_KEYS[viewMonth]}`)} {viewYear}</Text>
           <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button" accessibilityLabel={t('dashboard.next_month')}>
-            <Ionicons name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color={C.primary} />
+            <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={C.primary} />
           </Pressable>
         </View>
 
@@ -957,7 +963,7 @@ function makeStyles(C: ColorTokens) {
   });
 }
 
-function makeFormStyles(C: ColorTokens) {
+function makeFormStyles(C: ColorTokens, rtl: boolean) {
   return StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     sheet: {
@@ -979,7 +985,7 @@ function makeFormStyles(C: ColorTokens) {
       backgroundColor: C.surfaceSecondary,
     },
     notesInput: { minHeight: 80, paddingTop: 12 },
-    addToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: C.primary, backgroundColor: C.secondary, writingDirection: I18nManager.isRTL ? 'rtl' : 'ltr' },
+    addToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: C.primary, backgroundColor: C.secondary, writingDirection: rtl ? 'rtl' : 'ltr' },
     addToggleText: { fontSize: 14, ...font.medium, color: C.primary },
     clearLink: { alignSelf: 'flex-start', marginTop: 6 },
     clearLinkText: { fontSize: 12, ...font.regular, color: C.textSecondary, textDecorationLine: 'underline' },

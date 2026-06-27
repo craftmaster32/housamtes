@@ -57,7 +57,8 @@ export function LeaveWithoutShareModal({
             style={styles.leaveBtn}
             onPress={onLeave}
             accessibilityRole="button"
-            accessibilityLabel={t('grocery.leave_without_sharing_hint')}
+            accessibilityLabel={t('grocery.leave_for_now')}
+            accessibilityHint={t('grocery.leave_without_sharing_hint')}
           >
             <Text style={styles.leaveBtnText}>{t('grocery.leave_for_now')}</Text>
           </Pressable>
