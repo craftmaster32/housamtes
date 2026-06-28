@@ -113,6 +113,7 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
             alignItems: 'center',
             gap: '6px',
             padding: '8px 14px',
+            minHeight: '44px',
             border: '2px dashed #e5e7eb',
             borderRadius: 10,
             cursor: loading ? 'default' : 'pointer',

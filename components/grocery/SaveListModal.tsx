@@ -76,11 +76,12 @@ export function SaveListModal({
   }, [isSaving, onUpdate, onClose, t]);
 
   const handleSkip = useCallback((): void => {
+    if (isSaving) return;
     setListName('');
     setIsPrivate(false);
     setError(null);
     onSkip();
-  }, [onSkip]);
+  }, [isSaving, onSkip]);
 
   return (
     <Modal
@@ -89,7 +90,7 @@ export function SaveListModal({
       animationType="fade"
       onRequestClose={handleSkip}
     >
-      <Pressable style={styles.backdrop} onPress={handleSkip}>
+      <Pressable style={styles.backdrop} onPress={handleSkip} disabled={isSaving}>
         <Pressable style={styles.box} onPress={() => {}}>
           {/* Icon */}
           <View style={styles.iconWrap}>
@@ -115,7 +116,7 @@ export function SaveListModal({
                   : <Text style={styles.primaryBtnText}>{t('grocery.yes_update_list')}</Text>
                 }
               </Pressable>
-              <Pressable style={styles.skipBtn} onPress={handleSkip} accessibilityRole="button">
+              <Pressable style={styles.skipBtn} onPress={handleSkip} disabled={isSaving} accessibilityRole="button">
                 <Text style={styles.skipBtnText}>{t('grocery.no_just_this_time')}</Text>
               </Pressable>
             </>
@@ -174,7 +175,7 @@ export function SaveListModal({
                   )
                 }
               </Pressable>
-              <Pressable style={styles.skipBtn} onPress={handleSkip} accessibilityRole="button">
+              <Pressable style={styles.skipBtn} onPress={handleSkip} disabled={isSaving} accessibilityRole="button">
                 <Text style={styles.skipBtnText}>{t('grocery.one_time_dont_save')}</Text>
               </Pressable>
             </>

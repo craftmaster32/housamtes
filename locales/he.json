@@ -419,7 +419,7 @@
     "title_hint": "הכנס תיאור להוצאה זו",
     "amount_label": "סכום (₪)",
     "amount_hint": "הכנס את הסכום הכולל ששולם",
-    "date_label": "תאריך (YYYY-MM-DD)",
+    "date_label": "תאריך",
     "notes_label": "הערות (אופציונלי)",
     "notes_placeholder": "הערות",
     "notes_hint": "פרטים נוספים על ההוצאה",

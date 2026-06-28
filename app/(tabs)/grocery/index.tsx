@@ -1236,9 +1236,9 @@ export default function GroceryScreen(): React.JSX.Element {
                       <View style={styles.quickAdds}>
                         {QUICK_ADD_KEYS.map((qa) => (
                           <Pressable
-                            key={qa.name}
+                            key={qa.tKey}
                             style={styles.quickAddBtn}
-                            onPress={() => handleQuickAdd(qa.name)}
+                            onPress={() => handleQuickAdd(t(qa.tKey))}
                             accessibilityRole="button"
                             accessibilityLabel={t('grocery.add_quick', { name: t(qa.tKey) })}
                           >

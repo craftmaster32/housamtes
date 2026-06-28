@@ -418,7 +418,7 @@
     "title_hint": "Enter a description for this expense",
     "amount_label": "Amount (₪)",
     "amount_hint": "Enter the total amount paid",
-    "date_label": "Date (YYYY-MM-DD)",
+    "date_label": "Date",
     "notes_label": "Notes (optional)",
     "notes_placeholder": "Notes",
     "notes_hint": "Any additional details about this expense",

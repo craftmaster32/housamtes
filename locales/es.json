@@ -419,7 +419,7 @@
     "title_hint": "Ingresa una descripción para este gasto",
     "amount_label": "Monto (₪)",
     "amount_hint": "Ingresa el monto total pagado",
-    "date_label": "Fecha (YYYY-MM-DD)",
+    "date_label": "Fecha",
     "notes_label": "Notas (opcional)",
     "notes_placeholder": "Notas",
     "notes_hint": "Cualquier detalle adicional sobre este gasto",

@@ -228,6 +228,7 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
       <Pressable
         style={pickerStyles.addBtn}
         onPress={() => onChange('09:00')}
+        accessible
         accessibilityRole="button"
         accessibilityLabel={t('common.add_time')}
       >
@@ -261,7 +262,9 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
         <Pressable
           style={pickerStyles.cancelBtn}
           onPress={() => setIsEditing(false)}
+          accessible
           accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
         >
           <Text style={pickerStyles.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
@@ -298,6 +301,7 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
         <Pressable
           style={pickerStyles.editBtn}
           onPress={startEditing}
+          accessible
           accessibilityRole="button"
           accessibilityLabel={t('common.type_time_manually')}
         >
@@ -308,6 +312,7 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
       <Pressable
         style={pickerStyles.clearBtn}
         onPress={() => onChange('')}
+        accessible
         accessibilityRole="button"
         accessibilityLabel={t('common.clear_time')}
       >

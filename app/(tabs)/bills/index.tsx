@@ -176,8 +176,8 @@ function SettleUpPanel(): React.JSX.Element {
   return (
     <View style={styles.settleList}>
       {settlements.map((s, idx) => {
-        const fromName = resolveName(s.from, housemates);
-        const toName = resolveName(s.to, housemates);
+        const fromName = resolveName(s.from, housemates, t('common.unknown'));
+        const toName = resolveName(s.to, housemates, t('common.unknown'));
         return (
           <View
             key={idx}

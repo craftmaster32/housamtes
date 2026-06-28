@@ -53,7 +53,14 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
           {photos.map((src, i) => (
             <View key={i} style={styles.thumbWrap}>
               <Image source={{ uri: src }} style={styles.thumb} />
-              <Pressable style={styles.removeBtn} onPress={() => removePhoto(i)}>
+              <Pressable
+                style={styles.removeBtn}
+                onPress={() => removePhoto(i)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('photos.remove_photo')}
+              >
                 <Text style={styles.removeBtnText}>✕</Text>
               </Pressable>
             </View>

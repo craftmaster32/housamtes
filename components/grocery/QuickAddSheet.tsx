@@ -96,7 +96,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
               <Text style={styles.title}>{t('grocery.quick_share')} ⚡</Text>
               <Text style={styles.subtitle}>{t('grocery.quick_share_hint')}</Text>
             </View>
-            <Pressable onPress={handleClose} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel={t('common.close')}>
+            <Pressable onPress={handleClose} style={styles.closeBtn} accessible accessibilityRole="button" accessibilityLabel={t('common.close')}>
               <Ionicons name="close" size={22} color={C.textSecondary} />
             </Pressable>
           </View>
@@ -122,6 +122,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
               style={[styles.addBtn, !inputText.trim() && styles.addBtnOff]}
               onPress={handleAdd}
               disabled={!inputText.trim()}
+              accessible
               accessibilityRole="button"
               accessibilityLabel={t('grocery.add_item_to_list')}
             >
@@ -145,6 +146,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
                   <Pressable
                     onPress={() => handleRemove(item.key)}
                     style={styles.removeBtn}
+                    accessible
                     accessibilityRole="button"
                     accessibilityLabel={t('grocery.remove_item', { name: item.name })}
                   >
@@ -161,6 +163,7 @@ export function QuickAddSheet({ visible, onClose, onShareItems }: QuickAddSheetP
               style={[styles.shareBtn, (staged.length === 0 || isSharing) && styles.shareBtnOff]}
               onPress={handleShareAll}
               disabled={staged.length === 0 || isSharing}
+              accessible
               accessibilityRole="button"
               accessibilityLabel={
                 staged.length === 0
