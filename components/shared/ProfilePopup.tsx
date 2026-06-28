@@ -90,7 +90,16 @@ export function ProfilePopup(): React.JSX.Element {
   const dropdownTop = insets.top + 62;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'box-none' : 'none'}>
+    <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
+      {isOpen && (
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={close}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+        />
+      )}
       <Animated.View
         style={[
           styles.panel,
@@ -159,7 +168,7 @@ export function ProfilePopup(): React.JSX.Element {
 const styles = StyleSheet.create({
   panel: {
     position: 'absolute',
-    end: 16,
+    right: 16,
     width: 220,
     borderRadius: sizes.borderRadiusLg,
     paddingVertical: sizes.xs,

@@ -1514,7 +1514,7 @@ export default function DashboardScreen(): React.JSX.Element {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Hero greeting ─────────────────────────────────────────── */}
-          <Animated.View entering={FadeIn.duration(400)} style={styles.hero}>
+          <Animated.View entering={FadeIn.duration(400)} style={[styles.hero, rtl && styles.heroRTL]}>
             <View style={styles.heroLeft}>
               <Text style={[styles.heroDate, { color: c.textSecondary }]}>{todayDateLabel(currentLanguage)}</Text>
               <Text style={[styles.greeting, { color: c.textPrimary }]}>
@@ -1712,6 +1712,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 12,
   },
+  heroRTL: { flexDirection: 'row-reverse' },
   heroLeft: { flex: 1, gap: 2 },
   heroRight: { alignItems: 'center', gap: 8 },
   heroDate: { fontSize: 13, ...font.regular },
@@ -1770,7 +1771,7 @@ const styles = StyleSheet.create({
   balanceHeroDeco: {
     position: 'absolute',
     top: -40,
-    right: -30,
+    end: -30,
     width: 160,
     height: 160,
     borderRadius: 80,
