@@ -240,7 +240,7 @@ export default function SettingsScreen(): React.JSX.Element {
     try {
       await addProposal(
         t('settings.approve_leave_title', { name: profile.name }),
-        t('settings.approve_leave_body', { name: profile.name, amount: debtAmount.toFixed(2) }),
+        t('settings.approve_leave_body', { name: profile.name, amount: `${currency}${debtAmount.toFixed(2)}` }),
         profile.id,
         houseId
       );
@@ -482,7 +482,7 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <Text style={styles.modalTitle}>{t('settings.settle_first_title')}</Text>
                 <Text style={styles.modalBody}>
-                  {t('settings.settle_first_body', { amount: debtAmount.toFixed(2) })}
+                  {t('settings.settle_first_body', { amount: `${currency}${debtAmount.toFixed(2)}` })}
                 </Text>
                 <Pressable
                   style={styles.modalBtnPrimary}

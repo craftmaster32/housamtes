@@ -41,7 +41,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  const handleBack = useCallback(() => { router.back(); }, []);
+  const handleBack = useCallback((): void => { router.back(); }, []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>

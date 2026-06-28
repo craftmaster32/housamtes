@@ -99,11 +99,13 @@ export default function NfcParkingScreen(): React.JSX.Element {
     );
   }, [userId, t]);
 
+  const handleBack = useCallback((): void => { router.back(); }, []);
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={handleBack}
           style={styles.backBtn}
           accessible
           accessibilityRole="button"

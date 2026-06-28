@@ -152,13 +152,17 @@ export default function MembersScreen(): React.JSX.Element {
     if (houseId) load(houseId);
   }, [houseId, load]);
 
-  const handleToggle = useCallback(async (memberId: string, key: keyof MemberPermissions, value: boolean) => {
+  const handleToggle = useCallback(async (memberId: string, key: keyof MemberPermissions, value: boolean): Promise<void> => {
     Haptics.selectionAsync().catch(() => {});
     const member = housemates.find((h) => h.memberId === memberId);
     if (!member) return;
     const newPerms = { ...member.permissions, [key]: value };
-    await updatePermissions(memberId, newPerms);
-  }, [housemates, updatePermissions]);
+    try {
+      await updatePermissions(memberId, newPerms);
+    } catch {
+      Alert.alert(t('common.error'), t('common.failed_try_again'));
+    }
+  }, [housemates, updatePermissions, t]);
 
   const handleChangeRole = useCallback((member: Housemate) => {
     const options: MemberRole[] = member.role === 'admin' ? ['member'] : ['admin', 'member'];

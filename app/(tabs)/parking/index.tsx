@@ -628,7 +628,7 @@ function ReserveModal({
       }).catch(() => {});
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.failed_reservation'));
+      setError(t('parking.failed_reservation'));
     } finally {
       setSaving(false);
     }

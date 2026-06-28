@@ -480,6 +480,7 @@ export default function CategoriesScreen(): React.JSX.Element {
 
               {editCat && (
                 <CategoryForm
+                  key={editCat.id}
                   initial={{ name: editCat.name, icon: editCat.icon, color: editCat.color }}
                   onSave={handleUpdate}
                   onCancel={() => setEditCat(null)}
