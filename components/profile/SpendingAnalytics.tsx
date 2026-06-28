@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
+import { useTranslation } from 'react-i18next';
 import { useSpendingStore } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
@@ -31,7 +32,14 @@ function fmtFull(n: number, currency: string): string {
   return `${currency}${n.toFixed(2)}`;
 }
 
+function monthNameFromKey(monthKey: string, locale: string): string {
+  const [y, m] = monthKey.split('-');
+  return new Date(Number(y), Number(m) - 1, 1)
+    .toLocaleDateString(locale, { month: 'short' }).toUpperCase();
+}
+
 export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Element {
+  const { t, i18n } = useTranslation();
   const months    = useSpendingStore((s) => s.months);
   const isLoading = useSpendingStore((s) => s.isLoading);
   const load      = useSpendingStore((s) => s.load);
@@ -70,8 +78,8 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
       <View style={styles.card}>
         <View style={styles.decoCircle} />
         <View style={styles.pad}>
-          <Text style={styles.labelText}>MY SPENDING</Text>
-          <Text style={styles.loadingText}>Loading…</Text>
+          <Text style={styles.labelText}>{t('spending.spending_label')}</Text>
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
       </View>
     );
@@ -82,9 +90,9 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
       <View style={styles.card}>
         <View style={styles.decoCircle} />
         <View style={styles.pad}>
-          <Text style={styles.labelText}>MY SPENDING</Text>
+          <Text style={styles.labelText}>{t('spending.spending_label')}</Text>
           <Text style={styles.amountText}>{currency}0.00</Text>
-          <Text style={styles.emptyNote}>No expenses recorded yet.</Text>
+          <Text style={styles.emptyNote}>{t('spending.no_expenses_recorded')}</Text>
         </View>
       </View>
     );
@@ -99,7 +107,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.labelText}>
-            {current ? `${current.label.split(' ')[0].toUpperCase()} SPENDING` : 'MY SPENDING'}
+            {current ? t('spending.month_spending_header', { month: monthNameFromKey(current.month, i18n.language) }) : t('spending.spending_label')}
           </Text>
           <View style={styles.pills}>
             {PERIODS.map((p) => (
@@ -124,7 +132,9 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
           {diffAmt !== null && (
             <View style={styles.diffBadge}>
               <Text style={styles.diffBadgeText}>
-                {isDown ? '↓' : '↑'} {isDown ? 'Down' : 'Up'} {currency}{diffAmt}
+                {isDown
+                  ? t('spending.diff_badge_down', { amount: `${currency}${diffAmt}` })
+                  : t('spending.diff_badge_up', { amount: `${currency}${diffAmt}` })}
               </Text>
             </View>
           )}
@@ -132,7 +142,7 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
 
         {/* Bar chart */}
         <View style={styles.chartWrap}>
-          <Text style={styles.chartLabel}>Past {period} months</Text>
+          <Text style={styles.chartLabel}>{t('spending.past_months', { count: period })}</Text>
           <View style={styles.barsRow}>
             {chartData.map((m) => {
               const isLatest = m.month === current?.month;
@@ -143,14 +153,14 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
                   <View style={styles.barTrack}>
                     <View style={[styles.barFill, { height: barH }, isLatest && styles.barFillLatest]} />
                   </View>
-                  <Text style={styles.barLbl}>{m.label.split(' ')[0].slice(0, 3)}</Text>
+                  <Text style={styles.barLbl}>{monthNameFromKey(m.month, i18n.language)}</Text>
                 </View>
               );
             })}
           </View>
           {highest && lowest && chartData.length > 1 && (
             <Text style={styles.chartNote}>
-              Highest: {highest.label.split(' ')[0]} • Lowest: {lowest.label.split(' ')[0]}
+              {t('spending.chart_note', { highestMonth: monthNameFromKey(highest.month, i18n.language), lowestMonth: monthNameFromKey(lowest.month, i18n.language) })}
             </Text>
           )}
         </View>
@@ -159,11 +169,17 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         {diff !== null && previous && (
           <View style={styles.compareRow}>
             <Text style={styles.compareAmt}>
-              {isDown ? '↓' : '↑'} {fmtFull(Math.abs(diff), currency)} {isDown ? 'less' : 'more'}
+              {isDown
+                ? t('spending.compare_less', { amount: fmtFull(Math.abs(diff), currency) })
+                : t('spending.compare_more', { amount: fmtFull(Math.abs(diff), currency) })}
             </Text>
-            <Text style={styles.compareSub}>Compared to {previous.label.split(' ')[0]}</Text>
+            <Text style={styles.compareSub}>{t('spending.compared_to', { month: monthNameFromKey(previous.month, i18n.language) })}</Text>
             {pct !== null && (
-              <Text style={styles.comparePct}>{pct}% {isDown ? 'lower' : 'higher'} this month</Text>
+              <Text style={styles.comparePct}>
+                {isDown
+                  ? t('spending.compare_pct_lower', { pct })
+                  : t('spending.compare_pct_higher', { pct })}
+              </Text>
             )}
           </View>
         )}
@@ -190,7 +206,7 @@ const styles = StyleSheet.create({
   decoCircleSm: {
     position: 'absolute',
     bottom: -54,
-    right: 22,
+    end: 22,
     width: 118,
     height: 118,
     borderRadius: 59,
@@ -247,7 +263,7 @@ const styles = StyleSheet.create({
   barFill: { width: 20, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.32)' },
   barFillLatest: { backgroundColor: colors.white },
   barLbl: { fontSize: 11, ...font.regular, color: 'rgba(255,255,255,0.84)' },
-  chartNote: { fontSize: 12, ...font.regular, color: colors.white, opacity: 0.84, textAlign: 'right' },
+  chartNote: { fontSize: 12, ...font.regular, color: colors.white, opacity: 0.84, alignSelf: 'flex-end' },
 
   compareRow: { alignItems: 'flex-start', gap: 2 },
   compareAmt: { fontSize: 16, ...font.extrabold, color: colors.white },

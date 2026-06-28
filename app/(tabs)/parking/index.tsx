@@ -40,8 +40,8 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function formatTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 function parseDateParts(
@@ -228,7 +228,7 @@ function DayScheduleSheet({
                         : t('parking.pending');
                 const timeLabel = r.startTime
                   ? `${r.startTime}${r.endTime ? ` – ${r.endTime}` : ''}`
-                  : 'All day';
+                  : t('parking.all_day');
                 return (
                   <View key={r.id} style={styles.daySheetRow}>
                     <View style={[styles.daySheetDot, { backgroundColor: dotColor }]} />
@@ -340,7 +340,7 @@ function ReservationCard({
           onPress={handleDatePress}
           hitSlop={{ top: 4, bottom: 0, left: 4, right: 4 }}
           accessibilityRole="button"
-          accessibilityLabel={`${weekdayFull} ${dayNum} ${monthAbbr} — tap to see day schedule`}
+          accessibilityLabel={t('parking.tap_see_day_schedule', { weekday: weekdayFull, day: dayNum, month: monthAbbr })}
         >
           <View style={[styles.dateBadgeTop, { backgroundColor: statusColor }]}>
             <Text style={styles.dateBadgeMonth}>{monthAbbr}</Text>
@@ -398,7 +398,7 @@ function ReservationCard({
             style={styles.iconBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
-            accessibilityLabel="Cancel reservation"
+            accessibilityLabel={t('parking.cancel_reservation')}
           >
             <Ionicons name="close-circle-outline" size={20} color={C.danger} />
           </Pressable>
@@ -410,7 +410,7 @@ function ReservationCard({
             style={styles.iconBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
-            accessibilityLabel="Admin: cancel this reservation"
+            accessibilityLabel={t('parking.admin_cancel_reservation')}
           >
             <Ionicons name="shield-outline" size={20} color={C.warning} />
           </Pressable>
@@ -422,7 +422,7 @@ function ReservationCard({
             style={styles.iconBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
-            accessibilityLabel="Clear from history"
+            accessibilityLabel={t('parking.clear_from_history')}
           >
             <Ionicons name="trash-outline" size={18} color={C.textSecondary} />
           </Pressable>
@@ -436,7 +436,7 @@ function ReservationCard({
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Approve parking request"
+              accessibilityLabel={t('parking.approve_request')}
               accessibilityState={{ selected: myVote?.vote === 'approve' }}
             >
               <Ionicons
@@ -451,7 +451,7 @@ function ReservationCard({
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Reject parking request"
+              accessibilityLabel={t('parking.reject_request')}
               accessibilityState={{ selected: myVote?.vote === 'reject' }}
             >
               <Ionicons
@@ -565,14 +565,16 @@ function ReserveModal({
 
   const activeConflict =
     current && date === todayStr
-      ? `${current.occupant === myId ? 'You are' : `${resolveName(current.occupant, housemates)} is`} currently using the spot`
+      ? current.occupant === myId
+        ? t('parking.currently_using_you')
+        : t('parking.currently_using_other', { name: resolveName(current.occupant, housemates, t('common.unknown')) })
       : null;
   const conflictResult: ConflictResult = isDateConflict(
     date,
     startTime || undefined,
     endTime || undefined,
     reservations,
-    (id: string): string => resolveName(id, housemates)
+    (id: string): string => resolveName(id, housemates, t('common.unknown'))
   );
   const dateConflict = conflictResult.conflict;
   const dateWarning = conflictResult.warning;
@@ -596,11 +598,11 @@ function ReserveModal({
       return;
     }
     if (!!startTime !== !!endTime) {
-      setError('Please provide both a start time and an end time, or leave both empty.');
+      setError(t('parking.error_both_times'));
       return;
     }
     if (startTime && endTime && endTime <= startTime) {
-      setError('End time must be after start time.');
+      setError(t('parking.error_end_before_start'));
       return;
     }
     setSaving(true);
@@ -626,7 +628,7 @@ function ReserveModal({
       }).catch(() => {});
       handleClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.failed_reservation'));
+      setError(t('parking.failed_reservation'));
     } finally {
       setSaving(false);
     }
@@ -650,10 +652,10 @@ function ReserveModal({
       <Pressable style={styles.modalBackdrop} onPress={handleClose}>
         <Pressable style={styles.modalSheet} onPress={() => {}}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Reserve Parking</Text>
+          <Text style={styles.modalTitle}>{t('parking.reserve_parking')}</Text>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
-            <Text style={styles.fieldLabel}>Date</Text>
+            <Text style={styles.fieldLabel}>{t('parking.date')}</Text>
             <CalendarPicker
               value={date}
               onChange={(d) => {
@@ -683,10 +685,10 @@ function ReserveModal({
               </View>
             )}
 
-            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Start time (optional)</Text>
+            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>{t('parking.start_time')}</Text>
             <TimePicker value={startTime} onChange={setStartTime} />
 
-            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>End time (optional)</Text>
+            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>{t('parking.end_time')}</Text>
             <TimePicker value={endTime} onChange={setEndTime} />
 
             <Text style={[styles.fieldLabel, { marginTop: 14 }]}>{t('parking.note_label')}</Text>
@@ -745,6 +747,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const clearAllHistory = useParkingStore((s) => s.clearAllHistory);
   const checkReservationAutoApply = useParkingStore((s) => s.checkReservationAutoApply);
 
+  const language = useLanguageStore((s) => s.language);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
@@ -854,44 +857,44 @@ export default function ParkingScreen(): React.JSX.Element {
 
   const handleReleaseOther = useCallback((): void => {
     const pinnedSessionId = current?.id ?? '';
-    const occupantName = resolveName(current?.occupant ?? '', housemates);
+    const occupantName = resolveName(current?.occupant ?? '', housemates, t('common.unknown'));
     const pinnedHouseId = houseId ?? '';
 
     const doRelease = (): void => {
       if (useParkingStore.getState().current?.id !== pinnedSessionId) {
         if (Platform.OS === 'web') {
-          window.alert('The spot changed while you were confirming — please try again.');
+          window.alert(t('parking.spot_changed'));
         } else {
           Alert.alert(
-            'Could not free spot',
-            'The spot changed while you were confirming — please try again.'
+            t('parking.could_not_free'),
+            t('parking.spot_changed')
           );
         }
         return;
       }
-      release(pinnedHouseId, myName).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : t('parking.failed_release');
+      release(pinnedHouseId, myName).catch(() => {
+        const msg = t('parking.failed_release');
         if (Platform.OS === 'web') {
           window.alert(msg);
         } else {
-          Alert.alert('Could not free spot', msg);
+          Alert.alert(t('parking.could_not_free'), msg);
         }
       });
     };
 
     if (Platform.OS === 'web') {
       if (
-        window.confirm(`${occupantName} is parked there — evict them? This will free the spot.`)
+        window.confirm(t('parking.evict_confirm', { name: occupantName }))
       ) {
         doRelease();
       }
     } else {
       Alert.alert(
-        `Kick out ${occupantName}? 👀`,
-        "They claimed this spot — you're about to free it without asking. Bold move.",
+        t('parking.kick_out_title', { name: occupantName }),
+        t('parking.kick_out_body'),
         [
-          { text: 'Leave it', style: 'cancel' },
-          { text: 'Free it anyway', style: 'destructive', onPress: doRelease },
+          { text: t('parking.leave_it'), style: 'cancel' },
+          { text: t('parking.free_it_anyway'), style: 'destructive', onPress: doRelease },
         ]
       );
     }
@@ -978,7 +981,7 @@ export default function ParkingScreen(): React.JSX.Element {
               style={styles.clearAllBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Clear all history"
+              accessibilityLabel={t('parking.clear_all_history')}
             >
               <Ionicons name="trash-outline" size={12} color={C.danger} />
               <Text style={styles.clearAllBtnText}>{t('parking.clear_all')}</Text>
@@ -1032,10 +1035,14 @@ export default function ParkingScreen(): React.JSX.Element {
                 <Text style={styles.titleHero}>{t('parking.title')}</Text>
                 <Text style={styles.textBase}>
                   {isFree
-                    ? 'Free real estate! Claim it before someone else does. 🏎️'
+                    ? t('parking.free_real_estate')
                     : isMine
-                      ? `That's your car in there — since ${formatTime(current!.startTime)}.`
-                      : `${resolveName(current?.occupant ?? '', housemates)} got here first. Since ${formatTime(current!.startTime)}.`}
+                      ? current!.startTime
+                        ? t('parking.your_car_since', { time: formatTime(current!.startTime, language) })
+                        : t('parking.your_car_all_day')
+                      : current!.startTime
+                        ? t('parking.took_spot_since', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')), time: formatTime(current!.startTime, language) })
+                        : t('parking.took_spot_all_day', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')) })}
                 </Text>
               </View>
 
@@ -1079,7 +1086,7 @@ export default function ParkingScreen(): React.JSX.Element {
                 <Pressable
                   accessible
                   accessibilityRole="button"
-                  accessibilityLabel="Free the parking spot"
+                  accessibilityLabel={t('parking.free_the_spot')}
                   accessibilityState={{ disabled: false }}
                   style={styles.btnAdminRelease}
                   onPress={handleReleaseOther}
@@ -1130,12 +1137,12 @@ export default function ParkingScreen(): React.JSX.Element {
         }
         ListEmptyComponent={
           isLoading ? (
-            <EmptyState mode="loading" title="Loading…" />
+            <EmptyState mode="loading" title={t('common.loading')} />
           ) : (
             <EmptyState
               icon="calendar-outline"
               title={t('parking.no_reservations')}
-              message="Reserve ahead of time so housemates know when the spot is taken."
+              message={t('parking.no_reservations_hint')}
             />
           )
         }
@@ -1235,7 +1242,7 @@ const makeStyles = (C: ColorTokens) =>
     btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
     btnDangerText: { fontSize: 15, ...font.semibold, color: C.danger },
     btnAdminReleaseText: { fontSize: 14, ...font.semibold, color: C.warning },
-    btnIcon: { marginRight: 6 },
+    btnIcon: { marginEnd: 6 },
 
     addBtn: {
       flexDirection: 'row',

@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginBottom: sizes.sm,
     marginTop: sizes.xs,
-    marginLeft: 4,
+    marginStart: 4,
   },
 
   // Menu
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   menuSub: { color: colors.textSecondary, fontSize: 13, ...font.regular, marginTop: 1 },
   menuChevron: { color: colors.textDisabled, fontSize: 22 },
   menuRightText: { color: colors.primary, ...font.bold, fontSize: 15 },
-  rowDivider: { height: 1, backgroundColor: colors.border, marginLeft: sizes.md + 36 + sizes.sm },
+  rowDivider: { height: 1, backgroundColor: colors.border, marginStart: sizes.md + 36 + sizes.sm },
 
   // Password form
   passwordForm: {
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   passwordField: { gap: 4 },
-  fieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginLeft: 2 },
+  fieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginStart: 2 },
   textInput: {
     backgroundColor: colors.background,
     borderRadius: 10,

@@ -36,6 +36,8 @@ import { Pill } from '@components/ui';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 type BillFilter = 'recurring' | 'one-off';
 
@@ -59,16 +61,18 @@ function getCategoryIcon(category: string): React.ComponentProps<typeof Ionicons
 }
 
 // ── Date label ────────────────────────────────────────────────────────────────
-function formatDateLabel(dateStr: string): string {
+function formatDateLabel(dateStr: string, locale: string, t: (key: string) => string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return t('common.unknown');
+  const appLocale = locale === 'he' ? 'he-IL' : locale === 'es' ? 'es-ES' : 'en-GB';
   const today = new Date();
   const pad = (n: number): string => String(n).padStart(2, '0');
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
   const yest = new Date(today);
   yest.setDate(yest.getDate() - 1);
   const yestStr = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
-  if (dateStr === todayStr) return 'Today';
-  if (dateStr === yestStr) return 'Yesterday';
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString([], {
+  if (dateStr === todayStr) return t('common.today');
+  if (dateStr === yestStr) return t('common.yesterday');
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString(appLocale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -78,6 +82,9 @@ function formatDateLabel(dateStr: string): string {
 // ── Bill row card ─────────────────────────────────────────────────────────────
 function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
   const c = useThemedColors();
+  const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const housemates = useHousematesStore((s) => s.housemates);
   const share = bill.amount / Math.max(bill.splitBetween.length, 1);
@@ -114,13 +121,13 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
           {bill.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          Paid by {resolveName(bill.paidBy, housemates)} · {formatFull(share, currencyCode)} each
+          {t('bills.paid_by_each', { name: resolveName(bill.paidBy, housemates, t('common.unknown')), amount: formatFull(share, currencyCode) })}
         </Text>
       </View>
       <View style={styles.billRight}>
         {bill.settled && (
           <Pill tone="success" style={styles.settledBadge}>
-            ✓ Settled
+            {t('bills.settled_badge')}
           </Pill>
         )}
         <Text
@@ -128,7 +135,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
         >
           {formatFull(bill.amount, currencyCode)}
         </Text>
-        <Ionicons name="chevron-forward" size={14} color={c.textSecondary} />
+        <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={14} color={c.textSecondary} />
       </View>
     </Pressable>
   );
@@ -137,6 +144,9 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
 // ── Settle Up panel ───────────────────────────────────────────────────────────
 function SettleUpPanel(): React.JSX.Element {
   const c = useThemedColors();
+  const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const bills = useBillsStore((s) => s.bills);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -158,7 +168,7 @@ function SettleUpPanel(): React.JSX.Element {
       <View style={styles.settleAllGood}>
         <Ionicons name="checkmark-circle" size={20} color={c.positive} />
         <Text style={[styles.settleAllGoodText, { color: c.positive }]}>
-          Everyone is settled up!
+          {t('bills.everyone_settled')}
         </Text>
       </View>
     );
@@ -167,8 +177,8 @@ function SettleUpPanel(): React.JSX.Element {
   return (
     <View style={styles.settleList}>
       {settlements.map((s, idx) => {
-        const fromName = resolveName(s.from, housemates);
-        const toName = resolveName(s.to, housemates);
+        const fromName = resolveName(s.from, housemates, t('common.unknown'));
+        const toName = resolveName(s.to, housemates, t('common.unknown'));
         return (
           <View
             key={idx}
@@ -189,7 +199,7 @@ function SettleUpPanel(): React.JSX.Element {
             </View>
             <Text style={[styles.settleName, { color: c.textPrimary }]}>{fromName}</Text>
             <Ionicons
-              name="arrow-forward"
+              name={rtl ? 'arrow-back' : 'arrow-forward'}
               size={12}
               color={c.textSecondary}
               style={styles.settleArrow}
@@ -221,7 +231,7 @@ function SettleUpPanel(): React.JSX.Element {
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function BillsScreen(): React.JSX.Element {
   const c = useThemedColors();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
 
@@ -274,10 +284,10 @@ export default function BillsScreen(): React.JSX.Element {
       groups[key].push(bill);
     }
     return Object.entries(groups).map(([date, data]) => ({
-      title: formatDateLabel(date),
+      title: formatDateLabel(date, i18n.language, t),
       data,
     }));
-  }, [bills]);
+  }, [bills, i18n.language, t]);
 
   const renderBill = useCallback(
     ({ item, index }: { item: Bill; index: number }): React.JSX.Element => (
@@ -292,7 +302,7 @@ export default function BillsScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
         <View style={styles.centered}>
-          <EmptyState mode="loading" title="Loading bills…" />
+          <EmptyState mode="loading" title={t('bills.loading_bills')} />
         </View>
       </SafeAreaView>
     );
@@ -323,9 +333,9 @@ export default function BillsScreen(): React.JSX.Element {
     >
       <View style={styles.pageHeader}>
         <View>
-          <Text style={[styles.pageTitle, { color: c.textPrimary }]}>Bills</Text>
+          <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('bills.title')}</Text>
           <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>
-            {'Expenses & balances'}
+            {t('bills.page_subtitle')}
           </Text>
         </View>
         <Pressable
@@ -339,7 +349,7 @@ export default function BillsScreen(): React.JSX.Element {
           ]}
           onPress={() => router.push('/(tabs)/bills/add')}
           accessibilityRole="button"
-          accessibilityLabel="Add new expense"
+          accessibilityLabel={t('bills.add_new_expense')}
         >
           <Ionicons name="add" size={18} color="#fff" />
           <Text style={styles.addBtnText}>{t('bills.add_expense')}</Text>
@@ -372,7 +382,7 @@ export default function BillsScreen(): React.JSX.Element {
               filter === 'one-off' && styles.filterTabTextActive,
             ]}
           >
-            One-off expenses
+            {t('bills.one_off_expenses')}
           </Text>
           {bills.length > 0 && filter === 'one-off' && (
             <View style={styles.filterBadge}>
@@ -403,7 +413,7 @@ export default function BillsScreen(): React.JSX.Element {
               filter === 'recurring' && styles.filterTabTextActive,
             ]}
           >
-            Recurring bills
+            {t('bills.recurring_bills')}
           </Text>
         </Pressable>
       </View>
@@ -418,7 +428,7 @@ export default function BillsScreen(): React.JSX.Element {
       {/* ── Balance stats ────────────────────────────────────────── */}
       <View style={[styles.balanceCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>Owed to you</Text>
+          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>{t('bills.owed_to_you')}</Text>
           <Text
             style={[styles.balanceStatNum, { color: totalOwed > 0 ? c.positive : c.textPrimary }]}
           >
@@ -427,7 +437,7 @@ export default function BillsScreen(): React.JSX.Element {
         </View>
         <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
         <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>Net balance</Text>
+          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>{t('bills.net_balance')}</Text>
           <Text
             style={[
               styles.balanceStatNum,
@@ -445,12 +455,12 @@ export default function BillsScreen(): React.JSX.Element {
               },
             ]}
           >
-            {netBalance > 0 ? 'You are owed' : netBalance < 0 ? 'You owe' : 'All settled'}
+            {netBalance > 0 ? t('bills.you_are_owed') : netBalance < 0 ? t('bills.you_owe') : t('bills.all_settled_tag')}
           </Text>
         </View>
         <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
         <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>You owe</Text>
+          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>{t('bills.you_owe')}</Text>
           <Text
             style={[styles.balanceStatNum, { color: totalOwe > 0 ? c.negative : c.textPrimary }]}
           >
@@ -473,16 +483,16 @@ export default function BillsScreen(): React.JSX.Element {
           onPress={() => setShowSettle((v) => !v)}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Toggle settle up"
+          accessibilityLabel={t('bills.toggle_settle')}
           accessibilityState={{ expanded: showSettle }}
         >
           <View style={styles.settleCardHeader}>
             <View style={[styles.settleIconWrap, { backgroundColor: c.positive + '18' }]}>
               <Ionicons name="swap-horizontal-outline" size={16} color={c.positive} />
             </View>
-            <Text style={[styles.settleCardTitle, { color: c.textPrimary }]}>Settle Up</Text>
+            <Text style={[styles.settleCardTitle, { color: c.textPrimary }]}>{t('bills.settle_up')}</Text>
             <Text style={[styles.settleCardHint, { color: c.textSecondary }]}>
-              {showSettle ? 'Hide' : 'See transfers'}
+              {showSettle ? t('bills.hide') : t('bills.see_transfers')}
             </Text>
             <Ionicons
               name={showSettle ? 'chevron-up' : 'chevron-down'}
@@ -493,7 +503,7 @@ export default function BillsScreen(): React.JSX.Element {
           {showSettle && (
             <View style={styles.settleContent}>
               <Text style={[styles.settleCardSub, { color: c.textSecondary }]}>
-                Minimum transfers to clear all balances
+                {t('bills.min_transfers')}
               </Text>
               <SettleUpPanel />
             </View>
@@ -511,7 +521,7 @@ export default function BillsScreen(): React.JSX.Element {
       {/* One-off list eyebrow */}
       {filter === 'one-off' && bills.length > 0 && (
         <View style={styles.listCountRow}>
-          <Text style={[styles.eyebrow, { color: c.textSecondary }]}>ALL EXPENSES</Text>
+          <Text style={[styles.eyebrow, { color: c.textSecondary }]}>{t('bills.all_expenses')}</Text>
           <View
             style={[
               styles.countPill,
@@ -565,8 +575,8 @@ export default function BillsScreen(): React.JSX.Element {
         ListEmptyComponent={
           <EmptyState
             icon="receipt-outline"
-            title="No expenses yet"
-            message="Tap Add Expense to record your first shared spend"
+            title={t('bills.no_expenses_yet')}
+            message={t('bills.no_expenses_hint')}
           />
         }
       />
@@ -679,7 +689,7 @@ const styles = StyleSheet.create({
   settleAvatarText: { fontSize: 12, ...font.bold },
   settleName: { fontSize: 13, ...font.semibold },
   settleArrow: { marginHorizontal: 2 },
-  settleAmt: { marginLeft: 'auto' as never, fontSize: 14, ...font.bold },
+  settleAmt: { marginStart: 'auto' as never, fontSize: 14, ...font.bold },
 
   // ── Filter tabs
   filterRow: {
@@ -755,7 +765,7 @@ const styles = StyleSheet.create({
   billInfo: { flex: 1 },
   billTitle: { fontSize: 15, ...font.semibold },
   billMeta: { fontSize: 12, ...font.regular, marginTop: 2 },
-  settledBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, marginRight: 4 },
+  settledBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, marginEnd: 4 },
   settledBadgeText: { fontSize: 10, ...font.semibold },
   billRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   billAmount: { fontSize: 16, ...font.bold },

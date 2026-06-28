@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PhotoPickerProps {
   photos: string[]; // full data URLs
@@ -30,6 +31,7 @@ async function compressImage(file: File): Promise<string> {
 }
 
 export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProps): React.JSX.Element {
+  const { t } = useTranslation();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -58,6 +60,10 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
   const openFull = React.useCallback((src: string) => {
     window.open(src, '_blank');
   }, []);
+
+  const handleAddClick = React.useCallback((): void => {
+    if (!loading) inputRef.current?.click();
+  }, [loading]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -98,13 +104,16 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
 
       {/* Add button */}
       {photos.length < maxPhotos && (
-        <div
-          onClick={() => !loading && inputRef.current?.click()}
+        <button
+          type="button"
+          onClick={handleAddClick}
+          disabled={loading}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
             padding: '8px 14px',
+            minHeight: '44px',
             border: '2px dashed #e5e7eb',
             borderRadius: 10,
             cursor: loading ? 'default' : 'pointer',
@@ -116,8 +125,8 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
             width: 'fit-content',
           }}
         >
-          {loading ? '⏳ Processing…' : '📷 Add photos'}
-        </div>
+          {loading ? `⏳ ${t('common.loading')}` : `📷 ${t('photos.add_photo')}`}
+        </button>
       )}
 
       <input

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
@@ -9,9 +10,13 @@ import { useAuthStore } from '@stores/authStore';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 export default function ResetPasswordScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -74,9 +79,9 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           onPress={() => router.back()}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.back')}
         >
-          <Text style={styles.backBtnText}>←</Text>
+          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={colors.primary} />
         </Pressable>
 
         <View style={styles.header}>
@@ -121,7 +126,8 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           buttonColor={colors.primary}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Update password"
+          accessibilityLabel={t('auth.update_password')}
+          accessibilityState={{ disabled: isLoading }}
         >
           {t('auth.update_password')}
         </Button>
@@ -147,11 +153,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-start',
     marginBottom: sizes.xs,
-  },
-  backBtnText: {
-    fontSize: 24,
-    ...font.regular,
-    color: colors.textPrimary,
   },
   header: {
     gap: 4,

@@ -2,11 +2,14 @@ import { useState, useMemo, useCallback } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTHS   = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_KEYS = ['cal_month_jan','cal_month_feb','cal_month_mar','cal_month_apr','cal_month_may','cal_month_jun','cal_month_jul','cal_month_aug','cal_month_sep','cal_month_oct','cal_month_nov','cal_month_dec'] as const;
+const DAY_KEYS = ['cal_day_sun', 'cal_day_mon', 'cal_day_tue', 'cal_day_wed', 'cal_day_thu', 'cal_day_fri', 'cal_day_sat'] as const;
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -18,6 +21,9 @@ interface CalendarPickerProps {
 }
 
 export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.JSX.Element {
+  const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const today = new Date();
   const initDate = value ? new Date(value + 'T12:00:00') : today;
   const [viewYear, setViewYear]   = useState(initDate.getFullYear());
@@ -51,18 +57,18 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
   return (
     <View style={styles.picker}>
       <View style={styles.header}>
-        <Pressable onPress={prevMonth} style={styles.navBtn} accessibilityRole="button">
-          <Ionicons name="chevron-back" size={16} color={colors.primary} />
+        <Pressable onPress={prevMonth} style={styles.navBtn} accessibilityRole="button" accessibilityLabel={t('dashboard.prev_month')}>
+          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={16} color={colors.primary} />
         </Pressable>
-        <Text style={styles.monthLabel}>{MONTHS[viewMonth]} {viewYear}</Text>
-        <Pressable onPress={nextMonth} style={styles.navBtn} accessibilityRole="button">
-          <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+        <Text style={styles.monthLabel}>{t(`dashboard.${MONTH_KEYS[viewMonth]}`)} {viewYear}</Text>
+        <Pressable onPress={nextMonth} style={styles.navBtn} accessibilityRole="button" accessibilityLabel={t('dashboard.next_month')}>
+          <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={colors.primary} />
         </Pressable>
       </View>
 
       <View style={styles.weekRow}>
-        {WEEKDAYS.map((d) => (
-          <Text key={d} style={styles.weekDay}>{d}</Text>
+        {DAY_KEYS.map((dk) => (
+          <Text key={dk} style={styles.weekDay}>{t(`dashboard.${dk}`)}</Text>
         ))}
       </View>
 
@@ -106,7 +112,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
 const styles = StyleSheet.create({
   picker: { backgroundColor: colors.surfaceSecondary, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 10 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  navBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 16, backgroundColor: colors.white },
+  navBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 22, backgroundColor: colors.white },
   monthLabel: { fontSize: 14, ...font.bold, color: colors.textPrimary },
   weekRow: { flexDirection: 'row', marginBottom: 2 },
   weekDay: { flex: 1, textAlign: 'center', fontSize: 10, ...font.bold, color: colors.textSecondary, paddingVertical: 2 },

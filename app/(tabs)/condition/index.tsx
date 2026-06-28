@@ -63,7 +63,7 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary, flex: 1 },
     condDot: { width: 10, height: 10, borderRadius: 5 },
 
-    entryCard: { backgroundColor: C.surface, borderRadius: 12, padding: sizes.sm, gap: sizes.xs, marginLeft: sizes.md, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    entryCard: { backgroundColor: C.surface, borderRadius: 12, padding: sizes.sm, gap: sizes.xs, marginStart: sizes.md, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
     entryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
     entryMeta: { flex: 1, gap: 3 },
     entryBadgeRow: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
@@ -72,9 +72,9 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     condBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
     condBadgeText: { fontSize: 11, ...font.bold },
     entryDate: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
-    entryDescription: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, lineHeight: 18, marginLeft: sizes.lg + sizes.sm },
-    photoRow: { marginLeft: sizes.lg + sizes.sm, marginTop: 2 },
-    photoThumb: { width: 80, height: 80, borderRadius: sizes.borderRadiusSm, marginRight: sizes.xs, borderWidth: 1, borderColor: C.border },
+    entryDescription: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, lineHeight: 18, marginStart: sizes.lg + sizes.sm },
+    photoRow: { marginStart: sizes.lg + sizes.sm, marginTop: 2 },
+    photoThumb: { width: 80, height: 80, borderRadius: sizes.borderRadiusSm, marginEnd: sizes.xs, borderWidth: 1, borderColor: C.border },
     removeBtn: { padding: 8, minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
     removeBtnText: { color: C.textDisabled, fontSize: sizes.fontXs },
 

@@ -593,7 +593,7 @@ function makeStyles(C: ColorTokens) {
     },
     btnOff: { backgroundColor: C.textDisabled },
     btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    btnIcon: { marginRight: 6 },
+    btnIcon: { marginEnd: 6 },
 
     sectionHeader: {
       flexDirection: 'row',

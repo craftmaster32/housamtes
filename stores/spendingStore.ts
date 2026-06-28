@@ -177,7 +177,7 @@ function toFriendlyInsightError(message: string | null): string {
   if (message.toLowerCase().includes('network')) {
     return 'AI analysis could not reach the server. Check your connection and try again.';
   }
-  return message;
+  return 'AI analysis is not available right now. Try again.';
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────────

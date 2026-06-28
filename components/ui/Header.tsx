@@ -5,9 +5,12 @@ import { ReactNode, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
 import { type } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 export interface Props {
   title: string;
@@ -17,6 +20,9 @@ export interface Props {
 }
 
 export function Header({ title, back = false, onBack, right }: Props): React.JSX.Element {
+  const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const isRTLMode = isRTL(language);
   const C = useThemedColors();
   const handleBack = useCallback(() => {
     if (onBack) onBack();
@@ -29,11 +35,12 @@ export function Header({ title, back = false, onBack, right }: Props): React.JSX
         {back && (
           <Pressable
             onPress={handleBack}
+            accessible
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.back')}
             style={styles.iconBtn}
           >
-            <Ionicons name="chevron-back" size={24} color={C.textPrimary} />
+            <Ionicons name={isRTLMode ? 'chevron-forward' : 'chevron-back'} size={24} color={C.textPrimary} />
           </Pressable>
         )}
       </View>

@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native'
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useTranslation, Trans } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -10,6 +11,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
 export default function AcceptTermsScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const acceptUpdatedTerms = useAuthStore((s) => s.acceptUpdatedTerms);
@@ -25,16 +27,16 @@ export default function AcceptTermsScreen(): React.JSX.Element {
 
   const handleAccept = useCallback(async (): Promise<void> => {
     if (!agreed) {
-      setError('Please tick the checkbox to confirm your agreement before continuing.');
+      setError(t('auth.accept_terms_checkbox_required'));
       return;
     }
     try {
       setError('');
       await acceptUpdatedTerms();
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError(t('auth.something_went_wrong'));
     }
-  }, [agreed, acceptUpdatedTerms]);
+  }, [agreed, acceptUpdatedTerms, t]);
 
   const handleSignOut = useCallback(async (): Promise<void> => {
     await signOut();
@@ -52,88 +54,71 @@ export default function AcceptTermsScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.header}>
-            <Text style={styles.title}>Terms Updated</Text>
+            <Text style={styles.title}>{t('auth.terms_updated_title')}</Text>
             <Text style={styles.subtitle}>
-              {'We updated our Terms of Service and Privacy Policy on 10 May 2026. Please review the changes and accept to continue using HouseMates.'}
+              {t('auth.terms_updated_body')}
             </Text>
           </View>
 
           <View style={styles.changeCard}>
-            <Text style={styles.changeHeading}>What changed</Text>
+            <Text style={styles.changeHeading}>{t('auth.terms_what_changed')}</Text>
             <View style={styles.changeList}>
               <View style={styles.changeRow}>
                 <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
                 <Text style={styles.changeText}>
-                  {'Full legal coverage for users in '}
-                  <Text style={styles.changeBold}>Australia</Text>
-                  {' — Privacy Act 1988 and all 13 Australian Privacy Principles'}
+                  {t('auth.terms_change_australia')}
                 </Text>
               </View>
               <View style={styles.changeRow}>
                 <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
                 <Text style={styles.changeText}>
-                  {'Full legal coverage for users in '}
-                  <Text style={styles.changeBold}>Israel</Text>
-                  {' — Privacy Protection Law and Consumer Protection Law'}
+                  {t('auth.terms_change_israel')}
                 </Text>
               </View>
               <View style={styles.changeRow}>
                 <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
                 <Text style={styles.changeText}>
-                  {'Extended '}
-                  <Text style={styles.changeBold}>US state privacy law</Text>
-                  {' coverage — Virginia, Colorado, Texas, and 15+ more states'}
+                  {t('auth.terms_change_us_states')}
                 </Text>
               </View>
               <View style={styles.changeRow}>
                 <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
                 <Text style={styles.changeText}>
-                  {'New section on '}
-                  <Text style={styles.changeBold}>Australian Consumer Law</Text>
-                  {' — your rights if the service fails'}
+                  {t('auth.terms_change_consumer_law')}
                 </Text>
               </View>
               <View style={styles.changeRow}>
                 <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
                 <Text style={styles.changeText}>
-                  {'Your privacy rights explained '}
-                  <Text style={styles.changeBold}>per jurisdiction</Text>
-                  {' — one clear section per country'}
+                  {t('auth.terms_change_jurisdiction')}
                 </Text>
               </View>
             </View>
           </View>
 
-          <Pressable
-            style={styles.termsRow}
-            onPress={() => { setAgreed((v) => !v); setError(''); }}
-            accessible
-            accessibilityRole="checkbox"
-            accessibilityLabel="I have read and agree to the updated Terms of Service and Privacy Policy"
-            accessibilityState={{ checked: agreed }}
-          >
-            <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-              {agreed && <Ionicons name="checkmark" size={14} color={'#fff'} />}
-            </View>
+          <View style={styles.termsRow}>
+            <Pressable
+              onPress={() => { setAgreed((v) => !v); setError(''); }}
+              hitSlop={11}
+              accessible
+              accessibilityRole="checkbox"
+              accessibilityLabel={t('auth.accept_terms_agree_label')}
+              accessibilityState={{ checked: agreed }}
+            >
+              <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                {agreed && <Ionicons name="checkmark" size={14} color={'#fff'} />}
+              </View>
+            </Pressable>
             <Text style={styles.termsText}>
-              {'I have read and agree to the updated '}
-              <Text
-                style={styles.termsLink}
-                onPress={() => router.push('/(auth)/terms')}
-                accessibilityRole="link"
-              >
-                Terms of Service
-              </Text>
-              {' and '}
-              <Text
-                style={styles.termsLink}
-                onPress={() => router.push('/(auth)/privacy-policy')}
-                accessibilityRole="link"
-              >
-                Privacy Policy
-              </Text>
+              <Trans
+                i18nKey="auth.accept_terms_agree_full"
+                components={{
+                  tos: <Text style={styles.termsLink} onPress={() => router.push('/(auth)/terms')} accessibilityRole="link" />,
+                  privacy: <Text style={styles.termsLink} onPress={() => router.push('/(auth)/privacy-policy')} accessibilityRole="link" />,
+                }}
+              />
             </Text>
-          </Pressable>
+          </View>
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
@@ -148,9 +133,9 @@ export default function AcceptTermsScreen(): React.JSX.Element {
             buttonColor={C.primary}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Accept and continue"
+            accessibilityLabel={t('auth.accept_and_continue')}
           >
-            Accept and Continue
+            {t('auth.accept_and_continue')}
           </Button>
 
           <Pressable
@@ -158,9 +143,9 @@ export default function AcceptTermsScreen(): React.JSX.Element {
             style={styles.signOutBtn}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Sign out"
+            accessibilityLabel={t('auth.sign_out_instead')}
           >
-            <Text style={styles.signOutText}>Sign out instead</Text>
+            <Text style={styles.signOutText}>{t('auth.sign_out_instead')}</Text>
           </Pressable>
 
         </ScrollView>

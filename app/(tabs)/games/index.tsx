@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import Animated, { FadeIn, FadeInDown, BounceIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -9,6 +10,8 @@ import { router } from 'expo-router';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import {
   scrambleWord,
   getRandomChallenge,
@@ -21,6 +24,7 @@ type GameTab = 'scramble' | 'jokes';
 
 // ── Word Scramble Game ───────────────────────────────────────────────────────
 function WordScrambleGame(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const [challenge, setChallenge] = useState<WordChallenge>(getRandomChallenge);
   const [scrambled, setScrambled] = useState(() => scrambleWord(challenge.word));
@@ -77,15 +81,15 @@ function WordScrambleGame(): React.JSX.Element {
       {/* Score bar */}
       <View style={[styles.scoreBar, { backgroundColor: c.surfaceSecondary }]}>
         <View style={styles.scorePart}>
-          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>Score</Text>
+          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.score')}</Text>
           <Text style={[styles.scoreValue, { color: c.primary }]}>{score}</Text>
         </View>
         <View style={styles.scorePart}>
-          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>Round</Text>
+          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.round')}</Text>
           <Text style={[styles.scoreValue, { color: c.textPrimary }]}>{round}</Text>
         </View>
         <View style={styles.scorePart}>
-          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>Streak</Text>
+          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.streak')}</Text>
           <Text style={[styles.scoreValue, { color: streak >= 3 ? '#F59E0B' : c.textPrimary }]}>
             {streak > 0 ? `${streak}🔥` : '0'}
           </Text>
@@ -122,10 +126,10 @@ function WordScrambleGame(): React.JSX.Element {
           onPress={handleHint}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Show hint"
+          accessibilityLabel={t('games.show_hint')}
         >
           <Ionicons name="bulb-outline" size={16} color={c.textSecondary} />
-          <Text style={[styles.hintBtnText, { color: c.textSecondary }]}>Need a hint? (−5 pts)</Text>
+          <Text style={[styles.hintBtnText, { color: c.textSecondary }]}>{t('games.hint_cost')}</Text>
         </Pressable>
       )}
 
@@ -144,13 +148,16 @@ function WordScrambleGame(): React.JSX.Element {
             ]}
             value={guess}
             onChangeText={setGuess}
-            placeholder="Type your answer..."
+            placeholder={t('games.type_answer')}
             placeholderTextColor={c.textDisabled}
             autoCapitalize="characters"
             autoCorrect={false}
             onSubmitEditing={handleSubmit}
             returnKeyType="go"
             maxLength={challenge.word.length + 2}
+            accessible
+            accessibilityLabel={t('games.answer_field')}
+            accessibilityHint={t('games.answer_field_hint')}
           />
           <Pressable
             style={[
@@ -161,7 +168,7 @@ function WordScrambleGame(): React.JSX.Element {
             disabled={!guess.trim()}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Submit answer"
+            accessibilityLabel={t('games.submit_answer')}
           >
             <Ionicons name="checkmark" size={22} color="#fff" />
           </Pressable>
@@ -172,14 +179,14 @@ function WordScrambleGame(): React.JSX.Element {
             <View style={[styles.resultCard, { backgroundColor: '#10B981' + '18' }]}>
               <Text style={[styles.resultEmoji]}>🎉</Text>
               <Text style={[styles.resultText, { color: '#10B981' }]}>
-                Nailed it! +{showHint ? 5 : 10} pts
+                {t('games.correct', { points: showHint ? 5 : 10 })}
               </Text>
             </View>
           ) : (
             <View style={[styles.resultCard, { backgroundColor: '#EF4444' + '18' }]}>
               <Text style={[styles.resultEmoji]}>😅</Text>
               <Text style={[styles.resultText, { color: '#EF4444' }]}>
-                The answer was: {challenge.word}
+                {t('games.wrong', { word: challenge.word })}
               </Text>
             </View>
           )}
@@ -188,9 +195,9 @@ function WordScrambleGame(): React.JSX.Element {
             onPress={handleNext}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Next word"
+            accessibilityLabel={t('games.next_word')}
           >
-            <Text style={styles.nextBtnText}>Next Word →</Text>
+            <Text style={styles.nextBtnText}>{t('games.next_word')}</Text>
           </Pressable>
         </Animated.View>
       )}
@@ -202,10 +209,10 @@ function WordScrambleGame(): React.JSX.Element {
           onPress={handleShuffle}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Shuffle letters"
+          accessibilityLabel={t('games.shuffle_letters')}
         >
           <Ionicons name="shuffle-outline" size={16} color={c.textSecondary} />
-          <Text style={[styles.shuffleBtnText, { color: c.textSecondary }]}>Shuffle</Text>
+          <Text style={[styles.shuffleBtnText, { color: c.textSecondary }]}>{t('games.shuffle')}</Text>
         </Pressable>
       )}
     </Animated.View>
@@ -214,6 +221,7 @@ function WordScrambleGame(): React.JSX.Element {
 
 // ── Joke Browser ─────────────────────────────────────────────────────────────
 function JokeBrowser(): React.JSX.Element {
+  const { t } = useTranslation();
   const c = useThemedColors();
   const [joke, setJoke] = useState<DadJoke>(getDailyJoke);
   const [revealed, setRevealed] = useState(false);
@@ -262,9 +270,9 @@ function JokeBrowser(): React.JSX.Element {
             onPress={handleReveal}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Reveal punchline"
+            accessibilityLabel={t('games.reveal_punchline')}
           >
-            <Text style={[styles.jokeRevealText, { color: c.primary }]}>Tap to reveal 👀</Text>
+            <Text style={[styles.jokeRevealText, { color: c.primary }]}>{t('games.tap_to_reveal')}</Text>
           </Pressable>
         )}
       </View>
@@ -274,10 +282,10 @@ function JokeBrowser(): React.JSX.Element {
         onPress={handleNext}
         accessible
         accessibilityRole="button"
-        accessibilityLabel="Next joke"
+        accessibilityLabel={t('games.next_joke')}
       >
         <Ionicons name="refresh-outline" size={18} color={c.textSecondary} />
-        <Text style={[styles.jokeNextText, { color: c.textSecondary }]}>Another one 🎲</Text>
+        <Text style={[styles.jokeNextText, { color: c.textSecondary }]}>{t('games.another_one')}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -285,6 +293,9 @@ function JokeBrowser(): React.JSX.Element {
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function GamesScreen(): React.JSX.Element {
+  const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const c = useThemedColors();
   const [tab, setTab] = useState<GameTab>('scramble');
 
@@ -297,11 +308,11 @@ export default function GamesScreen(): React.JSX.Element {
           style={styles.backBtn}
           accessible
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('games.go_back')}
         >
-          <Ionicons name="chevron-back" size={24} color={c.textPrimary} />
+          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={c.textPrimary} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: c.textPrimary }]}>Games & Fun</Text>
+        <Text style={[styles.headerTitle, { color: c.textPrimary }]}>{t('games.title')}</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -313,10 +324,10 @@ export default function GamesScreen(): React.JSX.Element {
           accessible
           accessibilityRole="tab"
           accessibilityState={{ selected: tab === 'scramble' }}
-          accessibilityLabel="Word Scramble game"
+          accessibilityLabel={t('games.word_scramble_game')}
         >
           <Text style={[styles.tabText, { color: tab === 'scramble' ? c.primary : c.textSecondary }]}>
-            🔤 Word Scramble
+            {t('games.tab_scramble')}
           </Text>
         </Pressable>
         <Pressable
@@ -325,10 +336,10 @@ export default function GamesScreen(): React.JSX.Element {
           accessible
           accessibilityRole="tab"
           accessibilityState={{ selected: tab === 'jokes' }}
-          accessibilityLabel="Dad Jokes"
+          accessibilityLabel={t('games.dad_jokes')}
         >
           <Text style={[styles.tabText, { color: tab === 'jokes' ? c.primary : c.textSecondary }]}>
-            😂 Dad Jokes
+            {t('games.tab_jokes')}
           </Text>
         </Pressable>
       </View>

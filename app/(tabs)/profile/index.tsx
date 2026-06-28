@@ -19,6 +19,8 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import type { Bill } from '@stores/billsStore';
 import type { Housemate } from '@stores/housematesStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 function isSameDay(d: Date, ref: Date): boolean {
@@ -62,6 +64,8 @@ function ProfileRow({
   title: string; sub: string; onPress: () => void;
 }): React.JSX.Element {
   const C = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const s = useMemo(() => makeStyles(C), [C]);
   return (
     <Pressable
@@ -77,7 +81,7 @@ function ProfileRow({
         <Text style={s.profileRowTitle}>{title}</Text>
         <Text style={s.profileRowSub}>{sub}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={C.textSecondary} />
+      <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={C.textSecondary} />
     </Pressable>
   );
 }
@@ -91,7 +95,7 @@ function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JS
       {shown.map((h, i) => (
         <View
           key={h.id}
-          style={[s.stackAvatar, { backgroundColor: h.avatarUrl ? 'transparent' : h.color, marginLeft: i === 0 ? 0 : -10 }]}
+          style={[s.stackAvatar, { backgroundColor: h.avatarUrl ? 'transparent' : h.color, marginStart: i === 0 ? 0 : -10 }]}
         >
           {h.avatarUrl
             ? <Image source={{ uri: h.avatarUrl }} style={s.stackAvatarImg} contentFit="cover" accessibilityLabel={h.name} />
@@ -1078,7 +1082,7 @@ function makeStyles(C: ColorTokens) {
     coverBadge: {
       position: 'absolute',
       bottom: 8,
-      right: 8,
+      end: 8,
       width: 28,
       height: 28,
       borderRadius: 14,
@@ -1101,7 +1105,7 @@ function makeStyles(C: ColorTokens) {
     decoCircleTR: {
       position: 'absolute',
       top: 60,
-      right: 40,
+      end: 40,
       width: 38,
       height: 38,
       borderRadius: 19,
@@ -1133,7 +1137,7 @@ function makeStyles(C: ColorTokens) {
     avatarBadge: {
       position: 'absolute',
       bottom: 2,
-      right: 2,
+      end: 2,
       width: 28,
       height: 28,
       borderRadius: 14,
@@ -1240,7 +1244,7 @@ function makeStyles(C: ColorTokens) {
     profileRowTitle: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
     profileRowSub:   { fontSize: 13, ...font.regular, color: C.textSecondary },
 
-    rowDivider: { height: 1, backgroundColor: C.border, marginLeft: 40 + sizes.sm },
+    rowDivider: { height: 1, backgroundColor: C.border, marginStart: 40 + sizes.sm },
 
     // Activity
     dayLabel: {

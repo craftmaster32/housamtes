@@ -371,7 +371,7 @@ function makeStyles(C: ColorTokens) {
       fontSize: 12,
       ...font.regular,
       color: C.danger,
-      marginLeft: 4,
+      marginStart: 4,
     },
     strengthRow: {
       flexDirection: 'row',

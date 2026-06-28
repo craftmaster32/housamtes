@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-nat
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { type GroceryList } from '@stores/groceryStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -24,6 +25,7 @@ export function SavedListsSection({
   onLoadList,
   onDeleteList,
 }: SavedListsSectionProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [expanded, setExpanded] = useState(false);
@@ -36,32 +38,32 @@ export function SavedListsSection({
   const handleLoad = useCallback((list: GroceryList): void => {
     if (hasDraftItems) {
       Alert.alert(
-        'Replace draft?',
-        'You already have items in your draft. Loading this list will add to it, not replace it. Continue?',
+        t('grocery.replace_draft'),
+        t('grocery.replace_draft_body'),
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Load anyway', onPress: (): void => { Haptics.selectionAsync().catch(() => {}); onLoadList(list); } },
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('grocery.load_anyway'), onPress: (): void => { Haptics.selectionAsync().catch(() => {}); onLoadList(list); } },
         ]
       );
     } else {
       Haptics.selectionAsync().catch(() => {});
       onLoadList(list);
     }
-  }, [hasDraftItems, onLoadList]);
+  }, [hasDraftItems, onLoadList, t]);
 
   const handleDelete = useCallback((list: GroceryList): void => {
     Alert.alert(
-      `Delete “${list.name}”?`,
-      'This removes the saved list template. Items already on the shared list are not affected.',
+      t('grocery.delete_list_title', { name: list.name }),
+      t('grocery.delete_list_body'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete', style: 'destructive',
+          text: t('common.delete'), style: 'destructive',
           onPress: (): void => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); onDeleteList(list.id); },
         },
       ]
     );
-  }, [onDeleteList]);
+  }, [onDeleteList, t]);
 
   return (
     <View style={styles.container}>
@@ -69,13 +71,14 @@ export function SavedListsSection({
       <Pressable
         style={styles.headerRow}
         onPress={handleToggle}
+        accessible
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        accessibilityLabel={`Saved lists, ${lists.length} list${lists.length === 1 ? '' : 's'}`}
+        accessibilityLabel={t('grocery.saved_lists_count', { count: lists.length })}
       >
         <View style={styles.headerLeft}>
           <Text style={styles.headerIcon}>📋</Text>
-          <Text style={styles.headerLabel}>Saved Lists</Text>
+          <Text style={styles.headerLabel}>{t('grocery.saved_lists')}</Text>
           {lists.length > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{lists.length}</Text>
@@ -97,9 +100,9 @@ export function SavedListsSection({
 
           {!isLoading && lists.length === 0 && (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyText}>No saved lists yet.</Text>
+              <Text style={styles.emptyText}>{t('grocery.no_saved_lists')}</Text>
               <Text style={styles.emptyHint}>
-                {'After sharing a draft, choose "Save list" to build your templates.'}
+                {t('grocery.no_saved_lists_hint')}
               </Text>
             </View>
           )}
@@ -114,8 +117,12 @@ export function SavedListsSection({
                   <Text style={styles.listName} numberOfLines={1}>{list.name}</Text>
                 </View>
                 <Text style={styles.listMeta}>
-                  {list.items.length} item{list.items.length === 1 ? '' : 's'}
-                  {list.createdBy === myId ? ' · yours' : ''}
+                  {t(
+                    list.createdBy === myId
+                      ? 'grocery.item_count_yours'
+                      : 'grocery.item_count',
+                    { count: list.items.length }
+                  )}
                 </Text>
               </View>
 
@@ -125,8 +132,9 @@ export function SavedListsSection({
                   <Pressable
                     style={styles.iconBtn}
                     onPress={() => handleDelete(list)}
+                    accessible
                     accessibilityRole="button"
-                    accessibilityLabel={`Delete ${list.name}`}
+                    accessibilityLabel={t('grocery.delete_name', { name: list.name })}
                   >
                     <Ionicons name="trash-outline" size={17} color={C.textDisabled} />
                   </Pressable>
@@ -134,10 +142,11 @@ export function SavedListsSection({
                 <Pressable
                   style={styles.loadBtn}
                   onPress={() => handleLoad(list)}
+                  accessible
                   accessibilityRole="button"
-                  accessibilityLabel={`Load ${list.name} into draft`}
+                  accessibilityLabel={t('grocery.load_into_draft', { name: list.name })}
                 >
-                  <Text style={styles.loadBtnText}>Load</Text>
+                  <Text style={styles.loadBtnText}>{t('grocery.load')}</Text>
                 </Pressable>
               </View>
             </View>

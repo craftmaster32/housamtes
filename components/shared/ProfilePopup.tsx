@@ -159,7 +159,7 @@ export function ProfilePopup(): React.JSX.Element {
 const styles = StyleSheet.create({
   panel: {
     position: 'absolute',
-    right: 16,
+    end: 16,
     width: 220,
     borderRadius: sizes.borderRadiusLg,
     paddingVertical: sizes.xs,

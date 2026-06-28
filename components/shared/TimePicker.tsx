@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 
@@ -183,6 +184,7 @@ interface TimePickerProps {
 }
 
 export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Element {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [rawInput, setRawInput]   = useState('');
   const inputRef = useRef<TextInput>(null);
@@ -226,11 +228,12 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
       <Pressable
         style={pickerStyles.addBtn}
         onPress={() => onChange('09:00')}
+        accessible
         accessibilityRole="button"
-        accessibilityLabel="Add a time"
+        accessibilityLabel={t('common.add_time')}
       >
         <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
-        <Text style={pickerStyles.addBtnText}>Add time</Text>
+        <Text style={pickerStyles.addBtnText}>{t('common.add_time')}</Text>
       </Pressable>
     );
   }
@@ -253,15 +256,17 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
           autoFocus
           selectTextOnFocus
           returnKeyType="done"
-          accessibilityLabel="Enter time manually"
-          accessibilityHint="Type a time in HH:MM format"
+          accessibilityLabel={t('common.enter_time_manually')}
+          accessibilityHint={t('common.time_format_hint')}
         />
         <Pressable
           style={pickerStyles.cancelBtn}
           onPress={() => setIsEditing(false)}
+          accessible
           accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
         >
-          <Text style={pickerStyles.cancelText}>Cancel</Text>
+          <Text style={pickerStyles.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
     );
@@ -296,8 +301,9 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
         <Pressable
           style={pickerStyles.editBtn}
           onPress={startEditing}
+          accessible
           accessibilityRole="button"
-          accessibilityLabel="Type time manually"
+          accessibilityLabel={t('common.type_time_manually')}
         >
           <Ionicons name="pencil-outline" size={18} color={colors.textSecondary} />
         </Pressable>
@@ -306,10 +312,11 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
       <Pressable
         style={pickerStyles.clearBtn}
         onPress={() => onChange('')}
+        accessible
         accessibilityRole="button"
-        accessibilityLabel="Clear time"
+        accessibilityLabel={t('common.clear_time')}
       >
-        <Text style={pickerStyles.clearText}>Clear time</Text>
+        <Text style={pickerStyles.clearText}>{t('common.clear_time')}</Text>
       </Pressable>
     </View>
   );
@@ -319,7 +326,7 @@ const pickerStyles = StyleSheet.create({
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     alignSelf: 'flex-start',
-    paddingVertical: 8, paddingHorizontal: 14,
+    minHeight: 44, paddingVertical: 8, paddingHorizontal: 14,
     borderRadius: 20, borderWidth: 1,
     borderColor: colors.primary, backgroundColor: colors.secondary,
   },
@@ -333,7 +340,7 @@ const pickerStyles = StyleSheet.create({
     fontSize: 26, ...font.semibold, color: colors.textPrimary,
     letterSpacing: 3, textAlign: 'center',
   },
-  cancelBtn: { paddingVertical: 8, paddingHorizontal: 4 },
+  cancelBtn: { minHeight: 44, justifyContent: 'center' as const, paddingVertical: 8, paddingHorizontal: 4 },
   cancelText: { fontSize: 14, ...font.medium, color: colors.textSecondary },
 
   wrap: { gap: 8 },
@@ -351,11 +358,12 @@ const pickerStyles = StyleSheet.create({
     fontSize: 30, ...font.bold, color: colors.textPrimary, marginHorizontal: 4,
   },
   editBtn: {
+    minWidth: 44, minHeight: 44, justifyContent: 'center' as const, alignItems: 'center' as const,
     padding: 10, borderRadius: 20,
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1, borderColor: colors.border,
   },
 
-  clearBtn: { alignSelf: 'flex-start' },
+  clearBtn: { alignSelf: 'flex-start' as const, minHeight: 44, justifyContent: 'center' as const },
   clearText: { fontSize: 12, ...font.regular, color: colors.textSecondary, textDecorationLine: 'underline' },
 });

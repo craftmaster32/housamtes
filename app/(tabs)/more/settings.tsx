@@ -25,6 +25,7 @@ import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { enableWebPush, getWebPushStatus, type WebPushStatus } from '@lib/webPush';
 import type { AppLanguage } from '@lib/i18n';
+import { isRTL } from '@lib/i18n';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -189,15 +190,23 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const handleEnableWebPush = useCallback(async (): Promise<void> => {
     if (!user?.id || !houseId) return;
-    const result = await enableWebPush(user.id, houseId);
-    setWebPushStatus(result);
-    if (result === 'denied') {
-      Alert.alert(
-        'Notifications blocked',
-        'To enable, go to your browser settings and allow notifications for this site.'
-      );
+    try {
+      const result = await enableWebPush(user.id, houseId);
+      if (result === 'unavailable') {
+        Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
+      } else {
+        setWebPushStatus(result);
+        if (result === 'denied') {
+          Alert.alert(
+            t('settings.notifications_blocked_title'),
+            t('settings.notifications_blocked_body')
+          );
+        }
+      }
+    } catch {
+      Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
     }
-  }, [user?.id, houseId]);
+  }, [user?.id, houseId, t]);
 
   const handleLeavePress = useCallback((): void => {
     const myId = profile?.id ?? '';
@@ -221,30 +230,30 @@ export default function SettingsScreen(): React.JSX.Element {
       setShowLeaveConfirm(false);
       router.replace('/(onboarding)/house-setup');
     } catch {
-      Alert.alert('Error', 'Could not leave the house. Please try again.');
+      Alert.alert(t('common.error'), t('settings.could_not_leave'));
     } finally {
       setLeaving(false);
     }
-  }, [leaveHouse]);
+  }, [leaveHouse, t]);
 
   const handleRequestLeaveVote = useCallback(async (): Promise<void> => {
     if (!profile || !houseId) return;
     setRequestingVote(true);
     try {
       await addProposal(
-        `Approve ${profile.name}'s request to leave`,
-        `${profile.name} wants to leave the house but has an unsettled balance of ${debtAmount.toFixed(2)}. Vote to approve their departure despite the outstanding balance.`,
+        t('settings.approve_leave_title', { name: profile.name }),
+        t('settings.approve_leave_body', { name: profile.name, amount: `${currency}${debtAmount.toFixed(2)}` }),
         profile.id,
         houseId
       );
       setShowDebtModal(false);
       router.push('/(tabs)/voting');
     } catch {
-      Alert.alert('Error', 'Could not create the vote. Please try again.');
+      Alert.alert(t('common.error'), t('settings.could_not_create_vote'));
     } finally {
       setRequestingVote(false);
     }
-  }, [profile, houseId, debtAmount, addProposal]);
+  }, [profile, houseId, debtAmount, currency, addProposal, t]);
 
   const prefs = useNotificationStore((s) => s.prefs);
   const updatePrefs = useNotificationStore((s) => s.update);
@@ -294,12 +303,12 @@ export default function SettingsScreen(): React.JSX.Element {
         await updateTimezone(houseId, tz);
         setShowTimezoneModal(false);
       } catch {
-        Alert.alert('Error', 'Could not update timezone. Please try again.');
+        Alert.alert(t('common.error'), t('settings.could_not_update_timezone'));
       } finally {
         setSavingTimezone(false);
       }
     },
-    [houseId, updateTimezone]
+    [houseId, updateTimezone, t]
   );
 
   const timezoneLabel = TIMEZONES.find((t) => t.id === houseTimezone)?.label ?? houseTimezone;
@@ -312,6 +321,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const LANGUAGE_OPTIONS: { code: AppLanguage; label: string; flag: string }[] = [
     { code: 'en', label: t('settings.language_en'), flag: '🇬🇧' },
+    { code: 'he', label: t('settings.language_he'), flag: '🇮🇱' },
     { code: 'es', label: t('settings.language_es'), flag: '🇪🇸' },
   ];
 
@@ -325,14 +335,14 @@ export default function SettingsScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
         >
-          <Text style={styles.backBtnText}>{t('settings.back')}</Text>
+          <Text style={styles.backBtnText}>{isRTL(currentLanguage) ? t('settings.back_rtl') : t('settings.back')}</Text>
         </Pressable>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <Text style={styles.heading}>{t('settings.title')}</Text>
 
           {/* Currency */}
-          <SectionDivider label="CURRENCY" />
+          <SectionDivider label={t('settings.currency_section')} />
           <View style={[styles.menuGroup, styles.currencyGroup]}>
             {CURRENCIES.map((c) => (
               <Pressable
@@ -386,8 +396,8 @@ export default function SettingsScreen(): React.JSX.Element {
             <RowDivider />
             <MenuItem
               icon="🌍"
-              label="Timezone"
-              sub={myRole === 'owner' ? 'Tap to change' : 'Set by house owner'}
+              label={t('settings.timezone')}
+              sub={myRole === 'owner' ? t('settings.timezone_tap') : t('settings.timezone_owner_only')}
               rightText={timezoneLabel}
               onPress={() => {
                 if (myRole === 'owner') setShowTimezoneModal(true);
@@ -412,14 +422,14 @@ export default function SettingsScreen(): React.JSX.Element {
                 <Ionicons name="exit-outline" size={18} color={C.negative} />
               </View>
               <View style={styles.menuText}>
-                <Text style={[styles.menuLabel, { color: C.negative }]}>Leave House</Text>
+                <Text style={[styles.menuLabel, { color: C.negative }]}>{t('settings.leave_house')}</Text>
                 <Text style={styles.menuSub}>
                   {houseName
-                    ? `Leave "${houseName}" and join or create a new house`
-                    : 'Leave this house and start fresh'}
+                    ? t('settings.leave_house_desc', { name: houseName })
+                    : t('settings.leave_house_desc_default')}
                 </Text>
               </View>
-              <Text style={[styles.menuChevron, { color: C.negative }]}>›</Text>
+              <Text style={[styles.menuChevron, { color: C.negative }]}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
             </Pressable>
           </View>
 
@@ -435,10 +445,9 @@ export default function SettingsScreen(): React.JSX.Element {
                 <View style={styles.modalIconWrap}>
                   <Ionicons name="exit-outline" size={28} color={C.negative} />
                 </View>
-                <Text style={styles.modalTitle}>Leave House?</Text>
+                <Text style={styles.modalTitle}>{t('settings.leave_house_title')}</Text>
                 <Text style={styles.modalBody}>
-                  You will be removed from{houseName ? ` "${houseName}"` : ' the current house'}.
-                  Your data will stay but you{`'`}ll need to join or create a new house.
+                  {t(houseName ? 'settings.leave_house_body_named' : 'settings.leave_house_body', { name: houseName })}
                 </Text>
                 <Pressable
                   style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
@@ -447,7 +456,7 @@ export default function SettingsScreen(): React.JSX.Element {
                   accessibilityRole="button"
                 >
                   <Text style={styles.modalBtnDangerText}>
-                    {leaving ? 'Leaving…' : 'Yes, Leave House'}
+                    {leaving ? t('settings.leaving') : t('settings.yes_leave')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -455,7 +464,7 @@ export default function SettingsScreen(): React.JSX.Element {
                   onPress={() => setShowLeaveConfirm(false)}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.modalBtnCancelText}>Cancel</Text>
+                  <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
                 </Pressable>
               </Pressable>
             </Pressable>
@@ -473,10 +482,9 @@ export default function SettingsScreen(): React.JSX.Element {
                 <View style={[styles.modalIconWrap, { backgroundColor: '#FFF3CD' }]}>
                   <Ionicons name="warning-outline" size={28} color="#856404" />
                 </View>
-                <Text style={styles.modalTitle}>Settle Up First</Text>
+                <Text style={styles.modalTitle}>{t('settings.settle_first_title')}</Text>
                 <Text style={styles.modalBody}>
-                  You owe your housemates {debtAmount.toFixed(2)}. Please settle your balance before
-                  leaving, or ask the house to vote on approving your departure.
+                  {t('settings.settle_first_body', { amount: `${currency}${debtAmount.toFixed(2)}` })}
                 </Text>
                 <Pressable
                   style={styles.modalBtnPrimary}
@@ -486,7 +494,7 @@ export default function SettingsScreen(): React.JSX.Element {
                   }}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.modalBtnPrimaryText}>Settle Up</Text>
+                  <Text style={styles.modalBtnPrimaryText}>{t('settings.settle_up')}</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.modalBtnSecondary, requestingVote && { opacity: 0.6 }]}
@@ -495,7 +503,7 @@ export default function SettingsScreen(): React.JSX.Element {
                   accessibilityRole="button"
                 >
                   <Text style={styles.modalBtnSecondaryText}>
-                    {requestingVote ? 'Creating vote…' : 'Request a Vote to Leave'}
+                    {requestingVote ? t('settings.creating_vote') : t('settings.request_vote_leave')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -503,7 +511,7 @@ export default function SettingsScreen(): React.JSX.Element {
                   onPress={() => setShowDebtModal(false)}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.modalBtnCancelText}>Cancel</Text>
+                  <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
                 </Pressable>
               </Pressable>
             </Pressable>
@@ -518,9 +526,9 @@ export default function SettingsScreen(): React.JSX.Element {
           >
             <Pressable style={styles.modalBackdrop} onPress={() => setShowTimezoneModal(false)}>
               <Pressable style={styles.tzModalBox} onPress={() => {}}>
-                <Text style={styles.modalTitle}>House Timezone</Text>
+                <Text style={styles.modalTitle}>{t('settings.timezone_title')}</Text>
                 <Text style={[styles.modalBody, { marginBottom: 8 }]}>
-                  Affects parking notifications for the whole house.
+                  {t('settings.timezone_desc')}
                 </Text>
                 <ScrollView style={styles.tzModalList} showsVerticalScrollIndicator={false}>
                   {TIMEZONES.map((tz, idx) => (
@@ -555,25 +563,25 @@ export default function SettingsScreen(): React.JSX.Element {
                   onPress={() => setShowTimezoneModal(false)}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.modalBtnCancelText}>Cancel</Text>
+                  <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
                 </Pressable>
               </Pressable>
             </Pressable>
           </Modal>
 
           {/* Calendar */}
-          <SectionDivider label="CALENDAR" />
+          <SectionDivider label={t('settings.calendar_section')} />
           <View style={styles.menuGroup}>
             <View style={styles.menuItem}>
               <View style={styles.menuIcon}>
                 <Text style={styles.menuIconText}>📅</Text>
               </View>
               <View style={styles.menuText}>
-                <Text style={styles.menuLabel}>Connect my calendar</Text>
+                <Text style={styles.menuLabel}>{t('settings.calendar_connect')}</Text>
                 <Text style={styles.menuSub}>
                   {calConnected
-                    ? 'Syncing with your device calendar'
-                    : 'See personal events in-app and auto-add house events'}
+                    ? t('settings.calendar_syncing')
+                    : t('settings.calendar_desc')}
                 </Text>
               </View>
               <Switch
@@ -592,9 +600,9 @@ export default function SettingsScreen(): React.JSX.Element {
                     <Text style={styles.menuIconText}>📋</Text>
                   </View>
                   <View style={styles.menuText}>
-                    <Text style={styles.menuLabel}>Auto-add house events</Text>
+                    <Text style={styles.menuLabel}>{t('settings.calendar_auto_events')}</Text>
                     <Text style={styles.menuSub}>
-                      New house events go straight to your calendar
+                      {t('settings.calendar_auto_events_desc')}
                     </Text>
                   </View>
                   <Switch
@@ -610,9 +618,9 @@ export default function SettingsScreen(): React.JSX.Element {
                     <Text style={styles.menuIconText}>🚗</Text>
                   </View>
                   <View style={styles.menuText}>
-                    <Text style={styles.menuLabel}>Auto-add parking</Text>
+                    <Text style={styles.menuLabel}>{t('settings.calendar_auto_parking')}</Text>
                     <Text style={styles.menuSub}>
-                      Pending when requested, confirmed when approved
+                      {t('settings.calendar_auto_parking_desc')}
                     </Text>
                   </View>
                   <Switch
@@ -627,8 +635,8 @@ export default function SettingsScreen(): React.JSX.Element {
             <RowDivider />
             <ToggleRow
               icon="💰"
-              label="Show recurring bills"
-              sub="Display recurring bill payments on the calendar"
+              label={t('settings.calendar_recurring')}
+              sub={t('settings.calendar_recurring_desc')}
               value={showRecurringBillsOnCalendar}
               onToggle={() => toggleShowRecurringBillsOnCalendar()}
             />
@@ -647,23 +655,23 @@ export default function SettingsScreen(): React.JSX.Element {
                   onPress={webPushStatus === 'default' ? handleEnableWebPush : undefined}
                   accessible
                   accessibilityRole="button"
-                  accessibilityLabel="Browser notifications"
+                  accessibilityLabel={t('settings.browser_notifications')}
                 >
                   <View style={styles.menuIcon}>
                     <Text style={styles.menuIconText}>🔔</Text>
                   </View>
                   <View style={styles.menuText}>
-                    <Text style={styles.menuLabel}>Browser notifications</Text>
+                    <Text style={styles.menuLabel}>{t('settings.browser_notifications')}</Text>
                     <Text style={styles.menuSub}>
                       {webPushStatus === 'granted'
-                        ? 'Enabled for this browser'
+                        ? t('settings.notifications_enabled')
                         : webPushStatus === 'denied'
-                          ? 'Blocked — allow in browser settings'
-                          : 'Tap to enable push notifications'}
+                          ? t('settings.notifications_blocked')
+                          : t('settings.notifications_tap_enable')}
                     </Text>
                   </View>
-                  {webPushStatus === 'granted' && <Text style={styles.webPushOn}>On</Text>}
-                  {webPushStatus === 'default' && <Text style={styles.menuChevron}>›</Text>}
+                  {webPushStatus === 'granted' && <Text style={styles.webPushOn}>{t('settings.notifications_on')}</Text>}
+                  {webPushStatus === 'default' && <Text style={styles.menuChevron}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>}
                 </Pressable>
                 <RowDivider />
               </>
@@ -851,7 +859,7 @@ function makeStyles(C: ColorTokens) {
       letterSpacing: 1.2,
       marginBottom: sizes.sm,
       marginTop: sizes.xs,
-      marginLeft: 4,
+      marginStart: 4,
     },
     menuGroup: {
       backgroundColor: C.surface,
@@ -878,7 +886,7 @@ function makeStyles(C: ColorTokens) {
     menuChevron: { color: C.textDisabled, fontSize: 22 },
     menuChevronDisabled: { opacity: 0 },
     menuRightText: { color: C.textSecondary, ...font.regular, fontSize: 14 },
-    rowDivider: { height: 1, backgroundColor: C.border, marginLeft: sizes.md + 36 + sizes.sm },
+    rowDivider: { height: 1, backgroundColor: C.border, marginStart: sizes.md + 36 + sizes.sm },
     footer: {
       color: C.textDisabled,
       fontSize: 13,
@@ -928,7 +936,7 @@ function makeStyles(C: ColorTokens) {
       fontSize: 13,
       ...font.regular,
       color: C.textSecondary,
-      marginLeft: 4,
+      marginStart: 4,
     },
     currencyGroup: {
       flexDirection: 'row',

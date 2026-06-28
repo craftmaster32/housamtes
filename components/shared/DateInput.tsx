@@ -1,5 +1,6 @@
 import React from 'react';
 import { Platform, View, TextInput as RNTextInput, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
@@ -10,14 +11,14 @@ interface DateInputProps {
 }
 
 export function DateInput({ value, onChange, style }: DateInputProps): React.JSX.Element {
-  // Ref to the hidden <input type="date"> so we can call showPicker() on click.
-  // showPicker() called from a PARENT element's onClick reliably opens the calendar,
-  // unlike calling it from the input's own onClick (which conflicts with native focus behavior).
+  const { t, i18n } = useTranslation();
   const inputRef = React.useRef<{ showPicker?: () => void } | null>(null);
 
   if (Platform.OS === 'web') {
-    const [yr, mo, dy] = value ? value.split('-') : ['', '', ''];
-    const displayText = value ? `${dy}/${mo}/${yr}` : 'Select date';
+    const localeMap: Record<string, string> = { en: 'en-GB', es: 'es-ES', he: 'he-IL' };
+    const displayText = value
+      ? new Date(value + 'T00:00:00').toLocaleDateString(localeMap[i18n.language] ?? 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : t('common.pick_date');
 
     return React.createElement(
       'div',
@@ -79,8 +80,10 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
         style={styles.input}
         value={value}
         onChangeText={onChange}
-        placeholder="DD/MM/YYYY"
+        placeholder={t('common.pick_date')}
         placeholderTextColor={colors.textDisabled}
+        accessibilityLabel={t('bills.pick_date')}
+        accessibilityHint={t('bills.date_format_hint')}
       />
     </View>
   );

@@ -6,9 +6,12 @@ import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
@@ -27,6 +30,9 @@ interface TopBarProps {
 }
 
 export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null {
+  const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const isRTLMode = isRTL(language);
   const c        = useColors();
   const insets   = useSafeAreaInsets();
   const openProfile = useProfilePopupStore((s) => s.open);
@@ -70,10 +76,11 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
       <Pressable
         style={styles.iconBtn}
         onPress={handleBack}
+        accessible
         accessibilityRole="button"
-        accessibilityLabel="Go back"
+        accessibilityLabel={t('common.back')}
       >
-        <Ionicons name="chevron-back" size={24} color={c.primary} />
+        <Ionicons name={isRTLMode ? 'chevron-forward' : 'chevron-back'} size={24} color={c.primary} />
       </Pressable>
 
       <Text style={[styles.appName, { color: c.primary }]}>HouseMates</Text>
@@ -82,8 +89,9 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
       <Pressable
         style={styles.iconBtn}
         onPress={handleProfilePress}
+        accessible
         accessibilityRole="button"
-        accessibilityLabel="Open profile"
+        accessibilityLabel={t('dashboard.open_profile')}
       >
         <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) }]}>
           {profile?.avatarUrl

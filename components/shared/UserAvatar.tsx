@@ -1,6 +1,7 @@
 import { View, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
+import { useTranslation } from 'react-i18next';
 import { useHousematesStore } from '@stores/housematesStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -17,14 +18,16 @@ export interface UserAvatarProps {
 }
 
 export function UserAvatar({ userId, size = 24 }: UserAvatarProps): React.JSX.Element {
+  const { t } = useTranslation();
   const housemate   = useHousematesStore((s) => s.housemates.find((h) => h.id === userId));
   const avatarUrl   = housemate?.avatarUrl ?? null;
-  const displayName = housemate?.name ?? '?';
+  const displayName = housemate?.name?.trim() || '?';
+  const a11yLabel = t('profile.profile_photo_of', { name: displayName });
   return (
-    <View style={[styles.container, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : nameToColor(displayName) }]}>
+    <View accessible accessibilityRole="image" accessibilityLabel={a11yLabel} style={[styles.container, { width: size, height: size, borderRadius: size / 2, backgroundColor: avatarUrl ? 'transparent' : nameToColor(displayName) }]}>
       {avatarUrl
-        ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" accessibilityLabel={`${displayName} avatar`} />
-        : <Text style={[styles.initialText, { fontSize: Math.round(size * 0.44) }]}>{displayName[0].toUpperCase()}</Text>
+        ? <Image source={{ uri: avatarUrl }} style={{ width: size, height: size }} contentFit="cover" accessible={false} />
+        : <Text accessible={false} style={[styles.initialText, { fontSize: Math.round(size * 0.44) }]}>{displayName[0].toUpperCase()}</Text>
       }
     </View>
   );

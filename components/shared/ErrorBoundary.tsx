@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import i18next from 'i18next';
 import { captureError } from '@lib/errorTracking';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -37,18 +38,18 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       return (
         <View style={styles.container}>
           <Text style={styles.icon}>⚠️</Text>
-          <Text style={styles.title}>Something went wrong</Text>
+          <Text style={styles.title}>{i18next.t('common.something_went_wrong')}</Text>
           <Text style={styles.message}>
-            The app hit an unexpected problem. Your data is safe — tap Retry to try again.
+            {i18next.t('common.error_boundary_message')}
           </Text>
           <Pressable
             onPress={this.handleRetry}
             style={styles.retryBtn}
             accessible
             accessibilityRole="button"
-            accessibilityLabel="Retry"
+            accessibilityLabel={i18next.t('common.retry')}
           >
-            <Text style={styles.retryText}>Retry</Text>
+            <Text style={styles.retryText}>{i18next.t('common.retry')}</Text>
           </Pressable>
         </View>
       );

@@ -7,6 +7,8 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { formatDistanceToNow } from 'date-fns';
+import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -22,6 +24,7 @@ export interface GroceryItemDetailModalProps {
 }
 
 export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveComment }: GroceryItemDetailModalProps): React.JSX.Element {
+  const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeModalStyles(), []);
   const housemate = useHousematesStore((st) => st.housemates.find((h) => h.id === item?.addedBy));
@@ -46,14 +49,15 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onClose();
     } catch {
-      setSaveError('Could not save note. Please try again.');
+      setSaveError(t('grocery.could_not_save_note'));
     } finally {
       setIsSaving(false);
     }
-  }, [item, comment, onSaveComment, onClose, isSaving]);
+  }, [item, comment, onSaveComment, onClose, isSaving, t]);
 
-  const addedByName = item ? (item.addedBy === myId ? 'You' : (housemate?.name ?? 'Someone')) : '';
-  const timeAgo     = item ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true }) : '';
+  const addedByName = item ? (item.addedBy === myId ? t('common.you') : (housemate?.name ?? t('common.someone'))) : '';
+  const dateFnsLocale = ({ en: enUS, es: dateFnsEs, he: dateFnsHe } as const)[i18n.language as 'en' | 'es' | 'he'] ?? enUS;
+  const timeAgo     = item ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: dateFnsLocale }) : '';
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
@@ -63,8 +67,8 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
           {item && (
             <>
               <View style={s.header}>
-                <Text style={[s.title, { color: C.textPrimary }]}>Item Details</Text>
-                <Pressable onPress={onClose} style={s.closeBtn} accessibilityRole="button" accessibilityLabel="Close details">
+                <Text style={[s.title, { color: C.textPrimary }]}>{t('grocery.item_details')}</Text>
+                <Pressable onPress={onClose} style={s.closeBtn} accessible accessibilityRole="button" accessibilityLabel={t('grocery.close_details')}>
                   <Ionicons name="close" size={22} color={C.textSecondary} />
                 </Pressable>
               </View>
@@ -81,7 +85,7 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
                 )}
                 <UserAvatar userId={item.addedBy} size={20} />
                 <Text style={[s.metaText, { color: C.textSecondary }]}>
-                  {addedByName} · {timeAgo}
+                  {t('grocery.added_by_meta', { name: addedByName, time: timeAgo })}
                 </Text>
               </View>
 
@@ -89,7 +93,7 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
                 <TextInput
                   value={comment}
                   onChangeText={handleCommentChange}
-                  placeholder="Add a note… (e.g. the one from Lidl)"
+                  placeholder={t('grocery.add_note_placeholder')}
                   placeholderTextColor={C.textSecondary}
                   style={[s.commentInput, { color: C.textPrimary }]}
                   multiline
@@ -98,8 +102,8 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
                   textAlignVertical="top"
                   accessible
                   accessibilityRole="text"
-                  accessibilityLabel="Item note"
-                  accessibilityHint="Optional note about this item, up to 200 characters"
+                  accessibilityLabel={t('grocery.item_note')}
+                  accessibilityHint={t('grocery.item_note_hint')}
                 />
               </View>
               {!!saveError && <Text style={s.saveError}>{saveError}</Text>}
@@ -108,20 +112,22 @@ export function GroceryItemDetailModal({ item, visible, myId, onClose, onSaveCom
                 <Pressable
                   onPress={onClose}
                   style={[s.btn, { borderColor: C.border }]}
+                  accessible
                   accessibilityRole="button"
-                  accessibilityLabel="Cancel"
+                  accessibilityLabel={t('common.cancel')}
                 >
-                  <Text style={[s.btnText, { color: C.textSecondary }]}>Cancel</Text>
+                  <Text style={[s.btnText, { color: C.textSecondary }]}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleSave}
                   disabled={isSaving}
                   style={[s.btn, s.btnPrimary, { backgroundColor: C.primary }, isSaving && s.btnOff]}
+                  accessible
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isSaving }}
-                  accessibilityLabel="Save note"
+                  accessibilityLabel={isSaving ? t('grocery.saving') : t('grocery.save_note')}
                 >
-                  <Text style={[s.btnText, s.btnPrimaryText]}>{isSaving ? 'Saving…' : 'Save note'}</Text>
+                  <Text style={[s.btnText, s.btnPrimaryText]}>{isSaving ? t('grocery.saving') : t('grocery.save_note')}</Text>
                 </Pressable>
               </View>
             </>

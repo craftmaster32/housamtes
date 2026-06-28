@@ -11,6 +11,8 @@ import { signInSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
@@ -29,7 +31,9 @@ export default function LoginScreen(): React.JSX.Element {
 
   const { t } = useTranslation();
   const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
 
   const fadeHeader = useRef(new Animated.Value(0)).current;
   const slideCard = useRef(new Animated.Value(30)).current;
@@ -113,7 +117,7 @@ export default function LoginScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
-            <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.85)" />
+            <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={20} color="rgba(255,255,255,0.85)" />
             <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
 
@@ -240,7 +244,7 @@ export default function LoginScreen(): React.JSX.Element {
   );
 }
 
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: {
       flex: 1,
@@ -255,10 +259,10 @@ function makeStyles(C: ColorTokens) {
       gap: 6,
     },
     backBtn: {
-      flexDirection: 'row',
+      flexDirection: rtl ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 2,
-      alignSelf: 'flex-start',
+      alignSelf: rtl ? 'flex-end' : 'flex-start',
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xs,
       minHeight: sizes.touchTarget,

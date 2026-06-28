@@ -1,11 +1,15 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 function Section({ title, children }: { title: string; children: string }): React.JSX.Element {
   const C = useThemedColors();
@@ -26,23 +30,31 @@ function sectionStyles(C: ColorTokens) {
 }
 
 export default function PrivacyPolicyScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
+  const handleBack = useCallback((): void => { router.back(); }, []);
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <Text style={styles.backText}>← Back</Text>
+          <Pressable onPress={handleBack} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessible accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
+            <View style={styles.backRow}>
+              <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
+              <Text style={styles.backText}>{t('common.back')}</Text>
+            </View>
           </Pressable>
-          <Text style={styles.heading}>Privacy Policy</Text>
-          <Text style={styles.updated}>Last updated: 10 May 2026</Text>
+          <Text style={styles.heading}>{t('legal.privacy_title')}</Text>
+          <Text style={styles.updated}>{t('legal.last_updated', { date: t('legal.legal_date') })}</Text>
         </View>
         <ScrollView contentContainerStyle={styles.content}>
 
@@ -136,12 +148,13 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
   );
 }
 
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     header: { padding: sizes.lg, gap: 4 },
     backBtn: { marginBottom: sizes.sm },
+    backRow: { flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
     updated: { color: C.textSecondary, fontSize: 13, ...font.regular },

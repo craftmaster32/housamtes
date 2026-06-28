@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable, FlatList, TextInput, Modal, Pl
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useEventsStore, HouseEvent, EventRecurrence, EventUpdates } from '@stores/eventsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -14,6 +15,8 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { usePersonalCalendar } from '@hooks/usePersonalCalendar';
 import { openGoogleCalendar, downloadIcs } from '@utils/calendarWeb';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { addWeeks, addMonths, addYears } from 'date-fns';
@@ -47,18 +50,18 @@ const TYPE_META: Record<CalendarEvent['type'], { icon: string; color: string }> 
   personal:          { icon: '👤', color: '#8b5cf6' },
 };
 
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTHS   = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WEEKDAY_KEYS = ['weekday_su','weekday_mo','weekday_tu','weekday_we','weekday_th','weekday_fr','weekday_sa'] as const;
+const MONTH_KEYS   = ['month_january','month_february','month_march','month_april','month_may','month_june','month_july','month_august','month_september','month_october','month_november','month_december'] as const;
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function formatShortDate(ymd: string): string {
+function formatShortDate(ymd: string, lang: string): string {
   const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return ymd;
-  return `${SHORT_MONTHS[parseInt(m[2]) - 1]} ${parseInt(m[3])}`;
+  const locale = lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
+  return new Date(ymd + 'T12:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 function expandRecurringDates(
@@ -97,16 +100,23 @@ interface EventFormModalProps {
   onClose: () => void;
 }
 
-const RECURRENCE_OPTIONS: Array<{ label: string; value: EventRecurrence | '' }> = [
-  { label: 'None', value: '' },
-  { label: 'Weekly', value: 'weekly' },
-  { label: 'Monthly', value: 'monthly' },
-  { label: 'Yearly', value: 'yearly' },
-];
+function useRecurrenceOptions(): Array<{ label: string; value: EventRecurrence | '' }> {
+  const { t } = useTranslation();
+  return useMemo(() => [
+    { label: t('calendar.repeat_none'), value: '' as const },
+    { label: t('calendar.repeat_weekly'), value: 'weekly' as EventRecurrence },
+    { label: t('calendar.repeat_monthly'), value: 'monthly' as EventRecurrence },
+    { label: t('calendar.repeat_yearly'), value: 'yearly' as EventRecurrence },
+  ], [t]);
+}
 
 function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFormModalProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
-  const formStyles = useMemo(() => makeFormStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const formStyles = useMemo(() => makeFormStyles(C, rtl), [C, rtl]);
+  const RECURRENCE_OPTIONS = useRecurrenceOptions();
 
   const addEvent       = useEventsStore((s) => s.addEvent);
   const editEvent      = useEventsStore((s) => s.editEvent);
@@ -161,9 +171,9 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
   }, [onClose]);
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (!title.trim()) { setError('Enter an event name'); return; }
-    if (!date) { setError('Pick a date'); return; }
-    if (showEndDate && endDate && endDate < date) { setError('End date must be on or after start date'); return; }
+    if (!title.trim()) { setError(t('calendar.enter_event_name')); return; }
+    if (!date) { setError(t('calendar.pick_date')); return; }
+    if (showEndDate && endDate && endDate < date) { setError(t('calendar.end_date_error')); return; }
     setSaving(true);
     try {
       const resolvedEndDate = showEndDate && endDate ? endDate : undefined;
@@ -202,11 +212,11 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
       }
       handleClose();
     } catch {
-      setError('Could not save event. Try again.');
+      setError(t('calendar.save_error'));
     } finally {
       setSaving(false);
     }
-  }, [title, date, showEndDate, endDate, startTime, endTime, notes, recurrence, showRecEnd, recurrenceEnd, editingEvent, addEvent, editEvent, profile, houseId, syncHouseEvent, handleClose]);
+  }, [title, date, showEndDate, endDate, startTime, endTime, notes, recurrence, showRecEnd, recurrenceEnd, editingEvent, addEvent, editEvent, profile, houseId, syncHouseEvent, handleClose, t]);
 
   const handleModalShow = useCallback((): void => {
     Keyboard.dismiss();
@@ -225,32 +235,32 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
       <Pressable style={formStyles.backdrop} onPress={handleClose}>
         <Pressable style={formStyles.sheet} onPress={() => {}}>
           <View style={formStyles.handle} />
-          <Text style={formStyles.title}>{isEditing ? 'Edit Event' : 'Add Event'}</Text>
+          <Text style={formStyles.title}>{isEditing ? t('calendar.edit_event') : t('calendar.add_event')}</Text>
 
           <ScrollView
             showsVerticalScrollIndicator={false}
             style={formStyles.scroll}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={formStyles.label}>Event name</Text>
+            <Text style={formStyles.label}>{t('calendar.event_name')}</Text>
             <TextInput
               style={formStyles.input}
               value={title}
               onChangeText={(v) => { setTitle(v); setError(''); }}
-              placeholder="e.g. House meeting, Inspection…"
+              placeholder={t('calendar.event_name_placeholder')}
               placeholderTextColor={C.textSecondary}
               autoFocus={false}
               returnKeyType="done"
               onSubmitEditing={handleSave}
-              accessibilityLabel="Event name"
-              accessibilityHint="Enter the event title"
+              accessibilityLabel={t('calendar.event_name')}
+              accessibilityHint={t('calendar.event_name_hint')}
             />
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>Start date</Text>
+            <Text style={[formStyles.label, formStyles.labelGap]}>{t('calendar.start_date')}</Text>
             <CalendarPicker value={date} onChange={(v) => { setDate(v); setError(''); }} />
 
             <Text style={[formStyles.label, formStyles.labelGap]}>
-              End date <Text style={formStyles.optional}>(optional — for multi-day events)</Text>
+              {t('calendar.end_date')} <Text style={formStyles.optional}>{t('calendar.end_date_hint')}</Text>
             </Text>
             {showEndDate ? (
               <>
@@ -259,9 +269,9 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                   style={formStyles.clearLink}
                   onPress={() => { setShowEndDate(false); setEndDate(''); }}
                   accessibilityRole="button"
-                  accessibilityLabel="Remove end date"
+                  accessibilityLabel={t('calendar.remove_end_date')}
                 >
-                  <Text style={formStyles.clearLinkText}>Remove end date</Text>
+                  <Text style={formStyles.clearLinkText}>{t('calendar.remove_end_date')}</Text>
                 </Pressable>
               </>
             ) : (
@@ -269,36 +279,36 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                 style={formStyles.addToggle}
                 onPress={() => { setShowEndDate(true); setEndDate(date); }}
                 accessibilityRole="button"
-                accessibilityLabel="Add end date"
-                accessibilityHint="Make this a multi-day event"
+                accessibilityLabel={t('calendar.add_end_date')}
+                accessibilityHint={t('calendar.add_end_date_hint')}
               >
                 <Ionicons name="add-circle-outline" size={17} color={C.primary} />
-                <Text style={formStyles.addToggleText}>Add end date</Text>
+                <Text style={formStyles.addToggleText}>{t('calendar.add_end_date')}</Text>
               </Pressable>
             )}
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>Start time <Text style={formStyles.optional}>(optional)</Text></Text>
+            <Text style={[formStyles.label, formStyles.labelGap]}>{t('calendar.start_time')} <Text style={formStyles.optional}>({t('common.optional')})</Text></Text>
             <TimePicker value={startTime} onChange={setStartTime} />
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>End time <Text style={formStyles.optional}>(optional)</Text></Text>
+            <Text style={[formStyles.label, formStyles.labelGap]}>{t('calendar.end_time')} <Text style={formStyles.optional}>({t('common.optional')})</Text></Text>
             <TimePicker value={endTime} onChange={setEndTime} />
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>Notes <Text style={formStyles.optional}>(optional)</Text></Text>
+            <Text style={[formStyles.label, formStyles.labelGap]}>{t('calendar.notes')} <Text style={formStyles.optional}>({t('common.optional')})</Text></Text>
             <TextInput
               style={[formStyles.input, formStyles.notesInput]}
               value={notes}
               onChangeText={setNotes}
-              placeholder="Any extra details…"
+              placeholder={t('calendar.notes_placeholder')}
               placeholderTextColor={C.textSecondary}
               autoFocus={false}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
-              accessibilityLabel="Notes"
-              accessibilityHint="Optional additional details for this event"
+              accessibilityLabel={t('calendar.notes')}
+              accessibilityHint={t('calendar.notes_hint')}
             />
 
-            <Text style={[formStyles.label, formStyles.labelGap]}>Repeat</Text>
+            <Text style={[formStyles.label, formStyles.labelGap]}>{t('calendar.repeat')}</Text>
             <View style={formStyles.chips}>
               {RECURRENCE_OPTIONS.map(({ label, value }) => (
                 <Pressable
@@ -318,7 +328,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
             {recurrence !== '' && (
               <>
                 <Text style={[formStyles.label, formStyles.labelGap]}>
-                  Repeat until <Text style={formStyles.optional}>(optional)</Text>
+                  {t('calendar.repeat_until')} <Text style={formStyles.optional}>({t('common.optional')})</Text>
                 </Text>
                 {showRecEnd ? (
                   <>
@@ -327,9 +337,9 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                       style={formStyles.clearLink}
                       onPress={() => { setShowRecEnd(false); setRecurrenceEnd(''); }}
                       accessibilityRole="button"
-                      accessibilityLabel="Remove repeat end date"
+                      accessibilityLabel={t('calendar.remove_repeat_end_date')}
                     >
-                      <Text style={formStyles.clearLinkText}>No end date (repeat forever)</Text>
+                      <Text style={formStyles.clearLinkText}>{t('calendar.no_end_date')}</Text>
                     </Pressable>
                   </>
                 ) : (
@@ -337,11 +347,11 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
                     style={formStyles.addToggle}
                     onPress={() => setShowRecEnd(true)}
                     accessibilityRole="button"
-                    accessibilityLabel="Set repeat end date"
-                    accessibilityHint="Choose when this event stops repeating"
+                    accessibilityLabel={t('calendar.set_repeat_end_date')}
+                    accessibilityHint={t('calendar.choose_repeat_end_hint')}
                   >
                     <Ionicons name="add-circle-outline" size={17} color={C.primary} />
-                    <Text style={formStyles.addToggleText}>Set an end date for repeating</Text>
+                    <Text style={formStyles.addToggleText}>{t('calendar.set_end_date')}</Text>
                   </Pressable>
                 )}
               </>
@@ -353,7 +363,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
 
           <View style={formStyles.btns}>
             <Pressable style={formStyles.btnOutline} onPress={handleClose} accessibilityRole="button">
-              <Text style={formStyles.btnOutlineText}>Cancel</Text>
+              <Text style={formStyles.btnOutlineText}>{t('calendar.cancel')}</Text>
             </Pressable>
             <Pressable
               style={[formStyles.btnPrimary, saving && formStyles.btnDisabled]}
@@ -361,7 +371,7 @@ function EventFormModal({ visible, initialDate, editingEvent, onClose }: EventFo
               disabled={saving}
               accessibilityRole="button"
             >
-              <Text style={formStyles.btnPrimaryText}>{saving ? 'Saving…' : isEditing ? 'Save Changes' : 'Save Event'}</Text>
+              <Text style={formStyles.btnPrimaryText}>{saving ? t('calendar.saving') : isEditing ? t('calendar.save_changes') : t('calendar.save_event')}</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -413,6 +423,9 @@ function DayCell({
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function CalendarScreen(): React.JSX.Element {
+  const { t, i18n } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const events                       = useEventsStore((s) => s.events);
   const isLoading                    = useEventsStore((s) => s.isLoading);
   const storeError                   = useEventsStore((s) => s.error);
@@ -621,7 +634,7 @@ export default function CalendarScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.centered}>
-          <Text style={styles.emptyDayText}>Loading…</Text>
+          <Text style={styles.emptyDayText}>{t('calendar.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -641,33 +654,33 @@ export default function CalendarScreen(): React.JSX.Element {
         {/* Header */}
         <View style={styles.pageHeader}>
           <View>
-            <Text style={styles.pageTitle}>Calendar</Text>
+            <Text style={styles.pageTitle}>{t('calendar.title')}</Text>
             <Text style={styles.pageSubtitle}>
-              {connected ? 'Synced with your calendar' : 'House schedule'}
+              {connected ? t('calendar.synced_subtitle') : t('calendar.house_schedule')}
             </Text>
           </View>
-          <Pressable style={styles.addBtn} onPress={handleOpenAdd} accessibilityRole="button">
+          <Pressable style={[styles.addBtn, { minHeight: 44 }]} onPress={handleOpenAdd} accessible accessibilityRole="button">
             <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addBtnText}>Add Event</Text>
+            <Text style={styles.addBtnText}>{t('calendar.add_event')}</Text>
           </Pressable>
         </View>
 
         {/* Month nav */}
         <View style={styles.monthHeader}>
-          <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button">
-            <Ionicons name="chevron-back" size={18} color={C.primary} />
+          <Pressable style={styles.navBtn} onPress={prevMonth} accessibilityRole="button" accessibilityLabel={t('dashboard.prev_month')}>
+            <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
           </Pressable>
-          <Text style={styles.monthTitle}>{MONTHS[viewMonth]} {viewYear}</Text>
-          <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button">
-            <Ionicons name="chevron-forward" size={18} color={C.primary} />
+          <Text style={styles.monthTitle}>{t(`calendar.${MONTH_KEYS[viewMonth]}`)} {viewYear}</Text>
+          <Pressable style={styles.navBtn} onPress={nextMonth} accessibilityRole="button" accessibilityLabel={t('dashboard.next_month')}>
+            <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={C.primary} />
           </Pressable>
         </View>
 
         {/* Calendar grid */}
         <View style={styles.calCard}>
           <View style={styles.weekRow}>
-            {WEEKDAYS.map((d) => (
-              <Text key={d} style={styles.weekDay}>{d}</Text>
+            {WEEKDAY_KEYS.map((key) => (
+              <Text key={key} style={styles.weekDay}>{t(`calendar.${key}`)}</Text>
             ))}
           </View>
           {[0, 1, 2, 3, 4, 5].map((row) => (
@@ -696,7 +709,7 @@ export default function CalendarScreen(): React.JSX.Element {
             <View key={type} style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
               <Text style={styles.legendLabel}>
-                {meta.icon} {type === 'parking-pending' ? 'Parking (pending)' : type.charAt(0).toUpperCase() + type.slice(1)}
+                {meta.icon} {t(`calendar.legend_${type.replace('-', '_')}`)}
               </Text>
             </View>
           ))}
@@ -707,18 +720,18 @@ export default function CalendarScreen(): React.JSX.Element {
           <View style={styles.eventsSectionHeader}>
             <Text style={styles.eventsSectionTitle}>
               {selectedDate === todayStr
-                ? 'Today'
-                : new Date(selectedDate + 'T12:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                ? t('calendar.today')
+                : new Date(selectedDate + 'T12:00:00').toLocaleDateString(i18n.language, { weekday: 'short', month: 'short', day: 'numeric' })}
             </Text>
-            <Pressable style={styles.addDayBtn} onPress={handleOpenAdd} accessibilityRole="button">
+            <Pressable style={[styles.addDayBtn, { minHeight: 44 }]} onPress={handleOpenAdd} accessible accessibilityRole="button" hitSlop={8}>
               <Ionicons name="add-circle-outline" size={18} color={C.primary} />
-              <Text style={styles.addDayBtnText}>Add</Text>
+              <Text style={styles.addDayBtnText}>{t('calendar.add')}</Text>
             </Pressable>
           </View>
 
           {selectedEvents.length === 0 ? (
             <View style={styles.emptyDay}>
-              <Text style={styles.emptyDayText}>Nothing scheduled — tap Add to create an event</Text>
+              <Text style={styles.emptyDayText}>{t('calendar.nothing_scheduled')}</Text>
             </View>
           ) : (
             <FlatList
@@ -730,7 +743,7 @@ export default function CalendarScreen(): React.JSX.Element {
                   ? `${item.startTime}${item.endTime ? ` – ${item.endTime}` : ''}`
                   : null;
                 const dateRangeLabel = item.endDate && item.endDate !== item.date
-                  ? `${formatShortDate(item.date)} – ${formatShortDate(item.endDate)}`
+                  ? `${formatShortDate(item.date, i18n.language)} – ${formatShortDate(item.endDate, i18n.language)}`
                   : null;
                 const syncKey = (item.type === 'parking' || item.type === 'parking-pending')
                   ? `pk-${item.sourceId}`
@@ -749,7 +762,7 @@ export default function CalendarScreen(): React.JSX.Element {
                     style={[styles.eventRow, item.type === 'personal' && styles.eventRowPersonal]}
                     onPress={() => setExpandedEventId(isExpanded ? null : item.id)}
                     accessibilityRole="button"
-                    accessibilityLabel={isExpanded ? `Collapse ${item.title}` : `Expand ${item.title}`}
+                    accessibilityLabel={isExpanded ? t('calendar.collapse', { title: item.title }) : t('calendar.expand', { title: item.title })}
                     accessibilityState={{ expanded: isExpanded }}
                   >
                     <View style={[styles.eventIconWrap, { backgroundColor: TYPE_META[item.type].color + '20' }]}>
@@ -777,7 +790,7 @@ export default function CalendarScreen(): React.JSX.Element {
                                 hitSlop={{ left: 7, right: 7 }}
                                 onPress={() => openGoogleCalendar({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
                                 accessibilityRole="button"
-                                accessibilityLabel="Add to Google Calendar"
+                                accessibilityLabel={t('calendar.add_to_google')}
                               >
                                 <Ionicons name="logo-google" size={16} color={C.textSecondary} />
                               </Pressable>
@@ -786,7 +799,7 @@ export default function CalendarScreen(): React.JSX.Element {
                                 hitSlop={{ left: 7, right: 7 }}
                                 onPress={() => downloadIcs({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime })}
                                 accessibilityRole="button"
-                                accessibilityLabel="Download .ics file"
+                                accessibilityLabel={t('calendar.download_ics')}
                               >
                                 <Ionicons name="download-outline" size={16} color={C.textSecondary} />
                               </Pressable>
@@ -797,10 +810,10 @@ export default function CalendarScreen(): React.JSX.Element {
                               hitSlop={{ left: 7, right: 7 }}
                               onPress={async () => {
                                 try { await handleManualSync(item); }
-                                catch { Alert.alert('Sync failed', 'Could not add to your calendar. Please try again.'); }
+                                catch { Alert.alert(t('calendar.sync_failed_title'), t('calendar.sync_failed_body')); }
                               }}
                               accessibilityRole="button"
-                              accessibilityLabel={alreadySynced ? 'Added to calendar' : 'Add to my calendar'}
+                              accessibilityLabel={alreadySynced ? t('calendar.added_to_calendar') : t('calendar.add_to_my_calendar')}
                             >
                               <Ionicons
                                 name={alreadySynced ? 'checkmark-circle' : 'calendar-outline'}
@@ -816,7 +829,7 @@ export default function CalendarScreen(): React.JSX.Element {
                                 hitSlop={{ left: 7, right: 7 }}
                                 onPress={() => handleEditEvent(item.sourceId)}
                                 accessibilityRole="button"
-                                accessibilityLabel="Edit event"
+                                accessibilityLabel={t('calendar.edit_event_btn')}
                               >
                                 <Ionicons name="pencil-outline" size={16} color={C.primary} />
                               </Pressable>
@@ -825,10 +838,10 @@ export default function CalendarScreen(): React.JSX.Element {
                                 hitSlop={{ left: 7, right: 7 }}
                                 onPress={async () => {
                                   try { await removeEvent(item.sourceId); }
-                                  catch { Alert.alert('Error', 'Could not remove event. Try again.'); }
+                                  catch { Alert.alert(t('calendar.remove_error_title'), t('calendar.remove_error_body')); }
                                 }}
                                 accessibilityRole="button"
-                                accessibilityLabel="Delete event"
+                                accessibilityLabel={t('calendar.delete_event')}
                               >
                                 <Ionicons name="trash-outline" size={16} color={C.negative} />
                               </Pressable>
@@ -893,7 +906,7 @@ function makeStyles(C: ColorTokens) {
 
     monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: sizes.xs },
     monthTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    navBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20, backgroundColor: C.surfaceSecondary },
+    navBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 22, backgroundColor: C.surfaceSecondary },
 
     calCard: { backgroundColor: C.surface, borderRadius: sizes.borderRadiusLg, borderWidth: 1, borderColor: C.border, padding: sizes.sm, overflow: 'hidden' },
     weekRow: { flexDirection: 'row', marginBottom: 4 },
@@ -950,7 +963,7 @@ function makeStyles(C: ColorTokens) {
   });
 }
 
-function makeFormStyles(C: ColorTokens) {
+function makeFormStyles(C: ColorTokens, rtl: boolean) {
   return StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     sheet: {
@@ -972,7 +985,7 @@ function makeFormStyles(C: ColorTokens) {
       backgroundColor: C.surfaceSecondary,
     },
     notesInput: { minHeight: 80, paddingTop: 12 },
-    addToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: C.primary, backgroundColor: C.secondary },
+    addToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: C.primary, backgroundColor: C.secondary, writingDirection: rtl ? 'rtl' : 'ltr' },
     addToggleText: { fontSize: 14, ...font.medium, color: C.primary },
     clearLink: { alignSelf: 'flex-start', marginTop: 6 },
     clearLinkText: { fontSize: 12, ...font.regular, color: C.textSecondary, textDecorationLine: 'underline' },

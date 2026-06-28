@@ -4,11 +4,13 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
 export default function NotFoundScreen(): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -24,18 +26,19 @@ export default function NotFoundScreen(): React.JSX.Element {
           <Ionicons name="map-outline" size={48} color={C.textSecondary} />
         </View>
         <Text style={styles.code}>404</Text>
-        <Text style={styles.title}>Page not found</Text>
+        <Text style={styles.title}>{t('not_found.title')}</Text>
         <Text style={styles.message}>
-          {"This screen doesn't exist. Let's get you back home."}
+          {t('not_found.message')}
         </Text>
         <Pressable
           style={({ pressed }) => [styles.btn, pressed && { opacity: 0.8 }]}
           onPress={() => router.replace('/(tabs)/dashboard')}
+          accessible
           accessibilityRole="button"
-          accessibilityLabel="Go to dashboard"
+          accessibilityLabel={t('not_found.go_to_dashboard')}
         >
           <Ionicons name="home-outline" size={18} color="#fff" />
-          <Text style={styles.btnText}>Go to Dashboard</Text>
+          <Text style={styles.btnText}>{t('not_found.go_to_dashboard')}</Text>
         </Pressable>
       </Animated.View>
     </SafeAreaView>

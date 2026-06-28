@@ -78,8 +78,23 @@ jobs:
               /Actionable comments posted: [1-9]\d*/.test(c.body)
             );
 
+            const latestCRComment = comments.find(c =>
+              c.user.login === 'coderabbitai[bot]' &&
+              new Date(c.created_at) >= commitDate
+            );
+            const rateLimited = latestCRComment &&
+              /Review limit reached|rate limit/i.test(latestCRComment.body);
+
+            if (rateLimited) {
+              core.setOutput('is_clean', 'false');
+              core.setOutput('is_rate_limited', 'true');
+              core.info('CodeRabbit is rate limited — will not trigger another review');
+              return;
+            }
+
             const isClean = !freshIssues;
             core.setOutput('is_clean', isClean.toString());
+            core.setOutput('is_rate_limited', 'false');
             core.info(`CodeRabbit approved (no fresh issues): ${isClean}`);
 
       - name: Check full-review label state
@@ -104,7 +119,7 @@ jobs:
             }
 
             // Label is present — but only proceed to step 2 if this status event
-            // was created AFTER we posted the '@coderabbitai review' comment.
+            // was created AFTER we posted the '@coderabbitai full review' comment.
             // Without this check, a stale status event from step 1 triggers step 2
             // immediately before CodeRabbit has had time to do the full review.
             const { data: comments } = await github.rest.issues.listComments({
@@ -118,7 +133,7 @@ jobs:
 
             const reviewRequest = comments.find(c =>
               c.user.login === 'github-actions[bot]' &&
-              c.body.trim() === '@coderabbitai review'
+              c.body.trim() === '@coderabbitai full review'
             );
 
             if (reviewRequest) {
@@ -168,7 +183,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
-              body: '@coderabbitai review',
+              body: '@coderabbitai full review',
             });
             core.info('Full CodeRabbit review requested — waiting for result');
 

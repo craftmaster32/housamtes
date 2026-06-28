@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { isRTL } from '@lib/i18n';
+import { useLanguageStore } from '@stores/languageStore';
 
 function getMonthName(year: number, month: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month));
@@ -43,6 +45,8 @@ export interface DatePickerModalProps {
 
 export function DatePickerModal({ visible, value, onSelect, onClose }: DatePickerModalProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
 
   function parseValue(v: string): { year: number; month: number; day: number } {
     const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -131,7 +135,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
               accessibilityLabel={t('bills.prev_month')}
               accessibilityState={{ disabled: false }}
             >
-              <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+              <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.textPrimary} />
             </Pressable>
             <Text style={styles.monthLabel}>{monthLabel} {viewYear}</Text>
             <Pressable
@@ -142,7 +146,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose }: DatePicke
               accessibilityLabel={t('bills.next_month')}
               accessibilityState={{ disabled: false }}
             >
-              <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
+              <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={20} color={colors.textPrimary} />
             </Pressable>
           </View>
 
