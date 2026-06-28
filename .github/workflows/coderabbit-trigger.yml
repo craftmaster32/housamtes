@@ -2,14 +2,13 @@ name: Trigger CodeRabbit Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened]
 
 permissions:
   pull-requests: write
 
 jobs:
   trigger-review:
-    # Always trigger — including after Claude's fix commits, so the loop continues
     runs-on: ubuntu-latest
 
     steps:
