@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
+import { useTranslation } from 'react-i18next';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { colors } from '@constants/colors';
@@ -36,6 +37,7 @@ export function MiniCalendar({ events, selectedDate, onSelectDate }: MiniCalenda
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
 
   const monthName = useMemo(
@@ -75,11 +77,23 @@ export function MiniCalendar({ events, selectedDate, onSelectDate }: MiniCalenda
     <View style={styles.container}>
       {/* Month navigation */}
       <View style={styles.header}>
-        <Pressable onPress={prevMonth} style={styles.navBtn}>
+        <Pressable
+          onPress={prevMonth}
+          style={styles.navBtn}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('dashboard.prev_month')}
+        >
           <Text style={styles.navText}>{isRTL(language) ? '›' : '‹'}</Text>
         </Pressable>
         <Text style={styles.monthTitle}>{monthName} {viewYear}</Text>
-        <Pressable onPress={nextMonth} style={styles.navBtn}>
+        <Pressable
+          onPress={nextMonth}
+          style={styles.navBtn}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('dashboard.next_month')}
+        >
           <Text style={styles.navText}>{isRTL(language) ? '‹' : '›'}</Text>
         </Pressable>
       </View>
@@ -174,7 +188,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   navBtn: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: colors.primary + '12',
     justifyContent: 'center', alignItems: 'center',
   },

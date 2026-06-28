@@ -95,7 +95,7 @@ export default function RootLayout(): React.JSX.Element | null {
           tag.id = STYLE_ID;
           document.head.appendChild(tag);
         }
-        tag.textContent = `html[dir="rtl"] input, html[dir="rtl"] textarea { text-align: right; direction: rtl; }`;
+        tag.textContent = `html[dir="rtl"] textarea, html[dir="rtl"] input[type="text"], html[dir="rtl"] input[type="search"] { text-align: right; direction: rtl; }`;
       } else if (tag) {
         tag.remove();
       }
