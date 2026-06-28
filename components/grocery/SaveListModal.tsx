@@ -109,14 +109,23 @@ export function SaveListModal({
                 style={[styles.primaryBtn, isSaving && styles.btnOff]}
                 onPress={handleUpdate}
                 disabled={isSaving}
+                accessible
                 accessibilityRole="button"
+                accessibilityState={{ disabled: isSaving }}
               >
                 {isSaving
                   ? <ActivityIndicator size="small" color="#fff" />
                   : <Text style={styles.primaryBtnText}>{t('grocery.yes_update_list')}</Text>
                 }
               </Pressable>
-              <Pressable style={styles.skipBtn} onPress={handleSkip} disabled={isSaving} accessibilityRole="button">
+              <Pressable
+                style={styles.skipBtn}
+                onPress={handleSkip}
+                disabled={isSaving}
+                accessible
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isSaving }}
+              >
                 <Text style={styles.skipBtnText}>{t('grocery.no_just_this_time')}</Text>
               </Pressable>
             </>
@@ -163,7 +172,9 @@ export function SaveListModal({
                 style={[styles.primaryBtn, (!listName.trim() || isSaving) && styles.btnOff]}
                 onPress={handleSaveNew}
                 disabled={!listName.trim() || isSaving}
+                accessible
                 accessibilityRole="button"
+                accessibilityState={{ disabled: !listName.trim() || isSaving }}
               >
                 {isSaving
                   ? <ActivityIndicator size="small" color="#fff" />
@@ -175,7 +186,14 @@ export function SaveListModal({
                   )
                 }
               </Pressable>
-              <Pressable style={styles.skipBtn} onPress={handleSkip} disabled={isSaving} accessibilityRole="button">
+              <Pressable
+                style={styles.skipBtn}
+                onPress={handleSkip}
+                disabled={isSaving}
+                accessible
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isSaving }}
+              >
                 <Text style={styles.skipBtnText}>{t('grocery.one_time_dont_save')}</Text>
               </Pressable>
             </>

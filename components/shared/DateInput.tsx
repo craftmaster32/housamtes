@@ -80,7 +80,7 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
         style={styles.input}
         value={value}
         onChangeText={onChange}
-        placeholder="DD/MM/YYYY"
+        placeholder={t('common.pick_date')}
         placeholderTextColor={colors.textDisabled}
         accessibilityLabel={t('bills.pick_date')}
         accessibilityHint={t('bills.date_format_hint')}

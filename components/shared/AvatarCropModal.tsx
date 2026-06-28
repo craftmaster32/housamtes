@@ -132,7 +132,7 @@ export function AvatarCropModal({ visible, imageUri, imageWidth, imageHeight, on
 
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={onCancel} disabled={processing} accessible accessibilityRole="button" style={styles.headerSide} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Pressable onPress={onCancel} disabled={processing} accessible accessibilityRole="button" accessibilityState={{ disabled: processing }} style={styles.headerSide} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.headerBtn}>{t('common.cancel')}</Text>
           </Pressable>
           <Text style={styles.headerTitle}>{t('profile.crop_photo')}</Text>

@@ -63,6 +63,7 @@ function getCategoryIcon(category: string): React.ComponentProps<typeof Ionicons
 // ── Date label ────────────────────────────────────────────────────────────────
 function formatDateLabel(dateStr: string, locale: string, t: (key: string) => string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return t('common.unknown');
+  const appLocale = locale === 'he' ? 'he-IL' : locale === 'es' ? 'es-ES' : 'en-GB';
   const today = new Date();
   const pad = (n: number): string => String(n).padStart(2, '0');
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
@@ -71,7 +72,7 @@ function formatDateLabel(dateStr: string, locale: string, t: (key: string) => st
   const yestStr = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
   if (dateStr === todayStr) return t('common.today');
   if (dateStr === yestStr) return t('common.yesterday');
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString(locale, {
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString(appLocale, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
