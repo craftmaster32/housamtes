@@ -596,7 +596,7 @@ export default function SpendingScreen(): React.JSX.Element {
         {pageHeader}
         <View style={styles.centered}>
           <Text style={styles.errorTitle}>{t('spending.could_not_load')}</Text>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{t('common.failed_try_again')}</Text>
           <Pressable
             style={styles.retryBtn}
             onPress={handleRetry}

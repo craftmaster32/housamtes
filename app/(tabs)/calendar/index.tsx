@@ -52,7 +52,6 @@ const TYPE_META: Record<CalendarEvent['type'], { icon: string; color: string }> 
 
 const WEEKDAY_KEYS = ['weekday_su','weekday_mo','weekday_tu','weekday_we','weekday_th','weekday_fr','weekday_sa'] as const;
 const MONTH_KEYS   = ['month_january','month_february','month_march','month_april','month_may','month_june','month_july','month_august','month_september','month_october','month_november','month_december'] as const;
-const SHORT_MONTH_KEYS = ['cal_month_jan','cal_month_feb','cal_month_mar','cal_month_apr','cal_month_may','cal_month_jun','cal_month_jul','cal_month_aug','cal_month_sep','cal_month_oct','cal_month_nov','cal_month_dec'] as const;
 
 function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

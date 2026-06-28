@@ -669,7 +669,7 @@ export default function SettingsScreen(): React.JSX.Element {
                     </Text>
                   </View>
                   {webPushStatus === 'granted' && <Text style={styles.webPushOn}>{t('settings.notifications_on')}</Text>}
-                  {webPushStatus === 'default' && <Text style={styles.menuChevron}>›</Text>}
+                  {webPushStatus === 'default' && <Text style={styles.menuChevron}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>}
                 </Pressable>
                 <RowDivider />
               </>

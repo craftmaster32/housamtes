@@ -241,7 +241,7 @@ function TodayAtHome(): React.JSX.Element {
     } catch (err) {
       Alert.alert(
         t('dashboard.parking_error'),
-        err instanceof Error ? err.message : t('common.failed_try_again')
+        t('common.failed_try_again')
       );
     } finally {
       setIsParkingBusy(false);
@@ -523,7 +523,7 @@ function ParkingCard(): React.JSX.Element {
     } catch (err) {
       Alert.alert(
         t('dashboard.parking_error'),
-        err instanceof Error ? err.message : t('common.failed_try_again')
+        t('common.failed_try_again')
       );
     }
   }, [release, houseId, myName, t]);
