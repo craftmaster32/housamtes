@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -14,6 +16,7 @@ const ONBOARDING_INTENT_KEY = 'onboarding_intent';
 
 export default function WelcomeScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -90,7 +93,7 @@ export default function WelcomeScreen(): React.JSX.Element {
           style={styles.primaryButton}
           contentStyle={styles.primaryButtonContent}
           labelStyle={styles.primaryButtonLabel}
-          icon={({ color }) => <Ionicons name="arrow-forward" size={18} color={color} />}
+          icon={({ color }) => <Ionicons name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-forward'} size={18} color={color} />}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('welcome.get_started')}

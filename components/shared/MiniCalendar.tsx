@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -75,11 +76,11 @@ export function MiniCalendar({ events, selectedDate, onSelectDate }: MiniCalenda
       {/* Month navigation */}
       <View style={styles.header}>
         <Pressable onPress={prevMonth} style={styles.navBtn}>
-          <Text style={styles.navText}>‹</Text>
+          <Text style={styles.navText}>{isRTL(language) ? '›' : '‹'}</Text>
         </Pressable>
         <Text style={styles.monthTitle}>{monthName} {viewYear}</Text>
         <Pressable onPress={nextMonth} style={styles.navBtn}>
-          <Text style={styles.navText}>›</Text>
+          <Text style={styles.navText}>{isRTL(language) ? '‹' : '›'}</Text>
         </Pressable>
       </View>
 

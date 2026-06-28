@@ -21,6 +21,8 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useBillsStore, calculateBalances } from '@stores/billsStore';
 import { useVotingStore } from '@stores/votingStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -58,6 +60,8 @@ export default function SettingsScreen(): React.JSX.Element {
   const [requestingVote, setRequestingVote] = useState(false);
   const [calLoading, setCalLoading] = useState(false);
 
+  const currentLanguage = useLanguageStore((s) => s.language);
+  const rtlChevron = isRTL(currentLanguage) ? '‹' : '›';
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -320,7 +324,7 @@ export default function SettingsScreen(): React.JSX.Element {
                     : 'Leave this house and start fresh'}
                 </Text>
               </View>
-              <Text style={styles.chevron}>›</Text>
+              <Text style={styles.chevron}>{rtlChevron}</Text>
             </Pressable>
           </View>
 
@@ -421,7 +425,7 @@ export default function SettingsScreen(): React.JSX.Element {
                     Toggle your spot by tapping a tag in your car
                   </Text>
                 </View>
-                <Text style={styles.chevron}>›</Text>
+                <Text style={styles.chevron}>{rtlChevron}</Text>
               </Pressable>
             </Link>
           </View>
@@ -434,12 +438,12 @@ export default function SettingsScreen(): React.JSX.Element {
             >
               <Text style={styles.icon}>🔒</Text>
               <Text style={[styles.label, { flex: 1 }]}>{t('settings.privacy')}</Text>
-              <Text style={styles.chevron}>›</Text>
+              <Text style={styles.chevron}>{rtlChevron}</Text>
             </Pressable>
             <Pressable style={styles.row} onPress={() => router.push('/(tabs)/settings/terms')}>
               <Text style={styles.icon}>📄</Text>
               <Text style={[styles.label, { flex: 1 }]}>{t('settings.terms')}</Text>
-              <Text style={styles.chevron}>›</Text>
+              <Text style={styles.chevron}>{rtlChevron}</Text>
             </Pressable>
           </View>
         </ScrollView>
