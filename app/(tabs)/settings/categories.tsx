@@ -115,12 +115,13 @@ const makeStyles = (C: ColorTokens) =>
     btnSave: {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
-      paddingVertical: 10,
+      minHeight: 44,
+      justifyContent: 'center' as const,
       borderRadius: 10,
     },
     btnSaveOff: { opacity: 0.5 },
     btnSaveText: { color: '#FFF', ...font.semibold, fontSize: 14 },
-    btnCancel: { paddingHorizontal: 8, paddingVertical: 10 },
+    btnCancel: { paddingHorizontal: 8, minHeight: 44, justifyContent: 'center' as const },
     btnCancelText: { color: C.textSecondary, fontSize: 14, ...font.regular },
 
     catRow: {

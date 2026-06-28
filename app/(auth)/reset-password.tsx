@@ -127,6 +127,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('auth.update_password')}
+          accessibilityState={{ disabled: isLoading }}
         >
           {t('auth.update_password')}
         </Button>

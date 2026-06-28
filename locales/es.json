@@ -263,7 +263,9 @@
     "event_save_failed": "No se pudo guardar el evento. Verifica tu conexión e intenta de nuevo.",
     "balance_all_settled": "Todo al día",
     "balance_owed": "Te deben",
+    "balance_owed_amount": "Te deben {{amount}}",
     "balance_you_owe": "Debes",
+    "balance_you_owe_amount": "Debes {{amount}}",
     "balance_across": "entre {{count}} compañero",
     "balance_across_plural": "entre {{count}} compañeros",
     "new_count": "{{n}} nuevos",
@@ -1333,7 +1335,8 @@
     "perm_photos": "Fotos",
     "perm_voting": "Votaciones",
     "perm_maintenance": "Mantenimiento",
-    "perm_condition": "Estado de la propiedad"
+    "perm_condition": "Estado de la propiedad",
+    "toggle_permission": "Alternar {{permission}} para {{name}}"
   },
   "spending": {
     "spending_label": "GASTOS",

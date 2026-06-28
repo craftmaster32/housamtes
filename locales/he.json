@@ -263,7 +263,9 @@
     "event_save_failed": "שמירת האירוע נכשלה. בדוק את החיבור לאינטרנט ונסה שוב.",
     "balance_all_settled": "הכל מקוזז",
     "balance_owed": "חייבים לך",
+    "balance_owed_amount": "חייבים לך {{amount}}",
     "balance_you_owe": "אתה חייב",
+    "balance_you_owe_amount": "אתה חייב {{amount}}",
     "balance_across": "מול {{count}} שותף",
     "balance_across_plural": "מול {{count}} שותפים",
     "new_count": "{{n}} חדשים",
@@ -1308,7 +1310,8 @@
     "perm_photos": "תמונות",
     "perm_voting": "הצבעות",
     "perm_maintenance": "תחזוקה",
-    "perm_condition": "מצב הנכס"
+    "perm_condition": "מצב הנכס",
+    "toggle_permission": "הפעל/כבה {{permission}} עבור {{name}}"
   },
   "not_found": {
     "title": "הדף לא נמצא",

@@ -263,7 +263,9 @@
     "event_save_failed": "Failed to save event. Check your connection and try again.",
     "balance_all_settled": "All settled up",
     "balance_owed": "You're owed",
+    "balance_owed_amount": "You're owed {{amount}}",
     "balance_you_owe": "You owe",
+    "balance_you_owe_amount": "You owe {{amount}}",
     "balance_across": "across {{count}} housemate",
     "balance_across_plural": "across {{count}} housemates",
     "new_count": "{{n}} new",
@@ -1308,7 +1310,8 @@
     "perm_photos": "Photos",
     "perm_voting": "Voting",
     "perm_maintenance": "Maintenance",
-    "perm_condition": "Property Condition"
+    "perm_condition": "Property Condition",
+    "toggle_permission": "Toggle {{permission}} for {{name}}"
   },
   "not_found": {
     "title": "Page not found",

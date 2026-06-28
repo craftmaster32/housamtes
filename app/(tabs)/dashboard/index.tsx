@@ -152,7 +152,7 @@ function BalanceHeroCard(): React.JSX.Element {
       accessibilityRole="button"
       accessibilityLabel={balances.length === 0
         ? t('dashboard.balance_all_settled')
-        : `${isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')} ${formatFull(Math.abs(netAmount), currencyCode)}`}
+        : t(isOwed ? 'dashboard.balance_owed_amount' : 'dashboard.balance_you_owe_amount', { amount: formatFull(Math.abs(netAmount), currencyCode) })}
     >
       {/* Decorative circle */}
       <View style={styles.balanceHeroDeco} />
@@ -254,7 +254,11 @@ function TodayAtHome(): React.JSX.Element {
       ? t('dashboard.parking_first_come')
       : isMine
         ? t('dashboard.parking_free_it_up')
-        : t('dashboard.parking_by', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')).split(' ')[0] });
+        : (() => {
+            const resolved = resolveName(current?.occupant ?? '', housemates, '');
+            const displayName = resolved ? resolved.split(' ')[0] : t('common.unknown');
+            return t('dashboard.parking_by', { name: displayName });
+          })();
 
   return (
     <View style={styles.todaySection}>

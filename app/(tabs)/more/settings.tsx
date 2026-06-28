@@ -251,7 +251,7 @@ export default function SettingsScreen(): React.JSX.Element {
     } finally {
       setRequestingVote(false);
     }
-  }, [profile, houseId, debtAmount, addProposal, t]);
+  }, [profile, houseId, debtAmount, currency, addProposal, t]);
 
   const prefs = useNotificationStore((s) => s.prefs);
   const updatePrefs = useNotificationStore((s) => s.update);

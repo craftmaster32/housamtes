@@ -78,11 +78,12 @@ jobs:
               /Actionable comments posted: [1-9]\d*/.test(c.body)
             );
 
-            const rateLimited = comments.find(c =>
+            const latestCRComment = comments.find(c =>
               c.user.login === 'coderabbitai[bot]' &&
-              new Date(c.created_at) >= commitDate &&
-              /Review limit reached|rate limit/i.test(c.body)
+              new Date(c.created_at) >= commitDate
             );
+            const rateLimited = latestCRComment &&
+              /Review limit reached|rate limit/i.test(latestCRComment.body);
 
             if (rateLimited) {
               core.setOutput('is_clean', 'false');

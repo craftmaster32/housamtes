@@ -602,7 +602,7 @@ export default function SpendingScreen(): React.JSX.Element {
             onPress={handleRetry}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={t('spending.retry_loading')}
+            accessibilityLabel={t('bills.retry')}
           >
             <Text style={styles.retryBtnText}>{t('bills.retry')}</Text>
           </Pressable>
