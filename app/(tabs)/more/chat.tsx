@@ -10,6 +10,8 @@ import { useChatStore, type ChatMessage } from '@stores/chatStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -289,6 +291,7 @@ export default function ChatScreen(): React.JSX.Element {
   const myId   = profile?.id ?? '';
   const myName = profile?.name ?? '';
 
+  const currentLanguage = useLanguageStore((s) => s.language);
   const [text, setText] = useState('');
   const listRef = useRef<FlatList>(null);
 
@@ -338,7 +341,7 @@ export default function ChatScreen(): React.JSX.Element {
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>‹ Back</Text>
+            <Text style={styles.backText}>{isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}</Text>
           </Pressable>
           <Text style={styles.headerTitle}>{t('chat.title')}</Text>
           <View style={styles.backBtn} />

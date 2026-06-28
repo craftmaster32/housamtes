@@ -7,6 +7,8 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -18,6 +20,7 @@ function MenuItem({
   onPress,
   danger,
   rightText,
+  rtl,
 }: {
   icon: string;
   label: string;
@@ -25,6 +28,7 @@ function MenuItem({
   onPress: () => void;
   danger?: boolean;
   rightText?: string;
+  rtl?: boolean;
 }): React.JSX.Element {
   return (
     <Pressable
@@ -43,7 +47,7 @@ function MenuItem({
       {rightText ? (
         <Text style={styles.menuRightText}>{rightText}</Text>
       ) : (
-        <Text style={styles.menuChevron}>›</Text>
+        <Text style={styles.menuChevron}>{rtl ? '‹' : '›'}</Text>
       )}
     </Pressable>
   );
@@ -74,6 +78,8 @@ export default function ProfileScreen(): React.JSX.Element {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
 
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const initial = (profile?.name ?? '?')[0].toUpperCase();
   const email = user?.email ?? '';
 
@@ -96,7 +102,7 @@ export default function ProfileScreen(): React.JSX.Element {
   }, [signOut, t]);
 
   const handleChangePassword = useCallback(async () => {
-    if (!currentPassword) { setPasswordError('Enter your current password'); return; }
+    if (!currentPassword) { setPasswordError(t('profile.enter_current_password')); return; }
     if (!newPassword) { setPasswordError(t('profile.enter_new_password')); return; }
     if (newPassword.length < 8) { setPasswordError(t('profile.password_min')); return; }
     if (newPassword !== confirmPassword) { setPasswordError(t('profile.passwords_no_match')); return; }
@@ -151,15 +157,16 @@ export default function ProfileScreen(): React.JSX.Element {
             label={t('profile.change_password')}
             sub={showPasswordForm ? t('profile.password_prompt') : t('profile.change_password_sub')}
             onPress={() => { setShowPasswordForm((v) => !v); setPasswordError(''); }}
+            rtl={rtl}
           />
           {showPasswordForm && (
             <View style={styles.passwordForm}>
               <View style={styles.passwordField}>
-                <Text style={styles.fieldLabel}>Current password</Text>
+                <Text style={styles.fieldLabel}>{t('profile.current_password')}</Text>
                 <PasswordInput
                   value={currentPassword}
                   onChange={(v) => { setCurrentPassword(v); setPasswordError(''); }}
-                  placeholder="Enter current password"
+                  placeholder={t('profile.current_password_placeholder')}
                 />
               </View>
               <View style={styles.passwordField}>
@@ -208,6 +215,7 @@ export default function ProfileScreen(): React.JSX.Element {
               ? housemates.map((h) => h.name).join(', ')
               : t('profile.no_housemates')}
             onPress={() => router.push('/(tabs)/bills/setup')}
+            rtl={rtl}
           />
           {!!inviteCode && (
             <>
@@ -218,6 +226,7 @@ export default function ProfileScreen(): React.JSX.Element {
                 sub={t('profile.invite_code_sub')}
                 rightText={inviteCode}
                 onPress={handleCopyInviteCode}
+                rtl={rtl}
               />
             </>
           )}
@@ -231,6 +240,7 @@ export default function ProfileScreen(): React.JSX.Element {
             label={t('profile.settings')}
             sub={t('profile.settings_sub')}
             onPress={() => router.push('/(tabs)/more/settings')}
+            rtl={rtl}
           />
           <RowDivider />
           <MenuItem
@@ -238,6 +248,7 @@ export default function ProfileScreen(): React.JSX.Element {
             label={t('profile.chat')}
             sub={t('profile.chat_sub')}
             onPress={() => router.push('/(tabs)/more/chat')}
+            rtl={rtl}
           />
         </View>
 
@@ -250,6 +261,7 @@ export default function ProfileScreen(): React.JSX.Element {
             sub={t('profile.sign_out_sub')}
             onPress={handleLogout}
             danger
+            rtl={rtl}
           />
         </View>
 

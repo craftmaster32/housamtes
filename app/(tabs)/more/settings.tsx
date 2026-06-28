@@ -47,6 +47,7 @@ function MenuItem({
 }): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const currentLanguage = useLanguageStore((s) => s.language);
   return (
     <Pressable
       style={({ pressed }) => [styles.menuItem, pressed && !disabled && styles.menuItemPressed]}
@@ -65,7 +66,7 @@ function MenuItem({
       {rightText ? (
         <Text style={styles.menuRightText}>{rightText}</Text>
       ) : (
-        <Text style={[styles.menuChevron, disabled && styles.menuChevronDisabled]}>›</Text>
+        <Text style={[styles.menuChevron, disabled && styles.menuChevronDisabled]}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
       )}
     </Pressable>
   );

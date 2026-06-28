@@ -83,10 +83,22 @@ export default function RootLayout(): React.JSX.Element | null {
       const dir = getIsRTL(language) ? 'rtl' : 'ltr';
       document.documentElement.dir = dir;
       document.documentElement.lang = language;
-      // Force on body and the React root div so RN Web's containers inherit it
       document.body.style.direction = dir;
       const root = document.getElementById('root');
       if (root) root.style.direction = dir;
+
+      const STYLE_ID = 'rtl-input-fix';
+      let tag = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
+      if (dir === 'rtl') {
+        if (!tag) {
+          tag = document.createElement('style');
+          tag.id = STYLE_ID;
+          document.head.appendChild(tag);
+        }
+        tag.textContent = `html[dir="rtl"] textarea, html[dir="rtl"] input[type="text"], html[dir="rtl"] input[type="search"] { text-align: right; direction: rtl; }`;
+      } else if (tag) {
+        tag.remove();
+      }
     }
   }, [language]);
 

@@ -1095,7 +1095,7 @@ function makeStyles(C: ColorTokens) {
     decoCircleTL: {
       position: 'absolute',
       top: 30,
-      left: -20,
+      start: -20,
       width: 56,
       height: 56,
       borderRadius: 28,
