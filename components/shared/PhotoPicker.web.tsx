@@ -43,7 +43,7 @@ export function PhotoPicker({
   const [loading, setLoading] = React.useState(false);
 
   const handleFiles = React.useCallback(
-    async (files: FileList | null) => {
+    async (files: FileList | null): Promise<void> => {
       if (!files || files.length === 0) return;
       setLoading(true);
       try {
@@ -62,13 +62,13 @@ export function PhotoPicker({
   );
 
   const removePhoto = React.useCallback(
-    (idx: number) => {
+    (idx: number): void => {
       onChange(photos.filter((_, i) => i !== idx));
     },
     [photos, onChange]
   );
 
-  const openFull = React.useCallback((src: string) => {
+  const openFull = React.useCallback((src: string): void => {
     window.open(src, '_blank');
   }, []);
 
@@ -98,17 +98,20 @@ export function PhotoPicker({
               />
               <button
                 onClick={() => removePhoto(i)}
+                aria-label={t('common.remove')}
                 style={{
                   position: 'absolute',
                   top: -6,
                   insetInlineEnd: -6,
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
+                  width: 22,
+                  height: 22,
+                  padding: 11,
+                  boxSizing: 'content-box',
+                  borderRadius: 22,
                   backgroundColor: '#ef4444',
                   border: 'none',
                   color: 'white',
-                  fontSize: 11,
+                  fontSize: 12,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',

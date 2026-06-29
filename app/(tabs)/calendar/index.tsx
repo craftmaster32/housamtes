@@ -1388,7 +1388,7 @@ function makeStyles(C: ColorTokens) {
   });
 }
 
-function makeFormStyles(C: ColorTokens) {
+function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     sheet: {
