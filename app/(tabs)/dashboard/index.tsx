@@ -55,7 +55,11 @@ function greetingText(name: string, t: (key: string) => string): string {
   return `${t(`dashboard.${timeKey}`)}, ${name}`;
 }
 
-function timeAgo(iso: string, t: (key: string, opts?: Record<string, unknown>) => string, lang: string): string {
+function timeAgo(
+  iso: string,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  lang: string
+): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return t('common.just_now');
@@ -66,11 +70,17 @@ function timeAgo(iso: string, t: (key: string, opts?: Record<string, unknown>) =
   return new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
-function parkingAge(startTime: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+function parkingAge(
+  startTime: string,
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string {
   const diff = Date.now() - new Date(startTime).getTime();
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
-  if (h > 0) return m > 0 ? t('dashboard.parking_age_hours', { h, m }) : t('dashboard.parking_age_hours_only', { h });
+  if (h > 0)
+    return m > 0
+      ? t('dashboard.parking_age_hours', { h, m })
+      : t('dashboard.parking_age_hours_only', { h });
   if (m > 0) return t('dashboard.parking_age_mins', { m });
   return t('common.just_now');
 }
@@ -150,25 +160,37 @@ function BalanceHeroCard(): React.JSX.Element {
       style={styles.balanceHero}
       onPress={() => router.push('/(tabs)/bills')}
       accessibilityRole="button"
-      accessibilityLabel={balances.length === 0
-        ? t('dashboard.balance_all_settled')
-        : t(isOwed ? 'dashboard.balance_owed_amount' : 'dashboard.balance_you_owe_amount', { amount: formatFull(Math.abs(netAmount), currencyCode) })}
+      accessibilityLabel={
+        balances.length === 0
+          ? t('dashboard.balance_all_settled')
+          : t(isOwed ? 'dashboard.balance_owed_amount' : 'dashboard.balance_you_owe_amount', {
+              amount: formatFull(Math.abs(netAmount), currencyCode),
+            })
+      }
     >
       {/* Decorative circle */}
       <View style={styles.balanceHeroDeco} />
 
       <View style={styles.balanceHeroTop}>
         <Text style={styles.balanceHeroLabel}>
-          {balances.length === 0 ? t('dashboard.balance_all_settled') : isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')}
+          {balances.length === 0
+            ? t('dashboard.balance_all_settled')
+            : isOwed
+              ? t('dashboard.balance_owed')
+              : t('dashboard.balance_you_owe')}
         </Text>
         {newBills > 0 && (
           <View style={styles.balanceHeroNewBadge}>
-            <Text style={styles.balanceHeroNewBadgeText}>{t('dashboard.new_count', { n: newBills })}</Text>
+            <Text style={styles.balanceHeroNewBadgeText}>
+              {t('dashboard.new_count', { n: newBills })}
+            </Text>
           </View>
         )}
         {peopleCount > 0 && (
           <Text style={styles.balanceHeroSub}>
-            {peopleCount !== 1 ? t('dashboard.balance_across_plural', { count: peopleCount }) : t('dashboard.balance_across', { count: peopleCount })}
+            {peopleCount !== 1
+              ? t('dashboard.balance_across_plural', { count: peopleCount })
+              : t('dashboard.balance_across', { count: peopleCount })}
           </Text>
         )}
       </View>
@@ -239,10 +261,7 @@ function TodayAtHome(): React.JSX.Element {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
     } catch (err) {
-      Alert.alert(
-        t('dashboard.parking_error'),
-        t('common.failed_try_again')
-      );
+      Alert.alert(t('dashboard.parking_error'), t('common.failed_try_again'));
     } finally {
       setIsParkingBusy(false);
     }
@@ -262,7 +281,9 @@ function TodayAtHome(): React.JSX.Element {
 
   return (
     <View style={styles.todaySection}>
-      <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{t('dashboard.today_at_home')}</Text>
+      <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+        {t('dashboard.today_at_home')}
+      </Text>
       <View style={styles.todayRow}>
         {isEnabled('parking') && (
           <Pressable
@@ -271,7 +292,11 @@ function TodayAtHome(): React.JSX.Element {
             disabled={!myId || !houseId || isParkingBusy}
             accessibilityRole="button"
             accessibilityLabel={
-              isFree ? t('dashboard.claim_parking_spot') : isMine ? t('dashboard.release_parking_spot') : t('dashboard.view_parking')
+              isFree
+                ? t('dashboard.claim_parking_spot')
+                : isMine
+                  ? t('dashboard.release_parking_spot')
+                  : t('dashboard.view_parking')
             }
             accessibilityState={{
               disabled: Boolean(!myId || !houseId || isParkingBusy),
@@ -319,7 +344,9 @@ function TodayAtHome(): React.JSX.Element {
               {totalChores - pendingChores}/{totalChores}
             </Text>
             <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {pendingChores === 0 ? t('dashboard.chores_smashed') : t('dashboard.chores_someone_on_it')}
+              {pendingChores === 0
+                ? t('dashboard.chores_smashed')
+                : t('dashboard.chores_someone_on_it')}
             </Text>
           </Pressable>
         )}
@@ -335,7 +362,9 @@ function TodayAtHome(): React.JSX.Element {
             <Text style={styles.todayCardCat}>{t('dashboard.grocery_label')}</Text>
             <Text style={[styles.todayCardStatus, { color: c.textPrimary }]}>{groceryPending}</Text>
             <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {t(groceryPending === 1 ? 'dashboard.items_to_buy_one' : 'dashboard.items_to_buy_other')}
+              {t(
+                groceryPending === 1 ? 'dashboard.items_to_buy_one' : 'dashboard.items_to_buy_other'
+              )}
             </Text>
           </Pressable>
         )}
@@ -366,10 +395,14 @@ function RecentExpenses(): React.JSX.Element {
   return (
     <View style={styles.recentSection}>
       <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>{t('dashboard.recent_expenses')}</Text>
+        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
+          {t('dashboard.recent_expenses')}
+        </Text>
         <Link href="/(tabs)/bills" asChild>
           <Pressable accessibilityRole="button">
-            <Text style={[styles.sectionSeeAll, { color: c.primary }]}>{t('dashboard.see_all')}</Text>
+            <Text style={[styles.sectionSeeAll, { color: c.primary }]}>
+              {t('dashboard.see_all')}
+            </Text>
           </Pressable>
         </Link>
       </View>
@@ -392,7 +425,10 @@ function RecentExpenses(): React.JSX.Element {
                     {bill.title}
                   </Text>
                   <Text style={[styles.recentSub, { color: c.textSecondary }]}>
-                    {t('dashboard.paid_by_name', { name: resolveName(bill.paidBy, housemates, t('common.unknown')), time: timeAgo(bill.createdAt, t, language) })}
+                    {t('dashboard.paid_by_name', {
+                      name: resolveName(bill.paidBy, housemates, t('common.unknown')),
+                      time: timeAgo(bill.createdAt, t, language),
+                    })}
                   </Text>
                 </View>
                 <View style={styles.recentRight}>
@@ -401,7 +437,9 @@ function RecentExpenses(): React.JSX.Element {
                   </Text>
                   {bill.settled && (
                     <View style={[styles.recentBadge, { backgroundColor: c.positive + '18' }]}>
-                      <Text style={[styles.recentBadgeText, { color: c.positive }]}>{t('bills.settled')}</Text>
+                      <Text style={[styles.recentBadgeText, { color: c.positive }]}>
+                        {t('bills.settled')}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -434,7 +472,9 @@ function ChoreCard(): React.JSX.Element {
         <View style={[styles.cardIconWrap, { backgroundColor: '#1A1000' }]}>
           <Ionicons name="checkmark-done-outline" size={18} color="#E0B24D" />
         </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.your_chore')}</Text>
+        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+          {t('dashboard.your_chore')}
+        </Text>
         {newChores > 0 ? (
           <View style={styles.cardBadge}>
             <Text style={styles.cardBadgeText}>{newChores}</Text>
@@ -464,7 +504,9 @@ function ChoreCard(): React.JSX.Element {
             accessibilityRole="button"
           >
             <Ionicons name="checkmark" size={14} color={c.positive} />
-            <Text style={[styles.doneBtnText, { color: c.positive }]}>{t('dashboard.mark_done')}</Text>
+            <Text style={[styles.doneBtnText, { color: c.positive }]}>
+              {t('dashboard.mark_done')}
+            </Text>
           </Pressable>
         </>
       ) : pending.length > 0 ? (
@@ -525,10 +567,7 @@ function ParkingCard(): React.JSX.Element {
     try {
       await release(houseId ?? '', myName);
     } catch (err) {
-      Alert.alert(
-        t('dashboard.parking_error'),
-        t('common.failed_try_again')
-      );
+      Alert.alert(t('dashboard.parking_error'), t('common.failed_try_again'));
     }
   }, [release, houseId, myName, t]);
 
@@ -542,17 +581,25 @@ function ParkingCard(): React.JSX.Element {
             color={isFree ? c.positive : c.negative}
           />
         </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.parking_spot_title')}</Text>
+        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+          {t('dashboard.parking_spot_title')}
+        </Text>
         {newReservations > 0 ? (
           <View style={styles.cardBadge}>
             <Text style={styles.cardBadgeText}>{newReservations}</Text>
           </View>
         ) : pendingCount > 0 ? (
           <View style={[styles.badgePill, { backgroundColor: '#E0B24D' }]}>
-            <Text style={[styles.badgePillText, { color: '#1A1000' }]}>{t('dashboard.pending_count', { count: pendingCount })}</Text>
+            <Text style={[styles.badgePillText, { color: '#1A1000' }]}>
+              {t('dashboard.pending_count', { count: pendingCount })}
+            </Text>
           </View>
         ) : (
-          <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={c.textSecondary} />
+          <Ionicons
+            name={rtl ? 'chevron-back' : 'chevron-forward'}
+            size={16}
+            color={c.textSecondary}
+          />
         )}
       </View>
       <View
@@ -582,8 +629,13 @@ function ParkingCard(): React.JSX.Element {
               ? t('dashboard.your_car_been_there', { time: parkingAge(current.startTime, t) })
               : t('dashboard.your_car_all_day')
             : current?.startTime
-              ? t('dashboard.used_by_time', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')), time: parkingAge(current.startTime, t) })
-              : t('dashboard.used_by_all_day', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')) })}
+              ? t('dashboard.used_by_time', {
+                  name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')),
+                  time: parkingAge(current.startTime, t),
+                })
+              : t('dashboard.used_by_all_day', {
+                  name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')),
+                })}
       </Text>
       {pendingFromOthers.map((r) => (
         <View key={r.id} style={[styles.parkingPendingRow, { backgroundColor: '#2A1A00' }]}>
@@ -591,8 +643,21 @@ function ParkingCard(): React.JSX.Element {
             <Ionicons name="time-outline" size={14} color="#E0B24D" />
             <Text style={[styles.parkingPendingText, { color: '#E0B24D', flex: 1 }]}>
               {r.startTime
-                ? t('dashboard.wants_date_at', { name: resolveName(r.requestedBy, housemates, t('common.unknown')), date: new Date(r.date + 'T12:00:00').toLocaleDateString(language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB', { month: 'short', day: 'numeric' }), time: r.startTime })
-                : t('dashboard.wants_date', { name: resolveName(r.requestedBy, housemates, t('common.unknown')), date: new Date(r.date + 'T12:00:00').toLocaleDateString(language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB', { month: 'short', day: 'numeric' }) })}
+                ? t('dashboard.wants_date_at', {
+                    name: resolveName(r.requestedBy, housemates, t('common.unknown')),
+                    date: new Date(r.date + 'T12:00:00').toLocaleDateString(
+                      language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB',
+                      { month: 'short', day: 'numeric' }
+                    ),
+                    time: r.startTime,
+                  })
+                : t('dashboard.wants_date', {
+                    name: resolveName(r.requestedBy, housemates, t('common.unknown')),
+                    date: new Date(r.date + 'T12:00:00').toLocaleDateString(
+                      language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB',
+                      { month: 'short', day: 'numeric' }
+                    ),
+                  })}
             </Text>
           </View>
           <View style={[styles.approveBtn, { backgroundColor: c.positive }]}>
@@ -650,7 +715,10 @@ function ParkingCard(): React.JSX.Element {
                 ? t('dashboard.request_rejected')
                 : t('dashboard.request_pending')}
             {' · '}
-            {new Date(myReservation.date + 'T12:00:00').toLocaleDateString(language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB', { month: 'short', day: 'numeric' })}
+            {new Date(myReservation.date + 'T12:00:00').toLocaleDateString(
+              language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB',
+              { month: 'short', day: 'numeric' }
+            )}
             {myReservation.startTime ? ` ${myReservation.startTime}` : ''}
           </Text>
         </View>
@@ -680,7 +748,9 @@ function ParkingCard(): React.JSX.Element {
           accessibilityLabel={t('dashboard.release_parking_spot')}
         >
           <Ionicons name="exit-outline" size={14} color={c.negative} />
-          <Text style={[styles.releaseBtnText, { color: c.negative }]}>{t('dashboard.release_spot')}</Text>
+          <Text style={[styles.releaseBtnText, { color: c.negative }]}>
+            {t('dashboard.release_spot')}
+          </Text>
         </Pressable>
       )}
     </WidgetCard>
@@ -729,7 +799,9 @@ function GroceryWidgetRow({
         style={[styles.widgetSwipeCheck, item.isChecked && styles.widgetSwipeUncheck]}
         onPress={handleToggle}
         accessibilityRole="button"
-        accessibilityLabel={item.isChecked ? t('grocery.mark_as_needed') : t('grocery.mark_as_done')}
+        accessibilityLabel={
+          item.isChecked ? t('grocery.mark_as_needed') : t('grocery.mark_as_done')
+        }
       >
         <Ionicons
           name={item.isChecked ? 'arrow-undo-outline' : 'checkmark'}
@@ -946,7 +1018,9 @@ function GroceryWidget(): React.JSX.Element {
           />
         ))}
         {sharedPending.length > 0 && (
-          <Text style={[styles.grocerySharedLabel, { color: c.textSecondary }]}>{t('dashboard.shared_label')}</Text>
+          <Text style={[styles.grocerySharedLabel, { color: c.textSecondary }]}>
+            {t('dashboard.shared_label')}
+          </Text>
         )}
       </>
     ) : null;
@@ -958,7 +1032,9 @@ function GroceryWidget(): React.JSX.Element {
           <View style={[styles.cardIconWrap, { backgroundColor: '#0A2418' }]}>
             <Ionicons name="cart-outline" size={18} color="#4FB071" />
           </View>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.shared_groceries')}</Text>
+          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+            {t('dashboard.shared_groceries')}
+          </Text>
           {newGrocery > 0 ? (
             <View style={styles.cardBadge}>
               <Text style={styles.cardBadgeText}>{newGrocery}</Text>
@@ -1102,7 +1178,9 @@ function VotesWidget(): React.JSX.Element {
           <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
             <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
           </View>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.active_votes')}</Text>
+          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+            {t('dashboard.active_votes')}
+          </Text>
         </View>
         <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
           {t('dashboard.no_drama')}
@@ -1128,7 +1206,8 @@ function VotesWidget(): React.JSX.Element {
         bg: c.textSecondary + '18',
         color: c.textSecondary,
       };
-    if (yesCount > noCount) return { label: t('dashboard.passed'), bg: c.positive + '20', color: c.positive };
+    if (yesCount > noCount)
+      return { label: t('dashboard.passed'), bg: c.positive + '20', color: c.positive };
     return { label: t('dashboard.rejected'), bg: c.negative + '20', color: c.negative };
   })();
 
@@ -1138,7 +1217,9 @@ function VotesWidget(): React.JSX.Element {
         <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
           <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
         </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.active_votes')}</Text>
+        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+          {t('dashboard.active_votes')}
+        </Text>
         {newVotes > 0 ? (
           <View style={styles.cardBadge}>
             <Text style={styles.cardBadgeText}>{newVotes}</Text>
@@ -1182,14 +1263,26 @@ function VotesWidget(): React.JSX.Element {
 
 // ── Mini Calendar Widget ──────────────────────────────────────────────────────
 const CAL_MONTH_KEYS = [
-  'dashboard.cal_month_jan', 'dashboard.cal_month_feb', 'dashboard.cal_month_mar',
-  'dashboard.cal_month_apr', 'dashboard.cal_month_may', 'dashboard.cal_month_jun',
-  'dashboard.cal_month_jul', 'dashboard.cal_month_aug', 'dashboard.cal_month_sep',
-  'dashboard.cal_month_oct', 'dashboard.cal_month_nov', 'dashboard.cal_month_dec',
+  'dashboard.cal_month_jan',
+  'dashboard.cal_month_feb',
+  'dashboard.cal_month_mar',
+  'dashboard.cal_month_apr',
+  'dashboard.cal_month_may',
+  'dashboard.cal_month_jun',
+  'dashboard.cal_month_jul',
+  'dashboard.cal_month_aug',
+  'dashboard.cal_month_sep',
+  'dashboard.cal_month_oct',
+  'dashboard.cal_month_nov',
+  'dashboard.cal_month_dec',
 ];
 const CAL_DAY_KEYS = [
-  'dashboard.cal_day_sun', 'dashboard.cal_day_mon', 'dashboard.cal_day_tue',
-  'dashboard.cal_day_wed', 'dashboard.cal_day_thu', 'dashboard.cal_day_fri',
+  'dashboard.cal_day_sun',
+  'dashboard.cal_day_mon',
+  'dashboard.cal_day_tue',
+  'dashboard.cal_day_wed',
+  'dashboard.cal_day_thu',
+  'dashboard.cal_day_fri',
   'dashboard.cal_day_sat',
 ];
 
@@ -1273,8 +1366,14 @@ function MiniCalendarWidget(): React.JSX.Element {
           <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
             <Ionicons name="calendar-outline" size={18} color="#6366f1" />
           </View>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.calendar')}</Text>
-          <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={c.textSecondary} />
+          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+            {t('dashboard.calendar')}
+          </Text>
+          <Ionicons
+            name={rtl ? 'chevron-back' : 'chevron-forward'}
+            size={16}
+            color={c.textSecondary}
+          />
         </Pressable>
         <View style={styles.calNavRow}>
           <Pressable
@@ -1284,7 +1383,11 @@ function MiniCalendarWidget(): React.JSX.Element {
             accessibilityLabel={t('dashboard.prev_month')}
             hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
-            <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={15} color={c.textSecondary} />
+            <Ionicons
+              name={rtl ? 'chevron-forward' : 'chevron-back'}
+              size={15}
+              color={c.textSecondary}
+            />
           </Pressable>
           <Text style={[styles.calMonthLabel, { color: c.textPrimary }]}>
             {t(CAL_MONTH_KEYS[viewMonth])} {viewYear}
@@ -1296,7 +1399,11 @@ function MiniCalendarWidget(): React.JSX.Element {
             accessibilityLabel={t('dashboard.next_month')}
             hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
           >
-            <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={15} color={c.textSecondary} />
+            <Ionicons
+              name={rtl ? 'chevron-back' : 'chevron-forward'}
+              size={15}
+              color={c.textSecondary}
+            />
           </Pressable>
         </View>
       </View>
@@ -1400,7 +1507,10 @@ function buildActivityEvents(
         icon: 'card-outline',
         iconColor: '#FF4757',
         iconBg: '#2A0A0A',
-        actor: b.paidBy === myId ? t('common.you') : resolveName(b.paidBy, housemates, t('common.unknown')),
+        actor:
+          b.paidBy === myId
+            ? t('common.you')
+            : resolveName(b.paidBy, housemates, t('common.unknown')),
         text: t('dashboard.activity_added_bill', { title: b.title }),
         time: b.createdAt,
       });
@@ -1413,7 +1523,10 @@ function buildActivityEvents(
         icon: 'cart-outline',
         iconColor: '#4FB071',
         iconBg: '#0A2418',
-        actor: i.addedBy === myId ? t('common.you') : resolveName(i.addedBy, housemates, t('common.unknown')),
+        actor:
+          i.addedBy === myId
+            ? t('common.you')
+            : resolveName(i.addedBy, housemates, t('common.unknown')),
         text: t('dashboard.activity_added_grocery', { name: i.name }),
         time: i.createdAt,
       });
@@ -1459,7 +1572,9 @@ function ActivityFeed(): React.JSX.Element {
         <View style={[styles.cardIconWrap, { backgroundColor: '#0A1A30' }]}>
           <Ionicons name="pulse-outline" size={18} color="#4F78B6" />
         </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>{t('dashboard.recent_activity')}</Text>
+        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+          {t('dashboard.recent_activity')}
+        </Text>
       </View>
       {events.length === 0 ? (
         <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
@@ -1514,9 +1629,11 @@ export default function DashboardScreen(): React.JSX.Element {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Hero greeting ─────────────────────────────────────────── */}
-          <Animated.View entering={FadeIn.duration(400)} style={[styles.hero, rtl && styles.heroRTL]}>
+          <Animated.View entering={FadeIn.duration(400)} style={styles.hero}>
             <View style={styles.heroLeft}>
-              <Text style={[styles.heroDate, { color: c.textSecondary }]}>{todayDateLabel(currentLanguage)}</Text>
+              <Text style={[styles.heroDate, { color: c.textSecondary }]}>
+                {todayDateLabel(currentLanguage)}
+              </Text>
               <Text style={[styles.greeting, { color: c.textPrimary }]}>
                 {greetingText(myName, t)}
               </Text>
@@ -1587,7 +1704,9 @@ export default function DashboardScreen(): React.JSX.Element {
                 accessibilityLabel={t('dashboard.add_house_bill_btn')}
               >
                 <Ionicons name="home-outline" size={16} color={c.primary} />
-                <Text style={[styles.quickBtnOutlineText, { color: c.primary }]}>{t('dashboard.house_bill_btn')}</Text>
+                <Text style={[styles.quickBtnOutlineText, { color: c.primary }]}>
+                  {t('dashboard.house_bill_btn')}
+                </Text>
               </Pressable>
             </Link>
           </Animated.View>
@@ -1681,12 +1800,18 @@ export default function DashboardScreen(): React.JSX.Element {
                 <Text style={styles.gamesIcon}>🎮</Text>
               </View>
               <View style={styles.gamesTextWrap}>
-                <Text style={[styles.gamesTitle, { color: c.textPrimary }]}>{t('dashboard.games_fun')}</Text>
+                <Text style={[styles.gamesTitle, { color: c.textPrimary }]}>
+                  {t('dashboard.games_fun')}
+                </Text>
                 <Text style={[styles.gamesSub, { color: c.textSecondary }]}>
                   {t('dashboard.games_sub')}
                 </Text>
               </View>
-              <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textDisabled} />
+              <Ionicons
+                name={rtl ? 'chevron-back' : 'chevron-forward'}
+                size={18}
+                color={c.textDisabled}
+              />
             </Pressable>
           </Animated.View>
         </ScrollView>
@@ -1712,7 +1837,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 12,
   },
-  heroRTL: { flexDirection: 'row-reverse' },
   heroLeft: { flex: 1, gap: 2 },
   heroRight: { alignItems: 'center', gap: 8 },
   heroDate: { fontSize: 13, ...font.regular },

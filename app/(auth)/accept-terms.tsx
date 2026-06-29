@@ -46,7 +46,6 @@ export default function AcceptTermsScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-
           <View style={styles.iconWrap}>
             <View style={styles.iconCircle}>
               <Ionicons name="document-text-outline" size={32} color={C.primary} />
@@ -55,50 +54,66 @@ export default function AcceptTermsScreen(): React.JSX.Element {
 
           <View style={styles.header}>
             <Text style={styles.title}>{t('auth.terms_updated_title')}</Text>
-            <Text style={styles.subtitle}>
-              {t('auth.terms_updated_body')}
-            </Text>
+            <Text style={styles.subtitle}>{t('auth.terms_updated_body')}</Text>
           </View>
 
           <View style={styles.changeCard}>
             <Text style={styles.changeHeading}>{t('auth.terms_what_changed')}</Text>
             <View style={styles.changeList}>
               <View style={styles.changeRow}>
-                <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
-                <Text style={styles.changeText}>
-                  {t('auth.terms_change_australia')}
-                </Text>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={C.primary}
+                  style={styles.changeIcon}
+                />
+                <Text style={styles.changeText}>{t('auth.terms_change_australia')}</Text>
               </View>
               <View style={styles.changeRow}>
-                <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
-                <Text style={styles.changeText}>
-                  {t('auth.terms_change_israel')}
-                </Text>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={C.primary}
+                  style={styles.changeIcon}
+                />
+                <Text style={styles.changeText}>{t('auth.terms_change_israel')}</Text>
               </View>
               <View style={styles.changeRow}>
-                <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
-                <Text style={styles.changeText}>
-                  {t('auth.terms_change_us_states')}
-                </Text>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={C.primary}
+                  style={styles.changeIcon}
+                />
+                <Text style={styles.changeText}>{t('auth.terms_change_us_states')}</Text>
               </View>
               <View style={styles.changeRow}>
-                <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
-                <Text style={styles.changeText}>
-                  {t('auth.terms_change_consumer_law')}
-                </Text>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={C.primary}
+                  style={styles.changeIcon}
+                />
+                <Text style={styles.changeText}>{t('auth.terms_change_consumer_law')}</Text>
               </View>
               <View style={styles.changeRow}>
-                <Ionicons name="checkmark-circle" size={16} color={C.primary} style={styles.changeIcon} />
-                <Text style={styles.changeText}>
-                  {t('auth.terms_change_jurisdiction')}
-                </Text>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={16}
+                  color={C.primary}
+                  style={styles.changeIcon}
+                />
+                <Text style={styles.changeText}>{t('auth.terms_change_jurisdiction')}</Text>
               </View>
             </View>
           </View>
 
           <View style={styles.termsRow}>
             <Pressable
-              onPress={() => { setAgreed((v) => !v); setError(''); }}
+              onPress={() => {
+                setAgreed((v) => !v);
+                setError('');
+              }}
               hitSlop={11}
               accessible
               accessibilityRole="checkbox"
@@ -113,8 +128,24 @@ export default function AcceptTermsScreen(): React.JSX.Element {
               <Trans
                 i18nKey="auth.accept_terms_agree_full"
                 components={{
-                  tos: <Text style={styles.termsLink} onPress={() => router.push('/(auth)/terms')} accessibilityRole="link" />,
-                  privacy: <Text style={styles.termsLink} onPress={() => router.push('/(auth)/privacy-policy')} accessibilityRole="link" />,
+                  tos: (
+                    <Text
+                      style={styles.termsLink}
+                      onPress={() => router.push('/(auth)/terms')}
+                      accessibilityRole="link"
+                    >
+                      {''}
+                    </Text>
+                  ),
+                  privacy: (
+                    <Text
+                      style={styles.termsLink}
+                      onPress={() => router.push('/(auth)/privacy-policy')}
+                      accessibilityRole="link"
+                    >
+                      {''}
+                    </Text>
+                  ),
                 }}
               />
             </Text>
@@ -147,7 +178,6 @@ export default function AcceptTermsScreen(): React.JSX.Element {
           >
             <Text style={styles.signOutText}>{t('auth.sign_out_instead')}</Text>
           </Pressable>
-
         </ScrollView>
       </Animated.View>
     </SafeAreaView>
