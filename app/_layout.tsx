@@ -403,16 +403,23 @@ export default function RootLayout(): React.JSX.Element | null {
     })
   ).current;
 
+  const rootDirection = getIsRTL(language) ? 'rtl' : ('ltr' as const);
+
   // Block render until i18n is initialised — avoids untranslated flash
   if (!i18nReady) return null;
 
   // Stack must always render — navigation happens via useEffect above
   return (
-    <GestureHandlerRootView style={[styles.gestureRoot, { backgroundColor: c.background }]}>
+    <GestureHandlerRootView
+      style={[styles.gestureRoot, { backgroundColor: c.background, direction: rootDirection }]}
+    >
       <PaperProvider theme={paperTheme}>
         <StatusBar style="light" />
         <ErrorBoundary>
-          <View style={[styles.root, { backgroundColor: c.background }]} {...backSwipe.panHandlers}>
+          <View
+            style={[styles.root, { backgroundColor: c.background, direction: rootDirection }]}
+            {...backSwipe.panHandlers}
+          >
             {showChrome && <TopBar />}
             <View style={styles.content}>
               <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
