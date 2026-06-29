@@ -88,7 +88,7 @@ export default function RootLayout(): React.JSX.Element | null {
       const root = document.getElementById('root');
       if (root) root.style.direction = dir;
 
-      const STYLE_ID = 'rtl-input-fix';
+      const STYLE_ID = 'rtl-web-fix';
       let tag = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
       if (dir === 'rtl') {
         if (!tag) {
@@ -96,7 +96,10 @@ export default function RootLayout(): React.JSX.Element | null {
           tag.id = STYLE_ID;
           document.head.appendChild(tag);
         }
-        tag.textContent = `html[dir="rtl"] textarea, html[dir="rtl"] input[type="text"], html[dir="rtl"] input[type="search"] { text-align: right; direction: rtl; }`;
+        tag.textContent = [
+          'html[dir="rtl"] body, html[dir="rtl"] #root, html[dir="rtl"] #root > div { direction: rtl !important; }',
+          'html[dir="rtl"] input, html[dir="rtl"] textarea, html[dir="rtl"] select { text-align: right; direction: rtl; }',
+        ].join('\n');
       } else if (tag) {
         tag.remove();
       }
