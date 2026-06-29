@@ -192,7 +192,7 @@ function makeStyles(C: ColorTokens) {
     checkBadge: {
       position: 'absolute',
       bottom: -4,
-      right: -4,
+      end: -4,
       backgroundColor: C.surface,
       borderRadius: 12,
       padding: 2,

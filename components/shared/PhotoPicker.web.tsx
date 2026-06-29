@@ -21,7 +21,10 @@ async function compressImage(file: File): Promise<string> {
       canvas.width = Math.round(img.width * ratio);
       canvas.height = Math.round(img.height * ratio);
       const ctx = canvas.getContext('2d');
-      if (!ctx) { reject(new Error('canvas unavailable')); return; }
+      if (!ctx) {
+        reject(new Error('canvas unavailable'));
+        return;
+      }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL('image/jpeg', QUALITY));
     };
@@ -30,34 +33,42 @@ async function compressImage(file: File): Promise<string> {
   });
 }
 
-export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProps): React.JSX.Element {
+export function PhotoPicker({
+  photos,
+  onChange,
+  maxPhotos = 6,
+}: PhotoPickerProps): React.JSX.Element {
   const { t } = useTranslation();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [loading, setLoading] = React.useState(false);
 
-  const handleFiles = React.useCallback(async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setLoading(true);
-    try {
-      const slots = maxPhotos - photos.length;
-      const compressed = await Promise.all(
-        Array.from(files).slice(0, slots).map(compressImage)
-      );
-      onChange([...photos, ...compressed]);
-    } catch {
-      // silently ignore compression errors
-    } finally {
-      setLoading(false);
-      // reset so the same file can be re-selected
-      if (inputRef.current) inputRef.current.value = '';
-    }
-  }, [photos, onChange, maxPhotos]);
+  const handleFiles = React.useCallback(
+    async (files: FileList | null): Promise<void> => {
+      if (!files || files.length === 0) return;
+      setLoading(true);
+      try {
+        const slots = maxPhotos - photos.length;
+        const compressed = await Promise.all(Array.from(files).slice(0, slots).map(compressImage));
+        onChange([...photos, ...compressed]);
+      } catch {
+        // silently ignore compression errors
+      } finally {
+        setLoading(false);
+        // reset so the same file can be re-selected
+        if (inputRef.current) inputRef.current.value = '';
+      }
+    },
+    [photos, onChange, maxPhotos]
+  );
 
-  const removePhoto = React.useCallback((idx: number) => {
-    onChange(photos.filter((_, i) => i !== idx));
-  }, [photos, onChange]);
+  const removePhoto = React.useCallback(
+    (idx: number): void => {
+      onChange(photos.filter((_, i) => i !== idx));
+    },
+    [photos, onChange]
+  );
 
-  const openFull = React.useCallback((src: string) => {
+  const openFull = React.useCallback((src: string): void => {
     window.open(src, '_blank');
   }, []);
 
@@ -76,7 +87,8 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
                 src={src}
                 onClick={() => openFull(src)}
                 style={{
-                  width: 80, height: 80,
+                  width: 80,
+                  height: 80,
                   objectFit: 'cover',
                   borderRadius: 8,
                   border: '1px solid #e5e7eb',
@@ -86,13 +98,26 @@ export function PhotoPicker({ photos, onChange, maxPhotos = 6 }: PhotoPickerProp
               />
               <button
                 onClick={() => removePhoto(i)}
+                aria-label={t('common.remove')}
                 style={{
-                  position: 'absolute', top: -6, right: -6,
-                  width: 20, height: 20, borderRadius: 10,
-                  backgroundColor: '#ef4444', border: 'none',
-                  color: 'white', fontSize: 11, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 'bold', lineHeight: 1,
+                  position: 'absolute',
+                  top: -6,
+                  insetInlineEnd: -6,
+                  width: 22,
+                  height: 22,
+                  padding: 11,
+                  boxSizing: 'content-box',
+                  borderRadius: 22,
+                  backgroundColor: '#ef4444',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  lineHeight: 1,
                 }}
               >
                 ✕

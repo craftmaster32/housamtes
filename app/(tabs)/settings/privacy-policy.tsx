@@ -16,7 +16,9 @@ function Section({ title, children }: { title: string; children: string }): Reac
   return (
     <View style={sectionStyles(C).wrap}>
       <Text style={sectionStyles(C).title}>{title}</Text>
-      <Text style={sectionStyles(C).body} selectable>{children}</Text>
+      <Text style={sectionStyles(C).body} selectable>
+        {children}
+      </Text>
     </View>
   );
 }
@@ -34,30 +36,44 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
   const C = useThemedColors();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
-  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
+  const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  const handleBack = useCallback((): void => { router.back(); }, []);
+  const handleBack = useCallback((): void => {
+    router.back();
+  }, []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Pressable onPress={handleBack} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessible accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
+          <Pressable
+            onPress={handleBack}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('legal.go_back')}
+          >
             <View style={styles.backRow}>
-              <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
+              <Ionicons
+                name={rtl ? 'chevron-forward' : 'chevron-back'}
+                size={18}
+                color={C.primary}
+              />
               <Text style={styles.backText}>{t('common.back')}</Text>
             </View>
           </Pressable>
           <Text style={styles.heading}>{t('legal.privacy_title')}</Text>
-          <Text style={styles.updated}>{t('legal.last_updated', { date: t('legal.legal_date') })}</Text>
+          <Text style={styles.updated}>
+            {t('legal.last_updated', { date: t('legal.legal_date') })}
+          </Text>
         </View>
         <ScrollView contentContainerStyle={styles.content}>
-
           <Section title="1. Who We Are">
             {`HouseMates ("we", "us", "our") is the data controller for all personal information you provide through this app.\n\nFor users in Israel: for the purposes of the Privacy Protection Law 5741-1981, HouseMates is the "database owner" (בעל מאגר) of all databases containing personal information of Israeli users.\n\nFor privacy enquiries, contact: privacy@housemates.app`}
           </Section>
@@ -141,20 +157,19 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
           <Section title="21. Contact Us">
             {`HouseMates\n\nPrivacy enquiries: privacy@housemates.app\nSafety / content reporting: safety@housemates.app\nCopyright / DMCA: legal@housemates.app\nGeneral support: support@housemates.app\n\nRegulatory contacts for complaints:\n• Australia — OAIC: oaic.gov.au/privacy/privacy-complaints\n• Israel — Privacy Protection Authority (PPA): gov.il/en/departments/the_privacy_protection_authority — phone *9170\n• UK — ICO: ico.org.uk\n• EU — your national data protection authority\n• US — your state Attorney General\n\nWe aim to respond to all privacy enquiries within 5 business days.`}
           </Section>
-
         </ScrollView>
       </Animated.View>
     </SafeAreaView>
   );
 }
 
-function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> {
+function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     header: { padding: sizes.lg, gap: 4 },
     backBtn: { marginBottom: sizes.sm },
-    backRow: { flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center' },
+    backRow: { flexDirection: 'row', alignItems: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
     updated: { color: C.textSecondary, fontSize: 13, ...font.regular },

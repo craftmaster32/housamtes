@@ -340,7 +340,11 @@ function ReservationCard({
           onPress={handleDatePress}
           hitSlop={{ top: 4, bottom: 0, left: 4, right: 4 }}
           accessibilityRole="button"
-          accessibilityLabel={t('parking.tap_see_day_schedule', { weekday: weekdayFull, day: dayNum, month: monthAbbr })}
+          accessibilityLabel={t('parking.tap_see_day_schedule', {
+            weekday: weekdayFull,
+            day: dayNum,
+            month: monthAbbr,
+          })}
         >
           <View style={[styles.dateBadgeTop, { backgroundColor: statusColor }]}>
             <Text style={styles.dateBadgeMonth}>{monthAbbr}</Text>
@@ -567,7 +571,9 @@ function ReserveModal({
     current && date === todayStr
       ? current.occupant === myId
         ? t('parking.currently_using_you')
-        : t('parking.currently_using_other', { name: resolveName(current.occupant, housemates, t('common.unknown')) })
+        : t('parking.currently_using_other', {
+            name: resolveName(current.occupant, housemates, t('common.unknown')),
+          })
       : null;
   const conflictResult: ConflictResult = isDateConflict(
     date,
@@ -865,10 +871,7 @@ export default function ParkingScreen(): React.JSX.Element {
         if (Platform.OS === 'web') {
           window.alert(t('parking.spot_changed'));
         } else {
-          Alert.alert(
-            t('parking.could_not_free'),
-            t('parking.spot_changed')
-          );
+          Alert.alert(t('parking.could_not_free'), t('parking.spot_changed'));
         }
         return;
       }
@@ -883,20 +886,14 @@ export default function ParkingScreen(): React.JSX.Element {
     };
 
     if (Platform.OS === 'web') {
-      if (
-        window.confirm(t('parking.evict_confirm', { name: occupantName }))
-      ) {
+      if (window.confirm(t('parking.evict_confirm', { name: occupantName }))) {
         doRelease();
       }
     } else {
-      Alert.alert(
-        t('parking.kick_out_title', { name: occupantName }),
-        t('parking.kick_out_body'),
-        [
-          { text: t('parking.leave_it'), style: 'cancel' },
-          { text: t('parking.free_it_anyway'), style: 'destructive', onPress: doRelease },
-        ]
-      );
+      Alert.alert(t('parking.kick_out_title', { name: occupantName }), t('parking.kick_out_body'), [
+        { text: t('parking.leave_it'), style: 'cancel' },
+        { text: t('parking.free_it_anyway'), style: 'destructive', onPress: doRelease },
+      ]);
     }
   }, [current, housemates, myName, release, houseId, t]);
 
@@ -1038,11 +1035,26 @@ export default function ParkingScreen(): React.JSX.Element {
                     ? t('parking.free_real_estate')
                     : isMine
                       ? current!.startTime
-                        ? t('parking.your_car_since', { time: formatTime(current!.startTime, language) })
+                        ? t('parking.your_car_since', {
+                            time: formatTime(current!.startTime, language),
+                          })
                         : t('parking.your_car_all_day')
                       : current!.startTime
-                        ? t('parking.took_spot_since', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')), time: formatTime(current!.startTime, language) })
-                        : t('parking.took_spot_all_day', { name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')) })}
+                        ? t('parking.took_spot_since', {
+                            name: resolveName(
+                              current?.occupant ?? '',
+                              housemates,
+                              t('common.unknown')
+                            ),
+                            time: formatTime(current!.startTime, language),
+                          })
+                        : t('parking.took_spot_all_day', {
+                            name: resolveName(
+                              current?.occupant ?? '',
+                              housemates,
+                              t('common.unknown')
+                            ),
+                          })}
                 </Text>
               </View>
 
@@ -1364,7 +1376,7 @@ const makeStyles = (C: ColorTokens) =>
     voteDot: {
       position: 'absolute',
       bottom: -1,
-      right: -1,
+      end: -1,
       width: 13,
       height: 13,
       borderRadius: 7,

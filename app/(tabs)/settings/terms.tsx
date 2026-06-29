@@ -11,12 +11,13 @@ import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 
-const makeStyles = (C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> => StyleSheet.create({
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     header: { padding: sizes.lg, gap: 4 },
     backBtn: { marginBottom: sizes.sm },
-    backRow: { flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center' },
+    backRow: { flexDirection: 'row', alignItems: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
     updated: { color: C.textSecondary, fontSize: 13, ...font.regular },
@@ -24,17 +25,17 @@ const makeStyles = (C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.
     section: { gap: sizes.xs },
     sectionTitle: { fontSize: 15, ...font.bold, color: C.textPrimary },
     body: { fontSize: 14, ...font.regular, color: C.textSecondary, lineHeight: 22 },
-});
+  });
 
 function Section({ title, children }: { title: string; children: string }): React.JSX.Element {
   const C = useThemedColors();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
-  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
+  const styles = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.body} selectable>{children}</Text>
+      <Text style={styles.body} selectable>
+        {children}
+      </Text>
     </View>
   );
 }
@@ -44,7 +45,7 @@ export default function TermsScreen(): React.JSX.Element {
   const C = useThemedColors();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
-  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
+  const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -56,17 +57,29 @@ export default function TermsScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Pressable onPress={handleBackPress} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessible accessibilityRole="button" accessibilityLabel={t('legal.go_back')}>
+          <Pressable
+            onPress={handleBackPress}
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('legal.go_back')}
+          >
             <View style={styles.backRow}>
-              <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={18} color={C.primary} />
+              <Ionicons
+                name={rtl ? 'chevron-forward' : 'chevron-back'}
+                size={18}
+                color={C.primary}
+              />
               <Text style={styles.backText}>{t('common.back')}</Text>
             </View>
           </Pressable>
           <Text style={styles.heading}>{t('legal.terms_title')}</Text>
-          <Text style={styles.updated}>{t('legal.last_updated', { date: t('legal.legal_date') })}</Text>
+          <Text style={styles.updated}>
+            {t('legal.last_updated', { date: t('legal.legal_date') })}
+          </Text>
         </View>
         <ScrollView contentContainerStyle={styles.content}>
-
           <Section title="1. Acceptance of Terms">
             {`By creating an account and using HouseMates, you confirm that you have read, understood, and agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, you must not use the app.\n\nThese Terms form a legally binding agreement between you ("you" or "user") and HouseMates ("we", "us", "our"). By ticking the acceptance checkbox at sign-up, you provide affirmative, documented consent to these Terms. This constitutes a valid clickwrap agreement enforceable under applicable law.\n\nUsers in Israel: these Terms are subject to the Standard Contracts Law 5743-1982. If any term is found to be an "oppressive condition" (תנאי מקפח), an Israeli court may invalidate that term while the remainder continues in full force.\n\nUsers in Australia: these Terms are subject to the Australian Consumer Law (ACL). Nothing in these Terms limits, excludes, or modifies any non-excludable right or remedy under the ACL or any other applicable Australian consumer protection law.`}
           </Section>
@@ -162,7 +175,6 @@ export default function TermsScreen(): React.JSX.Element {
           <Section title="24. Contact Us">
             {`HouseMates\n\nGeneral support: support@housemates.app\nPrivacy: privacy@housemates.app\nSafety & abuse: safety@housemates.app\nLegal / DMCA: legal@housemates.app\n\nRegulatory & consumer contacts:\n• Australia — ACCC: accc.gov.au\n• Australia — OAIC: oaic.gov.au/privacy/privacy-complaints\n• Israel — Consumer Protection Authority: gov.il/en/departments/consumer_protection_and_fair_trade_authority\n• Israel — Privacy Protection Authority (PPA): gov.il/en/departments/the_privacy_protection_authority — phone *9170\n• UK — ICO: ico.org.uk\n• UK — Consumer Rights: citizensadvice.org.uk\n• EU — European Consumer Centres Network: ec.europa.eu/consumers/ecc\n\nWe aim to respond to all enquiries within 5 business days.`}
           </Section>
-
         </ScrollView>
       </Animated.View>
     </SafeAreaView>

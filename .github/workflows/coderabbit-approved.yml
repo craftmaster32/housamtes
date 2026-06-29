@@ -162,6 +162,35 @@ jobs:
         with:
           script: |
             const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+
+            // Idempotency: only skip if a full-review request exists for this cycle.
+            // The coderabbit-fix workflow removes the label when resetting, so
+            // only look at comments posted after the most recent push.
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.sha,
+            });
+            const pushTime = new Date(commit.commit.committer.date);
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 50,
+              sort: 'created',
+              direction: 'desc',
+            });
+            const alreadyRequested = comments.some(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.trim() === '@coderabbitai full review' &&
+              new Date(c.created_at) >= pushTime
+            );
+            if (alreadyRequested) {
+              core.info('Full review already requested for this cycle — skipping duplicate');
+              return;
+            }
+
             try {
               await github.rest.issues.createLabel({
                 owner: context.repo.owner,

@@ -33,7 +33,7 @@ export default function LoginScreen(): React.JSX.Element {
   const C = useThemedColors();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
-  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
+  const styles = useMemo(() => makeStyles(C), [C]);
 
   const fadeHeader = useRef(new Animated.Value(0)).current;
   const slideCard = useRef(new Animated.Value(30)).current;
@@ -117,7 +117,11 @@ export default function LoginScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
-            <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={20} color="rgba(255,255,255,0.85)" />
+            <Ionicons
+              name={rtl ? 'chevron-forward' : 'chevron-back'}
+              size={20}
+              color="rgba(255,255,255,0.85)"
+            />
             <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
 
@@ -244,7 +248,7 @@ export default function LoginScreen(): React.JSX.Element {
   );
 }
 
-function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> {
+function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: {
       flex: 1,
@@ -259,10 +263,10 @@ function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.
       gap: 6,
     },
     backBtn: {
-      flexDirection: rtl ? 'row-reverse' : 'row',
+      flexDirection: 'row',
       alignItems: 'center',
       gap: 2,
-      alignSelf: rtl ? 'flex-end' : 'flex-start',
+      alignSelf: 'flex-start',
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xs,
       minHeight: sizes.touchTarget,
