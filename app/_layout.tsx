@@ -52,7 +52,8 @@ export default function RootLayout(): React.JSX.Element | null {
   const paperTheme = useMemo(() => {
     const isDark = c === darkColors;
     const base = isDark ? MD3DarkTheme : MD3LightTheme;
-    const fontFamily = language === 'he' ? 'Heebo_400Regular' : 'Inter_400Regular';
+    const fontFamily =
+      Platform.OS !== 'web' && language === 'he' ? 'Heebo_400Regular' : 'Inter_400Regular';
     return {
       ...base,
       colors: {
