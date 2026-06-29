@@ -6,6 +6,7 @@ import {
   PanResponder,
   AppState,
   InteractionManager,
+  Platform,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
@@ -40,15 +41,18 @@ import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { registerWebPush } from '@lib/webPush';
 
-const fontConfig = { fontFamily: 'Inter_400Regular' };
-
 initErrorTracking();
 
 export default function RootLayout(): React.JSX.Element | null {
   const c = useColors();
+  const [i18nReady, setI18nReady] = useState(false);
+  const setLanguage = useLanguageStore((s) => s.setLanguage);
+  const language = useLanguageStore((s) => s.language);
+
   const paperTheme = useMemo(() => {
     const isDark = c === darkColors;
     const base = isDark ? MD3DarkTheme : MD3LightTheme;
+    const fontFamily = language === 'he' ? 'Heebo_400Regular' : 'Inter_400Regular';
     return {
       ...base,
       colors: {
@@ -61,13 +65,9 @@ export default function RootLayout(): React.JSX.Element | null {
         onBackground: c.textPrimary,
         onSurfaceVariant: c.textSecondary,
       },
-      fonts: configureFonts({ config: fontConfig }),
+      fonts: configureFonts({ config: { fontFamily } }),
     };
-  }, [c]);
-
-  const [i18nReady, setI18nReady] = useState(false);
-  const setLanguage = useLanguageStore((s) => s.setLanguage);
-  const language = useLanguageStore((s) => s.language);
+  }, [c, language]);
 
   useEffect(() => {
     getInitialLanguage().then((lang) => {
@@ -114,10 +114,70 @@ export default function RootLayout(): React.JSX.Element | null {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Heebo_400Regular: require('../assets/fonts/Heebo_400Regular.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Heebo_500Medium: require('../assets/fonts/Heebo_500Medium.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Heebo_600SemiBold: require('../assets/fonts/Heebo_600SemiBold.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Heebo_700Bold: require('../assets/fonts/Heebo_700Bold.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Heebo_800ExtraBold: require('../assets/fonts/Heebo_800ExtraBold.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     ionicons: require('../assets/fonts/Ionicons.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     'material-community': require('../assets/fonts/MaterialCommunityIcons.ttf'),
   });
+
+  // On web, register Heebo as the Hebrew-script provider under Inter family names.
+  // The browser uses unicode-range to pick Heebo for Hebrew glyphs automatically.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !fontsLoaded) return;
+
+    const STYLE_ID = 'heebo-hebrew-range';
+    if (document.getElementById(STYLE_ID)) return;
+
+    const HEBREW_RANGE =
+      'U+0590-05FF, U+FB1D-FB4F, U+200F, U+20AA, U+05BE, U+05C0-05C6, U+05F0-05F4';
+    const WEIGHT_MAP: [string, string][] = [
+      ['Inter_400Regular', 'Heebo_400Regular'],
+      ['Inter_500Medium', 'Heebo_500Medium'],
+      ['Inter_600SemiBold', 'Heebo_600SemiBold'],
+      ['Inter_700Bold', 'Heebo_700Bold'],
+      ['Inter_800ExtraBold', 'Heebo_800ExtraBold'],
+    ];
+
+    const expoStyle = document.getElementById('expo-generated-fonts') as HTMLStyleElement | null;
+    const sheet = expoStyle?.sheet;
+    if (!sheet) return;
+
+    const heeboSrcs: Record<string, string> = {};
+    for (let i = 0; i < sheet.cssRules.length; i++) {
+      const rule = sheet.cssRules[i];
+      if (rule instanceof CSSFontFaceRule) {
+        const family = rule.style.getPropertyValue('font-family').replace(/"/g, '');
+        if (family.startsWith('Heebo_')) {
+          const srcMatch = rule.cssText.match(/src:\s*([^;]+)/);
+          if (srcMatch) heeboSrcs[family] = srcMatch[1];
+        }
+      }
+    }
+
+    const css = WEIGHT_MAP.map(([interName, heeboName]) => {
+      const src = heeboSrcs[heeboName];
+      if (!src) return '';
+      return `@font-face{font-family:"${interName}";src:${src};unicode-range:${HEBREW_RANGE};font-display:swap}`;
+    })
+      .filter(Boolean)
+      .join('\n');
+
+    if (css) {
+      const tag = document.createElement('style');
+      tag.id = STYLE_ID;
+      tag.textContent = css;
+      document.head.appendChild(tag);
+    }
+  }, [fontsLoaded]);
 
   const initialize = useAuthStore((s) => s.initialize);
   const user = useAuthStore((s) => s.user);
@@ -348,22 +408,11 @@ export default function RootLayout(): React.JSX.Element | null {
 
   // Stack must always render — navigation happens via useEffect above
   return (
-    <GestureHandlerRootView
-      style={[
-        styles.gestureRoot,
-        { backgroundColor: c.background, direction: getIsRTL(language) ? 'rtl' : 'ltr' },
-      ]}
-    >
+    <GestureHandlerRootView style={[styles.gestureRoot, { backgroundColor: c.background }]}>
       <PaperProvider theme={paperTheme}>
         <StatusBar style="light" />
         <ErrorBoundary>
-          <View
-            style={[
-              styles.root,
-              { direction: getIsRTL(language) ? 'rtl' : 'ltr', backgroundColor: c.background },
-            ]}
-            {...backSwipe.panHandlers}
-          >
+          <View style={[styles.root, { backgroundColor: c.background }]} {...backSwipe.panHandlers}>
             {showChrome && <TopBar />}
             <View style={styles.content}>
               <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
