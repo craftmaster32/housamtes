@@ -162,6 +162,25 @@ jobs:
         with:
           script: |
             const prNumber = parseInt('${{ steps.pr.outputs.number }}');
+
+            // Idempotency: don't post duplicate full-review requests
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 50,
+              sort: 'created',
+              direction: 'desc',
+            });
+            const alreadyRequested = comments.some(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.trim() === '@coderabbitai full review'
+            );
+            if (alreadyRequested) {
+              core.info('Full review already requested — skipping duplicate');
+              return;
+            }
+
             try {
               await github.rest.issues.createLabel({
                 owner: context.repo.owner,
