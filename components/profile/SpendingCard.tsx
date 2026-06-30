@@ -25,21 +25,22 @@ function fmt(n: number, sym: string): string {
 function monthNameFromKey(monthKey: string, locale: string): string {
   const [y, m] = monthKey.split('-');
   return new Date(Number(y), Number(m) - 1, 1)
-    .toLocaleDateString(locale, { month: 'short' }).toUpperCase();
+    .toLocaleDateString(locale, { month: 'short' })
+    .toUpperCase();
 }
 
 export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
-  const months         = useSpendingStore((s) => s.months);
-  const isLoading      = useSpendingStore((s) => s.isLoading);
-  const insight        = useSpendingStore((s) => s.insight);
-  const insightError   = useSpendingStore((s) => s.insightError);
+  const months = useSpendingStore((s) => s.months);
+  const isLoading = useSpendingStore((s) => s.isLoading);
+  const insight = useSpendingStore((s) => s.insight);
+  const insightError = useSpendingStore((s) => s.insightError);
   const insightLoading = useSpendingStore((s) => s.insightLoading);
-  const load           = useSpendingStore((s) => s.load);
-  const fetchInsight   = useSpendingStore((s) => s.fetchInsight);
-  const currency       = useSettingsStore((s) => s.currency);
+  const load = useSpendingStore((s) => s.load);
+  const fetchInsight = useSpendingStore((s) => s.fetchInsight);
+  const currency = useSettingsStore((s) => s.currency);
 
   useEffect(() => {
     if (houseId && userName) load(houseId, userName);
@@ -53,7 +54,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
     router.push('/(tabs)/profile/spending');
   }, []);
 
-  const current  = months[0];
+  const current = months[0];
   const monthName = current ? monthNameFromKey(current.month, i18n.language) : '';
 
   if (isLoading) {
@@ -61,7 +62,11 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
       <View style={styles.card}>
         <View style={styles.decoCircle} />
         <View style={styles.pad}>
-          <Text style={styles.label}>{monthName ? t('spending.month_spending_header', { month: monthName }) : t('spending.spending_label')}</Text>
+          <Text style={styles.label}>
+            {monthName
+              ? t('spending.month_spending_header', { month: monthName })
+              : t('spending.spending_label')}
+          </Text>
           <ActivityIndicator color={colors.white} size="small" style={{ marginTop: 8 }} />
         </View>
       </View>
@@ -69,8 +74,8 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   }
 
   const houseTotal = current?.houseTotal ?? 0;
-  const myShare    = current?.total ?? 0;
-  const sharePct   = houseTotal > 0 ? Math.round((myShare / houseTotal) * 100) : 0;
+  const myShare = current?.total ?? 0;
+  const sharePct = houseTotal > 0 ? Math.round((myShare / houseTotal) * 100) : 0;
 
   return (
     <Pressable
@@ -85,7 +90,11 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
       <View style={styles.pad}>
         {/* Header */}
-        <Text style={styles.label}>{monthName ? t('spending.month_spending_header', { month: monthName }) : t('spending.spending_label')}</Text>
+        <Text style={styles.label}>
+          {monthName
+            ? t('spending.month_spending_header', { month: monthName })
+            : t('spending.spending_label')}
+        </Text>
 
         {/* House total */}
         <View style={styles.totalsRow}>
@@ -111,12 +120,16 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
           ) : insight ? (
             <>
               <Text style={styles.insightIcon}>✨</Text>
-              <Text style={styles.insightText} numberOfLines={2}>{insight}</Text>
+              <Text style={styles.insightText} numberOfLines={2}>
+                {insight}
+              </Text>
             </>
           ) : insightError ? (
             <>
               <Ionicons name="warning-outline" size={14} color="rgba(255,255,255,0.74)" />
-              <Text style={styles.insightText} numberOfLines={1}>{t('spending.ai_unavailable')}</Text>
+              <Text style={styles.insightText} numberOfLines={1}>
+                {t('spending.ai_unavailable')}
+              </Text>
             </>
           ) : null}
         </View>
@@ -124,7 +137,11 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
         {/* CTA */}
         <View style={styles.ctaRow}>
           <Text style={styles.ctaText}>{t('spending.full_analysis')}</Text>
-          <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={14} color="rgba(255,255,255,0.80)" />
+          <Ionicons
+            name={rtl ? 'chevron-back' : 'chevron-forward'}
+            size={14}
+            color="rgba(255,255,255,0.80)"
+          />
         </View>
       </View>
     </Pressable>
@@ -140,7 +157,7 @@ const styles = StyleSheet.create({
   decoCircle: {
     position: 'absolute',
     top: -36,
-    right: -18,
+    end: -18,
     width: 140,
     height: 140,
     borderRadius: 70,
