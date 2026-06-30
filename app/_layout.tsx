@@ -104,6 +104,11 @@ export default function RootLayout(): React.JSX.Element | null {
           // that doesn't set its own textAlign. Patch it the same way upstream-library
           // RTL gaps are handled elsewhere in this block.
           'html[dir="rtl"] [dir="auto"] { text-align: right !important; }',
+          // react-native-paper's outlined/flat TextInput hardcodes `left: 0` on its
+          // floating label (placeholderStyle), ignoring I18nManager entirely, so the
+          // label sits pinned to the physical left of the field in RTL instead of the
+          // right. Flip it for the label text and its background mask.
+          'html[dir="rtl"] [data-testid$="-label-active"], html[dir="rtl"] [data-testid$="-label-inactive"] { left: auto !important; right: 0 !important; }',
         ].join('\n');
       } else if (tag) {
         tag.remove();
