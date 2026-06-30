@@ -413,7 +413,7 @@ export default function AddBillScreen(): React.JSX.Element {
           </View>
           {selectedPeople.length > 0 && (
             <Text style={styles.splitCount}>
-              {t('bills.selected_one', { count: selectedPeople.length })}
+              {t('bills.selected', { count: selectedPeople.length })}
             </Text>
           )}
         </View>
