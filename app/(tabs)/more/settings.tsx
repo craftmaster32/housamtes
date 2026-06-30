@@ -102,6 +102,11 @@ function ToggleRow({
       <Switch
         value={value}
         onValueChange={onToggle}
+        accessible
+        accessibilityRole="switch"
+        accessibilityLabel={label}
+        accessibilityHint={sub}
+        accessibilityState={{ checked: value }}
         trackColor={{ false: C.border, true: C.primary }}
         thumbColor={'#fff'}
         activeThumbColor={'#fff'}
@@ -609,6 +614,13 @@ export default function SettingsScreen(): React.JSX.Element {
                 value={calConnected}
                 onValueChange={handleCalendarToggle}
                 disabled={calLoading}
+                accessible
+                accessibilityRole="switch"
+                accessibilityLabel={t('settings.calendar_connect')}
+                accessibilityHint={
+                  calConnected ? t('settings.calendar_syncing') : t('settings.calendar_desc')
+                }
+                accessibilityState={{ checked: calConnected, disabled: calLoading }}
                 trackColor={{ false: C.border, true: C.primary }}
                 thumbColor={'#fff'}
                 activeThumbColor={'#fff'}
@@ -629,6 +641,11 @@ export default function SettingsScreen(): React.JSX.Element {
                   <Switch
                     value={calAutoSync.events}
                     onValueChange={(v) => calSetAutoSync('events', v)}
+                    accessible
+                    accessibilityRole="switch"
+                    accessibilityLabel={t('settings.calendar_auto_events')}
+                    accessibilityHint={t('settings.calendar_auto_events_desc')}
+                    accessibilityState={{ checked: calAutoSync.events }}
                     trackColor={{ false: C.border, true: C.primary }}
                     thumbColor={'#fff'}
                     activeThumbColor={'#fff'}
@@ -647,6 +664,11 @@ export default function SettingsScreen(): React.JSX.Element {
                   <Switch
                     value={calAutoSync.parking}
                     onValueChange={(v) => calSetAutoSync('parking', v)}
+                    accessible
+                    accessibilityRole="switch"
+                    accessibilityLabel={t('settings.calendar_auto_parking')}
+                    accessibilityHint={t('settings.calendar_auto_parking_desc')}
+                    accessibilityState={{ checked: calAutoSync.parking }}
                     trackColor={{ false: C.border, true: C.primary }}
                     thumbColor={'#fff'}
                     activeThumbColor={'#fff'}

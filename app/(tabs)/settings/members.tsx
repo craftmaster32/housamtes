@@ -187,10 +187,13 @@ function MemberCard({
               <Switch
                 value={member.permissions[key]}
                 onValueChange={(v) => onTogglePermission(member.memberId, key, v)}
+                accessible
+                accessibilityRole="switch"
                 accessibilityLabel={t('members.toggle_permission', {
                   name: member.name,
                   permission: t(tKey),
                 })}
+                accessibilityState={{ checked: member.permissions[key] }}
                 trackColor={{ false: C.border, true: C.primary + '80' }}
                 thumbColor={member.permissions[key] ? C.primary : C.textDisabled}
                 activeThumbColor={C.primary}

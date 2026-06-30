@@ -235,7 +235,9 @@ export default function SettingsScreen(): React.JSX.Element {
                   activeThumbColor={C.primary}
                   style={styles.switchLtr}
                   accessible
+                  accessibilityRole="switch"
                   accessibilityLabel={`Toggle ${feature.label}`}
+                  accessibilityHint={feature.description}
                   accessibilityState={{ checked: feature.enabled }}
                 />
               </View>
@@ -268,7 +270,13 @@ export default function SettingsScreen(): React.JSX.Element {
                 activeThumbColor={C.primary}
                 style={styles.switchLtr}
                 accessible
+                accessibilityRole="switch"
                 accessibilityLabel="Connect my calendar"
+                accessibilityHint="See your personal events in-app and auto-add house events"
+                accessibilityState={{
+                  checked: calConnected,
+                  disabled: calLoading || Platform.OS === 'web',
+                }}
               />
             </View>
             {calConnected && (
@@ -289,7 +297,10 @@ export default function SettingsScreen(): React.JSX.Element {
                     activeThumbColor={C.primary}
                     style={styles.switchLtr}
                     accessible
+                    accessibilityRole="switch"
                     accessibilityLabel="Auto-add house events"
+                    accessibilityHint="New house events go straight to your calendar"
+                    accessibilityState={{ checked: calAutoSync.events }}
                   />
                 </View>
                 <View style={styles.row}>
@@ -308,7 +319,10 @@ export default function SettingsScreen(): React.JSX.Element {
                     activeThumbColor={C.primary}
                     style={styles.switchLtr}
                     accessible
+                    accessibilityRole="switch"
                     accessibilityLabel="Auto-add parking"
+                    accessibilityHint="Reservations added as pending, updated when approved"
+                    accessibilityState={{ checked: calAutoSync.parking }}
                   />
                 </View>
               </>

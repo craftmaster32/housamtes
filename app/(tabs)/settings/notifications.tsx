@@ -122,6 +122,11 @@ function ToggleRow({
       <Switch
         value={value}
         onValueChange={onToggle}
+        accessible
+        accessibilityRole="switch"
+        accessibilityLabel={label}
+        accessibilityHint={description}
+        accessibilityState={{ checked: value }}
         trackColor={{ false: C.border, true: C.primary + '80' }}
         thumbColor={value ? C.primary : C.surface}
         activeThumbColor={C.primary}

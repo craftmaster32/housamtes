@@ -163,8 +163,11 @@ export function SaveListModal({
                   thumbColor="#fff"
                   activeThumbColor="#fff"
                   style={styles.switchLtr}
+                  accessible
                   accessibilityRole="switch"
                   accessibilityLabel={t('grocery.private_list')}
+                  accessibilityHint={t('grocery.keep_private_hint')}
+                  accessibilityState={{ checked: isPrivate }}
                 />
               </View>
 
