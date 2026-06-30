@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, Animated, Alert } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Image } from 'expo-image';
-import { router, usePathname } from 'expo-router';
+import { router, usePathname, type Href } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +20,7 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 interface MenuItem {
   icon: IoniconName;
   label: string;
-  href?: string;
+  href?: Href;
   onPress?: () => Promise<void> | void;
   danger?: boolean;
 }
@@ -74,7 +74,7 @@ export function ProfilePopup(): React.JSX.Element {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       close();
       if (item.href) {
-        router.push(item.href as Parameters<typeof router.push>[0]);
+        router.push(item.href);
       } else if (item.onPress) {
         Promise.resolve(item.onPress()).catch(() => {
           Alert.alert('Action failed', 'Something went wrong. Please try again.');
