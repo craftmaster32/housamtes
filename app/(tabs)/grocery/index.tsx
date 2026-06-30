@@ -12,6 +12,7 @@ import {
   BackHandler,
   Switch,
   Alert,
+  type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -94,7 +95,10 @@ function detectCategory(name: string): Category {
   return RULES.find((r) => r.re.test(name))?.cat ?? OTHER_CAT;
 }
 
-function elapsedLabel(startedAt: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
+function elapsedLabel(
+  startedAt: string,
+  t: (key: string, opts?: Record<string, unknown>) => string
+): string {
   const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
   if (mins < 1) return t('grocery.just_started');
   if (mins < 60) return t('grocery.mins_at_store', { mins });
@@ -275,7 +279,9 @@ function ItemRow({
       delayLongPress={400}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.isChecked }}
-      accessibilityLabel={isDuplicate ? `${item.name}, ${t('grocery.already_on_shared')}` : item.name}
+      accessibilityLabel={
+        isDuplicate ? `${item.name}, ${t('grocery.already_on_shared')}` : item.name
+      }
       accessibilityHint={t('grocery.long_press_hint')}
     >
       {hasCount ? (
@@ -324,7 +330,10 @@ function ItemRow({
         </View>
         <View style={rowStyles.itemActions}>
           {isDuplicate && (
-            <View style={rowStyles.duplicateBadge} accessibilityLabel={t('grocery.already_on_shared')}>
+            <View
+              style={rowStyles.duplicateBadge}
+              accessibilityLabel={t('grocery.already_on_shared')}
+            >
               <Text style={rowStyles.duplicateBadgeText}>{t('grocery.on_list')}</Text>
             </View>
           )}
@@ -575,7 +584,12 @@ export default function GroceryScreen(): React.JSX.Element {
       const cat = detectCategory(item.name);
       const stableKey = cat.labelKey;
       if (!map.has(stableKey)) {
-        map.set(stableKey, { title: t(stableKey), icon: cat.icon, sectionType: 'shared', data: [] });
+        map.set(stableKey, {
+          title: t(stableKey),
+          icon: cat.icon,
+          sectionType: 'shared',
+          data: [],
+        });
         firstIndex.set(stableKey, i);
         keyOrder.push(stableKey);
       }
@@ -636,9 +650,7 @@ export default function GroceryScreen(): React.JSX.Element {
       }
       setShowSaveListModal(true);
     } catch (err) {
-      setAddError(
-        err instanceof Error ? err.message : t('grocery.could_not_share')
-      );
+      setAddError(err instanceof Error ? err.message : t('grocery.could_not_share'));
     } finally {
       setIsPublishing(false);
     }
@@ -679,9 +691,7 @@ export default function GroceryScreen(): React.JSX.Element {
         setAddError(null);
         setPendingPublishedItems([]);
       } catch (err) {
-        setAddError(
-          err instanceof Error ? err.message : t('grocery.could_not_save_list')
-        );
+        setAddError(err instanceof Error ? err.message : t('grocery.could_not_save_list'));
       }
     },
     [createSavedList, houseId, myId, myName, pendingPublishedItems, t]
@@ -734,19 +744,15 @@ export default function GroceryScreen(): React.JSX.Element {
   }, [endRun, t]);
 
   const handleEndRun = useCallback((): void => {
-    Alert.alert(
-      t('grocery.back_from_shops'),
-      t('grocery.end_run_body'),
-      [
-        { text: t('grocery.not_done_yet'), style: 'cancel' },
-        {
-          text: t('grocery.yep_done'),
-          onPress: (): void => {
-            doEndRun().catch(() => {});
-          },
+    Alert.alert(t('grocery.back_from_shops'), t('grocery.end_run_body'), [
+      { text: t('grocery.not_done_yet'), style: 'cancel' },
+      {
+        text: t('grocery.yep_done'),
+        onPress: (): void => {
+          doEndRun().catch(() => {});
         },
-      ]
-    );
+      },
+    ]);
   }, [doEndRun, t]);
 
   const onToggle = useCallback(
@@ -817,14 +823,17 @@ export default function GroceryScreen(): React.JSX.Element {
       setAddError(t('grocery.could_not_save_pref'));
     });
   }, [addMode, t]);
-  const handleToggleDraft = useCallback((value: boolean): void => {
-    setAddError(null);
-    setIsDraftOn(value);
-    AsyncStorage.setItem(DRAFT_TOGGLE_KEY, String(value)).catch(() => {
-      setIsDraftOn(!value);
-      setAddError(t('grocery.could_not_save_pref'));
-    });
-  }, [t]);
+  const handleToggleDraft = useCallback(
+    (value: boolean): void => {
+      setAddError(null);
+      setIsDraftOn(value);
+      AsyncStorage.setItem(DRAFT_TOGGLE_KEY, String(value)).catch(() => {
+        setIsDraftOn(!value);
+        setAddError(t('grocery.could_not_save_pref'));
+      });
+    },
+    [t]
+  );
 
   const handleItemNameChange = useCallback((v: string): void => {
     setItemName(v);
@@ -948,10 +957,10 @@ export default function GroceryScreen(): React.JSX.Element {
             <Text style={styles.shoppingIconText}>🛍️</Text>
           </View>
           <View style={styles.shoppingCopy}>
-            <Text style={styles.titleLg}>{t('grocery.at_store', { name: activeRun.shopperName })}</Text>
-            <Text style={styles.textSm}>
-              {t('grocery.at_store_hint')}
+            <Text style={styles.titleLg}>
+              {t('grocery.at_store', { name: activeRun.shopperName })}
             </Text>
+            <Text style={styles.textSm}>{t('grocery.at_store_hint')}</Text>
           </View>
           <View style={styles.shopperBadge}>
             <UserAvatar userId={activeRun.shopperId} size={28} />
@@ -967,9 +976,7 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
         <View style={styles.shoppingCopy}>
           <Text style={styles.titleLg}>{t('grocery.start_shopping_run')}</Text>
-          <Text style={styles.textSm}>
-            {t('grocery.start_shopping_hint')}
-          </Text>
+          <Text style={styles.textSm}>{t('grocery.start_shopping_hint')}</Text>
         </View>
         <Pressable
           style={[styles.btnPrimary, styles.btnFull]}
@@ -1030,9 +1037,7 @@ export default function GroceryScreen(): React.JSX.Element {
                   <View style={styles.headerCard}>
                     <View style={styles.headerCopy}>
                       <Text style={styles.titleHero}>{t('grocery.shared_groceries')}</Text>
-                      <Text style={styles.textBase}>
-                        {t('grocery.add_things_hint')}
-                      </Text>
+                      <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
                     </View>
 
                     {/* ── Add mode toggle: Shared | Private ────────────── */}
@@ -1088,9 +1093,7 @@ export default function GroceryScreen(): React.JSX.Element {
                               {t('grocery.draft_mode')}
                             </Text>
                             <Text style={styles.draftToggleSub}>
-                              {isDraftOn
-                                ? t('grocery.draft_on_hint')
-                                : t('grocery.draft_off_hint')}
+                              {isDraftOn ? t('grocery.draft_on_hint') : t('grocery.draft_off_hint')}
                             </Text>
                           </View>
                         </View>
@@ -1099,6 +1102,8 @@ export default function GroceryScreen(): React.JSX.Element {
                           onValueChange={handleToggleDraft}
                           trackColor={{ false: C.border, true: 'rgba(224,178,77,0.55)' }}
                           thumbColor={isDraftOn ? 'rgb(133,77,14)' : '#f4f3f4'}
+                          activeThumbColor={'rgb(133,77,14)'}
+                          style={styles.switchLtr}
                           ios_backgroundColor={C.border}
                           accessible
                           accessibilityRole="switch"
@@ -1232,7 +1237,9 @@ export default function GroceryScreen(): React.JSX.Element {
 
                     {/* ── Quick Add (to current mode) ───────────────────── */}
                     <View>
-                      <Text style={[styles.eyebrow, styles.quickAddLabel]}>{t('grocery.quick_add')}</Text>
+                      <Text style={[styles.eyebrow, styles.quickAddLabel]}>
+                        {t('grocery.quick_add')}
+                      </Text>
                       <View style={styles.quickAdds}>
                         {QUICK_ADD_KEYS.map((qa) => (
                           <Pressable
@@ -1328,6 +1335,8 @@ function makeStyles(C: ColorTokens) {
     flex: { flex: 1 },
     root: { flex: 1, backgroundColor: C.background },
     listContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
+    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
 
     headerCard: {
       backgroundColor: C.surface,

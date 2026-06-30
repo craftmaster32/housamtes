@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Animated,
+  type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -231,6 +232,8 @@ export default function SettingsScreen(): React.JSX.Element {
                   onValueChange={() => handleToggle(feature.key)}
                   trackColor={{ false: C.border, true: C.primary + '66' }}
                   thumbColor={feature.enabled ? C.primary : C.textSecondary}
+                  activeThumbColor={C.primary}
+                  style={styles.switchLtr}
                   accessible
                   accessibilityLabel={`Toggle ${feature.label}`}
                   accessibilityState={{ checked: feature.enabled }}
@@ -262,6 +265,8 @@ export default function SettingsScreen(): React.JSX.Element {
                 disabled={calLoading || Platform.OS === 'web'}
                 trackColor={{ false: C.border, true: C.primary + '66' }}
                 thumbColor={calConnected ? C.primary : C.textSecondary}
+                activeThumbColor={C.primary}
+                style={styles.switchLtr}
                 accessible
                 accessibilityLabel="Connect my calendar"
               />
@@ -281,6 +286,8 @@ export default function SettingsScreen(): React.JSX.Element {
                     onValueChange={(v) => calSetAutoSync('events', v)}
                     trackColor={{ false: C.border, true: C.primary + '66' }}
                     thumbColor={calAutoSync.events ? C.primary : C.textSecondary}
+                    activeThumbColor={C.primary}
+                    style={styles.switchLtr}
                     accessible
                     accessibilityLabel="Auto-add house events"
                   />
@@ -298,6 +305,8 @@ export default function SettingsScreen(): React.JSX.Element {
                     onValueChange={(v) => calSetAutoSync('parking', v)}
                     trackColor={{ false: C.border, true: C.primary + '66' }}
                     thumbColor={calAutoSync.parking ? C.primary : C.textSecondary}
+                    activeThumbColor={C.primary}
+                    style={styles.switchLtr}
                     accessible
                     accessibilityLabel="Auto-add parking"
                   />
@@ -456,6 +465,8 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
+    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
+    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
     content: { padding: sizes.lg, gap: sizes.sm },
     intro: { color: C.textSecondary, ...font.regular, fontSize: 15, lineHeight: 22 },
     sectionLabel: {
