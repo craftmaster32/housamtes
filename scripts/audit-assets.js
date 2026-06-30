@@ -21,7 +21,7 @@ function log(line) {
 }
 
 async function fetchServiceRoleKey() {
-  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/api-keys`, {
+  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/api-keys?reveal=true`, {
     headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
   });
   if (!res.ok) {
@@ -98,9 +98,17 @@ async function main() {
   // 2. House photos — confirm every stored public URL still resolves.
   const photos = await fetchAll(supabase, 'photos', 'id, house_id, url');
 
-  for (const photo of photos ?? []) {
-    const reason = await checkUrl(photo.url);
-    if (reason) failures.push({ type: 'house_photo', photoId: photo.id, houseId: photo.house_id, reason });
+  // Bounded concurrency — sequential checks with a 10s-per-URL timeout could
+  // exceed the workflow's job timeout before the report ever gets written.
+  const concurrency = 20;
+  const photoList = photos ?? [];
+  for (let i = 0; i < photoList.length; i += concurrency) {
+    const batch = photoList.slice(i, i + concurrency);
+    const reasons = await Promise.all(batch.map((photo) => checkUrl(photo.url)));
+    batch.forEach((photo, idx) => {
+      const reason = reasons[idx];
+      if (reason) failures.push({ type: 'house_photo', photoId: photo.id, houseId: photo.house_id, reason });
+    });
   }
 
   // 3. Orphaned house_members — a member row with no matching profile row
