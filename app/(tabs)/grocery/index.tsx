@@ -1231,6 +1231,7 @@ export default function GroceryScreen(): React.JSX.Element {
                       <View style={styles.qtyPresets}>
                         {UNIT_OPTS.map((u) => {
                           const active = unit === u;
+                          const unitLabel = language === 'he' ? UNIT_LABELS_HE[u] : u;
                           return (
                             <Pressable
                               key={u}
@@ -1239,10 +1240,10 @@ export default function GroceryScreen(): React.JSX.Element {
                               hitSlop={4}
                               accessibilityRole="button"
                               accessibilityState={{ selected: active }}
-                              accessibilityLabel={t('grocery.unit_preset', { u })}
+                              accessibilityLabel={t('grocery.unit_preset', { u: unitLabel })}
                             >
                               <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
-                                {language === 'he' ? UNIT_LABELS_HE[u] : u}
+                                {unitLabel}
                               </Text>
                             </Pressable>
                           );
