@@ -85,7 +85,7 @@ export function StepProgress({ steps, currentStep }: StepProgressProps): React.J
   );
 }
 
-function makeStyles(C: ColorTokens, rtl: boolean) {
+function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     container: {
       flexDirection: 'row',
