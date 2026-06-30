@@ -1661,7 +1661,11 @@ export default function DashboardScreen(): React.JSX.Element {
                     source={{ uri: profile.avatarUrl }}
                     style={styles.heroAvatarImg}
                     contentFit="cover"
-                    accessibilityLabel={`${profile.name ?? 'User'}'s avatar`}
+                    accessibilityLabel={
+                      profile?.name
+                        ? t('profile.avatar_label', { name: profile.name })
+                        : t('profile.profile_photo')
+                    }
                   />
                 ) : (
                   <Text style={styles.heroAvatarText}>{initials}</Text>
