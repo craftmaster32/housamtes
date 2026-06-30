@@ -76,9 +76,11 @@ export function ProfilePopup(): React.JSX.Element {
       if (item.href) {
         router.push(item.href);
       } else if (item.onPress) {
-        Promise.resolve(item.onPress()).catch(() => {
-          Alert.alert('Action failed', 'Something went wrong. Please try again.');
-        });
+        Promise.resolve()
+          .then(() => item.onPress?.())
+          .catch(() => {
+            Alert.alert('Action failed', 'Something went wrong. Please try again.');
+          });
       }
     },
     [close]
