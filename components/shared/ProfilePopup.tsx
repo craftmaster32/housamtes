@@ -117,8 +117,12 @@ export function ProfilePopup(): React.JSX.Element {
     extrapolate: 'clamp',
   });
 
-  // Drop just below the avatar, anchored to the same side it sits on
-  const dropdownTop = insets.top + 62;
+  // Drop just below the avatar, anchored to the same side it sits on.
+  // The dashboard screen has its own taller hero header (its avatar trigger
+  // sits lower than the shared TopBar's), so it needs a bigger offset to
+  // avoid the panel clipping the avatar.
+  const isDashboard = pathname.endsWith('/dashboard') || pathname.includes('/dashboard/index');
+  const dropdownTop = insets.top + (isDashboard ? 83 : 62);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
