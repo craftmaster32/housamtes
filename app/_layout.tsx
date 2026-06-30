@@ -101,9 +101,10 @@ export default function RootLayout(): React.JSX.Element | null {
           'html[dir="rtl"] input, html[dir="rtl"] textarea, html[dir="rtl"] select { text-align: right; direction: rtl; }',
           // react-native-paper's Text component hardcodes textAlign: 'left' in its base
           // style, which silently overrides RNW's RTL-aware default for any Paper <Text>
-          // that doesn't set its own textAlign. Patch it the same way upstream-library
-          // RTL gaps are handled elsewhere in this block.
-          'html[dir="rtl"] [dir="auto"] { text-align: right !important; }',
+          // that doesn't set its own textAlign. No !important here: this rule must lose
+          // to any component-specified textAlign (e.g. explicit `textAlign: 'center'`
+          // styles elsewhere in the app), and only needs to beat Paper's own base style.
+          'html[dir="rtl"] [dir="auto"] { text-align: right; }',
           // react-native-paper's outlined/flat TextInput hardcodes `left: 0` on its
           // floating label (placeholderStyle), ignoring I18nManager entirely, so the
           // label sits pinned to the physical left of the field in RTL instead of the
