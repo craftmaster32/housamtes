@@ -108,10 +108,18 @@ export const useHousematesStore = create<HousematesStore>()(
             (profilesRes.data ?? [])
               .filter((p) => p.avatar_url)
               .map(async (p) => {
-                const { data } = await supabase.storage
+                const { data, error } = await supabase.storage
                   .from('profiles')
                   .createSignedUrl(`${p.id}/avatar`, 60 * 60 * 24 * 7);
-                if (data?.signedUrl) signedUrls.set(p.id, data.signedUrl);
+                if (data?.signedUrl) {
+                  signedUrls.set(p.id, data.signedUrl);
+                } else if (error) {
+                  captureError(error, {
+                    store: 'housemates',
+                    context: 'avatar-signed-url',
+                    userId: p.id,
+                  });
+                }
               })
           );
 

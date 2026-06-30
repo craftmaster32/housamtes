@@ -724,6 +724,12 @@ async function fetchProfile(
         ? supabase.storage.from('profiles').createSignedUrl(`${userId}/cover`, 60 * 60 * 24 * 365)
         : Promise.resolve(null),
     ]);
+    if (avatarSigned?.error) {
+      captureError(avatarSigned.error, { context: 'fetch-profile-avatar-url', userId });
+    }
+    if (coverSigned?.error) {
+      captureError(coverSigned.error, { context: 'fetch-profile-cover-url', userId });
+    }
     const avatarUrl = avatarSigned?.data?.signedUrl;
     const coverUrl = coverSigned?.data?.signedUrl;
     return { id: data.id, name: data.name, avatarColor: data.avatar_color, avatarUrl, coverUrl };
