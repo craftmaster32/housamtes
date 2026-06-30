@@ -1086,6 +1086,7 @@
     "chat": "Chat de casa",
     "chat_sub": "Habla con tus compañeros",
     "sign_out": "Cerrar sesión",
+    "avatar_label": "Avatar de {{name}}",
     "sign_out_sub": "Necesitarás iniciar sesión de nuevo",
     "sign_out_confirm": "¿Seguro que quieres cerrar sesión?",
     "footer": "HouseMates · Hecho para tu hogar",

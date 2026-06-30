@@ -1086,6 +1086,7 @@
     "chat": "צ׳אט בית",
     "chat_sub": "דבר עם השותפים",
     "sign_out": "התנתק",
+    "avatar_label": "תמונת הפרופיל של {{name}}",
     "sign_out_sub": "תצטרך להיכנס שוב",
     "sign_out_confirm": "בטוח שרוצה להתנתק?",
     "footer": "HouseMates · עשוי עבור הבית שלך",

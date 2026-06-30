@@ -159,7 +159,7 @@ export function ProfilePopup(): React.JSX.Element {
                 source={{ uri: profile.avatarUrl }}
                 style={styles.avatarImg}
                 contentFit="cover"
-                accessibilityLabel={`${profile?.name ?? 'User'}'s avatar`}
+                accessibilityLabel={t('profile.avatar_label', { name: profile?.name ?? 'User' })}
               />
             ) : (
               <Text style={[styles.avatarInitial, { color: c.white }]}>{initial}</Text>
