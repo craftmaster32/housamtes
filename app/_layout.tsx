@@ -99,6 +99,11 @@ export default function RootLayout(): React.JSX.Element | null {
         tag.textContent = [
           'html[dir="rtl"] body, html[dir="rtl"] #root, html[dir="rtl"] #root > div { direction: rtl !important; }',
           'html[dir="rtl"] input, html[dir="rtl"] textarea, html[dir="rtl"] select { text-align: right; direction: rtl; }',
+          // react-native-paper's Text component hardcodes textAlign: 'left' in its base
+          // style, which silently overrides RNW's RTL-aware default for any Paper <Text>
+          // that doesn't set its own textAlign. Patch it the same way upstream-library
+          // RTL gaps are handled elsewhere in this block.
+          'html[dir="rtl"] [dir="auto"] { text-align: right !important; }',
         ].join('\n');
       } else if (tag) {
         tag.remove();
