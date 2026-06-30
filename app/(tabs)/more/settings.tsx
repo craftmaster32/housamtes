@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Animated,
+  type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -66,7 +67,9 @@ function MenuItem({
       {rightText ? (
         <Text style={styles.menuRightText}>{rightText}</Text>
       ) : (
-        <Text style={[styles.menuChevron, disabled && styles.menuChevronDisabled]}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
+        <Text style={[styles.menuChevron, disabled && styles.menuChevronDisabled]}>
+          {isRTL(currentLanguage) ? '‹' : '›'}
+        </Text>
       )}
     </Pressable>
   );
@@ -99,8 +102,15 @@ function ToggleRow({
       <Switch
         value={value}
         onValueChange={onToggle}
+        accessible
+        accessibilityRole="switch"
+        accessibilityLabel={label}
+        accessibilityHint={sub}
+        accessibilityState={{ checked: value }}
         trackColor={{ false: C.border, true: C.primary }}
         thumbColor={'#fff'}
+        activeThumbColor={'#fff'}
+        style={styles.switchLtr}
       />
     </View>
   );
@@ -243,7 +253,10 @@ export default function SettingsScreen(): React.JSX.Element {
     try {
       await addProposal(
         t('settings.approve_leave_title', { name: profile.name }),
-        t('settings.approve_leave_body', { name: profile.name, amount: `${currency}${debtAmount.toFixed(2)}` }),
+        t('settings.approve_leave_body', {
+          name: profile.name,
+          amount: `${currency}${debtAmount.toFixed(2)}`,
+        }),
         profile.id,
         houseId
       );
@@ -336,7 +349,9 @@ export default function SettingsScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
         >
-          <Text style={styles.backBtnText}>{isRTL(currentLanguage) ? t('settings.back_rtl') : t('settings.back')}</Text>
+          <Text style={styles.backBtnText}>
+            {isRTL(currentLanguage) ? t('settings.back_rtl') : t('settings.back')}
+          </Text>
         </Pressable>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -398,7 +413,9 @@ export default function SettingsScreen(): React.JSX.Element {
             <MenuItem
               icon="🌍"
               label={t('settings.timezone')}
-              sub={myRole === 'owner' ? t('settings.timezone_tap') : t('settings.timezone_owner_only')}
+              sub={
+                myRole === 'owner' ? t('settings.timezone_tap') : t('settings.timezone_owner_only')
+              }
               rightText={timezoneLabel}
               onPress={() => {
                 if (myRole === 'owner') setShowTimezoneModal(true);
@@ -423,14 +440,18 @@ export default function SettingsScreen(): React.JSX.Element {
                 <Ionicons name="exit-outline" size={18} color={C.negative} />
               </View>
               <View style={styles.menuText}>
-                <Text style={[styles.menuLabel, { color: C.negative }]}>{t('settings.leave_house')}</Text>
+                <Text style={[styles.menuLabel, { color: C.negative }]}>
+                  {t('settings.leave_house')}
+                </Text>
                 <Text style={styles.menuSub}>
                   {houseName
                     ? t('settings.leave_house_desc', { name: houseName })
                     : t('settings.leave_house_desc_default')}
                 </Text>
               </View>
-              <Text style={[styles.menuChevron, { color: C.negative }]}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
+              <Text style={[styles.menuChevron, { color: C.negative }]}>
+                {isRTL(currentLanguage) ? '‹' : '›'}
+              </Text>
             </Pressable>
           </View>
 
@@ -448,7 +469,9 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <Text style={styles.modalTitle}>{t('settings.leave_house_title')}</Text>
                 <Text style={styles.modalBody}>
-                  {t(houseName ? 'settings.leave_house_body_named' : 'settings.leave_house_body', { name: houseName })}
+                  {t(houseName ? 'settings.leave_house_body_named' : 'settings.leave_house_body', {
+                    name: houseName,
+                  })}
                 </Text>
                 <Pressable
                   style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
@@ -485,7 +508,9 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <Text style={styles.modalTitle}>{t('settings.settle_first_title')}</Text>
                 <Text style={styles.modalBody}>
-                  {t('settings.settle_first_body', { amount: `${currency}${debtAmount.toFixed(2)}` })}
+                  {t('settings.settle_first_body', {
+                    amount: `${currency}${debtAmount.toFixed(2)}`,
+                  })}
                 </Text>
                 <Pressable
                   style={styles.modalBtnPrimary}
@@ -504,7 +529,9 @@ export default function SettingsScreen(): React.JSX.Element {
                   accessibilityRole="button"
                 >
                   <Text style={styles.modalBtnSecondaryText}>
-                    {requestingVote ? t('settings.creating_vote') : t('settings.request_vote_leave')}
+                    {requestingVote
+                      ? t('settings.creating_vote')
+                      : t('settings.request_vote_leave')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -580,17 +607,24 @@ export default function SettingsScreen(): React.JSX.Element {
               <View style={styles.menuText}>
                 <Text style={styles.menuLabel}>{t('settings.calendar_connect')}</Text>
                 <Text style={styles.menuSub}>
-                  {calConnected
-                    ? t('settings.calendar_syncing')
-                    : t('settings.calendar_desc')}
+                  {calConnected ? t('settings.calendar_syncing') : t('settings.calendar_desc')}
                 </Text>
               </View>
               <Switch
                 value={calConnected}
                 onValueChange={handleCalendarToggle}
                 disabled={calLoading}
+                accessible
+                accessibilityRole="switch"
+                accessibilityLabel={t('settings.calendar_connect')}
+                accessibilityHint={
+                  calConnected ? t('settings.calendar_syncing') : t('settings.calendar_desc')
+                }
+                accessibilityState={{ checked: calConnected, disabled: calLoading }}
                 trackColor={{ false: C.border, true: C.primary }}
                 thumbColor={'#fff'}
+                activeThumbColor={'#fff'}
+                style={styles.switchLtr}
               />
             </View>
             {calConnected && (
@@ -602,15 +636,20 @@ export default function SettingsScreen(): React.JSX.Element {
                   </View>
                   <View style={styles.menuText}>
                     <Text style={styles.menuLabel}>{t('settings.calendar_auto_events')}</Text>
-                    <Text style={styles.menuSub}>
-                      {t('settings.calendar_auto_events_desc')}
-                    </Text>
+                    <Text style={styles.menuSub}>{t('settings.calendar_auto_events_desc')}</Text>
                   </View>
                   <Switch
                     value={calAutoSync.events}
                     onValueChange={(v) => calSetAutoSync('events', v)}
+                    accessible
+                    accessibilityRole="switch"
+                    accessibilityLabel={t('settings.calendar_auto_events')}
+                    accessibilityHint={t('settings.calendar_auto_events_desc')}
+                    accessibilityState={{ checked: calAutoSync.events }}
                     trackColor={{ false: C.border, true: C.primary }}
                     thumbColor={'#fff'}
+                    activeThumbColor={'#fff'}
+                    style={styles.switchLtr}
                   />
                 </View>
                 <RowDivider />
@@ -620,15 +659,20 @@ export default function SettingsScreen(): React.JSX.Element {
                   </View>
                   <View style={styles.menuText}>
                     <Text style={styles.menuLabel}>{t('settings.calendar_auto_parking')}</Text>
-                    <Text style={styles.menuSub}>
-                      {t('settings.calendar_auto_parking_desc')}
-                    </Text>
+                    <Text style={styles.menuSub}>{t('settings.calendar_auto_parking_desc')}</Text>
                   </View>
                   <Switch
                     value={calAutoSync.parking}
                     onValueChange={(v) => calSetAutoSync('parking', v)}
+                    accessible
+                    accessibilityRole="switch"
+                    accessibilityLabel={t('settings.calendar_auto_parking')}
+                    accessibilityHint={t('settings.calendar_auto_parking_desc')}
+                    accessibilityState={{ checked: calAutoSync.parking }}
                     trackColor={{ false: C.border, true: C.primary }}
                     thumbColor={'#fff'}
+                    activeThumbColor={'#fff'}
+                    style={styles.switchLtr}
                   />
                 </View>
               </>
@@ -671,8 +715,12 @@ export default function SettingsScreen(): React.JSX.Element {
                           : t('settings.notifications_tap_enable')}
                     </Text>
                   </View>
-                  {webPushStatus === 'granted' && <Text style={styles.webPushOn}>{t('settings.notifications_on')}</Text>}
-                  {webPushStatus === 'default' && <Text style={styles.menuChevron}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>}
+                  {webPushStatus === 'granted' && (
+                    <Text style={styles.webPushOn}>{t('settings.notifications_on')}</Text>
+                  )}
+                  {webPushStatus === 'default' && (
+                    <Text style={styles.menuChevron}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
+                  )}
                 </Pressable>
                 <RowDivider />
               </>
@@ -838,6 +886,8 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
+    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
+    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
     backBtn: {
       paddingHorizontal: sizes.lg,
       paddingVertical: sizes.sm,

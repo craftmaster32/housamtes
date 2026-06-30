@@ -1,5 +1,13 @@
 import { useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Switch, Pressable, Animated } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Switch,
+  Pressable,
+  Animated,
+  type ViewStyle,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -12,10 +20,13 @@ import { font } from '@constants/typography';
 
 const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
 
-const makeStyles = (C: ColorTokens) => StyleSheet.create({
+const makeStyles = (C: ColorTokens) =>
+  StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     scroll: { padding: sizes.lg, gap: sizes.md, paddingBottom: 60 },
+    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
+    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
 
     header: { gap: 4, marginBottom: sizes.xs },
     backBtn: { alignSelf: 'flex-start', marginBottom: sizes.sm },
@@ -23,7 +34,13 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
     subheading: { fontSize: 14, ...font.regular, color: C.textSecondary, marginTop: 2 },
 
-    sectionTitle: { fontSize: 13, ...font.semibold, color: C.textSecondary, letterSpacing: 0.5, marginTop: sizes.xs },
+    sectionTitle: {
+      fontSize: 13,
+      ...font.semibold,
+      color: C.textSecondary,
+      letterSpacing: 0.5,
+      marginTop: sizes.xs,
+    },
     card: {
       backgroundColor: C.surface,
       borderRadius: 14,
@@ -77,7 +94,7 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
       marginTop: sizes.sm,
       lineHeight: 18,
     },
-});
+  });
 
 interface ToggleRowProps {
   label: string;
@@ -87,7 +104,13 @@ interface ToggleRowProps {
   isLast?: boolean;
 }
 
-function ToggleRow({ label, description, value, onToggle, isLast }: ToggleRowProps): React.JSX.Element {
+function ToggleRow({
+  label,
+  description,
+  value,
+  onToggle,
+  isLast,
+}: ToggleRowProps): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   return (
@@ -99,8 +122,15 @@ function ToggleRow({ label, description, value, onToggle, isLast }: ToggleRowPro
       <Switch
         value={value}
         onValueChange={onToggle}
+        accessible
+        accessibilityRole="switch"
+        accessibilityLabel={label}
+        accessibilityHint={description}
+        accessibilityState={{ checked: value }}
         trackColor={{ false: C.border, true: C.primary + '80' }}
         thumbColor={value ? C.primary : C.surface}
+        activeThumbColor={C.primary}
+        style={styles.switchLtr}
       />
     </View>
   );
@@ -120,10 +150,13 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  const save = useCallback((changes: Parameters<typeof updatePrefs>[2]) => {
-    if (!user?.id || !houseId) return;
-    updatePrefs(user.id, houseId, changes);
-  }, [user, houseId, updatePrefs]);
+  const save = useCallback(
+    (changes: Parameters<typeof updatePrefs>[2]) => {
+      if (!user?.id || !houseId) return;
+      updatePrefs(user.id, houseId, changes);
+    },
+    [user, houseId, updatePrefs]
+  );
 
   const handleBack = useCallback(() => router.back(), []);
   const handleSelectDay = useCallback((d: BillDueDays) => save({ billDueDaysBefore: d }), [save]);
@@ -132,7 +165,6 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <ScrollView contentContainerStyle={styles.scroll}>
-
           <View style={styles.header}>
             <Pressable onPress={handleBack} style={styles.backBtn}>
               <Text style={styles.backText}>{t('common.back')}</Text>
@@ -169,13 +201,21 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
                   {DAYS_OPTIONS.map((d) => (
                     <Pressable
                       key={d}
-                      style={[styles.dayChip, prefs.billDueDaysBefore === d && styles.dayChipActive]}
+                      style={[
+                        styles.dayChip,
+                        prefs.billDueDaysBefore === d && styles.dayChipActive,
+                      ]}
                       onPress={() => handleSelectDay(d)}
                       accessible
                       accessibilityRole="radio"
                       accessibilityState={{ selected: prefs.billDueDaysBefore === d }}
                     >
-                      <Text style={[styles.dayChipText, prefs.billDueDaysBefore === d && styles.dayChipTextActive]}>
+                      <Text
+                        style={[
+                          styles.dayChipText,
+                          prefs.billDueDaysBefore === d && styles.dayChipTextActive,
+                        ]}
+                      >
                         {t('common.day', { count: d })} {t('settings.before_due')}
                       </Text>
                     </Pressable>
@@ -227,7 +267,6 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
           <Text style={styles.footer}>
             Changes save instantly. Notifications only work on a real device build, not in Expo Go.
           </Text>
-
         </ScrollView>
       </Animated.View>
     </SafeAreaView>

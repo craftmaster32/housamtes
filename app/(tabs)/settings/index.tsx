@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Animated,
+  type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -231,8 +232,12 @@ export default function SettingsScreen(): React.JSX.Element {
                   onValueChange={() => handleToggle(feature.key)}
                   trackColor={{ false: C.border, true: C.primary + '66' }}
                   thumbColor={feature.enabled ? C.primary : C.textSecondary}
+                  activeThumbColor={C.primary}
+                  style={styles.switchLtr}
                   accessible
+                  accessibilityRole="switch"
                   accessibilityLabel={`Toggle ${feature.label}`}
+                  accessibilityHint={feature.description}
                   accessibilityState={{ checked: feature.enabled }}
                 />
               </View>
@@ -262,8 +267,16 @@ export default function SettingsScreen(): React.JSX.Element {
                 disabled={calLoading || Platform.OS === 'web'}
                 trackColor={{ false: C.border, true: C.primary + '66' }}
                 thumbColor={calConnected ? C.primary : C.textSecondary}
+                activeThumbColor={C.primary}
+                style={styles.switchLtr}
                 accessible
+                accessibilityRole="switch"
                 accessibilityLabel="Connect my calendar"
+                accessibilityHint="See your personal events in-app and auto-add house events"
+                accessibilityState={{
+                  checked: calConnected,
+                  disabled: calLoading || Platform.OS === 'web',
+                }}
               />
             </View>
             {calConnected && (
@@ -281,8 +294,13 @@ export default function SettingsScreen(): React.JSX.Element {
                     onValueChange={(v) => calSetAutoSync('events', v)}
                     trackColor={{ false: C.border, true: C.primary + '66' }}
                     thumbColor={calAutoSync.events ? C.primary : C.textSecondary}
+                    activeThumbColor={C.primary}
+                    style={styles.switchLtr}
                     accessible
+                    accessibilityRole="switch"
                     accessibilityLabel="Auto-add house events"
+                    accessibilityHint="New house events go straight to your calendar"
+                    accessibilityState={{ checked: calAutoSync.events }}
                   />
                 </View>
                 <View style={styles.row}>
@@ -298,8 +316,13 @@ export default function SettingsScreen(): React.JSX.Element {
                     onValueChange={(v) => calSetAutoSync('parking', v)}
                     trackColor={{ false: C.border, true: C.primary + '66' }}
                     thumbColor={calAutoSync.parking ? C.primary : C.textSecondary}
+                    activeThumbColor={C.primary}
+                    style={styles.switchLtr}
                     accessible
+                    accessibilityRole="switch"
                     accessibilityLabel="Auto-add parking"
+                    accessibilityHint="Reservations added as pending, updated when approved"
+                    accessibilityState={{ checked: calAutoSync.parking }}
                   />
                 </View>
               </>
@@ -456,6 +479,8 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
+    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
+    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
     content: { padding: sizes.lg, gap: sizes.sm },
     intro: { color: C.textSecondary, ...font.regular, fontSize: 15, lineHeight: 22 },
     sectionLabel: {
