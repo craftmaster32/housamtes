@@ -25,6 +25,7 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -69,21 +70,6 @@ function fmtFull(n: number, sym: string): string {
 function fmtShort(n: number, sym: string): string {
   if (n >= 1000) return `${sym}${(n / 1000).toFixed(1)}k`;
   return `${sym}${n.toFixed(0)}`;
-}
-
-function monthNameFromKey(monthKey: string, locale: string): string {
-  const [y, m] = monthKey.split('-');
-  return new Date(Number(y), Number(m) - 1, 1)
-    .toLocaleDateString(locale, { month: 'short' })
-    .toUpperCase();
-}
-
-function localizedMonthLabel(monthKey: string, locale: string): string {
-  const [y, m] = monthKey.split('-');
-  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(locale, {
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 function pctChange(current: number, previous: number): number | null {

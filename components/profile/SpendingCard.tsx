@@ -11,6 +11,7 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { monthNameFromKey } from '@utils/dates';
 
 interface Props {
   houseId: string;
@@ -20,13 +21,6 @@ interface Props {
 function fmt(n: number, sym: string): string {
   if (n >= 1000) return `${sym}${(n / 1000).toFixed(1)}k`;
   return `${sym}${n.toFixed(0)}`;
-}
-
-function monthNameFromKey(monthKey: string, locale: string): string {
-  const [y, m] = monthKey.split('-');
-  return new Date(Number(y), Number(m) - 1, 1)
-    .toLocaleDateString(locale, { month: 'short' })
-    .toUpperCase();
 }
 
 export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
@@ -67,7 +61,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
               ? t('spending.month_spending_header', { month: monthName })
               : t('spending.spending_label')}
           </Text>
-          <ActivityIndicator color={colors.white} size="small" style={{ marginTop: 8 }} />
+          <ActivityIndicator color={colors.white} size="small" style={styles.loadingIndicator} />
         </View>
       </View>
     );
@@ -173,6 +167,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
   pad: { padding: 22, gap: 16 },
+  loadingIndicator: { marginTop: 8 },
 
   label: {
     fontSize: 11,

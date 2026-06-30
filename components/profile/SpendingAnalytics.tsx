@@ -7,6 +7,7 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { monthNameFromKey } from '@utils/dates';
 
 interface Props {
   houseId: string;
@@ -30,13 +31,6 @@ function fmtShort(n: number, currency: string): string {
 
 function fmtFull(n: number, currency: string): string {
   return `${currency}${n.toFixed(2)}`;
-}
-
-function monthNameFromKey(monthKey: string, locale: string): string {
-  const [y, m] = monthKey.split('-');
-  return new Date(Number(y), Number(m) - 1, 1)
-    .toLocaleDateString(locale, { month: 'short' })
-    .toUpperCase();
 }
 
 export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Element {
