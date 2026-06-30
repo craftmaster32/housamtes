@@ -12,6 +12,8 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useBadgeStore } from '@stores/badgeStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
@@ -57,6 +59,7 @@ function formatDisplayDate(iso: string, locale: string): string {
 
 export default function AddBillScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const housemates = useHousematesStore((state) => state.housemates);
@@ -310,7 +313,9 @@ export default function AddBillScreen(): React.JSX.Element {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← {t('common.back')}</Text>
+            <Text style={styles.backText}>
+              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
+            </Text>
           </Pressable>
           <Text style={styles.heading}>{t('bills.add_title')}</Text>
         </View>
