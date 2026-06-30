@@ -1086,6 +1086,7 @@
     "chat": "House Chat",
     "chat_sub": "Talk with your housemates",
     "sign_out": "Sign out",
+    "avatar_label": "{{name}}'s avatar",
     "sign_out_sub": "You'll need to sign in again",
     "sign_out_confirm": "Are you sure you want to sign out?",
     "footer": "HouseMates · Made for your home",

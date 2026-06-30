@@ -31,7 +31,8 @@ import {
 import { useAuthStore } from '@stores/authStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useThemedColors, darkColors, type ColorTokens } from '@constants/colors';
+import { useLanguageStore } from '@stores/languageStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
@@ -59,6 +60,36 @@ const QUICK_ADD_KEYS = [
 ] as const;
 const QTY_PRESETS = ['1', '2', '3'];
 const UNIT_OPTS = ['ml', 'L', 'g', 'kg'] as const;
+const UNIT_LABELS_HE: Record<(typeof UNIT_OPTS)[number], string> = {
+  ml: 'מ"ל',
+  L: 'ליטר',
+  g: 'גרם',
+  kg: 'ק"ג',
+};
+
+function formatUnitSuffix(unit: string, isHebrew: boolean): string {
+  if (!unit) return '';
+  if (!isHebrew) return unit;
+  const label = UNIT_LABELS_HE[unit as (typeof UNIT_OPTS)[number]] ?? unit;
+  return ` ${label}`;
+}
+
+// `quantity` is stored as a language-neutral "<number><unit>" string (e.g. "2kg")
+// so it stays consistent for every housemate regardless of who added it.
+// Only re-localize the unit suffix here, at render time, for the viewer's language.
+const SORTED_UNIT_OPTS = [...UNIT_OPTS].sort((a, b) => b.length - a.length);
+function localizeQuantityForDisplay(quantity: string, isHebrew: boolean): string {
+  if (!isHebrew) return quantity;
+  for (const u of SORTED_UNIT_OPTS) {
+    if (quantity.endsWith(u)) {
+      const prefix = quantity.slice(0, -u.length);
+      if (/^\d+(\.\d+)?$/.test(prefix)) {
+        return prefix + formatUnitSuffix(u, true);
+      }
+    }
+  }
+  return quantity;
+}
 
 // ── Category detection ─────────────────────────────────────────────────────────
 interface Category {
@@ -131,6 +162,7 @@ function ItemRow({
 }: ItemRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
   const isPlainInt = /^\d+$/.test(item.quantity.trim());
   const qtyNum = isPlainInt ? parseInt(item.quantity, 10) : NaN;
   const hasCount = isPlainInt && qtyNum > 1;
@@ -324,7 +356,11 @@ function ItemRow({
           </Text>
           {!!item.quantity && (
             <View style={rowStyles.itemQty}>
-              <Text style={rowStyles.itemQtyText}>{hasCount ? `x${qtyNum}` : item.quantity}</Text>
+              <Text style={rowStyles.itemQtyText}>
+                {hasCount
+                  ? `x${qtyNum}`
+                  : localizeQuantityForDisplay(item.quantity, language === 'he')}
+              </Text>
             </View>
           )}
         </View>
@@ -409,6 +445,7 @@ export default function GroceryScreen(): React.JSX.Element {
     }, [markSeen])
   );
 
+  const language = useLanguageStore((s) => s.language);
   const isLoading = useGroceryStore((s) => s.isLoading);
   const error = useGroceryStore((s) => s.error);
   const items = useGroceryStore((s) => s.items);
@@ -544,6 +581,8 @@ export default function GroceryScreen(): React.JSX.Element {
     return (): void => sub.remove();
   }, [myDraftItems]);
 
+  // Always store the canonical (non-localized) unit so `quantity` stays
+  // language-neutral for every housemate; see localizeQuantityForDisplay.
   const resolvedQty = (showCustomQty ? customQty : qty) + unit;
   const effectiveMode: AddMode =
     addMode === 'private' ? 'private' : draftEnabled && isDraftOn ? 'draft' : 'shared';
@@ -1216,6 +1255,7 @@ export default function GroceryScreen(): React.JSX.Element {
                       <View style={styles.qtyPresets}>
                         {UNIT_OPTS.map((u) => {
                           const active = unit === u;
+                          const unitLabel = language === 'he' ? UNIT_LABELS_HE[u] : u;
                           return (
                             <Pressable
                               key={u}
@@ -1224,10 +1264,10 @@ export default function GroceryScreen(): React.JSX.Element {
                               hitSlop={4}
                               accessibilityRole="button"
                               accessibilityState={{ selected: active }}
-                              accessibilityLabel={t('grocery.unit_preset', { u })}
+                              accessibilityLabel={t('grocery.unit_preset', { u: unitLabel })}
                             >
                               <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
-                                {u}
+                                {unitLabel}
                               </Text>
                             </Pressable>
                           );
@@ -1331,6 +1371,7 @@ export default function GroceryScreen(): React.JSX.Element {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 function makeStyles(C: ColorTokens) {
   const successSubtle = C.success + '12';
+  const isDark = C.background === darkColors.background;
   return StyleSheet.create({
     flex: { flex: 1 },
     root: { flex: 1, backgroundColor: C.background },
@@ -1406,7 +1447,9 @@ function makeStyles(C: ColorTokens) {
     },
     modeBtnText: { fontSize: 13, ...font.semibold, color: C.textSecondary },
     modeBtnTextOn: { color: '#FFFFFF' },
-    modeBtnTextPersonal: { color: 'rgb(76,29,149)' },
+    // Light theme needs a much darker purple than dark theme to clear 4.5:1 contrast
+    // against the pale modeBtnPersonal background.
+    modeBtnTextPersonal: { color: isDark ? 'rgb(196,181,253)' : '#5B21B6' },
 
     // ── Draft mode toggle row
     draftToggleRow: {
