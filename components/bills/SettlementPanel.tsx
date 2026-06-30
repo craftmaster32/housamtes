@@ -5,11 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { useBillsStore, calculateAllNetBalances, settleDebts } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useSettingsStore } from '@stores/settingsStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
 export function SettlementPanel(): React.JSX.Element {
   const { t } = useTranslation();
+  const currentLanguage = useLanguageStore((s) => s.language);
   const [open, setOpen] = useState(false);
   const sharedBills = useBillsStore((s) => s.bills);
   const householdBills = useRecurringBillsStore((s) => s.bills);
@@ -42,7 +45,12 @@ export function SettlementPanel(): React.JSX.Element {
 
   return (
     <View style={styles.container}>
-      <Pressable style={styles.toggleBtn} onPress={handleToggle} accessibilityRole="button" accessibilityLabel={t('bills.settlement_title')}>
+      <Pressable
+        style={styles.toggleBtn}
+        onPress={handleToggle}
+        accessibilityRole="button"
+        accessibilityLabel={t('bills.settlement_title')}
+      >
         <Text style={styles.toggleLabel}>{t('bills.settlement_title')}</Text>
         <View style={styles.toggleRight}>
           {settlements.length > 0 && !open && (
@@ -64,21 +72,47 @@ export function SettlementPanel(): React.JSX.Element {
               <Text style={styles.sectionTitle}>{t('bills.settlement_breakdown')}</Text>
               <View style={styles.table}>
                 <View style={styles.tableHeader}>
-                  <Text style={[styles.nameCell, styles.headerText]}>{t('bills.settlement_person')}</Text>
-                  <Text style={[styles.amtCell, styles.headerText]}>{t('bills.settlement_house_bills')}</Text>
-                  <Text style={[styles.amtCell, styles.headerText]}>{t('bills.settlement_shared')}</Text>
-                  <Text style={[styles.amtCell, styles.headerText, styles.totalHeaderText]}>{t('bills.settlement_net')}</Text>
+                  <Text style={[styles.nameCell, styles.headerText]}>
+                    {t('bills.settlement_person')}
+                  </Text>
+                  <Text style={[styles.amtCell, styles.headerText]}>
+                    {t('bills.settlement_house_bills')}
+                  </Text>
+                  <Text style={[styles.amtCell, styles.headerText]}>
+                    {t('bills.settlement_shared')}
+                  </Text>
+                  <Text style={[styles.amtCell, styles.headerText, styles.totalHeaderText]}>
+                    {t('bills.settlement_net')}
+                  </Text>
                 </View>
                 {breakdown.map((row) => (
                   <View key={row.person} style={styles.tableRow}>
                     <Text style={styles.nameCell}>{row.person}</Text>
-                    <Text style={[styles.amtCell, { color: row.household >= 0 ? colors.positive : colors.negative }]}>
+                    <Text
+                      style={[
+                        styles.amtCell,
+                        { color: row.household >= 0 ? colors.positive : colors.negative },
+                      ]}
+                    >
                       {`${row.household >= 0 ? '+' : ''}${currency}${Math.abs(row.household).toFixed(0)}`}
                     </Text>
-                    <Text style={[styles.amtCell, { color: row.shared >= 0 ? colors.positive : colors.negative }]}>
-                      {row.shared === 0 ? '—' : `${row.shared >= 0 ? '+' : ''}${currency}${Math.abs(row.shared).toFixed(0)}`}
+                    <Text
+                      style={[
+                        styles.amtCell,
+                        { color: row.shared >= 0 ? colors.positive : colors.negative },
+                      ]}
+                    >
+                      {row.shared === 0
+                        ? '—'
+                        : `${row.shared >= 0 ? '+' : ''}${currency}${Math.abs(row.shared).toFixed(0)}`}
                     </Text>
-                    <Text style={[styles.amtCell, styles.totalCell, { color: row.total >= 0 ? colors.positive : colors.negative }]}>
+                    <Text
+                      style={[
+                        styles.amtCell,
+                        styles.totalCell,
+                        { color: row.total >= 0 ? colors.positive : colors.negative },
+                      ]}
+                    >
                       {`${row.total >= 0 ? '+' : ''}${currency}${Math.abs(row.total).toFixed(0)}`}
                     </Text>
                   </View>
@@ -97,12 +131,17 @@ export function SettlementPanel(): React.JSX.Element {
                         <Text style={styles.settlementName}>{s.from}</Text>
                         <Text style={styles.settlementRole}>{t('bills.settlement_pays')}</Text>
                       </View>
-                      <Text style={styles.settlementArrow}>→</Text>
+                      <Text style={styles.settlementArrow}>
+                        {isRTL(currentLanguage) ? '←' : '→'}
+                      </Text>
                       <View style={styles.settlementPerson}>
                         <Text style={styles.settlementName}>{s.to}</Text>
                         <Text style={styles.settlementRole}>{t('bills.settlement_receives')}</Text>
                       </View>
-                      <Text style={styles.settlementAmount}>{currency}{s.amount.toFixed(2)}</Text>
+                      <Text style={styles.settlementAmount}>
+                        {currency}
+                        {s.amount.toFixed(2)}
+                      </Text>
                     </View>
                   ))}
                 </View>
@@ -142,7 +181,12 @@ const styles = StyleSheet.create({
   toggleChevron: { fontSize: sizes.fontSm, color: colors.textSecondary },
 
   panel: { paddingHorizontal: sizes.lg, paddingBottom: sizes.md, gap: sizes.md },
-  emptyText: { color: colors.textSecondary, fontSize: sizes.fontSm, textAlign: 'center', paddingVertical: sizes.md },
+  emptyText: {
+    color: colors.textSecondary,
+    fontSize: sizes.fontSm,
+    textAlign: 'center',
+    paddingVertical: sizes.md,
+  },
   sectionTitle: {
     fontSize: sizes.fontXs,
     fontWeight: '700',
@@ -160,7 +204,12 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   tableRow: { flexDirection: 'row', paddingVertical: 5 },
-  headerText: { fontSize: sizes.fontXs, color: colors.textSecondary, fontWeight: '700', textAlign: 'right' },
+  headerText: {
+    fontSize: sizes.fontXs,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
   totalHeaderText: { fontWeight: '800', color: colors.textPrimary },
   nameCell: { flex: 1, fontSize: sizes.fontSm, color: colors.textPrimary, fontWeight: '600' },
   amtCell: { width: 76, fontSize: sizes.fontSm, textAlign: 'right' },
@@ -180,6 +229,18 @@ const styles = StyleSheet.create({
   settlementName: { fontSize: sizes.fontMd, fontWeight: '700', color: colors.textPrimary },
   settlementRole: { fontSize: sizes.fontXs, color: colors.textSecondary },
   settlementArrow: { fontSize: sizes.fontLg, color: colors.textSecondary },
-  settlementAmount: { fontSize: sizes.fontLg, fontWeight: '800', color: colors.textPrimary, minWidth: 72, textAlign: 'right' },
-  settledText: { color: colors.positive, fontWeight: '700', fontSize: sizes.fontMd, textAlign: 'center', paddingVertical: sizes.sm },
+  settlementAmount: {
+    fontSize: sizes.fontLg,
+    fontWeight: '800',
+    color: colors.textPrimary,
+    minWidth: 72,
+    textAlign: 'right',
+  },
+  settledText: {
+    color: colors.positive,
+    fontWeight: '700',
+    fontSize: sizes.fontMd,
+    textAlign: 'center',
+    paddingVertical: sizes.sm,
+  },
 });

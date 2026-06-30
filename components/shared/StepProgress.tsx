@@ -4,6 +4,8 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { isRTL } from '@lib/i18n';
+import { useLanguageStore } from '@stores/languageStore';
 
 interface Step {
   label: string;
@@ -16,7 +18,9 @@ interface StepProgressProps {
 
 export function StepProgress({ steps, currentStep }: StepProgressProps): React.JSX.Element {
   const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
   const anims = useRef(steps.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
@@ -81,7 +85,7 @@ export function StepProgress({ steps, currentStep }: StepProgressProps): React.J
   );
 }
 
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     container: {
       flexDirection: 'row',
@@ -99,7 +103,10 @@ function makeStyles(C: ColorTokens) {
     line: {
       position: 'absolute',
       top: 16,
-      right: '50%',
+      // The row visually flows right-to-left under the inherited RTL `direction`,
+      // so the line must extend toward the physical right (where the previous
+      // step now sits) instead of always anchoring from the right edge.
+      ...(rtl ? { left: '50%' } : { right: '50%' }),
       width: '100%',
       height: 2,
       zIndex: -1,

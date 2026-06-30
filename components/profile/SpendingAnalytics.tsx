@@ -7,6 +7,7 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { colors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { monthNameFromKey } from '@utils/dates';
 
 interface Props {
   houseId: string;
@@ -32,18 +33,12 @@ function fmtFull(n: number, currency: string): string {
   return `${currency}${n.toFixed(2)}`;
 }
 
-function monthNameFromKey(monthKey: string, locale: string): string {
-  const [y, m] = monthKey.split('-');
-  return new Date(Number(y), Number(m) - 1, 1)
-    .toLocaleDateString(locale, { month: 'short' }).toUpperCase();
-}
-
 export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  const months    = useSpendingStore((s) => s.months);
+  const months = useSpendingStore((s) => s.months);
   const isLoading = useSpendingStore((s) => s.isLoading);
-  const load      = useSpendingStore((s) => s.load);
-  const currency  = useSettingsStore((s) => s.currency);
+  const load = useSpendingStore((s) => s.load);
+  const currency = useSettingsStore((s) => s.currency);
 
   const [period, setPeriod] = useState<Period>(6);
   const selectPeriod = useCallback((p: Period) => setPeriod(p), []);
@@ -52,26 +47,25 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
     if (houseId && userName) load(houseId, userName);
   }, [houseId, userName, load]);
 
-  const current  = months[0];
+  const current = months[0];
   const previous = months[1];
 
   // Slice to period length then reverse for chronological (oldest → newest)
   const chartData = months.slice(0, period).reverse();
-  const maxTotal  = Math.max(...chartData.map((m) => m.total), 1);
+  const maxTotal = Math.max(...chartData.map((m) => m.total), 1);
 
-  const diff    = current && previous ? previous.total - current.total : null; // positive = spending down
-  const isDown  = diff !== null && diff > 0;
+  const diff = current && previous ? previous.total - current.total : null; // positive = spending down
+  const isDown = diff !== null && diff > 0;
   const diffAmt = diff !== null ? Math.abs(diff).toFixed(0) : null;
-  const pct     = current && previous && previous.total > 0
-    ? Math.round(Math.abs((current.total - previous.total) / previous.total) * 100)
-    : null;
+  const pct =
+    current && previous && previous.total > 0
+      ? Math.round(Math.abs((current.total - previous.total) / previous.total) * 100)
+      : null;
 
-  const highest = chartData.length > 0
-    ? chartData.reduce((a, b) => (b.total > a.total ? b : a))
-    : null;
-  const lowest = chartData.length > 0
-    ? chartData.reduce((a, b) => (b.total < a.total ? b : a))
-    : null;
+  const highest =
+    chartData.length > 0 ? chartData.reduce((a, b) => (b.total > a.total ? b : a)) : null;
+  const lowest =
+    chartData.length > 0 ? chartData.reduce((a, b) => (b.total < a.total ? b : a)) : null;
 
   if (isLoading) {
     return (
@@ -107,7 +101,11 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.labelText}>
-            {current ? t('spending.month_spending_header', { month: monthNameFromKey(current.month, i18n.language) }) : t('spending.spending_label')}
+            {current
+              ? t('spending.month_spending_header', {
+                  month: monthNameFromKey(current.month, i18n.language),
+                })
+              : t('spending.spending_label')}
           </Text>
           <View style={styles.pills}>
             {PERIODS.map((p) => (
@@ -128,7 +126,9 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
 
         {/* Amount + diff badge */}
         <View style={styles.amountRow}>
-          <Text style={styles.amountText}>{current ? fmtFull(current.total, currency) : `${currency}0.00`}</Text>
+          <Text style={styles.amountText}>
+            {current ? fmtFull(current.total, currency) : `${currency}0.00`}
+          </Text>
           {diffAmt !== null && (
             <View style={styles.diffBadge}>
               <Text style={styles.diffBadgeText}>
@@ -149,9 +149,13 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
               const barH = Math.max((m.total / maxTotal) * BAR_MAX_H, m.total > 0 ? 4 : 2);
               return (
                 <View key={m.month} style={styles.barCol}>
-                  <Text style={styles.barAmt}>{m.total > 0 ? fmtShort(m.total, currency) : ''}</Text>
+                  <Text style={styles.barAmt}>
+                    {m.total > 0 ? fmtShort(m.total, currency) : ''}
+                  </Text>
                   <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { height: barH }, isLatest && styles.barFillLatest]} />
+                    <View
+                      style={[styles.barFill, { height: barH }, isLatest && styles.barFillLatest]}
+                    />
                   </View>
                   <Text style={styles.barLbl}>{monthNameFromKey(m.month, i18n.language)}</Text>
                 </View>
@@ -160,7 +164,10 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
           </View>
           {highest && lowest && chartData.length > 1 && (
             <Text style={styles.chartNote}>
-              {t('spending.chart_note', { highestMonth: monthNameFromKey(highest.month, i18n.language), lowestMonth: monthNameFromKey(lowest.month, i18n.language) })}
+              {t('spending.chart_note', {
+                highestMonth: monthNameFromKey(highest.month, i18n.language),
+                lowestMonth: monthNameFromKey(lowest.month, i18n.language),
+              })}
             </Text>
           )}
         </View>
@@ -173,7 +180,11 @@ export function SpendingAnalytics({ houseId, userName }: Props): React.JSX.Eleme
                 ? t('spending.compare_less', { amount: fmtFull(Math.abs(diff), currency) })
                 : t('spending.compare_more', { amount: fmtFull(Math.abs(diff), currency) })}
             </Text>
-            <Text style={styles.compareSub}>{t('spending.compared_to', { month: monthNameFromKey(previous.month, i18n.language) })}</Text>
+            <Text style={styles.compareSub}>
+              {t('spending.compared_to', {
+                month: monthNameFromKey(previous.month, i18n.language),
+              })}
+            </Text>
             {pct !== null && (
               <Text style={styles.comparePct}>
                 {isDown
@@ -197,7 +208,7 @@ const styles = StyleSheet.create({
   decoCircle: {
     position: 'absolute',
     top: -36,
-    right: -18,
+    end: -18,
     width: 140,
     height: 140,
     borderRadius: 70,
@@ -234,11 +245,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   pillActive: { backgroundColor: 'rgba(255,255,255,0.24)' },
-  pillText: { fontSize: 12, ...font.extrabold, color: 'rgba(255,255,255,0.88)', textAlign: 'center' },
+  pillText: {
+    fontSize: 12,
+    ...font.extrabold,
+    color: 'rgba(255,255,255,0.88)',
+    textAlign: 'center',
+  },
   pillTextActive: { color: colors.white },
 
   amountRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  amountText: { fontSize: 42, ...font.extrabold, color: colors.white, letterSpacing: -1.26, lineHeight: 42 },
+  amountText: {
+    fontSize: 42,
+    ...font.extrabold,
+    color: colors.white,
+    letterSpacing: -1.26,
+    lineHeight: 42,
+  },
   diffBadge: {
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderRadius: 18,
@@ -263,7 +285,13 @@ const styles = StyleSheet.create({
   barFill: { width: 20, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.32)' },
   barFillLatest: { backgroundColor: colors.white },
   barLbl: { fontSize: 11, ...font.regular, color: 'rgba(255,255,255,0.84)' },
-  chartNote: { fontSize: 12, ...font.regular, color: colors.white, opacity: 0.84, alignSelf: 'flex-end' },
+  chartNote: {
+    fontSize: 12,
+    ...font.regular,
+    color: colors.white,
+    opacity: 0.84,
+    alignSelf: 'flex-end',
+  },
 
   compareRow: { alignItems: 'flex-start', gap: 2 },
   compareAmt: { fontSize: 16, ...font.extrabold, color: colors.white },
@@ -271,5 +299,5 @@ const styles = StyleSheet.create({
   comparePct: { fontSize: 11, ...font.regular, color: 'rgba(255,255,255,0.80)' },
 
   loadingText: { fontSize: 14, ...font.regular, color: 'rgba(255,255,255,0.70)', marginTop: 8 },
-  emptyNote:   { fontSize: 13, ...font.regular, color: 'rgba(255,255,255,0.60)', marginTop: 4 },
+  emptyNote: { fontSize: 13, ...font.regular, color: 'rgba(255,255,255,0.60)', marginTop: 4 },
 });

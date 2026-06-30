@@ -16,6 +16,8 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useBadgeStore } from '@stores/badgeStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { resolveName } from '@utils/housemates';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
@@ -52,6 +54,7 @@ function formatDisplayDate(iso: string, locale: string): string {
 
 export default function BillDetailScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -197,7 +200,9 @@ export default function BillDetailScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
-            <Text style={styles.backText}>← {t('common.back')}</Text>
+            <Text style={styles.backText}>
+              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
+            </Text>
           </Pressable>
           {!bill.settled && !isEditing && !isDeleting && (
             <Pressable
