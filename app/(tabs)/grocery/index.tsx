@@ -32,6 +32,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useLanguageStore } from '@stores/languageStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
@@ -59,6 +60,19 @@ const QUICK_ADD_KEYS = [
 ] as const;
 const QTY_PRESETS = ['1', '2', '3'];
 const UNIT_OPTS = ['ml', 'L', 'g', 'kg'] as const;
+const UNIT_LABELS_HE: Record<(typeof UNIT_OPTS)[number], string> = {
+  ml: 'מ"ל',
+  L: 'ליטר',
+  g: 'גרם',
+  kg: 'ק"ג',
+};
+
+function formatUnitSuffix(unit: string, isHebrew: boolean): string {
+  if (!unit) return '';
+  if (!isHebrew) return unit;
+  const label = UNIT_LABELS_HE[unit as (typeof UNIT_OPTS)[number]] ?? unit;
+  return ` ${label}`;
+}
 
 // ── Category detection ─────────────────────────────────────────────────────────
 interface Category {
@@ -409,6 +423,7 @@ export default function GroceryScreen(): React.JSX.Element {
     }, [markSeen])
   );
 
+  const language = useLanguageStore((s) => s.language);
   const isLoading = useGroceryStore((s) => s.isLoading);
   const error = useGroceryStore((s) => s.error);
   const items = useGroceryStore((s) => s.items);
@@ -544,7 +559,7 @@ export default function GroceryScreen(): React.JSX.Element {
     return (): void => sub.remove();
   }, [myDraftItems]);
 
-  const resolvedQty = (showCustomQty ? customQty : qty) + unit;
+  const resolvedQty = (showCustomQty ? customQty : qty) + formatUnitSuffix(unit, language === 'he');
   const effectiveMode: AddMode =
     addMode === 'private' ? 'private' : draftEnabled && isDraftOn ? 'draft' : 'shared';
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
@@ -1227,7 +1242,7 @@ export default function GroceryScreen(): React.JSX.Element {
                               accessibilityLabel={t('grocery.unit_preset', { u })}
                             >
                               <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
-                                {u}
+                                {language === 'he' ? UNIT_LABELS_HE[u] : u}
                               </Text>
                             </Pressable>
                           );
@@ -1406,7 +1421,7 @@ function makeStyles(C: ColorTokens) {
     },
     modeBtnText: { fontSize: 13, ...font.semibold, color: C.textSecondary },
     modeBtnTextOn: { color: '#FFFFFF' },
-    modeBtnTextPersonal: { color: 'rgb(76,29,149)' },
+    modeBtnTextPersonal: { color: 'rgb(196,181,253)' },
 
     // ── Draft mode toggle row
     draftToggleRow: {
