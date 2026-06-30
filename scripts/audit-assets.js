@@ -28,22 +28,43 @@ async function fetchServiceRoleKey() {
     throw new Error(`Could not fetch project API keys (status ${res.status})`);
   }
   const keys = await res.json();
-  const serviceKey = keys.find((k) => k.name === 'service_role');
+  // New-format projects expose secret keys via type/secret_jwt_template rather
+  // than the legacy "service_role" name — match metadata first, name as fallback.
+  const serviceKey =
+    keys.find((k) => k.type === 'secret' && k.secret_jwt_template?.role === 'service_role') ??
+    keys.find((k) => k.name === 'service_role');
   if (!serviceKey) throw new Error('service_role key not found on project');
   return serviceKey.api_key;
 }
 
 async function checkUrl(url) {
   try {
-    const res = await fetch(url, { method: 'HEAD' });
+    const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(10_000) });
     if (res.ok) return null;
     // Some storage providers don't support HEAD — retry with GET on 4xx/405
-    const getRes = await fetch(url, { method: 'GET' });
+    const getRes = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(10_000) });
     if (getRes.ok) return null;
     return `status ${getRes.status}`;
   } catch (err) {
     return err instanceof Error ? err.message : 'fetch failed';
   }
+}
+
+// PostgREST caps .select() at 1000 rows — page through with .range() so large
+// houses/photo libraries don't get silently truncated.
+async function fetchAll(supabase, table, columns) {
+  const pageSize = 1000;
+  const rows = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columns)
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`${table} query failed: ${error.message}`);
+    rows.push(...data);
+    if (data.length < pageSize) break;
+  }
+  return rows;
 }
 
 async function main() {
@@ -57,10 +78,7 @@ async function main() {
 
   // 1. Avatars + covers — confirm the storage object actually exists for
   //    every profile that claims to have one.
-  const { data: profiles, error: profilesErr } = await supabase
-    .from('profiles')
-    .select('id, name, avatar_url, cover_url');
-  if (profilesErr) throw new Error(`profiles query failed: ${profilesErr.message}`);
+  const profiles = await fetchAll(supabase, 'profiles', 'id, name, avatar_url, cover_url');
 
   let avatarsChecked = 0;
   let coversChecked = 0;
@@ -78,10 +96,7 @@ async function main() {
   }
 
   // 2. House photos — confirm every stored public URL still resolves.
-  const { data: photos, error: photosErr } = await supabase
-    .from('photos')
-    .select('id, house_id, url');
-  if (photosErr) throw new Error(`photos query failed: ${photosErr.message}`);
+  const photos = await fetchAll(supabase, 'photos', 'id, house_id, url');
 
   for (const photo of photos ?? []) {
     const reason = await checkUrl(photo.url);
@@ -90,10 +105,7 @@ async function main() {
 
   // 3. Orphaned house_members — a member row with no matching profile row
   //    is silently dropped by housematesStore.ts, hiding a real person.
-  const { data: members, error: membersErr } = await supabase
-    .from('house_members')
-    .select('id, user_id, house_id');
-  if (membersErr) throw new Error(`house_members query failed: ${membersErr.message}`);
+  const members = await fetchAll(supabase, 'house_members', 'id, user_id, house_id');
 
   const profileIds = new Set((profiles ?? []).map((p) => p.id));
   const orphans = (members ?? []).filter((m) => !profileIds.has(m.user_id));
