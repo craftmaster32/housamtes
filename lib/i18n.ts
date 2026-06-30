@@ -2,11 +2,33 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { getLocales } from 'expo-localization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 
 import en from '@locales/en.json';
 import he from '@locales/he.json';
 import es from '@locales/es.json';
+
+// RNW's I18nManager is a no-op stub (forceRTL does nothing, isRTL always false).
+// React Navigation + Paper read I18nManager.getConstants().isRTL at render time
+// and set direction:'ltr' on their elements, overriding document.dir='rtl'.
+// Patch it so forceRTL actually works on web.
+if (Platform.OS === 'web') {
+  let _rtl = false;
+  I18nManager.forceRTL = (v: boolean): void => {
+    _rtl = v;
+  };
+  I18nManager.allowRTL = (): void => {
+    /* no-op on web */
+  };
+  I18nManager.getConstants = (): { isRTL: boolean; doLeftAndRightSwapInRTL: boolean } => ({
+    isRTL: _rtl,
+    doLeftAndRightSwapInRTL: _rtl,
+  });
+  Object.defineProperty(I18nManager, 'isRTL', {
+    get: (): boolean => _rtl,
+    configurable: true,
+  });
+}
 
 export type AppLanguage = 'en' | 'he' | 'es';
 export const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'he', 'es'];
@@ -19,7 +41,9 @@ export async function getInitialLanguage(): Promise<AppLanguage> {
     if (stored && SUPPORTED_LANGUAGES.includes(stored as AppLanguage)) {
       return stored as AppLanguage;
     }
-  } catch { /* ignore read errors */ }
+  } catch {
+    /* ignore read errors */
+  }
 
   const deviceLang = getLocales()[0]?.languageCode ?? 'en';
   // 'iw' is the legacy ISO 639-1 code for Hebrew still used by some Android devices
@@ -32,7 +56,9 @@ export async function getInitialLanguage(): Promise<AppLanguage> {
 export async function persistLanguage(lang: AppLanguage): Promise<void> {
   try {
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
-  } catch { /* ignore write errors */ }
+  } catch {
+    /* ignore write errors */
+  }
 }
 
 export const RTL_LANGUAGES: AppLanguage[] = ['he'];
@@ -52,21 +78,19 @@ export function setupI18n(initialLanguage: AppLanguage): void {
     I18nManager.allowRTL(rtl);
   }
 
-  i18n
-    .use(initReactI18next)
-    .init({
-      resources: {
-        en: { translation: en },
-        he: { translation: he },
-        es: { translation: es },
-      },
-      lng: initialLanguage,
-      fallbackLng: 'en',
-      interpolation: {
-        escapeValue: false, // React Native handles XSS
-      },
-      compatibilityJSON: 'v4',
-    });
+  i18n.use(initReactI18next).init({
+    resources: {
+      en: { translation: en },
+      he: { translation: he },
+      es: { translation: es },
+    },
+    lng: initialLanguage,
+    fallbackLng: 'en',
+    interpolation: {
+      escapeValue: false, // React Native handles XSS
+    },
+    compatibilityJSON: 'v4',
+  });
 }
 
 export default i18n;
