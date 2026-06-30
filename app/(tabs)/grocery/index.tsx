@@ -31,7 +31,7 @@ import {
 import { useAuthStore } from '@stores/authStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useThemedColors, darkColors, type ColorTokens } from '@constants/colors';
 import { useLanguageStore } from '@stores/languageStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
@@ -1346,6 +1346,7 @@ export default function GroceryScreen(): React.JSX.Element {
 // ── Styles ─────────────────────────────────────────────────────────────────────
 function makeStyles(C: ColorTokens) {
   const successSubtle = C.success + '12';
+  const isDark = C.background === darkColors.background;
   return StyleSheet.create({
     flex: { flex: 1 },
     root: { flex: 1, backgroundColor: C.background },
@@ -1421,7 +1422,9 @@ function makeStyles(C: ColorTokens) {
     },
     modeBtnText: { fontSize: 13, ...font.semibold, color: C.textSecondary },
     modeBtnTextOn: { color: '#FFFFFF' },
-    modeBtnTextPersonal: { color: 'rgb(196,181,253)' },
+    // Light theme needs a much darker purple than dark theme to clear 4.5:1 contrast
+    // against the pale modeBtnPersonal background.
+    modeBtnTextPersonal: { color: isDark ? 'rgb(196,181,253)' : '#5B21B6' },
 
     // ── Draft mode toggle row
     draftToggleRow: {
