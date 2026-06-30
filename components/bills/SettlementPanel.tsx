@@ -212,7 +212,9 @@ const styles = StyleSheet.create({
   },
   totalHeaderText: { fontWeight: '800', color: colors.textPrimary },
   nameCell: { flex: 1, fontSize: sizes.fontSm, color: colors.textPrimary, fontWeight: '600' },
-  amtCell: { width: 76, fontSize: sizes.fontSm, textAlign: 'right' },
+  // RNP's Text forces writingDirection from I18nManager; isolate to LTR so the +/- sign
+  // doesn't get bidi-reordered to the wrong side of the amount under Hebrew/RTL.
+  amtCell: { width: 76, fontSize: sizes.fontSm, textAlign: 'right', writingDirection: 'ltr' },
   totalCell: { fontWeight: '800' },
 
   // Settlement rows

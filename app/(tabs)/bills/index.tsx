@@ -121,7 +121,10 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
           {bill.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {t('bills.paid_by_each', { name: resolveName(bill.paidBy, housemates, t('common.unknown')), amount: formatFull(share, currencyCode) })}
+          {t('bills.paid_by_each', {
+            name: resolveName(bill.paidBy, housemates, t('common.unknown')),
+            amount: formatFull(share, currencyCode),
+          })}
         </Text>
       </View>
       <View style={styles.billRight}>
@@ -135,7 +138,11 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
         >
           {formatFull(bill.amount, currencyCode)}
         </Text>
-        <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={14} color={c.textSecondary} />
+        <Ionicons
+          name={rtl ? 'chevron-back' : 'chevron-forward'}
+          size={14}
+          color={c.textSecondary}
+        />
       </View>
     </Pressable>
   );
@@ -428,7 +435,9 @@ export default function BillsScreen(): React.JSX.Element {
       {/* ── Balance stats ────────────────────────────────────────── */}
       <View style={[styles.balanceCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>{t('bills.owed_to_you')}</Text>
+          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>
+            {t('bills.owed_to_you')}
+          </Text>
           <Text
             style={[styles.balanceStatNum, { color: totalOwed > 0 ? c.positive : c.textPrimary }]}
           >
@@ -437,7 +446,9 @@ export default function BillsScreen(): React.JSX.Element {
         </View>
         <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
         <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>{t('bills.net_balance')}</Text>
+          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>
+            {t('bills.net_balance')}
+          </Text>
           <Text
             style={[
               styles.balanceStatNum,
@@ -455,12 +466,18 @@ export default function BillsScreen(): React.JSX.Element {
               },
             ]}
           >
-            {netBalance > 0 ? t('bills.you_are_owed') : netBalance < 0 ? t('bills.you_owe') : t('bills.all_settled_tag')}
+            {netBalance > 0
+              ? t('bills.you_are_owed')
+              : netBalance < 0
+                ? t('bills.you_owe')
+                : t('bills.all_settled_tag')}
           </Text>
         </View>
         <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
         <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>{t('bills.you_owe')}</Text>
+          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>
+            {t('bills.you_owe')}
+          </Text>
           <Text
             style={[styles.balanceStatNum, { color: totalOwe > 0 ? c.negative : c.textPrimary }]}
           >
@@ -490,7 +507,9 @@ export default function BillsScreen(): React.JSX.Element {
             <View style={[styles.settleIconWrap, { backgroundColor: c.positive + '18' }]}>
               <Ionicons name="swap-horizontal-outline" size={16} color={c.positive} />
             </View>
-            <Text style={[styles.settleCardTitle, { color: c.textPrimary }]}>{t('bills.settle_up')}</Text>
+            <Text style={[styles.settleCardTitle, { color: c.textPrimary }]}>
+              {t('bills.settle_up')}
+            </Text>
             <Text style={[styles.settleCardHint, { color: c.textSecondary }]}>
               {showSettle ? t('bills.hide') : t('bills.see_transfers')}
             </Text>
@@ -521,7 +540,9 @@ export default function BillsScreen(): React.JSX.Element {
       {/* One-off list eyebrow */}
       {filter === 'one-off' && bills.length > 0 && (
         <View style={styles.listCountRow}>
-          <Text style={[styles.eyebrow, { color: c.textSecondary }]}>{t('bills.all_expenses')}</Text>
+          <Text style={[styles.eyebrow, { color: c.textSecondary }]}>
+            {t('bills.all_expenses')}
+          </Text>
           <View
             style={[
               styles.countPill,
@@ -637,7 +658,15 @@ const styles = StyleSheet.create({
   balanceStat: { flex: 1, alignItems: 'center', gap: 3 },
   balanceDivider: { width: 1, height: 52, alignSelf: 'center' },
   balanceStatLabel: { fontSize: 12, ...font.medium, textAlign: 'center' },
-  balanceStatNum: { fontSize: 22, ...font.extrabold, letterSpacing: -0.5, textAlign: 'center' },
+  // RNP's Text forces writingDirection from I18nManager; isolate to LTR so the +/- sign
+  // doesn't get bidi-reordered to the wrong side of the amount under Hebrew/RTL.
+  balanceStatNum: {
+    fontSize: 22,
+    ...font.extrabold,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+    writingDirection: 'ltr',
+  },
   balanceStatTag: { fontSize: 11, ...font.semibold, textAlign: 'center' },
 
   // ── Settle card
