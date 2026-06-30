@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useAuthStore } from '@stores/authStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -26,16 +28,20 @@ interface MenuItem {
 export interface Props {}
 
 export function ProfilePopup(): React.JSX.Element {
-  const { t }   = useTranslation();
-  const c       = useColors();
-  const insets  = useSafeAreaInsets();
-  const isOpen  = useProfilePopupStore((s) => s.isOpen);
-  const close   = useProfilePopupStore((s) => s.close);
+  const { t } = useTranslation();
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  const isOpen = useProfilePopupStore((s) => s.isOpen);
+  const close = useProfilePopupStore((s) => s.close);
   const pathname = usePathname();
+  const language = useLanguageStore((s) => s.language);
+  const isRTLMode = isRTL(language);
 
-  useEffect(() => { close(); }, [pathname, close]);
+  useEffect(() => {
+    close();
+  }, [pathname, close]);
   const profile = useAuthStore((s) => s.profile);
-  const user    = useAuthStore((s) => s.user);
+  const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
 
   const initial = (profile?.name || user?.email || '?')[0]?.toUpperCase() ?? '?';
@@ -49,23 +55,34 @@ export function ProfilePopup(): React.JSX.Element {
     }
   }, [signOut]);
 
-  const MENU_ITEMS = useMemo((): MenuItem[] => [
-    { icon: 'person-outline',   label: t('nav.profile'),      href: '/(tabs)/profile' },
-    { icon: 'settings-outline', label: t('nav.settings'),     href: '/(tabs)/more/settings' },
-    { icon: 'log-out-outline',  label: t('profile.sign_out'), onPress: handleSignOut, danger: true },
-  ], [t, handleSignOut]);
+  const MENU_ITEMS = useMemo(
+    (): MenuItem[] => [
+      { icon: 'person-outline', label: t('nav.profile'), href: '/(tabs)/profile' },
+      { icon: 'settings-outline', label: t('nav.settings'), href: '/(tabs)/more/settings' },
+      {
+        icon: 'log-out-outline',
+        label: t('profile.sign_out'),
+        onPress: handleSignOut,
+        danger: true,
+      },
+    ],
+    [t, handleSignOut]
+  );
 
-  const handleMenuPress = useCallback((item: MenuItem): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    close();
-    if (item.href) {
-      router.push(item.href as Parameters<typeof router.push>[0]);
-    } else if (item.onPress) {
-      Promise.resolve(item.onPress()).catch(() => {
-        Alert.alert('Action failed', 'Something went wrong. Please try again.');
-      });
-    }
-  }, [close]);
+  const handleMenuPress = useCallback(
+    (item: MenuItem): void => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      close();
+      if (item.href) {
+        router.push(item.href as Parameters<typeof router.push>[0]);
+      } else if (item.onPress) {
+        Promise.resolve(item.onPress()).catch(() => {
+          Alert.alert('Action failed', 'Something went wrong. Please try again.');
+        });
+      }
+    },
+    [close]
+  );
 
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -82,11 +99,23 @@ export function ProfilePopup(): React.JSX.Element {
     }
   }, [isOpen, anim]);
 
-  const opacity    = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 1],    extrapolate: 'clamp' });
-  const scale      = anim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1], extrapolate: 'clamp' });
-  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0],   extrapolate: 'clamp' });
+  const opacity = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+  const scale = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.85, 1],
+    extrapolate: 'clamp',
+  });
+  const translateY = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-8, 0],
+    extrapolate: 'clamp',
+  });
 
-  // Drop just below the avatar in the top-right corner
+  // Drop just below the avatar, anchored to the same side it sits on
   const dropdownTop = insets.top + 62;
 
   return (
@@ -103,6 +132,7 @@ export function ProfilePopup(): React.JSX.Element {
       <Animated.View
         style={[
           styles.panel,
+          isRTLMode ? styles.panelRTL : styles.panelLTR,
           {
             backgroundColor: c.surface,
             top: dropdownTop,
@@ -114,19 +144,26 @@ export function ProfilePopup(): React.JSX.Element {
       >
         {/* Compact user identity header */}
         <View style={[styles.header, { borderBottomColor: c.border }]}>
-          <View style={[
-            styles.avatar,
-            { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) },
-          ]}>
-            {profile?.avatarUrl
-              ? <Image
-                  source={{ uri: profile.avatarUrl }}
-                  style={styles.avatarImg}
-                  contentFit="cover"
-                  accessibilityLabel={`${profile?.name ?? 'User'}'s avatar`}
-                />
-              : <Text style={[styles.avatarInitial, { color: c.white }]}>{initial}</Text>
-            }
+          <View
+            style={[
+              styles.avatar,
+              {
+                backgroundColor: profile?.avatarUrl
+                  ? 'transparent'
+                  : (profile?.avatarColor ?? c.primary),
+              },
+            ]}
+          >
+            {profile?.avatarUrl ? (
+              <Image
+                source={{ uri: profile.avatarUrl }}
+                style={styles.avatarImg}
+                contentFit="cover"
+                accessibilityLabel={`${profile?.name ?? 'User'}'s avatar`}
+              />
+            ) : (
+              <Text style={[styles.avatarInitial, { color: c.white }]}>{initial}</Text>
+            )}
           </View>
           <View style={styles.headerText}>
             <Text style={[styles.headerName, { color: c.textPrimary }]} numberOfLines={1}>
@@ -168,7 +205,6 @@ export function ProfilePopup(): React.JSX.Element {
 const styles = StyleSheet.create({
   panel: {
     position: 'absolute',
-    end: 16,
     width: 220,
     borderRadius: sizes.borderRadiusLg,
     paddingVertical: sizes.xs,
@@ -178,6 +214,8 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 24,
   },
+  panelLTR: { right: 16 },
+  panelRTL: { left: 16 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -196,11 +234,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
   },
-  avatarImg:     { width: 36, height: 36 },
+  avatarImg: { width: 36, height: 36 },
   avatarInitial: { fontSize: 15, ...font.bold },
-  headerText:    { flex: 1 },
-  headerName:    { fontSize: sizes.fontSm, ...font.semibold },
-  headerEmail:   { fontSize: sizes.fontXs, ...font.regular, marginTop: 1 },
+  headerText: { flex: 1 },
+  headerName: { fontSize: sizes.fontSm, ...font.semibold },
+  headerEmail: { fontSize: sizes.fontXs, ...font.regular, marginTop: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -210,6 +248,6 @@ const styles = StyleSheet.create({
     minHeight: sizes.touchTarget,
   },
   rowPressed: { opacity: 0.6 },
-  rowIcon:    { width: 20, textAlign: 'center' },
-  rowLabel:   { flex: 1, fontSize: sizes.fontSm, ...font.medium },
+  rowIcon: { width: 20, textAlign: 'center' },
+  rowLabel: { flex: 1, fontSize: sizes.fontSm, ...font.medium },
 });
