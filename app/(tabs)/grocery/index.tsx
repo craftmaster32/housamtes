@@ -74,6 +74,23 @@ function formatUnitSuffix(unit: string, isHebrew: boolean): string {
   return ` ${label}`;
 }
 
+// `quantity` is stored as a language-neutral "<number><unit>" string (e.g. "2kg")
+// so it stays consistent for every housemate regardless of who added it.
+// Only re-localize the unit suffix here, at render time, for the viewer's language.
+const SORTED_UNIT_OPTS = [...UNIT_OPTS].sort((a, b) => b.length - a.length);
+function localizeQuantityForDisplay(quantity: string, isHebrew: boolean): string {
+  if (!isHebrew) return quantity;
+  for (const u of SORTED_UNIT_OPTS) {
+    if (quantity.endsWith(u)) {
+      const prefix = quantity.slice(0, -u.length);
+      if (/^\d+(\.\d+)?$/.test(prefix)) {
+        return prefix + formatUnitSuffix(u, true);
+      }
+    }
+  }
+  return quantity;
+}
+
 // ── Category detection ─────────────────────────────────────────────────────────
 interface Category {
   labelKey: string;
@@ -145,6 +162,7 @@ function ItemRow({
 }: ItemRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
   const isPlainInt = /^\d+$/.test(item.quantity.trim());
   const qtyNum = isPlainInt ? parseInt(item.quantity, 10) : NaN;
   const hasCount = isPlainInt && qtyNum > 1;
@@ -338,7 +356,11 @@ function ItemRow({
           </Text>
           {!!item.quantity && (
             <View style={rowStyles.itemQty}>
-              <Text style={rowStyles.itemQtyText}>{hasCount ? `x${qtyNum}` : item.quantity}</Text>
+              <Text style={rowStyles.itemQtyText}>
+                {hasCount
+                  ? `x${qtyNum}`
+                  : localizeQuantityForDisplay(item.quantity, language === 'he')}
+              </Text>
             </View>
           )}
         </View>
@@ -559,7 +581,9 @@ export default function GroceryScreen(): React.JSX.Element {
     return (): void => sub.remove();
   }, [myDraftItems]);
 
-  const resolvedQty = (showCustomQty ? customQty : qty) + formatUnitSuffix(unit, language === 'he');
+  // Always store the canonical (non-localized) unit so `quantity` stays
+  // language-neutral for every housemate; see localizeQuantityForDisplay.
+  const resolvedQty = (showCustomQty ? customQty : qty) + unit;
   const effectiveMode: AddMode =
     addMode === 'private' ? 'private' : draftEnabled && isDraftOn ? 'draft' : 'shared';
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
