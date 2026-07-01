@@ -29,10 +29,9 @@ export function AuthIllustration(): React.JSX.Element {
       source={source}
       style={styles.image}
       contentFit="contain"
-      accessible
+      accessible={false}
+      accessibilityElementsHidden
       accessibilityIgnoresInvertColors
-      accessibilityRole="image"
-      accessibilityLabel=""
       importantForAccessibility="no"
     />
   );

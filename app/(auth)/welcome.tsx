@@ -239,7 +239,9 @@ function makeStyles(C: ColorTokens) {
     loginLink: {
       alignSelf: 'center',
       paddingVertical: sizes.sm,
+      paddingHorizontal: sizes.lg,
       minHeight: sizes.touchTarget,
+      minWidth: sizes.touchTarget,
       justifyContent: 'center',
     },
     loginLinkText: {
