@@ -14,6 +14,7 @@ import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { passwordVisibilityIconProps } from '@utils/passwordVisibilityIcon';
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
 
@@ -122,18 +123,26 @@ export default function SignupScreen(): React.JSX.Element {
     }
   }, [name, email, password, confirmPw, selectedColor, isLoading, signUp, t]);
 
+  const toggleShowPassword = useCallback(() => setShowPassword((v) => !v), []);
+  const toggleShowConfirm = useCallback(() => setShowConfirm((v) => !v), []);
   const passwordEyeIcon = (
     <TextInput.Icon
-      icon={showPassword ? 'eye-off' : 'eye'}
-      onPress={() => setShowPassword((v) => !v)}
-      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+      {...passwordVisibilityIconProps(
+        showPassword,
+        toggleShowPassword,
+        t('auth.show_password'),
+        t('auth.hide_password')
+      )}
     />
   );
   const confirmEyeIcon = (
     <TextInput.Icon
-      icon={showConfirm ? 'eye-off' : 'eye'}
-      onPress={() => setShowConfirm((v) => !v)}
-      accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
+      {...passwordVisibilityIconProps(
+        showConfirm,
+        toggleShowConfirm,
+        t('auth.show_password'),
+        t('auth.hide_password')
+      )}
     />
   );
 

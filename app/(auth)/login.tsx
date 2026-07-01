@@ -14,6 +14,7 @@ import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { AuthIllustration } from '@components/shared/AuthIllustration';
+import { passwordVisibilityIconProps } from '@utils/passwordVisibilityIcon';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
@@ -107,11 +108,15 @@ export default function LoginScreen(): React.JSX.Element {
     }
   }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
+  const toggleShowPassword = useCallback(() => setShowPassword((v) => !v), []);
   const passwordEyeIcon = (
     <TextInput.Icon
-      icon={showPassword ? 'eye-off' : 'eye'}
-      onPress={() => setShowPassword((v) => !v)}
-      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+      {...passwordVisibilityIconProps(
+        showPassword,
+        toggleShowPassword,
+        t('auth.show_password'),
+        t('auth.hide_password')
+      )}
     />
   );
 
