@@ -706,36 +706,49 @@ async function fetchProfile(
   userId: string,
   userMeta?: Record<string, unknown>
 ): Promise<Profile | null> {
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, name, avatar_color, avatar_url, cover_url')
-    .eq('id', userId)
-    .maybeSingle();
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_color, avatar_url, cover_url')
+      .eq('id', userId)
+      .maybeSingle();
 
-  if (data) {
-    // Generate fresh signed URLs so photos work regardless of bucket public flag.
-    // The DB value may be a placeholder ('profiles:userId/avatar'), a legacy URL,
-    // or anything truthy — we only care that a file was uploaded, not the stored value.
-    const [avatarSigned, coverSigned] = await Promise.all([
-      data.avatar_url
-        ? supabase.storage.from('profiles').createSignedUrl(`${userId}/avatar`, 60 * 60 * 24 * 365)
-        : Promise.resolve(null),
-      data.cover_url
-        ? supabase.storage.from('profiles').createSignedUrl(`${userId}/cover`, 60 * 60 * 24 * 365)
-        : Promise.resolve(null),
-    ]);
-    const avatarUrl = avatarSigned?.data?.signedUrl;
-    const coverUrl = coverSigned?.data?.signedUrl;
-    return { id: data.id, name: data.name, avatarColor: data.avatar_color, avatarUrl, coverUrl };
+    if (data) {
+      // Generate fresh signed URLs so photos work regardless of bucket public flag.
+      // The DB value may be a placeholder ('profiles:userId/avatar'), a legacy URL,
+      // or anything truthy — we only care that a file was uploaded, not the stored value.
+      const [avatarSigned, coverSigned] = await Promise.all([
+        data.avatar_url
+          ? supabase.storage
+              .from('profiles')
+              .createSignedUrl(`${userId}/avatar`, 60 * 60 * 24 * 365)
+          : Promise.resolve(null),
+        data.cover_url
+          ? supabase.storage.from('profiles').createSignedUrl(`${userId}/cover`, 60 * 60 * 24 * 365)
+          : Promise.resolve(null),
+      ]);
+      if (avatarSigned?.error) {
+        captureError(avatarSigned.error, { context: 'fetch-profile-avatar-url', userId });
+      }
+      if (coverSigned?.error) {
+        captureError(coverSigned.error, { context: 'fetch-profile-cover-url', userId });
+      }
+      const avatarUrl = avatarSigned?.data?.signedUrl;
+      const coverUrl = coverSigned?.data?.signedUrl;
+      return { id: data.id, name: data.name, avatarColor: data.avatar_color, avatarUrl, coverUrl };
+    }
+
+    // Profile row missing — create it from auth metadata so the app works immediately
+    if (!userMeta) return null;
+    const name = (userMeta.name as string) || (userMeta.full_name as string) || 'You';
+    const avatarColor = (userMeta.avatar_color as string) || '#6366f1';
+
+    await supabase.from('profiles').upsert({ id: userId, name, avatar_color: avatarColor });
+    return { id: userId, name, avatarColor };
+  } catch (err) {
+    captureError(err, { context: 'fetch-profile', userId });
+    return null;
   }
-
-  // Profile row missing — create it from auth metadata so the app works immediately
-  if (!userMeta) return null;
-  const name = (userMeta.name as string) || (userMeta.full_name as string) || 'You';
-  const avatarColor = (userMeta.avatar_color as string) || '#6366f1';
-
-  await supabase.from('profiles').upsert({ id: userId, name, avatar_color: avatarColor });
-  return { id: userId, name, avatarColor };
 }
 
 async function fetchMemberData(

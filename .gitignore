@@ -4,6 +4,7 @@ dist/
 web-build/
 .env
 .env.local
+.env.staging
 *.jks
 *.p8
 *.p12
