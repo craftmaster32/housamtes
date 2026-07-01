@@ -1,7 +1,7 @@
 import { useMemo, useRef, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Animated, Pressable } from 'react-native';
 import { Text, Button } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,7 +60,11 @@ export default function WelcomeScreen(): React.JSX.Element {
   return (
     <View style={styles.root}>
       <Animated.View style={[styles.top, { opacity: fadeTop }]}>
-        <View style={styles.moon}>
+        <View
+          style={styles.moon}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <View style={styles.moonShadow} />
         </View>
         <SafeAreaView edges={['top']} style={styles.topInner}>
@@ -77,7 +81,11 @@ export default function WelcomeScreen(): React.JSX.Element {
           <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
         </SafeAreaView>
 
-        <View style={styles.skylineWrap}>
+        <View
+          style={styles.skylineWrap}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <HouseSkyline />
         </View>
       </Animated.View>
@@ -116,15 +124,16 @@ export default function WelcomeScreen(): React.JSX.Element {
           {t('welcome.get_started')}
         </Button>
 
-        <Pressable
-          style={styles.loginLink}
-          onPress={() => router.push('/(auth)/login')}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('welcome.log_in')}
-        >
-          <Text style={styles.loginLinkText}>{t('welcome.log_in')}</Text>
-        </Pressable>
+        <Link href="/(auth)/login" asChild>
+          <Pressable
+            style={styles.loginLink}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('welcome.log_in')}
+          >
+            <Text style={styles.loginLinkText}>{t('welcome.log_in')}</Text>
+          </Pressable>
+        </Link>
 
         <Text style={styles.terms}>{t('auth.by_continuing')}</Text>
       </Animated.View>

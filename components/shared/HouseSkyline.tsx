@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 
 interface HouseSpec {
@@ -50,11 +49,14 @@ const HOUSES: HouseSpec[] = [
 
 /** Decorative row of pitched-roof house silhouettes for the auth hero background. */
 export function HouseSkyline(): React.JSX.Element {
-  const houses = useMemo(() => HOUSES, []);
-
   return (
-    <View style={styles.row} pointerEvents="none">
-      {houses.map((house, index) => (
+    <View
+      style={styles.row}
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      {HOUSES.map((house, index) => (
         <View key={index} style={[styles.house, { width: house.width }]}>
           {house.hasChimney && <View style={[styles.chimney, { left: house.width * 0.62 }]} />}
           <View
