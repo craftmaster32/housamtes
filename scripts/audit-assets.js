@@ -21,9 +21,16 @@ function log(line) {
 }
 
 async function fetchServiceRoleKey() {
-  const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/api-keys?reveal=true`, {
+  // Try reveal=true first (new-format projects); fall back to plain endpoint for
+  // legacy projects where reveal=true returns 400.
+  let res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/api-keys?reveal=true`, {
     headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
   });
+  if (res.status === 400) {
+    res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/api-keys`, {
+      headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
+    });
+  }
   if (!res.ok) {
     throw new Error(`Could not fetch project API keys (status ${res.status})`);
   }
