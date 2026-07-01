@@ -16,6 +16,8 @@ export function passwordVisibilityIconProps(
   return {
     icon: visible ? 'eye-off' : 'eye',
     onPress: onToggle,
+    accessible: true,
+    accessibilityRole: 'togglebutton',
     accessibilityLabel: visible ? hideLabel : showLabel,
     accessibilityState: { checked: visible },
   };
