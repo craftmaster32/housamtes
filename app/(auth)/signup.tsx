@@ -12,6 +12,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
+import { AuthIllustration } from '@components/shared/AuthIllustration';
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
 
@@ -276,6 +277,7 @@ export default function SignupScreen(): React.JSX.Element {
             contentStyle={styles.buttonContent}
             labelStyle={styles.buttonLabel}
             buttonColor={C.primary}
+            textColor="#fff"
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('auth.create_account')}
@@ -294,6 +296,10 @@ export default function SignupScreen(): React.JSX.Element {
               {t('auth.has_account')} <Text style={styles.loginTextBold}>{t('auth.log_in')}</Text>
             </Text>
           </Pressable>
+
+          <View style={styles.illustrationSpacer}>
+            <AuthIllustration />
+          </View>
         </ScrollView>
       </Animated.View>
     </View>
@@ -323,10 +329,17 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surface,
     },
     cardContent: {
+      flexGrow: 1,
       paddingHorizontal: sizes.lg,
       paddingTop: sizes.sm,
       paddingBottom: sizes.xl,
       gap: sizes.md,
+    },
+    illustrationSpacer: {
+      flex: 1,
+      minHeight: 100,
+      maxHeight: 220,
+      justifyContent: 'flex-end',
     },
     brandRow: {
       flexDirection: 'row',

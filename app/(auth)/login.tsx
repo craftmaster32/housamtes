@@ -13,6 +13,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { AuthIllustration } from '@components/shared/AuthIllustration';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
@@ -216,6 +217,7 @@ export default function LoginScreen(): React.JSX.Element {
             contentStyle={styles.buttonContent}
             labelStyle={styles.buttonLabel}
             buttonColor={C.primary}
+            textColor="#fff"
             accessible
             accessibilityRole="button"
             accessibilityLabel={
@@ -242,6 +244,10 @@ export default function LoginScreen(): React.JSX.Element {
               {t('auth.no_account')} <Text style={styles.signupTextBold}>{t('auth.sign_up')}</Text>
             </Text>
           </Pressable>
+
+          <View style={styles.illustrationSpacer}>
+            <AuthIllustration />
+          </View>
         </ScrollView>
       </Animated.View>
     </View>
@@ -314,10 +320,17 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       borderTopRightRadius: 28,
     },
     cardContent: {
+      flexGrow: 1,
       paddingHorizontal: sizes.lg,
       paddingTop: 32,
-      paddingBottom: 40,
+      paddingBottom: 24,
       gap: sizes.md,
+    },
+    illustrationSpacer: {
+      flex: 1,
+      minHeight: 140,
+      maxHeight: 260,
+      justifyContent: 'flex-end',
     },
     input: {
       backgroundColor: C.surface,
