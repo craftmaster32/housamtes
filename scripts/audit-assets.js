@@ -52,7 +52,9 @@ async function fetchAll(supabase, table, columns) {
 }
 
 async function main() {
-  const supabaseUrl = `https://${PROJECT_REF}.supabase.co`;
+  const supabaseUrl = PROJECT_REF.startsWith('http')
+    ? PROJECT_REF.replace(/\/$/, '')
+    : `https://${PROJECT_REF}.supabase.co`;
   const supabase = createClient(supabaseUrl, SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
