@@ -1,5 +1,5 @@
 import { useMemo, useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, Pressable } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { isRTL } from '@lib/i18n';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { HouseSkyline } from '@components/shared/HouseSkyline';
 
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
 
@@ -59,6 +60,9 @@ export default function WelcomeScreen(): React.JSX.Element {
   return (
     <View style={styles.root}>
       <Animated.View style={[styles.top, { opacity: fadeTop }]}>
+        <View style={styles.moon}>
+          <View style={styles.moonShadow} />
+        </View>
         <SafeAreaView edges={['top']} style={styles.topInner}>
           <View
             style={styles.iconChip}
@@ -72,6 +76,10 @@ export default function WelcomeScreen(): React.JSX.Element {
           <Text style={styles.appName}>HouseMates</Text>
           <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
         </SafeAreaView>
+
+        <View style={styles.skylineWrap}>
+          <HouseSkyline />
+        </View>
       </Animated.View>
 
       <Animated.View
@@ -89,11 +97,18 @@ export default function WelcomeScreen(): React.JSX.Element {
         <Button
           mode="contained"
           buttonColor={C.primary}
+          textColor="#fff"
           onPress={handleGetStarted}
           style={styles.primaryButton}
           contentStyle={styles.primaryButtonContent}
           labelStyle={styles.primaryButtonLabel}
-          icon={({ color }) => <Ionicons name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-forward'} size={18} color={color} />}
+          icon={({ color }) => (
+            <Ionicons
+              name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-forward'}
+              size={18}
+              color={color}
+            />
+          )}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('welcome.get_started')}
@@ -101,19 +116,15 @@ export default function WelcomeScreen(): React.JSX.Element {
           {t('welcome.get_started')}
         </Button>
 
-        <Button
-          mode="outlined"
+        <Pressable
+          style={styles.loginLink}
           onPress={() => router.push('/(auth)/login')}
-          style={styles.outlinedButton}
-          contentStyle={styles.outlinedButtonContent}
-          labelStyle={styles.outlinedButtonLabel}
-          textColor={C.textPrimary}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('welcome.log_in')}
         >
-          {t('welcome.log_in')}
-        </Button>
+          <Text style={styles.loginLinkText}>{t('welcome.log_in')}</Text>
+        </Pressable>
 
         <Text style={styles.terms}>{t('auth.by_continuing')}</Text>
       </Animated.View>
@@ -130,12 +141,40 @@ function makeStyles(C: ColorTokens) {
     top: {
       flex: 1.4,
       backgroundColor: C.primary,
+      overflow: 'hidden',
     },
     topInner: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: sizes.xl,
+    },
+    moon: {
+      position: 'absolute',
+      top: 54,
+      right: 40,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: 'rgba(255,255,255,0.28)',
+      overflow: 'hidden',
+    },
+    moonShadow: {
+      position: 'absolute',
+      top: -6,
+      left: -10,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: C.primary,
+    },
+    skylineWrap: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 90,
+      paddingHorizontal: sizes.md,
     },
     iconChip: {
       width: 72,
@@ -197,18 +236,17 @@ function makeStyles(C: ColorTokens) {
       fontSize: 16,
       ...font.semibold,
     },
-    outlinedButton: {
-      borderRadius: 14,
-      borderColor: C.border,
-      borderWidth: 1.5,
+    loginLink: {
+      alignSelf: 'center',
+      paddingVertical: sizes.sm,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
     },
-    outlinedButtonContent: {
-      height: 52,
-    },
-    outlinedButtonLabel: {
+    loginLinkText: {
       fontSize: 16,
       ...font.semibold,
       color: C.textPrimary,
+      textAlign: 'center',
     },
     terms: {
       fontSize: 11,

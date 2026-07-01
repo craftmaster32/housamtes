@@ -216,6 +216,7 @@ export default function LoginScreen(): React.JSX.Element {
             contentStyle={styles.buttonContent}
             labelStyle={styles.buttonLabel}
             buttonColor={C.primary}
+            textColor="#fff"
             accessible
             accessibilityRole="button"
             accessibilityLabel={
