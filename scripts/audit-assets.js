@@ -6,11 +6,11 @@
 // Run via the "Audit assets" GitHub Actions workflow (workflow_dispatch).
 const { createClient } = require('@supabase/supabase-js');
 
-const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const PROJECT_REF = process.env.SUPABASE_PROJECT_REF;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!ACCESS_TOKEN || !PROJECT_REF) {
-  console.error('Missing SUPABASE_ACCESS_TOKEN or SUPABASE_PROJECT_REF');
+if (!PROJECT_REF || !SERVICE_ROLE_KEY) {
+  console.error('Missing SUPABASE_PROJECT_REF or SUPABASE_SERVICE_ROLE_KEY');
   process.exit(1);
 }
 
@@ -20,29 +20,6 @@ function log(line) {
   summaryLines.push(line);
 }
 
-async function fetchServiceRoleKey() {
-  // Try reveal=true first (new-format projects); fall back to plain endpoint for
-  // legacy projects where reveal=true returns 400.
-  let res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/api-keys?reveal=true`, {
-    headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
-  });
-  if (res.status === 400) {
-    res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/api-keys`, {
-      headers: { Authorization: `Bearer ${ACCESS_TOKEN}` },
-    });
-  }
-  if (!res.ok) {
-    throw new Error(`Could not fetch project API keys (status ${res.status})`);
-  }
-  const keys = await res.json();
-  // New-format projects expose secret keys via type/secret_jwt_template rather
-  // than the legacy "service_role" name — match metadata first, name as fallback.
-  const serviceKey =
-    keys.find((k) => k.type === 'secret' && k.secret_jwt_template?.role === 'service_role') ??
-    keys.find((k) => k.name === 'service_role');
-  if (!serviceKey) throw new Error('service_role key not found on project');
-  return serviceKey.api_key;
-}
 
 async function checkUrl(url) {
   try {
@@ -75,9 +52,8 @@ async function fetchAll(supabase, table, columns) {
 }
 
 async function main() {
-  const serviceRoleKey = await fetchServiceRoleKey();
   const supabaseUrl = `https://${PROJECT_REF}.supabase.co`;
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient(supabaseUrl, SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
 
