@@ -107,6 +107,14 @@ export default function LoginScreen(): React.JSX.Element {
     }
   }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
+  const passwordEyeIcon = (
+    <TextInput.Icon
+      icon={showPassword ? 'eye-off' : 'eye'}
+      onPress={() => setShowPassword((v) => !v)}
+      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+
   return (
     <View style={styles.root}>
       <Animated.View style={[styles.header, { opacity: fadeHeader }]}>
@@ -184,15 +192,8 @@ export default function LoginScreen(): React.JSX.Element {
             onSubmitEditing={handleLogin}
             accessibilityLabel={t('auth.password')}
             accessibilityHint={t('auth.password_hint')}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? 'eye-off' : 'eye'}
-                onPress={() => setShowPassword((v) => !v)}
-                accessibilityLabel={
-                  showPassword ? t('auth.hide_password') : t('auth.show_password')
-                }
-              />
-            }
+            right={!rtl ? passwordEyeIcon : undefined}
+            left={rtl ? passwordEyeIcon : undefined}
             error={!!error}
           />
 
