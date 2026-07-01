@@ -14,6 +14,7 @@ import { font } from '@constants/typography';
 import { HouseSkyline } from '@components/shared/HouseSkyline';
 
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
+const SKYLINE_HEIGHT = 90;
 
 export default function WelcomeScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -157,6 +158,7 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: sizes.xl,
+      paddingBottom: SKYLINE_HEIGHT,
     },
     moon: {
       position: 'absolute',
@@ -182,7 +184,7 @@ function makeStyles(C: ColorTokens) {
       bottom: 0,
       left: 0,
       right: 0,
-      height: 90,
+      height: SKYLINE_HEIGHT,
       paddingHorizontal: sizes.md,
     },
     iconChip: {

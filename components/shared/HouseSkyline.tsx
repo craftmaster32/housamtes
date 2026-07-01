@@ -12,8 +12,8 @@ const HOUSES: HouseSpec[] = [
   { width: 46, wallHeight: 58, roofHeight: 22, hasChimney: false, windows: [{ top: 14, left: 8 }] },
   {
     width: 62,
-    wallHeight: 78,
-    roofHeight: 28,
+    wallHeight: 62,
+    roofHeight: 22,
     hasChimney: true,
     windows: [
       { top: 12, left: 10 },
@@ -34,8 +34,8 @@ const HOUSES: HouseSpec[] = [
   },
   {
     width: 66,
-    wallHeight: 86,
-    roofHeight: 30,
+    wallHeight: 64,
+    roofHeight: 24,
     hasChimney: true,
     windows: [
       { top: 14, left: 12 },
@@ -51,8 +51,7 @@ const HOUSES: HouseSpec[] = [
 export function HouseSkyline(): React.JSX.Element {
   return (
     <View
-      style={styles.row}
-      pointerEvents="none"
+      style={[styles.row, { pointerEvents: 'none' }]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
