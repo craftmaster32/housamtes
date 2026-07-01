@@ -12,7 +12,9 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
-import { AuthIllustration } from '@components/shared/AuthIllustration';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
+import { passwordVisibilityIconProps } from '@utils/passwordVisibilityIcon';
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
 
@@ -48,6 +50,8 @@ export default function SignupScreen(): React.JSX.Element {
   const confirmRef = useRef<RNTextInput>(null);
 
   const C = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const fadeHeader = useRef(new Animated.Value(0)).current;
@@ -118,6 +122,29 @@ export default function SignupScreen(): React.JSX.Element {
       setError(err instanceof Error ? err.message : t('auth.something_went_wrong'));
     }
   }, [name, email, password, confirmPw, selectedColor, isLoading, signUp, t]);
+
+  const toggleShowPassword = useCallback(() => setShowPassword((v) => !v), []);
+  const toggleShowConfirm = useCallback(() => setShowConfirm((v) => !v), []);
+  const passwordEyeIcon = (
+    <TextInput.Icon
+      {...passwordVisibilityIconProps(
+        showPassword,
+        toggleShowPassword,
+        t('auth.show_password'),
+        t('auth.hide_password')
+      )}
+    />
+  );
+  const confirmEyeIcon = (
+    <TextInput.Icon
+      {...passwordVisibilityIconProps(
+        showConfirm,
+        toggleShowConfirm,
+        t('auth.show_password'),
+        t('auth.hide_password')
+      )}
+    />
+  );
 
   return (
     <View style={styles.root}>
@@ -204,15 +231,8 @@ export default function SignupScreen(): React.JSX.Element {
               onSubmitEditing={() => confirmRef.current?.focus()}
               accessibilityLabel={t('auth.password')}
               accessibilityHint={t('auth.password_hint')}
-              right={
-                <TextInput.Icon
-                  icon={showPassword ? 'eye-off' : 'eye'}
-                  onPress={() => setShowPassword((v) => !v)}
-                  accessibilityLabel={
-                    showPassword ? t('auth.hide_password') : t('auth.show_password')
-                  }
-                />
-              }
+              right={!rtl ? passwordEyeIcon : undefined}
+              left={rtl ? passwordEyeIcon : undefined}
               error={!!passwordError}
             />
             {!!passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
@@ -256,13 +276,8 @@ export default function SignupScreen(): React.JSX.Element {
             onSubmitEditing={handleSignup}
             accessibilityLabel={t('auth.confirm_password')}
             accessibilityHint={t('auth.confirm_password_hint')}
-            right={
-              <TextInput.Icon
-                icon={showConfirm ? 'eye-off' : 'eye'}
-                onPress={() => setShowConfirm((v) => !v)}
-                accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
-              />
-            }
+            right={!rtl ? confirmEyeIcon : undefined}
+            left={rtl ? confirmEyeIcon : undefined}
             error={!!error && error === t('auth.passwords_no_match')}
           />
 
@@ -296,10 +311,6 @@ export default function SignupScreen(): React.JSX.Element {
               {t('auth.has_account')} <Text style={styles.loginTextBold}>{t('auth.log_in')}</Text>
             </Text>
           </Pressable>
-
-          <View style={styles.illustrationSpacer}>
-            <AuthIllustration />
-          </View>
         </ScrollView>
       </Animated.View>
     </View>
@@ -329,17 +340,10 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surface,
     },
     cardContent: {
-      flexGrow: 1,
       paddingHorizontal: sizes.lg,
       paddingTop: sizes.sm,
       paddingBottom: sizes.xl,
       gap: sizes.md,
-    },
-    illustrationSpacer: {
-      flex: 1,
-      minHeight: 100,
-      maxHeight: 220,
-      justifyContent: 'flex-end',
     },
     brandRow: {
       flexDirection: 'row',
