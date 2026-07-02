@@ -34,8 +34,15 @@ async function sendPushWithRetry(messages: unknown[]): Promise<boolean> {
 }
 
 Deno.serve(async (_req: Request): Promise<Response> => {
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+
+  if (!serviceRoleKey || !supabaseUrl) {
+    return new Response(JSON.stringify({ error: 'Missing Supabase environment configuration' }), {
+      status: 500,
+    });
+  }
+
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
@@ -78,13 +85,19 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     if (tokenError) {
       // The reminders are already claimed (sent = true) — release the claim so
       // the next run retries them instead of silently dropping every push.
-      await supabase
+      const { error: releaseError } = await supabase
         .from('grocery_reminders')
         .update({ sent: false })
         .in(
           'id',
           typedReminders.map((r) => r.id)
         );
+      if (releaseError) {
+        console.error(
+          'Failed to release reminder claims after token lookup failure',
+          releaseError.message
+        );
+      }
       return new Response(JSON.stringify({ error: tokenError.message }), { status: 500 });
     }
 
@@ -131,7 +144,13 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     // Release the claim on reminders whose push never went through, so the
     // next run retries them instead of the reminder silently going missing.
     if (failedReminderIds.length > 0) {
-      await supabase.from('grocery_reminders').update({ sent: false }).in('id', failedReminderIds);
+      const { error: releaseError } = await supabase
+        .from('grocery_reminders')
+        .update({ sent: false })
+        .in('id', failedReminderIds);
+      if (releaseError) {
+        console.error('Failed to release reminder claims for retry', releaseError.message);
+      }
     }
 
     return new Response(JSON.stringify({ sent: totalSent, reminders: typedReminders.length }), {
