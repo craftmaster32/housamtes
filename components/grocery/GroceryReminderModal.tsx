@@ -101,7 +101,6 @@ export function GroceryReminderModal({
               style={[s.input, { color: C.textPrimary }]}
               maxLength={200}
               accessible
-              accessibilityRole="text"
               accessibilityLabel={t('grocery.reminder_label')}
               accessibilityHint={t('grocery.reminder_label_hint')}
             />
