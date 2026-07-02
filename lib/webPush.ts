@@ -36,13 +36,15 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
   // (user, house) is missing or points at a different endpoint, treat the local
   // subscription as dead: unsubscribe and create a fresh one so a new endpoint gets saved.
   if (existingSub) {
-    const { data: row } = await supabase
+    const { data: row, error: readError } = await supabase
       .from('web_push_subscriptions')
       .select('endpoint')
       .eq('user_id', userId)
       .eq('house_id', houseId)
       .maybeSingle();
-    if (!row || row.endpoint !== existingSub.endpoint) {
+    // Only reconcile when the read actually succeeded — on a network / auth blip,
+    // reuse the local sub rather than churning it based on a phantom "missing row".
+    if (!readError && (!row || row.endpoint !== existingSub.endpoint)) {
       await existingSub.unsubscribe();
       existingSub = null;
     }
@@ -60,19 +62,17 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
   const auth = json.keys?.auth;
   if (!p256dh || !auth) return;
 
-  await supabase
-    .from('web_push_subscriptions')
-    .upsert(
-      {
-        user_id: userId,
-        house_id: houseId,
-        endpoint: subscription.endpoint,
-        p256dh,
-        auth,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,house_id' }
-    );
+  await supabase.from('web_push_subscriptions').upsert(
+    {
+      user_id: userId,
+      house_id: houseId,
+      endpoint: subscription.endpoint,
+      p256dh,
+      auth,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,house_id' }
+  );
 }
 
 /** Called on startup — re-subscribes silently if already granted. Never asks for permission. */
