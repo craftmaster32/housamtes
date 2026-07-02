@@ -174,7 +174,7 @@ const createReminderSchema = z.object({
   label: z.string().trim().min(1).max(200),
   remindAt: z
     .string()
-    .refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid reminder time' })
+    .datetime({ message: 'Invalid reminder time' })
     .refine((v) => new Date(v).getTime() > Date.now(), {
       message: 'Reminder time must be in the future',
     }),
@@ -818,18 +818,30 @@ export const useGroceryStore = create<GroceryStore>()(
             ),
           });
         } catch (err) {
-          captureError(err, { context: 'create-grocery-reminder', houseId: params.houseId });
+          captureError(err, {
+            context: 'create-grocery-reminder',
+            houseId: params.houseId,
+            userId: params.userId,
+          });
           throw new Error('Could not set the reminder. Please try again.');
         }
       },
 
       deleteReminder: async (id: string): Promise<void> => {
         const prevReminders = get().reminders;
+        const target = prevReminders.find((r) => r.id === id);
         set({ reminders: prevReminders.filter((r) => r.id !== id) });
-        const { error } = await supabase.from('grocery_reminders').delete().eq('id', id);
-        if (error) {
+        try {
+          const { error } = await supabase.from('grocery_reminders').delete().eq('id', id);
+          if (error) throw error;
+        } catch (err) {
           set({ reminders: prevReminders });
-          captureError(error, { context: 'delete-grocery-reminder', id });
+          captureError(err, {
+            context: 'delete-grocery-reminder',
+            id,
+            houseId: target?.houseId ?? '',
+            userId: target?.userId ?? '',
+          });
           throw new Error('Could not remove the reminder. Please try again.');
         }
       },

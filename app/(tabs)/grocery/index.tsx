@@ -473,6 +473,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const loadListIntoDraft = useGroceryStore((s) => s.loadListIntoDraft);
   const reminders = useGroceryStore((s) => s.reminders);
   const isLoadingReminders = useGroceryStore((s) => s.isLoadingReminders);
+  const remindersError = useGroceryStore((s) => s.remindersError);
   const fetchReminders = useGroceryStore((s) => s.fetchReminders);
   const createReminder = useGroceryStore((s) => s.createReminder);
   const deleteReminder = useGroceryStore((s) => s.deleteReminder);
@@ -755,13 +756,17 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleSaveReminder = useCallback(
     async (label: string, remindAt: string): Promise<void> => {
       if (!houseId || !myId) return;
-      await createReminder({
-        houseId,
-        userId: myId,
-        listId: reminderListTarget?.id ?? null,
-        label,
-        remindAt,
-      });
+      try {
+        await createReminder({
+          houseId,
+          userId: myId,
+          listId: reminderListTarget?.id ?? null,
+          label,
+          remindAt,
+        });
+      } catch (err) {
+        throw err instanceof Error ? err : new Error('Could not set the reminder.');
+      }
     },
     [createReminder, houseId, myId, reminderListTarget]
   );
@@ -1355,6 +1360,7 @@ export default function GroceryScreen(): React.JSX.Element {
                   <GroceryRemindersSection
                     reminders={reminders}
                     isLoading={isLoadingReminders}
+                    error={remindersError}
                     onAddReminder={handleOpenGeneralReminder}
                     onDeleteReminder={handleDeleteReminder}
                   />

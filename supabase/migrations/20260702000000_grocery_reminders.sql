@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS grocery_reminders (
   id         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   house_id   uuid NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
   user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  list_id    uuid REFERENCES grocery_lists(id) ON DELETE CASCADE,
+  list_id    uuid REFERENCES grocery_lists(id) ON DELETE SET NULL,
   label      text NOT NULL,
   remind_at  timestamptz NOT NULL,
   sent       boolean NOT NULL DEFAULT false,
@@ -42,7 +42,11 @@ CREATE POLICY "users can create own grocery reminders" ON grocery_reminders FOR 
   );
 
 CREATE POLICY "users can update own grocery reminders" ON grocery_reminders FOR UPDATE
-  USING (user_id = auth.uid());
+  USING (user_id = auth.uid())
+  WITH CHECK (
+    user_id = auth.uid()
+    AND house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid())
+  );
 
 CREATE POLICY "users can delete own grocery reminders" ON grocery_reminders FOR DELETE
   USING (user_id = auth.uid());

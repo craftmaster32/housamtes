@@ -4,15 +4,16 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
-import { enUS, es as dateFnsEs, he as dateFnsHe } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { type GroceryReminder } from '@stores/groceryStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { getDateFnsLocale } from '@utils/dates';
 
 interface GroceryRemindersSectionProps {
   reminders: GroceryReminder[];
   isLoading: boolean;
+  error: string | null;
   onAddReminder: () => void;
   onDeleteReminder: (id: string) => void;
 }
@@ -20,6 +21,7 @@ interface GroceryRemindersSectionProps {
 export function GroceryRemindersSection({
   reminders,
   isLoading,
+  error,
   onAddReminder,
   onDeleteReminder,
 }: GroceryRemindersSectionProps): React.JSX.Element {
@@ -28,9 +30,7 @@ export function GroceryRemindersSection({
   const styles = useMemo(() => makeStyles(C), [C]);
   const [expanded, setExpanded] = useState(false);
 
-  const dateFnsLocale =
-    ({ en: enUS, es: dateFnsEs, he: dateFnsHe } as const)[i18n.language as 'en' | 'es' | 'he'] ??
-    enUS;
+  const dateFnsLocale = getDateFnsLocale(i18n.language);
 
   const handleToggle = useCallback((): void => {
     Haptics.selectionAsync().catch(() => {});
@@ -89,7 +89,9 @@ export function GroceryRemindersSection({
         <View style={styles.body}>
           {isLoading && <ActivityIndicator size="small" color={C.primary} style={styles.loader} />}
 
-          {!isLoading && reminders.length === 0 && (
+          {!isLoading && !!error && <Text style={styles.errorText}>{error}</Text>}
+
+          {!isLoading && !error && reminders.length === 0 && (
             <Text style={styles.emptyText}>{t('grocery.no_reminders')}</Text>
           )}
 
@@ -173,6 +175,7 @@ function makeStyles(C: ColorTokens) {
     },
     loader: { marginVertical: 12 },
     emptyText: { fontSize: 13, ...font.regular, color: C.textSecondary, paddingVertical: 8 },
+    errorText: { fontSize: 13, ...font.regular, color: '#D94F4F', paddingVertical: 8 },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

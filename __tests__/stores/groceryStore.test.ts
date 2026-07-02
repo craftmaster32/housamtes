@@ -480,20 +480,24 @@ function reminderRow(overrides: Partial<Record<string, unknown>> = {}): Record<s
 }
 
 describe('fetchReminders', () => {
-  it('loads and maps reminders sorted by remind_at', async () => {
-    mockFrom.mockReturnValue(ok([reminderRow()]));
+  it('loads and maps reminders sorted by remind_at, querying with ascending order', async () => {
+    const chain = ok([
+      reminderRow({ id: 'reminder-1', remind_at: '2099-01-01T09:00:00.000Z' }),
+      reminderRow({ id: 'reminder-2', remind_at: '2099-01-02T09:00:00.000Z' }),
+    ]);
+    mockFrom.mockReturnValue(chain);
 
     await useGroceryStore.getState().fetchReminders(HOUSE_UUID, USER_UUID);
 
+    expect(chain.order).toHaveBeenCalledWith('remind_at', { ascending: true });
     const reminders = useGroceryStore.getState().reminders;
-    expect(reminders).toHaveLength(1);
+    expect(reminders.map((r) => r.id)).toEqual(['reminder-1', 'reminder-2']);
     expect(reminders[0]).toMatchObject({
       id: 'reminder-1',
       houseId: HOUSE_UUID,
       userId: USER_UUID,
       listId: null,
       label: 'Buy milk',
-      remindAt: '2099-01-01T10:00:00.000Z',
     });
     expect(useGroceryStore.getState().remindersError).toBeNull();
   });
@@ -506,6 +510,68 @@ describe('fetchReminders', () => {
     expect(useGroceryStore.getState().remindersError).toBe(
       'Could not load reminders. Please try again.'
     );
+  });
+});
+
+describe('createReminder validation', () => {
+  it('rejects a non-UUID houseId', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: 'not-a-uuid',
+        userId: USER_UUID,
+        listId: null,
+        label: 'Buy milk',
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+
+  it('rejects a non-UUID userId', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: 'not-a-uuid',
+        listId: null,
+        label: 'Buy milk',
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+
+  it('rejects an empty label', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: null,
+        label: '   ',
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+
+  it('rejects a label longer than 200 characters', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: null,
+        label: 'a'.repeat(201),
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+
+  it('rejects a non-ISO remindAt string', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: null,
+        label: 'Buy milk',
+        remindAt: 'next tuesday',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
   });
 });
 
