@@ -755,7 +755,9 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const handleSaveReminder = useCallback(
     async (label: string, remindAt: string): Promise<void> => {
-      if (!houseId || !myId) return;
+      if (!houseId || !myId) {
+        throw new Error('Could not set the reminder. Please try again.');
+      }
       try {
         await createReminder({
           houseId,

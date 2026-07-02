@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +32,14 @@ function nextRoundedDefault(): { date: string; time: string } {
   };
 }
 
+function toIso(date: string, time: string): string | null {
+  if (!date || !time) return null;
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, min] = time.split(':').map(Number);
+  const dt = new Date(y, (m ?? 1) - 1, d ?? 1, h ?? 0, min ?? 0);
+  return isNaN(dt.getTime()) ? null : dt.toISOString();
+}
+
 export function ReminderDateTimeField({
   visible,
   onChange,
@@ -45,25 +53,24 @@ export function ReminderDateTimeField({
   const [time, setTime] = useState(initial.time);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  const remindAtIso = useMemo(() => toIso(date, time), [date, time]);
+
+  // Declared before the visible-reset effect so, within the same commit, the
+  // reset effect's onChange call (with the freshly reset value) always runs
+  // last — this is what prevents a stale/past remindAtIso from being the one
+  // the parent ends up with when the modal reopens.
+  useEffect(() => {
+    onChange(remindAtIso);
+  }, [remindAtIso, onChange]);
+
   useEffect(() => {
     if (visible) {
       const next = nextRoundedDefault();
       setDate(next.date);
       setTime(next.time);
+      onChange(toIso(next.date, next.time));
     }
-  }, [visible]);
-
-  const remindAtIso = useMemo(() => {
-    if (!date || !time) return null;
-    const [y, m, d] = date.split('-').map(Number);
-    const [h, min] = time.split(':').map(Number);
-    const dt = new Date(y, (m ?? 1) - 1, d ?? 1, h ?? 0, min ?? 0);
-    return isNaN(dt.getTime()) ? null : dt.toISOString();
-  }, [date, time]);
-
-  useEffect(() => {
-    onChange(remindAtIso);
-  }, [remindAtIso, onChange]);
+  }, [visible, onChange]);
 
   const isFuture = remindAtIso !== null && new Date(remindAtIso).getTime() > Date.now();
 
@@ -73,13 +80,16 @@ export function ReminderDateTimeField({
     locale: dateFnsLocale,
   });
 
+  const openDatePicker = useCallback(() => setShowDatePicker(true), []);
+  const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
+
   return (
     <>
       <View style={s.field}>
         <Text style={[s.fieldLabel, { color: C.textSecondary }]}>{t('grocery.reminder_date')}</Text>
         <Pressable
           style={[s.dateTrigger, { backgroundColor: C.surfaceSecondary, borderColor: C.border }]}
-          onPress={() => setShowDatePicker(true)}
+          onPress={openDatePicker}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('bills.pick_date')}
@@ -104,7 +114,7 @@ export function ReminderDateTimeField({
         visible={showDatePicker}
         value={date}
         onSelect={setDate}
-        onClose={() => setShowDatePicker(false)}
+        onClose={closeDatePicker}
       />
     </>
   );

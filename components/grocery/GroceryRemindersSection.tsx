@@ -135,7 +135,7 @@ export function GroceryRemindersSection({
   );
 }
 
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     container: {
       backgroundColor: C.surface,

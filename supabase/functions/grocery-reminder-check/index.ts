@@ -33,7 +33,7 @@ async function sendPushWithRetry(messages: unknown[]): Promise<boolean> {
   return false;
 }
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (_req: Request): Promise<Response> => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 
@@ -69,10 +69,23 @@ Deno.serve(async (_req: Request) => {
 
   // Fetch every relevant push token in one query instead of one per reminder.
   const userIds = [...new Set(typedReminders.map((r) => r.user_id))];
-  const { data: tokenRows } = await supabase
+  const { data: tokenRows, error: tokenError } = await supabase
     .from('push_tokens')
     .select('token, user_id, house_id')
     .in('user_id', userIds);
+
+  if (tokenError) {
+    // The reminders are already claimed (sent = true) — release the claim so
+    // the next run retries them instead of silently dropping every push.
+    await supabase
+      .from('grocery_reminders')
+      .update({ sent: false })
+      .in(
+        'id',
+        typedReminders.map((r) => r.id)
+      );
+    return new Response(JSON.stringify({ error: tokenError.message }), { status: 500 });
+  }
 
   const tokensByUser = new Map<string, string[]>();
   for (const row of (tokenRows ?? []) as Array<{

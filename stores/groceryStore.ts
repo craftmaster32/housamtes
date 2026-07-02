@@ -767,6 +767,9 @@ export const useGroceryStore = create<GroceryStore>()(
       // ── Reminders ────────────────────────────────────────────────────────────
 
       fetchReminders: async (houseId: string, userId: string): Promise<void> => {
+        const parsedHouseId = z.string().uuid().safeParse(houseId);
+        const parsedUserId = z.string().uuid().safeParse(userId);
+        if (!parsedHouseId.success || !parsedUserId.success) return;
         set({ isLoadingReminders: true });
         try {
           const { data, error } = await supabase
@@ -828,6 +831,8 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       deleteReminder: async (id: string): Promise<void> => {
+        const parsedId = z.string().uuid().safeParse(id);
+        if (!parsedId.success) return;
         const prevReminders = get().reminders;
         const target = prevReminders.find((r) => r.id === id);
         set({ reminders: prevReminders.filter((r) => r.id !== id) });
@@ -835,7 +840,14 @@ export const useGroceryStore = create<GroceryStore>()(
           const { error } = await supabase.from('grocery_reminders').delete().eq('id', id);
           if (error) throw error;
         } catch (err) {
-          set({ reminders: prevReminders });
+          // Restore only the deleted reminder, not the whole prior snapshot —
+          // a concurrent fetch/create may have changed the list in the meantime.
+          const current = get().reminders;
+          if (target && !current.some((r) => r.id === target.id)) {
+            set({
+              reminders: [...current, target].sort((a, b) => a.remindAt.localeCompare(b.remindAt)),
+            });
+          }
           captureError(err, {
             context: 'delete-grocery-reminder',
             id,

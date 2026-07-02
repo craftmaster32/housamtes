@@ -58,6 +58,14 @@ export function SavedListsSection({
     [hasDraftItems, onLoadList, t]
   );
 
+  const handleSetReminder = useCallback(
+    (list: GroceryList): void => {
+      Haptics.selectionAsync().catch(() => {});
+      onSetListReminder(list);
+    },
+    [onSetListReminder]
+  );
+
   const handleDelete = useCallback(
     (list: GroceryList): void => {
       Alert.alert(
@@ -138,7 +146,7 @@ export function SavedListsSection({
               <View style={styles.listActions}>
                 <Pressable
                   style={styles.iconBtn}
-                  onPress={() => onSetListReminder(list)}
+                  onPress={() => handleSetReminder(list)}
                   accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('grocery.remind_me_about_list', { name: list.name })}

@@ -464,10 +464,12 @@ describe('clearChecked + realtime race condition', () => {
 
 const USER_UUID = '00000000-0000-0000-0000-000000000002';
 const LIST_UUID = '00000000-0000-0000-0000-000000000003';
+const REMINDER_UUID = '00000000-0000-0000-0000-000000000004';
+const REMINDER_UUID_2 = '00000000-0000-0000-0000-000000000005';
 
 function reminderRow(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
   return {
-    id: 'reminder-1',
+    id: REMINDER_UUID,
     house_id: HOUSE_UUID,
     user_id: USER_UUID,
     list_id: null,
@@ -482,8 +484,8 @@ function reminderRow(overrides: Partial<Record<string, unknown>> = {}): Record<s
 describe('fetchReminders', () => {
   it('loads and maps reminders sorted by remind_at, querying with ascending order', async () => {
     const chain = ok([
-      reminderRow({ id: 'reminder-1', remind_at: '2099-01-01T09:00:00.000Z' }),
-      reminderRow({ id: 'reminder-2', remind_at: '2099-01-02T09:00:00.000Z' }),
+      reminderRow({ id: REMINDER_UUID, remind_at: '2099-01-01T09:00:00.000Z' }),
+      reminderRow({ id: REMINDER_UUID_2, remind_at: '2099-01-02T09:00:00.000Z' }),
     ]);
     mockFrom.mockReturnValue(chain);
 
@@ -491,9 +493,9 @@ describe('fetchReminders', () => {
 
     expect(chain.order).toHaveBeenCalledWith('remind_at', { ascending: true });
     const reminders = useGroceryStore.getState().reminders;
-    expect(reminders.map((r) => r.id)).toEqual(['reminder-1', 'reminder-2']);
+    expect(reminders.map((r) => r.id)).toEqual([REMINDER_UUID, REMINDER_UUID_2]);
     expect(reminders[0]).toMatchObject({
-      id: 'reminder-1',
+      id: REMINDER_UUID,
       houseId: HOUSE_UUID,
       userId: USER_UUID,
       listId: null,
@@ -589,7 +591,7 @@ describe('createReminder', () => {
   });
 
   it('adds the new reminder to state on success', async () => {
-    mockFrom.mockReturnValue(ok(reminderRow({ id: 'reminder-2', list_id: LIST_UUID })));
+    mockFrom.mockReturnValue(ok(reminderRow({ id: REMINDER_UUID_2, list_id: LIST_UUID })));
 
     await useGroceryStore.getState().createReminder({
       houseId: HOUSE_UUID,
@@ -624,7 +626,7 @@ describe('deleteReminder', () => {
     useGroceryStore.setState({
       reminders: [
         {
-          id: 'reminder-1',
+          id: REMINDER_UUID,
           houseId: HOUSE_UUID,
           userId: USER_UUID,
           listId: null,
@@ -637,7 +639,7 @@ describe('deleteReminder', () => {
     });
     mockFrom.mockReturnValue(ok(null));
 
-    const promise = useGroceryStore.getState().deleteReminder('reminder-1');
+    const promise = useGroceryStore.getState().deleteReminder(REMINDER_UUID);
     expect(useGroceryStore.getState().reminders).toHaveLength(0);
     await promise;
   });
@@ -645,7 +647,7 @@ describe('deleteReminder', () => {
   it('rolls back if Supabase returns an error', async () => {
     const seeded = [
       {
-        id: 'reminder-1',
+        id: REMINDER_UUID,
         houseId: HOUSE_UUID,
         userId: USER_UUID,
         listId: null,
@@ -658,7 +660,7 @@ describe('deleteReminder', () => {
     useGroceryStore.setState({ reminders: seeded });
     mockFrom.mockReturnValue(fail('permission denied'));
 
-    await expect(useGroceryStore.getState().deleteReminder('reminder-1')).rejects.toThrow(
+    await expect(useGroceryStore.getState().deleteReminder(REMINDER_UUID)).rejects.toThrow(
       'Could not remove the reminder. Please try again.'
     );
 
