@@ -36,96 +36,112 @@ async function sendPushWithRetry(messages: unknown[]): Promise<boolean> {
 Deno.serve(async (_req: Request): Promise<Response> => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-
   const supabase = createClient(supabaseUrl, serviceRoleKey);
-  const nowIso = new Date().toISOString();
 
-  // Atomically claim due reminders in one statement — an UPDATE...RETURNING
-  // means two overlapping runs can never both claim (and double-push) the
-  // same row, unlike a separate select-then-mark-sent pair.
-  const { data: reminders, error } = await supabase
-    .from('grocery_reminders')
-    .update({ sent: true })
-    .eq('sent', false)
-    .lte('remind_at', nowIso)
-    .select('id, house_id, user_id, label');
+  try {
+    const nowIso = new Date().toISOString();
 
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
-  }
+    // Atomically claim due reminders in one statement — an UPDATE...RETURNING
+    // means two overlapping runs can never both claim (and double-push) the
+    // same row, unlike a separate select-then-mark-sent pair.
+    const { data: reminders, error } = await supabase
+      .from('grocery_reminders')
+      .update({ sent: true })
+      .eq('sent', false)
+      .lte('remind_at', nowIso)
+      .select('id, house_id, user_id, label');
 
-  if (!reminders || reminders.length === 0) {
-    return new Response(JSON.stringify({ sent: 0, reminders: 0 }), {
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    }
+
+    if (!reminders || reminders.length === 0) {
+      return new Response(JSON.stringify({ sent: 0, reminders: 0 }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const typedReminders = reminders as Array<{
+      id: string;
+      house_id: string;
+      user_id: string;
+      label: string;
+    }>;
+
+    // Fetch every relevant push token in one query instead of one per reminder.
+    const userIds = [...new Set(typedReminders.map((r) => r.user_id))];
+    const { data: tokenRows, error: tokenError } = await supabase
+      .from('push_tokens')
+      .select('token, user_id, house_id')
+      .in('user_id', userIds);
+
+    if (tokenError) {
+      // The reminders are already claimed (sent = true) — release the claim so
+      // the next run retries them instead of silently dropping every push.
+      await supabase
+        .from('grocery_reminders')
+        .update({ sent: false })
+        .in(
+          'id',
+          typedReminders.map((r) => r.id)
+        );
+      return new Response(JSON.stringify({ error: tokenError.message }), { status: 500 });
+    }
+
+    const tokensByUser = new Map<string, string[]>();
+    for (const row of (tokenRows ?? []) as Array<{
+      token: string;
+      user_id: string;
+      house_id: string;
+    }>) {
+      const key = `${row.user_id}:${row.house_id}`;
+      const list = tokensByUser.get(key) ?? [];
+      list.push(row.token);
+      tokensByUser.set(key, list);
+    }
+
+    let totalSent = 0;
+    const failedReminderIds: string[] = [];
+
+    for (const reminder of typedReminders) {
+      const tokens = (tokensByUser.get(`${reminder.user_id}:${reminder.house_id}`) ?? []).filter(
+        Boolean
+      );
+      if (tokens.length === 0) continue;
+
+      const messages = tokens.map((to: string) => ({
+        to,
+        title: '🛒 Grocery reminder',
+        body: reminder.label,
+        sound: 'default',
+        data: { screen: 'grocery' },
+      }));
+
+      // Isolate each reminder's push attempt — a failure here must not stop
+      // the rest of the batch.
+      const delivered = await sendPushWithRetry(messages);
+      if (delivered) {
+        totalSent += tokens.length;
+      } else {
+        console.error('Expo push failed after retries', reminder.id);
+        failedReminderIds.push(reminder.id);
+      }
+    }
+
+    // Release the claim on reminders whose push never went through, so the
+    // next run retries them instead of the reminder silently going missing.
+    if (failedReminderIds.length > 0) {
+      await supabase.from('grocery_reminders').update({ sent: false }).in('id', failedReminderIds);
+    }
+
+    return new Response(JSON.stringify({ sent: totalSent, reminders: typedReminders.length }), {
       headers: { 'Content-Type': 'application/json' },
     });
-  }
-
-  const typedReminders = reminders as Array<{
-    id: string;
-    house_id: string;
-    user_id: string;
-    label: string;
-  }>;
-
-  // Fetch every relevant push token in one query instead of one per reminder.
-  const userIds = [...new Set(typedReminders.map((r) => r.user_id))];
-  const { data: tokenRows, error: tokenError } = await supabase
-    .from('push_tokens')
-    .select('token, user_id, house_id')
-    .in('user_id', userIds);
-
-  if (tokenError) {
-    // The reminders are already claimed (sent = true) — release the claim so
-    // the next run retries them instead of silently dropping every push.
-    await supabase
-      .from('grocery_reminders')
-      .update({ sent: false })
-      .in(
-        'id',
-        typedReminders.map((r) => r.id)
-      );
-    return new Response(JSON.stringify({ error: tokenError.message }), { status: 500 });
-  }
-
-  const tokensByUser = new Map<string, string[]>();
-  for (const row of (tokenRows ?? []) as Array<{
-    token: string;
-    user_id: string;
-    house_id: string;
-  }>) {
-    const key = `${row.user_id}:${row.house_id}`;
-    const list = tokensByUser.get(key) ?? [];
-    list.push(row.token);
-    tokensByUser.set(key, list);
-  }
-
-  let totalSent = 0;
-
-  for (const reminder of typedReminders) {
-    const tokens = (tokensByUser.get(`${reminder.user_id}:${reminder.house_id}`) ?? []).filter(
-      Boolean
+  } catch (err) {
+    console.error('grocery-reminder-check failed', err);
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }),
+      { status: 500 }
     );
-    if (tokens.length === 0) continue;
-
-    const messages = tokens.map((to: string) => ({
-      to,
-      title: '🛒 Grocery reminder',
-      body: reminder.label,
-      sound: 'default',
-      data: { screen: 'grocery' },
-    }));
-
-    // Isolate each reminder's push attempt — a failure here must not stop
-    // the rest of the batch, since every reminder is already marked sent.
-    const delivered = await sendPushWithRetry(messages);
-    if (delivered) {
-      totalSent += tokens.length;
-    } else {
-      console.error('Expo push failed after retries', reminder.id);
-    }
   }
-
-  return new Response(JSON.stringify({ sent: totalSent, reminders: typedReminders.length }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
 });
