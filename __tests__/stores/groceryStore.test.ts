@@ -132,6 +132,9 @@ beforeEach(() => {
     savedLists: [],
     isLoadingLists: false,
     currentDraftSourceListId: null,
+    reminders: [],
+    isLoadingReminders: false,
+    remindersError: null,
   });
   capturedHandlers = {};
   mockFrom.mockReset();
@@ -454,5 +457,213 @@ describe('clearChecked + realtime race condition', () => {
     // item-1 is gone, item-2 still there — not restored by realtime
     const ids = useGroceryStore.getState().items.map((i) => i.id);
     expect(ids).toEqual(['item-2']);
+  });
+});
+
+// ── Reminders ───────────────────────────────────────────────────────────────
+
+const USER_UUID = '00000000-0000-0000-0000-000000000002';
+const LIST_UUID = '00000000-0000-0000-0000-000000000003';
+const REMINDER_UUID = '00000000-0000-0000-0000-000000000004';
+const REMINDER_UUID_2 = '00000000-0000-0000-0000-000000000005';
+
+function reminderRow(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
+  return {
+    id: REMINDER_UUID,
+    house_id: HOUSE_UUID,
+    user_id: USER_UUID,
+    list_id: null,
+    label: 'Buy milk',
+    remind_at: '2099-01-01T10:00:00.000Z',
+    sent: false,
+    created_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+describe('fetchReminders', () => {
+  it('loads and maps reminders sorted by remind_at, querying with ascending order', async () => {
+    const chain = ok([
+      reminderRow({ id: REMINDER_UUID, remind_at: '2099-01-01T09:00:00.000Z' }),
+      reminderRow({ id: REMINDER_UUID_2, remind_at: '2099-01-02T09:00:00.000Z' }),
+    ]);
+    mockFrom.mockReturnValue(chain);
+
+    await useGroceryStore.getState().fetchReminders(HOUSE_UUID, USER_UUID);
+
+    expect(chain.order).toHaveBeenCalledWith('remind_at', { ascending: true });
+    const reminders = useGroceryStore.getState().reminders;
+    expect(reminders.map((r) => r.id)).toEqual([REMINDER_UUID, REMINDER_UUID_2]);
+    expect(reminders[0]).toMatchObject({
+      id: REMINDER_UUID,
+      houseId: HOUSE_UUID,
+      userId: USER_UUID,
+      listId: null,
+      label: 'Buy milk',
+    });
+    expect(useGroceryStore.getState().remindersError).toBeNull();
+  });
+
+  it('surfaces an error when the fetch fails', async () => {
+    mockFrom.mockReturnValue(fail('permission denied'));
+
+    await useGroceryStore.getState().fetchReminders(HOUSE_UUID, USER_UUID);
+
+    expect(useGroceryStore.getState().remindersError).toBe(
+      'Could not load reminders. Please try again.'
+    );
+  });
+});
+
+describe('createReminder validation', () => {
+  it('rejects a non-UUID houseId', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: 'not-a-uuid',
+        userId: USER_UUID,
+        listId: null,
+        label: 'Buy milk',
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+
+  it('rejects a non-UUID userId', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: 'not-a-uuid',
+        listId: null,
+        label: 'Buy milk',
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+
+  it('rejects an empty label', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: null,
+        label: '   ',
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+
+  it('rejects a label longer than 200 characters', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: null,
+        label: 'a'.repeat(201),
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+
+  it('rejects a non-ISO remindAt string', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: null,
+        label: 'Buy milk',
+        remindAt: 'next tuesday',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+});
+
+describe('createReminder', () => {
+  it('rejects a reminder time in the past', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: null,
+        label: 'Buy milk',
+        remindAt: '2020-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+
+  it('adds the new reminder to state on success', async () => {
+    mockFrom.mockReturnValue(ok(reminderRow({ id: REMINDER_UUID_2, list_id: LIST_UUID })));
+
+    await useGroceryStore.getState().createReminder({
+      houseId: HOUSE_UUID,
+      userId: USER_UUID,
+      listId: LIST_UUID,
+      label: 'Buy milk',
+      remindAt: '2099-01-01T10:00:00.000Z',
+    });
+
+    const reminders = useGroceryStore.getState().reminders;
+    expect(reminders).toHaveLength(1);
+    expect(reminders[0].listId).toBe(LIST_UUID);
+  });
+
+  it('throws a friendly error when Supabase rejects the insert', async () => {
+    mockFrom.mockReturnValue(fail('permission denied'));
+
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: null,
+        label: 'Buy milk',
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
+});
+
+describe('deleteReminder', () => {
+  it('removes the reminder immediately, before Supabase responds', async () => {
+    useGroceryStore.setState({
+      reminders: [
+        {
+          id: REMINDER_UUID,
+          houseId: HOUSE_UUID,
+          userId: USER_UUID,
+          listId: null,
+          label: 'Buy milk',
+          remindAt: '2099-01-01T10:00:00.000Z',
+          sent: false,
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    });
+    mockFrom.mockReturnValue(ok(null));
+
+    const promise = useGroceryStore.getState().deleteReminder(REMINDER_UUID);
+    expect(useGroceryStore.getState().reminders).toHaveLength(0);
+    await promise;
+  });
+
+  it('rolls back if Supabase returns an error', async () => {
+    const seeded = [
+      {
+        id: REMINDER_UUID,
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: null,
+        label: 'Buy milk',
+        remindAt: '2099-01-01T10:00:00.000Z',
+        sent: false,
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ];
+    useGroceryStore.setState({ reminders: seeded });
+    mockFrom.mockReturnValue(fail('permission denied'));
+
+    await expect(useGroceryStore.getState().deleteReminder(REMINDER_UUID)).rejects.toThrow(
+      'Could not remove the reminder. Please try again.'
+    );
+
+    expect(useGroceryStore.getState().reminders).toEqual(seeded);
   });
 });

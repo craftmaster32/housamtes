@@ -38,6 +38,8 @@ import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailMod
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareModal';
 import { SavedListsSection } from '@components/grocery/SavedListsSection';
+import { GroceryRemindersSection } from '@components/grocery/GroceryRemindersSection';
+import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
@@ -469,6 +471,12 @@ export default function GroceryScreen(): React.JSX.Element {
   const updateSavedList = useGroceryStore((s) => s.updateSavedList);
   const deleteSavedList = useGroceryStore((s) => s.deleteSavedList);
   const loadListIntoDraft = useGroceryStore((s) => s.loadListIntoDraft);
+  const reminders = useGroceryStore((s) => s.reminders);
+  const isLoadingReminders = useGroceryStore((s) => s.isLoadingReminders);
+  const remindersError = useGroceryStore((s) => s.remindersError);
+  const fetchReminders = useGroceryStore((s) => s.fetchReminders);
+  const createReminder = useGroceryStore((s) => s.createReminder);
+  const deleteReminder = useGroceryStore((s) => s.deleteReminder);
 
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
@@ -494,6 +502,8 @@ export default function GroceryScreen(): React.JSX.Element {
   const [pendingPublishedItems, setPendingPublishedItems] = useState<SavedListItem[]>([]);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const leaveWarningShownRef = useRef(false);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [reminderListTarget, setReminderListTarget] = useState<GroceryList | null>(null);
 
   const inputRef = useRef<TextInput>(null);
   const C = useThemedColors();
@@ -536,6 +546,13 @@ export default function GroceryScreen(): React.JSX.Element {
       fetchSavedLists(houseId);
     }
   }, [houseId, fetchSavedLists]);
+
+  // Fetch upcoming personal reminders on mount
+  useEffect((): void => {
+    if (houseId && myId) {
+      fetchReminders(houseId, myId);
+    }
+  }, [houseId, myId, fetchReminders]);
 
   // ── Leave-without-share detection ──────────────────────────────────────────
   const myDraftItems = useMemo(
@@ -718,6 +735,51 @@ export default function GroceryScreen(): React.JSX.Element {
       }
     },
     [deleteSavedList, t]
+  );
+
+  // ── Reminder handlers ───────────────────────────────────────────────────────
+  const handleOpenGeneralReminder = useCallback((): void => {
+    setReminderListTarget(null);
+    setShowReminderModal(true);
+  }, []);
+
+  const handleOpenListReminder = useCallback((list: GroceryList): void => {
+    setReminderListTarget(list);
+    setShowReminderModal(true);
+  }, []);
+
+  const handleCloseReminderModal = useCallback((): void => {
+    setShowReminderModal(false);
+    setReminderListTarget(null);
+  }, []);
+
+  const handleSaveReminder = useCallback(
+    async (label: string, remindAt: string): Promise<void> => {
+      if (!houseId || !myId) {
+        throw new Error('Could not set the reminder. Please try again.');
+      }
+      try {
+        await createReminder({
+          houseId,
+          userId: myId,
+          listId: reminderListTarget?.id ?? null,
+          label,
+          remindAt,
+        });
+      } catch (err) {
+        throw err instanceof Error ? err : new Error('Could not set the reminder.');
+      }
+    },
+    [createReminder, houseId, myId, reminderListTarget]
+  );
+
+  const handleDeleteReminder = useCallback(
+    (id: string): void => {
+      deleteReminder(id).catch(() => {
+        setAddError(t('grocery.could_not_cancel_reminder'));
+      });
+    },
+    [deleteReminder, t]
   );
 
   // ── Save list modal handlers ───────────────────────────────────────────────
@@ -1296,6 +1358,15 @@ export default function GroceryScreen(): React.JSX.Element {
                     </View>
                   </View>
 
+                  {/* ── Reminders section ────────────────────────────────────── */}
+                  <GroceryRemindersSection
+                    reminders={reminders}
+                    isLoading={isLoadingReminders}
+                    error={remindersError}
+                    onAddReminder={handleOpenGeneralReminder}
+                    onDeleteReminder={handleDeleteReminder}
+                  />
+
                   {/* ── Saved Lists section ──────────────────────────────────── */}
                   <SavedListsSection
                     lists={savedLists}
@@ -1304,6 +1375,7 @@ export default function GroceryScreen(): React.JSX.Element {
                     hasDraftItems={myDraftItems.length > 0}
                     onLoadList={handleLoadList}
                     onDeleteList={handleDeleteList}
+                    onSetListReminder={handleOpenListReminder}
                   />
 
                   {/* ── Load / error states ─────────────────────────────────── */}
@@ -1363,6 +1435,13 @@ export default function GroceryScreen(): React.JSX.Element {
         draftCount={myDraftItems.length}
         onLeave={handleLeave}
         onStayAndShare={handleStayAndShare}
+      />
+
+      <GroceryReminderModal
+        visible={showReminderModal}
+        defaultLabel={reminderListTarget?.name ?? ''}
+        onClose={handleCloseReminderModal}
+        onSave={handleSaveReminder}
       />
     </>
   );
