@@ -13,6 +13,7 @@ import { TimePicker } from '@components/shared/TimePicker';
 export interface ReminderDateTimeFieldProps {
   /** Resets to the next rounded default (now + 30 min) whenever this flips to true. */
   visible: boolean;
+  /** Must be a stable reference (e.g. a useState setter or useCallback) — an inline function re-triggers the reset effect on every render. */
   onChange: (remindAtIso: string | null) => void;
 }
 
