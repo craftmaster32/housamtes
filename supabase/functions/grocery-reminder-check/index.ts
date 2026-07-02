@@ -7,6 +7,31 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const PUSH_TIMEOUT_MS = 5000;
+const PUSH_MAX_ATTEMPTS = 3;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Sends with up to 3 attempts and exponential backoff (500ms, 1000ms), per
+// this project's Edge Function notification rules (see AGENTS.md).
+async function sendPushWithRetry(messages: unknown[]): Promise<boolean> {
+  for (let attempt = 1; attempt <= PUSH_MAX_ATTEMPTS; attempt++) {
+    try {
+      const resp = await fetch(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(messages),
+        signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
+      });
+      if (resp.ok) return true;
+    } catch {
+      // fall through to retry
+    }
+    if (attempt < PUSH_MAX_ATTEMPTS) await sleep(2 ** (attempt - 1) * 500);
+  }
+  return false;
+}
 
 Deno.serve(async (_req: Request) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -79,16 +104,11 @@ Deno.serve(async (_req: Request) => {
 
     // Isolate each reminder's push attempt — a failure here must not stop
     // the rest of the batch, since every reminder is already marked sent.
-    try {
-      const resp = await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messages),
-        signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
-      });
-      if (resp.ok) totalSent += tokens.length;
-    } catch (pushErr) {
-      console.error('Expo push failed', reminder.id, pushErr);
+    const delivered = await sendPushWithRetry(messages);
+    if (delivered) {
+      totalSent += tokens.length;
+    } else {
+      console.error('Expo push failed after retries', reminder.id);
     }
   }
 
