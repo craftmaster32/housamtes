@@ -56,6 +56,17 @@ export interface ShoppingRun {
   startedAt: string;
 }
 
+export interface GroceryReminder {
+  id: string;
+  houseId: string;
+  userId: string;
+  listId: string | null;
+  label: string;
+  remindAt: string;
+  sent: boolean;
+  createdAt: string;
+}
+
 interface RunPayload {
   active: boolean;
   shopperId: string;
@@ -73,6 +84,9 @@ interface GroceryStore {
   listsError: string | null;
   currentDraftSourceListId: string | null;
   clearVersion: number;
+  reminders: GroceryReminder[];
+  isLoadingReminders: boolean;
+  remindersError: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addItem: (
@@ -105,6 +119,15 @@ interface GroceryStore {
   deleteSavedList: (listId: string) => Promise<void>;
   loadListIntoDraft: (list: GroceryList, userId: string, houseId: string) => Promise<void>;
   setCurrentDraftSourceListId: (id: string | null) => void;
+  fetchReminders: (houseId: string, userId: string) => Promise<void>;
+  createReminder: (params: {
+    houseId: string;
+    userId: string;
+    listId?: string | null;
+    label: string;
+    remindAt: string;
+  }) => Promise<void>;
+  deleteReminder: (id: string) => Promise<void>;
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
@@ -144,6 +167,32 @@ const createGroceryListResultSchema = z.object({
   updated_at: z.string(),
 });
 
+const createReminderSchema = z.object({
+  houseId: z.string().uuid(),
+  userId: z.string().uuid(),
+  listId: z.string().uuid().nullable(),
+  label: z.string().trim().min(1).max(200),
+  remindAt: z
+    .string()
+    .refine((v) => !isNaN(Date.parse(v)), { message: 'Invalid reminder time' })
+    .refine((v) => new Date(v).getTime() > Date.now(), {
+      message: 'Reminder time must be in the future',
+    }),
+});
+
+function mapReminder(r: Record<string, unknown>): GroceryReminder {
+  return {
+    id: r.id as string,
+    houseId: r.house_id as string,
+    userId: r.user_id as string,
+    listId: (r.list_id as string) ?? null,
+    label: r.label as string,
+    remindAt: r.remind_at as string,
+    sent: (r.sent as boolean) ?? false,
+    createdAt: r.created_at as string,
+  };
+}
+
 export const useGroceryStore = create<GroceryStore>()(
   devtools(
     (set, get) => ({
@@ -156,6 +205,9 @@ export const useGroceryStore = create<GroceryStore>()(
       listsError: null,
       currentDraftSourceListId: null,
       clearVersion: 0,
+      reminders: [],
+      isLoadingReminders: false,
+      remindersError: null,
 
       load: async (houseId: string): Promise<void> => {
         try {
@@ -710,6 +762,76 @@ export const useGroceryStore = create<GroceryStore>()(
 
       setCurrentDraftSourceListId: (id: string | null): void => {
         set({ currentDraftSourceListId: id });
+      },
+
+      // ── Reminders ────────────────────────────────────────────────────────────
+
+      fetchReminders: async (houseId: string, userId: string): Promise<void> => {
+        set({ isLoadingReminders: true });
+        try {
+          const { data, error } = await supabase
+            .from('grocery_reminders')
+            .select('*')
+            .eq('house_id', houseId)
+            .eq('user_id', userId)
+            .eq('sent', false)
+            .order('remind_at', { ascending: true });
+          if (error) throw error;
+          const reminders: GroceryReminder[] = (data ?? []).map((r) =>
+            mapReminder(r as Record<string, unknown>)
+          );
+          set({ reminders, isLoadingReminders: false, remindersError: null });
+        } catch (err) {
+          captureError(err, { context: 'fetch-grocery-reminders', houseId, userId });
+          set({
+            isLoadingReminders: false,
+            remindersError: 'Could not load reminders. Please try again.',
+          });
+        }
+      },
+
+      createReminder: async (params): Promise<void> => {
+        try {
+          const parsed = createReminderSchema.parse({
+            houseId: params.houseId,
+            userId: params.userId,
+            listId: params.listId ?? null,
+            label: params.label,
+            remindAt: params.remindAt,
+          });
+          const { data, error } = await supabase
+            .from('grocery_reminders')
+            .insert({
+              house_id: parsed.houseId,
+              user_id: parsed.userId,
+              list_id: parsed.listId,
+              label: parsed.label,
+              remind_at: parsed.remindAt,
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          const reminder = mapReminder(data as Record<string, unknown>);
+          set({
+            reminders: [...get().reminders, reminder].sort((a, b) =>
+              a.remindAt.localeCompare(b.remindAt)
+            ),
+          });
+        } catch (err) {
+          captureError(err, { context: 'create-grocery-reminder', houseId: params.houseId });
+          throw new Error('Could not set the reminder. Please try again.');
+        }
+      },
+
+      deleteReminder: async (id: string): Promise<void> => {
+        const prevReminders = get().reminders;
+        set({ reminders: prevReminders.filter((r) => r.id !== id) });
+        const { error } = await supabase.from('grocery_reminders').delete().eq('id', id);
+        if (error) {
+          set({ reminders: prevReminders });
+          captureError(error, { context: 'delete-grocery-reminder', id });
+          throw new Error('Could not remove the reminder. Please try again.');
+        }
       },
     }),
     { name: 'grocery-store' }
