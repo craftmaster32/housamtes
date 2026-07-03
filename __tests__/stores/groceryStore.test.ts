@@ -575,6 +575,18 @@ describe('createReminder validation', () => {
       })
     ).rejects.toThrow('Could not set the reminder. Please try again.');
   });
+
+  it('rejects a non-UUID listId', async () => {
+    await expect(
+      useGroceryStore.getState().createReminder({
+        houseId: HOUSE_UUID,
+        userId: USER_UUID,
+        listId: 'not-a-uuid',
+        label: 'Buy milk',
+        remindAt: '2099-01-01T10:00:00.000Z',
+      })
+    ).rejects.toThrow('Could not set the reminder. Please try again.');
+  });
 });
 
 describe('createReminder', () => {
