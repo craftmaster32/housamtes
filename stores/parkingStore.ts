@@ -146,6 +146,48 @@ export function isVoteChangeLocked(
   return isReservationPastDue(date, startTime, now, VOTE_CHANGE_LOCK_MINUTES);
 }
 
+// A reservation belongs in History (rather than Upcoming) when it's fully
+// settled. Rules:
+//   1. Date is in the past → history
+//   2. Rejected → history (any date)
+//   3. Approved and end time has already passed today → history
+//   4. Approved on today, start time has passed, and the spot is no longer
+//      held by the requester (released early or never claimed) → history
+// All-day approved slots stay in Upcoming until the calendar day is over.
+export function isReservationInHistory(
+  reservation: ParkingReservation,
+  now: Date = new Date(),
+  currentSession: ParkingSession | null = null
+): boolean {
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (reservation.date < todayStr) return true;
+  if (reservation.status === 'rejected') return true;
+  if (reservation.status !== 'approved' || reservation.date !== todayStr) return false;
+
+  const y = now.getFullYear();
+  const mo = now.getMonth();
+  const d = now.getDate();
+
+  if (reservation.endTime) {
+    const [eh, em] = reservation.endTime.split(':').map(Number);
+    const endDate = new Date(y, mo, d, eh, em ?? 0);
+    if (now.getTime() >= endDate.getTime()) return true;
+  }
+
+  if (reservation.startTime) {
+    const [sh, sm] = reservation.startTime.split(':').map(Number);
+    const startDate = new Date(y, mo, d, sh, sm ?? 0);
+    if (
+      now.getTime() >= startDate.getTime() &&
+      currentSession?.occupant !== reservation.requestedBy
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export interface ConflictResult {
   conflict: string | null;
   warning: string | null;
@@ -655,10 +697,8 @@ export const useParkingStore = create<ParkingStore>()(
         try {
           const reservation = get().reservations.find((r) => r.id === id);
           if (!reservation) throw new Error('Reservation not found');
-          const now = new Date();
-          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-          if (reservation.date >= todayStr)
-            throw new Error('Cannot clear a future or current reservation');
+          if (!isReservationInHistory(reservation, new Date(), get().current))
+            throw new Error('Cannot clear a reservation that is still upcoming');
 
           const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
           if (error) {
@@ -675,18 +715,19 @@ export const useParkingStore = create<ParkingStore>()(
       clearAllHistory: async (houseId: string): Promise<void> => {
         const userId = useAuthStore.getState().profile?.id ?? '';
         try {
-          const { reservations } = get();
+          const { reservations, current } = get();
           const now = new Date();
-          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-          const historyIds = reservations.filter((r) => r.date < todayStr).map((r) => r.id);
-          if (historyIds.length === 0) return;
+          const historyIdSet = new Set(
+            reservations.filter((r) => isReservationInHistory(r, now, current)).map((r) => r.id)
+          );
+          if (historyIdSet.size === 0) return;
           const { error } = await supabase
             .from('parking_reservations')
             .delete()
             .eq('house_id', houseId)
-            .in('id', historyIds);
+            .in('id', Array.from(historyIdSet));
           if (error) throw error;
-          set({ reservations: get().reservations.filter((r) => r.date >= todayStr) });
+          set({ reservations: get().reservations.filter((r) => !historyIdSet.has(r.id)) });
         } catch (err) {
           captureError(err, { context: 'clear-all-history', houseId, userId });
           throw new Error('Could not clear history. Please try again.');

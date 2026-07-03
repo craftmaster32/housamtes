@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   useParkingStore,
   isDateConflict,
+  isReservationInHistory,
   isReservationPastDue,
   isVoteChangeLocked,
   type ConflictResult,
@@ -59,11 +60,6 @@ function parseDateParts(
     monthAbbr: date.toLocaleString(locale, { month: 'short' }).toUpperCase(),
     weekdayFull: date.toLocaleString(locale, { weekday: 'long' }),
   };
-}
-
-function todayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ── Component prop interfaces ──────────────────────────────────────────────────
@@ -823,16 +819,18 @@ export default function ParkingScreen(): React.JSX.Element {
     }
   }, [reservations, myId, myName, syncParkingApproved, removeCalendarEvent]);
 
-  // Split into upcoming (date >= today) and history (date < today)
-  // Plain const so the value refreshes each render — same-day string equality
-  // prevents the downstream memos from re-running, but a midnight transition
-  // will produce a new string and correctly re-categorize reservations.
-  const today = todayString();
+  // Split into upcoming vs history. The rule lives in `isReservationInHistory`
+  // — see the store for the exact conditions. `now` ticks every 60s (and on
+  // AppState → active) so the split re-runs as end times pass and midnight
+  // rolls over.
   const upcoming = useMemo(
-    () => reservations.filter((r) => r.date >= today),
-    [reservations, today]
+    () => reservations.filter((r) => !isReservationInHistory(r, now, current)),
+    [reservations, now, current]
   );
-  const history = useMemo(() => reservations.filter((r) => r.date < today), [reservations, today]);
+  const history = useMemo(
+    () => reservations.filter((r) => isReservationInHistory(r, now, current)),
+    [reservations, now, current]
+  );
 
   const listData = useMemo(
     (): FlatItem[] => [
