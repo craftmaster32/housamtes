@@ -115,6 +115,13 @@ function toMinutes(time: string): number {
   return h * 60 + (m ?? 0);
 }
 
+// Local-date key in YYYY-MM-DD form. Used everywhere the store compares a
+// reservation's `date` field to "today" — keeping the format in one place so
+// the claim/cancel/auto-apply/history paths can't drift apart.
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // Mirrors the parking-check cron's due-time check (#6a/#6b): a pending
 // reservation is "due" once its date/start-time has arrived. `offsetMinutes`
 // shifts the due time earlier — used by isVoteChangeLocked to close vote
@@ -159,7 +166,7 @@ export function isReservationInHistory(
   now: Date = new Date(),
   currentSession: ParkingSession | null = null
 ): boolean {
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayStr = localDateKey(now);
   if (reservation.date < todayStr) return true;
   if (reservation.status === 'rejected') return true;
   if (reservation.status !== 'approved' || reservation.date !== todayStr) return false;
@@ -169,14 +176,12 @@ export function isReservationInHistory(
   const d = now.getDate();
 
   if (reservation.endTime) {
-    const [eh, em] = reservation.endTime.split(':').map(Number);
-    const endDate = new Date(y, mo, d, eh, em ?? 0);
+    const endDate = new Date(y, mo, d, 0, toMinutes(reservation.endTime));
     if (now.getTime() >= endDate.getTime()) return true;
   }
 
   if (reservation.startTime) {
-    const [sh, sm] = reservation.startTime.split(':').map(Number);
-    const startDate = new Date(y, mo, d, sh, sm ?? 0);
+    const startDate = new Date(y, mo, d, 0, toMinutes(reservation.startTime));
     if (
       now.getTime() >= startDate.getTime() &&
       currentSession?.occupant !== reservation.requestedBy
@@ -370,7 +375,7 @@ export const useParkingStore = create<ParkingStore>()(
 
         // Block if another housemate has an approved reservation covering right now
         const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const todayStr = localDateKey(now);
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
         const conflictingReservation = get().reservations.find((r) => {
           if (r.status !== 'approved' || r.date !== todayStr || r.requestedBy === userId)
@@ -532,9 +537,7 @@ export const useParkingStore = create<ParkingStore>()(
           set({ reservations: get().reservations.filter((r) => r.id !== id) });
           const current = get().current;
           if (reservation && current && current.occupant === reservation.requestedBy) {
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            if (reservation.date === todayStr) {
+            if (reservation.date === localDateKey(new Date())) {
               await get().release(houseId);
             }
           }
@@ -736,7 +739,7 @@ export const useParkingStore = create<ParkingStore>()(
       checkReservationAutoApply: async (houseId: string): Promise<void> => {
         try {
           const now = new Date();
-          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const todayStr = localDateKey(now);
           const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
           // Resolve past-due pending reservations using the same logic as the cron
