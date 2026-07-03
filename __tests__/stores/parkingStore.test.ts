@@ -408,17 +408,23 @@ describe('isReservationInHistory', () => {
 
   it('approved today before start time → upcoming (session state does not matter)', () => {
     const earlyNow = new Date('2026-04-20T08:00:00');
+    const res = reservation({
+      date: '2026-04-20',
+      status: 'approved',
+      startTime: '10:00',
+      endTime: '16:00',
+      requestedBy: requester,
+    });
+    expect(isReservationInHistory(res, earlyNow, null)).toBe(false);
+    expect(isReservationInHistory(res, earlyNow, activeSession('uuid-bob'))).toBe(false);
+    expect(isReservationInHistory(res, earlyNow, activeSession(requester))).toBe(false);
+  });
+
+  it('approved future reservation → upcoming', () => {
     expect(
       isReservationInHistory(
-        reservation({
-          date: '2026-04-20',
-          status: 'approved',
-          startTime: '10:00',
-          endTime: '16:00',
-          requestedBy: requester,
-        }),
-        earlyNow,
-        null
+        reservation({ date: '2026-04-25', status: 'approved', requestedBy: requester }),
+        now
       )
     ).toBe(false);
   });
