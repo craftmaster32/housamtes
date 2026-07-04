@@ -108,7 +108,9 @@ export function ReminderDateTimeField({
       </View>
 
       {!isFuture && !!time && (
-        <Text style={s.errorText}>{t('grocery.reminder_must_be_future')}</Text>
+        <Text style={[s.errorText, { color: C.danger }]}>
+          {t('grocery.reminder_must_be_future')}
+        </Text>
       )}
 
       <DatePickerModal
@@ -135,6 +137,6 @@ function makeStyles(): ReturnType<typeof StyleSheet.create> {
       minHeight: 48,
     },
     dateTriggerText: { flex: 1, fontSize: 15, ...font.medium },
-    errorText: { fontSize: 12, color: '#D94F4F' },
+    errorText: { fontSize: 12 },
   });
 }

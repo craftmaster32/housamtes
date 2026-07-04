@@ -175,7 +175,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     },
     loader: { marginVertical: 12 },
     emptyText: { fontSize: 13, ...font.regular, color: C.textSecondary, paddingVertical: 8 },
-    errorText: { fontSize: 13, ...font.regular, color: '#D94F4F', paddingVertical: 8 },
+    errorText: { fontSize: 13, ...font.regular, color: C.danger, paddingVertical: 8 },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

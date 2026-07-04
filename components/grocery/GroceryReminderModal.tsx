@@ -108,7 +108,7 @@ export function GroceryReminderModal({
 
           <ReminderDateTimeField visible={visible} onChange={setRemindAtIso} />
 
-          {!!saveError && <Text style={s.saveError}>{saveError}</Text>}
+          {!!saveError && <Text style={[s.saveError, { color: C.danger }]}>{saveError}</Text>}
 
           <View style={s.actions}>
             <Pressable
@@ -161,7 +161,7 @@ function makeStyles(): ReturnType<typeof StyleSheet.create> {
     closeBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     inputBox: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14 },
     input: { fontSize: 15, ...font.regular, minHeight: 48 },
-    saveError: { fontSize: 12, color: '#D94F4F' },
+    saveError: { fontSize: 12 },
     actions: { flexDirection: 'row', gap: 10 },
     btn: {
       flex: 1,
