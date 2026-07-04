@@ -102,7 +102,7 @@ export function GroceryRemindersSection({
                   {reminder.label}
                 </Text>
                 <Text style={styles.rowMeta}>
-                  {format(new Date(reminder.remindAt), 'EEE, MMM d · HH:mm', {
+                  {format(new Date(reminder.remindAt), 'EEE, MMM d · p', {
                     locale: dateFnsLocale,
                   })}
                 </Text>
