@@ -788,7 +788,10 @@
     "cancel_reminder_body": "You won't be notified for this anymore.",
     "cancel_reminder_name": "Cancel reminder: {{name}}",
     "remind_me_about_list": "Remind me about {{name}}",
-    "could_not_cancel_reminder": "Could not cancel the reminder. Please try again."
+    "could_not_cancel_reminder": "Could not cancel the reminder. Please try again.",
+    "reminder_prompt_added": "\"{{name}}\" added — set a reminder?",
+    "reminder_prompt_a11y": "Set a reminder for {{name}}",
+    "set_reminder_short": "Set"
   },
   "chores": {
     "title": "Chores",
