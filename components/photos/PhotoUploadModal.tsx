@@ -5,7 +5,6 @@ import {
   FlatList,
   Pressable,
   Modal,
-  Alert,
   type ListRenderItemInfo,
 } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
@@ -13,6 +12,7 @@ import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { PHOTO_CATEGORIES, type PhotoCategory } from '@stores/photoStore';
+import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -181,7 +181,9 @@ export function PhotoUploadModal({
                 accessibilityRole="button"
                 accessibilityLabel={t(cat.labelKey)}
               >
-                <Text style={[styles.catChipText, category === cat.key && styles.catChipTextActive]}>
+                <Text
+                  style={[styles.catChipText, category === cat.key && styles.catChipTextActive]}
+                >
                   {cat.icon} {t(cat.labelKey)}
                 </Text>
               </Pressable>

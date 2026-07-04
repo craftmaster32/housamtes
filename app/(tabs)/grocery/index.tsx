@@ -11,7 +11,6 @@ import {
   Animated,
   BackHandler,
   Switch,
-  Alert,
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -21,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from '@lib/alert';
 import {
   useGroceryStore,
   type GroceryItem,

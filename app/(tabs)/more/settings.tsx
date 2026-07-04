@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Alert,
   Switch,
   Modal,
   Platform,
@@ -27,6 +26,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { enableWebPush, getWebPushStatus, type WebPushStatus } from '@lib/webPush';
 import type { AppLanguage } from '@lib/i18n';
 import { isRTL } from '@lib/i18n';
+import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';

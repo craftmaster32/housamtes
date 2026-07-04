@@ -8,7 +8,6 @@ import {
   FlatList,
   ActivityIndicator,
   useWindowDimensions,
-  Alert,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
@@ -19,6 +18,7 @@ import { router, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '@stores/authStore';
+import { Alert } from '@lib/alert';
 import {
   useBillsStore,
   calculateAllNetBalances,

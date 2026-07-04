@@ -7,7 +7,6 @@ import {
   TextInput,
   Modal,
   ScrollView,
-  Alert,
   Platform,
   AppState,
   type AppStateStatus,
@@ -34,6 +33,7 @@ import { useHousematesStore, type Housemate } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useLanguageStore } from '@stores/languageStore';
+import { Alert } from '@lib/alert';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { useThemedColors, type ColorTokens } from '@constants/colors';

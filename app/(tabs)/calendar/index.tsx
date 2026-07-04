@@ -8,7 +8,6 @@ import {
   TextInput,
   Modal,
   Platform,
-  Alert,
   Keyboard,
   Animated,
 } from 'react-native';
@@ -29,6 +28,7 @@ import { usePersonalCalendar } from '@hooks/usePersonalCalendar';
 import { openGoogleCalendar, downloadIcs } from '@utils/calendarWeb';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { Alert } from '@lib/alert';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { addWeeks, addMonths, addYears } from 'date-fns';

@@ -4,7 +4,6 @@ import {
   StyleSheet,
   FlatList,
   Switch,
-  Alert,
   Animated,
   Pressable,
   type ViewStyle,
@@ -21,6 +20,7 @@ import {
   type MemberPermissions,
   type MemberRole,
 } from '@stores/housematesStore';
+import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';

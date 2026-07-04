@@ -1,6 +1,15 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { captureError } from '@lib/errorTracking';
-import { View, StyleSheet, FlatList, Pressable, TextInput, KeyboardAvoidingView, Platform, Alert, Animated } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Animated,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +21,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -27,9 +37,12 @@ function formatTime(iso: string): string {
 
 function formatDateLabel(iso: string): string {
   const d = new Date(iso);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const msgDay = new Date(d); msgDay.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const msgDay = new Date(d);
+  msgDay.setHours(0, 0, 0, 0);
   if (msgDay.getTime() === today.getTime()) return 'Today';
   if (msgDay.getTime() === yesterday.getTime()) return 'Yesterday';
   return d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
@@ -59,7 +72,8 @@ function buildListItems(messages: ChatMessage[]): ListItem[] {
   return items;
 }
 
-const makeStyles = (C: ColorTokens) => StyleSheet.create({
+const makeStyles = (C: ColorTokens) =>
+  StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
 
@@ -99,9 +113,12 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     row: { flexDirection: 'row', alignItems: 'flex-end', gap: sizes.sm },
     rowMine: { flexDirection: 'row-reverse' },
     avatar: {
-      width: 32, height: 32, borderRadius: 16,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       backgroundColor: C.primary,
-      justifyContent: 'center', alignItems: 'center',
+      justifyContent: 'center',
+      alignItems: 'center',
       marginBottom: 2,
       overflow: 'hidden',
     },
@@ -141,8 +158,18 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     empty: { alignItems: 'center', paddingTop: sizes.xxl },
     emptyText: { color: C.textDisabled, ...font.regular, fontSize: sizes.fontMd },
 
-    errorBanner: { backgroundColor: C.danger + '15', padding: sizes.sm, borderBottomWidth: 1, borderBottomColor: C.danger + '40' },
-    errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.danger, textAlign: 'center' },
+    errorBanner: {
+      backgroundColor: C.danger + '15',
+      padding: sizes.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: C.danger + '40',
+    },
+    errorBannerText: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.danger,
+      textAlign: 'center',
+    },
 
     inputBar: {
       flexDirection: 'row',
@@ -170,7 +197,8 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
       ...font.regular,
     },
     sendBtn: {
-      width: 40, height: 40,
+      width: 40,
+      height: 40,
       backgroundColor: C.primary,
       borderRadius: 20,
       justifyContent: 'center',
@@ -178,7 +206,7 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     },
     sendBtnDisabled: { backgroundColor: C.border },
     sendBtnText: { color: '#fff', fontSize: 18, ...font.bold, marginTop: -2 },
-});
+  });
 
 // ── MessageBubble ─────────────────────────────────────────────────────────────
 
@@ -207,14 +235,10 @@ function MessageBubble({
   const handleLongPress = useCallback(() => {
     if (isMine) {
       if (!canDelete) return;
-      Alert.alert(
-        t('chat.delete_title'),
-        t('chat.delete_body'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          { text: t('common.delete'), style: 'destructive', onPress: (): void => onDelete(msg.id) },
-        ]
-      );
+      Alert.alert(t('chat.delete_title'), t('chat.delete_body'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: (): void => onDelete(msg.id) },
+      ]);
     } else {
       Alert.alert(
         'Report Message',
@@ -237,14 +261,21 @@ function MessageBubble({
       onLongPress={handleLongPress}
       delayLongPress={400}
       accessible
-      accessibilityLabel={isMine ? 'Your message. Long-press to delete.' : `Message from ${authorName}. Long-press to report.`}
+      accessibilityLabel={
+        isMine
+          ? 'Your message. Long-press to delete.'
+          : `Message from ${authorName}. Long-press to report.`
+      }
     >
       {!isMine && (
-        <View style={[styles.avatar, authorAvatarUrl ? { backgroundColor: 'transparent' } : undefined]}>
-          {authorAvatarUrl
-            ? <Image source={{ uri: authorAvatarUrl }} style={styles.avatarImg} contentFit="cover" />
-            : <Text style={styles.avatarText}>{initial}</Text>
-          }
+        <View
+          style={[styles.avatar, authorAvatarUrl ? { backgroundColor: 'transparent' } : undefined]}
+        >
+          {authorAvatarUrl ? (
+            <Image source={{ uri: authorAvatarUrl }} style={styles.avatarImg} contentFit="cover" />
+          ) : (
+            <Text style={styles.avatarText}>{initial}</Text>
+          )}
         </View>
       )}
       <View style={[styles.bubble, isMine && styles.bubbleMine]}>
@@ -288,7 +319,7 @@ export default function ChatScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const housemates = useHousematesStore((s) => s.housemates);
-  const myId   = profile?.id ?? '';
+  const myId = profile?.id ?? '';
   const myName = profile?.name ?? '';
 
   const currentLanguage = useLanguageStore((s) => s.language);
@@ -305,10 +336,14 @@ export default function ChatScreen(): React.JSX.Element {
   // Lazy-load: chat is not loaded at startup, load it when this screen opens
   useEffect(() => {
     if (houseId) load(houseId);
-    return (): void => { useChatStore.getState().unsubscribe(); };
+    return (): void => {
+      useChatStore.getState().unsubscribe();
+    };
   }, [houseId, load]);
 
-  useEffect(() => { markRead(); }, [markRead]);
+  useEffect(() => {
+    markRead();
+  }, [markRead]);
 
   const listItems = buildListItems(messages);
 
@@ -319,29 +354,39 @@ export default function ChatScreen(): React.JSX.Element {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
   }, [text, myId, myName, houseId, send]);
 
-  const handleDelete = useCallback((id: string) => { remove(id); }, [remove]);
+  const handleDelete = useCallback(
+    (id: string) => {
+      remove(id);
+    },
+    [remove]
+  );
 
-  const handleReport = useCallback((messageId: string, reportedAuthor: string): void => {
-    Alert.alert(
-      'Report Submitted',
-      `Thank you. Your report about a message from ${reportedAuthor} has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app`,
-      [{ text: 'OK' }]
-    );
-    captureError(new Error('User content report'), {
-      type: 'content_report',
-      reportedMessageId: messageId,
-      reportedAuthor,
-      reporterId: myId,
-      houseId: houseId ?? '',
-    });
-  }, [myId, houseId]);
+  const handleReport = useCallback(
+    (messageId: string, reportedAuthor: string): void => {
+      Alert.alert(
+        'Report Submitted',
+        `Thank you. Your report about a message from ${reportedAuthor} has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app`,
+        [{ text: 'OK' }]
+      );
+      captureError(new Error('User content report'), {
+        type: 'content_report',
+        reportedMessageId: messageId,
+        reportedAuthor,
+        reporterId: myId,
+        houseId: houseId ?? '',
+      });
+    },
+    [myId, houseId]
+  );
 
   return (
     <SafeAreaView style={styles.root}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>{isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}</Text>
+            <Text style={styles.backText}>
+              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
+            </Text>
           </Pressable>
           <Text style={styles.headerTitle}>{t('chat.title')}</Text>
           <View style={styles.backBtn} />
@@ -361,7 +406,7 @@ export default function ChatScreen(): React.JSX.Element {
           <FlatList
             ref={listRef}
             data={listItems}
-            keyExtractor={(item) => item.kind === 'separator' ? item.id : item.msg.id}
+            keyExtractor={(item) => (item.kind === 'separator' ? item.id : item.msg.id)}
             renderItem={({ item }) => {
               if (item.kind === 'separator') {
                 return <DateSeparator label={item.label} />;
