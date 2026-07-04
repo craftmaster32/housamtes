@@ -15,6 +15,7 @@ interface SavedListsSectionProps {
   hasDraftItems: boolean;
   onLoadList: (list: GroceryList) => void;
   onDeleteList: (listId: string) => void;
+  onSetListReminder: (list: GroceryList) => void;
 }
 
 export function SavedListsSection({
@@ -24,6 +25,7 @@ export function SavedListsSection({
   hasDraftItems,
   onLoadList,
   onDeleteList,
+  onSetListReminder,
 }: SavedListsSectionProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -35,35 +37,55 @@ export function SavedListsSection({
     setExpanded((v) => !v);
   }, []);
 
-  const handleLoad = useCallback((list: GroceryList): void => {
-    if (hasDraftItems) {
+  const handleLoad = useCallback(
+    (list: GroceryList): void => {
+      if (hasDraftItems) {
+        Alert.alert(t('grocery.replace_draft'), t('grocery.replace_draft_body'), [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('grocery.load_anyway'),
+            onPress: (): void => {
+              Haptics.selectionAsync().catch(() => {});
+              onLoadList(list);
+            },
+          },
+        ]);
+      } else {
+        Haptics.selectionAsync().catch(() => {});
+        onLoadList(list);
+      }
+    },
+    [hasDraftItems, onLoadList, t]
+  );
+
+  const handleSetReminder = useCallback(
+    (list: GroceryList): void => {
+      Haptics.selectionAsync().catch(() => {});
+      onSetListReminder(list);
+    },
+    [onSetListReminder]
+  );
+
+  const handleDelete = useCallback(
+    (list: GroceryList): void => {
       Alert.alert(
-        t('grocery.replace_draft'),
-        t('grocery.replace_draft_body'),
+        t('grocery.delete_list_title', { name: list.name }),
+        t('grocery.delete_list_body'),
         [
           { text: t('common.cancel'), style: 'cancel' },
-          { text: t('grocery.load_anyway'), onPress: (): void => { Haptics.selectionAsync().catch(() => {}); onLoadList(list); } },
+          {
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: (): void => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+              onDeleteList(list.id);
+            },
+          },
         ]
       );
-    } else {
-      Haptics.selectionAsync().catch(() => {});
-      onLoadList(list);
-    }
-  }, [hasDraftItems, onLoadList, t]);
-
-  const handleDelete = useCallback((list: GroceryList): void => {
-    Alert.alert(
-      t('grocery.delete_list_title', { name: list.name }),
-      t('grocery.delete_list_body'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'), style: 'destructive',
-          onPress: (): void => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); onDeleteList(list.id); },
-        },
-      ]
-    );
-  }, [onDeleteList, t]);
+    },
+    [onDeleteList, t]
+  );
 
   return (
     <View style={styles.container}>
@@ -94,16 +116,12 @@ export function SavedListsSection({
 
       {expanded && (
         <View style={styles.body}>
-          {isLoading && (
-            <ActivityIndicator size="small" color={C.primary} style={styles.loader} />
-          )}
+          {isLoading && <ActivityIndicator size="small" color={C.primary} style={styles.loader} />}
 
           {!isLoading && lists.length === 0 && (
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyText}>{t('grocery.no_saved_lists')}</Text>
-              <Text style={styles.emptyHint}>
-                {t('grocery.no_saved_lists_hint')}
-              </Text>
+              <Text style={styles.emptyHint}>{t('grocery.no_saved_lists_hint')}</Text>
             </View>
           )}
 
@@ -114,19 +132,27 @@ export function SavedListsSection({
                   {list.isPrivate && (
                     <Ionicons name="lock-closed" size={12} color="rgba(139,92,246,0.7)" />
                   )}
-                  <Text style={styles.listName} numberOfLines={1}>{list.name}</Text>
+                  <Text style={styles.listName} numberOfLines={1}>
+                    {list.name}
+                  </Text>
                 </View>
                 <Text style={styles.listMeta}>
-                  {t(
-                    list.createdBy === myId
-                      ? 'grocery.item_count_yours'
-                      : 'grocery.item_count',
-                    { count: list.items.length }
-                  )}
+                  {t(list.createdBy === myId ? 'grocery.item_count_yours' : 'grocery.item_count', {
+                    count: list.items.length,
+                  })}
                 </Text>
               </View>
 
               <View style={styles.listActions}>
+                <Pressable
+                  style={styles.iconBtn}
+                  onPress={() => handleSetReminder(list)}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('grocery.remind_me_about_list', { name: list.name })}
+                >
+                  <Ionicons name="alarm-outline" size={17} color={C.textSecondary} />
+                </Pressable>
                 {/* Delete — only creator can delete */}
                 {list.createdBy === myId && (
                   <Pressable
@@ -160,30 +186,55 @@ export function SavedListsSection({
 function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     container: {
-      backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border,
-      overflow: 'hidden', marginBottom: 16,
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.border,
+      overflow: 'hidden',
+      marginBottom: 16,
     },
     headerRow: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: 16, paddingVertical: 14, minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      minHeight: 48,
     },
     headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     headerIcon: { fontSize: 16 },
     headerLabel: { fontSize: 15, ...font.semibold, color: C.textPrimary },
     badge: {
-      backgroundColor: C.primary, borderRadius: 9999,
-      minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5,
+      backgroundColor: C.primary,
+      borderRadius: 9999,
+      minWidth: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 5,
     },
     badgeText: { fontSize: 11, ...font.bold, color: '#fff' },
-    body: { borderTopWidth: 1, borderTopColor: C.border, paddingHorizontal: 16, paddingBottom: 12, paddingTop: 8, gap: 6 },
+    body: {
+      borderTopWidth: 1,
+      borderTopColor: C.border,
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      paddingTop: 8,
+      gap: 6,
+    },
     loader: { marginVertical: 12 },
     emptyWrap: { paddingVertical: 12, gap: 4 },
     emptyText: { fontSize: 14, ...font.semibold, color: C.textPrimary },
     emptyHint: { fontSize: 13, ...font.regular, color: C.textSecondary, lineHeight: 18 },
     listRow: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12,
-      backgroundColor: C.surfaceSecondary, gap: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+      gap: 10,
     },
     listInfo: { flex: 1, gap: 2 },
     listNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -192,8 +243,12 @@ function makeStyles(C: ColorTokens) {
     listActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     iconBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     loadBtn: {
-      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8,
-      backgroundColor: C.primary, minHeight: 44, justifyContent: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 8,
+      backgroundColor: C.primary,
+      minHeight: 44,
+      justifyContent: 'center',
     },
     loadBtnText: { fontSize: 13, ...font.semibold, color: '#fff' },
   });
