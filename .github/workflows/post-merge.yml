@@ -41,6 +41,24 @@ jobs:
         id: test
         run: npm test -- --passWithNoTests
 
+      # Apply database migrations BEFORE deploying, so the deployed app never
+      # runs against a database that is missing a column it expects.
+      - name: Setup Supabase CLI
+        if: success()
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
+        with:
+          version: '2.15.8'
+
+      - name: Apply database migrations
+        if: success()
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push --linked
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
       - name: Install Vercel CLI
         if: success()
         run: npm install -g vercel@latest
