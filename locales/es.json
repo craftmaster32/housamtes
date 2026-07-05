@@ -788,7 +788,10 @@
     "cancel_reminder_body": "Ya no recibirás un aviso para esto.",
     "cancel_reminder_name": "Cancelar recordatorio: {{name}}",
     "remind_me_about_list": "Recordarme sobre {{name}}",
-    "could_not_cancel_reminder": "No se pudo cancelar el recordatorio. Inténtalo de nuevo."
+    "could_not_cancel_reminder": "No se pudo cancelar el recordatorio. Inténtalo de nuevo.",
+    "reminder_prompt_added": "\"{{name}}\" añadido — ¿poner un recordatorio?",
+    "reminder_prompt_a11y": "Poner un recordatorio para {{name}}",
+    "set_reminder_short": "Poner"
   },
   "chores": {
     "title": "Tareas",

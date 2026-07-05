@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, Platform, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Platform, TextInput } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { Alert } from '@lib/alert';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -85,7 +86,9 @@ export default function ProfileScreen(): React.JSX.Element {
 
   const handleLogout = useCallback(() => {
     if (Platform.OS === 'web') {
-      signOut().then(() => router.replace('/(auth)/welcome')).catch(() => {});
+      signOut()
+        .then(() => router.replace('/(auth)/welcome'))
+        .catch(() => {});
       return;
     }
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
@@ -102,10 +105,22 @@ export default function ProfileScreen(): React.JSX.Element {
   }, [signOut, t]);
 
   const handleChangePassword = useCallback(async () => {
-    if (!currentPassword) { setPasswordError(t('profile.enter_current_password')); return; }
-    if (!newPassword) { setPasswordError(t('profile.enter_new_password')); return; }
-    if (newPassword.length < 8) { setPasswordError(t('profile.password_min')); return; }
-    if (newPassword !== confirmPassword) { setPasswordError(t('profile.passwords_no_match')); return; }
+    if (!currentPassword) {
+      setPasswordError(t('profile.enter_current_password'));
+      return;
+    }
+    if (!newPassword) {
+      setPasswordError(t('profile.enter_new_password'));
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError(t('profile.password_min'));
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(t('profile.passwords_no_match'));
+      return;
+    }
     setPasswordSaving(true);
     setPasswordError('');
     try {
@@ -131,14 +146,27 @@ export default function ProfileScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
         {/* ── Profile header ── */}
         <View style={styles.profileHeader}>
-          <View style={[styles.avatarLarge, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? colors.primary) }]}>
-            {profile?.avatarUrl
-              ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarLargeImg} contentFit="cover" />
-              : <Text style={styles.avatarLargeText}>{initial}</Text>
-            }
+          <View
+            style={[
+              styles.avatarLarge,
+              {
+                backgroundColor: profile?.avatarUrl
+                  ? 'transparent'
+                  : (profile?.avatarColor ?? colors.primary),
+              },
+            ]}
+          >
+            {profile?.avatarUrl ? (
+              <Image
+                source={{ uri: profile.avatarUrl }}
+                style={styles.avatarLargeImg}
+                contentFit="cover"
+              />
+            ) : (
+              <Text style={styles.avatarLargeText}>{initial}</Text>
+            )}
           </View>
           <Text style={styles.profileName}>{profile?.name ?? 'You'}</Text>
           {!!email && <Text style={styles.profileEmail}>{email}</Text>}
@@ -156,7 +184,10 @@ export default function ProfileScreen(): React.JSX.Element {
             icon="🔑"
             label={t('profile.change_password')}
             sub={showPasswordForm ? t('profile.password_prompt') : t('profile.change_password_sub')}
-            onPress={() => { setShowPasswordForm((v) => !v); setPasswordError(''); }}
+            onPress={() => {
+              setShowPasswordForm((v) => !v);
+              setPasswordError('');
+            }}
             rtl={rtl}
           />
           {showPasswordForm && (
@@ -165,7 +196,10 @@ export default function ProfileScreen(): React.JSX.Element {
                 <Text style={styles.fieldLabel}>{t('profile.current_password')}</Text>
                 <PasswordInput
                   value={currentPassword}
-                  onChange={(v) => { setCurrentPassword(v); setPasswordError(''); }}
+                  onChange={(v) => {
+                    setCurrentPassword(v);
+                    setPasswordError('');
+                  }}
                   placeholder={t('profile.current_password_placeholder')}
                 />
               </View>
@@ -173,7 +207,10 @@ export default function ProfileScreen(): React.JSX.Element {
                 <Text style={styles.fieldLabel}>{t('profile.new_password')}</Text>
                 <PasswordInput
                   value={newPassword}
-                  onChange={(v) => { setNewPassword(v); setPasswordError(''); }}
+                  onChange={(v) => {
+                    setNewPassword(v);
+                    setPasswordError('');
+                  }}
                   placeholder={t('profile.password_hint')}
                 />
               </View>
@@ -181,7 +218,10 @@ export default function ProfileScreen(): React.JSX.Element {
                 <Text style={styles.fieldLabel}>{t('profile.confirm_password')}</Text>
                 <PasswordInput
                   value={confirmPassword}
-                  onChange={(v) => { setConfirmPassword(v); setPasswordError(''); }}
+                  onChange={(v) => {
+                    setConfirmPassword(v);
+                    setPasswordError('');
+                  }}
                   placeholder={t('profile.repeat_password')}
                 />
               </View>
@@ -195,9 +235,19 @@ export default function ProfileScreen(): React.JSX.Element {
                   accessibilityRole="button"
                   accessibilityLabel={t('profile.save_password')}
                 >
-                  <Text style={styles.saveBtnText}>{passwordSaving ? t('profile.saving') : t('profile.save_password')}</Text>
+                  <Text style={styles.saveBtnText}>
+                    {passwordSaving ? t('profile.saving') : t('profile.save_password')}
+                  </Text>
                 </Pressable>
-                <Pressable onPress={() => { setShowPasswordForm(false); setPasswordError(''); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); }}>
+                <Pressable
+                  onPress={() => {
+                    setShowPasswordForm(false);
+                    setPasswordError('');
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                  }}
+                >
                   <Text style={styles.cancelText}>{t('common.cancel')}</Text>
                 </Pressable>
               </View>
@@ -211,9 +261,11 @@ export default function ProfileScreen(): React.JSX.Element {
           <MenuItem
             icon="👥"
             label={t('profile.housemates')}
-            sub={housemates.length > 0
-              ? housemates.map((h) => h.name).join(', ')
-              : t('profile.no_housemates')}
+            sub={
+              housemates.length > 0
+                ? housemates.map((h) => h.name).join(', ')
+                : t('profile.no_housemates')
+            }
             onPress={() => router.push('/(tabs)/bills/setup')}
             rtl={rtl}
           />
@@ -387,7 +439,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   fieldError: { color: colors.danger, fontSize: 13, ...font.regular },
-  passwordButtons: { flexDirection: 'row', alignItems: 'center', gap: sizes.md, marginTop: sizes.xs },
+  passwordButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sizes.md,
+    marginTop: sizes.xs,
+  },
   saveBtn: {
     backgroundColor: colors.primary,
     paddingVertical: 10,
@@ -398,5 +455,11 @@ const styles = StyleSheet.create({
   saveBtnText: { color: colors.white, ...font.semibold, fontSize: 14 },
   cancelText: { color: colors.textSecondary, fontSize: 14, ...font.regular },
 
-  version: { color: colors.textDisabled, fontSize: 13, ...font.regular, textAlign: 'center', marginTop: sizes.md },
+  version: {
+    color: colors.textDisabled,
+    fontSize: 13,
+    ...font.regular,
+    textAlign: 'center',
+    marginTop: sizes.md,
+  },
 });

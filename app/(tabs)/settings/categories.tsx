@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, Alert, Animated } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, TextInput, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -11,6 +11,7 @@ import {
   PRESET_COLORS,
   type ExpenseCategory,
 } from '@stores/expenseCategoriesStore';
+import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -303,9 +304,16 @@ function CategoryForm({
           accessibilityRole="button"
           accessibilityState={{ disabled: saving || !form.name.trim() }}
         >
-          <Text style={styles.btnSaveText}>{saving ? t('categories.saving') : t('categories.save')}</Text>
+          <Text style={styles.btnSaveText}>
+            {saving ? t('categories.saving') : t('categories.save')}
+          </Text>
         </Pressable>
-        <Pressable onPress={onCancel} style={styles.btnCancel} accessible accessibilityRole="button">
+        <Pressable
+          onPress={onCancel}
+          style={styles.btnCancel}
+          accessible
+          accessibilityRole="button"
+        >
           <Text style={styles.btnCancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
@@ -466,9 +474,7 @@ export default function CategoriesScreen(): React.JSX.Element {
           ListHeaderComponent={
             <View>
               <Text style={styles.screenTitle}>{t('categories.title')}</Text>
-              <Text style={styles.screenSub}>
-                {t('categories.subtitle')}
-              </Text>
+              <Text style={styles.screenSub}>{t('categories.subtitle')}</Text>
 
               {showAdd && (
                 <CategoryForm

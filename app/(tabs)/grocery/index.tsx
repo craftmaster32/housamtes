@@ -11,7 +11,6 @@ import {
   Animated,
   BackHandler,
   Switch,
-  Alert,
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -21,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from '@lib/alert';
 import {
   useGroceryStore,
   type GroceryItem,
@@ -40,6 +40,8 @@ import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareMod
 import { SavedListsSection } from '@components/grocery/SavedListsSection';
 import { GroceryRemindersSection } from '@components/grocery/GroceryRemindersSection';
 import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
+import { ReminderPromptBanner } from '@components/grocery/ReminderPromptBanner';
+import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
@@ -51,6 +53,7 @@ const PERSONAL_BORDER = 'rgba(167,139,250,0.35)';
 
 const ADD_MODE_KEY = 'grocery_add_mode';
 const DRAFT_TOGGLE_KEY = 'grocery_draft_toggle';
+const REMINDER_PROMPT_DURATION_MS = 4000;
 
 const QUICK_ADD_KEYS = [
   { name: 'Milk', tKey: 'grocery.quick_add_milk' },
@@ -504,6 +507,12 @@ export default function GroceryScreen(): React.JSX.Element {
   const leaveWarningShownRef = useRef(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [reminderListTarget, setReminderListTarget] = useState<GroceryList | null>(null);
+  const [reminderDefaultLabel, setReminderDefaultLabel] = useState('');
+  const {
+    name: addedItemName,
+    show: showAddedItemPrompt,
+    dismiss: dismissAddedItemPrompt,
+  } = useAddedItemPrompt(REMINDER_PROMPT_DURATION_MS);
 
   const inputRef = useRef<TextInput>(null);
   const C = useThemedColors();
@@ -673,6 +682,7 @@ export default function GroceryScreen(): React.JSX.Element {
         setShowCustomQty(false);
         setUnit('');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        showAddedItemPrompt(n);
         setTimeout(() => inputRef.current?.focus(), 50);
       } catch {
         setAddError(t('grocery.could_not_add'));
@@ -680,7 +690,7 @@ export default function GroceryScreen(): React.JSX.Element {
         setIsAdding(false);
       }
     },
-    [itemName, resolvedQty, myId, houseId, addItem, isAdding, effectiveMode, t]
+    [itemName, resolvedQty, myId, houseId, addItem, isAdding, effectiveMode, t, showAddedItemPrompt]
   );
 
   const handlePublishDraft = useCallback(async (): Promise<void> => {
@@ -739,19 +749,39 @@ export default function GroceryScreen(): React.JSX.Element {
 
   // ── Reminder handlers ───────────────────────────────────────────────────────
   const handleOpenGeneralReminder = useCallback((): void => {
+    dismissAddedItemPrompt();
     setReminderListTarget(null);
+    setReminderDefaultLabel('');
     setShowReminderModal(true);
-  }, []);
+  }, [dismissAddedItemPrompt]);
 
-  const handleOpenListReminder = useCallback((list: GroceryList): void => {
-    setReminderListTarget(list);
+  const handleOpenListReminder = useCallback(
+    (list: GroceryList): void => {
+      dismissAddedItemPrompt();
+      setReminderListTarget(list);
+      setReminderDefaultLabel(list.name);
+      setShowReminderModal(true);
+    },
+    [dismissAddedItemPrompt]
+  );
+
+  const handleOpenItemReminder = useCallback((name: string): void => {
+    setReminderListTarget(null);
+    setReminderDefaultLabel(name);
     setShowReminderModal(true);
   }, []);
 
   const handleCloseReminderModal = useCallback((): void => {
     setShowReminderModal(false);
     setReminderListTarget(null);
+    setReminderDefaultLabel('');
   }, []);
+
+  const handleSetReminderForAddedItem = useCallback((): void => {
+    const name = addedItemName;
+    dismissAddedItemPrompt();
+    if (name) handleOpenItemReminder(name);
+  }, [addedItemName, dismissAddedItemPrompt, handleOpenItemReminder]);
 
   const handleSaveReminder = useCallback(
     async (label: string, remindAt: string): Promise<void> => {
@@ -1408,6 +1438,14 @@ export default function GroceryScreen(): React.JSX.Element {
               }
             />
           </Animated.View>
+
+          <View style={styles.reminderPromptOverlay} pointerEvents="box-none">
+            <ReminderPromptBanner
+              itemName={addedItemName}
+              onSet={handleSetReminderForAddedItem}
+              onDismiss={dismissAddedItemPrompt}
+            />
+          </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
 
@@ -1439,7 +1477,7 @@ export default function GroceryScreen(): React.JSX.Element {
 
       <GroceryReminderModal
         visible={showReminderModal}
-        defaultLabel={reminderListTarget?.name ?? ''}
+        defaultLabel={reminderDefaultLabel}
         onClose={handleCloseReminderModal}
         onSave={handleSaveReminder}
       />
@@ -1457,6 +1495,12 @@ function makeStyles(C: ColorTokens) {
     listContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
     // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
     switchLtr: { writingDirection: 'ltr' } as ViewStyle,
+    reminderPromptOverlay: {
+      position: 'absolute',
+      top: 8,
+      left: 16,
+      right: 16,
+    },
 
     headerCard: {
       backgroundColor: C.surface,

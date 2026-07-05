@@ -5,7 +5,6 @@ import {
   ScrollView,
   Switch,
   Pressable,
-  Alert,
   Modal,
   Platform,
   Animated,
@@ -24,6 +23,7 @@ import { useBillsStore, calculateBalances } from '@stores/billsStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';

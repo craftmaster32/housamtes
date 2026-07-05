@@ -1,5 +1,16 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput, ActivityIndicator, Platform, Modal, Animated, type GestureResponderEvent } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+  Platform,
+  Modal,
+  Animated,
+  type GestureResponderEvent,
+} from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -13,6 +24,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useSpendingStore, CATEGORY_META } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
+import { Alert } from '@lib/alert';
 import { SpendingCard } from '@components/profile/SpendingCard';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -24,9 +36,11 @@ import { isRTL } from '@lib/i18n';
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 function isSameDay(d: Date, ref: Date): boolean {
-  return d.getFullYear() === ref.getFullYear()
-    && d.getMonth() === ref.getMonth()
-    && d.getDate() === ref.getDate();
+  return (
+    d.getFullYear() === ref.getFullYear() &&
+    d.getMonth() === ref.getMonth() &&
+    d.getDate() === ref.getDate()
+  );
 }
 function billDayLabel(dateStr: string): 'today' | 'yesterday' | 'older' {
   const d = new Date(dateStr);
@@ -40,8 +54,14 @@ function billDayLabel(dateStr: string): 'today' | 'yesterday' | 'older' {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 function QuickAction({
-  icon, label, onPress,
-}: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; onPress: () => void }): React.JSX.Element {
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  onPress: () => void;
+}): React.JSX.Element {
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
   return (
@@ -58,10 +78,15 @@ function QuickAction({
 }
 
 function ProfileRow({
-  iconName, title, sub, onPress,
+  iconName,
+  title,
+  sub,
+  onPress,
 }: {
   iconName: React.ComponentProps<typeof Ionicons>['name'];
-  title: string; sub: string; onPress: () => void;
+  title: string;
+  sub: string;
+  onPress: () => void;
 }): React.JSX.Element {
   const C = useThemedColors();
   const language = useLanguageStore((s) => s.language);
@@ -95,12 +120,24 @@ function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JS
       {shown.map((h, i) => (
         <View
           key={h.id}
-          style={[s.stackAvatar, { backgroundColor: h.avatarUrl ? 'transparent' : h.color, marginStart: i === 0 ? 0 : -10 }]}
+          style={[
+            s.stackAvatar,
+            {
+              backgroundColor: h.avatarUrl ? 'transparent' : h.color,
+              marginStart: i === 0 ? 0 : -10,
+            },
+          ]}
         >
-          {h.avatarUrl
-            ? <Image source={{ uri: h.avatarUrl }} style={s.stackAvatarImg} contentFit="cover" accessibilityLabel={h.name} />
-            : <Text style={s.stackAvatarText}>{h.name[0].toUpperCase()}</Text>
-          }
+          {h.avatarUrl ? (
+            <Image
+              source={{ uri: h.avatarUrl }}
+              style={s.stackAvatarImg}
+              contentFit="cover"
+              accessibilityLabel={h.name}
+            />
+          ) : (
+            <Text style={s.stackAvatarText}>{h.name[0].toUpperCase()}</Text>
+          )}
         </View>
       ))}
     </View>
@@ -111,7 +148,9 @@ function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): Rea
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
   const splits = bill.splitBetween.length || 1;
-  const share  = bill.splitAmounts ? (bill.splitAmounts[userName] ?? bill.amount / splits) : bill.amount / splits;
+  const share = bill.splitAmounts
+    ? (bill.splitAmounts[userName] ?? bill.amount / splits)
+    : bill.amount / splits;
   const isPayer = bill.paidBy === userName;
   const meta = CATEGORY_META[bill.category?.toLowerCase() ?? ''] ?? CATEGORY_META['other'];
   const currency = useSettingsStore((ss) => ss.currency);
@@ -121,11 +160,16 @@ function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): Rea
         <Text style={s.activityIconText}>{meta.icon}</Text>
       </View>
       <View style={s.activityInfo}>
-        <Text style={s.activityTitle} numberOfLines={1}>{bill.title}</Text>
+        <Text style={s.activityTitle} numberOfLines={1}>
+          {bill.title}
+        </Text>
         <Text style={s.activitySub}>{isPayer ? 'Paid by you' : `Paid by ${bill.paidBy}`}</Text>
       </View>
       <View style={s.activityAmt}>
-        <Text style={s.activityAmtText}>-{currency}{share.toFixed(2)}</Text>
+        <Text style={s.activityAmtText}>
+          -{currency}
+          {share.toFixed(2)}
+        </Text>
         <Text style={s.activityAmtSub}>Your share</Text>
       </View>
     </View>
@@ -134,32 +178,42 @@ function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): Rea
 
 // ── Personal details form ──────────────────────────────────────────────────────
 function PersonalDetailsForm({
-  currentName, currentEmail, onDone,
+  currentName,
+  currentEmail,
+  onDone,
 }: {
-  currentName: string; currentEmail: string; onDone: () => void;
+  currentName: string;
+  currentEmail: string;
+  onDone: () => void;
 }): React.JSX.Element {
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
   const updateProfile = useAuthStore((ss) => ss.updateProfile);
-  const updateEmail   = useAuthStore((ss) => ss.updateEmail);
-  const [name, setName]       = useState(currentName);
-  const [email, setEmail]     = useState(currentEmail);
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState('');
+  const updateEmail = useAuthStore((ss) => ss.updateEmail);
+  const [name, setName] = useState(currentName);
+  const [email, setEmail] = useState(currentEmail);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const handleSave = useCallback(async (): Promise<void> => {
-    const trimName  = name.trim();
+    const trimName = name.trim();
     const trimEmail = email.trim();
-    if (!trimName) { setError('Name cannot be empty.'); return; }
-    if (!trimEmail) { setError('Email cannot be empty.'); return; }
+    if (!trimName) {
+      setError('Name cannot be empty.');
+      return;
+    }
+    if (!trimEmail) {
+      setError('Email cannot be empty.');
+      return;
+    }
     setSaving(true);
     setError('');
     setSuccess('');
     try {
-      const nameChanged  = trimName !== currentName;
+      const nameChanged = trimName !== currentName;
       const emailChanged = trimEmail !== currentEmail;
-      if (nameChanged)  await updateProfile(trimName);
+      if (nameChanged) await updateProfile(trimName);
       if (emailChanged) await updateEmail(trimEmail);
       if (nameChanged && emailChanged) {
         setSuccess('Name updated. A confirmation link has been sent to your new email address.');
@@ -185,7 +239,11 @@ function PersonalDetailsForm({
         <TextInput
           style={s.textInput}
           value={name}
-          onChangeText={(v) => { setName(v); setError(''); setSuccess(''); }}
+          onChangeText={(v) => {
+            setName(v);
+            setError('');
+            setSuccess('');
+          }}
           placeholder="Your name"
           placeholderTextColor={C.textDisabled}
           autoCapitalize="words"
@@ -196,16 +254,22 @@ function PersonalDetailsForm({
         <TextInput
           style={s.textInput}
           value={email}
-          onChangeText={(v) => { setEmail(v); setError(''); setSuccess(''); }}
+          onChangeText={(v) => {
+            setEmail(v);
+            setError('');
+            setSuccess('');
+          }}
           placeholder="your@email.com"
           placeholderTextColor={C.textDisabled}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
         />
-        <Text style={s.detailsHint}>Changing email sends a confirmation link to the new address.</Text>
+        <Text style={s.detailsHint}>
+          Changing email sends a confirmation link to the new address.
+        </Text>
       </View>
-      {!!error   && <Text style={s.fieldError}>{error}</Text>}
+      {!!error && <Text style={s.fieldError}>{error}</Text>}
       {!!success && <Text style={s.detailsSuccess}>{success}</Text>}
       <View style={s.pwBtns}>
         <Pressable
@@ -230,16 +294,25 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
   const s = useMemo(() => makeStyles(C), [C]);
   const changePassword = useAuthStore((ss) => ss.changePassword);
   const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword]         = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (!currentPassword) { setError('Please enter your current password.'); return; }
-    if (newPassword.length < 8) { setError('New password must be at least 8 characters.'); return; }
-    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
+    if (!currentPassword) {
+      setError('Please enter your current password.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -270,7 +343,10 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
         <TextInput
           style={s.textInput}
           value={currentPassword}
-          onChangeText={(v) => { setCurrentPassword(v); setError(''); }}
+          onChangeText={(v) => {
+            setCurrentPassword(v);
+            setError('');
+          }}
           placeholder="Your current password"
           placeholderTextColor={C.textDisabled}
           secureTextEntry
@@ -284,7 +360,10 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
         <TextInput
           style={s.textInput}
           value={newPassword}
-          onChangeText={(v) => { setNewPassword(v); setError(''); }}
+          onChangeText={(v) => {
+            setNewPassword(v);
+            setError('');
+          }}
           placeholder="At least 8 characters"
           placeholderTextColor={C.textDisabled}
           secureTextEntry
@@ -297,7 +376,10 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
         <TextInput
           style={s.textInput}
           value={confirmPassword}
-          onChangeText={(v) => { setConfirmPassword(v); setError(''); }}
+          onChangeText={(v) => {
+            setConfirmPassword(v);
+            setError('');
+          }}
           placeholder="Repeat new password"
           placeholderTextColor={C.textDisabled}
           secureTextEntry
@@ -331,12 +413,18 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
 }
 
 // ── Interactive crop editor ────────────────────────────────────────────────────
-interface CropSource { uri: string; imgW: number; imgH: number; }
+interface CropSource {
+  uri: string;
+  imgW: number;
+  imgH: number;
+}
 
 const CROP_FRAME = 260;
 
 function CropEditor({
-  source, onConfirm, onCancel,
+  source,
+  onConfirm,
+  onCancel,
 }: {
   source: CropSource;
   onConfirm: (originX: number, originY: number, cropSize: number) => void;
@@ -347,15 +435,19 @@ function CropEditor({
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
   const accumulated = useRef({ x: 0, y: 0 });
-  const scaleRef    = useRef(1);
-  scaleRef.current  = scale;
+  const scaleRef = useRef(1);
+  scaleRef.current = scale;
 
   // Track touch gesture state via ref (avoids stale closure issues)
   const touch = useRef<{
     mode: 'idle' | 'drag' | 'pinch';
     dragStart: { accX: number; accY: number; px: number; py: number };
     pinchStart: { dist: number; scale: number };
-  }>({ mode: 'idle', dragStart: { accX: 0, accY: 0, px: 0, py: 0 }, pinchStart: { dist: 1, scale: 1 } });
+  }>({
+    mode: 'idle',
+    dragStart: { accX: 0, accY: 0, px: 0, py: 0 },
+    pinchStart: { dist: 1, scale: 1 },
+  });
 
   const frameRef = useRef<View>(null);
 
@@ -376,17 +468,19 @@ function CropEditor({
         el.removeEventListener('touchstart', prevent);
         el.removeEventListener('touchmove', prevent);
       };
-    } catch { return undefined; }
+    } catch {
+      return undefined;
+    }
   }, []);
 
   const imgW = source.imgW > 0 ? source.imgW : CROP_FRAME;
   const imgH = source.imgH > 0 ? source.imgH : CROP_FRAME;
-  const minDim    = Math.min(imgW, imgH);
+  const minDim = Math.min(imgW, imgH);
   const dispFactor = (CROP_FRAME * scale) / minDim;
-  const dispW     = imgW * dispFactor;
-  const dispH     = imgH * dispFactor;
-  const maxDx     = Math.max(0, (dispW - CROP_FRAME) / 2);
-  const maxDy     = Math.max(0, (dispH - CROP_FRAME) / 2);
+  const dispW = imgW * dispFactor;
+  const dispH = imgH * dispFactor;
+  const maxDx = Math.max(0, (dispW - CROP_FRAME) / 2);
+  const maxDy = Math.max(0, (dispH - CROP_FRAME) / 2);
 
   const layoutRef = useRef({ maxDx, maxDy });
   layoutRef.current = { maxDx, maxDy };
@@ -409,9 +503,22 @@ function CropEditor({
   const handleTouchStart = useCallback((e: GestureResponderEvent): void => {
     const t = e.nativeEvent.touches;
     if (t.length >= 2) {
-      touch.current = { ...touch.current, mode: 'pinch', pinchStart: { dist: pinchDist(t), scale: scaleRef.current } };
+      touch.current = {
+        ...touch.current,
+        mode: 'pinch',
+        pinchStart: { dist: pinchDist(t), scale: scaleRef.current },
+      };
     } else {
-      touch.current = { ...touch.current, mode: 'drag', dragStart: { accX: accumulated.current.x, accY: accumulated.current.y, px: t[0].pageX, py: t[0].pageY } };
+      touch.current = {
+        ...touch.current,
+        mode: 'drag',
+        dragStart: {
+          accX: accumulated.current.x,
+          accY: accumulated.current.y,
+          px: t[0].pageX,
+          py: t[0].pageY,
+        },
+      };
     }
   }, []);
 
@@ -419,12 +526,18 @@ function CropEditor({
     const t = e.nativeEvent.touches;
     const state = touch.current;
     if (t.length >= 2 && state.mode === 'pinch') {
-      const newScale = Math.max(1, state.pinchStart.scale * pinchDist(t) / state.pinchStart.dist);
+      const newScale = Math.max(1, (state.pinchStart.scale * pinchDist(t)) / state.pinchStart.dist);
       setScale(parseFloat(newScale.toFixed(2)));
     } else if (t.length === 1 && state.mode === 'drag') {
       const { maxDx: mx, maxDy: my } = layoutRef.current;
-      const newX = Math.min(mx, Math.max(-mx, state.dragStart.accX + t[0].pageX - state.dragStart.px));
-      const newY = Math.min(my, Math.max(-my, state.dragStart.accY + t[0].pageY - state.dragStart.py));
+      const newX = Math.min(
+        mx,
+        Math.max(-mx, state.dragStart.accX + t[0].pageX - state.dragStart.px)
+      );
+      const newY = Math.min(
+        my,
+        Math.max(-my, state.dragStart.accY + t[0].pageY - state.dragStart.py)
+      );
       accumulated.current = { x: newX, y: newY };
       setOffset({ x: newX, y: newY });
     }
@@ -436,40 +549,65 @@ function CropEditor({
       touch.current = { ...touch.current, mode: 'idle' };
     } else if (t.length === 1) {
       // One finger lifted during pinch — switch back to drag
-      touch.current = { ...touch.current, mode: 'drag', dragStart: { accX: accumulated.current.x, accY: accumulated.current.y, px: t[0].pageX, py: t[0].pageY } };
+      touch.current = {
+        ...touch.current,
+        mode: 'drag',
+        dragStart: {
+          accX: accumulated.current.x,
+          accY: accumulated.current.y,
+          px: t[0].pageX,
+          py: t[0].pageY,
+        },
+      };
     }
   }, []);
 
   const imgLeft = (CROP_FRAME - dispW) / 2 + offset.x;
-  const imgTop  = (CROP_FRAME - dispH) / 2 + offset.y;
+  const imgTop = (CROP_FRAME - dispH) / 2 + offset.y;
 
   const handleConfirm = useCallback((): void => {
     const originX = Math.max(0, Math.round(-imgLeft / dispFactor));
     const originY = Math.max(0, Math.round(-imgTop / dispFactor));
-    const cropSz  = Math.min(imgW, imgH, Math.max(1, Math.round(CROP_FRAME / dispFactor)));
+    const cropSz = Math.min(imgW, imgH, Math.max(1, Math.round(CROP_FRAME / dispFactor)));
     onConfirm(originX, originY, cropSz);
   }, [imgLeft, imgTop, dispFactor, imgW, imgH, onConfirm]);
 
-  const cedStyles = useMemo(() => StyleSheet.create({
-    wrapper: { alignItems: 'center', gap: sizes.md },
-    hint:    { fontSize: 13, ...font.regular, color: C.textSecondary },
-    frame: {
-      width: CROP_FRAME,
-      height: CROP_FRAME,
-      borderRadius: CROP_FRAME / 2,
-      overflow: 'hidden',
-      borderWidth: 3,
-      borderColor: C.primary,
-    },
-    zoomRow:     { flexDirection: 'row', alignItems: 'center', gap: sizes.xl },
-    zoomBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: C.primary + '15', justifyContent: 'center', alignItems: 'center' },
-    zoomBtnText: { fontSize: 26, color: C.primary, lineHeight: 30 },
-    zoomLabel:   { fontSize: 14, ...font.bold, color: C.textSecondary },
-    btnRow:      { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
-    confirmBtn:  { backgroundColor: C.primary, paddingVertical: 12, paddingHorizontal: sizes.xl, borderRadius: 10 },
-    confirmText: { color: '#fff', ...font.semibold, fontSize: 15 },
-    cancelText:  { color: C.textSecondary, fontSize: 14, ...font.regular },
-  }), [C]);
+  const cedStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        wrapper: { alignItems: 'center', gap: sizes.md },
+        hint: { fontSize: 13, ...font.regular, color: C.textSecondary },
+        frame: {
+          width: CROP_FRAME,
+          height: CROP_FRAME,
+          borderRadius: CROP_FRAME / 2,
+          overflow: 'hidden',
+          borderWidth: 3,
+          borderColor: C.primary,
+        },
+        zoomRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.xl },
+        zoomBtn: {
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: C.primary + '15',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        zoomBtnText: { fontSize: 26, color: C.primary, lineHeight: 30 },
+        zoomLabel: { fontSize: 14, ...font.bold, color: C.textSecondary },
+        btnRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
+        confirmBtn: {
+          backgroundColor: C.primary,
+          paddingVertical: 12,
+          paddingHorizontal: sizes.xl,
+          borderRadius: 10,
+        },
+        confirmText: { color: '#fff', ...font.semibold, fontSize: 15 },
+        cancelText: { color: C.textSecondary, fontSize: 14, ...font.regular },
+      }),
+    [C]
+  );
 
   return (
     <View style={cedStyles.wrapper}>
@@ -489,11 +627,21 @@ function CropEditor({
         />
       </View>
       <View style={cedStyles.zoomRow}>
-        <Pressable style={cedStyles.zoomBtn} onPress={() => setScale((ss) => Math.max(1, parseFloat((ss - 0.2).toFixed(1))))} accessibilityRole="button" accessibilityLabel="Zoom out">
+        <Pressable
+          style={cedStyles.zoomBtn}
+          onPress={() => setScale((ss) => Math.max(1, parseFloat((ss - 0.2).toFixed(1))))}
+          accessibilityRole="button"
+          accessibilityLabel="Zoom out"
+        >
           <Text style={cedStyles.zoomBtnText}>−</Text>
         </Pressable>
         <Text style={cedStyles.zoomLabel}>Zoom</Text>
-        <Pressable style={cedStyles.zoomBtn} onPress={() => setScale((ss) => parseFloat((ss + 0.2).toFixed(1)))} accessibilityRole="button" accessibilityLabel="Zoom in">
+        <Pressable
+          style={cedStyles.zoomBtn}
+          onPress={() => setScale((ss) => parseFloat((ss + 0.2).toFixed(1)))}
+          accessibilityRole="button"
+          accessibilityLabel="Zoom in"
+        >
           <Text style={cedStyles.zoomBtnText}>+</Text>
         </Pressable>
       </View>
@@ -512,23 +660,23 @@ function CropEditor({
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function ProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const profile       = useAuthStore((s) => s.profile);
-  const user          = useAuthStore((s) => s.user);
-  const role          = useAuthStore((s) => s.role);
-  const signOut       = useAuthStore((s) => s.signOut);
+  const profile = useAuthStore((s) => s.profile);
+  const user = useAuthStore((s) => s.user);
+  const role = useAuthStore((s) => s.role);
+  const signOut = useAuthStore((s) => s.signOut);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
-  const houseId       = useAuthStore((s) => s.houseId);
-  const uploadAvatar  = useAuthStore((s) => s.uploadAvatar);
-  const removeAvatar  = useAuthStore((s) => s.removeAvatar);
-  const uploadCover   = useAuthStore((s) => s.uploadCover);
-  const removeCover   = useAuthStore((s) => s.removeCover);
-  const currency   = useSettingsStore((s) => s.currency);
-  const housemates      = useHousematesStore((s) => s.housemates);
-  const houseName       = useHousematesStore((s) => s.houseName);
-  const loadHousemates  = useHousematesStore((s) => s.load);
-  const bills      = useBillsStore((s) => s.bills);
-  const loadBills  = useBillsStore((s) => s.load);
-  const months     = useSpendingStore((s) => s.months);
+  const houseId = useAuthStore((s) => s.houseId);
+  const uploadAvatar = useAuthStore((s) => s.uploadAvatar);
+  const removeAvatar = useAuthStore((s) => s.removeAvatar);
+  const uploadCover = useAuthStore((s) => s.uploadCover);
+  const removeCover = useAuthStore((s) => s.removeCover);
+  const currency = useSettingsStore((s) => s.currency);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const houseName = useHousematesStore((s) => s.houseName);
+  const loadHousemates = useHousematesStore((s) => s.load);
+  const bills = useBillsStore((s) => s.bills);
+  const loadBills = useBillsStore((s) => s.load);
+  const months = useSpendingStore((s) => s.months);
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -537,7 +685,7 @@ export default function ProfileScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  const [showDetailsForm, setShowDetailsForm]   = useState(false);
+  const [showDetailsForm, setShowDetailsForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -561,81 +709,95 @@ export default function ProfileScreen(): React.JSX.Element {
   const recentBills = [...bills]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
-  const todayBills     = recentBills.filter((b) => billDayLabel(b.date) === 'today');
+  const todayBills = recentBills.filter((b) => billDayLabel(b.date) === 'today');
   const yesterdayBills = recentBills.filter((b) => billDayLabel(b.date) === 'yesterday');
 
-  const handleCropConfirm = useCallback(async (originX: number, originY: number, cropSz: number): Promise<void> => {
-    if (!cropSource) return;
-    const src = cropSource;
-    setCropSource(null);
-    setUploading(true);
-    try {
-      const ops: ImageManipulator.Action[] = [];
-      if (cropSz > 0 && src.imgW > 0 && src.imgH > 0) {
-        ops.push({ crop: { originX, originY, width: cropSz, height: cropSz } });
+  const handleCropConfirm = useCallback(
+    async (originX: number, originY: number, cropSz: number): Promise<void> => {
+      if (!cropSource) return;
+      const src = cropSource;
+      setCropSource(null);
+      setUploading(true);
+      try {
+        const ops: ImageManipulator.Action[] = [];
+        if (cropSz > 0 && src.imgW > 0 && src.imgH > 0) {
+          ops.push({ crop: { originX, originY, width: cropSz, height: cropSz } });
+        }
+        ops.push({ resize: { width: 512, height: 512 } });
+        const result = await ImageManipulator.manipulateAsync(src.uri, ops, {
+          compress: 0.85,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        });
+        await uploadAvatar(result.uri, 'image/jpeg', result.base64 ?? undefined);
+        // Refresh housemates so the new avatar appears everywhere (stack, members screen, drawer)
+        if (houseId) loadHousemates(houseId).catch(() => {});
+      } catch (err) {
+        Alert.alert(
+          'Upload failed',
+          err instanceof Error ? err.message : 'Could not upload photo.'
+        );
+      } finally {
+        setUploading(false);
       }
-      ops.push({ resize: { width: 512, height: 512 } });
-      const result = await ImageManipulator.manipulateAsync(
-        src.uri, ops, { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true }
-      );
-      await uploadAvatar(result.uri, 'image/jpeg', result.base64 ?? undefined);
-      // Refresh housemates so the new avatar appears everywhere (stack, members screen, drawer)
-      if (houseId) loadHousemates(houseId).catch(() => {});
-    } catch (err) {
-      Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload photo.');
-    } finally {
-      setUploading(false);
-    }
-  }, [cropSource, uploadAvatar, houseId, loadHousemates]);
+    },
+    [cropSource, uploadAvatar, houseId, loadHousemates]
+  );
 
-  const pickImage = useCallback(async (source: 'camera' | 'library'): Promise<void> => {
-    // Web browsers don't support allowsEditing — open the crop editor instead.
-    if (Platform.OS === 'web') {
-      const res = await ImagePicker.launchImageLibraryAsync({
+  const pickImage = useCallback(
+    async (source: 'camera' | 'library'): Promise<void> => {
+      // Web browsers don't support allowsEditing — open the crop editor instead.
+      if (Platform.OS === 'web') {
+        const res = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'] as ImagePicker.MediaType[],
+          quality: 1,
+        });
+        if (res.canceled || !res.assets[0]) return;
+        const a = res.assets[0];
+        setCropSource({ uri: a.uri, imgW: a.width ?? 0, imgH: a.height ?? 0 });
+        return;
+      }
+
+      // Native iOS/Android: allowsEditing shows the built-in square crop UI.
+      const opts = {
         mediaTypes: ['images'] as ImagePicker.MediaType[],
-        quality: 1,
-      });
-      if (res.canceled || !res.assets[0]) return;
-      const a = res.assets[0];
-      setCropSource({ uri: a.uri, imgW: a.width ?? 0, imgH: a.height ?? 0 });
-      return;
-    }
-
-    // Native iOS/Android: allowsEditing shows the built-in square crop UI.
-    const opts = {
-      mediaTypes: ['images'] as ImagePicker.MediaType[],
-      allowsEditing: true,
-      aspect: [1, 1] as [number, number],
-      quality: 0.8,
-      base64: true,
-    };
-    let result: ImagePicker.ImagePickerResult;
-    if (source === 'camera') {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Camera access is required to take a photo.');
-        return;
+        allowsEditing: true,
+        aspect: [1, 1] as [number, number],
+        quality: 0.8,
+        base64: true,
+      };
+      let result: ImagePicker.ImagePickerResult;
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Camera access is required to take a photo.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync(opts);
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Photo library access is required to choose a photo.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync(opts);
       }
-      result = await ImagePicker.launchCameraAsync(opts);
-    } else {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Photo library access is required to choose a photo.');
-        return;
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      setUploading(true);
+      try {
+        await uploadAvatar(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
+      } catch (err) {
+        Alert.alert(
+          'Upload failed',
+          err instanceof Error ? err.message : 'Could not upload photo.'
+        );
+      } finally {
+        setUploading(false);
       }
-      result = await ImagePicker.launchImageLibraryAsync(opts);
-    }
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    setUploading(true);
-    try {
-      await uploadAvatar(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
-    } catch (err) {
-      Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload photo.');
-    } finally {
-      setUploading(false);
-    }
-  }, [uploadAvatar]);
+    },
+    [uploadAvatar]
+  );
 
   const pickCover = useCallback(async (): Promise<void> => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -656,7 +818,10 @@ export default function ProfileScreen(): React.JSX.Element {
     try {
       await uploadCover(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
     } catch (err) {
-      Alert.alert('Upload failed', err instanceof Error ? err.message : 'Could not upload cover photo.');
+      Alert.alert(
+        'Upload failed',
+        err instanceof Error ? err.message : 'Could not upload cover photo.'
+      );
     } finally {
       setUploadingCover(false);
     }
@@ -673,7 +838,10 @@ export default function ProfileScreen(): React.JSX.Element {
         onPress: async () => {
           setUploadingCover(true);
           await removeCover().catch((err: unknown) => {
-            Alert.alert('Error', err instanceof Error ? err.message : 'Could not remove cover photo.');
+            Alert.alert(
+              'Error',
+              err instanceof Error ? err.message : 'Could not remove cover photo.'
+            );
           });
           setUploadingCover(false);
         },
@@ -691,8 +859,18 @@ export default function ProfileScreen(): React.JSX.Element {
       return;
     }
     const options: Parameters<typeof Alert.alert>[2] = [
-      { text: 'Take photo', onPress: (): void => { pickImage('camera'); } },
-      { text: 'Choose from library', onPress: (): void => { pickImage('library'); } },
+      {
+        text: 'Take photo',
+        onPress: (): void => {
+          pickImage('camera');
+        },
+      },
+      {
+        text: 'Choose from library',
+        onPress: (): void => {
+          pickImage('library');
+        },
+      },
     ];
     if (profile?.avatarUrl) {
       options.push({
@@ -734,7 +912,12 @@ export default function ProfileScreen(): React.JSX.Element {
                       await deleteAccount();
                       router.replace('/(auth)/welcome');
                     } catch (err) {
-                      Alert.alert('Error', err instanceof Error ? err.message : 'Could not delete account. Please try again.');
+                      Alert.alert(
+                        'Error',
+                        err instanceof Error
+                          ? err.message
+                          : 'Could not delete account. Please try again.'
+                      );
                     }
                   },
                 },
@@ -748,310 +931,362 @@ export default function ProfileScreen(): React.JSX.Element {
 
   const handleLogout = useCallback(() => {
     if (Platform.OS === 'web') {
-      signOut().then(() => router.replace('/(auth)/welcome')).catch(() => {});
+      signOut()
+        .then(() => router.replace('/(auth)/welcome'))
+        .catch(() => {});
       return;
     }
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
       { text: t('common.cancel'), style: 'cancel' },
-      { text: t('profile.sign_out'), style: 'destructive', onPress: async (): Promise<void> => {
-        await signOut();
-        router.replace('/(auth)/welcome');
-      }},
+      {
+        text: t('profile.sign_out'),
+        style: 'destructive',
+        onPress: async (): Promise<void> => {
+          await signOut();
+          router.replace('/(auth)/welcome');
+        },
+      },
     ]);
   }, [signOut, t]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* ── Profile header ──────────────────────────────────────────── */}
-        <View style={styles.profileHeader}>
-          {/* Cover photo */}
-          <Pressable
-            style={styles.coverWrap}
-            onPress={handleCoverPress}
-            disabled={uploadingCover}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Change cover photo"
-          >
-            {profile?.coverUrl
-              ? <Image source={{ uri: profile.coverUrl }} style={styles.coverImage} contentFit="cover" accessibilityLabel="Cover photo" />
-              : (
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* ── Profile header ──────────────────────────────────────────── */}
+          <View style={styles.profileHeader}>
+            {/* Cover photo */}
+            <Pressable
+              style={styles.coverWrap}
+              onPress={handleCoverPress}
+              disabled={uploadingCover}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Change cover photo"
+            >
+              {profile?.coverUrl ? (
+                <Image
+                  source={{ uri: profile.coverUrl }}
+                  style={styles.coverImage}
+                  contentFit="cover"
+                  accessibilityLabel="Cover photo"
+                />
+              ) : (
                 <>
                   <View style={styles.decoCircleTL} />
                   <View style={styles.decoCircleTR} />
                 </>
-              )
-            }
-            {uploadingCover && (
-              <View style={styles.coverOverlay}>
-                <ActivityIndicator color="#fff" size="small" />
-              </View>
-            )}
-            <View style={styles.coverBadge}>
-              <Ionicons name="image-outline" size={12} color={C.primary} />
-            </View>
-          </Pressable>
-
-          {/* Avatar */}
-          <Pressable
-            style={styles.avatarWrap}
-            onPress={handleAvatarPress}
-            disabled={uploading}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Change profile photo"
-          >
-            <View style={[styles.avatarRing, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? C.primary) }]}>
-              {profile?.avatarUrl
-                ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImage} contentFit="cover" accessibilityLabel="Profile photo" />
-                : <Text style={styles.avatarInitial}>{initial}</Text>
-              }
-              {uploading && (
-                <View style={styles.avatarOverlay}>
+              )}
+              {uploadingCover && (
+                <View style={styles.coverOverlay}>
                   <ActivityIndicator color="#fff" size="small" />
                 </View>
               )}
-            </View>
-            <View style={styles.avatarBadge}>
-              <Ionicons name="camera" size={12} color={C.primary} />
-            </View>
-          </Pressable>
-
-          <Text style={styles.profileName}>{profile?.name ?? 'You'}</Text>
-          {!!user?.email && <Text style={styles.profileEmail}>{user.email}</Text>}
-          <Text style={styles.profileSub}>{houseName || 'Your House'}</Text>
-        </View>
-
-        <View style={styles.content}>
-
-          {/* ── Quick actions ──────────────────────────────────────────── */}
-          <View style={styles.quickRow}>
-            <QuickAction icon="card-outline" label="Payment" onPress={() => router.push('/(tabs)/bills/setup')} />
-            <QuickAction icon="notifications-outline" label="Alerts" onPress={() => router.push('/(tabs)/settings/notifications')} />
-            <QuickAction icon="shield-outline" label="Privacy" onPress={() => router.push('/(tabs)/settings/privacy-policy')} />
-          </View>
-
-          {/* ── Spending card ──────────────────────────────────────────── */}
-          {houseId && profile?.name && (
-            <SpendingCard houseId={houseId} userName={profile.name} />
-          )}
-
-          {/* ── Expense summary ────────────────────────────────────────── */}
-          {topCategories.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Expense summary</Text>
-                <Pressable onPress={() => {}} accessibilityRole="button">
-                  <Text style={styles.sectionAction}>See all</Text>
-                </Pressable>
+              <View style={styles.coverBadge}>
+                <Ionicons name="image-outline" size={12} color={C.primary} />
               </View>
-              <View style={styles.expenseGrid}>
-                {topCategories.map((cat) => (
-                  <View key={cat.name} style={styles.expenseCard}>
-                    <View style={styles.expenseIconWrap}>
-                      <Text style={styles.expenseIcon}>{cat.icon}</Text>
-                    </View>
-                    <Text style={styles.expenseName}>{cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}</Text>
-                    <Text style={styles.expenseAmt}>{currency}{cat.amount.toFixed(2)}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+            </Pressable>
 
-          {/* ── House ──────────────────────────────────────────────────── */}
-          <View style={styles.card}>
-            <View style={styles.cardInnerRow}>
-              <Text style={styles.sectionTitle}>House</Text>
-              <Pressable onPress={() => router.push('/(tabs)/bills/setup')} accessibilityRole="button">
-                <Text style={styles.sectionAction}>Manage</Text>
-              </Pressable>
-            </View>
-            <View style={styles.houseRow}>
-              <View style={styles.houseInfo}>
-                <Text style={styles.houseName}>{houseName || 'The House'}</Text>
-                <Text style={styles.houseSub}>
-                  {housemates.length} housemate{housemates.length !== 1 ? 's' : ''} connected
-                </Text>
-              </View>
-              <HousemateAvatars housemates={housemates} />
-            </View>
-          </View>
-
-          {/* ── Profile settings ───────────────────────────────────────── */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Profile</Text>
-            <View style={styles.card}>
-              <ProfileRow
-                iconName="person-outline"
-                title="Personal details"
-                sub={showDetailsForm ? 'Tap to close' : `${profile?.name ?? ''}  ·  ${user?.email ?? ''}`}
-                onPress={() => setShowDetailsForm((v) => !v)}
-              />
-              {showDetailsForm && (
-                <>
-                  <View style={styles.rowDivider} />
-                  <PersonalDetailsForm
-                    currentName={profile?.name ?? ''}
-                    currentEmail={user?.email ?? ''}
-                    onDone={() => setShowDetailsForm(false)}
+            {/* Avatar */}
+            <Pressable
+              style={styles.avatarWrap}
+              onPress={handleAvatarPress}
+              disabled={uploading}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+            >
+              <View
+                style={[
+                  styles.avatarRing,
+                  {
+                    backgroundColor: profile?.avatarUrl
+                      ? 'transparent'
+                      : (profile?.avatarColor ?? C.primary),
+                  },
+                ]}
+              >
+                {profile?.avatarUrl ? (
+                  <Image
+                    source={{ uri: profile.avatarUrl }}
+                    style={styles.avatarImage}
+                    contentFit="cover"
+                    accessibilityLabel="Profile photo"
                   />
-                </>
-              )}
-              <View style={styles.rowDivider} />
-              <ProfileRow
-                iconName="lock-closed-outline"
-                title="Change password"
-                sub={showPasswordForm ? 'Tap to close' : 'Update your login password'}
-                onPress={() => { setShowPasswordForm((v) => !v); setShowDetailsForm(false); }}
-              />
-              {showPasswordForm && (
-                <>
-                  <View style={styles.rowDivider} />
-                  <ChangePasswordForm onDone={() => setShowPasswordForm(false)} />
-                </>
-              )}
-              <View style={styles.rowDivider} />
-              <ProfileRow
-                iconName="card-outline"
-                title="Payouts & refunds"
-                sub="Where repayments should go"
+                ) : (
+                  <Text style={styles.avatarInitial}>{initial}</Text>
+                )}
+                {uploading && (
+                  <View style={styles.avatarOverlay}>
+                    <ActivityIndicator color="#fff" size="small" />
+                  </View>
+                )}
+              </View>
+              <View style={styles.avatarBadge}>
+                <Ionicons name="camera" size={12} color={C.primary} />
+              </View>
+            </Pressable>
+
+            <Text style={styles.profileName}>{profile?.name ?? 'You'}</Text>
+            {!!user?.email && <Text style={styles.profileEmail}>{user.email}</Text>}
+            <Text style={styles.profileSub}>{houseName || 'Your House'}</Text>
+          </View>
+
+          <View style={styles.content}>
+            {/* ── Quick actions ──────────────────────────────────────────── */}
+            <View style={styles.quickRow}>
+              <QuickAction
+                icon="card-outline"
+                label="Payment"
                 onPress={() => router.push('/(tabs)/bills/setup')}
               />
-              <View style={styles.rowDivider} />
-              <ProfileRow
-                iconName="time-outline"
-                title="Expense history"
-                sub="Monthly statements and export"
-                onPress={() => {}}
+              <QuickAction
+                icon="notifications-outline"
+                label="Alerts"
+                onPress={() => router.push('/(tabs)/settings/notifications')}
               />
-              <View style={styles.rowDivider} />
-              <ProfileRow
-                iconName="settings-outline"
-                title="App settings"
-                sub="Notifications, theme and account"
-                onPress={() => router.push({ pathname: '/(tabs)/more/settings', params: { from: 'profile' } })}
+              <QuickAction
+                icon="shield-outline"
+                label="Privacy"
+                onPress={() => router.push('/(tabs)/settings/privacy-policy')}
               />
             </View>
-          </View>
 
-          {/* ── Owner tools ────────────────────────────────────────────── */}
-          {isOwnerOrAdmin && (
+            {/* ── Spending card ──────────────────────────────────────────── */}
+            {houseId && profile?.name && <SpendingCard houseId={houseId} userName={profile.name} />}
+
+            {/* ── Expense summary ────────────────────────────────────────── */}
+            {topCategories.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Expense summary</Text>
+                  <Pressable onPress={() => {}} accessibilityRole="button">
+                    <Text style={styles.sectionAction}>See all</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.expenseGrid}>
+                  {topCategories.map((cat) => (
+                    <View key={cat.name} style={styles.expenseCard}>
+                      <View style={styles.expenseIconWrap}>
+                        <Text style={styles.expenseIcon}>{cat.icon}</Text>
+                      </View>
+                      <Text style={styles.expenseName}>
+                        {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
+                      </Text>
+                      <Text style={styles.expenseAmt}>
+                        {currency}
+                        {cat.amount.toFixed(2)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* ── House ──────────────────────────────────────────────────── */}
+            <View style={styles.card}>
+              <View style={styles.cardInnerRow}>
+                <Text style={styles.sectionTitle}>House</Text>
+                <Pressable
+                  onPress={() => router.push('/(tabs)/bills/setup')}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.sectionAction}>Manage</Text>
+                </Pressable>
+              </View>
+              <View style={styles.houseRow}>
+                <View style={styles.houseInfo}>
+                  <Text style={styles.houseName}>{houseName || 'The House'}</Text>
+                  <Text style={styles.houseSub}>
+                    {housemates.length} housemate{housemates.length !== 1 ? 's' : ''} connected
+                  </Text>
+                </View>
+                <HousemateAvatars housemates={housemates} />
+              </View>
+            </View>
+
+            {/* ── Profile settings ───────────────────────────────────────── */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>House management</Text>
+              <Text style={styles.sectionTitle}>Profile</Text>
               <View style={styles.card}>
                 <ProfileRow
-                  iconName="pricetag-outline"
-                  title="Expense categories"
-                  sub="Add or edit spending categories"
-                  onPress={() => router.push('/(tabs)/settings/categories')}
+                  iconName="person-outline"
+                  title="Personal details"
+                  sub={
+                    showDetailsForm
+                      ? 'Tap to close'
+                      : `${profile?.name ?? ''}  ·  ${user?.email ?? ''}`
+                  }
+                  onPress={() => setShowDetailsForm((v) => !v)}
+                />
+                {showDetailsForm && (
+                  <>
+                    <View style={styles.rowDivider} />
+                    <PersonalDetailsForm
+                      currentName={profile?.name ?? ''}
+                      currentEmail={user?.email ?? ''}
+                      onDone={() => setShowDetailsForm(false)}
+                    />
+                  </>
+                )}
+                <View style={styles.rowDivider} />
+                <ProfileRow
+                  iconName="lock-closed-outline"
+                  title="Change password"
+                  sub={showPasswordForm ? 'Tap to close' : 'Update your login password'}
+                  onPress={() => {
+                    setShowPasswordForm((v) => !v);
+                    setShowDetailsForm(false);
+                  }}
+                />
+                {showPasswordForm && (
+                  <>
+                    <View style={styles.rowDivider} />
+                    <ChangePasswordForm onDone={() => setShowPasswordForm(false)} />
+                  </>
+                )}
+                <View style={styles.rowDivider} />
+                <ProfileRow
+                  iconName="card-outline"
+                  title="Payouts & refunds"
+                  sub="Where repayments should go"
+                  onPress={() => router.push('/(tabs)/bills/setup')}
                 />
                 <View style={styles.rowDivider} />
                 <ProfileRow
-                  iconName="people-outline"
-                  title="Member permissions"
-                  sub="Control what each housemate can see"
-                  onPress={() => router.push('/(tabs)/settings/members')}
+                  iconName="time-outline"
+                  title="Expense history"
+                  sub="Monthly statements and export"
+                  onPress={() => {}}
+                />
+                <View style={styles.rowDivider} />
+                <ProfileRow
+                  iconName="settings-outline"
+                  title="App settings"
+                  sub="Notifications, theme and account"
+                  onPress={() =>
+                    router.push({ pathname: '/(tabs)/more/settings', params: { from: 'profile' } })
+                  }
                 />
               </View>
             </View>
-          )}
 
-          {/* ── Recent activity ────────────────────────────────────────── */}
-          {(todayBills.length > 0 || yesterdayBills.length > 0) && (
-            <View style={styles.card}>
-              <View style={styles.cardInnerRow}>
-                <Text style={styles.sectionTitle}>Recent activity</Text>
-                <Ionicons name="search-outline" size={20} color={C.textSecondary} />
+            {/* ── Owner tools ────────────────────────────────────────────── */}
+            {isOwnerOrAdmin && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>House management</Text>
+                <View style={styles.card}>
+                  <ProfileRow
+                    iconName="pricetag-outline"
+                    title="Expense categories"
+                    sub="Add or edit spending categories"
+                    onPress={() => router.push('/(tabs)/settings/categories')}
+                  />
+                  <View style={styles.rowDivider} />
+                  <ProfileRow
+                    iconName="people-outline"
+                    title="Member permissions"
+                    sub="Control what each housemate can see"
+                    onPress={() => router.push('/(tabs)/settings/members')}
+                  />
+                </View>
               </View>
-              {todayBills.length > 0 && (
-                <>
-                  <Text style={styles.dayLabel}>TODAY</Text>
-                  {todayBills.map((b) => (
-                    <ActivityItem key={b.id} bill={b} userName={profile?.name ?? ''} />
-                  ))}
-                </>
-              )}
-              {yesterdayBills.length > 0 && (
-                <>
-                  <Text style={styles.dayLabel}>YESTERDAY</Text>
-                  {yesterdayBills.map((b) => (
-                    <ActivityItem key={b.id} bill={b} userName={profile?.name ?? ''} />
-                  ))}
-                </>
-              )}
-              <Pressable
-                style={({ pressed }) => [styles.viewMoreBtn, pressed && styles.viewMoreBtnPressed]}
-                onPress={() => router.push('/(tabs)/bills/index')}
-                accessibilityRole="button"
-              >
-                <Text style={styles.viewMoreText}>View previous months</Text>
-              </Pressable>
-            </View>
-          )}
+            )}
 
-          {/* ── Sign out ───────────────────────────────────────────────── */}
-          <Pressable
-            style={({ pressed }) => [styles.signOutBtn, pressed && styles.signOutBtnPressed]}
-            onPress={handleLogout}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.sign_out')}
-          >
-            <Ionicons name="log-out-outline" size={18} color={C.negative} />
-            <Text style={styles.signOutText}>{t('profile.sign_out')}</Text>
-          </Pressable>
+            {/* ── Recent activity ────────────────────────────────────────── */}
+            {(todayBills.length > 0 || yesterdayBills.length > 0) && (
+              <View style={styles.card}>
+                <View style={styles.cardInnerRow}>
+                  <Text style={styles.sectionTitle}>Recent activity</Text>
+                  <Ionicons name="search-outline" size={20} color={C.textSecondary} />
+                </View>
+                {todayBills.length > 0 && (
+                  <>
+                    <Text style={styles.dayLabel}>TODAY</Text>
+                    {todayBills.map((b) => (
+                      <ActivityItem key={b.id} bill={b} userName={profile?.name ?? ''} />
+                    ))}
+                  </>
+                )}
+                {yesterdayBills.length > 0 && (
+                  <>
+                    <Text style={styles.dayLabel}>YESTERDAY</Text>
+                    {yesterdayBills.map((b) => (
+                      <ActivityItem key={b.id} bill={b} userName={profile?.name ?? ''} />
+                    ))}
+                  </>
+                )}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.viewMoreBtn,
+                    pressed && styles.viewMoreBtnPressed,
+                  ]}
+                  onPress={() => router.push('/(tabs)/bills/index')}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.viewMoreText}>View previous months</Text>
+                </Pressable>
+              </View>
+            )}
 
-          <Pressable
-            style={({ pressed }) => [styles.deleteAccountBtn, pressed && { opacity: 0.7 }]}
-            onPress={handleDeleteAccount}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="Delete account"
-          >
-            <Text style={styles.deleteAccountText}>Delete Account</Text>
-          </Pressable>
+            {/* ── Sign out ───────────────────────────────────────────────── */}
+            <Pressable
+              style={({ pressed }) => [styles.signOutBtn, pressed && styles.signOutBtnPressed]}
+              onPress={handleLogout}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.sign_out')}
+            >
+              <Ionicons name="log-out-outline" size={18} color={C.negative} />
+              <Text style={styles.signOutText}>{t('profile.sign_out')}</Text>
+            </Pressable>
 
-          <Text style={styles.version}>{t('profile.footer')}</Text>
-        </View>
-      </ScrollView>
+            <Pressable
+              style={({ pressed }) => [styles.deleteAccountBtn, pressed && { opacity: 0.7 }]}
+              onPress={handleDeleteAccount}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+            >
+              <Text style={styles.deleteAccountText}>Delete Account</Text>
+            </Pressable>
+
+            <Text style={styles.version}>{t('profile.footer')}</Text>
+          </View>
+        </ScrollView>
       </Animated.View>
 
-        {/* ── Crop editor modal (web only) ────────────────────────── */}
-        <Modal visible={cropSource !== null} transparent animationType="fade">
-          <View style={styles.cropOverlay}>
-            <View style={styles.cropModal}>
-              <Text style={styles.cropTitle}>Crop photo</Text>
-              {cropSource && (
-                <CropEditor
-                  source={cropSource}
-                  onConfirm={handleCropConfirm}
-                  onCancel={() => setCropSource(null)}
-                />
-              )}
-              {uploading && (
-                <View style={styles.cropUploading}>
-                  <ActivityIndicator color={C.primary} />
-                  <Text style={styles.cropUploadingText}>Uploading…</Text>
-                </View>
-              )}
-            </View>
+      {/* ── Crop editor modal (web only) ────────────────────────── */}
+      <Modal visible={cropSource !== null} transparent animationType="fade">
+        <View style={styles.cropOverlay}>
+          <View style={styles.cropModal}>
+            <Text style={styles.cropTitle}>Crop photo</Text>
+            {cropSource && (
+              <CropEditor
+                source={cropSource}
+                onConfirm={handleCropConfirm}
+                onCancel={() => setCropSource(null)}
+              />
+            )}
+            {uploading && (
+              <View style={styles.cropUploading}>
+                <ActivityIndicator color={C.primary} />
+                <Text style={styles.cropUploadingText}>Uploading…</Text>
+              </View>
+            )}
           </View>
-        </Modal>
-
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
-    flex:      { flex: 1 },
+    flex: { flex: 1 },
     container: { flex: 1, backgroundColor: C.background },
-    scroll:    { paddingBottom: 80 },
-    content:   { paddingHorizontal: sizes.md, gap: sizes.md, paddingBottom: sizes.lg },
+    scroll: { paddingBottom: 80 },
+    content: { paddingHorizontal: sizes.md, gap: sizes.md, paddingBottom: sizes.lg },
 
     // Profile header
     profileHeader: {
@@ -1147,9 +1382,15 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
       alignItems: 'center',
     },
-    profileName:  { fontSize: 28, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.56, marginTop: 4 },
+    profileName: {
+      fontSize: 28,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.56,
+      marginTop: 4,
+    },
     profileEmail: { fontSize: 13, ...font.regular, color: C.textSecondary },
-    profileSub:   { fontSize: 15, ...font.regular, color: C.textSecondary },
+    profileSub: { fontSize: 15, ...font.regular, color: C.textSecondary },
 
     // Quick actions
     quickRow: { flexDirection: 'row', gap: sizes.sm },
@@ -1203,13 +1444,13 @@ function makeStyles(C: ColorTokens) {
     },
     expenseIcon: { fontSize: 20 },
     expenseName: { fontSize: 13, ...font.bold, color: C.textSecondary },
-    expenseAmt:  { fontSize: 18, ...font.extrabold, color: C.textPrimary },
+    expenseAmt: { fontSize: 18, ...font.extrabold, color: C.textPrimary },
 
     // House section
     houseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     houseInfo: { gap: 2 },
     houseName: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
-    houseSub:  { fontSize: 13, ...font.bold, color: C.textSecondary },
+    houseSub: { fontSize: 13, ...font.bold, color: C.textSecondary },
     avatarStack: { flexDirection: 'row', alignItems: 'center' },
     stackAvatar: {
       width: 34,
@@ -1242,7 +1483,7 @@ function makeStyles(C: ColorTokens) {
     },
     profileRowText: { flex: 1 },
     profileRowTitle: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
-    profileRowSub:   { fontSize: 13, ...font.regular, color: C.textSecondary },
+    profileRowSub: { fontSize: 13, ...font.regular, color: C.textSecondary },
 
     rowDivider: { height: 1, backgroundColor: C.border, marginStart: 40 + sizes.sm },
 
@@ -1274,10 +1515,10 @@ function makeStyles(C: ColorTokens) {
     activityIconText: { fontSize: 20 },
     activityInfo: { flex: 1 },
     activityTitle: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
-    activitySub:   { fontSize: 13, ...font.regular, color: C.textSecondary },
-    activityAmt:   { alignItems: 'flex-end' },
+    activitySub: { fontSize: 13, ...font.regular, color: C.textSecondary },
+    activityAmt: { alignItems: 'flex-end' },
     activityAmtText: { fontSize: 16, ...font.extrabold, color: C.textPrimary },
-    activityAmtSub:  { fontSize: 12, ...font.regular, color: C.textSecondary },
+    activityAmtSub: { fontSize: 12, ...font.regular, color: C.textSecondary },
     viewMoreBtn: {
       borderWidth: 1,
       borderColor: C.border,
@@ -1318,15 +1559,20 @@ function makeStyles(C: ColorTokens) {
       borderWidth: 1,
       borderColor: C.border,
     },
-    fieldError:     { color: C.danger, fontSize: 13, ...font.regular },
-    detailsLabel:   { fontSize: 12, ...font.semibold, color: C.textSecondary, marginBottom: 4 },
-    detailsHint:    { fontSize: 11, ...font.regular, color: C.textDisabled, marginTop: 4 },
+    fieldError: { color: C.danger, fontSize: 13, ...font.regular },
+    detailsLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginBottom: 4 },
+    detailsHint: { fontSize: 11, ...font.regular, color: C.textDisabled, marginTop: 4 },
     detailsSuccess: { fontSize: 13, ...font.regular, color: C.positive ?? '#16a34a' },
-    pwBtns:     { flexDirection: 'row', alignItems: 'center', gap: sizes.md, marginTop: sizes.xs },
-    saveBtn:    { backgroundColor: C.primary, paddingVertical: 10, paddingHorizontal: sizes.lg, borderRadius: 10 },
+    pwBtns: { flexDirection: 'row', alignItems: 'center', gap: sizes.md, marginTop: sizes.xs },
+    saveBtn: {
+      backgroundColor: C.primary,
+      paddingVertical: 10,
+      paddingHorizontal: sizes.lg,
+      borderRadius: 10,
+    },
     saveBtnOff: { opacity: 0.6 },
-    saveBtnText:  { color: '#fff', ...font.semibold, fontSize: 14 },
-    cancelText:   { color: C.textSecondary, fontSize: 14, ...font.regular },
+    saveBtnText: { color: '#fff', ...font.semibold, fontSize: 14 },
+    cancelText: { color: C.textSecondary, fontSize: 14, ...font.regular },
 
     deleteAccountBtn: {
       alignItems: 'center',
@@ -1339,7 +1585,13 @@ function makeStyles(C: ColorTokens) {
       color: C.textDisabled,
       textDecorationLine: 'underline',
     },
-    version: { color: C.textDisabled, fontSize: 13, ...font.regular, textAlign: 'center', marginTop: sizes.sm },
+    version: {
+      color: C.textDisabled,
+      fontSize: 13,
+      ...font.regular,
+      textAlign: 'center',
+      marginTop: sizes.sm,
+    },
     forgotLink: { alignSelf: 'flex-start', marginTop: 2 },
     forgotLinkText: { fontSize: 13, ...font.regular, color: C.primary },
 

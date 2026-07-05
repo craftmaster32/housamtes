@@ -1,13 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Alert,
-  ActivityIndicator,
-  Share,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Share } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +7,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
+import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -68,38 +61,36 @@ export default function NfcParkingScreen(): React.JSX.Element {
   }, []);
 
   const handleRegenerate = useCallback((): void => {
-    Alert.alert(
-      t('nfc_parking.reset_title'),
-      t('nfc_parking.reset_body'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.reset'),
-          style: 'destructive',
-          onPress: async (): Promise<void> => {
-            if (!userId) return;
-            setIsLoading(true);
-            try {
-              const { data, error } = await supabase.rpc('reset_nfc_parking_token', {
-                p_user_id: userId,
-              });
-              if (error || !data) {
-                Alert.alert(t('common.error'), t('nfc_parking.reset_error'));
-                return;
-              }
-              setToken(data as string);
-            } catch {
+    Alert.alert(t('nfc_parking.reset_title'), t('nfc_parking.reset_body'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.reset'),
+        style: 'destructive',
+        onPress: async (): Promise<void> => {
+          if (!userId) return;
+          setIsLoading(true);
+          try {
+            const { data, error } = await supabase.rpc('reset_nfc_parking_token', {
+              p_user_id: userId,
+            });
+            if (error || !data) {
               Alert.alert(t('common.error'), t('nfc_parking.reset_error'));
-            } finally {
-              setIsLoading(false);
+              return;
             }
-          },
+            setToken(data as string);
+          } catch {
+            Alert.alert(t('common.error'), t('nfc_parking.reset_error'));
+          } finally {
+            setIsLoading(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   }, [userId, t]);
 
-  const handleBack = useCallback((): void => { router.back(); }, []);
+  const handleBack = useCallback((): void => {
+    router.back();
+  }, []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -111,7 +102,11 @@ export default function NfcParkingScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('nfc_parking.go_back')}
         >
-          <Ionicons name={isRTLMode ? 'chevron-forward' : 'chevron-back'} size={24} color={C.primary} />
+          <Ionicons
+            name={isRTLMode ? 'chevron-forward' : 'chevron-back'}
+            size={24}
+            color={C.primary}
+          />
         </Pressable>
         <Text style={styles.title}>{t('nfc_parking.title')}</Text>
         <View style={styles.backBtn} />
@@ -123,15 +118,11 @@ export default function NfcParkingScreen(): React.JSX.Element {
             <Text style={styles.nfcIcon}>📡</Text>
             <Text style={styles.cardTitle}>{t('nfc_parking.how_it_works')}</Text>
           </View>
-          <Text style={styles.cardBody}>
-            {t('nfc_parking.how_it_works_body')}
-          </Text>
+          <Text style={styles.cardBody}>{t('nfc_parking.how_it_works_body')}</Text>
         </View>
 
         <Text style={styles.sectionLabel}>{t('nfc_parking.step1_title')}</Text>
-        <Text style={styles.hint}>
-          {t('nfc_parking.step1_hint')}
-        </Text>
+        <Text style={styles.hint}>{t('nfc_parking.step1_hint')}</Text>
         <View style={styles.card}>
           {isLoading ? (
             <View style={styles.loadingRow}>
@@ -191,17 +182,19 @@ export default function NfcParkingScreen(): React.JSX.Element {
 
         <Text style={styles.sectionLabel}>{t('nfc_parking.step3_title')}</Text>
         <View style={styles.card}>
-          {([
-            t('nfc_parking.step3_1'),
-            t('nfc_parking.step3_2'),
-            t('nfc_parking.step3_3'),
-            t('nfc_parking.step3_4'),
-            t('nfc_parking.step3_5'),
-            t('nfc_parking.step3_6'),
-            t('nfc_parking.step3_7'),
-            t('nfc_parking.step3_8'),
-            t('nfc_parking.step3_9'),
-          ] as string[]).map((step, i) => (
+          {(
+            [
+              t('nfc_parking.step3_1'),
+              t('nfc_parking.step3_2'),
+              t('nfc_parking.step3_3'),
+              t('nfc_parking.step3_4'),
+              t('nfc_parking.step3_5'),
+              t('nfc_parking.step3_6'),
+              t('nfc_parking.step3_7'),
+              t('nfc_parking.step3_8'),
+              t('nfc_parking.step3_9'),
+            ] as string[]
+          ).map((step, i) => (
             <View key={i} style={[styles.stepRow, i > 0 && styles.stepBorder]}>
               <View style={styles.stepNum}>
                 <Text style={styles.stepNumText}>{i + 1}</Text>
@@ -215,9 +208,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.icon}>🏷️</Text>
-            <Text style={styles.cardBody}>
-              {t('nfc_parking.nfc_tag_body')}
-            </Text>
+            <Text style={styles.cardBody}>{t('nfc_parking.nfc_tag_body')}</Text>
           </View>
         </View>
       </ScrollView>

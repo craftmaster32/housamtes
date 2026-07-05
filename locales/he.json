@@ -788,7 +788,10 @@
     "cancel_reminder_body": "לא תקבל/י עוד התראה על כך.",
     "cancel_reminder_name": "ביטול תזכורת: {{name}}",
     "remind_me_about_list": "הזכר לי לגבי {{name}}",
-    "could_not_cancel_reminder": "לא ניתן היה לבטל את התזכורת. נסה/י שוב."
+    "could_not_cancel_reminder": "לא ניתן היה לבטל את התזכורת. נסה/י שוב.",
+    "reminder_prompt_added": "\"{{name}}\" נוסף — להגדיר תזכורת?",
+    "reminder_prompt_a11y": "הגדרת תזכורת עבור {{name}}",
+    "set_reminder_short": "הגדרה"
   },
   "chores": {
     "title": "מטלות",

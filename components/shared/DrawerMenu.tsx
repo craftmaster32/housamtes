@@ -1,5 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Animated, ScrollView, PanResponder, Dimensions, Alert } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  Animated,
+  ScrollView,
+  PanResponder,
+  Dimensions,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname, Link } from 'expo-router';
@@ -17,6 +25,7 @@ import { useGroceryStore } from '@stores/groceryStore';
 import { useChoresStore } from '@stores/choresStore';
 import { useBillsStore } from '@stores/billsStore';
 import { isRTL } from '@lib/i18n';
+import { Alert } from '@lib/alert';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -35,50 +44,91 @@ interface NavItem {
 }
 
 const MAIN_NAV: NavItem[] = [
-  { icon: 'home-outline', iconActive: 'home', labelKey: 'nav.dashboard', route: '/(tabs)/dashboard' },
-  { icon: 'card-outline', iconActive: 'card', labelKey: 'nav.bills', route: '/(tabs)/bills', badgeKey: 'bills' },
-  { icon: 'car-outline', iconActive: 'car', labelKey: 'nav.parking', route: '/(tabs)/parking', featureKey: 'parking' },
-  { icon: 'cart-outline', iconActive: 'cart', labelKey: 'nav.grocery', route: '/(tabs)/grocery', featureKey: 'grocery' },
-  { icon: 'checkmark-done-outline', iconActive: 'checkmark-done', labelKey: 'nav.chores', route: '/(tabs)/chores', featureKey: 'chores' },
+  {
+    icon: 'home-outline',
+    iconActive: 'home',
+    labelKey: 'nav.dashboard',
+    route: '/(tabs)/dashboard',
+  },
+  {
+    icon: 'card-outline',
+    iconActive: 'card',
+    labelKey: 'nav.bills',
+    route: '/(tabs)/bills',
+    badgeKey: 'bills',
+  },
+  {
+    icon: 'car-outline',
+    iconActive: 'car',
+    labelKey: 'nav.parking',
+    route: '/(tabs)/parking',
+    featureKey: 'parking',
+  },
+  {
+    icon: 'cart-outline',
+    iconActive: 'cart',
+    labelKey: 'nav.grocery',
+    route: '/(tabs)/grocery',
+    featureKey: 'grocery',
+  },
+  {
+    icon: 'checkmark-done-outline',
+    iconActive: 'checkmark-done',
+    labelKey: 'nav.chores',
+    route: '/(tabs)/chores',
+    featureKey: 'chores',
+  },
 ];
 
-
-
 export function DrawerMenu(): React.JSX.Element {
-  const c        = useColors();
-  const { t }    = useTranslation();
-  const isOpen   = useDrawerStore((s) => s.isOpen);
-  const close    = useDrawerStore((s) => s.close);
-  const open     = useDrawerStore((s) => s.open);
-  const user     = useAuthStore((s) => s.user);
-  const profile  = useAuthStore((s) => s.profile);
-  const signOut  = useAuthStore((s) => s.signOut);
-  const housemates     = useHousematesStore((s) => s.housemates);
-  const houseName      = useHousematesStore((s) => s.houseName);
+  const c = useColors();
+  const { t } = useTranslation();
+  const isOpen = useDrawerStore((s) => s.isOpen);
+  const close = useDrawerStore((s) => s.close);
+  const open = useDrawerStore((s) => s.open);
+  const user = useAuthStore((s) => s.user);
+  const profile = useAuthStore((s) => s.profile);
+  const signOut = useAuthStore((s) => s.signOut);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const houseName = useHousematesStore((s) => s.houseName);
   const settingsFeatures = useSettingsStore((s) => s.features);
-  const permissions    = useAuthStore((s) => s.permissions);
-  const pathname       = usePathname();
+  const permissions = useAuthStore((s) => s.permissions);
+  const pathname = usePathname();
 
-  const lastSeen          = useBadgeStore((s) => s.lastSeen);
-  const markSeen          = useBadgeStore((s) => s.markSeen);
-  const myId              = profile?.id ?? '';
+  const lastSeen = useBadgeStore((s) => s.lastSeen);
+  const markSeen = useBadgeStore((s) => s.markSeen);
+  const myId = profile?.id ?? '';
   const parkingReservations = useParkingStore((s) => s.reservations);
-  const groceryItems      = useGroceryStore((s) => s.items);
-  const chores            = useChoresStore((s) => s.chores);
-  const bills             = useBillsStore((s) => s.bills);
+  const groceryItems = useGroceryStore((s) => s.items);
+  const chores = useChoresStore((s) => s.chores);
+  const bills = useBillsStore((s) => s.bills);
 
   const badgeCounts: Record<string, number> = {
-    parking:     parkingReservations.filter((r) => r.status === 'pending' && r.requestedBy !== profile?.id).length,
-    grocery:     countNew(groceryItems.filter((i) => !i.isChecked && !i.isDraft), lastSeen.grocery, myId, 'addedBy'),
-    chores:      countNewSimple(chores.filter((ch) => !ch.isComplete), lastSeen.chores),
-    bills:       countNewSimple(bills.filter((b) => !b.settled), lastSeen.bills),
+    parking: parkingReservations.filter(
+      (r) => r.status === 'pending' && r.requestedBy !== profile?.id
+    ).length,
+    grocery: countNew(
+      groceryItems.filter((i) => !i.isChecked && !i.isDraft),
+      lastSeen.grocery,
+      myId,
+      'addedBy'
+    ),
+    chores: countNewSimple(
+      chores.filter((ch) => !ch.isComplete),
+      lastSeen.chores
+    ),
+    bills: countNewSimple(
+      bills.filter((b) => !b.settled),
+      lastSeen.bills
+    ),
   };
 
   const filterNav = useCallback(
     (items: NavItem[]): NavItem[] =>
       items.filter((item) => {
         if (!item.featureKey) return true;
-        if (!(settingsFeatures.find((f) => f.key === item.featureKey)?.enabled ?? false)) return false;
+        if (!(settingsFeatures.find((f) => f.key === item.featureKey)?.enabled ?? false))
+          return false;
         const key = item.featureKey as keyof typeof permissions;
         if (permissions && key in permissions && !permissions[key]) return false;
         return true;
@@ -86,10 +136,10 @@ export function DrawerMenu(): React.JSX.Element {
     [settingsFeatures, permissions]
   );
 
-  const language    = useLanguageStore((s) => s.language);
-  const isRTLMode   = isRTL(language);
-  const isRTLRef    = useRef(isRTLMode);
-  isRTLRef.current  = isRTLMode;
+  const language = useLanguageStore((s) => s.language);
+  const isRTLMode = isRTL(language);
+  const isRTLRef = useRef(isRTLMode);
+  isRTLRef.current = isRTLMode;
 
   const edgePan = useRef(
     PanResponder.create({
@@ -144,16 +194,22 @@ export function DrawerMenu(): React.JSX.Element {
     extrapolate: 'clamp',
   });
 
-  const isActive = useCallback((route: string): boolean => {
-    const segment = route.replace('/(tabs)', '').replace('/index', '');
-    return pathname.includes(segment) && segment !== '';
-  }, [pathname]);
+  const isActive = useCallback(
+    (route: string): boolean => {
+      const segment = route.replace('/(tabs)', '').replace('/index', '');
+      return pathname.includes(segment) && segment !== '';
+    },
+    [pathname]
+  );
 
-  const handleNav = useCallback((badgeFeature?: BadgeFeature) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    close();
-    if (badgeFeature) markSeen(badgeFeature).catch(() => {});
-  }, [close, markSeen]);
+  const handleNav = useCallback(
+    (badgeFeature?: BadgeFeature) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      close();
+      if (badgeFeature) markSeen(badgeFeature).catch(() => {});
+    },
+    [close, markSeen]
+  );
 
   const handleLogout = useCallback(async () => {
     try {
@@ -171,7 +227,10 @@ export function DrawerMenu(): React.JSX.Element {
   return (
     <>
       {!isOpen && (
-        <View style={[styles.edgeZone, isRTLMode ? styles.edgeZoneRTL : styles.edgeZoneLTR]} {...edgePan.panHandlers} />
+        <View
+          style={[styles.edgeZone, isRTLMode ? styles.edgeZoneRTL : styles.edgeZoneLTR]}
+          {...edgePan.panHandlers}
+        />
       )}
 
       <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
@@ -188,41 +247,66 @@ export function DrawerMenu(): React.JSX.Element {
         </Animated.View>
 
         {/* Drawer panel */}
-        <Animated.View style={[
-          styles.drawer,
-          isRTLMode ? styles.drawerRTL : styles.drawerLTR,
-          { backgroundColor: c.surface, transform: [{ translateX }] },
-        ]}>
+        <Animated.View
+          style={[
+            styles.drawer,
+            isRTLMode ? styles.drawerRTL : styles.drawerLTR,
+            { backgroundColor: c.surface, transform: [{ translateX }] },
+          ]}
+        >
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-
             {/* Profile header */}
             <Link asChild href="/(tabs)/profile">
-            <Pressable
-              style={({ pressed }) => [
-                styles.profileSection,
-                { backgroundColor: c.primary + '18', borderBottomColor: c.primary + '25' },
-                pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-              ]}
-              onPress={() => handleNav()}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel={`${profile?.name ?? 'Profile'}, view profile`}
-              accessibilityState={{ selected: false }}
-            >
-              <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) }]}>
-                {profile?.avatarUrl
-                  ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" accessibilityLabel={`${profile?.name ?? 'User'}'s avatar`} />
-                  : <Text style={[styles.avatarText, { color: c.white }]}>{initial}</Text>
-                }
-              </View>
-              <View style={styles.profileInfo}>
-                <Text style={[styles.profileName, { color: c.textPrimary }]}>{profile?.name ?? user?.email ?? 'You'}</Text>
-                <Text style={[styles.profileSub, { color: c.textSecondary }]}>
-                  {houseName || (housemates.length > 0 ? t('common.person', { count: housemates.length }) : 'HouseMates')}
-                </Text>
-              </View>
-              <Ionicons name={isRTLMode ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textSecondary} />
-            </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.profileSection,
+                  { backgroundColor: c.primary + '18', borderBottomColor: c.primary + '25' },
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+                onPress={() => handleNav()}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`${profile?.name ?? 'Profile'}, view profile`}
+                accessibilityState={{ selected: false }}
+              >
+                <View
+                  style={[
+                    styles.avatar,
+                    {
+                      backgroundColor: profile?.avatarUrl
+                        ? 'transparent'
+                        : (profile?.avatarColor ?? c.primary),
+                    },
+                  ]}
+                >
+                  {profile?.avatarUrl ? (
+                    <Image
+                      source={{ uri: profile.avatarUrl }}
+                      style={styles.avatarImg}
+                      contentFit="cover"
+                      accessibilityLabel={`${profile?.name ?? 'User'}'s avatar`}
+                    />
+                  ) : (
+                    <Text style={[styles.avatarText, { color: c.white }]}>{initial}</Text>
+                  )}
+                </View>
+                <View style={styles.profileInfo}>
+                  <Text style={[styles.profileName, { color: c.textPrimary }]}>
+                    {profile?.name ?? user?.email ?? 'You'}
+                  </Text>
+                  <Text style={[styles.profileSub, { color: c.textSecondary }]}>
+                    {houseName ||
+                      (housemates.length > 0
+                        ? t('common.person', { count: housemates.length })
+                        : 'HouseMates')}
+                  </Text>
+                </View>
+                <Ionicons
+                  name={isRTLMode ? 'chevron-back' : 'chevron-forward'}
+                  size={18}
+                  color={c.textSecondary}
+                />
+              </Pressable>
             </Link>
 
             {/* App branding */}
@@ -233,39 +317,65 @@ export function DrawerMenu(): React.JSX.Element {
 
             {/* Main navigation */}
             {filterNav(MAIN_NAV).map((item) => {
-              const active   = isActive(item.route);
+              const active = isActive(item.route);
               const badgeKey = item.badgeKey ?? item.featureKey;
-              const count    = badgeKey ? (badgeCounts[badgeKey] ?? 0) : 0;
+              const count = badgeKey ? (badgeCounts[badgeKey] ?? 0) : 0;
               return (
-                <Link key={item.route} asChild href={item.route as Parameters<typeof router.push>[0]}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.navItem,
-                    active && { backgroundColor: c.primary + '14' },
-                    pressed && !active && { backgroundColor: c.primary + '0A', transform: [{ scale: 0.98 }] },
-                  ]}
-                  onPress={() => handleNav(item.badgeKey ?? item.featureKey as BadgeFeature | undefined)}
-                  accessible={true}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(item.labelKey)}
-                  accessibilityState={{ selected: active }}
+                <Link
+                  key={item.route}
+                  asChild
+                  href={item.route as Parameters<typeof router.push>[0]}
                 >
-                  <Ionicons
-                    name={active ? item.iconActive : item.icon}
-                    size={20}
-                    color={active ? c.primary : c.textSecondary}
-                    style={styles.navIconEl}
-                  />
-                  <Text style={[styles.navLabel, { color: active ? c.primary : c.textPrimary }, active && styles.navLabelActive]}>
-                    {t(item.labelKey)}
-                  </Text>
-                  {count > 0 && !active && (
-                    <View style={[styles.badge, { backgroundColor: c.danger }]}>
-                      <Text style={[styles.badgeText, { color: c.white }]}>{count > 99 ? '99+' : count}</Text>
-                    </View>
-                  )}
-                  {active && <View style={[styles.activeIndicator, { backgroundColor: c.primary }, isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR]} />}
-                </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.navItem,
+                      active && { backgroundColor: c.primary + '14' },
+                      pressed &&
+                        !active && {
+                          backgroundColor: c.primary + '0A',
+                          transform: [{ scale: 0.98 }],
+                        },
+                    ]}
+                    onPress={() =>
+                      handleNav(item.badgeKey ?? (item.featureKey as BadgeFeature | undefined))
+                    }
+                    accessible={true}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(item.labelKey)}
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Ionicons
+                      name={active ? item.iconActive : item.icon}
+                      size={20}
+                      color={active ? c.primary : c.textSecondary}
+                      style={styles.navIconEl}
+                    />
+                    <Text
+                      style={[
+                        styles.navLabel,
+                        { color: active ? c.primary : c.textPrimary },
+                        active && styles.navLabelActive,
+                      ]}
+                    >
+                      {t(item.labelKey)}
+                    </Text>
+                    {count > 0 && !active && (
+                      <View style={[styles.badge, { backgroundColor: c.danger }]}>
+                        <Text style={[styles.badgeText, { color: c.white }]}>
+                          {count > 99 ? '99+' : count}
+                        </Text>
+                      </View>
+                    )}
+                    {active && (
+                      <View
+                        style={[
+                          styles.activeIndicator,
+                          { backgroundColor: c.primary },
+                          isRTLMode ? styles.activeIndicatorRTL : styles.activeIndicatorLTR,
+                        ]}
+                      />
+                    )}
+                  </Pressable>
                 </Link>
               );
             })}
@@ -281,10 +391,14 @@ export function DrawerMenu(): React.JSX.Element {
               accessibilityLabel={t('profile.sign_out')}
               accessibilityState={{ selected: false }}
             >
-              <Ionicons name="log-out-outline" size={20} color={c.negative} style={styles.navIconEl} />
+              <Ionicons
+                name="log-out-outline"
+                size={20}
+                color={c.negative}
+                style={styles.navIconEl}
+              />
               <Text style={[styles.navLabel, { color: c.negative }]}>{t('profile.sign_out')}</Text>
             </Pressable>
-
           </ScrollView>
         </Animated.View>
       </View>
@@ -301,7 +415,7 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   edgeZoneLTR: { left: 0 },
-  edgeZoneRTL:  { right: 0 },
+  edgeZoneRTL: { right: 0 },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#000000',
@@ -345,11 +459,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
   },
-  avatarImg:   { width: 52, height: 52 },
-  avatarText:  { fontSize: 20, ...font.bold },
+  avatarImg: { width: 52, height: 52 },
+  avatarText: { fontSize: 20, ...font.bold },
   profileInfo: { flex: 1 },
   profileName: { fontSize: 17, ...font.bold },
-  profileSub:  { fontSize: 13, ...font.medium, marginTop: 2 },
+  profileSub: { fontSize: 13, ...font.medium, marginTop: 2 },
   divider: {
     height: StyleSheet.hairlineWidth,
     marginVertical: sizes.sm,
