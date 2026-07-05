@@ -177,8 +177,10 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         });
       },
       logPayment: async (data, houseId): Promise<void> => {
+        // Empty array (not null) is the "split among everyone" sentinel — the column is
+        // NOT NULL, and the load path treats an empty array the same as "all housemates".
         const splitBetween =
-          data.splitBetween && data.splitBetween.length > 0 ? data.splitBetween : null;
+          data.splitBetween && data.splitBetween.length > 0 ? data.splitBetween : [];
         const { data: inserted, error } = await supabase
           .from('household_payments')
           .insert({

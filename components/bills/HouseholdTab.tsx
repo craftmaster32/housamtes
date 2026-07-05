@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
@@ -150,7 +150,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const [showHistory, setShowHistory] = useState(false);
   const [showLogDatePicker, setShowLogDatePicker] = useState(false);
 
-  const memberIds = housemates.map((m) => m.id);
+  const memberIds = useMemo(() => housemates.map((m) => m.id), [housemates]);
 
   const last = getLastPayment(bill.id, payments);
   const nextDue = getNextDueDate(bill, payments);
