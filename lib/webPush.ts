@@ -100,6 +100,89 @@ export async function enableWebPush(userId: string, houseId: string): Promise<We
   }
 }
 
+export interface RefreshWebPushResult {
+  ok: boolean;
+  reason:
+    | 'saved'
+    | 'unsupported'
+    | 'blocked'
+    | 'default'
+    | 'vapid-missing'
+    | 'no-keys'
+    | 'db-error'
+    | 'exception';
+  message?: string;
+}
+
+/**
+ * Force a fresh subscription, bypassing the "reuse existing sub" path.
+ * Called from a user tap when the "On" state is stuck and the DB row is missing.
+ * Must be triggered by a gesture on Safari.
+ */
+export async function refreshWebPush(
+  userId: string,
+  houseId: string
+): Promise<RefreshWebPushResult> {
+  if (!isWebPushSupported()) {
+    return { ok: false, reason: 'unsupported', message: 'Web push not supported here' };
+  }
+  try {
+    if (Notification.permission !== 'granted') {
+      const permission = await Notification.requestPermission();
+      if (permission === 'denied') return { ok: false, reason: 'blocked' };
+      if (permission !== 'granted') return { ok: false, reason: 'default' };
+    }
+
+    const vapidPublicKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      return {
+        ok: false,
+        reason: 'vapid-missing',
+        message: 'EXPO_PUBLIC_VAPID_PUBLIC_KEY not set in build',
+      };
+    }
+
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+
+    // Always drop the local sub first so PushManager mints a fresh endpoint.
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) await existing.unsubscribe();
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as unknown as BufferSource,
+    });
+
+    const json = subscription.toJSON();
+    const p256dh = json.keys?.p256dh;
+    const auth = json.keys?.auth;
+    if (!p256dh || !auth) return { ok: false, reason: 'no-keys' };
+
+    const { error: dbError } = await supabase.from('web_push_subscriptions').upsert(
+      {
+        user_id: userId,
+        house_id: houseId,
+        endpoint: subscription.endpoint,
+        p256dh,
+        auth,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,house_id' }
+    );
+    if (dbError) return { ok: false, reason: 'db-error', message: dbError.message };
+
+    return { ok: true, reason: 'saved' };
+  } catch (err) {
+    captureError(err, { context: 'refreshWebPush' });
+    return {
+      ok: false,
+      reason: 'exception',
+      message: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
 export function getWebPushStatus(): WebPushStatus {
   if (!isWebPushSupported()) return 'unavailable';
   return Notification.permission as WebPushStatus;
