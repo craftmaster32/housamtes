@@ -745,16 +745,21 @@ export default function GroceryScreen(): React.JSX.Element {
 
   // ── Reminder handlers ───────────────────────────────────────────────────────
   const handleOpenGeneralReminder = useCallback((): void => {
+    addedItemPrompt.dismiss();
     setReminderListTarget(null);
     setReminderDefaultLabel('');
     setShowReminderModal(true);
-  }, []);
+  }, [addedItemPrompt]);
 
-  const handleOpenListReminder = useCallback((list: GroceryList): void => {
-    setReminderListTarget(list);
-    setReminderDefaultLabel(list.name);
-    setShowReminderModal(true);
-  }, []);
+  const handleOpenListReminder = useCallback(
+    (list: GroceryList): void => {
+      addedItemPrompt.dismiss();
+      setReminderListTarget(list);
+      setReminderDefaultLabel(list.name);
+      setShowReminderModal(true);
+    },
+    [addedItemPrompt]
+  );
 
   const handleOpenItemReminder = useCallback((name: string): void => {
     setReminderListTarget(null);

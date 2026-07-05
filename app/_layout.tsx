@@ -32,6 +32,7 @@ import { useConditionStore } from '@stores/conditionStore';
 import { TopBar } from '@components/shared/TopBar';
 import { MorePopup } from '@components/shared/MorePopup';
 import { ProfilePopup } from '@components/shared/ProfilePopup';
+import { WebAlertHost } from '@components/shared/WebAlertHost';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
 import { darkColors } from '@constants/colors';
@@ -442,6 +443,7 @@ export default function RootLayout(): React.JSX.Element | null {
             {showChrome && <BottomTabBar />}
             {showChrome && <MorePopup />}
             {showChrome && <ProfilePopup />}
+            <WebAlertHost />
             {(isLoading || !fontsLoaded) && (
               <View style={styles.splash}>
                 <ActivityIndicator size="large" color={darkColors.primary} />

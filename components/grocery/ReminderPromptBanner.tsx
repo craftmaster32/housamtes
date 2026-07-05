@@ -27,6 +27,7 @@ export function ReminderPromptBanner({
   const [displayName, setDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
+    let isActive = true;
     if (itemName) {
       setDisplayName(itemName);
       if (Platform.OS !== 'web') {
@@ -38,10 +39,13 @@ export function ReminderPromptBanner({
     } else {
       Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(
         ({ finished }) => {
-          if (finished) setDisplayName(null);
+          if (finished && isActive) setDisplayName(null);
         }
       );
     }
+    return (): void => {
+      isActive = false;
+    };
   }, [itemName, opacity, t]);
 
   if (!displayName) return null;
@@ -50,6 +54,7 @@ export function ReminderPromptBanner({
     <Animated.View
       style={[s.banner, { opacity, backgroundColor: C.surface, borderColor: C.border }]}
       pointerEvents="box-none"
+      accessibilityLiveRegion="polite"
     >
       <Ionicons name="alarm-outline" size={16} color={C.primary} />
       <Text style={[s.text, { color: C.textPrimary }]} numberOfLines={1}>
