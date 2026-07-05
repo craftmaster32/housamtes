@@ -4,6 +4,8 @@ import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useBillsStore, calculateAllNetBalances, settleDebts } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
@@ -17,10 +19,15 @@ export function SettlementPanel(): React.JSX.Element {
   const sharedBills = useBillsStore((s) => s.bills);
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
+  const housemates = useHousematesStore((s) => s.housemates);
   const currency = useSettingsStore((s) => s.currency);
 
   const sharedNet = calculateAllNetBalances(sharedBills);
-  const householdFairness = calculateFairness(householdBills, payments);
+  const householdFairness = calculateFairness(
+    householdBills,
+    payments,
+    housemates.map((h) => h.id)
+  );
 
   const combinedNet = new Map<string, number>(sharedNet);
   for (const { person, balance } of householdFairness) {
@@ -87,7 +94,9 @@ export function SettlementPanel(): React.JSX.Element {
                 </View>
                 {breakdown.map((row) => (
                   <View key={row.person} style={styles.tableRow}>
-                    <Text style={styles.nameCell}>{row.person}</Text>
+                    <Text style={styles.nameCell}>
+                      {resolveName(row.person, housemates, t('common.unknown'))}
+                    </Text>
                     <Text
                       style={[
                         styles.amtCell,
@@ -128,14 +137,18 @@ export function SettlementPanel(): React.JSX.Element {
                   {settlements.map((s, idx) => (
                     <View key={idx} style={styles.settlementRow}>
                       <View style={styles.settlementPerson}>
-                        <Text style={styles.settlementName}>{s.from}</Text>
+                        <Text style={styles.settlementName}>
+                          {resolveName(s.from, housemates, t('common.unknown'))}
+                        </Text>
                         <Text style={styles.settlementRole}>{t('bills.settlement_pays')}</Text>
                       </View>
                       <Text style={styles.settlementArrow}>
                         {isRTL(currentLanguage) ? '←' : '→'}
                       </Text>
                       <View style={styles.settlementPerson}>
-                        <Text style={styles.settlementName}>{s.to}</Text>
+                        <Text style={styles.settlementName}>
+                          {resolveName(s.to, housemates, t('common.unknown'))}
+                        </Text>
                         <Text style={styles.settlementRole}>{t('bills.settlement_receives')}</Text>
                       </View>
                       <Text style={styles.settlementAmount}>

@@ -138,10 +138,15 @@ function BalanceHeroCard(): React.JSX.Element {
   const lastSeen = useBadgeStore((s) => s.lastSeen);
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
+  const householdMembers = useHousematesStore((s) => s.housemates);
   const myId = profile?.id ?? '';
   const activeBills = bills.filter((b) => !b.settled);
   const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
-  for (const { person, balance } of calculateFairness(householdBills, payments)) {
+  for (const { person, balance } of calculateFairness(
+    householdBills,
+    payments,
+    householdMembers.map((h) => h.id)
+  )) {
     combinedNet.set(person, (combinedNet.get(person) ?? 0) + balance);
   }
   const balances = calculateSimplifiedBalancesForUser(combinedNet, myId);
