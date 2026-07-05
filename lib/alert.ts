@@ -3,8 +3,14 @@ import { Alert as RNAlert, Platform } from 'react-native';
 type AlertTitle = Parameters<typeof RNAlert.alert>[0];
 type AlertMessage = Parameters<typeof RNAlert.alert>[1];
 type AlertButtons = Parameters<typeof RNAlert.alert>[2];
+type AlertOptions = Parameters<typeof RNAlert.alert>[3];
 
-function runWebAlert(title: AlertTitle, message: AlertMessage, buttons: AlertButtons): void {
+function runWebAlert(
+  title: AlertTitle,
+  message: AlertMessage,
+  buttons: AlertButtons,
+  options?: AlertOptions
+): void {
   if (typeof window === 'undefined') return;
 
   const text = [title, message].filter((part): part is string => !!part).join('\n\n');
@@ -22,16 +28,26 @@ function runWebAlert(title: AlertTitle, message: AlertMessage, buttons: AlertBut
     const fallback = [...buttons].reverse().find((button) => button.style !== 'cancel');
     (destructive ?? fallback)?.onPress?.();
   } else {
-    buttons.find((button) => button.style === 'cancel')?.onPress?.();
+    const cancelButton = buttons.find((button) => button.style === 'cancel');
+    if (cancelButton) {
+      cancelButton.onPress?.();
+    } else {
+      options?.onDismiss?.();
+    }
   }
 }
 
-function alert(title: AlertTitle, message?: AlertMessage, buttons?: AlertButtons): void {
+function alert(
+  title: AlertTitle,
+  message?: AlertMessage,
+  buttons?: AlertButtons,
+  options?: AlertOptions
+): void {
   if (Platform.OS !== 'web') {
-    RNAlert.alert(title, message, buttons);
+    RNAlert.alert(title, message, buttons, options);
     return;
   }
-  runWebAlert(title, message, buttons);
+  runWebAlert(title, message, buttons, options);
 }
 
 export const Alert = { alert };

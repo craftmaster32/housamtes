@@ -868,20 +868,11 @@ export default function ParkingScreen(): React.JSX.Element {
 
     const doRelease = (): void => {
       if (useParkingStore.getState().current?.id !== pinnedSessionId) {
-        if (Platform.OS === 'web') {
-          window.alert(t('parking.spot_changed'));
-        } else {
-          Alert.alert(t('parking.could_not_free'), t('parking.spot_changed'));
-        }
+        Alert.alert(t('parking.could_not_free'), t('parking.spot_changed'));
         return;
       }
       release(pinnedHouseId, myName).catch(() => {
-        const msg = t('parking.failed_release');
-        if (Platform.OS === 'web') {
-          window.alert(msg);
-        } else {
-          Alert.alert(t('parking.could_not_free'), msg);
-        }
+        Alert.alert(t('parking.could_not_free'), t('parking.failed_release'));
       });
     };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Animated, Pressable, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, Platform, Pressable, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +29,11 @@ export function ReminderPromptBanner({
   useEffect(() => {
     if (itemName) {
       setDisplayName(itemName);
+      if (Platform.OS !== 'web') {
+        AccessibilityInfo.announceForAccessibility(
+          t('grocery.reminder_prompt_added', { name: itemName })
+        );
+      }
       Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
     } else {
       Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(
@@ -37,7 +42,7 @@ export function ReminderPromptBanner({
         }
       );
     }
-  }, [itemName, opacity]);
+  }, [itemName, opacity, t]);
 
   if (!displayName) return null;
 
