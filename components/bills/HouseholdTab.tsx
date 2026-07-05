@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
@@ -64,8 +64,13 @@ function FairnessSection(): React.JSX.Element {
   const c = useThemedColors();
   const bills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
+  const housemates = useHousematesStore((s) => s.housemates);
   const currency = useSettingsStore((s) => s.currency);
-  const fairness = calculateFairness(bills, payments);
+  const fairness = calculateFairness(
+    bills,
+    payments,
+    housemates.map((h) => h.id)
+  );
 
   if (fairness.length === 0) return <></>;
 
@@ -83,7 +88,9 @@ function FairnessSection(): React.JSX.Element {
       </Text>
       {fairness.map((f) => (
         <View key={f.person} style={styles.fairnessRow}>
-          <Text style={[styles.fairnessPerson, { color: c.textPrimary }]}>{f.person}</Text>
+          <Text style={[styles.fairnessPerson, { color: c.textPrimary }]} numberOfLines={1}>
+            {resolveName(f.person, housemates, t('common.unknown'))}
+          </Text>
           <View style={[styles.barTrack, { backgroundColor: c.surfaceSecondary }]}>
             <View
               style={[
@@ -138,9 +145,12 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const [amount, setAmount] = useState(String(bill.typicalAmount));
   const [date, setDate] = useState(todayStr);
   const [note, setNote] = useState('');
+  const [splitWith, setSplitWith] = useState<string[]>([]);
   const [cardError, setCardError] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showLogDatePicker, setShowLogDatePicker] = useState(false);
+
+  const memberIds = useMemo(() => housemates.map((m) => m.id), [housemates]);
 
   const last = getLastPayment(bill.id, payments);
   const nextDue = getNextDueDate(bill, payments);
@@ -150,7 +160,12 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
   const parsedLogAmount = parseFloat(amount.replace(',', '.'));
   const isLogDisabled =
-    !houseId || !amount || isNaN(parsedLogAmount) || parsedLogAmount <= 0 || isSubmittingLog;
+    !houseId ||
+    !amount ||
+    isNaN(parsedLogAmount) ||
+    parsedLogAmount <= 0 ||
+    isSubmittingLog ||
+    splitWith.length === 0;
 
   const handleLog = useCallback(async (): Promise<void> => {
     if (isSubmittingLog) return;
@@ -163,10 +178,18 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       setCardError(t('bills.household_missing'));
       return;
     }
+    const split = splitWith.length > 0 ? splitWith : memberIds;
+    if (split.length === 0) {
+      setCardError(t('bills.household_split_required'));
+      return;
+    }
     try {
       setIsSubmittingLog(true);
       setCardError('');
-      await logPayment({ billId: bill.id, amount: parsed, paidAt: date, note }, houseId);
+      await logPayment(
+        { billId: bill.id, amount: parsed, paidAt: date, note, splitBetween: split },
+        houseId
+      );
       setLogging(false);
       setAmount(String(bill.typicalAmount));
       setDate(todayStr);
@@ -180,6 +203,8 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     amount,
     date,
     note,
+    splitWith,
+    memberIds,
     bill.id,
     bill.typicalAmount,
     logPayment,
@@ -212,7 +237,12 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const toggleLogging = useCallback((): void => {
     if (isSubmittingLog) return;
     setLogging((v) => !v);
-  }, [isSubmittingLog]);
+    // Default the split to everyone whenever the form opens.
+    if (!logging) setSplitWith(memberIds);
+  }, [isSubmittingLog, logging, memberIds]);
+  const toggleSplitMember = useCallback((id: string): void => {
+    setSplitWith((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
   const toggleShowHistory = useCallback((): void => setShowHistory((v) => !v), []);
   const openLogDatePicker = useCallback((): void => setShowLogDatePicker(true), []);
   const closeLogDatePicker = useCallback((): void => setShowLogDatePicker(false), []);
@@ -359,6 +389,40 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             accessibilityLabel={t('bills.household_note')}
             accessibilityHint={t('bills.hint_optional_note')}
           />
+
+          {/* Who shares this payment (defaults to everyone) */}
+          {housemates.length > 0 && (
+            <>
+              <Text style={[styles.splitLabel, { color: c.textSecondary }]}>
+                {t('bills.household_split_between')}
+              </Text>
+              <View style={styles.chipRow}>
+                {housemates.map((m) => {
+                  const selected = splitWith.includes(m.id);
+                  return (
+                    <Pressable
+                      key={m.id}
+                      style={[
+                        styles.chip,
+                        { borderColor: c.border, backgroundColor: c.surface },
+                        selected && { backgroundColor: c.primary, borderColor: c.primary },
+                      ]}
+                      onPress={() => toggleSplitMember(m.id)}
+                      accessible
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={m.name}
+                      accessibilityState={{ checked: selected }}
+                    >
+                      <Text style={[styles.chipText, { color: selected ? '#fff' : c.textPrimary }]}>
+                        {m.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
           <Pressable
             style={[
               styles.savePaymentBtn,
@@ -831,6 +895,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.sm,
     paddingVertical: sizes.sm,
     fontSize: sizes.fontSm,
+  },
+  splitLabel: {
+    fontSize: sizes.fontXs,
+    ...font.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   savePaymentBtn: {
     borderRadius: sizes.borderRadius,

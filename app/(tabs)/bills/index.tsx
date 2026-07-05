@@ -41,6 +41,19 @@ import { isRTL } from '@lib/i18n';
 
 type BillFilter = 'recurring' | 'one-off';
 
+interface RecurringPaymentRow {
+  id: string;
+  title: string;
+  icon: string;
+  amount: number;
+  paidBy: string; // user UUID the recurring bill is assigned to
+  splitBetween: string[]; // user UUIDs sharing the cost
+}
+
+type BillRow =
+  | { kind: 'bill'; key: string; date: string; bill: Bill }
+  | { kind: 'payment'; key: string; date: string; payment: RecurringPaymentRow };
+
 // ── Category icons ────────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   food: 'fast-food-outline',
@@ -148,6 +161,61 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
   );
 }
 
+// ── Recurring payment row (shown in the one-off history) ────────────────────────
+function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.Element {
+  const c = useThemedColors();
+  const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const share = row.amount / Math.max(row.splitBetween.length, 1);
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.billCard,
+        {
+          backgroundColor: c.surface,
+          borderColor: c.border,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+          opacity: pressed ? 0.92 : 1,
+        },
+      ]}
+      onPress={() => router.push('/(tabs)/bills?openRecurring=1')}
+      accessibilityRole="button"
+      accessibilityLabel={row.title}
+    >
+      <View style={[styles.billIconWrap, { backgroundColor: c.primary + '12' }]}>
+        <Text style={styles.recurringEmoji}>{row.icon}</Text>
+      </View>
+      <View style={styles.billInfo}>
+        <Text style={[styles.billTitle, { color: c.textPrimary }]} numberOfLines={1}>
+          {row.title}
+        </Text>
+        <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
+          {t('bills.paid_by_each', {
+            name: resolveName(row.paidBy, housemates, t('common.unknown')),
+            amount: formatFull(share, currencyCode),
+          })}
+        </Text>
+      </View>
+      <View style={styles.billRight}>
+        <Pill tone="brand" style={styles.settledBadge}>
+          {t('bills.recurring_tag')}
+        </Pill>
+        <Text style={[styles.billAmount, { color: c.textPrimary }]}>
+          {formatFull(row.amount, currencyCode)}
+        </Text>
+        <Ionicons
+          name={rtl ? 'chevron-back' : 'chevron-forward'}
+          size={14}
+          color={c.textSecondary}
+        />
+      </View>
+    </Pressable>
+  );
+}
+
 // ── Settle Up panel ───────────────────────────────────────────────────────────
 function SettleUpPanel(): React.JSX.Element {
   const c = useThemedColors();
@@ -161,8 +229,9 @@ function SettleUpPanel(): React.JSX.Element {
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
 
+  const memberIds = housemates.map((h) => h.id);
   const sharedNet = calculateAllNetBalances(bills.filter((b) => !b.settled));
-  const householdFairness = calculateFairness(householdBills, payments);
+  const householdFairness = calculateFairness(householdBills, payments, memberIds);
 
   const combined = new Map<string, number>(sharedNet);
   for (const { person, balance } of householdFairness) {
@@ -266,12 +335,14 @@ export default function BillsScreen(): React.JSX.Element {
 
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const memberIds = useMemo(() => housemates.map((h) => h.id), [housemates]);
 
   const myId = profile?.id ?? '';
   const activeBills = bills.filter((b) => !b.settled);
 
   const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
-  for (const { person, balance } of calculateFairness(householdBills, payments)) {
+  for (const { person, balance } of calculateFairness(householdBills, payments, memberIds)) {
     combinedNet.set(person, (combinedNet.get(person) ?? 0) + balance);
   }
   const sharedBalances = calculateSimplifiedBalancesForUser(combinedNet, myId);
@@ -283,23 +354,50 @@ export default function BillsScreen(): React.JSX.Element {
   const netBalance = totalOwed - totalOwe;
 
   const billSections = useMemo(() => {
-    const sorted = [...bills].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-    const groups: Record<string, Bill[]> = {};
-    for (const bill of sorted) {
-      const key = bill.date || 'Unknown';
+    // Merge one-off bills and logged recurring payments into one date-grouped history.
+    const billMeta = new Map(
+      householdBills.map((b) => [b.id, { name: b.name, icon: b.icon, assignedTo: b.assignedTo }])
+    );
+    const rows: BillRow[] = [
+      ...bills.map((bill) => ({ kind: 'bill' as const, key: bill.id, date: bill.date, bill })),
+      ...payments.map((p) => {
+        const meta = billMeta.get(p.billId);
+        return {
+          kind: 'payment' as const,
+          key: `recurring:${p.id}`,
+          date: p.paidAt,
+          payment: {
+            id: p.id,
+            title: meta?.name ?? '',
+            icon: meta?.icon ?? '🧾',
+            amount: p.amount,
+            paidBy: meta?.assignedTo ?? '',
+            splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
+          },
+        };
+      }),
+    ].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+
+    const groups: Record<string, BillRow[]> = {};
+    for (const row of rows) {
+      const key = row.date || 'Unknown';
       if (!groups[key]) groups[key] = [];
-      groups[key].push(bill);
+      groups[key].push(row);
     }
     return Object.entries(groups).map(([date, data]) => ({
       title: formatDateLabel(date, i18n.language, t),
       data,
     }));
-  }, [bills, i18n.language, t]);
+  }, [bills, payments, householdBills, memberIds, i18n.language, t]);
 
   const renderBill = useCallback(
-    ({ item, index }: { item: Bill; index: number }): React.JSX.Element => (
+    ({ item, index }: { item: BillRow; index: number }): React.JSX.Element => (
       <AnimatedListItem index={index}>
-        <BillCard bill={item} />
+        {item.kind === 'bill' ? (
+          <BillCard bill={item.bill} />
+        ) : (
+          <RecurringPaymentCard row={item.payment} />
+        )}
       </AnimatedListItem>
     ),
     []
@@ -538,7 +636,7 @@ export default function BillsScreen(): React.JSX.Element {
       )}
 
       {/* One-off list eyebrow */}
-      {filter === 'one-off' && bills.length > 0 && (
+      {filter === 'one-off' && bills.length + payments.length > 0 && (
         <View style={styles.listCountRow}>
           <Text style={[styles.eyebrow, { color: c.textSecondary }]}>
             {t('bills.all_expenses')}
@@ -549,7 +647,9 @@ export default function BillsScreen(): React.JSX.Element {
               { backgroundColor: c.surfaceSecondary, borderColor: c.border },
             ]}
           >
-            <Text style={[styles.countPillText, { color: c.textSecondary }]}>{bills.length}</Text>
+            <Text style={[styles.countPillText, { color: c.textSecondary }]}>
+              {bills.length + payments.length}
+            </Text>
           </View>
         </View>
       )}
@@ -575,10 +675,10 @@ export default function BillsScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       {topBar}
-      <SectionList<Bill>
+      <SectionList<BillRow>
         style={styles.flex}
         sections={billSections}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.key}
         renderItem={renderBill}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
@@ -791,6 +891,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexShrink: 0,
   },
+  recurringEmoji: { fontSize: 20, lineHeight: 26 },
   billInfo: { flex: 1 },
   billTitle: { fontSize: 15, ...font.semibold },
   billMeta: { fontSize: 12, ...font.regular, marginTop: 2 },
