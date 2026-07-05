@@ -24,7 +24,12 @@ import { useSettingsStore, CURRENCIES } from '@stores/settingsStore';
 import { useNotificationStore, BillDueDays } from '@stores/notificationStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useLanguageStore } from '@stores/languageStore';
-import { enableWebPush, getWebPushStatus, refreshWebPush, type WebPushStatus } from '@lib/webPush';
+import {
+  getWebPushStatus,
+  refreshWebPush,
+  unregisterWebPush,
+  type WebPushStatus,
+} from '@lib/webPush';
 import type { AppLanguage } from '@lib/i18n';
 import { isRTL } from '@lib/i18n';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -188,8 +193,16 @@ export default function SettingsScreen(): React.JSX.Element {
   const [calLoading, setCalLoading] = useState(false);
 
   const [webPushStatus, setWebPushStatus] = useState<WebPushStatus>('unavailable');
+  // Tracks whether we consider the user actively subscribed. Starts true when
+  // permission is granted (best-effort) so returning users see the switch on
+  // right away; if the underlying sub is actually stuck we correct on toggle.
+  const [webPushOn, setWebPushOn] = useState(false);
   useEffect(() => {
-    if (Platform.OS === 'web') setWebPushStatus(getWebPushStatus());
+    if (Platform.OS === 'web') {
+      const status = getWebPushStatus();
+      setWebPushStatus(status);
+      setWebPushOn(status === 'granted');
+    }
   }, []);
 
   const C = useThemedColors();
@@ -199,44 +212,29 @@ export default function SettingsScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  const handleEnableWebPush = useCallback(async (): Promise<void> => {
-    if (!user?.id || !houseId) return;
-    try {
-      const result = await enableWebPush(user.id, houseId);
-      if (result === 'unavailable') {
-        Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
-      } else {
-        setWebPushStatus(result);
-        if (result === 'denied') {
-          Alert.alert(
-            t('settings.notifications_blocked_title'),
-            t('settings.notifications_blocked_body')
-          );
+  // Toggle web push on/off. On enable, force a fresh subscribe so a stuck
+  // "granted but no DB row" state also recovers here. On disable, delete the
+  // row + unsubscribe locally so no more pushes reach this browser.
+  const handleWebPushToggle = useCallback(
+    async (v: boolean): Promise<void> => {
+      if (!user?.id || !houseId) return;
+      if (v) {
+        const result = await refreshWebPush(user.id, houseId);
+        setWebPushStatus(getWebPushStatus());
+        if (result.ok) {
+          setWebPushOn(true);
+        } else {
+          setWebPushOn(false);
+          const detail = result.message ? `\n\n${result.message}` : '';
+          Alert.alert('Could not enable notifications', `${result.reason}${detail}`);
         }
-      }
-    } catch {
-      Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
-    }
-  }, [user?.id, houseId, t]);
-
-  // Force a fresh subscribe when the "On" state is stuck (Safari invalidates
-  // subscriptions from time to time and the OS won't retrigger the subscribe
-  // path on its own). This runs regardless of the current webPushStatus.
-  const handleRefreshOrEnableWebPush = useCallback(async (): Promise<void> => {
-    if (!user?.id || !houseId) return;
-    if (webPushStatus === 'granted') {
-      const result = await refreshWebPush(user.id, houseId);
-      setWebPushStatus(getWebPushStatus());
-      if (result.ok) {
-        Alert.alert('✅', 'Fresh subscription saved. Notifications should work now.');
       } else {
-        const detail = result.message ? `\n\n${result.message}` : '';
-        Alert.alert('Refresh failed', `${result.reason}${detail}`);
+        setWebPushOn(false);
+        await unregisterWebPush(user.id, houseId);
       }
-      return;
-    }
-    await handleEnableWebPush();
-  }, [user?.id, houseId, webPushStatus, handleEnableWebPush]);
+    },
+    [user?.id, houseId]
+  );
 
   const handleLeavePress = useCallback((): void => {
     const myId = profile?.id ?? '';
@@ -711,36 +709,37 @@ export default function SettingsScreen(): React.JSX.Element {
           <View style={styles.menuGroup}>
             {webPushStatus !== 'unavailable' && (
               <>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.menuItem,
-                    webPushStatus !== 'denied' && pressed && styles.menuItemPressed,
-                  ]}
-                  onPress={webPushStatus === 'denied' ? undefined : handleRefreshOrEnableWebPush}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('settings.browser_notifications')}
-                >
+                <View style={styles.menuItem}>
                   <View style={styles.menuIcon}>
                     <Text style={styles.menuIconText}>🔔</Text>
                   </View>
                   <View style={styles.menuText}>
                     <Text style={styles.menuLabel}>{t('settings.browser_notifications')}</Text>
                     <Text style={styles.menuSub}>
-                      {webPushStatus === 'granted'
-                        ? t('settings.notifications_enabled')
-                        : webPushStatus === 'denied'
-                          ? t('settings.notifications_blocked')
+                      {webPushStatus === 'denied'
+                        ? t('settings.notifications_blocked')
+                        : webPushOn
+                          ? t('settings.notifications_enabled')
                           : t('settings.notifications_tap_enable')}
                     </Text>
                   </View>
-                  {webPushStatus === 'granted' && (
-                    <Text style={styles.webPushOn}>{t('settings.notifications_on')}</Text>
-                  )}
-                  {webPushStatus !== 'denied' && (
-                    <Text style={styles.menuChevron}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
-                  )}
-                </Pressable>
+                  <Switch
+                    value={webPushOn}
+                    onValueChange={handleWebPushToggle}
+                    disabled={webPushStatus === 'denied'}
+                    accessible
+                    accessibilityRole="switch"
+                    accessibilityLabel={t('settings.browser_notifications')}
+                    accessibilityState={{
+                      checked: webPushOn,
+                      disabled: webPushStatus === 'denied',
+                    }}
+                    trackColor={{ false: C.border, true: C.primary }}
+                    thumbColor={'#fff'}
+                    activeThumbColor={'#fff'}
+                    style={styles.switchLtr}
+                  />
+                </View>
                 <RowDivider />
               </>
             )}
