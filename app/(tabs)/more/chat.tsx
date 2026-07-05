@@ -282,7 +282,7 @@ function MessageBubble({
         <View style={styles.meta}>
           <Text style={[styles.time, isMine && styles.timeMine]}>{formatTime(msg.createdAt)}</Text>
           {canDelete && <Text style={styles.deleteHint}>{t('chat.hold_to_delete')}</Text>}
-          {!isMine && <Text style={styles.reportHint}>Hold to report</Text>}
+          {!isMine && <Text style={styles.reportHint}>{t('chat.hold_to_report')}</Text>}
         </View>
       </View>
     </Pressable>
