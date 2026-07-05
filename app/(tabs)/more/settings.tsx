@@ -24,7 +24,7 @@ import { useSettingsStore, CURRENCIES } from '@stores/settingsStore';
 import { useNotificationStore, BillDueDays } from '@stores/notificationStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useLanguageStore } from '@stores/languageStore';
-import { enableWebPush, getWebPushStatus, type WebPushStatus } from '@lib/webPush';
+import { enableWebPush, getWebPushStatus, refreshWebPush, type WebPushStatus } from '@lib/webPush';
 import type { AppLanguage } from '@lib/i18n';
 import { isRTL } from '@lib/i18n';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -218,6 +218,25 @@ export default function SettingsScreen(): React.JSX.Element {
       Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
     }
   }, [user?.id, houseId, t]);
+
+  // Force a fresh subscribe when the "On" state is stuck (Safari invalidates
+  // subscriptions from time to time and the OS won't retrigger the subscribe
+  // path on its own). This runs regardless of the current webPushStatus.
+  const handleRefreshOrEnableWebPush = useCallback(async (): Promise<void> => {
+    if (!user?.id || !houseId) return;
+    if (webPushStatus === 'granted') {
+      const result = await refreshWebPush(user.id, houseId);
+      setWebPushStatus(getWebPushStatus());
+      if (result.ok) {
+        Alert.alert('✅', 'Fresh subscription saved. Notifications should work now.');
+      } else {
+        const detail = result.message ? `\n\n${result.message}` : '';
+        Alert.alert('Refresh failed', `${result.reason}${detail}`);
+      }
+      return;
+    }
+    await handleEnableWebPush();
+  }, [user?.id, houseId, webPushStatus, handleEnableWebPush]);
 
   const handleLeavePress = useCallback((): void => {
     const myId = profile?.id ?? '';
@@ -695,9 +714,9 @@ export default function SettingsScreen(): React.JSX.Element {
                 <Pressable
                   style={({ pressed }) => [
                     styles.menuItem,
-                    webPushStatus === 'default' && pressed && styles.menuItemPressed,
+                    webPushStatus !== 'denied' && pressed && styles.menuItemPressed,
                   ]}
-                  onPress={webPushStatus === 'default' ? handleEnableWebPush : undefined}
+                  onPress={webPushStatus === 'denied' ? undefined : handleRefreshOrEnableWebPush}
                   accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('settings.browser_notifications')}
@@ -718,7 +737,7 @@ export default function SettingsScreen(): React.JSX.Element {
                   {webPushStatus === 'granted' && (
                     <Text style={styles.webPushOn}>{t('settings.notifications_on')}</Text>
                   )}
-                  {webPushStatus === 'default' && (
+                  {webPushStatus !== 'denied' && (
                     <Text style={styles.menuChevron}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
                   )}
                 </Pressable>
