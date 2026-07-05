@@ -134,7 +134,7 @@ export function PhotoViewer({
     []
   );
 
-  const onMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const onMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>): void => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SW);
     setCurrentIndex(idx);
   }, []);
@@ -167,7 +167,7 @@ export function PhotoViewer({
           captureError(new Error('User photo report'), {
             type: 'photo_report',
             reportedPhotoId: photo.id,
-            reportedUploader: photo.uploadedBy,
+            reportedUploaderId: photo.userId,
             reporterUserId: currentUserId ?? '',
             houseId: houseId ?? '',
           });
@@ -179,7 +179,7 @@ export function PhotoViewer({
     ]);
   }, [photo, currentUserId, houseId, t]);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback((): void => {
     if (photo) onDelete(photo);
   }, [onDelete, photo]);
 

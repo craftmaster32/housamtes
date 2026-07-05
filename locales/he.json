@@ -1030,9 +1030,11 @@
     "report_action": "דווח",
     "hold_to_report": "לחץ ארוך לדיווח",
     "your_message_hint": "ההודעה שלך. לחיצה ארוכה למחיקה.",
+    "your_message_hint_locked": "ההודעה שלך.",
     "other_message_hint": "הודעה מ-{{name}}. לחיצה ארוכה לדיווח.",
     "report_submitted_title": "הדיווח נשלח",
     "report_submitted_body": "תודה. הדיווח שלך על הודעה מ-{{name}} נרשם. הצוות שלנו יבדוק את הנושא תוך 48 שעות.\n\nלבעיות בטיחות דחופות, שלח אימייל ל-safety@housemates.app",
+    "delete_failed": "לא ניתן היה למחוק את ההודעה. נסה/י שוב.",
     "back": "חזרה"
   },
   "photos": {
@@ -1109,6 +1111,7 @@
     "avatar_label": "תמונת הפרופיל של {{name}}",
     "sign_out_sub": "תצטרך להיכנס שוב",
     "sign_out_confirm": "בטוח שרוצה להתנתק?",
+    "sign_out_failed": "לא ניתן היה להתנתק. נסה/י שוב.",
     "footer": "HouseMates · עשוי עבור הבית שלך",
     "personal_details": "פרטים אישיים",
     "tap_to_close": "לחץ לסגירה",

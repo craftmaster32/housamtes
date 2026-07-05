@@ -223,7 +223,7 @@ function MessageBubble({
   authorName: string;
   authorAvatarUrl?: string;
   onDelete: (id: string) => void;
-  onReport: (id: string, authorName: string) => void;
+  onReport: (id: string, authorName: string, authorId: string) => void;
 }): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -248,12 +248,12 @@ function MessageBubble({
           {
             text: 'Report',
             style: 'destructive',
-            onPress: (): void => onReport(msg.id, authorName),
+            onPress: (): void => onReport(msg.id, authorName, msg.author),
           },
         ]
       );
     }
-  }, [isMine, canDelete, msg.id, authorName, onDelete, onReport, t]);
+  }, [isMine, canDelete, msg.id, msg.author, authorName, onDelete, onReport, t]);
 
   return (
     <Pressable
@@ -263,8 +263,10 @@ function MessageBubble({
       accessible
       accessibilityLabel={
         isMine
-          ? 'Your message. Long-press to delete.'
-          : `Message from ${authorName}. Long-press to report.`
+          ? canDelete
+            ? t('chat.your_message_hint')
+            : t('chat.your_message_hint_locked')
+          : t('chat.other_message_hint', { name: authorName })
       }
     >
       {!isMine && (
@@ -355,23 +357,25 @@ export default function ChatScreen(): React.JSX.Element {
   }, [text, myId, myName, houseId, send]);
 
   const handleDelete = useCallback(
-    (id: string) => {
-      remove(id);
+    (id: string): void => {
+      remove(id).catch(() => {
+        Alert.alert(t('common.error'), t('chat.delete_failed'));
+      });
     },
-    [remove]
+    [remove, t]
   );
 
   const handleReport = useCallback(
-    (messageId: string, reportedAuthor: string): void => {
+    (messageId: string, reportedAuthorName: string, reportedAuthorId: string): void => {
       Alert.alert(
         'Report Submitted',
-        `Thank you. Your report about a message from ${reportedAuthor} has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app`,
+        `Thank you. Your report about a message from ${reportedAuthorName} has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app`,
         [{ text: 'OK' }]
       );
       captureError(new Error('User content report'), {
         type: 'content_report',
         reportedMessageId: messageId,
-        reportedAuthor,
+        reportedAuthorId,
         reporterId: myId,
         houseId: houseId ?? '',
       });

@@ -889,7 +889,7 @@ export default function ProfileScreen(): React.JSX.Element {
     Alert.alert('Profile photo', 'Choose an option', options);
   }, [pickImage, removeAvatar, profile?.avatarUrl]);
 
-  const handleDeleteAccount = useCallback(() => {
+  const handleDeleteAccount = useCallback((): void => {
     Alert.alert(
       'Delete Account',
       'This will permanently delete your account and all your personal data. This cannot be undone.\n\nHousehold content you created (bills, chores, etc.) may remain visible to other members.',
@@ -929,11 +929,13 @@ export default function ProfileScreen(): React.JSX.Element {
     );
   }, [deleteAccount]);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback((): void => {
     if (Platform.OS === 'web') {
       signOut()
         .then(() => router.replace('/(auth)/welcome'))
-        .catch(() => {});
+        .catch(() => {
+          Alert.alert(t('common.error'), t('profile.sign_out_failed'));
+        });
       return;
     }
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
@@ -942,8 +944,12 @@ export default function ProfileScreen(): React.JSX.Element {
         text: t('profile.sign_out'),
         style: 'destructive',
         onPress: async (): Promise<void> => {
-          await signOut();
-          router.replace('/(auth)/welcome');
+          try {
+            await signOut();
+            router.replace('/(auth)/welcome');
+          } catch {
+            Alert.alert(t('common.error'), t('profile.sign_out_failed'));
+          }
         },
       },
     ]);
