@@ -210,7 +210,7 @@ function PersonalDetailsForm({
     setSuccess('');
     try {
       const nameChanged = trimName !== currentName;
-      const emailChanged = trimEmail !== currentEmail;
+      const emailChanged = trimEmail !== currentEmail.toLowerCase();
       if (nameChanged) await updateProfile(trimName);
       if (emailChanged) await updateEmail(trimEmail);
       if (nameChanged && emailChanged) {

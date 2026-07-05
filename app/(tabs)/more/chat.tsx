@@ -240,18 +240,14 @@ function MessageBubble({
         { text: t('common.delete'), style: 'destructive', onPress: (): void => onDelete(msg.id) },
       ]);
     } else {
-      Alert.alert(
-        'Report Message',
-        `Report this message from ${authorName} as inappropriate, harmful, or illegal content?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Report',
-            style: 'destructive',
-            onPress: (): void => onReport(msg.id, authorName, msg.author),
-          },
-        ]
-      );
+      Alert.alert(t('chat.report_title'), t('chat.report_body', { name: authorName }), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('chat.report_action'),
+          style: 'destructive',
+          onPress: (): void => onReport(msg.id, authorName, msg.author),
+        },
+      ]);
     }
   }, [isMine, canDelete, msg.id, msg.author, authorName, onDelete, onReport, t]);
 
@@ -368,9 +364,9 @@ export default function ChatScreen(): React.JSX.Element {
   const handleReport = useCallback(
     (messageId: string, reportedAuthorName: string, reportedAuthorId: string): void => {
       Alert.alert(
-        'Report Submitted',
-        `Thank you. Your report about a message from ${reportedAuthorName} has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app`,
-        [{ text: 'OK' }]
+        t('chat.report_submitted_title'),
+        t('chat.report_submitted_body', { name: reportedAuthorName }),
+        [{ text: t('common.ok') }]
       );
       captureError(new Error('User content report'), {
         type: 'content_report',
@@ -380,7 +376,7 @@ export default function ChatScreen(): React.JSX.Element {
         houseId: houseId ?? '',
       });
     },
-    [myId, houseId]
+    [myId, houseId, t]
   );
 
   return (
