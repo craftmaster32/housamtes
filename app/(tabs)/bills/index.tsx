@@ -355,7 +355,9 @@ export default function BillsScreen(): React.JSX.Element {
 
   const billSections = useMemo(() => {
     // Merge one-off bills and logged recurring payments into one date-grouped history.
-    const billMeta = new Map(householdBills.map((b) => [b.id, { name: b.name, icon: b.icon }]));
+    const billMeta = new Map(
+      householdBills.map((b) => [b.id, { name: b.name, icon: b.icon, assignedTo: b.assignedTo }])
+    );
     const rows: BillRow[] = [
       ...bills.map((bill) => ({ kind: 'bill' as const, key: bill.id, date: bill.date, bill })),
       ...payments.map((p) => {
@@ -369,7 +371,7 @@ export default function BillsScreen(): React.JSX.Element {
             title: meta?.name ?? '',
             icon: meta?.icon ?? '🧾',
             amount: p.amount,
-            paidBy: householdBills.find((b) => b.id === p.billId)?.assignedTo ?? '',
+            paidBy: meta?.assignedTo ?? '',
             splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
           },
         };
