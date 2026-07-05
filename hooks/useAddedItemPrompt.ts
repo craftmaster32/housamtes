@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 
 export interface UseAddedItemPrompt {
   name: string | null;
@@ -36,5 +36,5 @@ export function useAddedItemPrompt(durationMs: number): UseAddedItemPrompt {
     [durationMs]
   );
 
-  return { name, show, dismiss };
+  return useMemo(() => ({ name, show, dismiss }), [name, show, dismiss]);
 }
