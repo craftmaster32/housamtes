@@ -24,6 +24,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useSpendingStore, CATEGORY_META } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
+import { profileDetailsSchema, changePasswordSchema } from '@utils/validation';
 import { Alert } from '@lib/alert';
 import { SpendingCard } from '@components/profile/SpendingCard';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -197,16 +198,13 @@ function PersonalDetailsForm({
   const [success, setSuccess] = useState('');
 
   const handleSave = useCallback(async (): Promise<void> => {
-    const trimName = name.trim();
-    const trimEmail = email.trim();
-    if (!trimName) {
-      setError('Name cannot be empty.');
+    const parsed = profileDetailsSchema.safeParse({ name, email });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'Please check your details.');
       return;
     }
-    if (!trimEmail) {
-      setError('Email cannot be empty.');
-      return;
-    }
+    const trimName = parsed.data.name;
+    const trimEmail = parsed.data.email;
     setSaving(true);
     setError('');
     setSuccess('');
@@ -301,22 +299,19 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
   const [success, setSuccess] = useState(false);
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (!currentPassword) {
-      setError('Please enter your current password.');
-      return;
-    }
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
+    const parsed = changePasswordSchema.safeParse({
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'Please check your details.');
       return;
     }
     setSaving(true);
     setError('');
     try {
-      await changePassword(currentPassword, newPassword);
+      await changePassword(parsed.data.currentPassword, parsed.data.newPassword);
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update password. Please try again.');
@@ -1066,7 +1061,10 @@ export default function ProfileScreen(): React.JSX.Element {
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Expense summary</Text>
-                  <Pressable onPress={() => {}} accessibilityRole="button">
+                  <Pressable
+                    onPress={() => router.push('/(tabs)/profile/spending')}
+                    accessibilityRole="button"
+                  >
                     <Text style={styles.sectionAction}>See all</Text>
                   </Pressable>
                 </View>
@@ -1162,8 +1160,8 @@ export default function ProfileScreen(): React.JSX.Element {
                 <ProfileRow
                   iconName="time-outline"
                   title="Expense history"
-                  sub="Monthly statements and export"
-                  onPress={() => {}}
+                  sub="Monthly breakdown and trends"
+                  onPress={() => router.push('/(tabs)/profile/spending')}
                 />
                 <View style={styles.rowDivider} />
                 <ProfileRow

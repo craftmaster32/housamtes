@@ -18,7 +18,7 @@ export function mapZodError(message: string, t: TFunction): string {
 }
 
 export const signUpSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(50, 'Name must be 50 characters or less').trim(),
+  name: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or less'),
   email: z
     .string()
     .min(1, 'Email is required')
@@ -30,6 +30,22 @@ export const signUpSchema = z.object({
     .regex(/[A-Z]/, 'Include at least one uppercase letter')
     .regex(/[0-9]/, 'Include at least one number'),
 });
+
+export const profileDetailsSchema = z.object({
+  name: signUpSchema.shape.name,
+  email: signUpSchema.shape.email,
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Please enter your current password.'),
+    newPassword: signUpSchema.shape.password,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Passwords do not match.',
+    path: ['confirmPassword'],
+  });
 
 export const signInSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
