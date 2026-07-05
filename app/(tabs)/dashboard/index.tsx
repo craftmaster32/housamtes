@@ -379,21 +379,59 @@ function TodayAtHome(): React.JSX.Element {
 }
 
 // ── Recent Expenses ───────────────────────────────────────────────────────────
+// A one-off bill or a logged recurring payment, unified for the recent list.
+type RecentRow =
+  | { kind: 'bill'; id: string; ts: number; bill: Bill }
+  | {
+      kind: 'payment';
+      id: string;
+      ts: number;
+      title: string;
+      icon: string;
+      paidBy: string;
+      amount: number;
+      paidAtIso: string;
+    };
+
 function RecentExpenses(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const bills = useBillsStore((s) => s.bills);
+  const householdBills = useRecurringBillsStore((s) => s.bills);
+  const payments = useRecurringBillsStore((s) => s.payments);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const housemates = useHousematesStore((s) => s.housemates);
   const language = useLanguageStore((s) => s.language);
 
-  const recent = useMemo(
-    () =>
-      [...bills]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 4),
-    [bills]
-  );
+  const recent = useMemo(() => {
+    const billMeta = new Map(
+      householdBills.map((b) => [b.id, { name: b.name, icon: b.icon, assignedTo: b.assignedTo }])
+    );
+    const rows: RecentRow[] = [
+      ...bills.map((bill) => ({
+        kind: 'bill' as const,
+        id: bill.id,
+        ts: new Date(bill.createdAt).getTime(),
+        bill,
+      })),
+      ...payments.map((p) => {
+        const meta = billMeta.get(p.billId);
+        // paid_at is a date; anchor to midday so timezone never shifts it a day.
+        const paidAtIso = `${p.paidAt}T12:00:00`;
+        return {
+          kind: 'payment' as const,
+          id: `recurring:${p.id}`,
+          ts: new Date(paidAtIso).getTime(),
+          title: meta?.name ?? '',
+          icon: meta?.icon ?? '🧾',
+          paidBy: meta?.assignedTo ?? '',
+          amount: p.amount,
+          paidAtIso,
+        };
+      }),
+    ];
+    return rows.sort((a, b) => b.ts - a.ts).slice(0, 4);
+  }, [bills, householdBills, payments]);
 
   if (recent.length === 0) return <></>;
 
@@ -412,40 +450,61 @@ function RecentExpenses(): React.JSX.Element {
         </Link>
       </View>
       <View style={[styles.recentCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-        {recent.map((bill, idx) => {
-          const meta = catIconMeta(bill.category);
+        {recent.map((row, idx) => {
+          const meta = row.kind === 'bill' ? catIconMeta(row.bill.category) : null;
+          const title = row.kind === 'bill' ? row.bill.title : row.title;
+          const paidBy = row.kind === 'bill' ? row.bill.paidBy : row.paidBy;
+          const timeIso = row.kind === 'bill' ? row.bill.createdAt : row.paidAtIso;
+          const amount = row.kind === 'bill' ? row.bill.amount : row.amount;
+          const onPress = (): void => {
+            if (row.kind === 'bill') router.push(`/(tabs)/bills/${row.bill.id}`);
+            else router.push('/(tabs)/bills?openRecurring=1');
+          };
           return (
-            <View key={bill.id}>
+            <View key={row.id}>
               {idx > 0 && <View style={[styles.recentSep, { backgroundColor: c.border }]} />}
-              <Pressable
-                style={styles.recentRow}
-                onPress={() => router.push(`/(tabs)/bills/${bill.id}`)}
-                accessibilityRole="button"
-              >
-                <View style={[styles.recentIconWrap, { backgroundColor: meta.bg }]}>
-                  <Ionicons name={meta.name as never} size={16} color={meta.color} />
+              <Pressable style={styles.recentRow} onPress={onPress} accessibilityRole="button">
+                <View
+                  style={[
+                    styles.recentIconWrap,
+                    { backgroundColor: meta ? meta.bg : c.primary + '12' },
+                  ]}
+                >
+                  {row.kind === 'bill' && meta ? (
+                    <Ionicons name={meta.name as never} size={16} color={meta.color} />
+                  ) : (
+                    <Text style={styles.recentEmoji}>{row.kind === 'payment' ? row.icon : ''}</Text>
+                  )}
                 </View>
                 <View style={styles.recentInfo}>
                   <Text style={[styles.recentTitle, { color: c.textPrimary }]} numberOfLines={1}>
-                    {bill.title}
+                    {title}
                   </Text>
                   <Text style={[styles.recentSub, { color: c.textSecondary }]}>
                     {t('dashboard.paid_by_name', {
-                      name: resolveName(bill.paidBy, housemates, t('common.unknown')),
-                      time: timeAgo(bill.createdAt, t, language),
+                      name: resolveName(paidBy, housemates, t('common.unknown')),
+                      time: timeAgo(timeIso, t, language),
                     })}
                   </Text>
                 </View>
                 <View style={styles.recentRight}>
                   <Text style={[styles.recentAmt, { color: c.textPrimary }]}>
-                    {formatFull(bill.amount, currencyCode)}
+                    {formatFull(amount, currencyCode)}
                   </Text>
-                  {bill.settled && (
-                    <View style={[styles.recentBadge, { backgroundColor: c.positive + '18' }]}>
-                      <Text style={[styles.recentBadgeText, { color: c.positive }]}>
-                        {t('bills.settled')}
+                  {row.kind === 'payment' ? (
+                    <View style={[styles.recentBadge, { backgroundColor: c.primary + '18' }]}>
+                      <Text style={[styles.recentBadgeText, { color: c.primary }]}>
+                        {t('bills.recurring_tag')}
                       </Text>
                     </View>
+                  ) : (
+                    row.bill.settled && (
+                      <View style={[styles.recentBadge, { backgroundColor: c.positive + '18' }]}>
+                        <Text style={[styles.recentBadgeText, { color: c.positive }]}>
+                          {t('bills.settled')}
+                        </Text>
+                      </View>
+                    )
                   )}
                 </View>
               </Pressable>
@@ -1992,6 +2051,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexShrink: 0,
   },
+  recentEmoji: { fontSize: 18, lineHeight: 22 },
   recentInfo: { flex: 1, gap: 3 },
   recentTitle: { fontSize: 14, ...font.semibold },
   recentSub: { fontSize: 12, ...font.regular },
