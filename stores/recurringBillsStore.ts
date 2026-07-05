@@ -70,6 +70,10 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
               .eq('house_id', houseId)
               .order('paid_at', { ascending: false }),
           ]);
+          // supabase-js resolves (not rejects) on query errors, so surface them
+          // explicitly — otherwise a failed fetch would silently blank the lists.
+          if (billsRes.error) throw billsRes.error;
+          if (paymentsRes.error) throw paymentsRes.error;
           const bills: RecurringBill[] = (billsRes.data ?? []).map((r) => ({
             id: r.id,
             name: r.name,
