@@ -880,9 +880,10 @@ const styles = StyleSheet.create({
 
   // Log form
   logForm: { borderTopWidth: 1, paddingTop: sizes.sm, gap: sizes.sm },
-  logRow: { flexDirection: 'row', gap: sizes.sm },
+  // Stack amount + date vertically (full-width each) so the date can never be
+  // squeezed off the row and clipped, whatever react-native-web does with flex.
+  logRow: { gap: sizes.sm },
   logAmountInput: {
-    flex: 1,
     borderRadius: sizes.borderRadiusSm,
     borderWidth: 1,
     paddingHorizontal: sizes.sm,
