@@ -41,16 +41,28 @@ jobs:
         id: test
         run: npm test -- --passWithNoTests
 
+      # Only touch the database when this push actually changed a migration.
+      # Frontend-only changes then skip migrate entirely, so a flaky Supabase
+      # management API can never block an unrelated UI deploy.
+      - name: Detect migration changes
+        id: migrations
+        run: |
+          if git diff --name-only HEAD^ HEAD | grep -q '^supabase/migrations/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Apply database migrations BEFORE deploying, so the deployed app never
       # runs against a database that is missing a column it expects.
       - name: Setup Supabase CLI
-        if: success()
+        if: success() && steps.migrations.outputs.changed == 'true'
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
         with:
           version: '2.15.8'
 
       - name: Apply database migrations
-        if: success()
+        if: success() && steps.migrations.outputs.changed == 'true'
         run: |
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
           supabase db push --linked
