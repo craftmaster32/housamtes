@@ -947,8 +947,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.sm,
     paddingVertical: sizes.sm,
     minHeight: 44,
+    flexShrink: 0,
   },
-  dateTriggerText: { flex: 1, fontSize: sizes.fontSm },
+  dateTriggerText: { fontSize: sizes.fontSm },
   formError: { fontSize: sizes.fontSm, marginTop: 2 },
   addInput: {
     borderRadius: sizes.borderRadiusSm,
