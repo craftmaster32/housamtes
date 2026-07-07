@@ -59,27 +59,31 @@ export function GroceryRemindersModal({
   }, [onAddReminder]);
 
   const renderReminder = useCallback(
-    ({ item }: { item: GroceryReminder }): React.JSX.Element => (
-      <View style={styles.row}>
-        <View style={styles.rowInfo}>
-          <Text style={styles.rowLabel} numberOfLines={1}>
-            {item.label}
-          </Text>
-          <Text style={styles.rowMeta}>
-            {format(new Date(item.remindAt), 'EEE, MMM d · p', { locale: dateFnsLocale })}
-          </Text>
+    ({ item }: { item: GroceryReminder }): React.JSX.Element => {
+      const remindDate = new Date(item.remindAt);
+      const dateLabel = Number.isNaN(remindDate.getTime())
+        ? item.remindAt
+        : format(remindDate, 'EEE, MMM d · p', { locale: dateFnsLocale });
+      return (
+        <View style={styles.row}>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowLabel} numberOfLines={1}>
+              {item.label}
+            </Text>
+            <Text style={styles.rowMeta}>{dateLabel}</Text>
+          </View>
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => handleDelete(item)}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('grocery.cancel_reminder_name', { name: item.label })}
+          >
+            <Ionicons name="close-circle-outline" size={19} color={C.textDisabled} />
+          </Pressable>
         </View>
-        <Pressable
-          style={styles.iconBtn}
-          onPress={() => handleDelete(item)}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('grocery.cancel_reminder_name', { name: item.label })}
-        >
-          <Ionicons name="close-circle-outline" size={19} color={C.textDisabled} />
-        </Pressable>
-      </View>
-    ),
+      );
+    },
     [styles, dateFnsLocale, handleDelete, t, C.textDisabled]
   );
 
