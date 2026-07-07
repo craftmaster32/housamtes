@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { View, Pressable, StyleSheet, ActivityIndicator, Modal } from 'react-native';
+import { View, Pressable, StyleSheet, ActivityIndicator, Modal, FlatList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -58,6 +58,31 @@ export function GroceryRemindersModal({
     onAddReminder();
   }, [onAddReminder]);
 
+  const renderReminder = useCallback(
+    ({ item }: { item: GroceryReminder }): React.JSX.Element => (
+      <View style={styles.row}>
+        <View style={styles.rowInfo}>
+          <Text style={styles.rowLabel} numberOfLines={1}>
+            {item.label}
+          </Text>
+          <Text style={styles.rowMeta}>
+            {format(new Date(item.remindAt), 'EEE, MMM d · p', { locale: dateFnsLocale })}
+          </Text>
+        </View>
+        <Pressable
+          style={styles.iconBtn}
+          onPress={() => handleDelete(item)}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('grocery.cancel_reminder_name', { name: item.label })}
+        >
+          <Ionicons name="close-circle-outline" size={19} color={C.textDisabled} />
+        </Pressable>
+      </View>
+    ),
+    [styles, dateFnsLocale, handleDelete, t, C.textDisabled]
+  );
+
   return (
     <Modal
       visible={visible}
@@ -82,52 +107,34 @@ export function GroceryRemindersModal({
             </Pressable>
           </View>
 
-          <View style={styles.body}>
-            {isLoading && (
-              <ActivityIndicator size="small" color={C.primary} style={styles.loader} />
-            )}
-
-            {!isLoading && !!error && <Text style={styles.errorText}>{error}</Text>}
-
-            {!isLoading && !error && reminders.length === 0 && (
-              <Text style={styles.emptyText}>{t('grocery.no_reminders')}</Text>
-            )}
-
-            {reminders.map((reminder) => (
-              <View key={reminder.id} style={styles.row}>
-                <View style={styles.rowInfo}>
-                  <Text style={styles.rowLabel} numberOfLines={1}>
-                    {reminder.label}
-                  </Text>
-                  <Text style={styles.rowMeta}>
-                    {format(new Date(reminder.remindAt), 'EEE, MMM d · p', {
-                      locale: dateFnsLocale,
-                    })}
-                  </Text>
-                </View>
-                <Pressable
-                  style={styles.iconBtn}
-                  onPress={() => handleDelete(reminder)}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('grocery.cancel_reminder_name', { name: reminder.label })}
-                >
-                  <Ionicons name="close-circle-outline" size={19} color={C.textDisabled} />
-                </Pressable>
-              </View>
-            ))}
-
-            <Pressable
-              style={styles.addBtn}
-              onPress={handleAdd}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={t('grocery.set_reminder')}
-            >
-              <Ionicons name="add-circle-outline" size={17} color={C.primary} />
-              <Text style={styles.addBtnText}>{t('grocery.set_reminder')}</Text>
-            </Pressable>
-          </View>
+          <FlatList
+            data={reminders}
+            keyExtractor={(item) => item.id}
+            renderItem={renderReminder}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              isLoading ? (
+                <ActivityIndicator size="small" color={C.primary} style={styles.loader} />
+              ) : error ? (
+                <Text style={styles.errorText}>{error}</Text>
+              ) : (
+                <Text style={styles.emptyText}>{t('grocery.no_reminders')}</Text>
+              )
+            }
+            ListFooterComponent={
+              <Pressable
+                style={styles.addBtn}
+                onPress={handleAdd}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('grocery.set_reminder')}
+              >
+                <Ionicons name="add-circle-outline" size={17} color={C.primary} />
+                <Text style={styles.addBtnText}>{t('grocery.set_reminder')}</Text>
+              </Pressable>
+            }
+          />
         </View>
       </View>
     </Modal>
@@ -142,6 +149,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       backgroundColor: C.surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
+      maxHeight: '75%',
       padding: 24,
       paddingBottom: 44,
       gap: 12,
@@ -154,7 +162,8 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     title: { fontSize: 18, ...font.bold, color: C.textPrimary },
     closeBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-    body: { gap: 6 },
+    list: { flexShrink: 1 },
+    listContent: { gap: 6 },
     loader: { marginVertical: 12 },
     emptyText: { fontSize: 13, ...font.regular, color: C.textSecondary, paddingVertical: 8 },
     errorText: { fontSize: 13, ...font.regular, color: C.danger, paddingVertical: 8 },
