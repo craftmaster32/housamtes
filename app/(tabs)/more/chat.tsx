@@ -257,6 +257,7 @@ function MessageBubble({
       onLongPress={handleLongPress}
       delayLongPress={400}
       accessible
+      accessibilityRole="button"
       accessibilityLabel={
         isMine
           ? canDelete
