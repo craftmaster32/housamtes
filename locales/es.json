@@ -1033,9 +1033,11 @@
     "report_action": "Reportar",
     "hold_to_report": "Mantén presionado para reportar",
     "your_message_hint": "Tu mensaje. Mantén presionado para eliminar.",
+    "your_message_hint_locked": "Tu mensaje.",
     "other_message_hint": "Mensaje de {{name}}. Mantén presionado para reportar.",
     "report_submitted_title": "Reporte enviado",
     "report_submitted_body": "Gracias. Tu reporte sobre un mensaje de {{name}} ha sido registrado. Nuestro equipo lo revisará en 48 horas.\n\nPara asuntos de seguridad urgentes, escribe a safety@housemates.app",
+    "delete_failed": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
     "back": "Volver"
   },
   "photos": {
@@ -1112,6 +1114,7 @@
     "avatar_label": "Avatar de {{name}}",
     "sign_out_sub": "Necesitarás iniciar sesión de nuevo",
     "sign_out_confirm": "¿Seguro que quieres cerrar sesión?",
+    "sign_out_failed": "No se pudo cerrar tu sesión. Inténtalo de nuevo.",
     "footer": "HouseMates · Hecho para tu hogar",
     "personal_details": "Datos personales",
     "tap_to_close": "Toca para cerrar",

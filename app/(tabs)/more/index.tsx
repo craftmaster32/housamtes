@@ -84,11 +84,13 @@ export default function ProfileScreen(): React.JSX.Element {
   const initial = (profile?.name ?? '?')[0].toUpperCase();
   const email = user?.email ?? '';
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback((): void => {
     if (Platform.OS === 'web') {
       signOut()
         .then(() => router.replace('/(auth)/welcome'))
-        .catch(() => {});
+        .catch(() => {
+          Alert.alert(t('common.error'), t('profile.sign_out_failed'));
+        });
       return;
     }
     Alert.alert(t('profile.sign_out'), t('profile.sign_out_confirm'), [
@@ -97,8 +99,12 @@ export default function ProfileScreen(): React.JSX.Element {
         text: t('profile.sign_out'),
         style: 'destructive',
         onPress: async (): Promise<void> => {
-          await signOut();
-          router.replace('/(auth)/welcome');
+          try {
+            await signOut();
+            router.replace('/(auth)/welcome');
+          } catch {
+            Alert.alert(t('common.error'), t('profile.sign_out_failed'));
+          }
         },
       },
     ]);

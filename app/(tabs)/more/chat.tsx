@@ -223,7 +223,7 @@ function MessageBubble({
   authorName: string;
   authorAvatarUrl?: string;
   onDelete: (id: string) => void;
-  onReport: (id: string, authorName: string) => void;
+  onReport: (id: string, authorName: string, authorId: string) => void;
 }): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -240,20 +240,16 @@ function MessageBubble({
         { text: t('common.delete'), style: 'destructive', onPress: (): void => onDelete(msg.id) },
       ]);
     } else {
-      Alert.alert(
-        'Report Message',
-        `Report this message from ${authorName} as inappropriate, harmful, or illegal content?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Report',
-            style: 'destructive',
-            onPress: (): void => onReport(msg.id, authorName),
-          },
-        ]
-      );
+      Alert.alert(t('chat.report_title'), t('chat.report_body', { name: authorName }), [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('chat.report_action'),
+          style: 'destructive',
+          onPress: (): void => onReport(msg.id, authorName, msg.author),
+        },
+      ]);
     }
-  }, [isMine, canDelete, msg.id, authorName, onDelete, onReport, t]);
+  }, [isMine, canDelete, msg.id, msg.author, authorName, onDelete, onReport, t]);
 
   return (
     <Pressable
@@ -261,10 +257,13 @@ function MessageBubble({
       onLongPress={handleLongPress}
       delayLongPress={400}
       accessible
+      accessibilityRole="button"
       accessibilityLabel={
         isMine
-          ? 'Your message. Long-press to delete.'
-          : `Message from ${authorName}. Long-press to report.`
+          ? canDelete
+            ? t('chat.your_message_hint')
+            : t('chat.your_message_hint_locked')
+          : t('chat.other_message_hint', { name: authorName })
       }
     >
       {!isMine && (
@@ -284,7 +283,7 @@ function MessageBubble({
         <View style={styles.meta}>
           <Text style={[styles.time, isMine && styles.timeMine]}>{formatTime(msg.createdAt)}</Text>
           {canDelete && <Text style={styles.deleteHint}>{t('chat.hold_to_delete')}</Text>}
-          {!isMine && <Text style={styles.reportHint}>Hold to report</Text>}
+          {!isMine && <Text style={styles.reportHint}>{t('chat.hold_to_report')}</Text>}
         </View>
       </View>
     </Pressable>
@@ -355,28 +354,36 @@ export default function ChatScreen(): React.JSX.Element {
   }, [text, myId, myName, houseId, send]);
 
   const handleDelete = useCallback(
-    (id: string) => {
-      remove(id);
+    (id: string): void => {
+      remove(id).catch((err: unknown) => {
+        captureError(err, {
+          type: 'message_delete_failed',
+          messageId: id,
+          houseId: houseId ?? '',
+          userId: myId,
+        });
+        Alert.alert(t('common.error'), t('chat.delete_failed'));
+      });
     },
-    [remove]
+    [remove, t, houseId, myId]
   );
 
   const handleReport = useCallback(
-    (messageId: string, reportedAuthor: string): void => {
+    (messageId: string, reportedAuthorName: string, reportedAuthorId: string): void => {
       Alert.alert(
-        'Report Submitted',
-        `Thank you. Your report about a message from ${reportedAuthor} has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app`,
-        [{ text: 'OK' }]
+        t('chat.report_submitted_title'),
+        t('chat.report_submitted_body', { name: reportedAuthorName }),
+        [{ text: t('common.ok') }]
       );
       captureError(new Error('User content report'), {
         type: 'content_report',
         reportedMessageId: messageId,
-        reportedAuthor,
+        reportedAuthorId,
         reporterId: myId,
         houseId: houseId ?? '',
       });
     },
-    [myId, houseId]
+    [myId, houseId, t]
   );
 
   return (

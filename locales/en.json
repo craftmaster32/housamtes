@@ -1033,9 +1033,11 @@
     "report_action": "Report",
     "hold_to_report": "Hold to report",
     "your_message_hint": "Your message. Long-press to delete.",
+    "your_message_hint_locked": "Your message.",
     "other_message_hint": "Message from {{name}}. Long-press to report.",
     "report_submitted_title": "Report Submitted",
     "report_submitted_body": "Thank you. Your report about a message from {{name}} has been recorded. Our team will review it within 48 hours.\n\nFor urgent safety concerns, email safety@housemates.app",
+    "delete_failed": "Could not delete message. Please try again.",
     "back": "Back"
   },
   "photos": {
@@ -1112,6 +1114,7 @@
     "avatar_label": "{{name}}'s avatar",
     "sign_out_sub": "You'll need to sign in again",
     "sign_out_confirm": "Are you sure you want to sign out?",
+    "sign_out_failed": "Could not sign you out. Please try again.",
     "footer": "HouseMates · Made for your home",
     "personal_details": "Personal details",
     "tap_to_close": "Tap to close",
