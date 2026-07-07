@@ -355,11 +355,17 @@ export default function ChatScreen(): React.JSX.Element {
 
   const handleDelete = useCallback(
     (id: string): void => {
-      remove(id).catch(() => {
+      remove(id).catch((err: unknown) => {
+        captureError(err, {
+          type: 'message_delete_failed',
+          messageId: id,
+          houseId: houseId ?? '',
+          userId: myId,
+        });
         Alert.alert(t('common.error'), t('chat.delete_failed'));
       });
     },
-    [remove, t]
+    [remove, t, houseId, myId]
   );
 
   const handleReport = useCallback(
