@@ -392,10 +392,15 @@ export default function PhotosScreen(): React.JSX.Element {
           text: t('common.delete'),
           style: 'destructive',
           onPress: async (): Promise<void> => {
-            const match = photo.url.match(/house-photos\/(.+)$/);
-            const path = match ? decodeURIComponent(match[1]) : '';
-            await remove(photo.id, path);
-            setViewIndex(-1);
+            try {
+              await remove(photo.id, photo.storagePath);
+              setViewIndex(-1);
+            } catch (err) {
+              Alert.alert(
+                t('common.error'),
+                err instanceof Error ? err.message : t('photos.delete_error')
+              );
+            }
           },
         },
       ]);
@@ -459,7 +464,7 @@ export default function PhotosScreen(): React.JSX.Element {
               accessibilityState={{ selected: isSelectMode ? isSelected : undefined }}
             >
               <Image
-                source={{ uri: photo.url }}
+                source={{ uri: photo.url, cacheKey: photo.id }}
                 style={styles.gridImg}
                 contentFit="cover"
                 accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}

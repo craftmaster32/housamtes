@@ -108,7 +108,9 @@ function sanitizeAuthError(err: unknown): string {
   if (msg.includes('rate limit') || msg.includes('too many requests')) {
     return 'Too many attempts. Please wait a moment and try again';
   }
-  if (msg.includes('network') || msg.includes('fetch failed')) {
+  // Covers RN ("Network request failed"), Chrome ("Failed to fetch"),
+  // Safari ("Load failed") and Node ("fetch failed")
+  if (msg.includes('network') || msg.includes('fetch') || msg.includes('load failed')) {
     return 'Connection error. Check your internet and try again';
   }
   if (msg.includes('weak password') || msg.includes('password')) {

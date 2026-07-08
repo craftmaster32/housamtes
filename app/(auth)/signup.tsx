@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { signUpSchema } from '@utils/validation';
+import { signUpSchema, mapZodError } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -100,7 +100,7 @@ export default function SignupScreen(): React.JSX.Element {
     }
     const result = signUpSchema.safeParse({ name, email, password });
     if (!result.success) {
-      setError(result.error.errors[0].message);
+      setError(mapZodError(result.error.errors[0].message, t));
       return;
     }
     try {

@@ -87,6 +87,31 @@ if (!ioniconsAsset) {
 const vercelConfig = {
   headers: [
     {
+      // Security headers on every response — mirrors root vercel.json.
+      // Vercel serves THIS generated file, so the headers must live here too.
+      source: '/(.*)',
+      headers: [
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'X-Frame-Options', value: 'DENY' },
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+        { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=()' },
+      ],
+    },
+    {
+      source: '/index.html',
+      headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+    },
+    {
+      // Service worker must never be cached, so browsers pick up updates, and
+      // needs Service-Worker-Allowed so it can control the whole origin.
+      source: '/sw.js',
+      headers: [
+        { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+        { key: 'Service-Worker-Allowed', value: '/' },
+      ],
+    },
+    {
       source: '/fonts/(.*)',
       headers: [
         { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },

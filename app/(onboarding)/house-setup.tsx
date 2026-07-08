@@ -125,12 +125,15 @@ export default function HouseSetupScreen(): React.JSX.Element {
     setIsLoading(true);
     setError('');
     try {
-      const { data: house, error: houseErr } = await supabase
-        .from('houses')
-        .select('id, name')
-        .eq('invite_code', inviteCode.trim().toUpperCase())
-        .maybeSingle();
+      // Houses are no longer directly readable by non-members — lookup goes
+      // through a SECURITY DEFINER RPC that requires the exact invite code.
+      const { data, error: houseErr } = await supabase.rpc('find_house_by_invite_code', {
+        p_code: inviteCode.trim().toUpperCase(),
+      });
       if (houseErr) throw new Error(t('house_setup.failed_join'));
+      const house = (
+        data as { house_id: string; house_name: string; member_count: number }[] | null
+      )?.[0];
       if (!house) {
         joinAttemptsRef.current += 1;
         if (joinAttemptsRef.current >= 3) {
@@ -140,16 +143,13 @@ export default function HouseSetupScreen(): React.JSX.Element {
         throw new Error(t('house_setup.code_not_found'));
       }
 
-      const { count, error: countErr } = await supabase
-        .from('house_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('house_id', house.id);
-      if (countErr) throw new Error(t('house_setup.failed_join'));
-
       joinAttemptsRef.current = 0;
       joinLockedUntilRef.current = null;
-      // Supabase infers string | null from .select('id, name'); column is NOT NULL in schema
-      setPendingHouse({ id: house.id, name: house.name as string, memberCount: count ?? 0 });
+      setPendingHouse({
+        id: house.house_id,
+        name: house.house_name,
+        memberCount: house.member_count,
+      });
       setShowConfirm(true);
     } catch (err) {
       captureError(err, { context: 'house-find', userId: user?.id ?? '' });
@@ -164,10 +164,12 @@ export default function HouseSetupScreen(): React.JSX.Element {
     setIsLoading(true);
     setError('');
     try {
-      const { error: memberErr } = await supabase
-        .from('house_members')
-        .insert({ house_id: pendingHouse.id, user_id: user.id });
-      if (memberErr && memberErr.code !== '23505') throw new Error(t('house_setup.failed_join'));
+      // Join through the RPC — it re-validates the invite code server-side and
+      // inserts the membership atomically (direct inserts are blocked by RLS).
+      const { error: memberErr } = await supabase.rpc('join_house_by_invite_code', {
+        p_code: inviteCode.trim().toUpperCase(),
+      });
+      if (memberErr) throw new Error(t('house_setup.failed_join'));
 
       await reloadMembership();
 
@@ -217,7 +219,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setShowConfirm(false);
       setIsLoading(false);
     }
-  }, [pendingHouse, user, reloadMembership, setHouseId, t]);
+  }, [pendingHouse, user, inviteCode, reloadMembership, setHouseId, t]);
 
   return (
     <Animated.View style={[styles.root, { opacity: fadeAnim }]}>
@@ -230,7 +232,11 @@ export default function HouseSetupScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('house_setup.back_to_login')}
         >
-          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={20} color="rgba(255,255,255,0.85)" />
+          <Ionicons
+            name={rtl ? 'chevron-forward' : 'chevron-back'}
+            size={20}
+            color="rgba(255,255,255,0.85)"
+          />
           <Text style={styles.backText}>{t('house_setup.back_to_login')}</Text>
         </Pressable>
         <Text style={styles.headerTitle}>{t('house_setup.title')}</Text>

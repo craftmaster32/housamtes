@@ -8,6 +8,7 @@ export type NotificationType =
   | 'bill_added'
   | 'bill_settled'
   | 'bill_deleted'
+  | 'bill_edited'
   | 'bill_due'
   | 'parking_claimed'
   | 'parking_reservation'
