@@ -103,6 +103,15 @@ const vercelConfig = {
       headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
     },
     {
+      // Service worker must never be cached, so browsers pick up updates, and
+      // needs Service-Worker-Allowed so it can control the whole origin.
+      source: '/sw.js',
+      headers: [
+        { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+        { key: 'Service-Worker-Allowed', value: '/' },
+      ],
+    },
+    {
       source: '/fonts/(.*)',
       headers: [
         { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
