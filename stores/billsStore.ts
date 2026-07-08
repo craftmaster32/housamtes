@@ -78,7 +78,8 @@ interface BillsStore {
   ) => Promise<void>;
   editBill: (
     id: string,
-    updates: { title: string; amount: number; date: string; notes: string; category: string }
+    updates: { title: string; amount: number; date: string; notes: string; category: string },
+    houseId: string
   ) => Promise<void>;
   settleBill: (
     id: string,
@@ -200,7 +201,8 @@ export const useBillsStore = create<BillsStore>()(
           });
         }
       },
-      editBill: async (id, updates): Promise<void> => {
+      editBill: async (id, updates, houseId): Promise<void> => {
+        const before = get().bills.find((b) => b.id === id);
         const { error } = await supabase
           .from('bills')
           .update({
@@ -229,6 +231,27 @@ export const useBillsStore = create<BillsStore>()(
               : b
           ),
         });
+        // Money-relevant edits are never silent: tell the rest of the house.
+        const amountChanged = before !== undefined && before.amount !== updates.amount;
+        const dateChanged = before !== undefined && before.date !== updates.date;
+        if (before && (amountChanged || dateChanged)) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const userId = sessionData.session?.user.id ?? '';
+          if (userId) {
+            const currency = useSettingsStore.getState().currency;
+            const body = amountChanged
+              ? `${updates.title}: ${currency}${before.amount.toFixed(2)} → ${currency}${updates.amount.toFixed(2)}`
+              : `${updates.title} — due date moved to ${updates.date}`;
+            notifyHousemates({
+              houseId,
+              excludeUserId: userId,
+              title: '✏️ Bill updated',
+              body,
+              data: { screen: 'bills' },
+              notificationType: 'bill_edited',
+            });
+          }
+        }
       },
       settleBill: async (id, settledByUserId, settledByName, houseId): Promise<void> => {
         const bill = get().bills.find((b) => b.id === id);

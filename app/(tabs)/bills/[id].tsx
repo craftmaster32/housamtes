@@ -106,7 +106,7 @@ export default function BillDetailScreen(): React.JSX.Element {
 
   const handleSaveEdit = useCallback(async (): Promise<void> => {
     if (isSaving || isDeleting) return;
-    if (!bill) return;
+    if (!bill || !houseId) return;
     const result = EditBillSchema.safeParse({
       title: title.trim(),
       amount: amount.replace(',', '.'),
@@ -127,7 +127,7 @@ export default function BillDetailScreen(): React.JSX.Element {
     }
     try {
       setIsSaving(true);
-      await editBill(bill.id, result.data);
+      await editBill(bill.id, result.data, houseId);
       setError('');
       setIsEditing(false);
     } catch (err) {
@@ -136,7 +136,7 @@ export default function BillDetailScreen(): React.JSX.Element {
     } finally {
       setIsSaving(false);
     }
-  }, [bill, title, amount, date, notes, category, editBill, t, isSaving, isDeleting]);
+  }, [bill, houseId, title, amount, date, notes, category, editBill, t, isSaving, isDeleting]);
 
   const handleDelete = useCallback(async (): Promise<void> => {
     if (!bill || !houseId || isDeleting || isSaving) return;

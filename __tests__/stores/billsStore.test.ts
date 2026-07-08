@@ -433,15 +433,17 @@ describe('billsStore — editBill', () => {
     mockFrom.mockReturnValue(fail('timeout'));
 
     await expect(
-      useBillsStore
-        .getState()
-        .editBill('b1', {
+      useBillsStore.getState().editBill(
+        'b1',
+        {
           title: 'Updated Rent',
           amount: 1000,
           date: '2026-05-01',
           notes: '',
           category: 'Rent',
-        })
+        },
+        'house1'
+      )
     ).rejects.toThrow('Could not update the bill. Please try again.');
 
     expect(useBillsStore.getState().bills[0].title).toBe('Rent');
@@ -452,18 +454,60 @@ describe('billsStore — editBill', () => {
     useBillsStore.setState({ bills: [bill({ id: 'b1', title: 'Rent' })] });
     mockFrom.mockReturnValue(ok());
 
-    await useBillsStore
-      .getState()
-      .editBill('b1', {
+    await useBillsStore.getState().editBill(
+      'b1',
+      {
         title: 'New Rent',
         amount: 1000,
         date: '2026-05-01',
         notes: 'increased',
         category: 'Groceries',
-      });
+      },
+      'house1'
+    );
 
     expect(useBillsStore.getState().bills[0].title).toBe('New Rent');
     expect(useBillsStore.getState().bills[0].category).toBe('Groceries');
+  });
+
+  it('notifies housemates when the amount changes', async () => {
+    useBillsStore.setState({ bills: [bill({ id: 'b1', title: 'Rent', amount: 900 })] });
+    mockFrom.mockReturnValue(ok());
+
+    await useBillsStore
+      .getState()
+      .editBill(
+        'b1',
+        { title: 'Rent', amount: 1000, date: '2026-04-01', notes: '', category: 'Rent' },
+        'house1'
+      );
+
+    const { notifyHousemates } = jest.requireMock('@lib/notifyHousemates');
+    expect(notifyHousemates).toHaveBeenCalledTimes(1);
+    expect(notifyHousemates).toHaveBeenCalledWith(
+      expect.objectContaining({
+        houseId: 'house1',
+        excludeUserId: 'u1',
+        notificationType: 'bill_edited',
+        body: expect.stringContaining('900.00'),
+      })
+    );
+  });
+
+  it('stays silent when only title/notes/category change', async () => {
+    useBillsStore.setState({ bills: [bill({ id: 'b1', title: 'Rent', amount: 900 })] });
+    mockFrom.mockReturnValue(ok());
+
+    await useBillsStore
+      .getState()
+      .editBill(
+        'b1',
+        { title: 'Rent (April)', amount: 900, date: '2026-04-01', notes: 'x', category: 'Other' },
+        'house1'
+      );
+
+    const { notifyHousemates } = jest.requireMock('@lib/notifyHousemates');
+    expect(notifyHousemates).not.toHaveBeenCalled();
   });
 });
 
