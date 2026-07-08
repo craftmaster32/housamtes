@@ -1,4 +1,5 @@
 import Anthropic from 'npm:@anthropic-ai/sdk';
+import { jwtVerify, createRemoteJWKSet } from 'npm:jose';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -28,26 +29,46 @@ interface RequestBody {
 
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS });
+  if (req.method !== 'POST')
+    return new Response('Method not allowed', { status: 405, headers: CORS });
+
+  // Verify the caller is an authenticated user — same pattern as send-push.
+  // Without this the function is an open proxy that burns the Anthropic key.
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response('Unauthorized', { status: 401, headers: CORS });
+  }
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const jwks = createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`));
+  try {
+    const { payload } = await jwtVerify(authHeader.slice(7), jwks);
+    if (!payload.sub || payload['role'] !== 'authenticated') throw new Error('not authenticated');
+  } catch {
+    return new Response('Unauthorized', { status: 401, headers: CORS });
+  }
 
   try {
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicApiKey) {
       console.error('[spending-analysis] ANTHROPIC_API_KEY is not configured');
       return new Response(
-        JSON.stringify({ error: 'AI analysis is not connected yet. Add ANTHROPIC_API_KEY in Supabase secrets.' }),
+        JSON.stringify({
+          error: 'AI analysis is not connected yet. Add ANTHROPIC_API_KEY in Supabase secrets.',
+        }),
         { status: 500, headers: JSON_HEADERS }
       );
     }
 
     const body = (await req.json()) as RequestBody;
-    const { months, userName, currency } = body;
+    const { months, currency } = body;
+    // Cap free-text inputs that end up inside the prompt
+    const userName = String(body.userName ?? '').slice(0, 60);
 
     if (!Array.isArray(months) || months.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'months must be a non-empty array' }),
-        { status: 400, headers: JSON_HEADERS }
-      );
+      return new Response(JSON.stringify({ error: 'months must be a non-empty array' }), {
+        status: 400,
+        headers: JSON_HEADERS,
+      });
     }
 
     const current = months[0];
@@ -58,24 +79,26 @@ Deno.serve(async (req: Request): Promise<Response> => {
       !Array.isArray(current.houseCategories) ||
       typeof current.total !== 'number'
     ) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid month data structure' }),
-        { status: 400, headers: JSON_HEADERS }
-      );
+      return new Response(JSON.stringify({ error: 'Invalid month data structure' }), {
+        status: 400,
+        headers: JSON_HEADERS,
+      });
     }
 
-    const sym = currency || '£';
+    const sym = String(currency || '£').slice(0, 5);
 
     if (current.houseTotal === 0) {
       return new Response(
-        JSON.stringify({ insight: 'No spending recorded yet — add some bills to see your analysis.' }),
+        JSON.stringify({
+          insight: 'No spending recorded yet — add some bills to see your analysis.',
+        }),
         { headers: JSON_HEADERS }
       );
     }
 
     const topCategories = current.houseCategories
       .slice(0, 3)
-      .map((c) => `${c.name}: ${sym}${c.amount.toFixed(0)}`)
+      .map((c) => `${String(c.name).slice(0, 40)}: ${sym}${Number(c.amount).toFixed(0)}`)
       .join(', ');
 
     const prevLine = previous
@@ -96,7 +119,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       `- Sentence 2: ${userName}'s personal context — their share as a fraction of the house total.`,
       `- Sentence 3 (optional): one concrete observation about a category or a short tip.`,
       `- Be direct, specific, and friendly. No corporate language. No bullet points.`,
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     const anthropic = new Anthropic({ apiKey: anthropicApiKey });
     const message = await anthropic.messages.create({
@@ -109,15 +134,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const insight = firstBlock?.type === 'text' ? firstBlock.text.trim() : '';
     if (!insight) throw new Error('Claude returned an empty spending insight');
 
-    return new Response(
-      JSON.stringify({ insight }),
-      { headers: JSON_HEADERS }
-    );
+    return new Response(JSON.stringify({ insight }), { headers: JSON_HEADERS });
   } catch (err) {
     console.error('[spending-analysis]', err);
-    return new Response(
-      JSON.stringify({ error: 'Failed to generate insight' }),
-      { status: 500, headers: JSON_HEADERS }
-    );
+    return new Response(JSON.stringify({ error: 'Failed to generate insight' }), {
+      status: 500,
+      headers: JSON_HEADERS,
+    });
   }
 });
