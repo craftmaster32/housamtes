@@ -28,7 +28,9 @@ BEGIN
        (NEW.split_between IS DISTINCT FROM OLD.split_between) OR
        (NEW.split_amounts IS DISTINCT FROM OLD.split_amounts) OR
        (NEW.date          IS DISTINCT FROM OLD.date)          OR
-       (NEW.settled       IS DISTINCT FROM OLD.settled)
+       (NEW.settled       IS DISTINCT FROM OLD.settled)       OR
+       (NEW.settled_by    IS DISTINCT FROM OLD.settled_by)    OR
+       (NEW.settled_at    IS DISTINCT FROM OLD.settled_at)
     THEN
       RAISE EXCEPTION
         'Settled bills are locked — amounts, splits and settlement status '
@@ -100,6 +102,7 @@ BEGIN
      (OLD.paid_by       IS DISTINCT FROM NEW.paid_by)       OR
      (OLD.split_between IS DISTINCT FROM NEW.split_between) OR
      (OLD.split_amounts IS DISTINCT FROM NEW.split_amounts) OR
+     (OLD.date          IS DISTINCT FROM NEW.date)          OR
      (OLD.settled       IS DISTINCT FROM NEW.settled)
   THEN
     INSERT INTO audit_log(house_id, actor_id, table_name, record_id, old_data)

@@ -1057,6 +1057,7 @@
     "upload": "העלה",
     "delete_photo": "מחק תמונה",
     "delete_confirm": "להסיר את התמונה לכולם?",
+    "delete_error": "לא הצלחנו למחוק את התמונה. נסה שוב.",
     "limit_title": "הגעת לגבול התמונות",
     "upload_failed": "ההעלאה נכשלה. נסה שוב.",
     "permission_denied": "הגישה נדחתה",

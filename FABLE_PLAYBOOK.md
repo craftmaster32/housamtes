@@ -24,7 +24,7 @@ any new dependency before installing it. A migration means you run
 
 ## Session 1 — Stabilize & measure (do this first)
 
-```
+```text
 You are working on Nestiq (this repo). Read CLAUDE.md, FEATURES.md, and PHASES.md
 first and follow every rule in them exactly.
 
@@ -55,7 +55,7 @@ summary: baseline numbers, what you fixed, and the top 5 risks that remain.
 
 ## Session 2 — Release-readiness hardening
 
-```
+```text
 You are working on Nestiq (this repo). Read CLAUDE.md and PHASES.md (Phase 7
 quality gate) first and follow every rule exactly.
 
@@ -89,7 +89,7 @@ pass and which still need real-device testing that only I can do.
 
 ## Session 3 — Deep code-quality sweep
 
-```
+```text
 You are working on Nestiq (this repo). Read CLAUDE.md first and follow every rule.
 
 Mission: raise code quality without changing behaviour. No new features, no visible
@@ -119,7 +119,7 @@ and how much coverage moved.
 
 ## Session 4 — Ship the highest-value missing features
 
-```
+```text
 You are working on Nestiq (this repo). Read CLAUDE.md, FEATURES.md, IDEAS.md, and
 PHASES.md first and follow every rule exactly. Remember: nothing gets built unless
 it's in FEATURES.md — if you want something from IDEAS.md, the rule is to propose it,
@@ -151,7 +151,7 @@ on pending my decision.
 
 ## Session 5 — Monetization groundwork (structure only, no live billing)
 
-```
+```text
 You are working on Nestiq (this repo). Read CLAUDE.md and PHASES.md (Phase 7 mentions
 AdMob + premium IAP) first and follow every rule exactly.
 
@@ -184,7 +184,7 @@ products, keys) to go live. Run tsc + lint + tests, commit, push, and summarize.
 
 ## Session 6 — App Store submission prep
 
-```
+```text
 You are working on Nestiq (this repo). Read CLAUDE.md and PHASES.md (Phase 8) first
 and follow every rule exactly.
 

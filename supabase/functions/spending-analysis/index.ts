@@ -59,7 +59,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const body = (await req.json()) as RequestBody;
+    let body: RequestBody;
+    try {
+      body = (await req.json()) as RequestBody;
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400,
+        headers: JSON_HEADERS,
+      });
+    }
     const { months, currency } = body;
     // Cap free-text inputs that end up inside the prompt
     const userName = String(body.userName ?? '').slice(0, 60);

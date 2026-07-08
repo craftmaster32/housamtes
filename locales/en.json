@@ -1057,6 +1057,7 @@
     "upload": "Upload",
     "delete_photo": "Delete photo",
     "delete_confirm": "Remove this photo for everyone?",
+    "delete_error": "Could not delete the photo. Please try again.",
     "limit_title": "Photo limit reached",
     "upload_failed": "Upload failed. Try again.",
     "permission_denied": "Permission denied",

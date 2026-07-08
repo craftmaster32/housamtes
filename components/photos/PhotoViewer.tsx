@@ -115,7 +115,7 @@ export function PhotoViewer({
     ({ item }: ListRenderItemInfo<Photo>) => (
       <View style={styles.slide}>
         <Image
-          source={{ uri: item.url }}
+          source={{ uri: item.url, cacheKey: item.id }}
           style={styles.image}
           contentFit="contain"
           accessibilityLabel={item.caption ?? t('photos.photo_by', { name: item.uploadedBy })}

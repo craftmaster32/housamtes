@@ -1057,6 +1057,7 @@
     "upload": "Subir",
     "delete_photo": "Eliminar foto",
     "delete_confirm": "¿Eliminar esta foto para todos?",
+    "delete_error": "No se pudo eliminar la foto. Inténtalo de nuevo.",
     "limit_title": "Límite de fotos alcanzado",
     "upload_failed": "Error al subir. Intenta de nuevo.",
     "permission_denied": "Permiso denegado",
