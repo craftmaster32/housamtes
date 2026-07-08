@@ -61,7 +61,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
 
   const handleSendCode = useCallback(async (): Promise<void> => {
     if (!email.trim()) {
-      setError(t('auth.email'));
+      setError(t('auth.email_required'));
       return;
     }
     setIsLoading(true);
@@ -237,10 +237,10 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 buttonColor={C.primary}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel={t('auth.send_reset_link')}
+                accessibilityLabel={t('auth.send_code')}
                 accessibilityState={{ disabled: isLoading }}
               >
-                {t('auth.send_reset_link')}
+                {t('auth.send_code')}
               </Button>
             </>
           ) : (

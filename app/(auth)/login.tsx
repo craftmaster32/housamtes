@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
-import { signInSchema } from '@utils/validation';
+import { signInSchema, mapZodError } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -87,7 +87,7 @@ export default function LoginScreen(): React.JSX.Element {
 
     const result = signInSchema.safeParse({ email, password });
     if (!result.success) {
-      setError(result.error.errors[0].message);
+      setError(mapZodError(result.error.errors[0].message, t));
       return;
     }
     try {
