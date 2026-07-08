@@ -53,10 +53,21 @@ jobs:
             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Same idea for Edge Functions: only redeploy them when a function
+      # actually changed, so UI-only merges never touch Supabase.
+      - name: Detect function changes
+        id: functions
+        run: |
+          if git diff --name-only HEAD^ HEAD | grep -q '^supabase/functions/'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Apply database migrations BEFORE deploying, so the deployed app never
       # runs against a database that is missing a column it expects.
       - name: Setup Supabase CLI
-        if: success() && steps.migrations.outputs.changed == 'true'
+        if: success() && (steps.migrations.outputs.changed == 'true' || steps.functions.outputs.changed == 'true')
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
         with:
           version: '2.15.8'
@@ -66,6 +77,27 @@ jobs:
         run: |
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
           supabase db push --linked
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      # Deploy Edge Functions when any changed. verify_jwt is set per function
+      # and must match how each one is called, or it breaks:
+      #   OFF — cron-triggered (bill-due-reminder, grocery-reminder-check,
+      #         parking-check) and the NFC parking shortcut (parking-toggle),
+      #         none of which send a Supabase user token.
+      #   ON  — app-facing functions (delete-account, send-push,
+      #         spending-analysis); each also re-verifies the JWT in code.
+      - name: Deploy edge functions
+        if: success() && steps.functions.outputs.changed == 'true'
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          for fn in bill-due-reminder grocery-reminder-check parking-check parking-toggle; do
+            supabase functions deploy "$fn" --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          done
+          for fn in delete-account send-push spending-analysis; do
+            supabase functions deploy "$fn" --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          done
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}

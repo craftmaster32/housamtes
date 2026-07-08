@@ -16,9 +16,10 @@ sessions assume earlier ones landed.
 **Golden rules that apply to every prompt (they're already in CLAUDE.md, but
 worth knowing):** never pushes to `main`, never force-pushes, always runs
 `npx tsc --noEmit` + `npm run lint` + `npm test` before committing, and flags
-any new dependency before installing it. A migration means you run
-`npx supabase db push` after merging; an Edge Function change means
-`npx supabase functions deploy <name>`; every web change ends with `npm run deploy`.
+any new dependency before installing it. **Deploys are automated:** merging to
+`main` triggers the post-merge GitHub Action, which applies database migrations,
+deploys changed Edge Functions, and ships the web app — no manual
+`supabase db push` / `functions deploy` / `npm run deploy` needed.
 
 ---
 
