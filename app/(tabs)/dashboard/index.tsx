@@ -278,7 +278,7 @@ function TodayAtHome(): React.JSX.Element {
       ? t('dashboard.parking_first_come')
       : isMine
         ? t('dashboard.parking_free_it_up')
-        : (() => {
+        : ((): string => {
             const resolved = resolveName(current?.occupant ?? '', housemates, '');
             const displayName = resolved ? resolved.split(' ')[0] : t('common.unknown');
             return t('dashboard.parking_by', { name: displayName });
