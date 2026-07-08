@@ -81,22 +81,33 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
-      # Deploy Edge Functions when any changed. verify_jwt is set per function
-      # and must match how each one is called, or it breaks:
+      # Deploy ONLY the Edge Functions that changed in this merge, each with the
+      # verify_jwt setting that matches how it is called (getting this wrong
+      # breaks the function):
       #   OFF — cron-triggered (bill-due-reminder, grocery-reminder-check,
       #         parking-check) and the NFC parking shortcut (parking-toggle),
       #         none of which send a Supabase user token.
       #   ON  — app-facing functions (delete-account, send-push,
       #         spending-analysis); each also re-verifies the JWT in code.
+      # Deploying only what changed keeps the sensitive cron/NFC functions
+      # untouched unless they themselves are edited.
       - name: Deploy edge functions
         if: success() && steps.functions.outputs.changed == 'true'
         run: |
+          set -euo pipefail
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          for fn in bill-due-reminder grocery-reminder-check parking-check parking-toggle; do
-            supabase functions deploy "$fn" --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          done
-          for fn in delete-account send-push spending-analysis; do
-            supabase functions deploy "$fn" --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          changed=$(git diff --name-only HEAD^ HEAD | grep '^supabase/functions/' | cut -d/ -f3 | sort -u)
+          for fn in $changed; do
+            case "$fn" in
+              bill-due-reminder|grocery-reminder-check|parking-check|parking-toggle)
+                echo "Deploying $fn (verify_jwt OFF)"
+                supabase functions deploy "$fn" --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+                ;;
+              *)
+                echo "Deploying $fn (verify_jwt ON)"
+                supabase functions deploy "$fn" --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+                ;;
+            esac
           done
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

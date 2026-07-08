@@ -1,3 +1,6 @@
+// Housemates — spending-analysis Edge Function
+// Deploy: verify_jwt ON — invoked with the caller's access token, which is also
+// verified in code below (see post-merge.yml).
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import { jwtVerify, createRemoteJWKSet } from 'npm:jose';
 
