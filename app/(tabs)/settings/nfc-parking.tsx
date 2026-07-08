@@ -33,14 +33,12 @@ export default function NfcParkingScreen(): React.JSX.Element {
     let cancelled = false;
     void (async (): Promise<void> => {
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('nfc_parking_token')
-          .eq('id', userId)
-          .single();
+        // The token column is no longer directly readable (housemates must not
+        // see each other's token) — fetch our own via the SECURITY DEFINER RPC.
+        const { data, error } = await supabase.rpc('get_my_nfc_parking_token');
         if (cancelled) return;
         if (!error && data) {
-          setToken((data as { nfc_parking_token: string }).nfc_parking_token);
+          setToken(data as string);
         }
       } finally {
         if (!cancelled) setIsLoading(false);
