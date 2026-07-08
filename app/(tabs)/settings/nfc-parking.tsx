@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
+import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -40,6 +41,8 @@ export default function NfcParkingScreen(): React.JSX.Element {
         if (!error && data) {
           setToken(data as string);
         }
+      } catch (err) {
+        if (!cancelled) captureError(err, { context: 'nfc-token-load', userId });
       } finally {
         if (!cancelled) setIsLoading(false);
       }

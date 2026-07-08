@@ -214,7 +214,7 @@ export const useBillsStore = create<BillsStore>()(
           })
           .eq('id', id);
         if (error) {
-          captureError(error, { context: 'edit-bill', billId: id });
+          captureError(error, { context: 'edit-bill', billId: id, houseId });
           throw new Error('Could not update the bill. Please try again.');
         }
         set({
@@ -232,25 +232,31 @@ export const useBillsStore = create<BillsStore>()(
           ),
         });
         // Money-relevant edits are never silent: tell the rest of the house.
-        const amountChanged = before !== undefined && before.amount !== updates.amount;
-        const dateChanged = before !== undefined && before.date !== updates.date;
-        if (before && (amountChanged || dateChanged)) {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const userId = sessionData.session?.user.id ?? '';
-          if (userId) {
-            const currency = useSettingsStore.getState().currency;
-            const body = amountChanged
-              ? `${updates.title}: ${currency}${before.amount.toFixed(2)} → ${currency}${updates.amount.toFixed(2)}`
-              : `${updates.title} — due date moved to ${updates.date}`;
-            notifyHousemates({
-              houseId,
-              excludeUserId: userId,
-              title: '✏️ Bill updated',
-              body,
-              data: { screen: 'bills' },
-              notificationType: 'bill_edited',
-            });
+        // Isolated in its own try/catch — a notification hiccup must never make
+        // a successful save look like a failure to the caller.
+        try {
+          const amountChanged = before !== undefined && before.amount !== updates.amount;
+          const dateChanged = before !== undefined && before.date !== updates.date;
+          if (before && (amountChanged || dateChanged)) {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const userId = sessionData.session?.user.id ?? '';
+            if (userId) {
+              const currency = useSettingsStore.getState().currency;
+              const body = amountChanged
+                ? `${updates.title}: ${currency}${before.amount.toFixed(2)} → ${currency}${updates.amount.toFixed(2)}`
+                : `${updates.title} — due date moved to ${updates.date}`;
+              notifyHousemates({
+                houseId,
+                excludeUserId: userId,
+                title: '✏️ Bill updated',
+                body,
+                data: { screen: 'bills' },
+                notificationType: 'bill_edited',
+              });
+            }
           }
+        } catch (notifyErr) {
+          captureError(notifyErr, { context: 'edit-bill-notify', billId: id, houseId });
         }
       },
       settleBill: async (id, settledByUserId, settledByName, houseId): Promise<void> => {

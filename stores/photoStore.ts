@@ -178,7 +178,12 @@ export const usePhotoStore = create<PhotoStore>()(
       },
       remove: async (id, storagePath): Promise<void> => {
         if (storagePath) {
-          await supabase.storage.from(BUCKET).remove([storagePath]);
+          // Best-effort file delete, but surface bucket/RLS failures to Sentry
+          // instead of silently orphaning the object while the row disappears.
+          const { error: storageError } = await supabase.storage.from(BUCKET).remove([storagePath]);
+          if (storageError) {
+            captureError(storageError, { context: 'delete-photo', photoId: id });
+          }
         }
         const { error } = await supabase.from('photos').delete().eq('id', id);
         if (error) {
