@@ -392,9 +392,7 @@ export default function PhotosScreen(): React.JSX.Element {
           text: t('common.delete'),
           style: 'destructive',
           onPress: async (): Promise<void> => {
-            const match = photo.url.match(/house-photos\/(.+)$/);
-            const path = match ? decodeURIComponent(match[1]) : '';
-            await remove(photo.id, path);
+            await remove(photo.id, photo.storagePath);
             setViewIndex(-1);
           },
         },
