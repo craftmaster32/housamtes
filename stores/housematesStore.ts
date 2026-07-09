@@ -24,7 +24,9 @@ interface HousematesStore {
   timezone: string;
   isSetup: boolean;
   isLoading: boolean;
+  error: string | null;
   load: (houseId: string) => Promise<void>;
+  clearError: () => void;
   unsubscribe: () => void;
   save: (housemates: Housemate[]) => Promise<void>;
   updatePermissions: (memberId: string, permissions: MemberPermissions) => Promise<void>;
@@ -45,6 +47,8 @@ export const useHousematesStore = create<HousematesStore>()(
       timezone: 'UTC',
       isSetup: false,
       isLoading: true,
+      error: null,
+      clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[housemates] house ID mismatch — aborting load');
@@ -146,10 +150,15 @@ export const useHousematesStore = create<HousematesStore>()(
             timezone: houseRes.data?.timezone ?? 'UTC',
             isSetup: housemates.length >= 1,
             isLoading: false,
+            error: null,
           });
         } catch (err) {
           captureError(err, { store: 'housemates', houseId });
-          set({ isSetup: false, isLoading: false });
+          set({
+            isSetup: false,
+            isLoading: false,
+            error: 'Could not load your housemates. Please try again.',
+          });
         }
 
         // Re-fetch when someone joins or leaves the house
