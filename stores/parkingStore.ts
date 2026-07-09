@@ -115,6 +115,13 @@ function toMinutes(time: string): number {
   return h * 60 + (m ?? 0);
 }
 
+// Local-date key in YYYY-MM-DD form. Used everywhere the store compares a
+// reservation's `date` field to "today" — keeping the format in one place so
+// the claim/cancel/auto-apply/history paths can't drift apart.
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // Mirrors the parking-check cron's due-time check (#6a/#6b): a pending
 // reservation is "due" once its date/start-time has arrived. `offsetMinutes`
 // shifts the due time earlier — used by isVoteChangeLocked to close vote
@@ -144,6 +151,46 @@ export function isVoteChangeLocked(
   now: Date = new Date()
 ): boolean {
   return isReservationPastDue(date, startTime, now, VOTE_CHANGE_LOCK_MINUTES);
+}
+
+// A reservation belongs in History (rather than Upcoming) when it's fully
+// settled. Rules:
+//   1. Date is in the past → history
+//   2. Rejected → history (any date)
+//   3. Approved and end time has already passed today → history
+//   4. Approved on today, start time has passed, and the spot is no longer
+//      held by the requester (released early or never claimed) → history
+// All-day approved slots stay in Upcoming until the calendar day is over.
+export function isReservationInHistory(
+  reservation: ParkingReservation,
+  now: Date = new Date(),
+  currentSession: ParkingSession | null = null
+): boolean {
+  const todayStr = localDateKey(now);
+  if (reservation.date < todayStr) return true;
+  if (reservation.status === 'rejected') return true;
+  if (reservation.status !== 'approved' || reservation.date !== todayStr) return false;
+
+  const y = now.getFullYear();
+  const mo = now.getMonth();
+  const d = now.getDate();
+
+  if (reservation.endTime) {
+    const endDate = new Date(y, mo, d, 0, toMinutes(reservation.endTime));
+    if (now.getTime() >= endDate.getTime()) return true;
+  }
+
+  if (reservation.startTime) {
+    const startDate = new Date(y, mo, d, 0, toMinutes(reservation.startTime));
+    if (
+      now.getTime() >= startDate.getTime() &&
+      currentSession?.occupant !== reservation.requestedBy
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export interface ConflictResult {
@@ -328,7 +375,7 @@ export const useParkingStore = create<ParkingStore>()(
 
         // Block if another housemate has an approved reservation covering right now
         const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const todayStr = localDateKey(now);
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
         const conflictingReservation = get().reservations.find((r) => {
           if (r.status !== 'approved' || r.date !== todayStr || r.requestedBy === userId)
@@ -490,9 +537,7 @@ export const useParkingStore = create<ParkingStore>()(
           set({ reservations: get().reservations.filter((r) => r.id !== id) });
           const current = get().current;
           if (reservation && current && current.occupant === reservation.requestedBy) {
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            if (reservation.date === todayStr) {
+            if (reservation.date === localDateKey(new Date())) {
               await get().release(houseId);
             }
           }
@@ -655,10 +700,8 @@ export const useParkingStore = create<ParkingStore>()(
         try {
           const reservation = get().reservations.find((r) => r.id === id);
           if (!reservation) throw new Error('Reservation not found');
-          const now = new Date();
-          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-          if (reservation.date >= todayStr)
-            throw new Error('Cannot clear a future or current reservation');
+          if (!isReservationInHistory(reservation, new Date(), get().current))
+            throw new Error('Cannot clear a reservation that is still upcoming');
 
           const { error } = await supabase.from('parking_reservations').delete().eq('id', id);
           if (error) {
@@ -675,18 +718,19 @@ export const useParkingStore = create<ParkingStore>()(
       clearAllHistory: async (houseId: string): Promise<void> => {
         const userId = useAuthStore.getState().profile?.id ?? '';
         try {
-          const { reservations } = get();
+          const { reservations, current } = get();
           const now = new Date();
-          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-          const historyIds = reservations.filter((r) => r.date < todayStr).map((r) => r.id);
-          if (historyIds.length === 0) return;
+          const historyIdSet = new Set(
+            reservations.filter((r) => isReservationInHistory(r, now, current)).map((r) => r.id)
+          );
+          if (historyIdSet.size === 0) return;
           const { error } = await supabase
             .from('parking_reservations')
             .delete()
             .eq('house_id', houseId)
-            .in('id', historyIds);
+            .in('id', Array.from(historyIdSet));
           if (error) throw error;
-          set({ reservations: get().reservations.filter((r) => r.date >= todayStr) });
+          set({ reservations: get().reservations.filter((r) => !historyIdSet.has(r.id)) });
         } catch (err) {
           captureError(err, { context: 'clear-all-history', houseId, userId });
           throw new Error('Could not clear history. Please try again.');
@@ -695,7 +739,7 @@ export const useParkingStore = create<ParkingStore>()(
       checkReservationAutoApply: async (houseId: string): Promise<void> => {
         try {
           const now = new Date();
-          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const todayStr = localDateKey(now);
           const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
           // Resolve past-due pending reservations using the same logic as the cron
