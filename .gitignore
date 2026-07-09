@@ -24,3 +24,6 @@ yarn-error.*
 expo-env.d.ts
 # @end expo-cli
 .vercel
+
+# Test coverage output
+coverage/
