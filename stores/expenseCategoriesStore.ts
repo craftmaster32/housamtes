@@ -14,21 +14,29 @@ export interface ExpenseCategory {
 }
 
 export const PRESET_COLORS = [
-  '#8B5CF6', '#3B6FBF', '#4FB071', '#E0B24D',
-  '#D9534F', '#06B6D4', '#EC4899', '#64748B', '#10B981', '#8D8F8F',
+  '#8B5CF6',
+  '#3B6FBF',
+  '#4FB071',
+  '#E0B24D',
+  '#D9534F',
+  '#06B6D4',
+  '#EC4899',
+  '#64748B',
+  '#10B981',
+  '#8D8F8F',
 ];
 
 const DEFAULTS: Omit<ExpenseCategory, 'id'>[] = [
-  { name: 'Rent',         icon: '🏠', color: '#8B5CF6', isDefault: true, sortOrder: 0 },
-  { name: 'Electricity',  icon: '⚡', color: '#F59E0B', isDefault: true, sortOrder: 1 },
-  { name: 'Water',        icon: '💧', color: '#3B6FBF', isDefault: true, sortOrder: 2 },
-  { name: 'Internet',     icon: '📶', color: '#06B6D4', isDefault: true, sortOrder: 3 },
-  { name: 'Groceries',    icon: '🛒', color: '#4FB071', isDefault: true, sortOrder: 4 },
+  { name: 'Rent', icon: '🏠', color: '#8B5CF6', isDefault: true, sortOrder: 0 },
+  { name: 'Electricity', icon: '⚡', color: '#F59E0B', isDefault: true, sortOrder: 1 },
+  { name: 'Water', icon: '💧', color: '#3B6FBF', isDefault: true, sortOrder: 2 },
+  { name: 'Internet', icon: '📶', color: '#06B6D4', isDefault: true, sortOrder: 3 },
+  { name: 'Groceries', icon: '🛒', color: '#4FB071', isDefault: true, sortOrder: 4 },
   { name: 'Outside Food', icon: '🍕', color: '#E0B24D', isDefault: true, sortOrder: 5 },
-  { name: 'Transport',    icon: '🚗', color: '#64748B', isDefault: true, sortOrder: 6 },
-  { name: 'Entertainment',icon: '🎉', color: '#EC4899', isDefault: true, sortOrder: 7 },
-  { name: 'Health',       icon: '🏥', color: '#10B981', isDefault: true, sortOrder: 8 },
-  { name: 'Other',        icon: '📦', color: '#8D8F8F', isDefault: true, sortOrder: 99 },
+  { name: 'Transport', icon: '🚗', color: '#64748B', isDefault: true, sortOrder: 6 },
+  { name: 'Entertainment', icon: '🎉', color: '#EC4899', isDefault: true, sortOrder: 7 },
+  { name: 'Health', icon: '🏥', color: '#10B981', isDefault: true, sortOrder: 8 },
+  { name: 'Other', icon: '📦', color: '#8D8F8F', isDefault: true, sortOrder: 99 },
 ];
 
 interface ExpenseCategoriesStore {
@@ -90,14 +98,21 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           is_default: true,
           sort_order: d.sortOrder,
         }));
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('expense_categories')
           .upsert(rows, { onConflict: 'house_id,name' })
           .select();
+        // Without this check a failed seed silently left the category list empty;
+        // load()'s catch now reports it and resets isLoading.
+        if (error) throw error;
         set({
           categories: (data ?? []).map((r) => ({
-            id: r.id, name: r.name, icon: r.icon,
-            color: r.color, isDefault: r.is_default, sortOrder: r.sort_order,
+            id: r.id,
+            name: r.name,
+            icon: r.icon,
+            color: r.color,
+            isDefault: r.is_default,
+            sortOrder: r.sort_order,
           })),
           isLoading: false,
         });
@@ -106,7 +121,14 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
       add: async (cat, houseId): Promise<void> => {
         const { data, error } = await supabase
           .from('expense_categories')
-          .insert({ house_id: houseId, name: cat.name, icon: cat.icon, color: cat.color, is_default: false, sort_order: 50 })
+          .insert({
+            house_id: houseId,
+            name: cat.name,
+            icon: cat.icon,
+            color: cat.color,
+            is_default: false,
+            sort_order: 50,
+          })
           .select()
           .single();
         if (error) {
@@ -114,10 +136,17 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           throw new Error('Could not save the category. Please try again.');
         }
         set({
-          categories: [...get().categories, {
-            id: data.id, name: data.name, icon: data.icon,
-            color: data.color, isDefault: false, sortOrder: 50,
-          }],
+          categories: [
+            ...get().categories,
+            {
+              id: data.id,
+              name: data.name,
+              icon: data.icon,
+              color: data.color,
+              isDefault: false,
+              sortOrder: 50,
+            },
+          ],
         });
       },
 
@@ -131,7 +160,7 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           throw new Error('Could not update the category. Please try again.');
         }
         set({
-          categories: get().categories.map((c) => c.id === id ? { ...c, ...changes } : c),
+          categories: get().categories.map((c) => (c.id === id ? { ...c, ...changes } : c)),
         });
       },
 
