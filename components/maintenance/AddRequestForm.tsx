@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useMaintenanceStore, MAINTENANCE_CATEGORIES } from '@stores/maintenanceStore';
+import { maintenanceRequestSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -100,18 +101,29 @@ export const AddRequestForm: React.FC<AddRequestFormProps> = ({ onClose, reporte
 
   const handleSave = useCallback(async () => {
     if (!title.trim() || isSaving) return;
+    const parsed = maintenanceRequestSchema.safeParse({
+      title,
+      description,
+      category,
+      reportedBy,
+      houseId,
+    });
+    if (!parsed.success) {
+      setSaveError(t('maintenance.failed_save'));
+      return;
+    }
     setIsSaving(true);
     setSaveError('');
     try {
       await add(
         {
-          title: title.trim(),
-          description: description.trim(),
-          category,
+          title: parsed.data.title,
+          description: parsed.data.description,
+          category: parsed.data.category,
           status: 'open',
-          reportedBy,
+          reportedBy: parsed.data.reportedBy,
         },
-        houseId
+        parsed.data.houseId
       );
       onClose();
     } catch (err) {

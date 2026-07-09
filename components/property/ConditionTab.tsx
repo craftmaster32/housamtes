@@ -211,6 +211,9 @@ function AddEntryForm({
           placeholder={t('condition.room_placeholder')}
           placeholderTextColor={colors.textDisabled}
           autoFocus
+          maxLength={60}
+          accessibilityLabel={t('condition.room_area')}
+          accessibilityHint={t('condition.room_placeholder')}
         />
       )}
 
@@ -252,6 +255,9 @@ function AddEntryForm({
         placeholderTextColor={colors.textDisabled}
         multiline
         numberOfLines={3}
+        maxLength={1000}
+        accessibilityLabel={t('condition.notes')}
+        accessibilityHint={t('condition.notes_placeholder')}
       />
 
       <Text style={styles.fieldLabel}>{t('condition.photos_up_to')}</Text>

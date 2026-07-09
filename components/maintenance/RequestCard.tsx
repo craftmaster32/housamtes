@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
@@ -23,12 +23,12 @@ interface RequestCardProps {
   myId: string;
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
+  if (days === 0) return t('common.today');
+  if (days === 1) return t('common.yesterday');
+  if (days < 7) return t('common.days_ago', { count: days });
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
@@ -83,6 +83,7 @@ const makeStyles = (C: ColorTokens) =>
       paddingVertical: 4,
     },
     reopenBtnText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.regular },
+    cardError: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
   });
 
 function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Element {
@@ -104,12 +105,25 @@ export const RequestCard: React.FC<RequestCardProps> = ({ request, myId }) => {
   const updateStatus = useMaintenanceStore((s) => s.updateStatus);
   const remove = useMaintenanceStore((s) => s.remove);
   const category = MAINTENANCE_CATEGORIES.find((c) => c.label === request.category);
+  const [actionError, setActionError] = useState('');
 
-  const handleNextStatus = useCallback(() => {
-    updateStatus(request.id, NEXT_STATUS[request.status]);
-  }, [request.id, request.status, updateStatus]);
+  const handleNextStatus = useCallback(async () => {
+    setActionError('');
+    try {
+      await updateStatus(request.id, NEXT_STATUS[request.status]);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : t('maintenance.failed_save'));
+    }
+  }, [request.id, request.status, updateStatus, t]);
 
-  const handleRemove = useCallback(() => remove(request.id), [request.id, remove]);
+  const handleRemove = useCallback(async () => {
+    setActionError('');
+    try {
+      await remove(request.id);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : t('maintenance.failed_save'));
+    }
+  }, [request.id, remove, t]);
 
   return (
     <View style={[styles.card, request.status === 'resolved' && styles.cardResolved]}>
@@ -124,7 +138,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({ request, myId }) => {
           <Text style={styles.cardMeta}>
             {request.category} ·{' '}
             {t('maintenance.reported_by', { name: resolveName(request.reportedBy, housemates) })} ·{' '}
-            {timeAgo(request.createdAt)}
+            {timeAgo(request.createdAt, t)}
           </Text>
         </View>
         {request.reportedBy === myId && (
@@ -144,6 +158,8 @@ export const RequestCard: React.FC<RequestCardProps> = ({ request, myId }) => {
       {request.description ? (
         <Text style={styles.cardDescription}>{request.description}</Text>
       ) : null}
+
+      {!!actionError && <Text style={styles.cardError}>{actionError}</Text>}
 
       <View style={styles.cardFooter}>
         <StatusBadge status={request.status} />
