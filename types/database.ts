@@ -49,3 +49,12 @@ export interface HouseMember {
 export interface HouseMemberWithProfile extends HouseMember {
   user_profiles: UserProfile;
 }
+
+export interface ExpenseCategoryRow {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  is_default: boolean;
+  sort_order: number;
+}

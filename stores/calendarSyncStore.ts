@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';
 
 // expo-calendar is mobile-only — import lazily so web doesn't crash
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let ExpoCalendar: typeof import('expo-calendar') | null = null;
 if (Platform.OS !== 'web') {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -53,14 +52,17 @@ interface CalendarSyncStore {
 function buildDates(
   date: string,
   startTime?: string,
-  endTime?: string,
+  endTime?: string
 ): { startDate: Date; endDate: Date; allDay: boolean } {
   const [year, month, day] = date.split('-').map(Number);
   if (startTime) {
     const [sh, sm] = startTime.split(':').map(Number);
     const startDate = new Date(year, month - 1, day, sh, sm, 0);
     const endDate = endTime
-      ? ((): Date => { const [eh, em] = endTime.split(':').map(Number); return new Date(year, month - 1, day, eh, em, 0); })()
+      ? ((): Date => {
+          const [eh, em] = endTime.split(':').map(Number);
+          return new Date(year, month - 1, day, eh, em, 0);
+        })()
       : new Date(startDate.getTime() + 60 * 60 * 1000);
     return { startDate, endDate, allDay: false };
   }
@@ -84,13 +86,12 @@ async function getWritableCalendarId(): Promise<string | null> {
   return writable?.id ?? null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type EventInput = Record<string, any>;
+type EventInput = Omit<Partial<import('expo-calendar').Event>, 'id' | 'organizer'>;
 
 async function createOrUpdate(
   calendarId: string,
   existingId: string | undefined,
-  params: EventInput,
+  params: EventInput
 ): Promise<string> {
   if (!ExpoCalendar) return '';
   if (existingId) {
@@ -118,7 +119,7 @@ export const useCalendarSyncStore = create<CalendarSyncStore>()(
           if (status !== 'granted') {
             Alert.alert(
               'Calendar access needed',
-              'Go to Settings and allow calendar access to connect your calendar.',
+              'Go to Settings and allow calendar access to connect your calendar.'
             );
             return false;
           }
@@ -140,7 +141,14 @@ export const useCalendarSyncStore = create<CalendarSyncStore>()(
           set((s) => ({ autoSync: { ...s.autoSync, [key]: value } }));
         },
 
-        syncHouseEvent: async ({ id, title, date, startTime, endTime, createdBy }): Promise<void> => {
+        syncHouseEvent: async ({
+          id,
+          title,
+          date,
+          startTime,
+          endTime,
+          createdBy,
+        }): Promise<void> => {
           const { connected, autoSync, eventMap } = get();
           if (!connected || !autoSync.events) return;
           const calendarId = await getWritableCalendarId();
@@ -158,7 +166,13 @@ export const useCalendarSyncStore = create<CalendarSyncStore>()(
           set((s) => ({ eventMap: { ...s.eventMap, [key]: newId } }));
         },
 
-        syncParkingPending: async ({ id, requestedBy, date, startTime, endTime }): Promise<void> => {
+        syncParkingPending: async ({
+          id,
+          requestedBy,
+          date,
+          startTime,
+          endTime,
+        }): Promise<void> => {
           const { connected, autoSync, eventMap } = get();
           if (!connected || !autoSync.parking) return;
           const key = `pk-${id}`;
@@ -177,7 +191,13 @@ export const useCalendarSyncStore = create<CalendarSyncStore>()(
           set((s) => ({ eventMap: { ...s.eventMap, [key]: newId } }));
         },
 
-        syncParkingApproved: async ({ id, requestedBy, date, startTime, endTime }): Promise<void> => {
+        syncParkingApproved: async ({
+          id,
+          requestedBy,
+          date,
+          startTime,
+          endTime,
+        }): Promise<void> => {
           const { connected, autoSync, eventMap } = get();
           if (!connected || !autoSync.parking) return;
           const key = `pk-${id}`;
@@ -199,7 +219,11 @@ export const useCalendarSyncStore = create<CalendarSyncStore>()(
           const { eventMap } = get();
           const deviceId = eventMap[key];
           if (!deviceId || !ExpoCalendar) return;
-          try { await ExpoCalendar.deleteEventAsync(deviceId); } catch { /* already gone */ }
+          try {
+            await ExpoCalendar.deleteEventAsync(deviceId);
+          } catch {
+            /* already gone */
+          }
           set((s) => {
             const newMap = { ...s.eventMap };
             delete newMap[key];

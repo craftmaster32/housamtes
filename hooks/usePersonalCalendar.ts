@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let ExpoCalendar: typeof import('expo-calendar') | null = null;
 if (Platform.OS !== 'web') {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -12,9 +11,9 @@ if (Platform.OS !== 'web') {
 export interface PersonalEvent {
   id: string;
   title: string;
-  date: string;        // YYYY-MM-DD
-  startTime?: string;  // HH:MM
-  endTime?: string;    // HH:MM
+  date: string; // YYYY-MM-DD
+  startTime?: string; // HH:MM
+  endTime?: string; // HH:MM
 }
 
 function toYMD(d: Date): string {
@@ -27,11 +26,14 @@ function toHM(d: Date): string {
 
 export function usePersonalCalendar(startDate: Date, endDate: Date): PersonalEvent[] {
   const connected = useCalendarSyncStore((s) => s.connected);
-  const eventMap  = useCalendarSyncStore((s) => s.eventMap);
+  const eventMap = useCalendarSyncStore((s) => s.eventMap);
   const [events, setEvents] = useState<PersonalEvent[]>([]);
 
   useEffect(() => {
-    if (!connected) { setEvents([]); return; }
+    if (!connected) {
+      setEvents([]);
+      return;
+    }
 
     const syncedDeviceIds = new Set(Object.values(eventMap));
     let cancelled = false;
@@ -44,7 +46,7 @@ export function usePersonalCalendar(startDate: Date, endDate: Date): PersonalEve
         const raw = await ExpoCalendar.getEventsAsync(
           calendars.map((c) => c.id),
           startDate,
-          endDate,
+          endDate
         );
         if (cancelled) return;
         setEvents(
@@ -52,13 +54,13 @@ export function usePersonalCalendar(startDate: Date, endDate: Date): PersonalEve
             .filter((e) => !syncedDeviceIds.has(e.id)) // hide house events synced to device
             .map((e) => {
               const start = new Date(e.startDate as string);
-              const end   = new Date(e.endDate as string);
+              const end = new Date(e.endDate as string);
               return {
                 id: `personal-${e.id}`,
                 title: e.title,
                 date: toYMD(start),
                 startTime: e.allDay ? undefined : toHM(start),
-                endTime:   e.allDay ? undefined : toHM(end),
+                endTime: e.allDay ? undefined : toHM(end),
               };
             })
         );
@@ -68,7 +70,9 @@ export function usePersonalCalendar(startDate: Date, endDate: Date): PersonalEve
     }
 
     load().catch(() => {});
-    return (): void => { cancelled = true; };
+    return (): void => {
+      cancelled = true;
+    };
   }, [connected, eventMap, startDate, endDate]);
 
   return events;
