@@ -1,6 +1,8 @@
 // Housemates — send-push Edge Function
 // Called by the app after key events (new bill, parking claim, chat message, etc.)
 // Sends to both Expo push tokens (native) and web push subscriptions (browser).
+// Deploy: verify_jwt ON — invoked with the caller's access token, which is also
+// verified in code below (see post-merge.yml).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import webpush from 'npm:web-push';
