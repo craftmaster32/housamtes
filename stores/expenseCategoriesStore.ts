@@ -39,14 +39,36 @@ const DEFAULTS: Omit<ExpenseCategory, 'id'>[] = [
   { name: 'Other', icon: '📦', color: '#8D8F8F', isDefault: true, sortOrder: 99 },
 ];
 
+interface CategoryRow {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  is_default: boolean;
+  sort_order: number;
+}
+
+function toCategory(r: CategoryRow): ExpenseCategory {
+  return {
+    id: r.id,
+    name: r.name,
+    icon: r.icon,
+    color: r.color,
+    isDefault: r.is_default,
+    sortOrder: r.sort_order,
+  };
+}
+
 interface ExpenseCategoriesStore {
   categories: ExpenseCategory[];
   isLoading: boolean;
+  error: string | null;
   load: (houseId: string) => Promise<void>;
   seedDefaults: (houseId: string) => Promise<void>;
   add: (cat: Pick<ExpenseCategory, 'name' | 'icon' | 'color'>, houseId: string) => Promise<void>;
   update: (id: string, changes: Pick<ExpenseCategory, 'name' | 'icon' | 'color'>) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  clearError: () => void;
 }
 
 export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
@@ -54,13 +76,14 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
     (set, get) => ({
       categories: [],
       isLoading: false,
+      error: null,
 
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[expense-categories] house ID mismatch — aborting load');
           return;
         }
-        set({ isLoading: true });
+        set({ isLoading: true, error: null });
         try {
           const { data, error } = await supabase
             .from('expense_categories')
@@ -73,19 +96,13 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
             return;
           }
           set({
-            categories: data.map((r) => ({
-              id: r.id,
-              name: r.name,
-              icon: r.icon,
-              color: r.color,
-              isDefault: r.is_default,
-              sortOrder: r.sort_order,
-            })),
+            categories: data.map(toCategory),
             isLoading: false,
+            error: null,
           });
         } catch (err) {
           captureError(err, { store: 'expense-categories', houseId });
-          set({ isLoading: false });
+          set({ isLoading: false, error: 'Could not load your categories. Please try again.' });
         }
       },
 
@@ -102,19 +119,15 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           .from('expense_categories')
           .upsert(rows, { onConflict: 'house_id,name' })
           .select();
-        // Without this check a failed seed silently left the category list empty;
-        // load()'s catch now reports it and resets isLoading.
-        if (error) throw error;
+        // Without this check a failed seed silently left the category list empty.
+        if (error) {
+          captureError(error, { context: 'seed-default-categories', houseId });
+          throw new Error('Could not set up your categories. Please try again.');
+        }
         set({
-          categories: (data ?? []).map((r) => ({
-            id: r.id,
-            name: r.name,
-            icon: r.icon,
-            color: r.color,
-            isDefault: r.is_default,
-            sortOrder: r.sort_order,
-          })),
+          categories: (data ?? []).map(toCategory),
           isLoading: false,
+          error: null,
         });
       },
 
@@ -135,19 +148,7 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           captureError(error, { context: 'add-category', houseId });
           throw new Error('Could not save the category. Please try again.');
         }
-        set({
-          categories: [
-            ...get().categories,
-            {
-              id: data.id,
-              name: data.name,
-              icon: data.icon,
-              color: data.color,
-              isDefault: false,
-              sortOrder: 50,
-            },
-          ],
-        });
+        set({ categories: [...get().categories, toCategory(data)] });
       },
 
       update: async (id, changes): Promise<void> => {
@@ -171,6 +172,10 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           throw new Error('Could not delete the category. Please try again.');
         }
         set({ categories: get().categories.filter((c) => c.id !== id) });
+      },
+
+      clearError: (): void => {
+        set({ error: null });
       },
     }),
     { name: 'expense-categories-store' }

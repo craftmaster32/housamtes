@@ -140,6 +140,10 @@ Chosen for money / auth / data-deleting impact (all were at ~2% coverage):
   data fetching or fed by already-loaded stores): `settings/notifications`,
   `settings/members`, `more/settings`, `games`. Re-check during Session 2's
   loading/error/empty-state pass.
+- **`expenseCategoriesStore.add` takes user input without Zod validation** before the
+  Supabase call (CodeRabbit flag on PR #175; pre-existing, not introduced there).
+  CLAUDE.md requires Zod on all user input — address alongside Session 2's
+  screen-hardening pass.
 - Deliberate `catch { /* non-fatal */ }` blocks exist in authStore cache helpers,
   calendarSyncStore, and the push-notification libs. All verified intentional
   (best-effort side effects that must never block the main action) — not bugs,

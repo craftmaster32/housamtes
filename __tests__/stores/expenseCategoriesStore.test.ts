@@ -46,7 +46,7 @@ function category(overrides: Partial<ExpenseCategory> = {}): ExpenseCategory {
 }
 
 beforeEach(() => {
-  useExpenseCategoriesStore.setState({ categories: [], isLoading: false });
+  useExpenseCategoriesStore.setState({ categories: [], isLoading: false, error: null });
   jest.clearAllMocks();
 });
 
@@ -104,13 +104,15 @@ describe('expenseCategoriesStore — seedDefaults', () => {
     expect(s.isLoading).toBe(false);
   });
 
-  it('throws when the upsert fails instead of silently leaving categories empty', async () => {
+  it('throws a plain-English error when the upsert fails instead of silently leaving categories empty', async () => {
     mockFrom.mockReturnValue(fail('unique constraint'));
 
-    await expect(useExpenseCategoriesStore.getState().seedDefaults('h1')).rejects.toBeTruthy();
+    await expect(useExpenseCategoriesStore.getState().seedDefaults('h1')).rejects.toThrow(
+      'Could not set up your categories. Please try again.'
+    );
   });
 
-  it('load() recovers from a failed seed: no crash, isLoading resets', async () => {
+  it('load() recovers from a failed seed: no crash, isLoading resets, error surfaced to UI', async () => {
     // First call: select returns empty list → triggers seed; second call: upsert fails
     mockFrom.mockReturnValueOnce(ok([])).mockReturnValueOnce(fail('unique constraint'));
 
@@ -119,5 +121,29 @@ describe('expenseCategoriesStore — seedDefaults', () => {
     const s = useExpenseCategoriesStore.getState();
     expect(s.isLoading).toBe(false); // never stuck on a spinner
     expect(s.categories).toEqual([]);
+    expect(s.error).toBe('Could not load your categories. Please try again.');
+  });
+
+  it('load() clears a previous error on success', async () => {
+    useExpenseCategoriesStore.setState({
+      error: 'Could not load your categories. Please try again.',
+    });
+    mockFrom.mockReturnValue(
+      ok([
+        { id: 'c1', name: 'Rent', icon: '🏠', color: '#8B5CF6', is_default: true, sort_order: 0 },
+      ])
+    );
+
+    await useExpenseCategoriesStore.getState().load('h1');
+
+    expect(useExpenseCategoriesStore.getState().error).toBeNull();
+  });
+
+  it('clearError resets the error field', () => {
+    useExpenseCategoriesStore.setState({ error: 'boom' });
+
+    useExpenseCategoriesStore.getState().clearError();
+
+    expect(useExpenseCategoriesStore.getState().error).toBeNull();
   });
 });

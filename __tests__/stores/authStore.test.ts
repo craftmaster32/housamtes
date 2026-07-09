@@ -84,7 +84,7 @@ jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(async () => undefined),
 }));
 
-import { useAuthStore, DEFAULT_PERMISSIONS } from '../../stores/authStore';
+import { useAuthStore, DEFAULT_PERMISSIONS } from '@stores/authStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
