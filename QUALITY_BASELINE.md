@@ -72,8 +72,7 @@ All numbers from a clean checkout of `main` (commit `d7f693d`), Node LTS, fresh 
 
 No screen/integration tests exist. All screens under `app/(auth)`, `app/(onboarding)`,
 and `app/(tabs)` are untested. CLAUDE.md's target ("Integration: screens — happy path
-
-- error case; coverage 80% on auth/bills/parking") is not met yet.
+plus error case; coverage 80% on auth/bills/parking") is not met yet.
 
 ### Edge Functions (7 — 0 tested)
 
