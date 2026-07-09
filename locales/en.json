@@ -377,7 +377,8 @@
     "claim_parking_spot": "Claim parking spot",
     "release_parking_spot": "Release parking spot",
     "view_parking": "View parking",
-    "has_note": "Has a note"
+    "has_note": "Has a note",
+    "load_error": "Some things didn't load. Check your connection and retry."
   },
   "bills": {
     "title": "Bills",
