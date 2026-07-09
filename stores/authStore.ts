@@ -43,13 +43,18 @@ async function clearPendingEmail(): Promise<void> {
 // Web:    localStorage (best available, cleared only on explicit user action).
 const HOUSE_CACHE_PREFIX = 'housemates_house_v1_';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getSecureStore(): any {
+interface SecureStoreModule {
+  setItemAsync(key: string, value: string): Promise<void>;
+  getItemAsync(key: string): Promise<string | null>;
+  deleteItemAsync(key: string): Promise<void>;
+}
+
+function getSecureStore(): SecureStoreModule {
   // expo-secure-store is native-only — never import it at the top level
   // or the web build will crash. Lazy require is safe because this code
   // path is only reached when Platform.OS !== 'web'.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require('expo-secure-store');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  return require('expo-secure-store') as SecureStoreModule;
 }
 
 async function cacheHouseId(userId: string, houseId: string): Promise<void> {
