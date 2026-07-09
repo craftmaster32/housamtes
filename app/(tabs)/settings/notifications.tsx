@@ -166,7 +166,14 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.header}>
-            <Pressable onPress={handleBack} style={styles.backBtn}>
+            <Pressable
+              onPress={handleBack}
+              style={styles.backBtn}
+              hitSlop={12}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+            >
               <Text style={styles.backText}>{t('common.back')}</Text>
             </Pressable>
             <Text style={styles.heading}>{t('nav.settings')}</Text>

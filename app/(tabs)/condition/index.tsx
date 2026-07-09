@@ -33,7 +33,8 @@ function getAreaIcon(area: string): string {
   return PRESET_AREAS.find((a) => a.label === area)?.icon ?? '📝';
 }
 
-const makeStyles = (C: ColorTokens) => StyleSheet.create({
+const makeStyles = (C: ColorTokens) =>
+  StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
@@ -42,76 +43,220 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
     headingSub: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, marginTop: 2 },
 
-    statsStrip: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    statsStrip: {
+      flexDirection: 'row',
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      padding: sizes.md,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
     statItem: { flex: 1, alignItems: 'center', gap: 2 },
     statNum: { fontSize: sizes.fontLg, ...font.extrabold, color: C.textPrimary },
     statLbl: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
     statDivider: { width: 1, backgroundColor: C.border, marginHorizontal: sizes.xs },
 
-    addBtn: { borderWidth: 2, borderColor: C.primary + '40', borderStyle: 'dashed', borderRadius: 14, paddingVertical: sizes.md, alignItems: 'center' },
+    addBtn: {
+      borderWidth: 2,
+      borderColor: C.primary + '40',
+      borderStyle: 'dashed',
+      borderRadius: 14,
+      paddingVertical: sizes.md,
+      alignItems: 'center',
+    },
     addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
 
     filterBar: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
-    filterChip: { paddingHorizontal: sizes.md, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+    filterChip: {
+      paddingHorizontal: sizes.md,
+      paddingVertical: 6,
+      borderRadius: sizes.borderRadiusFull,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
     filterChipActive: { backgroundColor: C.primary, borderColor: C.primary },
     filterChipText: { fontSize: sizes.fontSm, ...font.semibold, color: C.textSecondary },
     filterChipTextActive: { color: '#fff' },
 
     areaGroup: { gap: 6 },
-    areaGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs, paddingVertical: 4 },
+    areaGroupHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.xs,
+      paddingVertical: 4,
+    },
     areaGroupIcon: { fontSize: 18 },
     areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary, flex: 1 },
     condDot: { width: 10, height: 10, borderRadius: 5 },
 
-    entryCard: { backgroundColor: C.surface, borderRadius: 12, padding: sizes.sm, gap: sizes.xs, marginStart: sizes.md, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    entryCard: {
+      backgroundColor: C.surface,
+      borderRadius: 12,
+      padding: sizes.sm,
+      gap: sizes.xs,
+      marginStart: sizes.md,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
     entryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
     entryMeta: { flex: 1, gap: 3 },
     entryBadgeRow: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
-    typeBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
+    typeBadge: {
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.xs,
+      paddingVertical: 2,
+    },
     typeBadgeText: { fontSize: 11, ...font.bold },
-    condBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
+    condBadge: {
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.xs,
+      paddingVertical: 2,
+    },
     condBadgeText: { fontSize: 11, ...font.bold },
     entryDate: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
-    entryDescription: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, lineHeight: 18, marginStart: sizes.lg + sizes.sm },
+    entryDescription: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: 18,
+      marginStart: sizes.lg + sizes.sm,
+    },
     photoRow: { marginStart: sizes.lg + sizes.sm, marginTop: 2 },
-    photoThumb: { width: 80, height: 80, borderRadius: sizes.borderRadiusSm, marginEnd: sizes.xs, borderWidth: 1, borderColor: C.border },
-    removeBtn: { padding: 8, minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+    photoThumb: {
+      width: 80,
+      height: 80,
+      borderRadius: sizes.borderRadiusSm,
+      marginEnd: sizes.xs,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    removeBtn: {
+      padding: 8,
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     removeBtnText: { color: C.textDisabled, fontSize: sizes.fontXs },
 
-    form: { backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, gap: sizes.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    form: {
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      padding: sizes.md,
+      gap: sizes.sm,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
     formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
-    fieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+    fieldLabel: {
+      fontSize: 12,
+      ...font.semibold,
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-    chip: { paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+    chip: {
+      paddingHorizontal: sizes.sm,
+      paddingVertical: 6,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+    },
     chipActive: { backgroundColor: C.primary, borderColor: C.primary },
     chipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
     chipTextActive: { color: '#fff' },
     areaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-    areaChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface },
+    areaChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: 6,
+      borderRadius: sizes.borderRadiusSm,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+    },
     areaChipActive: { backgroundColor: C.primary + '12', borderColor: C.primary },
     areaChipIcon: { fontSize: 14 },
     areaChipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
     areaChipTextActive: { color: C.primary, ...font.bold },
-    condChip: { paddingHorizontal: sizes.sm, paddingVertical: 6, borderRadius: sizes.borderRadiusFull, borderWidth: 2, backgroundColor: C.surface },
+    condChip: {
+      paddingHorizontal: sizes.sm,
+      paddingVertical: 6,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 2,
+      backgroundColor: C.surface,
+    },
     condChipText: { fontSize: sizes.fontSm, ...font.semibold, color: C.textPrimary },
     condChipTextActive: { color: '#fff' },
-    input: { backgroundColor: C.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: C.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: C.textPrimary, ...font.regular },
+    input: {
+      backgroundColor: C.background,
+      borderRadius: sizes.borderRadiusSm,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: sizes.sm,
+      fontSize: sizes.fontMd,
+      color: C.textPrimary,
+      ...font.regular,
+    },
     inputMultiline: { height: 80, textAlignVertical: 'top' },
     saveError: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
-    formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
-    cancelBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+    formActions: {
+      flexDirection: 'row',
+      gap: sizes.sm,
+      justifyContent: 'flex-end',
+      marginTop: sizes.xs,
+    },
+    cancelBtn: {
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
     cancelBtnText: { color: C.textSecondary, ...font.medium },
-    saveBtn: { backgroundColor: C.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
+    saveBtn: {
+      backgroundColor: C.primary,
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: 12,
+    },
     saveBtnDisabled: { backgroundColor: C.textDisabled },
     saveBtnText: { color: '#fff', ...font.semibold },
 
     emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
     emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
-    emptyText: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, textAlign: 'center', lineHeight: 20 },
+    emptyText: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-    errorBanner: { backgroundColor: C.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: C.danger + '40' },
+    errorBanner: {
+      backgroundColor: C.danger + '15',
+      borderRadius: 10,
+      padding: sizes.sm,
+      borderWidth: 1,
+      borderColor: C.danger + '40',
+    },
     errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.danger },
-});
+  });
 
 // ── Entry card ────────────────────────────────────────────────────────────────
 
@@ -133,7 +278,9 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
               <Text style={[styles.typeBadgeText, { color: type.color }]}>{type.label}</Text>
             </View>
             <View style={[styles.condBadge, { backgroundColor: cond.color + '18' }]}>
-              <Text style={[styles.condBadgeText, { color: cond.color }]}>{cond.icon} {cond.label}</Text>
+              <Text style={[styles.condBadgeText, { color: cond.color }]}>
+                {cond.icon} {cond.label}
+              </Text>
             </View>
           </View>
           <Text style={styles.entryDate}>
@@ -151,14 +298,17 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
           <Text style={styles.removeBtnText}>✕</Text>
         </Pressable>
       </View>
-      {entry.description ? (
-        <Text style={styles.entryDescription}>{entry.description}</Text>
-      ) : null}
+      {entry.description ? <Text style={styles.entryDescription}>{entry.description}</Text> : null}
 
       {entry.photos && entry.photos.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoRow}>
           {entry.photos.map((src, i) => (
-            <Image key={i} source={{ uri: src }} style={styles.photoThumb} accessibilityLabel={`Condition photo ${i + 1}`} />
+            <Image
+              key={i}
+              source={{ uri: src }}
+              style={styles.photoThumb}
+              accessibilityLabel={`Condition photo ${i + 1}`}
+            />
           ))}
         </ScrollView>
       )}
@@ -168,7 +318,15 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
 
 // ── Add form ──────────────────────────────────────────────────────────────────
 
-function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; recordedBy: string; houseId: string }): React.JSX.Element {
+function AddEntryForm({
+  onClose,
+  recordedBy,
+  houseId,
+}: {
+  onClose: () => void;
+  recordedBy: string;
+  houseId: string;
+}): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -193,7 +351,18 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
     setIsSaving(true);
     setSaveError('');
     try {
-      await add({ area: finalArea, condition, type, description: description.trim(), recordedBy, date, photos }, houseId);
+      await add(
+        {
+          area: finalArea,
+          condition,
+          type,
+          description: description.trim(),
+          recordedBy,
+          date,
+          photos,
+        },
+        houseId
+      );
       onClose();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t('condition.failed_save'));
@@ -212,6 +381,10 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
             key={t}
             style={[styles.chip, type === t && styles.chipActive]}
             onPress={() => setType(t)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={ENTRY_TYPE_CONFIG[t].label}
+            accessibilityState={{ selected: type === t }}
           >
             <Text style={[styles.chipText, type === t && styles.chipTextActive]}>
               {ENTRY_TYPE_CONFIG[t].label}
@@ -226,10 +399,22 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
           <Pressable
             key={a.label}
             style={[styles.areaChip, !useCustom && area === a.label && styles.areaChipActive]}
-            onPress={() => { setArea(a.label); setUseCustom(false); }}
+            onPress={() => {
+              setArea(a.label);
+              setUseCustom(false);
+            }}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={a.label}
+            accessibilityState={{ selected: !useCustom && area === a.label }}
           >
             <Text style={styles.areaChipIcon}>{a.icon}</Text>
-            <Text style={[styles.areaChipText, !useCustom && area === a.label && styles.areaChipTextActive]}>
+            <Text
+              style={[
+                styles.areaChipText,
+                !useCustom && area === a.label && styles.areaChipTextActive,
+              ]}
+            >
               {a.label}
             </Text>
           </Pressable>
@@ -237,9 +422,15 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
         <Pressable
           style={[styles.areaChip, useCustom && styles.areaChipActive]}
           onPress={() => setUseCustom(true)}
+          accessible
+          accessibilityRole="radio"
+          accessibilityLabel={t('condition.custom')}
+          accessibilityState={{ selected: useCustom }}
         >
           <Text style={styles.areaChipIcon}>✏️</Text>
-          <Text style={[styles.areaChipText, useCustom && styles.areaChipTextActive]}>{t('condition.custom')}</Text>
+          <Text style={[styles.areaChipText, useCustom && styles.areaChipTextActive]}>
+            {t('condition.custom')}
+          </Text>
         </Pressable>
       </View>
       {useCustom && (
@@ -250,6 +441,9 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
           placeholder={t('condition.room_placeholder')}
           placeholderTextColor={C.textDisabled}
           autoFocus
+          maxLength={60}
+          accessibilityLabel={t('condition.room_area')}
+          accessibilityHint={t('condition.room_placeholder')}
         />
       )}
 
@@ -260,8 +454,16 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
           return (
             <Pressable
               key={c}
-              style={[styles.condChip, { borderColor: cfg.color + '60' }, condition === c && { backgroundColor: cfg.color, borderColor: cfg.color }]}
+              style={[
+                styles.condChip,
+                { borderColor: cfg.color + '60' },
+                condition === c && { backgroundColor: cfg.color, borderColor: cfg.color },
+              ]}
               onPress={() => setCondition(c)}
+              accessible
+              accessibilityRole="radio"
+              accessibilityLabel={cfg.label}
+              accessibilityState={{ selected: condition === c }}
             >
               <Text style={[styles.condChipText, condition === c && styles.condChipTextActive]}>
                 {cfg.icon} {cfg.label}
@@ -283,6 +485,9 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
         placeholderTextColor={C.textDisabled}
         multiline
         numberOfLines={3}
+        maxLength={1000}
+        accessibilityLabel={t('condition.notes')}
+        accessibilityHint={t('condition.notes_placeholder')}
       />
 
       <Text style={styles.fieldLabel}>{t('condition.photos_up_to')}</Text>
@@ -291,15 +496,29 @@ function AddEntryForm({ onClose, recordedBy, houseId }: { onClose: () => void; r
       {!!saveError && <Text style={styles.saveError}>{saveError}</Text>}
 
       <View style={styles.formActions}>
-        <Pressable style={styles.cancelBtn} onPress={onClose} disabled={isSaving}>
+        <Pressable
+          style={styles.cancelBtn}
+          onPress={onClose}
+          disabled={isSaving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
+          accessibilityState={{ disabled: isSaving }}
+        >
           <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
         </Pressable>
         <Pressable
           style={[styles.saveBtn, (!finalArea || isSaving) && styles.saveBtnDisabled]}
           onPress={handleSave}
           disabled={!finalArea || isSaving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('condition.save_entry')}
+          accessibilityState={{ disabled: !finalArea || isSaving }}
         >
-          <Text style={styles.saveBtnText}>{isSaving ? t('condition.saving') : t('condition.save_entry')}</Text>
+          <Text style={styles.saveBtnText}>
+            {isSaving ? t('condition.saving') : t('condition.save_entry')}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -325,8 +544,8 @@ export default function ConditionScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
-  const filtered = useMemo(() =>
-    filter === 'all' ? entries : entries.filter((e) => e.type === filter),
+  const filtered = useMemo(
+    () => (filter === 'all' ? entries : entries.filter((e) => e.type === filter)),
     [entries, filter]
   );
 
@@ -363,7 +582,6 @@ export default function ConditionScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <ScrollView contentContainerStyle={styles.scroll}>
-
           {!!error && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorBannerText}>{error}</Text>
@@ -391,15 +609,27 @@ export default function ConditionScreen(): React.JSX.Element {
                 <Text style={[styles.statNum, { color: hasDamage ? C.danger : C.positive }]}>
                   {hasDamage ? '⚠️' : '✓'}
                 </Text>
-                <Text style={styles.statLbl}>{hasDamage ? t('condition.issues_found') : t('condition.all_good')}</Text>
+                <Text style={styles.statLbl}>
+                  {hasDamage ? t('condition.issues_found') : t('condition.all_good')}
+                </Text>
               </View>
             </View>
           )}
 
           {showForm ? (
-            <AddEntryForm onClose={() => setShowForm(false)} recordedBy={profile?.id ?? ''} houseId={houseId ?? ''} />
+            <AddEntryForm
+              onClose={() => setShowForm(false)}
+              recordedBy={profile?.id ?? ''}
+              houseId={houseId ?? ''}
+            />
           ) : (
-            <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
+            <Pressable
+              style={styles.addBtn}
+              onPress={() => setShowForm(true)}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('condition.add_record')}
+            >
               <Text style={styles.addBtnText}>{t('condition.add_record')}</Text>
             </Pressable>
           )}
@@ -411,8 +641,14 @@ export default function ConditionScreen(): React.JSX.Element {
                   key={f.key}
                   style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
                   onPress={() => setFilter(f.key)}
+                  accessible
+                  accessibilityRole="radio"
+                  accessibilityLabel={f.label}
+                  accessibilityState={{ selected: filter === f.key }}
                 >
-                  <Text style={[styles.filterChipText, filter === f.key && styles.filterChipTextActive]}>
+                  <Text
+                    style={[styles.filterChipText, filter === f.key && styles.filterChipTextActive]}
+                  >
                     {f.label}
                   </Text>
                 </Pressable>
@@ -432,12 +668,18 @@ export default function ConditionScreen(): React.JSX.Element {
               <View style={styles.areaGroupHeader}>
                 <Text style={styles.areaGroupIcon}>{getAreaIcon(area)}</Text>
                 <Text style={styles.areaGroupName}>{area}</Text>
-                <View style={[styles.condDot, { backgroundColor: CONDITION_CONFIG[areaEntries[0].condition].color }]} />
+                <View
+                  style={[
+                    styles.condDot,
+                    { backgroundColor: CONDITION_CONFIG[areaEntries[0].condition].color },
+                  ]}
+                />
               </View>
-              {areaEntries.map((e) => <EntryCard key={e.id} entry={e} />)}
+              {areaEntries.map((e) => (
+                <EntryCard key={e.id} entry={e} />
+              ))}
             </View>
           ))}
-
         </ScrollView>
       </Animated.View>
     </SafeAreaView>

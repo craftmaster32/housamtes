@@ -37,6 +37,8 @@ function MenuItem({
       onPress={onPress}
       accessible
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={sub}
     >
       <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>
         <Text style={styles.menuIconText}>{icon}</Text>

@@ -122,7 +122,15 @@ function AddEntryForm({
     setSaveError('');
     try {
       await add(
-        { area: finalArea, condition, type, description: description.trim(), recordedBy, date, photos },
+        {
+          area: finalArea,
+          condition,
+          type,
+          description: description.trim(),
+          recordedBy,
+          date,
+          photos,
+        },
         houseId
       );
       onClose();
@@ -143,6 +151,10 @@ function AddEntryForm({
             key={k}
             style={[styles.chip, type === k && styles.chipActive]}
             onPress={() => setType(k)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={ENTRY_TYPE_CONFIG[k].label}
+            accessibilityState={{ selected: type === k }}
           >
             <Text style={[styles.chipText, type === k && styles.chipTextActive]}>
               {ENTRY_TYPE_CONFIG[k].label}
@@ -161,9 +173,18 @@ function AddEntryForm({
               setArea(a.label);
               setUseCustom(false);
             }}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={a.label}
+            accessibilityState={{ selected: !useCustom && area === a.label }}
           >
             <Text style={styles.areaChipIcon}>{a.icon}</Text>
-            <Text style={[styles.areaChipText, !useCustom && area === a.label && styles.areaChipTextActive]}>
+            <Text
+              style={[
+                styles.areaChipText,
+                !useCustom && area === a.label && styles.areaChipTextActive,
+              ]}
+            >
               {a.label}
             </Text>
           </Pressable>
@@ -171,6 +192,10 @@ function AddEntryForm({
         <Pressable
           style={[styles.areaChip, useCustom && styles.areaChipActive]}
           onPress={() => setUseCustom(true)}
+          accessible
+          accessibilityRole="radio"
+          accessibilityLabel={t('condition.custom')}
+          accessibilityState={{ selected: useCustom }}
         >
           <Text style={styles.areaChipIcon}>✏️</Text>
           <Text style={[styles.areaChipText, useCustom && styles.areaChipTextActive]}>
@@ -202,6 +227,10 @@ function AddEntryForm({
                 condition === c && { backgroundColor: cfg.color, borderColor: cfg.color },
               ]}
               onPress={() => setCondition(c)}
+              accessible
+              accessibilityRole="radio"
+              accessibilityLabel={cfg.label}
+              accessibilityState={{ selected: condition === c }}
             >
               <Text style={[styles.condChipText, condition === c && styles.condChipTextActive]}>
                 {cfg.icon} {cfg.label}
@@ -231,13 +260,25 @@ function AddEntryForm({
       {!!saveError && <Text style={styles.saveError}>{saveError}</Text>}
 
       <View style={styles.formActions}>
-        <Pressable style={styles.cancelBtn} onPress={onClose} disabled={isSaving}>
+        <Pressable
+          style={styles.cancelBtn}
+          onPress={onClose}
+          disabled={isSaving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
+          accessibilityState={{ disabled: isSaving }}
+        >
           <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
         </Pressable>
         <Pressable
           style={[styles.saveBtn, (!finalArea || isSaving) && styles.saveBtnDisabled]}
           onPress={handleSave}
           disabled={!finalArea || isSaving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('condition.save_entry')}
+          accessibilityState={{ disabled: !finalArea || isSaving }}
         >
           <Text style={styles.saveBtnText}>
             {isSaving ? t('condition.saving') : t('condition.save_entry')}
@@ -328,7 +369,13 @@ export function ConditionTab(): React.JSX.Element {
           houseId={houseId ?? ''}
         />
       ) : (
-        <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
+        <Pressable
+          style={styles.addBtn}
+          onPress={() => setShowForm(true)}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('condition.add_record')}
+        >
           <Text style={styles.addBtnText}>{t('condition.add_record')}</Text>
         </Pressable>
       )}
@@ -340,8 +387,14 @@ export function ConditionTab(): React.JSX.Element {
               key={f.key}
               style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
               onPress={() => setFilter(f.key)}
+              accessible
+              accessibilityRole="radio"
+              accessibilityLabel={f.label}
+              accessibilityState={{ selected: filter === f.key }}
             >
-              <Text style={[styles.filterChipText, filter === f.key && styles.filterChipTextActive]}>
+              <Text
+                style={[styles.filterChipText, filter === f.key && styles.filterChipTextActive]}
+              >
                 {f.label}
               </Text>
             </Pressable>
@@ -361,7 +414,12 @@ export function ConditionTab(): React.JSX.Element {
           <View style={styles.areaGroupHeader}>
             <Text style={styles.areaGroupIcon}>{getAreaIcon(area)}</Text>
             <Text style={styles.areaGroupName}>{area}</Text>
-            <View style={[styles.condDot, { backgroundColor: CONDITION_CONFIG[areaEntries[0].condition].color }]} />
+            <View
+              style={[
+                styles.condDot,
+                { backgroundColor: CONDITION_CONFIG[areaEntries[0].condition].color },
+              ]}
+            />
           </View>
           {areaEntries.map((e) => (
             <EntryCard key={e.id} entry={e} />
@@ -411,7 +469,12 @@ const styles = StyleSheet.create({
   filterChipTextActive: { color: colors.white },
 
   areaGroup: { gap: 6 },
-  areaGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs, paddingVertical: 4 },
+  areaGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sizes.xs,
+    paddingVertical: 4,
+  },
   areaGroupIcon: { fontSize: 18 },
   areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: colors.textPrimary, flex: 1 },
   condDot: { width: 10, height: 10, borderRadius: 5 },
@@ -427,9 +490,17 @@ const styles = StyleSheet.create({
   entryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
   entryMeta: { flex: 1, gap: 3 },
   entryBadgeRow: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
-  typeBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
+  typeBadge: {
+    borderRadius: sizes.borderRadiusFull,
+    paddingHorizontal: sizes.xs,
+    paddingVertical: 2,
+  },
   typeBadgeText: { fontSize: 11, ...font.bold },
-  condBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.xs, paddingVertical: 2 },
+  condBadge: {
+    borderRadius: sizes.borderRadiusFull,
+    paddingHorizontal: sizes.xs,
+    paddingVertical: 2,
+  },
   condBadgeText: { fontSize: 11, ...font.bold },
   entryDate: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
   entryDescription: {
@@ -516,7 +587,12 @@ const styles = StyleSheet.create({
   },
   inputMultiline: { height: 80, textAlignVertical: 'top' },
   saveError: { color: colors.danger, fontSize: sizes.fontSm, ...font.regular },
-  formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
+  formActions: {
+    flexDirection: 'row',
+    gap: sizes.sm,
+    justifyContent: 'flex-end',
+    marginTop: sizes.xs,
+  },
   cancelBtn: {
     paddingHorizontal: sizes.md,
     paddingVertical: sizes.sm,
@@ -525,7 +601,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   cancelBtnText: { color: colors.textSecondary, ...font.medium },
-  saveBtn: { backgroundColor: colors.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
+  saveBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
+    borderRadius: 12,
+  },
   saveBtnDisabled: { backgroundColor: colors.textDisabled },
   saveBtnText: { color: colors.white, ...font.semibold },
 
