@@ -3,6 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+import type { ExpenseCategoryRow } from '../types/database';
 
 export interface ExpenseCategory {
   id: string;
@@ -39,16 +40,7 @@ const DEFAULTS: Omit<ExpenseCategory, 'id'>[] = [
   { name: 'Other', icon: '📦', color: '#8D8F8F', isDefault: true, sortOrder: 99 },
 ];
 
-interface CategoryRow {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-  is_default: boolean;
-  sort_order: number;
-}
-
-function toCategory(r: CategoryRow): ExpenseCategory {
+function toCategory(r: ExpenseCategoryRow): ExpenseCategory {
   return {
     id: r.id,
     name: r.name,
@@ -101,7 +93,11 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
             error: null,
           });
         } catch (err) {
-          captureError(err, { store: 'expense-categories', houseId });
+          captureError(err, {
+            store: 'expense-categories',
+            houseId,
+            userId: useAuthStore.getState().user?.id ?? '',
+          });
           set({ isLoading: false, error: 'Could not load your categories. Please try again.' });
         }
       },
@@ -121,7 +117,13 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           .select();
         // Without this check a failed seed silently left the category list empty.
         if (error) {
-          captureError(error, { context: 'seed-default-categories', houseId });
+          captureError(error, {
+            context: 'seed-default-categories',
+            houseId,
+            userId: useAuthStore.getState().user?.id ?? '',
+          });
+          // Reset the spinner here too so a direct caller can't get stuck on it
+          set({ isLoading: false });
           throw new Error('Could not set up your categories. Please try again.');
         }
         set({
