@@ -98,6 +98,13 @@ jobs:
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
           changed=$(git diff --name-only HEAD^ HEAD | grep '^supabase/functions/' | cut -d/ -f3 | sort -u)
           for fn in $changed; do
+            # A deleted function still appears in the diff — skip it so we never
+            # try to deploy a directory that no longer exists (which would fail
+            # the run before Vercel deploys).
+            if [ ! -d "supabase/functions/$fn" ]; then
+              echo "Skipping $fn (removed)"
+              continue
+            fi
             case "$fn" in
               bill-due-reminder|grocery-reminder-check|parking-check|parking-toggle)
                 echo "Deploying $fn (verify_jwt OFF)"
