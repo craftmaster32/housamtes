@@ -464,7 +464,7 @@ function AddProposalForm({
         placeholder={t('voting.proposal_placeholder')}
         placeholderTextColor={C.textDisabled}
         maxLength={100}
-        accessibilityLabel={t('voting.new_proposal_title')}
+        accessibilityLabel={t('voting.proposal_placeholder')}
         accessibilityHint={t('voting.proposal_placeholder')}
       />
 
@@ -499,7 +499,7 @@ function AddProposalForm({
         <Pressable
           style={[styles.saveBtn, (!title.trim() || isSaving) && styles.saveBtnDisabled]}
           onPress={handleSave}
-          disabled={isSaving}
+          disabled={!title.trim() || isSaving}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('voting.post_proposal')}

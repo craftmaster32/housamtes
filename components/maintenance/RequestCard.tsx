@@ -53,7 +53,12 @@ const makeStyles = (C: ColorTokens) =>
     cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
     cardTitleResolved: { textDecorationLine: 'line-through', color: C.textSecondary },
     cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
-    removeBtn: { padding: 4 },
+    removeBtn: {
+      minWidth: sizes.touchTarget,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     removeBtnText: { color: C.textDisabled, fontSize: sizes.fontSm },
     cardDescription: {
       fontSize: sizes.fontSm,
@@ -73,6 +78,8 @@ const makeStyles = (C: ColorTokens) =>
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.md,
       paddingVertical: 5,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
     },
     advanceBtnText: { color: C.primary, fontSize: sizes.fontSm, ...font.semibold },
     reopenBtn: {
@@ -81,6 +88,8 @@ const makeStyles = (C: ColorTokens) =>
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.md,
       paddingVertical: 4,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
     },
     reopenBtnText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.regular },
     cardError: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },

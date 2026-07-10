@@ -525,7 +525,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  removeBtn: { padding: 4 },
+  removeBtn: {
+    padding: 8,
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   removeBtnText: { color: colors.textDisabled, fontSize: sizes.fontXs },
 
   form: {

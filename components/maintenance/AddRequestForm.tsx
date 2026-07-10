@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useMaintenanceStore, MAINTENANCE_CATEGORIES } from '@stores/maintenanceStore';
+import { CategoryPicker } from '@components/maintenance/CategoryPicker';
 import { maintenanceRequestSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -35,22 +36,6 @@ const makeStyles = (C: ColorTokens) =>
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },
-    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-    chip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: sizes.sm,
-      paddingVertical: 6,
-      borderRadius: sizes.borderRadiusFull,
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surface,
-    },
-    chipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    chipIcon: { fontSize: 14 },
-    chipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
-    chipTextActive: { color: '#fff' },
     input: {
       backgroundColor: C.background,
       borderRadius: sizes.borderRadiusSm,
@@ -137,24 +122,7 @@ export const AddRequestForm: React.FC<AddRequestFormProps> = ({ onClose, reporte
       <Text style={styles.formTitle}>{t('maintenance.new_request')}</Text>
 
       <Text style={styles.fieldLabel}>{t('maintenance.category')}</Text>
-      <View style={styles.chipRow}>
-        {MAINTENANCE_CATEGORIES.map((c) => (
-          <Pressable
-            key={c.label}
-            style={[styles.chip, category === c.label && styles.chipActive]}
-            onPress={() => setCategory(c.label)}
-            accessible
-            accessibilityRole="radio"
-            accessibilityLabel={c.label}
-            accessibilityState={{ selected: category === c.label }}
-          >
-            <Text style={styles.chipIcon}>{c.icon}</Text>
-            <Text style={[styles.chipText, category === c.label && styles.chipTextActive]}>
-              {c.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <CategoryPicker value={category} onChange={setCategory} />
 
       <Text style={styles.fieldLabel}>{t('maintenance.issue_label')}</Text>
       <TextInput
@@ -199,7 +167,7 @@ export const AddRequestForm: React.FC<AddRequestFormProps> = ({ onClose, reporte
         <Pressable
           style={[styles.saveBtn, (!title.trim() || isSaving) && styles.saveBtnDisabled]}
           onPress={handleSave}
-          disabled={isSaving}
+          disabled={!title.trim() || isSaving}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('maintenance.log_issue')}
