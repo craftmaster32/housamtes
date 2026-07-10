@@ -17,9 +17,11 @@ const makeStyles = (C: ColorTokens) =>
     chip: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 4,
       paddingHorizontal: sizes.sm,
       paddingVertical: 6,
+      minHeight: sizes.touchTarget,
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,
       borderColor: C.border,
