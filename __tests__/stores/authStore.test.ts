@@ -13,7 +13,7 @@
  */
 
 import type { Session, User } from '@supabase/supabase-js';
-import { ok } from '../__helpers__/supabaseMock';
+import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -29,7 +29,14 @@ const mockAuth = {
   startAutoRefresh: jest.fn(),
   stopAutoRefresh: jest.fn(),
 };
-const mockStorageFrom = jest.fn(() => ({
+interface StorageChainMock {
+  createSignedUrl: (
+    ...args: unknown[]
+  ) => Promise<{ data: { signedUrl: string } | null; error: Error | null }>;
+  upload: (...args: unknown[]) => Promise<{ error: Error | null }>;
+  remove: (...args: unknown[]) => Promise<{ error: Error | null }>;
+}
+const mockStorageFrom = jest.fn<StorageChainMock, []>(() => ({
   createSignedUrl: jest.fn(async () => ({ data: null, error: null })),
   upload: jest.fn(async () => ({ error: null })),
   remove: jest.fn(async () => ({ error: null })),
@@ -469,5 +476,434 @@ describe('authStore — deleteAccount', () => {
     expect(s.role).toBeNull();
     expect(s.permissions).toEqual(DEFAULT_PERMISSIONS);
     expect(mockUnregisterPushToken).toHaveBeenCalledWith('u1', 'h1');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// signUp — happy paths
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — signUp success', () => {
+  it('signs the user straight in when no email confirmation is required', async () => {
+    mockMemberOfHouse();
+    mockAuth.signUp.mockResolvedValue({
+      data: { user: fakeUser(), session: fakeSession() },
+      error: null,
+    });
+
+    const result = await useAuthStore
+      .getState()
+      .signUp('alice@example.com', 'Password1', 'Alice', '#6366f1');
+
+    expect(result).toEqual({ needsVerification: false });
+    const s = useAuthStore.getState();
+    expect(s.user?.id).toBe('u1');
+    expect(s.session).not.toBeNull();
+    expect(s.profile?.name).toBe('Alice');
+    expect(s.isLoading).toBe(false);
+    expect(s.error).toBeNull();
+  });
+
+  it('records terms consent for the new account', async () => {
+    mockMemberOfHouse();
+    mockAuth.signUp.mockResolvedValue({
+      data: { user: fakeUser(), session: fakeSession() },
+      error: null,
+    });
+
+    await useAuthStore.getState().signUp('alice@example.com', 'Password1', 'Alice', '#6366f1');
+
+    expect(mockFrom).toHaveBeenCalledWith('user_consents');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// resendVerification
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — resendVerification', () => {
+  it('asks Supabase to resend the signup email', async () => {
+    mockAuth.resend.mockResolvedValue({ error: null });
+
+    await useAuthStore.getState().resendVerification('alice@example.com');
+
+    expect(mockAuth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'alice@example.com' });
+  });
+
+  it('throws a plain-English error when the resend fails', async () => {
+    mockAuth.resend.mockResolvedValue({ error: new Error('rate limit') });
+
+    await expect(useAuthStore.getState().resendVerification('alice@example.com')).rejects.toThrow(
+      'Could not resend. Please try again.'
+    );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// updateProfile / updateEmail
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — updateProfile', () => {
+  it('is a no-op when signed out', async () => {
+    await useAuthStore.getState().updateProfile('New Name');
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('saves the new name and updates the in-memory profile', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      profile: { id: 'u1', name: 'Old', avatarColor: '#fff' },
+    });
+    mockTables({ profiles: ok(null) });
+
+    await useAuthStore.getState().updateProfile('New Name');
+
+    expect(useAuthStore.getState().profile?.name).toBe('New Name');
+  });
+
+  it('throws and leaves the profile untouched when the update fails', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      profile: { id: 'u1', name: 'Old', avatarColor: '#fff' },
+    });
+    mockTables({ profiles: fail('db down') });
+
+    await expect(useAuthStore.getState().updateProfile('New Name')).rejects.toThrow(
+      'Could not update name. Please try again.'
+    );
+    expect(useAuthStore.getState().profile?.name).toBe('Old');
+  });
+});
+
+describe('authStore — updateEmail', () => {
+  it('sends the change request to Supabase auth', async () => {
+    mockAuth.updateUser.mockResolvedValue({ error: null });
+
+    await useAuthStore.getState().updateEmail('new@example.com');
+
+    expect(mockAuth.updateUser).toHaveBeenCalledWith({ email: 'new@example.com' });
+  });
+
+  it('throws a plain-English error on failure', async () => {
+    mockAuth.updateUser.mockResolvedValue({ error: new Error('nope') });
+
+    await expect(useAuthStore.getState().updateEmail('new@example.com')).rejects.toThrow(
+      'Could not update email. Please try again.'
+    );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// reloadMembership
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — reloadMembership', () => {
+  it('is a no-op when signed out', async () => {
+    await useAuthStore.getState().reloadMembership();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('refreshes houseId, role and permissions from the database', async () => {
+    useAuthStore.setState({ user: fakeUser() });
+    mockTables({
+      house_members: ok([{ house_id: 'h2', role: 'member', permissions: { bills: false } }]),
+      houses: ok({ id: 'h2' }),
+    });
+
+    await useAuthStore.getState().reloadMembership();
+
+    const s = useAuthStore.getState();
+    expect(s.houseId).toBe('h2');
+    expect(s.role).toBe('member');
+    expect(s.permissions.bills).toBe(false);
+    expect(s.permissions.grocery).toBe(true); // merged over defaults
+  });
+
+  it('clears the membership when the house no longer exists (ghost house)', async () => {
+    useAuthStore.setState({ user: fakeUser(), houseId: 'h-old', role: 'admin' });
+    mockTables({
+      house_members: ok([{ house_id: 'h-ghost', role: 'admin', permissions: {} }]),
+      houses: ok(null), // house row is gone
+    });
+
+    await useAuthStore.getState().reloadMembership();
+
+    const s = useAuthStore.getState();
+    expect(s.houseId).toBeNull();
+    expect(s.role).toBeNull();
+    expect(s.permissions).toEqual(DEFAULT_PERMISSIONS);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// acceptUpdatedTerms
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — acceptUpdatedTerms', () => {
+  it('is a no-op when signed out', async () => {
+    await useAuthStore.getState().acceptUpdatedTerms();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('records consent and clears the needs-acceptance flag', async () => {
+    useAuthStore.setState({ user: fakeUser(), needsTermsAcceptance: true });
+    mockTables({ user_consents: ok(null) });
+
+    await useAuthStore.getState().acceptUpdatedTerms();
+
+    const s = useAuthStore.getState();
+    expect(s.needsTermsAcceptance).toBe(false);
+    expect(s.isLoading).toBe(false);
+  });
+
+  it('keeps the flag and throws when the insert fails', async () => {
+    useAuthStore.setState({ user: fakeUser(), needsTermsAcceptance: true });
+    mockTables({ user_consents: fail('insert failed') });
+
+    await expect(useAuthStore.getState().acceptUpdatedTerms()).rejects.toThrow(
+      'Could not record acceptance. Please try again.'
+    );
+    expect(useAuthStore.getState().needsTermsAcceptance).toBe(true);
+    expect(useAuthStore.getState().isLoading).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Small state actions
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — small state actions', () => {
+  it('setHouseId stores the id immediately', () => {
+    useAuthStore.getState().setHouseId('h9');
+    expect(useAuthStore.getState().houseId).toBe('h9');
+  });
+
+  it('clearPasswordRecovery resets the recovery flag', () => {
+    useAuthStore.setState({ isPasswordRecovery: true });
+    useAuthStore.getState().clearPasswordRecovery();
+    expect(useAuthStore.getState().isPasswordRecovery).toBe(false);
+  });
+
+  it('clearError wipes the error message', () => {
+    useAuthStore.setState({ error: 'boom' });
+    useAuthStore.getState().clearError();
+    expect(useAuthStore.getState().error).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Avatar / cover photos
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — avatar and cover', () => {
+  const profile = { id: 'u1', name: 'Alice', avatarColor: '#fff', avatarUrl: 'old-url' };
+
+  it('uploadAvatar stores the photo and swaps in a fresh signed URL', async () => {
+    useAuthStore.setState({ user: fakeUser(), profile });
+    mockTables({ profiles: ok(null) });
+    mockStorageFrom.mockReturnValue({
+      upload: jest.fn(async () => ({ error: null })),
+      remove: jest.fn(async () => ({ error: null })),
+      createSignedUrl: jest.fn(async () => ({
+        data: { signedUrl: 'https://signed.example/avatar' },
+        error: null,
+      })),
+    });
+
+    // "aGVsbG8=" = base64 for "hello" — small enough to pass the 5 MB guard
+    await useAuthStore.getState().uploadAvatar('file:///photo.jpg', 'image/jpeg', 'aGVsbG8=');
+
+    expect(useAuthStore.getState().profile?.avatarUrl).toBe('https://signed.example/avatar');
+  });
+
+  it('uploadAvatar throws a plain-English error when the storage upload fails', async () => {
+    useAuthStore.setState({ user: fakeUser(), profile });
+    mockStorageFrom.mockReturnValue({
+      upload: jest.fn(async () => ({ error: new Error('storage down') })),
+      remove: jest.fn(async () => ({ error: null })),
+      createSignedUrl: jest.fn(async () => ({ data: null, error: null })),
+    });
+
+    await expect(
+      useAuthStore.getState().uploadAvatar('file:///photo.jpg', 'image/jpeg', 'aGVsbG8=')
+    ).rejects.toThrow('Could not upload photo. Please try again.');
+    expect(useAuthStore.getState().profile?.avatarUrl).toBe('old-url');
+  });
+
+  it('removeAvatar deletes the file and clears the URL from the profile', async () => {
+    useAuthStore.setState({ user: fakeUser(), profile });
+    mockTables({ profiles: ok(null) });
+
+    await useAuthStore.getState().removeAvatar();
+
+    expect(useAuthStore.getState().profile?.avatarUrl).toBeUndefined();
+  });
+
+  it('removeCover clears the cover URL from the profile', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      profile: { ...profile, coverUrl: 'old-cover' },
+    });
+    mockTables({ profiles: ok(null) });
+
+    await useAuthStore.getState().removeCover();
+
+    expect(useAuthStore.getState().profile?.coverUrl).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// initialize — app-startup session restore
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — initialize', () => {
+  it('restores a signed-in session with profile and house membership', async () => {
+    mockMemberOfHouse();
+    mockAuth.onAuthStateChange.mockReturnValue({
+      data: { subscription: { unsubscribe: jest.fn() } },
+    });
+    mockAuth.getSession.mockResolvedValue({
+      data: { session: fakeSession() },
+      error: null,
+    });
+
+    await useAuthStore.getState().initialize();
+
+    const s = useAuthStore.getState();
+    expect(s.user?.id).toBe('u1');
+    expect(s.profile?.name).toBe('Alice');
+    expect(s.houseId).toBe('h1');
+    expect(s.role).toBe('admin');
+    expect(s.isLoading).toBe(false);
+    expect(mockRegisterPushToken).toHaveBeenCalledWith('u1', 'h1');
+  });
+
+  it('signs out and stops loading when the stored session is invalid', async () => {
+    mockAuth.onAuthStateChange.mockReturnValue({
+      data: { subscription: { unsubscribe: jest.fn() } },
+    });
+    mockAuth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: new Error('invalid refresh token'),
+    });
+    mockAuth.signOut.mockResolvedValue({ error: null });
+
+    await useAuthStore.getState().initialize();
+
+    expect(mockAuth.signOut).toHaveBeenCalled();
+    expect(useAuthStore.getState().isLoading).toBe(false);
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  it('lands on the logged-out state when no session exists', async () => {
+    mockAuth.onAuthStateChange.mockReturnValue({
+      data: { subscription: { unsubscribe: jest.fn() } },
+    });
+    mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    await useAuthStore.getState().initialize();
+
+    const s = useAuthStore.getState();
+    expect(s.user).toBeNull();
+    expect(s.isLoading).toBe(false);
+  });
+
+  it('flags password recovery when Supabase fires PASSWORD_RECOVERY', async () => {
+    let authCallback: ((event: string, session: unknown) => Promise<void>) | undefined;
+    mockAuth.onAuthStateChange.mockImplementation(
+      (cb: (event: string, session: unknown) => Promise<void>) => {
+        authCallback = cb;
+        return { data: { subscription: { unsubscribe: jest.fn() } } };
+      }
+    );
+    mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    await useAuthStore.getState().initialize();
+    await authCallback?.('PASSWORD_RECOVERY', null);
+
+    expect(useAuthStore.getState().isPasswordRecovery).toBe(true);
+  });
+
+  it('swaps in the refreshed session on TOKEN_REFRESHED without refetching data', async () => {
+    let authCallback: ((event: string, session: unknown) => Promise<void>) | undefined;
+    mockAuth.onAuthStateChange.mockImplementation(
+      (cb: (event: string, session: unknown) => Promise<void>) => {
+        authCallback = cb;
+        return { data: { subscription: { unsubscribe: jest.fn() } } };
+      }
+    );
+    mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    await useAuthStore.getState().initialize();
+    mockFrom.mockClear();
+
+    const refreshed = fakeSession();
+    await authCallback?.('TOKEN_REFRESHED', refreshed);
+
+    expect(useAuthStore.getState().session).toBe(refreshed);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('clears local state when the auth listener reports a sign-out', async () => {
+    let authCallback: ((event: string, session: unknown) => Promise<void>) | undefined;
+    mockAuth.onAuthStateChange.mockImplementation(
+      (cb: (event: string, session: unknown) => Promise<void>) => {
+        authCallback = cb;
+        return { data: { subscription: { unsubscribe: jest.fn() } } };
+      }
+    );
+    mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    await useAuthStore.getState().initialize();
+    useAuthStore.setState({ user: fakeUser(), houseId: 'h1' });
+
+    await authCallback?.('SIGNED_OUT', null);
+
+    const s = useAuthStore.getState();
+    expect(s.user).toBeNull();
+    expect(s.houseId).toBeNull();
+    expect(mockUnregisterPushToken).toHaveBeenCalledWith('u1', 'h1');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// uploadCover
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — uploadCover', () => {
+  it('stores the cover photo and swaps in a fresh signed URL', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      profile: { id: 'u1', name: 'Alice', avatarColor: '#fff' },
+    });
+    mockTables({ profiles: ok(null) });
+    mockStorageFrom.mockReturnValue({
+      upload: jest.fn(async () => ({ error: null })),
+      remove: jest.fn(async () => ({ error: null })),
+      createSignedUrl: jest.fn(async () => ({
+        data: { signedUrl: 'https://signed.example/cover' },
+        error: null,
+      })),
+    });
+
+    await useAuthStore.getState().uploadCover('file:///cover.jpg', 'image/jpeg', 'aGVsbG8=');
+
+    expect(useAuthStore.getState().profile?.coverUrl).toBe('https://signed.example/cover');
+  });
+
+  it('throws a plain-English error when the cover upload fails', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      profile: { id: 'u1', name: 'Alice', avatarColor: '#fff' },
+    });
+    mockStorageFrom.mockReturnValue({
+      upload: jest.fn(async () => ({ error: new Error('storage down') })),
+      remove: jest.fn(async () => ({ error: null })),
+      createSignedUrl: jest.fn(async () => ({ data: null, error: null })),
+    });
+
+    await expect(
+      useAuthStore.getState().uploadCover('file:///cover.jpg', 'image/jpeg', 'aGVsbG8=')
+    ).rejects.toThrow('Could not upload cover photo. Please try again.');
   });
 });
