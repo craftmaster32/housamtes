@@ -4,14 +4,14 @@ export interface WordChallenge {
   category: 'house' | 'kitchen' | 'cleaning' | 'bills' | 'roomie';
 }
 
-export const WORD_CHALLENGES: WordChallenge[] = [
+const WORD_CHALLENGES: WordChallenge[] = [
   // ── House ──────────────────────────────────────────────────────────────────
   { word: 'COUCH', hint: 'Best seat for Netflix debates', category: 'house' },
   { word: 'REMOTE', hint: 'Always lost between cushions', category: 'house' },
   { word: 'PILLOW', hint: 'Head resting buddy', category: 'house' },
   { word: 'BLANKET', hint: 'Cozy layer for movie nights', category: 'house' },
   { word: 'SHOWER', hint: 'Morning wake-up ritual', category: 'house' },
-  { word: 'TOWEL', hint: 'Don\'t forget to hang me up', category: 'house' },
+  { word: 'TOWEL', hint: "Don't forget to hang me up", category: 'house' },
   { word: 'HALLWAY', hint: 'The path between rooms', category: 'house' },
   { word: 'BALCONY', hint: 'Fresh air spot', category: 'house' },
   { word: 'DOORBELL', hint: 'Ding dong, delivery!', category: 'house' },
@@ -31,14 +31,14 @@ export const WORD_CHALLENGES: WordChallenge[] = [
   { word: 'FRIDGE', hint: 'Where leftovers go to be forgotten', category: 'kitchen' },
   { word: 'KETTLE', hint: 'Boils water for tea or coffee', category: 'kitchen' },
   { word: 'TOASTER', hint: 'Crunchy bread maker', category: 'kitchen' },
-  { word: 'SPOON', hint: 'Cereal\'s best friend', category: 'kitchen' },
+  { word: 'SPOON', hint: "Cereal's best friend", category: 'kitchen' },
   { word: 'PLATE', hint: 'Flat dish for food', category: 'kitchen' },
   { word: 'OVEN', hint: 'Bakes your midnight pizza', category: 'kitchen' },
   { word: 'RECIPE', hint: 'Instructions for cooking', category: 'kitchen' },
   { word: 'BLENDER', hint: 'Makes smoothies and noise', category: 'kitchen' },
   { word: 'SPONGE', hint: 'Cleaning ally for dishes', category: 'kitchen' },
   { word: 'PANTRY', hint: 'Snack storage room', category: 'kitchen' },
-  { word: 'MICROWAVE', hint: 'Reheats yesterday\'s dinner', category: 'kitchen' },
+  { word: 'MICROWAVE', hint: "Reheats yesterday's dinner", category: 'kitchen' },
   { word: 'CUTTING', hint: '_____ board for chopping', category: 'kitchen' },
   { word: 'SPATULA', hint: 'Flips pancakes like a pro', category: 'kitchen' },
   { word: 'STRAINER', hint: 'Drains the pasta water', category: 'kitchen' },
@@ -68,7 +68,7 @@ export const WORD_CHALLENGES: WordChallenge[] = [
   { word: 'UTILITIES', hint: 'Water, gas, electric', category: 'bills' },
   { word: 'SUBSCRIPTION', hint: 'Monthly charge you forgot about', category: 'bills' },
   { word: 'OVERDUE', hint: 'Past the deadline', category: 'bills' },
-  { word: 'BALANCE', hint: 'What\'s left in the account', category: 'bills' },
+  { word: 'BALANCE', hint: "What's left in the account", category: 'bills' },
 
   // ── Roomie Life ────────────────────────────────────────────────────────────
   { word: 'HOUSEMATE', hint: 'Person you share a home with', category: 'roomie' },
@@ -82,7 +82,7 @@ export const WORD_CHALLENGES: WordChallenge[] = [
   { word: 'AGREEMENT', hint: 'Rules everyone accepts', category: 'roomie' },
   { word: 'NEIGHBOR', hint: 'Person next door', category: 'roomie' },
   { word: 'CURFEW', hint: 'Time to keep it down', category: 'roomie' },
-  { word: 'CHORE', hint: 'Nobody\'s favorite task', category: 'roomie' },
+  { word: 'CHORE', hint: "Nobody's favorite task", category: 'roomie' },
 ];
 
 export function scrambleWord(word: string): string {
@@ -100,10 +100,11 @@ export function getRandomChallenge(): WordChallenge {
   return WORD_CHALLENGES[Math.floor(Math.random() * WORD_CHALLENGES.length)];
 }
 
-export const CATEGORY_LABELS: Record<WordChallenge['category'], { emoji: string; label: string }> = {
-  house: { emoji: '🏠', label: 'House' },
-  kitchen: { emoji: '🍳', label: 'Kitchen' },
-  cleaning: { emoji: '🧹', label: 'Cleaning' },
-  bills: { emoji: '💰', label: 'Bills' },
-  roomie: { emoji: '👥', label: 'Roomie Life' },
-};
+export const CATEGORY_LABELS: Record<WordChallenge['category'], { emoji: string; label: string }> =
+  {
+    house: { emoji: '🏠', label: 'House' },
+    kitchen: { emoji: '🍳', label: 'Kitchen' },
+    cleaning: { emoji: '🧹', label: 'Cleaning' },
+    bills: { emoji: '💰', label: 'Bills' },
+    roomie: { emoji: '👥', label: 'Roomie Life' },
+  };

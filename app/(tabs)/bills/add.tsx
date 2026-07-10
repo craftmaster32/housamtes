@@ -6,7 +6,7 @@ import { router, useFocusEffect, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { z } from 'zod';
-import { useBillsStore, CATEGORIES, DISPLAY_CATEGORIES } from '@stores/billsStore';
+import { useBillsStore, CATEGORIES } from '@stores/billsStore';
 import { captureError } from '@lib/errorTracking';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
@@ -642,7 +642,7 @@ export default function AddBillScreen(): React.JSX.Element {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryScroll}
           >
-            {DISPLAY_CATEGORIES.map((cat) => {
+            {CATEGORIES.map((cat) => {
               const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
               const selected = category === cat;
               return (

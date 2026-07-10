@@ -8,18 +8,18 @@ export type EventRecurrence = 'weekly' | 'monthly' | 'yearly';
 export interface HouseEvent {
   id: string;
   title: string;
-  date: string;             // YYYY-MM-DD
-  endDate?: string;         // YYYY-MM-DD — for multi-day events
-  startTime?: string;       // HH:MM
-  endTime?: string;         // HH:MM
+  date: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD — for multi-day events
+  startTime?: string; // HH:MM
+  endTime?: string; // HH:MM
   notes?: string;
   recurrence?: EventRecurrence;
-  recurrenceEnd?: string;   // YYYY-MM-DD — when recurrence stops
-  createdBy: string;        // user UUID
+  recurrenceEnd?: string; // YYYY-MM-DD — when recurrence stops
+  createdBy: string; // user UUID
   createdAt: string;
 }
 
-export interface AddEventPayload {
+interface AddEventPayload {
   title: string;
   date: string;
   createdBy: string;
@@ -93,20 +93,41 @@ export const useEventsStore = create<EventsStore>()(
           set({ isLoading: false, error: 'Could not load events. Please try again.' });
         }
 
-        if (_channel) { supabase.removeChannel(_channel); }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
         _channel = supabase
           .channel(`events:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'events', filter: `house_id=eq.${houseId}` },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
 
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+        }
       },
 
       addEvent: async (payload): Promise<string> => {
-        const { title, date, createdBy, houseId, startTime, endTime, endDate, notes, recurrence, recurrenceEnd } = payload;
+        const {
+          title,
+          date,
+          createdBy,
+          houseId,
+          startTime,
+          endTime,
+          endDate,
+          notes,
+          recurrence,
+          recurrenceEnd,
+        } = payload;
         try {
           const { data, error } = await supabase
             .from('events')
@@ -140,26 +161,26 @@ export const useEventsStore = create<EventsStore>()(
           // Only include optional fields that were explicitly provided by the caller.
           // Using `in` distinguishes "set to undefined (= clear)" from "key absent (= preserve)".
           const dbPayload: Record<string, unknown> = { title: updates.title, date: updates.date };
-          if ('endDate' in updates)       dbPayload.end_date        = updates.endDate ?? null;
-          if ('startTime' in updates)     dbPayload.start_time      = updates.startTime ?? null;
-          if ('endTime' in updates)       dbPayload.end_time        = updates.endTime ?? null;
-          if ('notes' in updates)         dbPayload.notes           = updates.notes ?? null;
-          if ('recurrence' in updates)    dbPayload.recurrence      = updates.recurrence ?? null;
-          if ('recurrenceEnd' in updates) dbPayload.recurrence_end  = updates.recurrenceEnd ?? null;
+          if ('endDate' in updates) dbPayload.end_date = updates.endDate ?? null;
+          if ('startTime' in updates) dbPayload.start_time = updates.startTime ?? null;
+          if ('endTime' in updates) dbPayload.end_time = updates.endTime ?? null;
+          if ('notes' in updates) dbPayload.notes = updates.notes ?? null;
+          if ('recurrence' in updates) dbPayload.recurrence = updates.recurrence ?? null;
+          if ('recurrenceEnd' in updates) dbPayload.recurrence_end = updates.recurrenceEnd ?? null;
 
           const { error } = await supabase.from('events').update(dbPayload).eq('id', id);
           if (error) throw error;
 
           set({
-            events: get().events
-              .map((e) => {
+            events: get()
+              .events.map((e) => {
                 if (e.id !== id) return e;
                 const merged: HouseEvent = { ...e, title: updates.title, date: updates.date };
-                if ('endDate' in updates)       merged.endDate       = updates.endDate;
-                if ('startTime' in updates)     merged.startTime     = updates.startTime;
-                if ('endTime' in updates)       merged.endTime       = updates.endTime;
-                if ('notes' in updates)         merged.notes         = updates.notes;
-                if ('recurrence' in updates)    merged.recurrence    = updates.recurrence;
+                if ('endDate' in updates) merged.endDate = updates.endDate;
+                if ('startTime' in updates) merged.startTime = updates.startTime;
+                if ('endTime' in updates) merged.endTime = updates.endTime;
+                if ('notes' in updates) merged.notes = updates.notes;
+                if ('recurrence' in updates) merged.recurrence = updates.recurrence;
                 if ('recurrenceEnd' in updates) merged.recurrenceEnd = updates.recurrenceEnd;
                 return merged;
               })

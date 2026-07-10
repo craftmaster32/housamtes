@@ -7,6 +7,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import {
   useMaintenanceStore,
+  type MaintenanceRequest,
   MAINTENANCE_CATEGORIES,
   STATUS_LABELS,
   STATUS_COLORS,
@@ -25,7 +26,11 @@ function timeAgo(iso: string, t: TFunction): string {
   if (days === 0) return t('common.today');
   if (days === 1) return t('common.yesterday');
   if (days < 7) return t('common.days_ago', { count: days });
-  return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso));
+  return new Intl.DateTimeFormat(undefined, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date(iso));
 }
 
 function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Element {
@@ -37,14 +42,18 @@ function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Eleme
   );
 }
 
-type MaintenanceRequest = ReturnType<typeof useMaintenanceStore.getState>['requests'][0];
-
 type ListItem =
   | { kind: 'open'; request: MaintenanceRequest }
   | { kind: 'resolved-toggle' }
   | { kind: 'resolved'; request: MaintenanceRequest };
 
-function RequestCard({ request, myId }: { request: MaintenanceRequest; myId: string }): React.JSX.Element {
+function RequestCard({
+  request,
+  myId,
+}: {
+  request: MaintenanceRequest;
+  myId: string;
+}): React.JSX.Element {
   const { t } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
   const updateStatus = useMaintenanceStore((s) => s.updateStatus);
@@ -64,11 +73,15 @@ function RequestCard({ request, myId }: { request: MaintenanceRequest; myId: str
       <View style={styles.cardHeader}>
         <Text style={styles.cardIcon}>{category?.icon ?? '📝'}</Text>
         <View style={styles.cardInfo}>
-          <Text style={[styles.cardTitle, request.status === 'resolved' && styles.cardTitleResolved]}>
+          <Text
+            style={[styles.cardTitle, request.status === 'resolved' && styles.cardTitleResolved]}
+          >
             {request.title}
           </Text>
           <Text style={styles.cardMeta}>
-            {request.category} · {t('maintenance.reported_by', { name: resolveName(request.reportedBy, housemates) })} · {timeAgo(request.createdAt, t)}
+            {request.category} ·{' '}
+            {t('maintenance.reported_by', { name: resolveName(request.reportedBy, housemates) })} ·{' '}
+            {timeAgo(request.createdAt, t)}
           </Text>
         </View>
         {request.reportedBy === myId && (
@@ -98,7 +111,9 @@ function RequestCard({ request, myId }: { request: MaintenanceRequest; myId: str
             accessibilityRole="button"
           >
             <Text style={styles.advanceBtnText}>
-              {request.status === 'open' ? t('maintenance.mark_in_progress') : t('maintenance.mark_resolved')}
+              {request.status === 'open'
+                ? t('maintenance.mark_in_progress')
+                : t('maintenance.mark_resolved')}
             </Text>
           </Pressable>
         )}
@@ -139,7 +154,16 @@ function AddRequestForm({
     setIsSaving(true);
     setSaveError('');
     try {
-      await add({ title: title.trim(), description: description.trim(), category, status: 'open', reportedBy }, houseId);
+      await add(
+        {
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          status: 'open',
+          reportedBy,
+        },
+        houseId
+      );
       onClose();
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : t('maintenance.failed_save'));
@@ -164,7 +188,9 @@ function AddRequestForm({
             accessibilityState={{ selected: category === c.label }}
           >
             <Text style={styles.chipIcon}>{c.icon}</Text>
-            <Text style={[styles.chipText, category === c.label && styles.chipTextActive]}>{c.label}</Text>
+            <Text style={[styles.chipText, category === c.label && styles.chipTextActive]}>
+              {c.label}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -216,7 +242,9 @@ function AddRequestForm({
           accessibilityLabel={t('maintenance.log_issue')}
           accessibilityState={{ disabled: !title.trim() || isSaving }}
         >
-          <Text style={styles.saveBtnText}>{isSaving ? t('common.loading') : t('maintenance.log_issue')}</Text>
+          <Text style={styles.saveBtnText}>
+            {isSaving ? t('common.loading') : t('maintenance.log_issue')}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -249,24 +277,27 @@ export function IssuesTab(): React.JSX.Element {
 
   const myId = profile?.id ?? '';
 
-  const renderItem = useCallback(({ item }: { item: ListItem }) => {
-    if (item.kind === 'resolved-toggle') {
-      return (
-        <Pressable
-          style={styles.resolvedToggle}
-          onPress={() => setShowResolved((v) => !v)}
-          accessible
-          accessibilityRole="button"
-          accessibilityState={{ expanded: showResolved }}
-        >
-          <Text style={styles.resolvedToggleText}>
-            {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
-          </Text>
-        </Pressable>
-      );
-    }
-    return <RequestCard request={item.request} myId={myId} />;
-  }, [showResolved, resolved.length, t, myId]);
+  const renderItem = useCallback(
+    ({ item }: { item: ListItem }) => {
+      if (item.kind === 'resolved-toggle') {
+        return (
+          <Pressable
+            style={styles.resolvedToggle}
+            onPress={() => setShowResolved((v) => !v)}
+            accessible
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showResolved }}
+          >
+            <Text style={styles.resolvedToggleText}>
+              {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
+            </Text>
+          </Pressable>
+        );
+      }
+      return <RequestCard request={item.request} myId={myId} />;
+    },
+    [showResolved, resolved.length, t, myId]
+  );
 
   const keyExtractor = useCallback((item: ListItem) => {
     if (item.kind === 'resolved-toggle') return 'resolved-toggle';
@@ -349,9 +380,18 @@ const styles = StyleSheet.create({
   cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
   removeBtn: { padding: 4 },
   removeBtnText: { color: colors.textDisabled, fontSize: sizes.fontSm },
-  cardDescription: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, lineHeight: 20 },
+  cardDescription: {
+    fontSize: sizes.fontSm,
+    ...font.regular,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
-  statusBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 4 },
+  statusBadge: {
+    borderRadius: sizes.borderRadiusFull,
+    paddingHorizontal: sizes.sm,
+    paddingVertical: 4,
+  },
   statusText: { fontSize: sizes.fontXs, ...font.bold },
   advanceBtn: {
     backgroundColor: colors.primary + '15',
@@ -412,7 +452,12 @@ const styles = StyleSheet.create({
     ...font.regular,
   },
   inputMultiline: { height: 80, textAlignVertical: 'top' },
-  formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
+  formActions: {
+    flexDirection: 'row',
+    gap: sizes.sm,
+    justifyContent: 'flex-end',
+    marginTop: sizes.xs,
+  },
   cancelBtn: {
     paddingHorizontal: sizes.md,
     paddingVertical: sizes.sm,
@@ -421,7 +466,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   cancelBtnText: { color: colors.textSecondary, ...font.medium },
-  saveBtn: { backgroundColor: colors.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
+  saveBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: sizes.md,
+    paddingVertical: sizes.sm,
+    borderRadius: 12,
+  },
   saveBtnDisabled: { backgroundColor: colors.textDisabled },
   saveBtnText: { color: colors.white, ...font.semibold },
   saveError: { color: colors.danger, fontSize: 13, ...font.regular },
@@ -431,7 +481,12 @@ const styles = StyleSheet.create({
 
   emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
   emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
-  emptyText: { fontSize: sizes.fontSm, ...font.regular, color: colors.textSecondary, textAlign: 'center' },
+  emptyText: {
+    fontSize: sizes.fontSm,
+    ...font.regular,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   errorBanner: {
     backgroundColor: colors.danger + '15',

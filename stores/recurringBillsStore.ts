@@ -229,7 +229,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-export const FREQUENCY_MONTHS: Record<BillFrequency, number> = {
+const FREQUENCY_MONTHS: Record<BillFrequency, number> = {
   monthly: 1,
   bimonthly: 2,
   quarterly: 3,

@@ -6,12 +6,7 @@ import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router'
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
-import {
-  useBillsStore,
-  getPersonShare,
-  EditBillSchema,
-  DISPLAY_CATEGORIES,
-} from '@stores/billsStore';
+import { useBillsStore, getPersonShare, EditBillSchema, CATEGORIES } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -283,7 +278,7 @@ export default function BillDetailScreen(): React.JSX.Element {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoryScroll}
               >
-                {DISPLAY_CATEGORIES.map((cat) => {
+                {CATEGORIES.map((cat) => {
                   const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
                   const selected = category === cat;
                   return (

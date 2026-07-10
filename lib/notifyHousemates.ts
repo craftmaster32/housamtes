@@ -4,7 +4,7 @@ import { captureError } from '@lib/errorTracking';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/send-push`;
 
-export type NotificationType =
+type NotificationType =
   | 'bill_added'
   | 'bill_settled'
   | 'bill_deleted'

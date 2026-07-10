@@ -4,7 +4,7 @@ import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 
-export interface Announcement {
+interface Announcement {
   id: string;
   author: string; // user UUID
   text: string;
@@ -54,15 +54,30 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
           set({ isLoading: false, error: 'Could not load announcements. Please try again.' });
         }
 
-        if (_channel) { supabase.removeChannel(_channel); }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
         _channel = supabase
           .channel(`announcements:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'announcements',
+              filter: `house_id=eq.${houseId}`,
+            },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+        }
       },
       post: async (text, authorUserId, houseId): Promise<void> => {
         const { data, error } = await supabase
@@ -74,7 +89,12 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
           captureError(error, { context: 'post-announcement', houseId });
           throw new Error('Could not post the announcement. Please try again.');
         }
-        const item: Announcement = { id: data.id, author: data.author, text: data.text, createdAt: data.created_at };
+        const item: Announcement = {
+          id: data.id,
+          author: data.author,
+          text: data.text,
+          createdAt: data.created_at,
+        };
         set({ items: [item, ...get().items].slice(0, 30) });
       },
       remove: async (id): Promise<void> => {

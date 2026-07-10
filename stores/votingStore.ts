@@ -19,7 +19,7 @@ export interface Proposal {
   votes: Vote[];
 }
 
-export type ProposalResult = 'passed' | 'rejected' | 'blocked';
+type ProposalResult = 'passed' | 'rejected' | 'blocked';
 
 export interface ProposalVoteSummary {
   yesVotes: number;
@@ -35,7 +35,12 @@ interface VotingStore {
   error: string | null;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addProposal: (title: string, description: string, createdByUserId: string, houseId: string) => Promise<void>;
+  addProposal: (
+    title: string,
+    description: string,
+    createdByUserId: string,
+    houseId: string
+  ) => Promise<void>;
   castVote: (proposalId: string, userId: string, choice: 'yes' | 'no') => Promise<void>;
   closeProposal: (proposalId: string) => Promise<void>;
   remove: (proposalId: string) => Promise<void>;
@@ -101,15 +106,25 @@ export const useVotingStore = create<VotingStore>()(
           set({ isLoading: false, error: 'Could not load proposals. Please try again.' });
         }
 
-        if (_channel) { supabase.removeChannel(_channel); }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
         _channel = supabase
           .channel(`voting:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'proposals', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'proposals', filter: `house_id=eq.${houseId}` },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+        }
       },
       addProposal: async (title, description, createdByUserId, houseId): Promise<void> => {
         const { data, error } = await supabase
@@ -136,22 +151,36 @@ export const useVotingStore = create<VotingStore>()(
         const proposal = get().proposals.find((p) => p.id === proposalId);
         if (!proposal) return;
         if (!proposal.isOpen) throw new Error('This vote is already closed');
-        const votes: Vote[] = [...proposal.votes.filter((v) => v.person !== userId), { person: userId, choice }];
+        const votes: Vote[] = [
+          ...proposal.votes.filter((v) => v.person !== userId),
+          { person: userId, choice },
+        ];
         set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes } : p)) });
         const { error } = await supabase.from('proposals').update({ votes }).eq('id', proposalId);
         if (error) {
-          set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes: proposal.votes } : p)) });
+          set({
+            proposals: get().proposals.map((p) =>
+              p.id === proposalId ? { ...p, votes: proposal.votes } : p
+            ),
+          });
           captureError(error, { context: 'cast-vote', proposalId });
           throw new Error('Could not record your vote. Please try again.');
         }
       },
       closeProposal: async (proposalId): Promise<void> => {
-        const { error } = await supabase.from('proposals').update({ is_open: false }).eq('id', proposalId);
+        const { error } = await supabase
+          .from('proposals')
+          .update({ is_open: false })
+          .eq('id', proposalId);
         if (error) {
           captureError(error, { context: 'close-proposal', proposalId });
           throw new Error('Could not close the proposal. Please try again.');
         }
-        set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, isOpen: false } : p)) });
+        set({
+          proposals: get().proposals.map((p) =>
+            p.id === proposalId ? { ...p, isOpen: false } : p
+          ),
+        });
       },
       remove: async (proposalId): Promise<void> => {
         const { error } = await supabase.from('proposals').delete().eq('id', proposalId);

@@ -31,7 +31,7 @@ export interface SavedListItem {
   quantity: string;
 }
 
-export interface GroceryListItem {
+interface GroceryListItem {
   id: string;
   listId: string;
   name: string;
@@ -50,7 +50,7 @@ export interface GroceryList {
   items: GroceryListItem[];
 }
 
-export interface ShoppingRun {
+interface ShoppingRun {
   shopperId: string;
   shopperName: string;
   startedAt: string;

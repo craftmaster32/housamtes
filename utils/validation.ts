@@ -52,20 +52,6 @@ export const signInSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
-export const houseNameSchema = z.object({
-  name: z
-    .string()
-    .min(1, 'House name is required')
-    .max(60, 'House name must be 60 characters or less')
-    .trim(),
-});
-
-export const billSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(100).trim(),
-  amount: z.number().positive('Amount must be greater than 0').max(999999),
-  paidBy: z.string().min(1, 'Select who paid'),
-});
-
 // ── Add Bill Validation ──────────────────────────────────────────────────────
 
 type SplitType = 'equal' | 'custom' | 'percentage';
@@ -187,11 +173,6 @@ export function parseAndValidateAddBill(input: {
     date: parsed.date,
   };
 }
-
-export const groceryItemSchema = z.object({
-  name: z.string().min(1, 'Item name is required').max(100).trim(),
-  quantity: z.string().max(20).trim(),
-});
 
 export const maintenanceRequestSchema = z.object({
   title: z.string().trim().min(1, 'Issue title is required').max(100),

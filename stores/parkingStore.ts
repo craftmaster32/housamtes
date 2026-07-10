@@ -136,7 +136,7 @@ export function isReservationPastDue(
 // Once inside this window before the due time, members who already voted can
 // no longer change their vote — non-voters can still cast a fresh vote until
 // isReservationPastDue is true.
-export const VOTE_CHANGE_LOCK_MINUTES = 30;
+const VOTE_CHANGE_LOCK_MINUTES = 30;
 
 export function isVoteChangeLocked(
   date: string,

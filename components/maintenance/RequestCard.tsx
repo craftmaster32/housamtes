@@ -6,6 +6,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import {
   useMaintenanceStore,
+  type MaintenanceRequest,
   MAINTENANCE_CATEGORIES,
   STATUS_LABELS,
   STATUS_COLORS,
@@ -15,8 +16,6 @@ import {
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
-
-type MaintenanceRequest = ReturnType<typeof useMaintenanceStore.getState>['requests'][0];
 
 interface RequestCardProps {
   request: MaintenanceRequest;
