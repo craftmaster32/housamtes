@@ -17,6 +17,7 @@ import {
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
 
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
 
@@ -166,7 +167,7 @@ function AddRequestForm({
       );
       onClose();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : t('maintenance.failed_save'));
+      setSaveError(getErrorMessage(err, t('maintenance.failed_save')));
       setIsSaving(false);
     }
   }, [title, description, category, reportedBy, houseId, add, onClose, isSaving, t]);

@@ -8,6 +8,7 @@ import { maintenanceRequestSchema } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
 
 interface AddRequestFormProps {
   onClose: () => void;
@@ -112,7 +113,7 @@ export const AddRequestForm: React.FC<AddRequestFormProps> = ({ onClose, reporte
       );
       onClose();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : t('maintenance.failed_save'));
+      setSaveError(getErrorMessage(err, t('maintenance.failed_save')));
       setIsSaving(false);
     }
   }, [title, description, category, reportedBy, houseId, add, onClose, isSaving, t]);

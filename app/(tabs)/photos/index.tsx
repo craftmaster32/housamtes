@@ -30,6 +30,7 @@ import { font } from '@constants/typography';
 import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
 import { PhotoUploadModal } from '@components/photos/PhotoUploadModal';
+import { getErrorMessage } from '@utils/errors';
 
 const { width: SW } = Dimensions.get('window');
 const GRID_COLS = 3;
@@ -373,7 +374,7 @@ export default function PhotosScreen(): React.JSX.Element {
           });
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('photos.upload_failed'));
+        setError(getErrorMessage(err, t('photos.upload_failed')));
       } finally {
         setPickedAssets([]);
         await load(houseId);
@@ -396,10 +397,7 @@ export default function PhotosScreen(): React.JSX.Element {
               await remove(photo.id, photo.storagePath);
               setViewIndex(-1);
             } catch (err) {
-              Alert.alert(
-                t('common.error'),
-                err instanceof Error ? err.message : t('photos.delete_error')
-              );
+              Alert.alert(t('common.error'), getErrorMessage(err, t('photos.delete_error')));
             }
           },
         },

@@ -16,6 +16,7 @@ import {
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
 
 interface RequestCardProps {
   request: MaintenanceRequest;
@@ -120,7 +121,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({ request, myId }) => {
     try {
       await updateStatus(request.id, NEXT_STATUS[request.status]);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('maintenance.failed_save'));
+      setActionError(getErrorMessage(err, t('maintenance.failed_save')));
     }
   }, [request.id, request.status, updateStatus, t]);
 
@@ -129,7 +130,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({ request, myId }) => {
     try {
       await remove(request.id);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('maintenance.failed_save'));
+      setActionError(getErrorMessage(err, t('maintenance.failed_save')));
     }
   }, [request.id, remove, t]);
 

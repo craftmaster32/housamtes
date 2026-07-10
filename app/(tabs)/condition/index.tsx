@@ -21,13 +21,10 @@ import { PhotoPicker } from '@components/shared/PhotoPicker';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
+import { formatDateDDMMYYYY } from '@utils/dates';
 
 type FilterType = 'all' | EntryType;
-
-function formatDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-');
-  return `${d}/${m}/${y}`;
-}
 
 function getAreaIcon(area: string): string {
   return PRESET_AREAS.find((a) => a.label === area)?.icon ?? '📝';
@@ -284,7 +281,7 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
             </View>
           </View>
           <Text style={styles.entryDate}>
-            {formatDate(entry.date)} · by {resolveName(entry.recordedBy, housemates)}
+            {formatDateDDMMYYYY(entry.date)} · by {resolveName(entry.recordedBy, housemates)}
           </Text>
         </View>
         <Pressable
@@ -365,7 +362,7 @@ function AddEntryForm({
       );
       onClose();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : t('condition.failed_save'));
+      setSaveError(getErrorMessage(err, t('condition.failed_save')));
       setIsSaving(false);
     }
   }, [finalArea, condition, type, description, recordedBy, date, photos, add, onClose, houseId, t]);

@@ -12,6 +12,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { getErrorMessage } from '@utils/errors';
 
 type Step = 'email' | 'code';
 
@@ -110,7 +111,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       await signOut();
       setDone(true);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
+      const msg = getErrorMessage(err, '');
       if (msg.toLowerCase().includes('token') || msg.toLowerCase().includes('otp')) {
         setError(t('auth.invalid_expired_code'));
       } else {

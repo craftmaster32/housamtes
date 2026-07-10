@@ -13,6 +13,12 @@ export function monthNameFromKey(monthKey: string, locale: string): string {
     .toUpperCase();
 }
 
+/** "2026-07-03" → "03/07/2026". For DB date-only strings (always zero-padded ISO). */
+export function formatDateDDMMYYYY(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 export function localizedMonthLabel(monthKey: string, locale: string): string {
   const [y, m] = monthKey.split('-');
   return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(locale, {

@@ -34,6 +34,7 @@ import type { Bill } from '@stores/billsStore';
 import type { Housemate } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { getErrorMessage } from '@utils/errors';
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 function isSameDay(d: Date, ref: Date): boolean {
@@ -224,7 +225,7 @@ function PersonalDetailsForm({
         return;
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save. Please try again.');
+      setError(getErrorMessage(err, 'Could not save. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -314,7 +315,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
       await changePassword(parsed.data.currentPassword, parsed.data.newPassword);
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update password. Please try again.');
+      setError(getErrorMessage(err, 'Could not update password. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -728,10 +729,7 @@ export default function ProfileScreen(): React.JSX.Element {
         // Refresh housemates so the new avatar appears everywhere (stack, members screen, drawer)
         if (houseId) loadHousemates(houseId).catch(() => {});
       } catch (err) {
-        Alert.alert(
-          'Upload failed',
-          err instanceof Error ? err.message : 'Could not upload photo.'
-        );
+        Alert.alert('Upload failed', getErrorMessage(err, 'Could not upload photo.'));
       } finally {
         setUploading(false);
       }
@@ -783,10 +781,7 @@ export default function ProfileScreen(): React.JSX.Element {
       try {
         await uploadAvatar(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
       } catch (err) {
-        Alert.alert(
-          'Upload failed',
-          err instanceof Error ? err.message : 'Could not upload photo.'
-        );
+        Alert.alert('Upload failed', getErrorMessage(err, 'Could not upload photo.'));
       } finally {
         setUploading(false);
       }
@@ -813,10 +808,7 @@ export default function ProfileScreen(): React.JSX.Element {
     try {
       await uploadCover(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
     } catch (err) {
-      Alert.alert(
-        'Upload failed',
-        err instanceof Error ? err.message : 'Could not upload cover photo.'
-      );
+      Alert.alert('Upload failed', getErrorMessage(err, 'Could not upload cover photo.'));
     } finally {
       setUploadingCover(false);
     }
@@ -833,10 +825,7 @@ export default function ProfileScreen(): React.JSX.Element {
         onPress: async () => {
           setUploadingCover(true);
           await removeCover().catch((err: unknown) => {
-            Alert.alert(
-              'Error',
-              err instanceof Error ? err.message : 'Could not remove cover photo.'
-            );
+            Alert.alert('Error', getErrorMessage(err, 'Could not remove cover photo.'));
           });
           setUploadingCover(false);
         },
@@ -874,7 +863,7 @@ export default function ProfileScreen(): React.JSX.Element {
         onPress: async () => {
           setUploading(true);
           await removeAvatar().catch((err: unknown) => {
-            Alert.alert('Error', err instanceof Error ? err.message : 'Could not remove photo.');
+            Alert.alert('Error', getErrorMessage(err, 'Could not remove photo.'));
           });
           setUploading(false);
         },
@@ -909,9 +898,7 @@ export default function ProfileScreen(): React.JSX.Element {
                     } catch (err) {
                       Alert.alert(
                         'Error',
-                        err instanceof Error
-                          ? err.message
-                          : 'Could not delete account. Please try again.'
+                        getErrorMessage(err, 'Could not delete account. Please try again.')
                       );
                     }
                   },

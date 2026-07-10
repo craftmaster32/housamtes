@@ -23,6 +23,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { getErrorMessage } from '@utils/errors';
 
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
 
@@ -106,7 +107,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setHouseId(house.id);
     } catch (err) {
       captureError(err, { context: 'house-create', userId: user?.id ?? '' });
-      setError(err instanceof Error ? err.message : t('house_setup.failed_create'));
+      setError(getErrorMessage(err, t('house_setup.failed_create')));
       setIsLoading(false);
     }
   }, [houseName, user, setHouseId, t]);
@@ -153,7 +154,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setShowConfirm(true);
     } catch (err) {
       captureError(err, { context: 'house-find', userId: user?.id ?? '' });
-      setError(err instanceof Error ? err.message : t('house_setup.failed_join'));
+      setError(getErrorMessage(err, t('house_setup.failed_join')));
     } finally {
       setIsLoading(false);
     }
@@ -215,7 +216,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
         houseId: pendingHouse?.id ?? '',
         userId: user?.id ?? '',
       });
-      setError(err instanceof Error ? err.message : t('house_setup.failed_join'));
+      setError(getErrorMessage(err, t('house_setup.failed_join')));
       setShowConfirm(false);
       setIsLoading(false);
     }

@@ -3,7 +3,6 @@ import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
-import { parseISO, format } from 'date-fns';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
@@ -21,12 +20,10 @@ import { PhotoPicker } from '@components/shared/PhotoPicker';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
+import { formatDateDDMMYYYY } from '@utils/dates';
 
 type FilterType = 'all' | EntryType;
-
-function formatDate(dateStr: string): string {
-  return format(parseISO(dateStr), 'dd/MM/yyyy');
-}
 
 function getAreaIcon(area: string): string {
   return PRESET_AREAS.find((a) => a.label === area)?.icon ?? '📝';
@@ -59,7 +56,8 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
             </View>
           </View>
           <Text style={styles.entryDate}>
-            {formatDate(entry.date)} · {t('common.by')} {resolveName(entry.recordedBy, housemates)}
+            {formatDateDDMMYYYY(entry.date)} · {t('common.by')}{' '}
+            {resolveName(entry.recordedBy, housemates)}
           </Text>
         </View>
         <Pressable
@@ -135,7 +133,7 @@ function AddEntryForm({
       );
       onClose();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : t('condition.failed_save'));
+      setSaveError(getErrorMessage(err, t('condition.failed_save')));
       setIsSaving(false);
     }
   }, [finalArea, condition, type, description, recordedBy, date, photos, add, onClose, houseId, t]);
