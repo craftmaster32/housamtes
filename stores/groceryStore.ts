@@ -78,6 +78,7 @@ interface GroceryStore {
   items: GroceryItem[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   activeRun: ShoppingRun | null;
   savedLists: GroceryList[];
   isLoadingLists: boolean;
@@ -199,6 +200,7 @@ export const useGroceryStore = create<GroceryStore>()(
       items: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       activeRun: null,
       savedLists: [],
       isLoadingLists: false,

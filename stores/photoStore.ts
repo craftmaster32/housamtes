@@ -41,6 +41,8 @@ export function storagePathFromUrl(url: string): string | null {
 interface PhotoStore {
   photos: Photo[];
   isLoading: boolean;
+  error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   upload: (params: {
@@ -65,6 +67,8 @@ export const usePhotoStore = create<PhotoStore>()(
     (set, get) => ({
       photos: [],
       isLoading: true,
+      error: null,
+      clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[photos] house ID mismatch — aborting load');
@@ -109,10 +113,10 @@ export const usePhotoStore = create<PhotoStore>()(
               createdAt: r.created_at,
             };
           });
-          set({ photos, isLoading: false });
+          set({ photos, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'photos', houseId });
-          set({ isLoading: false });
+          set({ isLoading: false, error: 'Could not load photos. Please try again.' });
         }
 
         if (_channel) {

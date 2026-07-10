@@ -33,6 +33,7 @@ interface VotingStore {
   proposals: Proposal[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addProposal: (
@@ -79,6 +80,7 @@ export const useVotingStore = create<VotingStore>()(
       proposals: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[voting] house ID mismatch — aborting load');

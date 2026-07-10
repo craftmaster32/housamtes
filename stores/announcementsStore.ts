@@ -15,6 +15,7 @@ interface AnnouncementsStore {
   items: Announcement[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   post: (text: string, authorUserId: string, houseId: string) => Promise<void>;
@@ -29,6 +30,7 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
       items: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[announcements] house ID mismatch — aborting load');

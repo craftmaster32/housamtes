@@ -47,6 +47,7 @@ interface EventsStore {
   events: HouseEvent[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addEvent: (payload: AddEventPayload) => Promise<string>;
@@ -78,6 +79,7 @@ export const useEventsStore = create<EventsStore>()(
       events: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
 
       load: async (houseId: string): Promise<void> => {
         try {

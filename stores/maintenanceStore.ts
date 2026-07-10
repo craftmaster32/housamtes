@@ -21,9 +21,13 @@ interface MaintenanceStore {
   requests: MaintenanceRequest[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  add: (data: Omit<MaintenanceRequest, 'id' | 'createdAt' | 'resolvedAt'>, houseId: string) => Promise<void>;
+  add: (
+    data: Omit<MaintenanceRequest, 'id' | 'createdAt' | 'resolvedAt'>,
+    houseId: string
+  ) => Promise<void>;
   updateStatus: (id: string, status: MaintenanceStatus) => Promise<void>;
   remove: (id: string) => Promise<void>;
 }
@@ -36,6 +40,7 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
       requests: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[maintenance] house ID mismatch — aborting load');
@@ -61,18 +66,36 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
           set({ requests, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'maintenance', houseId });
-          set({ isLoading: false, error: 'Could not load maintenance requests. Please try again.' });
+          set({
+            isLoading: false,
+            error: 'Could not load maintenance requests. Please try again.',
+          });
         }
 
-        if (_channel) { supabase.removeChannel(_channel); }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
         _channel = supabase
           .channel(`maintenance:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'maintenance_requests', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'maintenance_requests',
+              filter: `house_id=eq.${houseId}`,
+            },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+        }
       },
       add: async (data, houseId): Promise<void> => {
         const { data: inserted, error } = await supabase

@@ -32,6 +32,7 @@ interface RecurringBillsStore {
   payments: HouseholdPayment[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addBill: (
@@ -52,6 +53,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
       payments: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[recurring-bills] house ID mismatch — aborting load');

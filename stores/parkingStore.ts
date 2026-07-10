@@ -45,6 +45,7 @@ interface ParkingStore {
   reservations: ParkingReservation[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   claim: (userId: string, displayName: string, houseId: string) => Promise<void>;
@@ -221,6 +222,7 @@ export const useParkingStore = create<ParkingStore>()(
       reservations: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[parking] house ID mismatch — aborting load');

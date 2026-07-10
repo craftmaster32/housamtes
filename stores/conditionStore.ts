@@ -23,6 +23,7 @@ interface ConditionStore {
   entries: ConditionEntry[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   add: (entry: Omit<ConditionEntry, 'id' | 'createdAt'>, houseId: string) => Promise<void>;
@@ -37,6 +38,7 @@ export const useConditionStore = create<ConditionStore>()(
       entries: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[condition] house ID mismatch — aborting load');
@@ -66,15 +68,30 @@ export const useConditionStore = create<ConditionStore>()(
           set({ isLoading: false, error: 'Could not load condition entries. Please try again.' });
         }
 
-        if (_channel) { supabase.removeChannel(_channel); }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
         _channel = supabase
           .channel(`condition:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'condition_entries', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'condition_entries',
+              filter: `house_id=eq.${houseId}`,
+            },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+        }
       },
       add: async (data, houseId): Promise<void> => {
         const { data: inserted, error } = await supabase
@@ -91,7 +108,10 @@ export const useConditionStore = create<ConditionStore>()(
           })
           .select()
           .single();
-        if (error) { captureError(error, { context: 'add-condition-entry', houseId }); throw new Error('Could not save the entry. Please try again.'); }
+        if (error) {
+          captureError(error, { context: 'add-condition-entry', houseId });
+          throw new Error('Could not save the entry. Please try again.');
+        }
         const entry: ConditionEntry = {
           id: inserted.id,
           area: inserted.area,
@@ -107,7 +127,10 @@ export const useConditionStore = create<ConditionStore>()(
       },
       remove: async (id): Promise<void> => {
         const { error } = await supabase.from('condition_entries').delete().eq('id', id);
-        if (error) { captureError(error, { context: 'delete-condition-entry', entryId: id }); throw new Error('Could not delete the entry. Please try again.'); }
+        if (error) {
+          captureError(error, { context: 'delete-condition-entry', entryId: id });
+          throw new Error('Could not delete the entry. Please try again.');
+        }
         set({ entries: get().entries.filter((e) => e.id !== id) });
       },
     }),
@@ -128,7 +151,10 @@ export const PRESET_AREAS = [
   { label: 'Other', icon: '📝' },
 ];
 
-export const CONDITION_CONFIG: Record<ConditionLevel, { label: string; color: string; icon: string }> = {
+export const CONDITION_CONFIG: Record<
+  ConditionLevel,
+  { label: string; color: string; icon: string }
+> = {
   good: { label: 'Good', color: '#22c55e', icon: '✅' },
   fair: { label: 'Fair', color: '#f59e0b', icon: '⚠️' },
   poor: { label: 'Poor / Damaged', color: '#ef4444', icon: '❌' },

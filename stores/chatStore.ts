@@ -16,11 +16,17 @@ interface ChatStore {
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   unreadCount: number;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   markRead: () => void;
-  send: (text: string, senderUserId: string, senderDisplayName: string, houseId: string) => Promise<void>;
+  send: (
+    text: string,
+    senderUserId: string,
+    senderDisplayName: string,
+    houseId: string
+  ) => Promise<void>;
   remove: (id: string) => Promise<void>;
 }
 
@@ -41,6 +47,7 @@ export const useChatStore = create<ChatStore>()(
       messages: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       unreadCount: 0,
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
@@ -62,10 +69,19 @@ export const useChatStore = create<ChatStore>()(
         }
 
         // Real-time: append new messages directly (no re-fetch to keep chat snappy)
-        if (_channel) { supabase.removeChannel(_channel); }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
         _channel = supabase
           .channel(`chat:${houseId}`)
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `house_id=eq.${houseId}` },
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'chat_messages',
+              filter: `house_id=eq.${houseId}`,
+            },
             (payload) => {
               const msg = mapRow(payload.new as Record<string, unknown>);
               if (get().messages.some((m) => m.id === msg.id)) return;
@@ -73,16 +89,28 @@ export const useChatStore = create<ChatStore>()(
                 messages: [...get().messages, msg].slice(-200),
                 unreadCount: get().unreadCount + 1,
               });
-            })
-          .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages', filter: `house_id=eq.${houseId}` },
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'DELETE',
+              schema: 'public',
+              table: 'chat_messages',
+              filter: `house_id=eq.${houseId}`,
+            },
             (payload) => {
               const id = (payload.old as Record<string, unknown>).id as string;
               set({ messages: get().messages.filter((m) => m.id !== id) });
-            })
+            }
+          )
           .subscribe();
       },
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+        }
       },
       markRead: (): void => {
         set({ unreadCount: 0 });

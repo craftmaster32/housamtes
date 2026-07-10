@@ -6,23 +6,23 @@ import { useAuthStore } from '@stores/authStore';
 
 // ── Category metadata ──────────────────────────────────────────────────────────
 export const CATEGORY_META: Record<string, { icon: string; color: string }> = {
-  rent:           { icon: '🏠', color: '#8B5CF6' },
-  electricity:    { icon: '⚡', color: '#F59E0B' },
-  water:          { icon: '💧', color: '#3B6FBF' },
-  internet:       { icon: '📶', color: '#06B6D4' },
-  gas:            { icon: '🔥', color: '#EF4444' },
-  tax:            { icon: '🏛️', color: '#6366F1' },
-  taxes:          { icon: '🏛️', color: '#6366F1' },
-  insurance:      { icon: '🛡️', color: '#7C3AED' },
-  arnona:         { icon: '🏛️', color: '#6366F1' },
-  groceries:      { icon: '🛒', color: '#4FB071' },
-  shopping:       { icon: '🛍️', color: '#10B981' },
+  rent: { icon: '🏠', color: '#8B5CF6' },
+  electricity: { icon: '⚡', color: '#F59E0B' },
+  water: { icon: '💧', color: '#3B6FBF' },
+  internet: { icon: '📶', color: '#06B6D4' },
+  gas: { icon: '🔥', color: '#EF4444' },
+  tax: { icon: '🏛️', color: '#6366F1' },
+  taxes: { icon: '🏛️', color: '#6366F1' },
+  insurance: { icon: '🛡️', color: '#7C3AED' },
+  arnona: { icon: '🏛️', color: '#6366F1' },
+  groceries: { icon: '🛒', color: '#4FB071' },
+  shopping: { icon: '🛍️', color: '#10B981' },
   'outside food': { icon: '🍕', color: '#E0B24D' },
-  food:           { icon: '🍕', color: '#E0B24D' },
-  transport:      { icon: '🚗', color: '#64748B' },
-  entertainment:  { icon: '🎉', color: '#EC4899' },
-  health:         { icon: '🏥', color: '#10B981' },
-  other:          { icon: '📦', color: '#8D8F8F' },
+  food: { icon: '🍕', color: '#E0B24D' },
+  transport: { icon: '🚗', color: '#64748B' },
+  entertainment: { icon: '🎉', color: '#EC4899' },
+  health: { icon: '🏥', color: '#10B981' },
+  other: { icon: '📦', color: '#8D8F8F' },
 };
 
 function categoryMeta(name: string): { icon: string; color: string } {
@@ -46,12 +46,12 @@ export interface DrillDownItem {
 }
 
 export interface MonthSpend {
-  month: string;          // "2026-03"
-  label: string;          // "Mar 2026"
-  total: number;          // logged-in user's share
-  houseTotal: number;     // full house spending
-  categories: CategorySpend[];       // user's share per category
-  houseCategories: CategorySpend[];  // house total per category
+  month: string; // "2026-03"
+  label: string; // "Mar 2026"
+  total: number; // logged-in user's share
+  houseTotal: number; // full house spending
+  categories: CategorySpend[]; // user's share per category
+  houseCategories: CategorySpend[]; // house total per category
   billsByCategory: Record<string, DrillDownItem[]>; // raw items per category for drill-down
 }
 
@@ -59,6 +59,7 @@ interface SpendingStore {
   months: MonthSpend[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   insight: string | null;
   insightError: string | null;
   insightLoading: boolean;
@@ -88,8 +89,10 @@ function toMonthKey(dateStr: string): string {
 
 function toMonthLabel(monthKey: string): string {
   const [y, m] = monthKey.split('-');
-  return new Date(Number(y), Number(m) - 1, 1)
-    .toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-GB', {
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function lastNMonths(n: number): string[] {
@@ -104,7 +107,10 @@ function lastNMonths(n: number): string[] {
 
 // Splits a recurring payment across the months it covers.
 // e.g. bimonthly payment paid on 2026-05-10 covers Apr + May → share = 0.5 each.
-function paymentMonthShares(paidAt: string, frequency: Frequency): Array<{ monthKey: string; share: number }> {
+function paymentMonthShares(
+  paidAt: string,
+  frequency: Frequency
+): Array<{ monthKey: string; share: number }> {
   const n = FREQ_MONTHS[frequency];
   const paid = new Date(paidAt + 'T00:00:00');
   const result: Array<{ monthKey: string; share: number }> = [];
@@ -122,7 +128,7 @@ function addToTally(
   tally: Map<string, Map<string, number>>,
   monthKey: string,
   cat: string,
-  amount: number,
+  amount: number
 ): void {
   if (!tally.has(monthKey)) tally.set(monthKey, new Map());
   tally.get(monthKey)!.set(cat, (tally.get(monthKey)!.get(cat) ?? 0) + amount);
@@ -162,7 +168,10 @@ async function readFunctionError(err: unknown): Promise<string | null> {
   const context = getErrorContext(err);
   if (!hasJsonBodyContext(context)) return null;
 
-  const payload = await context.clone().json().catch(() => null);
+  const payload = await context
+    .clone()
+    .json()
+    .catch(() => null);
   return getPayloadError(payload);
 }
 
@@ -187,6 +196,7 @@ export const useSpendingStore = create<SpendingStore>()(
       months: [],
       isLoading: false,
       error: null,
+      clearError: (): void => set({ error: null }),
       insight: null,
       insightError: null,
       insightLoading: false,
@@ -223,8 +233,8 @@ export const useSpendingStore = create<SpendingStore>()(
           if (billsRes.error) throw billsRes.error;
           if (paymentsRes.error) throw paymentsRes.error;
 
-          const tally       = new Map<string, Map<string, number>>();
-          const houseTally  = new Map<string, Map<string, number>>();
+          const tally = new Map<string, Map<string, number>>();
+          const houseTally = new Map<string, Map<string, number>>();
           const detailTally = new Map<string, Map<string, DrillDownItem[]>>();
 
           const addDetail = (mk: string, cat: string, item: DrillDownItem): void => {
@@ -237,12 +247,18 @@ export const useSpendingStore = create<SpendingStore>()(
           // ── One-off bills ──────────────────────────────────────────────────
           for (const b of billsRes.data ?? []) {
             const splits: string[] = Array.isArray(b.split_between) ? b.split_between : [];
-            const mk  = toMonthKey(b.date);
+            const mk = toMonthKey(b.date);
             const cat = (b.category as string | null)?.toLowerCase() ?? 'other';
             const amt = Number(b.amount);
 
             addToTally(houseTally, mk, cat, amt);
-            addDetail(mk, cat, { id: b.id, title: (b.title as string) || cat, amount: amt, date: b.date, type: 'bill' });
+            addDetail(mk, cat, {
+              id: b.id,
+              title: (b.title as string) || cat,
+              amount: amt,
+              date: b.date,
+              type: 'bill',
+            });
             if (currentUserId && splits.includes(currentUserId)) {
               addToTally(tally, mk, cat, amt / (splits.length || 1));
             }
@@ -258,11 +274,10 @@ export const useSpendingStore = create<SpendingStore>()(
             } | null;
             if (!rb) continue;
 
-            const freq: Frequency = rb.frequency in FREQ_MONTHS
-              ? (rb.frequency as Frequency)
-              : 'monthly';
-            const cat    = rb.name.toLowerCase();
-            const n      = FREQ_MONTHS[freq];
+            const freq: Frequency =
+              rb.frequency in FREQ_MONTHS ? (rb.frequency as Frequency) : 'monthly';
+            const cat = rb.name.toLowerCase();
+            const n = FREQ_MONTHS[freq];
             const shares = paymentMonthShares(p.paid_at, freq);
 
             for (const { monthKey, share } of shares) {
@@ -303,7 +318,15 @@ export const useSpendingStore = create<SpendingStore>()(
               }
             }
 
-            return { month: mk, label: toMonthLabel(mk), total, categories, houseTotal, houseCategories, billsByCategory };
+            return {
+              month: mk,
+              label: toMonthLabel(mk),
+              total,
+              categories,
+              houseTotal,
+              houseCategories,
+              billsByCategory,
+            };
           });
 
           set({ months, isLoading: false });
@@ -322,7 +345,8 @@ export const useSpendingStore = create<SpendingStore>()(
           state.insightCurrency === currency &&
           state.insightUser === userName &&
           state.insight
-        ) return;
+        )
+          return;
 
         set({ insightLoading: true, insightError: null, insight: null });
         try {

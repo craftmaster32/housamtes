@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 
 interface ProfilePopupStore {
   isOpen: boolean;
@@ -6,8 +7,13 @@ interface ProfilePopupStore {
   close: () => void;
 }
 
-export const useProfilePopupStore = create<ProfilePopupStore>()((set) => ({
-  isOpen: false,
-  open: (): void => set({ isOpen: true }),
-  close: (): void => set({ isOpen: false }),
-}));
+export const useProfilePopupStore = create<ProfilePopupStore>()(
+  devtools(
+    (set) => ({
+      isOpen: false,
+      open: (): void => set({ isOpen: true }),
+      close: (): void => set({ isOpen: false }),
+    }),
+    { name: 'profile-popup-store' }
+  )
+);
