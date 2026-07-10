@@ -19,7 +19,8 @@ function timeAgo(iso: string): string {
   return `${days} days ago`;
 }
 
-const makeStyles = (C: ColorTokens) => StyleSheet.create({
+const makeStyles = (C: ColorTokens) =>
+  StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
@@ -28,19 +29,50 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
     headingSub: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, marginTop: 2 },
 
-    addBtn: { borderWidth: 2, borderColor: C.primary + '40', borderStyle: 'dashed', borderRadius: 14, paddingVertical: sizes.md, alignItems: 'center' },
+    addBtn: {
+      borderWidth: 2,
+      borderColor: C.primary + '40',
+      borderStyle: 'dashed',
+      borderRadius: 14,
+      paddingVertical: sizes.md,
+      alignItems: 'center',
+    },
     addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
 
-    card: { backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, gap: sizes.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    card: {
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      padding: sizes.md,
+      gap: sizes.sm,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
     cardClosed: { opacity: 0.75 },
     cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
     cardInfo: { flex: 1, gap: 2 },
     cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
     cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
-    cardDescription: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, lineHeight: 20 },
-    openBadge: { backgroundColor: C.primary + '15', borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 3 },
+    cardDescription: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: 20,
+    },
+    openBadge: {
+      backgroundColor: C.primary + '15',
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: 3,
+    },
     openBadgeText: { fontSize: sizes.fontXs, color: C.primary, ...font.bold },
-    resultBadge: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 3 },
+    resultBadge: {
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: 3,
+    },
     resultBadgeText: { fontSize: sizes.fontXs, ...font.bold },
     removeBtn: { padding: 4 },
     removeBtnText: { color: C.textDisabled, fontSize: sizes.fontSm },
@@ -49,22 +81,45 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     tallyItem: { width: 32, alignItems: 'center', gap: 1 },
     tallyNum: { fontSize: sizes.fontLg, ...font.extrabold, lineHeight: 22 },
     tallyLabel: { fontSize: 10, color: C.textSecondary, ...font.semibold },
-    tallyBar: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: C.border, flexDirection: 'row' },
+    tallyBar: {
+      flex: 1,
+      height: 10,
+      borderRadius: 5,
+      overflow: 'hidden',
+      backgroundColor: C.border,
+      flexDirection: 'row',
+    },
     tallyFillYes: { backgroundColor: C.positive, minWidth: 1 },
     tallyFillNo: { backgroundColor: C.negative, minWidth: 1 },
     tallyMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
 
     voteRow: { flexDirection: 'row', gap: sizes.sm, flexWrap: 'wrap' },
-    voteBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadiusFull, borderWidth: 2 },
+    voteBtn: {
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 2,
+    },
     voteBtnYes: { borderColor: C.positive, backgroundColor: C.surface },
     voteBtnYesActive: { backgroundColor: C.positive },
     voteBtnNo: { borderColor: C.negative, backgroundColor: C.surface },
     voteBtnNoActive: { backgroundColor: C.negative },
     voteBtnText: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary },
     voteBtnTextActive: { color: '#fff' },
-    closeBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: sizes.borderRadiusFull, borderWidth: 1, borderColor: C.border },
+    closeBtn: {
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
     closeBtnText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.regular },
-    closeResultBtn: { borderRadius: 12, paddingVertical: sizes.sm, paddingHorizontal: sizes.md, alignItems: 'center' },
+    closeResultBtn: {
+      borderRadius: 12,
+      paddingVertical: sizes.sm,
+      paddingHorizontal: sizes.md,
+      alignItems: 'center',
+    },
     closeResultBtnPositive: { backgroundColor: C.positive },
     closeResultBtnText: { color: '#fff', fontSize: sizes.fontSm, ...font.bold },
     voteErrorText: { color: C.danger, fontSize: sizes.fontXs, ...font.regular },
@@ -72,20 +127,67 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
     voterList: { gap: 6 },
     voterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     voterName: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
-    voterChip: { borderRadius: sizes.borderRadiusFull, paddingHorizontal: sizes.sm, paddingVertical: 2, backgroundColor: C.border + '60' },
+    voterChip: {
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: 2,
+      backgroundColor: C.border + '60',
+    },
     voterChipYes: { backgroundColor: C.positive + '18' },
     voterChipNo: { backgroundColor: C.negative + '18' },
     voterChipText: { fontSize: sizes.fontXs, ...font.semibold },
 
-    form: { backgroundColor: C.surface, borderRadius: 16, padding: sizes.md, gap: sizes.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 },
+    form: {
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      padding: sizes.md,
+      gap: sizes.sm,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 2,
+    },
     formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
-    fieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
-    input: { backgroundColor: C.background, borderRadius: sizes.borderRadiusSm, borderWidth: 1, borderColor: C.border, paddingHorizontal: sizes.sm, paddingVertical: sizes.sm, fontSize: sizes.fontMd, color: C.textPrimary, ...font.regular },
+    fieldLabel: {
+      fontSize: 12,
+      ...font.semibold,
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    input: {
+      backgroundColor: C.background,
+      borderRadius: sizes.borderRadiusSm,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: sizes.sm,
+      fontSize: sizes.fontMd,
+      color: C.textPrimary,
+      ...font.regular,
+    },
     inputMultiline: { height: 80, textAlignVertical: 'top' },
-    formActions: { flexDirection: 'row', gap: sizes.sm, justifyContent: 'flex-end', marginTop: sizes.xs },
-    cancelBtn: { paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+    formActions: {
+      flexDirection: 'row',
+      gap: sizes.sm,
+      justifyContent: 'flex-end',
+      marginTop: sizes.xs,
+    },
+    cancelBtn: {
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
     cancelBtnText: { color: C.textSecondary, ...font.medium },
-    saveBtn: { backgroundColor: C.primary, paddingHorizontal: sizes.md, paddingVertical: sizes.sm, borderRadius: 12 },
+    saveBtn: {
+      backgroundColor: C.primary,
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: 12,
+    },
     saveBtnDisabled: { backgroundColor: C.textDisabled },
     saveBtnText: { color: '#fff', ...font.semibold },
     saveError: { color: C.danger, fontSize: 13, ...font.regular },
@@ -95,11 +197,22 @@ const makeStyles = (C: ColorTokens) => StyleSheet.create({
 
     emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
     emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
-    emptyText: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, textAlign: 'center' },
+    emptyText: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+    },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-    errorBanner: { backgroundColor: C.danger + '15', borderRadius: 10, padding: sizes.sm, borderWidth: 1, borderColor: C.danger + '40' },
+    errorBanner: {
+      backgroundColor: C.danger + '15',
+      borderRadius: 10,
+      padding: sizes.sm,
+      borderWidth: 1,
+      borderColor: C.danger + '40',
+    },
     errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.danger },
-});
+  });
 
 function ProposalCard({
   proposal,
@@ -139,10 +252,13 @@ function ProposalCard({
   const result = !proposal.isOpen ? voteSummary.result : null;
 
   const resultColor =
-    result === 'passed' ? C.positive :
-    result === 'rejected' ? C.negative :
-    result === 'blocked' ? C.warning :
-    C.textSecondary;
+    result === 'passed'
+      ? C.positive
+      : result === 'rejected'
+        ? C.negative
+        : result === 'blocked'
+          ? C.warning
+          : C.textSecondary;
 
   return (
     <View style={[styles.card, !proposal.isOpen && styles.cardClosed]}>
@@ -150,7 +266,8 @@ function ProposalCard({
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle}>{proposal.title}</Text>
           <Text style={styles.cardMeta}>
-            {t('voting.proposed_by', { name: resolveName(proposal.createdBy, housemates) })} · {timeAgo(proposal.createdAt)}
+            {t('voting.proposed_by', { name: resolveName(proposal.createdBy, housemates) })} ·{' '}
+            {timeAgo(proposal.createdAt)}
           </Text>
         </View>
         {proposal.isOpen ? (
@@ -160,12 +277,23 @@ function ProposalCard({
         ) : (
           <View style={[styles.resultBadge, { backgroundColor: resultColor + '18' }]}>
             <Text style={[styles.resultBadgeText, { color: resultColor }]}>
-              {result === 'passed' ? t('voting.passed') : result === 'rejected' ? t('voting.rejected') : t('voting.blocked')}
+              {result === 'passed'
+                ? t('voting.passed')
+                : result === 'rejected'
+                  ? t('voting.rejected')
+                  : t('voting.blocked')}
             </Text>
           </View>
         )}
         {myId === proposal.createdBy && (
-          <Pressable onPress={() => remove(proposal.id)} style={styles.removeBtn}>
+          <Pressable
+            onPress={() => remove(proposal.id)}
+            style={styles.removeBtn}
+            hitSlop={12}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={`${t('common.delete')}: ${proposal.title}`}
+          >
             <Text style={styles.removeBtnText}>✕</Text>
           </Pressable>
         )}
@@ -181,13 +309,13 @@ function ProposalCard({
           <Text style={styles.tallyLabel}>Yes</Text>
         </View>
         <View style={styles.tallyBar}>
-          {totalVoted > 0 && (
-            <View style={[styles.tallyFillYes, { flex: yesVotes }]} />
-          )}
+          {totalVoted > 0 && <View style={[styles.tallyFillYes, { flex: yesVotes }]} />}
           {totalVoted > 0 && noVotes > 0 && (
             <View style={[styles.tallyFillNo, { flex: noVotes }]} />
           )}
-          {totalVoted === 0 && <View style={{ flex: 1, backgroundColor: C.border, borderRadius: 4 }} />}
+          {totalVoted === 0 && (
+            <View style={{ flex: 1, backgroundColor: C.border, borderRadius: 4 }} />
+          )}
         </View>
         <View style={styles.tallyItem}>
           <Text style={[styles.tallyNum, { color: C.negative }]}>{noVotes}</Text>
@@ -195,7 +323,9 @@ function ProposalCard({
         </View>
       </View>
 
-      <Text style={styles.tallyMeta}>{t('voting.voted_count', { voted: totalVoted, total: totalPeople })}</Text>
+      <Text style={styles.tallyMeta}>
+        {t('voting.voted_count', { voted: totalVoted, total: totalPeople })}
+      </Text>
 
       <View style={styles.voterList}>
         {housemates.map((hm) => {
@@ -205,17 +335,23 @@ function ProposalCard({
               <Text style={styles.voterName}>{hm.name}</Text>
               {vote?.choice === 'yes' && (
                 <View style={[styles.voterChip, styles.voterChipYes]}>
-                  <Text style={[styles.voterChipText, { color: C.positive }]}>{t('voting.yes')}</Text>
+                  <Text style={[styles.voterChipText, { color: C.positive }]}>
+                    {t('voting.yes')}
+                  </Text>
                 </View>
               )}
               {vote?.choice === 'no' && (
                 <View style={[styles.voterChip, styles.voterChipNo]}>
-                  <Text style={[styles.voterChipText, { color: C.negative }]}>{t('voting.no')}</Text>
+                  <Text style={[styles.voterChipText, { color: C.negative }]}>
+                    {t('voting.no')}
+                  </Text>
                 </View>
               )}
               {!vote && (
                 <View style={styles.voterChip}>
-                  <Text style={[styles.voterChipText, { color: C.textDisabled }]}>{t('voting.waiting')}</Text>
+                  <Text style={[styles.voterChipText, { color: C.textDisabled }]}>
+                    {t('voting.waiting')}
+                  </Text>
                 </View>
               )}
             </View>
@@ -227,19 +363,31 @@ function ProposalCard({
         <>
           <View style={styles.voteRow}>
             <Pressable
-              style={[styles.voteBtn, styles.voteBtnYes, myVote === 'yes' && styles.voteBtnYesActive]}
+              style={[
+                styles.voteBtn,
+                styles.voteBtnYes,
+                myVote === 'yes' && styles.voteBtnYesActive,
+              ]}
               onPress={() => handleVote('yes')}
+              accessible
+              accessibilityRole="radio"
+              accessibilityLabel={t('voting.yes_label')}
+              accessibilityState={{ selected: myVote === 'yes' }}
             >
               <Text style={[styles.voteBtnText, myVote === 'yes' && styles.voteBtnTextActive]}>
-                👍 Yes
+                {t('voting.yes_vote')}
               </Text>
             </Pressable>
             <Pressable
               style={[styles.voteBtn, styles.voteBtnNo, myVote === 'no' && styles.voteBtnNoActive]}
               onPress={() => handleVote('no')}
+              accessible
+              accessibilityRole="radio"
+              accessibilityLabel={t('voting.no_label')}
+              accessibilityState={{ selected: myVote === 'no' }}
             >
               <Text style={[styles.voteBtnText, myVote === 'no' && styles.voteBtnTextActive]}>
-                👎 No
+                {t('voting.no_vote')}
               </Text>
             </Pressable>
           </View>
@@ -251,7 +399,9 @@ function ProposalCard({
               accessibilityRole="button"
               accessibilityState={{ disabled: false }}
             >
-              <Text style={styles.closeResultBtnText}>{t('voting.everyoneAgreedCloseApprove')}</Text>
+              <Text style={styles.closeResultBtnText}>
+                {t('voting.everyoneAgreedCloseApprove')}
+              </Text>
             </Pressable>
           ) : myId === proposal.createdBy ? (
             <Pressable
@@ -271,7 +421,15 @@ function ProposalCard({
   );
 }
 
-function AddProposalForm({ onClose, createdBy, houseId }: { onClose: () => void; createdBy: string; houseId: string }): React.JSX.Element {
+function AddProposalForm({
+  onClose,
+  createdBy,
+  houseId,
+}: {
+  onClose: () => void;
+  createdBy: string;
+  houseId: string;
+}): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -305,6 +463,9 @@ function AddProposalForm({ onClose, createdBy, houseId }: { onClose: () => void;
         onChangeText={setTitle}
         placeholder={t('voting.proposal_placeholder')}
         placeholderTextColor={C.textDisabled}
+        maxLength={100}
+        accessibilityLabel={t('voting.proposal_placeholder')}
+        accessibilityHint={t('voting.proposal_placeholder')}
       />
 
       <Text style={styles.fieldLabel}>{t('voting.context_label')}</Text>
@@ -316,20 +477,37 @@ function AddProposalForm({ onClose, createdBy, houseId }: { onClose: () => void;
         placeholderTextColor={C.textDisabled}
         multiline
         numberOfLines={3}
+        maxLength={1000}
+        accessibilityLabel={t('voting.context_label')}
+        accessibilityHint={t('voting.context_placeholder')}
       />
 
       {!!saveError && <Text style={styles.saveError}>{saveError}</Text>}
 
       <View style={styles.formActions}>
-        <Pressable style={styles.cancelBtn} onPress={onClose} disabled={isSaving}>
+        <Pressable
+          style={styles.cancelBtn}
+          onPress={onClose}
+          disabled={isSaving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
+          accessibilityState={{ disabled: isSaving }}
+        >
           <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
         </Pressable>
         <Pressable
           style={[styles.saveBtn, (!title.trim() || isSaving) && styles.saveBtnDisabled]}
           onPress={handleSave}
-          disabled={isSaving}
+          disabled={!title.trim() || isSaving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('voting.post_proposal')}
+          accessibilityState={{ disabled: !title.trim() || isSaving }}
         >
-          <Text style={styles.saveBtnText}>{isSaving ? t('voting.posting') : t('voting.post_proposal')}</Text>
+          <Text style={styles.saveBtnText}>
+            {isSaving ? t('voting.posting') : t('voting.post_proposal')}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -379,7 +557,6 @@ export default function VotingScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <ScrollView contentContainerStyle={styles.scroll}>
-
           {!!error && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorBannerText}>{error}</Text>
@@ -394,7 +571,13 @@ export default function VotingScreen(): React.JSX.Element {
           {showForm ? (
             <AddProposalForm onClose={handleCloseForm} createdBy={myId} houseId={houseId ?? ''} />
           ) : (
-            <Pressable style={styles.addBtn} onPress={handleOpenForm}>
+            <Pressable
+              style={styles.addBtn}
+              onPress={handleOpenForm}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('voting.new_proposal')}
+            >
               <Text style={styles.addBtnText}>{t('voting.new_proposal')}</Text>
             </Pressable>
           )}
@@ -412,17 +595,24 @@ export default function VotingScreen(): React.JSX.Element {
 
           {closed.length > 0 && (
             <>
-              <Pressable style={styles.closedToggle} onPress={toggleShowClosed}>
+              <Pressable
+                style={styles.closedToggle}
+                onPress={toggleShowClosed}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`${t('voting.past_votes')} (${closed.length})`}
+                accessibilityState={{ expanded: showClosed }}
+              >
                 <Text style={styles.closedToggleText}>
                   {showClosed ? '▲' : '▼'} {t('voting.past_votes')} ({closed.length})
                 </Text>
               </Pressable>
-              {showClosed && closed.map((p) => (
-                <ProposalCard key={p.id} proposal={p} myId={myId} totalPeople={totalPeople} />
-              ))}
+              {showClosed &&
+                closed.map((p) => (
+                  <ProposalCard key={p.id} proposal={p} myId={myId} totalPeople={totalPeople} />
+                ))}
             </>
           )}
-
         </ScrollView>
       </Animated.View>
     </SafeAreaView>

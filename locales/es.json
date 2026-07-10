@@ -377,7 +377,8 @@
     "claim_parking_spot": "Tomar plaza de parking",
     "release_parking_spot": "Liberar plaza de parking",
     "view_parking": "Ver parking",
-    "has_note": "Tiene una nota"
+    "has_note": "Tiene una nota",
+    "load_error": "Algunas cosas no se cargaron. Revisa tu conexión y reintenta."
   },
   "bills": {
     "title": "Gastos",

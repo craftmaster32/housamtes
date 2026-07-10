@@ -192,3 +192,11 @@ export const groceryItemSchema = z.object({
   name: z.string().min(1, 'Item name is required').max(100).trim(),
   quantity: z.string().max(20).trim(),
 });
+
+export const maintenanceRequestSchema = z.object({
+  title: z.string().trim().min(1, 'Issue title is required').max(100),
+  description: z.string().trim().max(1000),
+  category: z.string().min(1, 'Category is required'),
+  reportedBy: z.string().min(1),
+  houseId: z.string().min(1),
+});

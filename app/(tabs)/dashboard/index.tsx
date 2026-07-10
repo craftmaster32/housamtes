@@ -47,6 +47,7 @@ import { SpendingCard } from '@components/profile/SpendingCard';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
+import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string, t: (key: string) => string): string {
@@ -1737,6 +1738,8 @@ export default function DashboardScreen(): React.JSX.Element {
               </Pressable>
             </View>
           </Animated.View>
+
+          <DashboardErrorBanner />
 
           {/* Quick actions */}
           <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.quickActions}>

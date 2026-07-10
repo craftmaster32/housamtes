@@ -377,7 +377,8 @@
     "claim_parking_spot": "תפוס חניה",
     "release_parking_spot": "שחרר חניה",
     "view_parking": "צפה בחניה",
-    "has_note": "יש הערה"
+    "has_note": "יש הערה",
+    "load_error": "חלק מהנתונים לא נטענו. בדקו את החיבור ונסו שוב."
   },
   "bills": {
     "title": "חשבונות",
