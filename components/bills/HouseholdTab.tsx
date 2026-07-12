@@ -20,6 +20,8 @@ import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
+import { formatDateDDMMYYYY } from '@utils/dates';
 
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
 
@@ -35,11 +37,6 @@ const BILL_ICON_LABELS: Record<string, string> = {
   '🌡️': 'Heating',
   '♻️': 'Waste',
 };
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-}
 
 function dueBadge(
   nextDue: string | null,
@@ -290,7 +287,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       <View style={styles.billStatus}>
         {last ? (
           <Text style={[styles.lastPaid, { color: c.textSecondary }]}>
-            {t('bills.household_last_paid')} {formatDate(last.paidAt)} · {currency}
+            {t('bills.household_last_paid')} {formatDateDDMMYYYY(last.paidAt)} · {currency}
             {last.amount.toFixed(0)}
           </Text>
         ) : (
@@ -367,7 +364,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
             >
               <Ionicons name="calendar-outline" size={15} color={c.primary} />
               <Text style={[styles.dateTriggerText, { color: c.textPrimary }]}>
-                {formatDate(date)}
+                {formatDateDDMMYYYY(date)}
               </Text>
             </Pressable>
           </View>
@@ -446,7 +443,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           {billPayments.map((p) => (
             <View key={p.id} style={styles.historyRow}>
               <Text style={[styles.historyDate, { color: c.textSecondary }]}>
-                {formatDate(p.paidAt)}
+                {formatDateDDMMYYYY(p.paidAt)}
               </Text>
               <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
                 {currency}
@@ -534,7 +531,7 @@ function AddBillForm({
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('bills.failed_save'));
+      setError(getErrorMessage(err, t('bills.failed_save')));
     } finally {
       setSaving(false);
     }
@@ -715,7 +712,7 @@ function AddBillForm({
         <Text
           style={[styles.dateTriggerText, { color: lastPaidDate ? c.textPrimary : c.textDisabled }]}
         >
-          {lastPaidDate ? formatDate(lastPaidDate) : t('bills.household_tap_select_date')}
+          {lastPaidDate ? formatDateDDMMYYYY(lastPaidDate) : t('bills.household_tap_select_date')}
         </Text>
       </Pressable>
       <DatePickerModal

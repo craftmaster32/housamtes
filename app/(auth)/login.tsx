@@ -14,6 +14,7 @@ import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { AuthIllustration } from '@components/shared/AuthIllustration';
+import { getErrorMessage } from '@utils/errors';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
@@ -102,7 +103,7 @@ export default function LoginScreen(): React.JSX.Element {
         startLockout();
         setError(t('auth.too_many_attempts', { n: LOCKOUT_SECONDS }));
       } else {
-        setError(err instanceof Error ? err.message : t('auth.sign_in_failed'));
+        setError(getErrorMessage(err, t('auth.sign_in_failed')));
       }
     }
   }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);

@@ -10,6 +10,7 @@ import { resolveName } from '@utils/housemates';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -447,7 +448,7 @@ function AddProposalForm({
       await addProposal(title.trim(), description.trim(), createdBy, houseId);
       onClose();
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : t('voting.failed_post'));
+      setSaveError(getErrorMessage(err, t('voting.failed_post')));
       setIsSaving(false);
     }
   }, [title, description, createdBy, houseId, addProposal, onClose, isSaving, t]);

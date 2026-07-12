@@ -31,7 +31,7 @@ if (Platform.OS === 'web') {
 }
 
 export type AppLanguage = 'en' | 'he' | 'es';
-export const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'he', 'es'];
+const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'he', 'es'];
 const LANGUAGE_STORAGE_KEY = 'housemates_language';
 
 /** Reads the persisted language choice; falls back to device locale then 'en'. */
@@ -61,7 +61,7 @@ export async function persistLanguage(lang: AppLanguage): Promise<void> {
   }
 }
 
-export const RTL_LANGUAGES: AppLanguage[] = ['he'];
+const RTL_LANGUAGES: AppLanguage[] = ['he'];
 export function isRTL(lang: AppLanguage): boolean {
   return RTL_LANGUAGES.includes(lang);
 }

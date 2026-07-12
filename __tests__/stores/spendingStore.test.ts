@@ -1,5 +1,5 @@
-import { useSpendingStore, type MonthSpend } from '../../stores/spendingStore';
-import { ok } from '../__helpers__/supabaseMock';
+import { useSpendingStore, type MonthSpend } from '@stores/spendingStore';
+import { ok, fail } from '../__helpers__/supabaseMock';
 
 const mockFrom = jest.fn();
 const mockInvoke = jest.fn();
@@ -125,5 +125,137 @@ describe('spendingStore', () => {
     expect(useSpendingStore.getState().insightError).toBe(
       'AI analysis is not connected yet. Add the Claude API key in Supabase secrets.'
     );
+  });
+  it('splits a bimonthly recurring payment across the two covered months', async () => {
+    mockFrom.mockImplementation((table: string): unknown => {
+      if (table === 'household_payments') {
+        return ok([
+          {
+            id: 'pay-1',
+            amount: 200,
+            paid_at: currentMonthDate(),
+            recurring_bills: { name: 'Water', assigned_to: 'user-1', frequency: 'bimonthly' },
+          },
+        ]);
+      }
+      return ok([]);
+    });
+
+    await useSpendingStore.getState().load('house-1', 'Lior');
+
+    const [current, previous] = useSpendingStore.getState().months;
+    // 200 over two months → 100 each, credited to the assignee (the current user).
+    expect(current.houseTotal).toBeCloseTo(100);
+    expect(current.total).toBeCloseTo(100);
+    expect(previous.houseTotal).toBeCloseTo(100);
+    expect(current.categories[0].name).toBe('water');
+    // Drill-down labels the slice so users understand the halved amount.
+    expect(current.billsByCategory['water'][0].title).toBe('Water (2-month split)');
+  });
+
+  it('does not credit recurring payments assigned to someone else to the user', async () => {
+    mockFrom.mockImplementation((table: string): unknown => {
+      if (table === 'household_payments') {
+        return ok([
+          {
+            id: 'pay-1',
+            amount: 300,
+            paid_at: currentMonthDate(),
+            recurring_bills: { name: 'Rent', assigned_to: 'user-2', frequency: 'monthly' },
+          },
+        ]);
+      }
+      return ok([]);
+    });
+
+    await useSpendingStore.getState().load('house-1', 'Lior');
+
+    const current = useSpendingStore.getState().months[0];
+    expect(current.houseTotal).toBeCloseTo(300);
+    expect(current.total).toBe(0);
+  });
+
+  it('sets a user-facing error when the load query fails', async () => {
+    mockFrom.mockImplementation(() => fail('db down'));
+
+    await useSpendingStore.getState().load('house-1', 'Lior');
+
+    const s = useSpendingStore.getState();
+    expect(s.isLoading).toBe(false);
+    expect(s.error).toBe('Failed to load spending data');
+  });
+
+  it('aborts the load when the house ID does not match auth', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await useSpendingStore.getState().load('another-house', 'Lior');
+
+    expect(mockFrom).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('reuses the cached insight for the same month, user and currency', async () => {
+    const current = month();
+    useSpendingStore.setState({
+      months: [current],
+      insight: 'Cached insight',
+      insightMonth: current.month,
+      insightCurrency: '$',
+      insightUser: 'Lior',
+    });
+
+    await useSpendingStore.getState().fetchInsight('house-1', 'Lior', '$');
+
+    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(useSpendingStore.getState().insight).toBe('Cached insight');
+  });
+
+  it('refetches the insight when the currency changes', async () => {
+    const current = month();
+    useSpendingStore.setState({
+      months: [current],
+      insight: 'Cached insight',
+      insightMonth: current.month,
+      insightCurrency: '$',
+      insightUser: 'Lior',
+    });
+    mockInvoke.mockResolvedValue({ data: { insight: 'Fresh in euros.' }, error: null });
+
+    await useSpendingStore.getState().fetchInsight('house-1', 'Lior', '\u20ac');
+
+    expect(mockInvoke).toHaveBeenCalled();
+    expect(useSpendingStore.getState().insight).toBe('Fresh in euros.');
+  });
+
+  it('shows the generic AI message when the function returns an empty insight', async () => {
+    useSpendingStore.setState({ months: [month()] });
+    mockInvoke.mockResolvedValue({ data: { insight: '   ' }, error: null });
+
+    await useSpendingStore.getState().fetchInsight('house-1', 'Lior', '$');
+
+    expect(useSpendingStore.getState().insight).toBeNull();
+    // Local errors that carry no recognised server reason fall back to the generic copy.
+    expect(useSpendingStore.getState().insightError).toBe(
+      'AI analysis is not available right now. Try again.'
+    );
+  });
+
+  it('maps rate-limit errors to a friendly busy message', async () => {
+    useSpendingStore.setState({ months: [month()] });
+    mockInvoke.mockResolvedValue({ data: null, error: new Error('rate limit exceeded') });
+
+    await useSpendingStore.getState().fetchInsight('house-1', 'Lior', '$');
+
+    expect(useSpendingStore.getState().insightError).toBe(
+      'AI analysis is busy right now. Try again in a minute.'
+    );
+  });
+
+  it('is a no-op when there is no spending data yet', async () => {
+    useSpendingStore.setState({ months: [] });
+
+    await useSpendingStore.getState().fetchInsight('house-1', 'Lior', '$');
+
+    expect(mockInvoke).not.toHaveBeenCalled();
   });
 });

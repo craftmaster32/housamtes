@@ -44,6 +44,7 @@ import { ReminderPromptBanner } from '@components/grocery/ReminderPromptBanner';
 import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
+import { getErrorMessage } from '@utils/errors';
 
 // ── Accent constants ───────────────────────────────────────────────────────────
 const SHOP_BORDER = 'rgba(191,219,254,0.7)';
@@ -716,7 +717,7 @@ export default function GroceryScreen(): React.JSX.Element {
       }
       setShowSaveListModal(true);
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : t('grocery.could_not_share'));
+      setAddError(getErrorMessage(err, t('grocery.could_not_share')));
     } finally {
       setIsPublishing(false);
     }
@@ -822,7 +823,7 @@ export default function GroceryScreen(): React.JSX.Element {
         setAddError(null);
         setPendingPublishedItems([]);
       } catch (err) {
-        setAddError(err instanceof Error ? err.message : t('grocery.could_not_save_list'));
+        setAddError(getErrorMessage(err, t('grocery.could_not_save_list')));
       }
     },
     [createSavedList, houseId, myId, myName, pendingPublishedItems, t]

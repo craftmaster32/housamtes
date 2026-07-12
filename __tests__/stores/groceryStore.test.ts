@@ -65,6 +65,10 @@ jest.mock('@lib/supabase', () => ({
   },
 }));
 
+jest.mock('@stores/authStore', () => ({
+  useAuthStore: { getState: (): { houseId: string } => ({ houseId: 'house-1' }) },
+}));
+
 jest.mock('@lib/notifyHousemates', () => ({
   notifyHousemates: jest.fn().mockResolvedValue(undefined),
 }));
@@ -136,6 +140,9 @@ beforeEach(() => {
     isLoadingReminders: false,
     remindersError: null,
   });
+  // Drop the module-level channel so every test subscribes fresh — the store
+  // now (correctly) keeps an existing channel across reloads for the same house.
+  useGroceryStore.getState().unsubscribe();
   capturedHandlers = {};
   mockFrom.mockReset();
   mockChannel.on.mockClear();

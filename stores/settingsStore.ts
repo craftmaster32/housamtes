@@ -2,10 +2,11 @@ import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type CurrencyCode, currencyFromSymbol } from '@constants/currencies';
+import type { ThemeMode } from '@constants/colors';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type { ThemeMode };
 
-export interface FeatureConfig {
+interface FeatureConfig {
   key: string;
   label: string;
   icon: string;
@@ -29,7 +30,7 @@ export const CURRENCIES: CurrencyOption[] = [
   { symbol: '¥', label: 'Japanese Yen (¥)' },
 ];
 
-export const DEFAULT_FEATURES: FeatureConfig[] = [
+const DEFAULT_FEATURES: FeatureConfig[] = [
   {
     key: 'parking',
     label: 'Parking',
@@ -126,9 +127,7 @@ export const useSettingsStore = create<SettingsStore>()(
 
         toggleFeature: (key: string): void => {
           set((s) => ({
-            features: s.features.map((f) =>
-              f.key === key ? { ...f, enabled: !f.enabled } : f
-            ),
+            features: s.features.map((f) => (f.key === key ? { ...f, enabled: !f.enabled } : f)),
           }));
         },
 
@@ -184,7 +183,8 @@ export const useSettingsStore = create<SettingsStore>()(
                 key: 'grocery_draft',
                 label: 'Grocery Draft Mode',
                 icon: '📝',
-                description: 'Privately compose your shopping list before sharing it with the house',
+                description:
+                  'Privately compose your shopping list before sharing it with the house',
                 enabled: true,
               };
               const features = [...(next.features ?? [])];

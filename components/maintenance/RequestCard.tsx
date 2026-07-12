@@ -6,6 +6,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
 import {
   useMaintenanceStore,
+  type MaintenanceRequest,
   MAINTENANCE_CATEGORIES,
   STATUS_LABELS,
   STATUS_COLORS,
@@ -15,8 +16,7 @@ import {
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
-
-type MaintenanceRequest = ReturnType<typeof useMaintenanceStore.getState>['requests'][0];
+import { getErrorMessage } from '@utils/errors';
 
 interface RequestCardProps {
   request: MaintenanceRequest;
@@ -121,7 +121,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({ request, myId }) => {
     try {
       await updateStatus(request.id, NEXT_STATUS[request.status]);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('maintenance.failed_save'));
+      setActionError(getErrorMessage(err, t('maintenance.failed_save')));
     }
   }, [request.id, request.status, updateStatus, t]);
 
@@ -130,7 +130,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({ request, myId }) => {
     try {
       await remove(request.id);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : t('maintenance.failed_save'));
+      setActionError(getErrorMessage(err, t('maintenance.failed_save')));
     }
   }, [request.id, remove, t]);
 

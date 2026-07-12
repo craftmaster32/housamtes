@@ -39,6 +39,7 @@ import { TimePicker } from '@components/shared/TimePicker';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
 
 function formatTime(iso: string, locale: string): string {
   return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
@@ -848,7 +849,7 @@ export default function ParkingScreen(): React.JSX.Element {
     try {
       await claim(myId, myName, houseId ?? '');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.failed_claim'));
+      setError(getErrorMessage(err, t('parking.failed_claim')));
     }
   }, [claim, myId, myName, houseId, t]);
 
@@ -857,7 +858,7 @@ export default function ParkingScreen(): React.JSX.Element {
     try {
       await release(houseId ?? '', myName);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('parking.failed_release'));
+      setError(getErrorMessage(err, t('parking.failed_release')));
     }
   }, [release, houseId, myName, t]);
 
@@ -894,7 +895,7 @@ export default function ParkingScreen(): React.JSX.Element {
         await cancelReservation(id, houseId ?? '');
         removeCalendarEvent(`pk-${id}`).catch(() => {});
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('parking.failed_cancel'));
+        setError(getErrorMessage(err, t('parking.failed_cancel')));
       }
     },
     [cancelReservation, houseId, removeCalendarEvent, t]
@@ -916,7 +917,7 @@ export default function ParkingScreen(): React.JSX.Element {
           }).catch(() => {});
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('parking.error_vote_failed'));
+        setError(getErrorMessage(err, t('parking.error_vote_failed')));
       }
     },
     [voteOnReservation, reservations, housemates, houseId, syncParkingApproved, t]
@@ -927,7 +928,7 @@ export default function ParkingScreen(): React.JSX.Element {
       try {
         await clearHistoryItem(id);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('parking.error_clear_failed'));
+        setError(getErrorMessage(err, t('parking.error_clear_failed')));
       }
     },
     [clearHistoryItem, t]
@@ -936,7 +937,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const handleClearAll = useCallback((): void => {
     const doDelete = (): void => {
       clearAllHistory(houseId ?? '').catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : t('parking.error_clear_all_failed'));
+        setError(getErrorMessage(err, t('parking.error_clear_all_failed')));
       });
     };
     if (Platform.OS === 'web') {

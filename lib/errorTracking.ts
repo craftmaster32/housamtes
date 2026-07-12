@@ -48,7 +48,3 @@ export function clearUser(): void {
 export function captureError(err: unknown, context?: Record<string, string>): void {
   getSentry()?.captureException(err, context ? { extra: context } : undefined);
 }
-
-export function captureMessage(message: string): void {
-  getSentry()?.captureMessage(message, 'warning');
-}

@@ -13,6 +13,7 @@ import { Alert } from '@lib/alert';
 import { colors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
 
 function MenuItem({
   icon,
@@ -139,7 +140,7 @@ export default function ProfileScreen(): React.JSX.Element {
       setShowPasswordForm(false);
       Alert.alert(t('common.done'), t('profile.password_updated'));
     } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : t('profile.could_not_update'));
+      setPasswordError(getErrorMessage(err, t('profile.could_not_update')));
     } finally {
       setPasswordSaving(false);
     }

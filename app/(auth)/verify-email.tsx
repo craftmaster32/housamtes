@@ -10,6 +10,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
+import { getErrorMessage } from '@utils/errors';
 
 export default function VerifyEmailScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -68,7 +69,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
       await resendVerification(pendingEmail);
       setResent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.could_not_resend'));
+      setError(getErrorMessage(err, t('auth.could_not_resend')));
     } finally {
       setIsResending(false);
     }

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { useAuthStore } from '@stores/authStore';
 import { captureError } from '@lib/errorTracking';
 
 export type EventRecurrence = 'weekly' | 'monthly' | 'yearly';
@@ -8,18 +9,18 @@ export type EventRecurrence = 'weekly' | 'monthly' | 'yearly';
 export interface HouseEvent {
   id: string;
   title: string;
-  date: string;             // YYYY-MM-DD
-  endDate?: string;         // YYYY-MM-DD — for multi-day events
-  startTime?: string;       // HH:MM
-  endTime?: string;         // HH:MM
+  date: string; // YYYY-MM-DD
+  endDate?: string; // YYYY-MM-DD — for multi-day events
+  startTime?: string; // HH:MM
+  endTime?: string; // HH:MM
   notes?: string;
   recurrence?: EventRecurrence;
-  recurrenceEnd?: string;   // YYYY-MM-DD — when recurrence stops
-  createdBy: string;        // user UUID
+  recurrenceEnd?: string; // YYYY-MM-DD — when recurrence stops
+  createdBy: string; // user UUID
   createdAt: string;
 }
 
-export interface AddEventPayload {
+interface AddEventPayload {
   title: string;
   date: string;
   createdBy: string;
@@ -47,6 +48,7 @@ interface EventsStore {
   events: HouseEvent[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addEvent: (payload: AddEventPayload) => Promise<string>;
@@ -55,6 +57,11 @@ interface EventsStore {
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+let _channelHouseId: string | null = null;
+// Bumped on every load() and unsubscribe(). An in-flight load compares its own
+// sequence number against this before committing state or (re)subscribing, so a
+// stale load can neither overwrite newer data nor recreate a channel after cleanup.
+let _loadSeq = 0;
 
 function mapRow(r: Record<string, unknown>): HouseEvent {
   return {
@@ -78,8 +85,15 @@ export const useEventsStore = create<EventsStore>()(
       events: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
 
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[events] house ID mismatch — aborting load');
+          set({ isLoading: false });
+          return;
+        }
+        const seq = ++_loadSeq;
         try {
           const { data, error } = await supabase
             .from('events')
@@ -87,26 +101,61 @@ export const useEventsStore = create<EventsStore>()(
             .eq('house_id', houseId)
             .order('date');
           if (error) throw error;
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ events: (data ?? []).map(mapRow), isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'events', houseId });
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ isLoading: false, error: 'Could not load events. Please try again.' });
         }
 
-        if (_channel) { supabase.removeChannel(_channel); }
+        // Superseded by a newer load or an unsubscribe while fetching — leave the
+        // existing subscription (if any) untouched and never recreate one here.
+        if (seq !== _loadSeq) return;
+        // Already subscribed for this house: realtime-triggered reloads must not
+        // tear the channel down and recreate it on every event.
+        if (_channel && _channelHouseId === houseId) return;
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
+        _channelHouseId = houseId;
         _channel = supabase
           .channel(`events:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'events', filter: `house_id=eq.${houseId}` },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
 
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
+        _loadSeq++;
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+          _channelHouseId = null;
+        }
       },
 
       addEvent: async (payload): Promise<string> => {
-        const { title, date, createdBy, houseId, startTime, endTime, endDate, notes, recurrence, recurrenceEnd } = payload;
+        const {
+          title,
+          date,
+          createdBy,
+          houseId,
+          startTime,
+          endTime,
+          endDate,
+          notes,
+          recurrence,
+          recurrenceEnd,
+        } = payload;
         try {
           const { data, error } = await supabase
             .from('events')
@@ -140,26 +189,26 @@ export const useEventsStore = create<EventsStore>()(
           // Only include optional fields that were explicitly provided by the caller.
           // Using `in` distinguishes "set to undefined (= clear)" from "key absent (= preserve)".
           const dbPayload: Record<string, unknown> = { title: updates.title, date: updates.date };
-          if ('endDate' in updates)       dbPayload.end_date        = updates.endDate ?? null;
-          if ('startTime' in updates)     dbPayload.start_time      = updates.startTime ?? null;
-          if ('endTime' in updates)       dbPayload.end_time        = updates.endTime ?? null;
-          if ('notes' in updates)         dbPayload.notes           = updates.notes ?? null;
-          if ('recurrence' in updates)    dbPayload.recurrence      = updates.recurrence ?? null;
-          if ('recurrenceEnd' in updates) dbPayload.recurrence_end  = updates.recurrenceEnd ?? null;
+          if ('endDate' in updates) dbPayload.end_date = updates.endDate ?? null;
+          if ('startTime' in updates) dbPayload.start_time = updates.startTime ?? null;
+          if ('endTime' in updates) dbPayload.end_time = updates.endTime ?? null;
+          if ('notes' in updates) dbPayload.notes = updates.notes ?? null;
+          if ('recurrence' in updates) dbPayload.recurrence = updates.recurrence ?? null;
+          if ('recurrenceEnd' in updates) dbPayload.recurrence_end = updates.recurrenceEnd ?? null;
 
           const { error } = await supabase.from('events').update(dbPayload).eq('id', id);
           if (error) throw error;
 
           set({
-            events: get().events
-              .map((e) => {
+            events: get()
+              .events.map((e) => {
                 if (e.id !== id) return e;
                 const merged: HouseEvent = { ...e, title: updates.title, date: updates.date };
-                if ('endDate' in updates)       merged.endDate       = updates.endDate;
-                if ('startTime' in updates)     merged.startTime     = updates.startTime;
-                if ('endTime' in updates)       merged.endTime       = updates.endTime;
-                if ('notes' in updates)         merged.notes         = updates.notes;
-                if ('recurrence' in updates)    merged.recurrence    = updates.recurrence;
+                if ('endDate' in updates) merged.endDate = updates.endDate;
+                if ('startTime' in updates) merged.startTime = updates.startTime;
+                if ('endTime' in updates) merged.endTime = updates.endTime;
+                if ('notes' in updates) merged.notes = updates.notes;
+                if ('recurrence' in updates) merged.recurrence = updates.recurrence;
                 if ('recurrenceEnd' in updates) merged.recurrenceEnd = updates.recurrenceEnd;
                 return merged;
               })

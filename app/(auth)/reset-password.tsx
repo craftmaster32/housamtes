@@ -12,6 +12,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { getErrorMessage } from '@utils/errors';
 
 export default function ResetPasswordScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -44,7 +45,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
       useAuthStore.getState().clearPasswordRecovery();
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.reset_failed'));
+      setError(getErrorMessage(err, t('auth.reset_failed')));
     } finally {
       setIsLoading(false);
     }
@@ -81,7 +82,11 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
         >
-          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={colors.primary} />
+          <Ionicons
+            name={rtl ? 'chevron-forward' : 'chevron-back'}
+            size={24}
+            color={colors.primary}
+          />
         </Pressable>
 
         <View style={styles.header}>
@@ -92,7 +97,10 @@ export default function ResetPasswordScreen(): React.JSX.Element {
         <TextInput
           label={t('auth.new_password')}
           value={password}
-          onChangeText={(v) => { setPassword(v); setError(''); }}
+          onChangeText={(v) => {
+            setPassword(v);
+            setError('');
+          }}
           mode="outlined"
           style={styles.input}
           secureTextEntry
@@ -104,7 +112,10 @@ export default function ResetPasswordScreen(): React.JSX.Element {
         <TextInput
           label={t('auth.confirm_password')}
           value={confirm}
-          onChangeText={(v) => { setConfirm(v); setError(''); }}
+          onChangeText={(v) => {
+            setConfirm(v);
+            setError('');
+          }}
           mode="outlined"
           style={styles.input}
           secureTextEntry

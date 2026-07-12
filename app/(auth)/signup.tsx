@@ -13,6 +13,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
 import { AuthIllustration } from '@components/shared/AuthIllustration';
+import { getErrorMessage } from '@utils/errors';
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
 
@@ -115,7 +116,7 @@ export default function SignupScreen(): React.JSX.Element {
         router.replace('/(auth)/verify-email');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.something_went_wrong'));
+      setError(getErrorMessage(err, t('auth.something_went_wrong')));
     }
   }, [name, email, password, confirmPw, selectedColor, isLoading, signUp, t]);
 

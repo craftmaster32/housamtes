@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import 'react-native-url-polyfill/auto';
 
@@ -19,7 +18,10 @@ async function setChunked(key: string, value: string): Promise<void> {
   const chunks = Math.ceil(value.length / CHUNK_SIZE);
   await SecureStore.setItemAsync(`${key}__n`, String(chunks));
   for (let i = 0; i < chunks; i++) {
-    await SecureStore.setItemAsync(`${key}__${i}`, value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+    await SecureStore.setItemAsync(
+      `${key}__${i}`,
+      value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+    );
   }
 }
 
@@ -73,9 +75,6 @@ const authStorage =
         setItem: (key: string, value: string): Promise<void> => setChunked(key, value),
         removeItem: (key: string): Promise<void> => removeChunked(key),
       };
-
-// AsyncStorage is kept only as a fallback for non-sensitive data (settings, feature flags).
-export { AsyncStorage };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

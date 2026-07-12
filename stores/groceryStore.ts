@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { z } from 'zod';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { useAuthStore } from '@stores/authStore';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
@@ -31,7 +32,7 @@ export interface SavedListItem {
   quantity: string;
 }
 
-export interface GroceryListItem {
+interface GroceryListItem {
   id: string;
   listId: string;
   name: string;
@@ -50,7 +51,7 @@ export interface GroceryList {
   items: GroceryListItem[];
 }
 
-export interface ShoppingRun {
+interface ShoppingRun {
   shopperId: string;
   shopperName: string;
   startedAt: string;
@@ -78,6 +79,7 @@ interface GroceryStore {
   items: GroceryItem[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   activeRun: ShoppingRun | null;
   savedLists: GroceryList[];
   isLoadingLists: boolean;
@@ -131,6 +133,11 @@ interface GroceryStore {
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+let _channelHouseId: string | null = null;
+// Bumped on every load() and unsubscribe(). An in-flight load compares its own
+// sequence number against this before committing state or (re)subscribing, so a
+// stale load can neither overwrite newer data nor recreate a channel after cleanup.
+let _loadSeq = 0;
 
 function mapItem(r: Record<string, unknown>): GroceryItem {
   return {
@@ -199,6 +206,7 @@ export const useGroceryStore = create<GroceryStore>()(
       items: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       activeRun: null,
       savedLists: [],
       isLoadingLists: false,
@@ -210,6 +218,12 @@ export const useGroceryStore = create<GroceryStore>()(
       remindersError: null,
 
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[grocery] house ID mismatch — aborting load');
+          set({ isLoading: false });
+          return;
+        }
+        const seq = ++_loadSeq;
         try {
           try {
             const stored = await AsyncStorage.getItem(ACTIVE_RUN_KEY);
@@ -240,19 +254,34 @@ export const useGroceryStore = create<GroceryStore>()(
           // a concurrent loadGrocery call can never restore items that were just
           // cleared, regardless of which async operation completes last.
           const cleared = get().clearVersion !== versionAtStart;
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({
             items: cleared ? fetchedItems.filter((i) => !i.isChecked) : fetchedItems,
             isLoading: false,
             error: null,
           });
         } catch (err) {
-          captureError(err, { store: 'grocery', houseId });
+          captureError(err, {
+            store: 'grocery',
+            houseId,
+            userId: useAuthStore.getState().user?.id ?? '',
+          });
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ isLoading: false, error: 'Could not load groceries. Please try again.' });
         }
 
+        // Superseded by a newer load or an unsubscribe while fetching — leave the
+        // existing subscription (if any) untouched and never recreate one here.
+        if (seq !== _loadSeq) return;
+        // Already subscribed for this house: realtime-triggered reloads must not
+        // tear the channel down and recreate it on every event.
+        if (_channel && _channelHouseId === houseId) return;
         if (_channel) {
           supabase.removeChannel(_channel);
         }
+        _channelHouseId = houseId;
         _channel = supabase
           .channel(`grocery:${houseId}`)
           .on(
@@ -315,9 +344,12 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       unsubscribe: (): void => {
+        // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
+        _loadSeq++;
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
+          _channelHouseId = null;
         }
       },
 

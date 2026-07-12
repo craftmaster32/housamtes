@@ -16,6 +16,7 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
 
 export interface PhotoUploadModalProps {
   visible: boolean;
@@ -107,10 +108,7 @@ export function PhotoUploadModal({
       await onUpload(caption, category);
       reset();
     } catch (err) {
-      Alert.alert(
-        t('photos.upload_failed'),
-        err instanceof Error ? err.message : t('common.failed_try_again')
-      );
+      Alert.alert(t('photos.upload_failed'), getErrorMessage(err, t('common.failed_try_again')));
     }
   }, [caption, category, onUpload, reset, t]);
 

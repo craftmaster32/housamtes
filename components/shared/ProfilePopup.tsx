@@ -26,8 +26,6 @@ interface MenuItem {
   danger?: boolean;
 }
 
-export interface Props {}
-
 export function ProfilePopup(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useColors();

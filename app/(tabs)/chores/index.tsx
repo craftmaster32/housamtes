@@ -15,6 +15,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { resolveName } from '@utils/housemates';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { getErrorMessage } from '@utils/errors';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
@@ -214,7 +215,7 @@ export default function ChoresScreen(): React.JSX.Element {
       setRecurrence('once');
       setRecurrenceDay(null);
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : t('chores.failed_add'));
+      setAddError(getErrorMessage(err, t('chores.failed_add')));
     } finally {
       setIsAdding(false);
     }

@@ -19,7 +19,7 @@ export interface Proposal {
   votes: Vote[];
 }
 
-export type ProposalResult = 'passed' | 'rejected' | 'blocked';
+type ProposalResult = 'passed' | 'rejected' | 'blocked';
 
 export interface ProposalVoteSummary {
   yesVotes: number;
@@ -33,15 +33,26 @@ interface VotingStore {
   proposals: Proposal[];
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
-  addProposal: (title: string, description: string, createdByUserId: string, houseId: string) => Promise<void>;
+  addProposal: (
+    title: string,
+    description: string,
+    createdByUserId: string,
+    houseId: string
+  ) => Promise<void>;
   castVote: (proposalId: string, userId: string, choice: 'yes' | 'no') => Promise<void>;
   closeProposal: (proposalId: string) => Promise<void>;
   remove: (proposalId: string) => Promise<void>;
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+let _channelHouseId: string | null = null;
+// Bumped on every load() and unsubscribe(). An in-flight load compares its own
+// sequence number against this before committing state or (re)subscribing, so a
+// stale load can neither overwrite newer data nor recreate a channel after cleanup.
+let _loadSeq = 0;
 
 export function summarizeProposalVotes(votes: Vote[]): ProposalVoteSummary {
   const voteByPerson = new Map<string, Vote['choice']>();
@@ -74,11 +85,14 @@ export const useVotingStore = create<VotingStore>()(
       proposals: [],
       isLoading: true,
       error: null,
+      clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[voting] house ID mismatch — aborting load');
+          set({ isLoading: false });
           return;
         }
+        const seq = ++_loadSeq;
         try {
           const { data, error } = await supabase
             .from('proposals')
@@ -95,21 +109,45 @@ export const useVotingStore = create<VotingStore>()(
             isOpen: r.is_open,
             votes: (r.votes ?? []) as Vote[],
           }));
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ proposals, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'voting', houseId });
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ isLoading: false, error: 'Could not load proposals. Please try again.' });
         }
 
-        if (_channel) { supabase.removeChannel(_channel); }
+        // Superseded by a newer load or an unsubscribe while fetching — leave the
+        // existing subscription (if any) untouched and never recreate one here.
+        if (seq !== _loadSeq) return;
+        // Already subscribed for this house: realtime-triggered reloads must not
+        // tear the channel down and recreate it on every event.
+        if (_channel && _channelHouseId === houseId) return;
+        if (_channel) {
+          supabase.removeChannel(_channel);
+        }
+        _channelHouseId = houseId;
         _channel = supabase
           .channel(`voting:${houseId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'proposals', filter: `house_id=eq.${houseId}` },
-            () => { get().load(houseId); })
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'proposals', filter: `house_id=eq.${houseId}` },
+            () => {
+              get().load(houseId);
+            }
+          )
           .subscribe();
       },
       unsubscribe: (): void => {
-        if (_channel) { supabase.removeChannel(_channel); _channel = null; }
+        // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
+        _loadSeq++;
+        if (_channel) {
+          supabase.removeChannel(_channel);
+          _channel = null;
+          _channelHouseId = null;
+        }
       },
       addProposal: async (title, description, createdByUserId, houseId): Promise<void> => {
         const { data, error } = await supabase
@@ -136,22 +174,41 @@ export const useVotingStore = create<VotingStore>()(
         const proposal = get().proposals.find((p) => p.id === proposalId);
         if (!proposal) return;
         if (!proposal.isOpen) throw new Error('This vote is already closed');
-        const votes: Vote[] = [...proposal.votes.filter((v) => v.person !== userId), { person: userId, choice }];
+        const votes: Vote[] = [
+          ...proposal.votes.filter((v) => v.person !== userId),
+          { person: userId, choice },
+        ];
         set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes } : p)) });
-        const { error } = await supabase.from('proposals').update({ votes }).eq('id', proposalId);
-        if (error) {
-          set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes: proposal.votes } : p)) });
-          captureError(error, { context: 'cast-vote', proposalId });
+        try {
+          const { error } = await supabase.from('proposals').update({ votes }).eq('id', proposalId);
+          if (error) throw error;
+        } catch (err) {
+          // Roll back the optimistic vote whether Supabase returned or threw the error
+          set({
+            proposals: get().proposals.map((p) =>
+              p.id === proposalId ? { ...p, votes: proposal.votes } : p
+            ),
+          });
+          captureError(err, { context: 'cast-vote', proposalId });
           throw new Error('Could not record your vote. Please try again.');
         }
       },
       closeProposal: async (proposalId): Promise<void> => {
-        const { error } = await supabase.from('proposals').update({ is_open: false }).eq('id', proposalId);
-        if (error) {
-          captureError(error, { context: 'close-proposal', proposalId });
+        try {
+          const { error } = await supabase
+            .from('proposals')
+            .update({ is_open: false })
+            .eq('id', proposalId);
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, { context: 'close-proposal', proposalId });
           throw new Error('Could not close the proposal. Please try again.');
         }
-        set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, isOpen: false } : p)) });
+        set({
+          proposals: get().proposals.map((p) =>
+            p.id === proposalId ? { ...p, isOpen: false } : p
+          ),
+        });
       },
       remove: async (proposalId): Promise<void> => {
         const { error } = await supabase.from('proposals').delete().eq('id', proposalId);
