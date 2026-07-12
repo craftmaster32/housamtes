@@ -81,6 +81,7 @@ const makeStyles = (C: ColorTokens) =>
     memberMeta: { flex: 1 },
     memberName: { fontSize: 16, ...font.semibold, color: C.textPrimary },
     memberRole: { fontSize: 13, ...font.regular, color: C.textSecondary, marginTop: 1 },
+    memberJoined: { fontSize: 12, ...font.regular, color: C.textSecondary, marginTop: 2 },
     changeRoleBtn: { paddingHorizontal: 8, paddingVertical: 4 },
     changeRoleBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
 
@@ -129,9 +130,18 @@ function MemberCard({
   onTogglePermission: (memberId: string, key: keyof MemberPermissions, value: boolean) => void;
   onChangeRole: (member: Housemate) => void;
 }): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const joinedLabel = member.joinedAt
+    ? t('members.joined', {
+        date: new Date(member.joinedAt).toLocaleDateString(i18n.language, {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }),
+      })
+    : null;
   const roleLabel =
     member.role === 'owner'
       ? `👑 ${t('members.owner')}`
@@ -163,6 +173,7 @@ function MemberCard({
             {isMe ? t('members.name_with_you', { name: member.name }) : member.name}
           </Text>
           <Text style={styles.memberRole}>{roleLabel}</Text>
+          {joinedLabel && <Text style={styles.memberJoined}>{joinedLabel}</Text>}
         </View>
         {canEdit && !isMe && member.role !== 'owner' && (
           <Pressable

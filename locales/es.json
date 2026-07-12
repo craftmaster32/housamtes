@@ -1410,6 +1410,7 @@
     "owner": "Dueño",
     "admin": "Admin",
     "member": "Miembro",
+    "joined": "Se unió el {{date}}",
     "you_suffix": "(tú)",
     "name_with_you": "{{name}} (tú)",
     "change_role": "Cambiar rol ›",

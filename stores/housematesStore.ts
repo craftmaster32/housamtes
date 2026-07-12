@@ -15,6 +15,7 @@ export interface Housemate {
   avatarUrl?: string;
   role: MemberRole;
   permissions: MemberPermissions;
+  joinedAt: string | null;
 }
 
 interface HousematesStore {
@@ -65,7 +66,7 @@ export const useHousematesStore = create<HousematesStore>()(
           const [membersRes, houseRes] = await Promise.all([
             supabase
               .from('house_members')
-              .select('id, user_id, role, permissions')
+              .select('id, user_id, role, permissions, joined_at')
               .eq('house_id', houseId),
             supabase
               .from('houses')
@@ -145,6 +146,7 @@ export const useHousematesStore = create<HousematesStore>()(
                 avatarUrl: signedUrls.get(p.id),
                 role: ((m.role as MemberRole | undefined) ?? 'member') as MemberRole,
                 permissions: { ...defaultPerms, ...(m.permissions as Partial<MemberPermissions>) },
+                joinedAt: (m.joined_at as string | undefined) ?? null,
               };
             })
             .filter((h) => h !== null) as Housemate[];
