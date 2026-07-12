@@ -33,6 +33,11 @@ interface MaintenanceStore {
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+let _channelHouseId: string | null = null;
+// Bumped on every load() and unsubscribe(). An in-flight load compares its own
+// sequence number against this before committing state or (re)subscribing, so a
+// stale load can neither overwrite newer data nor recreate a channel after cleanup.
+let _loadSeq = 0;
 
 export const useMaintenanceStore = create<MaintenanceStore>()(
   devtools(
@@ -42,6 +47,7 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
+        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[maintenance] house ID mismatch — aborting load');
           return;
@@ -63,18 +69,29 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
             createdAt: r.created_at,
             resolvedAt: r.resolved_at ?? null,
           }));
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ requests, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'maintenance', houseId });
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({
             isLoading: false,
             error: 'Could not load maintenance requests. Please try again.',
           });
         }
 
+        // Superseded by a newer load or an unsubscribe while fetching — leave the
+        // existing subscription (if any) untouched and never recreate one here.
+        if (seq !== _loadSeq) return;
+        // Already subscribed for this house: realtime-triggered reloads must not
+        // tear the channel down and recreate it on every event.
+        if (_channel && _channelHouseId === houseId) return;
         if (_channel) {
           supabase.removeChannel(_channel);
         }
+        _channelHouseId = houseId;
         _channel = supabase
           .channel(`maintenance:${houseId}`)
           .on(
@@ -92,9 +109,12 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
           .subscribe();
       },
       unsubscribe: (): void => {
+        // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
+        _loadSeq++;
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
+          _channelHouseId = null;
         }
       },
       add: async (data, houseId): Promise<void> => {

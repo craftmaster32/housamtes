@@ -48,6 +48,11 @@ interface VotingStore {
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+let _channelHouseId: string | null = null;
+// Bumped on every load() and unsubscribe(). An in-flight load compares its own
+// sequence number against this before committing state or (re)subscribing, so a
+// stale load can neither overwrite newer data nor recreate a channel after cleanup.
+let _loadSeq = 0;
 
 export function summarizeProposalVotes(votes: Vote[]): ProposalVoteSummary {
   const voteByPerson = new Map<string, Vote['choice']>();
@@ -82,6 +87,7 @@ export const useVotingStore = create<VotingStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
+        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[voting] house ID mismatch — aborting load');
           return;
@@ -102,15 +108,26 @@ export const useVotingStore = create<VotingStore>()(
             isOpen: r.is_open,
             votes: (r.votes ?? []) as Vote[],
           }));
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ proposals, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'voting', houseId });
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ isLoading: false, error: 'Could not load proposals. Please try again.' });
         }
 
+        // Superseded by a newer load or an unsubscribe while fetching — leave the
+        // existing subscription (if any) untouched and never recreate one here.
+        if (seq !== _loadSeq) return;
+        // Already subscribed for this house: realtime-triggered reloads must not
+        // tear the channel down and recreate it on every event.
+        if (_channel && _channelHouseId === houseId) return;
         if (_channel) {
           supabase.removeChannel(_channel);
         }
+        _channelHouseId = houseId;
         _channel = supabase
           .channel(`voting:${houseId}`)
           .on(
@@ -123,9 +140,12 @@ export const useVotingStore = create<VotingStore>()(
           .subscribe();
       },
       unsubscribe: (): void => {
+        // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
+        _loadSeq++;
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
+          _channelHouseId = null;
         }
       },
       addProposal: async (title, description, createdByUserId, houseId): Promise<void> => {

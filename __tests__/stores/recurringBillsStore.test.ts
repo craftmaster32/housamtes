@@ -16,7 +16,10 @@ const mockFrom = jest.fn();
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
-    channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
+    channel: jest.fn(() => ({
+      on: jest.fn().mockReturnThis(),
+      subscribe: jest.fn().mockReturnThis(),
+    })),
     removeChannel: jest.fn(),
   },
 }));
@@ -399,5 +402,117 @@ describe('clearError', () => {
     useRecurringBillsStore.setState({ error: 'something broke' });
     useRecurringBillsStore.getState().clearError();
     expect(useRecurringBillsStore.getState().error).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Realtime subscription lifecycle
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** A query chain whose promise resolves only when the test says so. */
+function deferredOk(data: unknown): { chain: Record<string, unknown>; resolve: () => void } {
+  let resolveFn: (v: unknown) => void = () => {};
+  const p = new Promise((res) => {
+    resolveFn = res;
+  });
+  const chain: Record<string, unknown> = {
+    then: (
+      res: Parameters<Promise<unknown>['then']>[0],
+      rej: Parameters<Promise<unknown>['then']>[1]
+    ): Promise<unknown> => p.then(res, rej),
+  };
+  for (const m of ['select', 'eq', 'order']) {
+    chain[m] = jest.fn(() => chain);
+  }
+  return { chain, resolve: (): void => resolveFn({ data, error: null }) };
+}
+
+describe('realtime subscription lifecycle', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+  const { supabase } = require('@lib/supabase') as {
+    supabase: { channel: jest.Mock; removeChannel: jest.Mock };
+  };
+
+  beforeEach(() => {
+    // Module-level channel state persists across tests — reset it explicitly.
+    useRecurringBillsStore.getState().unsubscribe();
+    supabase.channel.mockClear();
+  });
+
+  it('keeps the existing channel when a realtime reload fires for the same house', async () => {
+    mockFrom.mockReturnValue(ok([]));
+
+    await useRecurringBillsStore.getState().load('house-1');
+    await useRecurringBillsStore.getState().load('house-1'); // realtime-triggered reload
+
+    expect(supabase.channel).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not resubscribe or commit state when unsubscribe() runs mid-load', async () => {
+    const bills = deferredOk([
+      {
+        id: 'b1',
+        name: 'Electricity',
+        assigned_to: 'alice',
+        frequency: 'monthly',
+        typical_amount: '100',
+        icon: '⚡',
+        created_at: '2026-01-01T00:00:00Z',
+        next_due_date: null,
+      },
+    ]);
+    const payments = deferredOk([]);
+    mockFrom.mockReturnValueOnce(bills.chain).mockReturnValueOnce(payments.chain);
+
+    const inFlight = useRecurringBillsStore.getState().load('house-1');
+    useRecurringBillsStore.getState().unsubscribe(); // user leaves the screen
+    bills.resolve();
+    payments.resolve();
+    await inFlight;
+
+    expect(useRecurringBillsStore.getState().bills).toEqual([]); // stale result dropped
+    expect(supabase.channel).not.toHaveBeenCalled(); // no zombie subscription
+  });
+
+  it('lets the newest load win when an older one resolves after it', async () => {
+    const staleBills = deferredOk([
+      {
+        id: 'b-stale',
+        name: 'Old data',
+        assigned_to: 'alice',
+        frequency: 'monthly',
+        typical_amount: '1',
+        icon: '🧾',
+        created_at: '2026-01-01T00:00:00Z',
+        next_due_date: null,
+      },
+    ]);
+    const stalePayments = deferredOk([]);
+    mockFrom.mockReturnValueOnce(staleBills.chain).mockReturnValueOnce(stalePayments.chain);
+    const stale = useRecurringBillsStore.getState().load('house-1');
+
+    mockFrom
+      .mockReturnValueOnce(
+        ok([
+          {
+            id: 'b-fresh',
+            name: 'Fresh data',
+            assigned_to: 'alice',
+            frequency: 'monthly',
+            typical_amount: '2',
+            icon: '🧾',
+            created_at: '2026-01-02T00:00:00Z',
+            next_due_date: null,
+          },
+        ])
+      )
+      .mockReturnValueOnce(ok([]));
+    await useRecurringBillsStore.getState().load('house-1');
+
+    staleBills.resolve();
+    stalePayments.resolve();
+    await stale;
+
+    expect(useRecurringBillsStore.getState().bills.map((b) => b.id)).toEqual(['b-fresh']);
   });
 });

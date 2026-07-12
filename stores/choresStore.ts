@@ -39,6 +39,11 @@ interface ChoresStore {
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+let _channelHouseId: string | null = null;
+// Bumped on every load() and unsubscribe(). An in-flight load compares its own
+// sequence number against this before committing state or (re)subscribing, so a
+// stale load can neither overwrite newer data nor recreate a channel after cleanup.
+let _loadSeq = 0;
 
 export const useChoresStore = create<ChoresStore>()(
   devtools(
@@ -48,6 +53,7 @@ export const useChoresStore = create<ChoresStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
+        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[chores] house ID mismatch — aborting load');
           return;
@@ -69,15 +75,26 @@ export const useChoresStore = create<ChoresStore>()(
             completedAt: r.completed_at ?? null,
             createdAt: r.created_at,
           }));
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ chores, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'chores', houseId });
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ isLoading: false, error: 'Could not load chores. Please try again.' });
         }
 
+        // Superseded by a newer load or an unsubscribe while fetching — leave the
+        // existing subscription (if any) untouched and never recreate one here.
+        if (seq !== _loadSeq) return;
+        // Already subscribed for this house: realtime-triggered reloads must not
+        // tear the channel down and recreate it on every event.
+        if (_channel && _channelHouseId === houseId) return;
         if (_channel) {
           supabase.removeChannel(_channel);
         }
+        _channelHouseId = houseId;
         _channel = supabase
           .channel(`chores:${houseId}`)
           .on(
@@ -90,9 +107,12 @@ export const useChoresStore = create<ChoresStore>()(
           .subscribe();
       },
       unsubscribe: (): void => {
+        // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
+        _loadSeq++;
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
+          _channelHouseId = null;
         }
       },
       addChore: async (name, recurrence, recurrenceDay, houseId): Promise<void> => {

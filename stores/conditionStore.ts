@@ -31,6 +31,11 @@ interface ConditionStore {
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+let _channelHouseId: string | null = null;
+// Bumped on every load() and unsubscribe(). An in-flight load compares its own
+// sequence number against this before committing state or (re)subscribing, so a
+// stale load can neither overwrite newer data nor recreate a channel after cleanup.
+let _loadSeq = 0;
 
 export const useConditionStore = create<ConditionStore>()(
   devtools(
@@ -40,6 +45,7 @@ export const useConditionStore = create<ConditionStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
+        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[condition] house ID mismatch — aborting load');
           return;
@@ -62,15 +68,26 @@ export const useConditionStore = create<ConditionStore>()(
             createdAt: r.created_at,
             photos: r.photos ?? [],
           }));
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ entries, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'condition', houseId });
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ isLoading: false, error: 'Could not load condition entries. Please try again.' });
         }
 
+        // Superseded by a newer load or an unsubscribe while fetching — leave the
+        // existing subscription (if any) untouched and never recreate one here.
+        if (seq !== _loadSeq) return;
+        // Already subscribed for this house: realtime-triggered reloads must not
+        // tear the channel down and recreate it on every event.
+        if (_channel && _channelHouseId === houseId) return;
         if (_channel) {
           supabase.removeChannel(_channel);
         }
+        _channelHouseId = houseId;
         _channel = supabase
           .channel(`condition:${houseId}`)
           .on(
@@ -88,9 +105,12 @@ export const useConditionStore = create<ConditionStore>()(
           .subscribe();
       },
       unsubscribe: (): void => {
+        // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
+        _loadSeq++;
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
+          _channelHouseId = null;
         }
       },
       add: async (data, houseId): Promise<void> => {

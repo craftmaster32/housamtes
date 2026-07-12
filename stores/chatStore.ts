@@ -31,6 +31,11 @@ interface ChatStore {
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
+let _channelHouseId: string | null = null;
+// Bumped on every load() and unsubscribe(). An in-flight load compares its own
+// sequence number against this before committing state or (re)subscribing, so a
+// stale load can neither overwrite newer data nor recreate a channel after cleanup.
+let _loadSeq = 0;
 
 function mapRow(r: Record<string, unknown>): ChatMessage {
   return {
@@ -50,6 +55,7 @@ export const useChatStore = create<ChatStore>()(
       clearError: (): void => set({ error: null }),
       unreadCount: 0,
       load: async (houseId: string): Promise<void> => {
+        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[chat] house ID mismatch — aborting load');
           return;
@@ -62,16 +68,27 @@ export const useChatStore = create<ChatStore>()(
             .order('created_at', { ascending: true })
             .limit(200);
           if (error) throw error;
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ messages: (data ?? []).map(mapRow), isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'chat', houseId });
+          // A newer load (or unsubscribe) superseded this one — drop its result.
+          if (seq !== _loadSeq) return;
           set({ isLoading: false, error: 'Could not load messages. Please try again.' });
         }
 
         // Real-time: append new messages directly (no re-fetch to keep chat snappy)
+        // Superseded by a newer load or an unsubscribe while fetching — leave the
+        // existing subscription (if any) untouched and never recreate one here.
+        if (seq !== _loadSeq) return;
+        // Already subscribed for this house: realtime-triggered reloads must not
+        // tear the channel down and recreate it on every event.
+        if (_channel && _channelHouseId === houseId) return;
         if (_channel) {
           supabase.removeChannel(_channel);
         }
+        _channelHouseId = houseId;
         _channel = supabase
           .channel(`chat:${houseId}`)
           .on(
@@ -107,9 +124,12 @@ export const useChatStore = create<ChatStore>()(
           .subscribe();
       },
       unsubscribe: (): void => {
+        // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
+        _loadSeq++;
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
+          _channelHouseId = null;
         }
       },
       markRead: (): void => {
