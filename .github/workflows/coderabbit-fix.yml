@@ -3,6 +3,10 @@ name: Auto-fix CodeRabbit Review
 on:
   issue_comment:
     types: [created]
+  # CodeRabbit posts its "Actionable comments posted: N" summary as a PR *review*,
+  # not as an issue comment — without this trigger the fixer never saw findings.
+  pull_request_review:
+    types: [submitted]
 
 permissions:
   contents: write
@@ -14,13 +18,16 @@ jobs:
   fix-coderabbit:
     if: >-
       ${{
-        github.event.comment.user.type == 'Bot' &&
-        github.event.comment.user.login == 'coderabbitai[bot]' &&
-        github.event.issue.pull_request != null
+        (github.event_name == 'issue_comment' &&
+         github.event.comment.user.type == 'Bot' &&
+         github.event.comment.user.login == 'coderabbitai[bot]' &&
+         github.event.issue.pull_request != null) ||
+        (github.event_name == 'pull_request_review' &&
+         github.event.review.user.login == 'coderabbitai[bot]')
       }}
     runs-on: ubuntu-latest
     concurrency:
-      group: coderabbit-fix-${{ github.event.issue.number }}
+      group: coderabbit-fix-${{ github.event.issue.number || github.event.pull_request.number }}
       cancel-in-progress: true
 
     steps:
@@ -29,7 +36,7 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const body = context.payload.comment.body || '';
+            const body = context.payload.comment?.body || context.payload.review?.body || '';
             const hasIssues = /Actionable comments posted: [1-9]\d*/.test(body);
             core.setOutput('has_issues', hasIssues.toString());
             core.info(`Has issues: ${hasIssues}`);
@@ -90,7 +97,8 @@ jobs:
               .map(c => `📍 ${c.path} (line ${c.line || c.original_line}):\n${c.body}`)
               .join('\n\n---\n\n');
 
-            const summary = context.payload.comment.body || '(no summary)';
+            const summary =
+              context.payload.comment?.body || context.payload.review?.body || '(no summary)';
             const combined = [
               'REVIEW SUMMARY:',
               summary,
