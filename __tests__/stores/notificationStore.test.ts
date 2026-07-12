@@ -37,6 +37,7 @@ const DEFAULT_PREFS = {
   notifyChoreOverdue: true,
   notifyChatMessage: true,
   notifyGroceryShared: true,
+  notifyTaskAssigned: true,
 };
 
 beforeEach(() => {
@@ -106,7 +107,7 @@ describe('notificationStore — load', () => {
 
     const { prefs } = useNotificationStore.getState();
     expect(prefs.notifyBillAdded).toBe(false);
-    expect(prefs.notifyBillSettled).toBe(true);   // defaulted
+    expect(prefs.notifyBillSettled).toBe(true); // defaulted
     expect(prefs.notifyParkingClaimed).toBe(true); // defaulted
   });
 });
@@ -151,8 +152,8 @@ describe('notificationStore — update', () => {
 
     const { prefs } = useNotificationStore.getState();
     expect(prefs.billDueDaysBefore).toBe(7);
-    expect(prefs.notifyBillAdded).toBe(true);    // unchanged
-    expect(prefs.notifyChatMessage).toBe(true);  // unchanged
+    expect(prefs.notifyBillAdded).toBe(true); // unchanged
+    expect(prefs.notifyChatMessage).toBe(true); // unchanged
   });
 
   it('⚠️ BUG: rapid successive updates race — last optimistic wins in UI but DB order may differ', async () => {
@@ -165,8 +166,12 @@ describe('notificationStore — update', () => {
       return ok();
     });
 
-    const p1 = useNotificationStore.getState().update('user-1', 'house-1', { notifyBillAdded: false });
-    const p2 = useNotificationStore.getState().update('user-1', 'house-1', { notifyBillAdded: true });
+    const p1 = useNotificationStore
+      .getState()
+      .update('user-1', 'house-1', { notifyBillAdded: false });
+    const p2 = useNotificationStore
+      .getState()
+      .update('user-1', 'house-1', { notifyBillAdded: true });
     await Promise.all([p1, p2]);
 
     // Final UI state matches last optimistic write (true), but server result depends on race

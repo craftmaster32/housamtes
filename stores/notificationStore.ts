@@ -15,6 +15,7 @@ export interface NotificationPrefs {
   notifyChoreOverdue: boolean;
   notifyChatMessage: boolean;
   notifyGroceryShared: boolean;
+  notifyTaskAssigned: boolean;
 }
 
 const DEFAULT_PREFS: NotificationPrefs = {
@@ -27,6 +28,7 @@ const DEFAULT_PREFS: NotificationPrefs = {
   notifyChoreOverdue: true,
   notifyChatMessage: true,
   notifyGroceryShared: true,
+  notifyTaskAssigned: true,
 };
 
 interface NotificationStore {
@@ -40,29 +42,34 @@ interface NotificationStore {
 
 function rowToPrefs(row: Record<string, unknown>): NotificationPrefs {
   return {
-    notifyBillAdded:          (row.notify_bill_added          ?? true) as boolean,
-    notifyBillSettled:        (row.notify_bill_settled        ?? true) as boolean,
-    notifyBillDue:            (row.notify_bill_due            ?? true) as boolean,
-    billDueDaysBefore:        (row.bill_due_days_before       ?? 2)    as BillDueDays,
-    notifyParkingClaimed:     (row.notify_parking_claimed     ?? true) as boolean,
+    notifyBillAdded: (row.notify_bill_added ?? true) as boolean,
+    notifyBillSettled: (row.notify_bill_settled ?? true) as boolean,
+    notifyBillDue: (row.notify_bill_due ?? true) as boolean,
+    billDueDaysBefore: (row.bill_due_days_before ?? 2) as BillDueDays,
+    notifyParkingClaimed: (row.notify_parking_claimed ?? true) as boolean,
     notifyParkingReservation: (row.notify_parking_reservation ?? true) as boolean,
-    notifyChoreOverdue:       (row.notify_chore_overdue       ?? true) as boolean,
-    notifyChatMessage:        (row.notify_chat_message        ?? true) as boolean,
-    notifyGroceryShared:      (row.notify_grocery_shared      ?? true) as boolean,
+    notifyChoreOverdue: (row.notify_chore_overdue ?? true) as boolean,
+    notifyChatMessage: (row.notify_chat_message ?? true) as boolean,
+    notifyGroceryShared: (row.notify_grocery_shared ?? true) as boolean,
+    notifyTaskAssigned: (row.notify_task_assigned ?? true) as boolean,
   };
 }
 
 function prefsToRow(prefs: Partial<NotificationPrefs>): Record<string, unknown> {
   const row: Record<string, unknown> = {};
-  if (prefs.notifyBillAdded          !== undefined) row.notify_bill_added          = prefs.notifyBillAdded;
-  if (prefs.notifyBillSettled        !== undefined) row.notify_bill_settled        = prefs.notifyBillSettled;
-  if (prefs.notifyBillDue            !== undefined) row.notify_bill_due            = prefs.notifyBillDue;
-  if (prefs.billDueDaysBefore        !== undefined) row.bill_due_days_before       = prefs.billDueDaysBefore;
-  if (prefs.notifyParkingClaimed     !== undefined) row.notify_parking_claimed     = prefs.notifyParkingClaimed;
-  if (prefs.notifyParkingReservation !== undefined) row.notify_parking_reservation = prefs.notifyParkingReservation;
-  if (prefs.notifyChoreOverdue       !== undefined) row.notify_chore_overdue       = prefs.notifyChoreOverdue;
-  if (prefs.notifyChatMessage        !== undefined) row.notify_chat_message        = prefs.notifyChatMessage;
-  if (prefs.notifyGroceryShared      !== undefined) row.notify_grocery_shared      = prefs.notifyGroceryShared;
+  if (prefs.notifyBillAdded !== undefined) row.notify_bill_added = prefs.notifyBillAdded;
+  if (prefs.notifyBillSettled !== undefined) row.notify_bill_settled = prefs.notifyBillSettled;
+  if (prefs.notifyBillDue !== undefined) row.notify_bill_due = prefs.notifyBillDue;
+  if (prefs.billDueDaysBefore !== undefined) row.bill_due_days_before = prefs.billDueDaysBefore;
+  if (prefs.notifyParkingClaimed !== undefined)
+    row.notify_parking_claimed = prefs.notifyParkingClaimed;
+  if (prefs.notifyParkingReservation !== undefined)
+    row.notify_parking_reservation = prefs.notifyParkingReservation;
+  if (prefs.notifyChoreOverdue !== undefined) row.notify_chore_overdue = prefs.notifyChoreOverdue;
+  if (prefs.notifyChatMessage !== undefined) row.notify_chat_message = prefs.notifyChatMessage;
+  if (prefs.notifyGroceryShared !== undefined)
+    row.notify_grocery_shared = prefs.notifyGroceryShared;
+  if (prefs.notifyTaskAssigned !== undefined) row.notify_task_assigned = prefs.notifyTaskAssigned;
   return row;
 }
 
@@ -83,7 +90,10 @@ export const useNotificationStore = create<NotificationStore>()(
           .maybeSingle();
         if (error) {
           captureError(error, { store: 'notifications', userId, houseId });
-          set({ isLoading: false, error: 'Could not load notification preferences. Please try again.' });
+          set({
+            isLoading: false,
+            error: 'Could not load notification preferences. Please try again.',
+          });
           return;
         }
         set({

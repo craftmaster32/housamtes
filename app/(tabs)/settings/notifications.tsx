@@ -260,6 +260,17 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             />
           </View>
 
+          <Text style={styles.sectionTitle}>📋 Tasks</Text>
+          <View style={styles.card}>
+            <ToggleRow
+              label={t('settings.notify_task_assigned')}
+              description={t('settings.notify_task_assigned_sub')}
+              value={prefs.notifyTaskAssigned}
+              onToggle={(v) => save({ notifyTaskAssigned: v })}
+              isLast
+            />
+          </View>
+
           <Text style={styles.sectionTitle}>💬 Chat</Text>
           <View style={styles.card}>
             <ToggleRow

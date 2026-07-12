@@ -29,6 +29,7 @@ import { useMaintenanceStore } from '@stores/maintenanceStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useNotificationStore } from '@stores/notificationStore';
 import { useConditionStore } from '@stores/conditionStore';
+import { useTasksStore } from '@stores/tasksStore';
 import { TopBar } from '@components/shared/TopBar';
 import { MorePopup } from '@components/shared/MorePopup';
 import { ProfilePopup } from '@components/shared/ProfilePopup';
@@ -223,6 +224,7 @@ export default function RootLayout(): React.JSX.Element | null {
   const loadMaintenance = useMaintenanceStore((s) => s.load);
   const loadVoting = useVotingStore((s) => s.load);
   const loadCondition = useConditionStore((s) => s.load);
+  const loadTasks = useTasksStore((s) => s.load);
   const loadNotificationPrefs = useNotificationStore((s) => s.load);
   const loadBadges = useBadgeStore((s) => s.load);
 
@@ -322,6 +324,7 @@ export default function RootLayout(): React.JSX.Element | null {
       loadMaintenance(houseId);
       loadVoting(houseId);
       loadCondition(houseId);
+      loadTasks(houseId);
       if (user?.id) {
         loadNotificationPrefs(user.id, houseId);
         registerWebPush(user.id, houseId);
@@ -340,6 +343,7 @@ export default function RootLayout(): React.JSX.Element | null {
       useMaintenanceStore.getState().unsubscribe();
       useVotingStore.getState().unsubscribe();
       useConditionStore.getState().unsubscribe();
+      useTasksStore.getState().unsubscribe();
     };
   }, [
     houseId,
@@ -355,6 +359,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadMaintenance,
     loadVoting,
     loadCondition,
+    loadTasks,
     loadNotificationPrefs,
   ]);
 
@@ -380,6 +385,7 @@ export default function RootLayout(): React.JSX.Element | null {
           loadMaintenance(houseId);
           loadVoting(houseId);
           loadCondition(houseId);
+          loadTasks(houseId);
         });
       }
     });
@@ -400,6 +406,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadMaintenance,
     loadVoting,
     loadCondition,
+    loadTasks,
   ]);
 
   const showChrome = !!user && !!houseId && !needsTermsAcceptance;

@@ -27,6 +27,7 @@ const PREF_COLUMN: Record<string, string> = {
   chore_overdue: 'notify_chore_overdue',
   chat_message: 'notify_chat_message',
   grocery_shared: 'notify_grocery_shared',
+  task_assigned: 'notify_task_assigned',
 };
 
 interface SendPushPayload {

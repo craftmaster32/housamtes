@@ -14,7 +14,8 @@ type NotificationType =
   | 'parking_reservation'
   | 'chore_overdue'
   | 'chat_message'
-  | 'grocery_shared';
+  | 'grocery_shared'
+  | 'task_assigned';
 
 interface NotifyParams {
   houseId: string;
