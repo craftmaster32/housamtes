@@ -63,7 +63,7 @@
     "parking": "Parking",
     "grocery": "Compras",
     "chores": "Tareas",
-    "tasks": "Tareas",
+    "tasks": "Pendientes",
     "notes": "Tablón",
     "maintenance": "Mantenimiento",
     "votes": "Votaciones",
@@ -840,7 +840,7 @@
     "every_day": "Cada {{day}}"
   },
   "tasks": {
-    "title": "Tareas",
+    "title": "Pendientes",
     "subtitle": "Controla todo lo que hay que hacer en la casa.",
     "title_placeholder": "p. ej. Llamar al casero",
     "title_label": "Título de la tarea",

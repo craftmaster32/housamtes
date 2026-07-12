@@ -80,7 +80,7 @@ describe('announcementsStore — post', () => {
   it('pins the note (is_pinned=true) and adds it newest-first on success', async () => {
     useAnnouncementsStore.setState({ items: [note({ id: 'older' })] });
     const chain = ok(noteRow());
-    mockFrom.mockReturnValue(chain);
+    mockFrom.mockReturnValueOnce(chain).mockReturnValueOnce(ok([{ id: 'n-new' }, { id: 'older' }])); // cap check query
 
     await useAnnouncementsStore.getState().post('Bin day is Tuesday', ME, HOUSE);
 
@@ -107,9 +107,16 @@ describe('announcementsStore — post', () => {
     );
     useAnnouncementsStore.setState({ items: full });
 
+    // The cap check reads pinned ids from the DB (newest first) — the DB, not
+    // the local cache, decides which notes overflow.
+    const pinnedIds = ['n-new', ...full.map((n) => n.id)].map((id) => ({ id }));
     const insertChain = ok(noteRow({ id: 'n-new' }));
+    const pinnedChain = ok(pinnedIds);
     const archiveChain = ok();
-    mockFrom.mockReturnValueOnce(insertChain).mockReturnValueOnce(archiveChain);
+    mockFrom
+      .mockReturnValueOnce(insertChain)
+      .mockReturnValueOnce(pinnedChain)
+      .mockReturnValueOnce(archiveChain);
 
     await useAnnouncementsStore.getState().post('Bin day is Tuesday', ME, HOUSE);
 

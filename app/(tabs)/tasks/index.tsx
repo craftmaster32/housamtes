@@ -50,7 +50,8 @@ export default function TasksScreen(): React.JSX.Element {
 
   const handleAdd = useCallback(
     async (input: NewTaskInput): Promise<void> => {
-      await addTask(input, houseId ?? '');
+      if (!houseId) return;
+      await addTask(input, houseId);
     },
     [addTask, houseId]
   );

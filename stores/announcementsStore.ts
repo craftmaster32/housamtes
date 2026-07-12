@@ -129,19 +129,29 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
           throw new Error('Could not pin the note. Please try again.');
         }
         const next = [rowToNote(data as Record<string, unknown>), ...get().items];
-        const kept = next.slice(0, MAX_NOTES);
-        const archived = next.slice(MAX_NOTES);
-        set({ items: kept });
-        if (archived.length > 0) {
-          // Auto-archive the oldest notes beyond the cap. Best-effort: if this
-          // fails the extra notes simply stay pinned until the next post.
+        set({ items: next.slice(0, MAX_NOTES) });
+        // Enforce the cap against the database, not the local cache — a stale
+        // cache (or two people posting at once) must never unpin the wrong
+        // notes or leave more than MAX_NOTES pinned. Best-effort: if this
+        // fails the extra notes simply stay pinned until the next post.
+        const { data: pinnedRows, error: pinnedError } = await supabase
+          .from('announcements')
+          .select('id')
+          .eq('house_id', houseId)
+          .eq('is_pinned', true)
+          .order('created_at', { ascending: false });
+        if (pinnedError) {
+          captureError(pinnedError, { context: 'archive-notes-query', houseId });
+          return;
+        }
+        const overflowIds = ((pinnedRows ?? []) as Array<{ id: string }>)
+          .slice(MAX_NOTES)
+          .map((r) => r.id);
+        if (overflowIds.length > 0) {
           const { error: archiveError } = await supabase
             .from('announcements')
             .update({ is_pinned: false })
-            .in(
-              'id',
-              archived.map((n) => n.id)
-            );
+            .in('id', overflowIds);
           if (archiveError) {
             captureError(archiveError, { context: 'archive-notes', houseId });
           }

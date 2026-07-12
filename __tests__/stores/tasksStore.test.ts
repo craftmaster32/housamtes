@@ -120,18 +120,16 @@ describe('tasksStore — addTask', () => {
     mockFrom.mockReturnValue(fail('RLS denied'));
 
     await expect(
-      useTasksStore
-        .getState()
-        .addTask(
-          {
-            title: 'Fix tap',
-            description: '',
-            priority: 'medium',
-            assignedTo: null,
-            dueDate: null,
-          },
-          HOUSE
-        )
+      useTasksStore.getState().addTask(
+        {
+          title: 'Fix tap',
+          description: '',
+          priority: 'medium',
+          assignedTo: null,
+          dueDate: null,
+        },
+        HOUSE
+      )
     ).rejects.toThrow('Could not save the task. Please try again.');
 
     expect(useTasksStore.getState().tasks).toHaveLength(0);
@@ -175,6 +173,25 @@ describe('tasksStore — addTask', () => {
     );
   });
 
+  it('does not duplicate the task when a realtime reload already added it', async () => {
+    // The realtime channel can commit the inserted row before the insert
+    // response returns — the prepend must replace it, not duplicate it.
+    useTasksStore.setState({
+      tasks: [task({ id: 't-new', title: 'Fix tap' }), task({ id: 'older' })],
+    });
+    mockFrom.mockReturnValue(ok(taskRow({ id: 't-new', title: 'Fix tap' })));
+
+    await useTasksStore
+      .getState()
+      .addTask(
+        { title: 'Fix tap', description: '', priority: 'medium', assignedTo: null, dueDate: null },
+        HOUSE
+      );
+
+    const ids = useTasksStore.getState().tasks.map((t) => t.id);
+    expect(ids).toEqual(['t-new', 'older']); // no duplicate
+  });
+
   it('does NOT notify when I assign the task to myself', async () => {
     mockFrom.mockReturnValue(ok(taskRow({ assigned_to: ME })));
 
@@ -204,7 +221,7 @@ describe('tasksStore — toggleTask', () => {
 
   it('marks the task complete and records who completed it and when', async () => {
     useTasksStore.setState({ tasks: [task({ id: 't1', isComplete: false })] });
-    mockFrom.mockReturnValue(ok());
+    mockFrom.mockReturnValue(ok({ id: 't1' }));
 
     await useTasksStore.getState().toggleTask('t1');
 
@@ -216,7 +233,7 @@ describe('tasksStore — toggleTask', () => {
 
   it('keeps the completed task in state (history) rather than removing it', async () => {
     useTasksStore.setState({ tasks: [task({ id: 't1' })] });
-    mockFrom.mockReturnValue(ok());
+    mockFrom.mockReturnValue(ok({ id: 't1' }));
 
     await useTasksStore.getState().toggleTask('t1');
 
@@ -234,7 +251,7 @@ describe('tasksStore — toggleTask', () => {
         }),
       ],
     });
-    mockFrom.mockReturnValue(ok());
+    mockFrom.mockReturnValue(ok({ id: 't1' }));
 
     await useTasksStore.getState().toggleTask('t1');
 
@@ -254,6 +271,17 @@ describe('tasksStore — toggleTask', () => {
 
     expect(useTasksStore.getState().tasks[0].isComplete).toBe(false); // unchanged
   });
+
+  it('throws and leaves state unchanged when the DB matched no row (deleted elsewhere / RLS)', async () => {
+    useTasksStore.setState({ tasks: [task({ id: 't1', isComplete: false })] });
+    mockFrom.mockReturnValue(ok(null)); // update succeeded but touched 0 rows
+
+    await expect(useTasksStore.getState().toggleTask('t1')).rejects.toThrow(
+      'Could not update the task. Please try again.'
+    );
+
+    expect(useTasksStore.getState().tasks[0].isComplete).toBe(false); // unchanged
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -263,7 +291,7 @@ describe('tasksStore — toggleTask', () => {
 describe('tasksStore — assignTask', () => {
   it('sets assignedTo and notifies the new assignee', async () => {
     useTasksStore.setState({ tasks: [task({ id: 't1', assignedTo: null })] });
-    mockFrom.mockReturnValue(ok());
+    mockFrom.mockReturnValue(ok({ id: 't1' }));
 
     await useTasksStore.getState().assignTask('t1', ALEX);
 
@@ -275,7 +303,7 @@ describe('tasksStore — assignTask', () => {
 
   it('clears the assignee without sending any notification', async () => {
     useTasksStore.setState({ tasks: [task({ id: 't1', assignedTo: ALEX })] });
-    mockFrom.mockReturnValue(ok());
+    mockFrom.mockReturnValue(ok({ id: 't1' }));
 
     await useTasksStore.getState().assignTask('t1', null);
 
@@ -303,7 +331,7 @@ describe('tasksStore — assignTask', () => {
 describe('tasksStore — deleteTask', () => {
   it('removes the task from state on success', async () => {
     useTasksStore.setState({ tasks: [task({ id: 't1' })] });
-    mockFrom.mockReturnValue(ok());
+    mockFrom.mockReturnValue(ok({ id: 't1' }));
 
     await useTasksStore.getState().deleteTask('t1');
 

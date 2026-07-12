@@ -168,6 +168,13 @@ function makeStyles(C: ColorTokens) {
     dueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     dueText: { fontSize: 12, ...font.medium, color: C.textSecondary },
     dueTextOverdue: { color: C.danger, ...font.bold },
-    deleteBtn: { padding: 4, flexShrink: 0, minWidth: 24, minHeight: 44, justifyContent: 'center' },
+    deleteBtn: {
+      padding: 4,
+      flexShrink: 0,
+      minWidth: 44,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
   });
 }

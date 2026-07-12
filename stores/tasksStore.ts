@@ -5,6 +5,7 @@ import { notifyHousemates } from '@lib/notifyHousemates';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 import { houseTaskSchema } from '@utils/validation';
+import type { HouseTaskRow } from '@/types/database';
 
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskFilter = 'all' | 'active' | 'completed';
@@ -44,19 +45,19 @@ interface TasksStore {
   deleteTask: (id: string) => Promise<void>;
 }
 
-function rowToTask(r: Record<string, unknown>): HouseTask {
+function rowToTask(r: HouseTaskRow): HouseTask {
   return {
-    id: r.id as string,
-    title: r.title as string,
-    description: (r.description ?? '') as string,
+    id: r.id,
+    title: r.title,
+    description: r.description ?? '',
     priority: (r.priority ?? 'medium') as TaskPriority,
-    assignedTo: (r.assigned_to ?? null) as string | null,
-    dueDate: (r.due_date ?? null) as string | null,
-    isComplete: (r.is_done ?? false) as boolean,
-    completedAt: (r.completed_at ?? null) as string | null,
-    completedBy: (r.completed_by ?? null) as string | null,
-    createdBy: r.created_by as string,
-    createdAt: r.created_at as string,
+    assignedTo: r.assigned_to,
+    dueDate: r.due_date,
+    isComplete: r.is_done ?? false,
+    completedAt: r.completed_at,
+    completedBy: r.completed_by,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
   };
 }
 
@@ -103,12 +104,16 @@ export const useTasksStore = create<TasksStore>()(
             .eq('house_id', houseId)
             .order('created_at', { ascending: false });
           if (error) throw error;
-          const tasks: HouseTask[] = (data ?? []).map(rowToTask);
+          const tasks: HouseTask[] = ((data ?? []) as HouseTaskRow[]).map(rowToTask);
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
           set({ tasks, isLoading: false, error: null });
         } catch (err) {
-          captureError(err, { store: 'tasks', houseId });
+          captureError(err, {
+            store: 'tasks',
+            houseId,
+            userId: useAuthStore.getState().profile?.id ?? '',
+          });
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
           set({ isLoading: false, error: 'Could not load tasks. Please try again.' });
@@ -168,12 +173,14 @@ export const useTasksStore = create<TasksStore>()(
             .select()
             .single();
           if (res.error) throw res.error;
-          task = rowToTask(res.data as Record<string, unknown>);
+          task = rowToTask(res.data as HouseTaskRow);
         } catch (err) {
-          captureError(err, { context: 'add-task', houseId });
+          captureError(err, { context: 'add-task', houseId, userId });
           throw new Error('Could not save the task. Please try again.');
         }
-        set({ tasks: [task, ...get().tasks] });
+        // A realtime reload may have already committed the inserted row —
+        // filter it out so the prepend never creates a duplicate.
+        set({ tasks: [task, ...get().tasks.filter((t) => t.id !== task.id)] });
         if (task.assignedTo) {
           notifyAssignee(houseId, task.assignedTo, task.title);
         }
@@ -185,14 +192,25 @@ export const useTasksStore = create<TasksStore>()(
         const myId = useAuthStore.getState().profile?.id ?? null;
         const completedAt = isDone ? new Date().toISOString() : null;
         const completedBy = isDone ? myId : null;
+        const houseId = useAuthStore.getState().houseId;
         try {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('house_tasks')
             .update({ is_done: isDone, completed_at: completedAt, completed_by: completedBy })
-            .eq('id', id);
+            .eq('id', id)
+            .select('id')
+            .maybeSingle();
           if (error) throw error;
+          // No returned row means the DB did not change (deleted elsewhere or
+          // blocked by RLS) — never let the UI drift from reality.
+          if (!data) throw new Error('no row updated');
         } catch (err) {
-          captureError(err, { context: 'toggle-task', taskId: id });
+          captureError(err, {
+            context: 'toggle-task',
+            taskId: id,
+            houseId: houseId ?? '',
+            userId: myId ?? '',
+          });
           throw new Error('Could not update the task. Please try again.');
         }
         set({
@@ -204,28 +222,47 @@ export const useTasksStore = create<TasksStore>()(
       assignTask: async (id, userId): Promise<void> => {
         const task = get().tasks.find((t) => t.id === id);
         if (!task) return;
+        const houseId = useAuthStore.getState().houseId;
         try {
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('house_tasks')
             .update({ assigned_to: userId })
-            .eq('id', id);
+            .eq('id', id)
+            .select('id')
+            .maybeSingle();
           if (error) throw error;
+          if (!data) throw new Error('no row updated');
         } catch (err) {
-          captureError(err, { context: 'assign-task', taskId: id });
+          captureError(err, {
+            context: 'assign-task',
+            taskId: id,
+            houseId: houseId ?? '',
+            userId: useAuthStore.getState().profile?.id ?? '',
+          });
           throw new Error('Could not assign the task. Please try again.');
         }
         set({ tasks: get().tasks.map((t) => (t.id === id ? { ...t, assignedTo: userId } : t)) });
-        const houseId = useAuthStore.getState().houseId;
         if (userId && houseId) {
           notifyAssignee(houseId, userId, task.title);
         }
       },
       deleteTask: async (id): Promise<void> => {
         try {
-          const { error } = await supabase.from('house_tasks').delete().eq('id', id);
+          const { data, error } = await supabase
+            .from('house_tasks')
+            .delete()
+            .eq('id', id)
+            .select('id')
+            .maybeSingle();
           if (error) throw error;
+          if (!data) throw new Error('no row deleted');
         } catch (err) {
-          captureError(err, { context: 'delete-task', taskId: id });
+          captureError(err, {
+            context: 'delete-task',
+            taskId: id,
+            houseId: useAuthStore.getState().houseId ?? '',
+            userId: useAuthStore.getState().profile?.id ?? '',
+          });
           throw new Error('Could not delete the task. Please try again.');
         }
         set({ tasks: get().tasks.filter((t) => t.id !== id) });
