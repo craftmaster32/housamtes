@@ -262,7 +262,11 @@ export const useGroceryStore = create<GroceryStore>()(
             error: null,
           });
         } catch (err) {
-          captureError(err, { store: 'grocery', houseId });
+          captureError(err, {
+            store: 'grocery',
+            houseId,
+            userId: useAuthStore.getState().user?.id ?? '',
+          });
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
           set({ isLoading: false, error: 'Could not load groceries. Please try again.' });

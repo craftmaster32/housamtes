@@ -202,7 +202,7 @@ export const useChoresStore = create<ChoresStore>()(
             .eq('id', id);
           if (error) throw error;
         } catch (err) {
-          captureError(err, { context: 'claim-chore', choreId: id });
+          captureError(err, { context: 'claim-chore', choreId: id, userId });
           throw new Error('Could not claim the chore. Please try again.');
         }
         set({ chores: get().chores.map((c) => (c.id === id ? { ...c, claimedBy: userId } : c)) });

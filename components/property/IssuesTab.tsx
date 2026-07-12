@@ -48,13 +48,12 @@ type ListItem =
   | { kind: 'resolved-toggle' }
   | { kind: 'resolved'; request: MaintenanceRequest };
 
-function RequestCard({
-  request,
-  myId,
-}: {
+interface RequestCardProps {
   request: MaintenanceRequest;
   myId: string;
-}): React.JSX.Element {
+}
+
+function RequestCard({ request, myId }: RequestCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
   const updateStatus = useMaintenanceStore((s) => s.updateStatus);

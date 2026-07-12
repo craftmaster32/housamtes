@@ -115,22 +115,26 @@ export const useConditionStore = create<ConditionStore>()(
         }
       },
       add: async (data, houseId): Promise<void> => {
-        const { data: inserted, error } = await supabase
-          .from('condition_entries')
-          .insert({
-            house_id: houseId,
-            area: data.area,
-            condition: data.condition,
-            type: data.type,
-            description: data.description,
-            recorded_by: data.recordedBy,
-            date: data.date,
-            photos: data.photos,
-          })
-          .select()
-          .single();
-        if (error) {
-          captureError(error, { context: 'add-condition-entry', houseId });
+        let inserted;
+        try {
+          const res = await supabase
+            .from('condition_entries')
+            .insert({
+              house_id: houseId,
+              area: data.area,
+              condition: data.condition,
+              type: data.type,
+              description: data.description,
+              recorded_by: data.recordedBy,
+              date: data.date,
+              photos: data.photos,
+            })
+            .select()
+            .single();
+          if (res.error) throw res.error;
+          inserted = res.data;
+        } catch (err) {
+          captureError(err, { context: 'add-condition-entry', houseId });
           throw new Error('Could not save the entry. Please try again.');
         }
         const entry: ConditionEntry = {
@@ -147,9 +151,11 @@ export const useConditionStore = create<ConditionStore>()(
         set({ entries: [entry, ...get().entries] });
       },
       remove: async (id): Promise<void> => {
-        const { error } = await supabase.from('condition_entries').delete().eq('id', id);
-        if (error) {
-          captureError(error, { context: 'delete-condition-entry', entryId: id });
+        try {
+          const { error } = await supabase.from('condition_entries').delete().eq('id', id);
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, { context: 'delete-condition-entry', entryId: id });
           throw new Error('Could not delete the entry. Please try again.');
         }
         set({ entries: get().entries.filter((e) => e.id !== id) });
