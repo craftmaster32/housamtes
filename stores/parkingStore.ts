@@ -229,11 +229,12 @@ export const useParkingStore = create<ParkingStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
-        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[parking] house ID mismatch — aborting load');
+          set({ isLoading: false });
           return;
         }
+        const seq = ++_loadSeq;
         try {
           const [sessionRes, reservRes] = await Promise.all([
             supabase

@@ -37,11 +37,12 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
-        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[announcements] house ID mismatch — aborting load');
+          set({ isLoading: false });
           return;
         }
+        const seq = ++_loadSeq;
         try {
           const { data, error } = await supabase
             .from('announcements')

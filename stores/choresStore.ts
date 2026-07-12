@@ -53,11 +53,12 @@ export const useChoresStore = create<ChoresStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
-        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[chores] house ID mismatch — aborting load');
+          set({ isLoading: false });
           return;
         }
+        const seq = ++_loadSeq;
         try {
           const { data, error } = await supabase
             .from('chores')
@@ -116,7 +117,7 @@ export const useChoresStore = create<ChoresStore>()(
         }
       },
       addChore: async (name, recurrence, recurrenceDay, houseId): Promise<void> => {
-        let data;
+        let chore: Chore;
         try {
           const res = await supabase
             .from('chores')
@@ -129,21 +130,20 @@ export const useChoresStore = create<ChoresStore>()(
             .select()
             .single();
           if (res.error) throw res.error;
-          data = res.data;
+          chore = {
+            id: res.data.id,
+            name: res.data.title,
+            claimedBy: null,
+            recurrence: (res.data.recurrence ?? 'once') as Recurrence,
+            recurrenceDay: res.data.recurrence_day ?? null,
+            isComplete: false,
+            completedAt: null,
+            createdAt: res.data.created_at,
+          };
         } catch (err) {
           captureError(err, { context: 'add-chore', houseId });
           throw new Error('Could not save the chore. Please try again.');
         }
-        const chore: Chore = {
-          id: data.id,
-          name: data.title,
-          claimedBy: null,
-          recurrence: (data.recurrence ?? 'once') as Recurrence,
-          recurrenceDay: data.recurrence_day ?? null,
-          isComplete: false,
-          completedAt: null,
-          createdAt: data.created_at,
-        };
         set({ chores: [...get().chores, chore] });
         const userId = useAuthStore.getState().profile?.id ?? '';
         const displayName = useAuthStore.getState().profile?.name ?? 'Someone';

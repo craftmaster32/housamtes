@@ -65,6 +65,10 @@ jest.mock('@lib/supabase', () => ({
   },
 }));
 
+jest.mock('@stores/authStore', () => ({
+  useAuthStore: { getState: (): { houseId: string } => ({ houseId: 'house-1' }) },
+}));
+
 jest.mock('@lib/notifyHousemates', () => ({
   notifyHousemates: jest.fn().mockResolvedValue(undefined),
 }));

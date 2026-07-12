@@ -87,11 +87,12 @@ export const useVotingStore = create<VotingStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
-        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[voting] house ID mismatch — aborting load');
+          set({ isLoading: false });
           return;
         }
+        const seq = ++_loadSeq;
         try {
           const { data, error } = await supabase
             .from('proposals')
@@ -178,24 +179,29 @@ export const useVotingStore = create<VotingStore>()(
           { person: userId, choice },
         ];
         set({ proposals: get().proposals.map((p) => (p.id === proposalId ? { ...p, votes } : p)) });
-        const { error } = await supabase.from('proposals').update({ votes }).eq('id', proposalId);
-        if (error) {
+        try {
+          const { error } = await supabase.from('proposals').update({ votes }).eq('id', proposalId);
+          if (error) throw error;
+        } catch (err) {
+          // Roll back the optimistic vote whether Supabase returned or threw the error
           set({
             proposals: get().proposals.map((p) =>
               p.id === proposalId ? { ...p, votes: proposal.votes } : p
             ),
           });
-          captureError(error, { context: 'cast-vote', proposalId });
+          captureError(err, { context: 'cast-vote', proposalId });
           throw new Error('Could not record your vote. Please try again.');
         }
       },
       closeProposal: async (proposalId): Promise<void> => {
-        const { error } = await supabase
-          .from('proposals')
-          .update({ is_open: false })
-          .eq('id', proposalId);
-        if (error) {
-          captureError(error, { context: 'close-proposal', proposalId });
+        try {
+          const { error } = await supabase
+            .from('proposals')
+            .update({ is_open: false })
+            .eq('id', proposalId);
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, { context: 'close-proposal', proposalId });
           throw new Error('Could not close the proposal. Please try again.');
         }
         set({

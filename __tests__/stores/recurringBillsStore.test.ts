@@ -236,14 +236,15 @@ describe('load', () => {
     expect(s.bills).toEqual([]);
   });
 
-  it('aborts without touching state when the house ID does not match auth', async () => {
+  it('aborts and clears the spinner when the house ID does not match auth', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    useRecurringBillsStore.setState({ isLoading: true });
+    useRecurringBillsStore.setState({ isLoading: true, bills: [bill('b1', 'alice')] });
 
     await useRecurringBillsStore.getState().load('some-other-house');
 
-    expect(mockFrom).not.toHaveBeenCalled();
-    expect(useRecurringBillsStore.getState().isLoading).toBe(true);
+    expect(mockFrom).not.toHaveBeenCalled(); // never queries the wrong house
+    expect(useRecurringBillsStore.getState().bills).toHaveLength(1); // data untouched
+    expect(useRecurringBillsStore.getState().isLoading).toBe(false); // no stuck spinner
     warn.mockRestore();
   });
 });

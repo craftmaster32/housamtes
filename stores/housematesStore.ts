@@ -55,12 +55,12 @@ export const useHousematesStore = create<HousematesStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       load: async (houseId: string): Promise<void> => {
-        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[housemates] house ID mismatch — aborting load');
           set({ isLoading: false });
           return;
         }
+        const seq = ++_loadSeq;
         try {
           const [membersRes, houseRes] = await Promise.all([
             supabase

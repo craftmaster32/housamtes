@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { z } from 'zod';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
+import { useAuthStore } from '@stores/authStore';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
@@ -217,6 +218,11 @@ export const useGroceryStore = create<GroceryStore>()(
       remindersError: null,
 
       load: async (houseId: string): Promise<void> => {
+        if (houseId !== useAuthStore.getState().houseId) {
+          console.warn('[grocery] house ID mismatch — aborting load');
+          set({ isLoading: false });
+          return;
+        }
         const seq = ++_loadSeq;
         try {
           try {

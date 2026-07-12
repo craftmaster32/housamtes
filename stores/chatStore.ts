@@ -55,11 +55,12 @@ export const useChatStore = create<ChatStore>()(
       clearError: (): void => set({ error: null }),
       unreadCount: 0,
       load: async (houseId: string): Promise<void> => {
-        const seq = ++_loadSeq;
         if (houseId !== useAuthStore.getState().houseId) {
           console.warn('[chat] house ID mismatch — aborting load');
+          set({ isLoading: false });
           return;
         }
+        const seq = ++_loadSeq;
         try {
           const { data, error } = await supabase
             .from('chat_messages')
