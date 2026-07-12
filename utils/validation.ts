@@ -174,6 +174,10 @@ export function parseAndValidateAddBill(input: {
   };
 }
 
+export const houseNoteSchema = z.object({
+  text: z.string().trim().min(1, 'Note text is required').max(500),
+});
+
 export const houseTaskSchema = z.object({
   title: z.string().trim().min(1, 'Task title is required').max(100),
   description: z.string().trim().max(1000),
