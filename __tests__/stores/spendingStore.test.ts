@@ -1,4 +1,4 @@
-import { useSpendingStore, type MonthSpend } from '../../stores/spendingStore';
+import { useSpendingStore, type MonthSpend } from '@stores/spendingStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 const mockFrom = jest.fn();

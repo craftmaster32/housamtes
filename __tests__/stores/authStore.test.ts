@@ -505,7 +505,22 @@ describe('authStore — signUp success', () => {
   });
 
   it('records terms consent for the new account', async () => {
-    mockMemberOfHouse();
+    const consentChain = ok(null);
+    mockFrom.mockImplementation((table: string) =>
+      table === 'user_consents'
+        ? consentChain
+        : ({
+            profiles: ok({
+              id: 'u1',
+              name: 'Alice',
+              avatar_color: '#6366f1',
+              avatar_url: null,
+              cover_url: null,
+            }),
+            house_members: ok([{ house_id: 'h1', role: 'admin', permissions: { bills: true } }]),
+            houses: ok({ id: 'h1' }),
+          }[table] ?? ok(null))
+    );
     mockAuth.signUp.mockResolvedValue({
       data: { user: fakeUser(), session: fakeSession() },
       error: null,
@@ -514,6 +529,11 @@ describe('authStore — signUp success', () => {
     await useAuthStore.getState().signUp('alice@example.com', 'Password1', 'Alice', '#6366f1');
 
     expect(mockFrom).toHaveBeenCalledWith('user_consents');
+    expect(consentChain.insert).toHaveBeenCalledWith({
+      user_id: 'u1',
+      terms_version: expect.any(String),
+      platform: expect.any(String),
+    });
   });
 });
 

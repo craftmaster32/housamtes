@@ -96,18 +96,22 @@ export const useChoresStore = create<ChoresStore>()(
         }
       },
       addChore: async (name, recurrence, recurrenceDay, houseId): Promise<void> => {
-        const { data, error } = await supabase
-          .from('chores')
-          .insert({
-            house_id: houseId,
-            title: name,
-            recurrence,
-            recurrence_day: recurrenceDay ?? null,
-          })
-          .select()
-          .single();
-        if (error) {
-          captureError(error, { context: 'add-chore', houseId });
+        let data;
+        try {
+          const res = await supabase
+            .from('chores')
+            .insert({
+              house_id: houseId,
+              title: name,
+              recurrence,
+              recurrence_day: recurrenceDay ?? null,
+            })
+            .select()
+            .single();
+          if (res.error) throw res.error;
+          data = res.data;
+        } catch (err) {
+          captureError(err, { context: 'add-chore', houseId });
           throw new Error('Could not save the chore. Please try again.');
         }
         const chore: Chore = {
@@ -139,12 +143,14 @@ export const useChoresStore = create<ChoresStore>()(
         if (!chore) return;
         const isDone = !chore.isComplete;
         const completedAt = isDone ? new Date().toISOString() : null;
-        const { error } = await supabase
-          .from('chores')
-          .update({ is_done: isDone, completed_at: completedAt })
-          .eq('id', id);
-        if (error) {
-          captureError(error, { context: 'toggle-chore', choreId: id });
+        try {
+          const { error } = await supabase
+            .from('chores')
+            .update({ is_done: isDone, completed_at: completedAt })
+            .eq('id', id);
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, { context: 'toggle-chore', choreId: id });
           throw new Error('Could not update the chore. Please try again.');
         }
         set({
@@ -169,39 +175,50 @@ export const useChoresStore = create<ChoresStore>()(
         }
       },
       claimChore: async (id, userId): Promise<void> => {
-        const { error } = await supabase
-          .from('chores')
-          .update({ assigned_to: userId })
-          .eq('id', id);
-        if (error) {
-          captureError(error, { context: 'claim-chore', choreId: id });
+        try {
+          const { error } = await supabase
+            .from('chores')
+            .update({ assigned_to: userId })
+            .eq('id', id);
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, { context: 'claim-chore', choreId: id });
           throw new Error('Could not claim the chore. Please try again.');
         }
         set({ chores: get().chores.map((c) => (c.id === id ? { ...c, claimedBy: userId } : c)) });
       },
       unclaimChore: async (id): Promise<void> => {
-        const { error } = await supabase.from('chores').update({ assigned_to: null }).eq('id', id);
-        if (error) {
-          captureError(error, { context: 'unclaim-chore', choreId: id });
+        try {
+          const { error } = await supabase
+            .from('chores')
+            .update({ assigned_to: null })
+            .eq('id', id);
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, { context: 'unclaim-chore', choreId: id });
           throw new Error('Could not unclaim the chore. Please try again.');
         }
         set({ chores: get().chores.map((c) => (c.id === id ? { ...c, claimedBy: null } : c)) });
       },
       deleteChore: async (id): Promise<void> => {
-        const { error } = await supabase.from('chores').delete().eq('id', id);
-        if (error) {
-          captureError(error, { context: 'delete-chore', choreId: id });
+        try {
+          const { error } = await supabase.from('chores').delete().eq('id', id);
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, { context: 'delete-chore', choreId: id });
           throw new Error('Could not delete the chore. Please try again.');
         }
         set({ chores: get().chores.filter((c) => c.id !== id) });
       },
       resetAll: async (houseId: string): Promise<void> => {
-        const { error } = await supabase
-          .from('chores')
-          .update({ is_done: false, assigned_to: null, completed_at: null })
-          .eq('house_id', houseId);
-        if (error) {
-          captureError(error, { context: 'reset-chores', houseId });
+        try {
+          const { error } = await supabase
+            .from('chores')
+            .update({ is_done: false, assigned_to: null, completed_at: null })
+            .eq('house_id', houseId);
+          if (error) throw error;
+        } catch (err) {
+          captureError(err, { context: 'reset-chores', houseId });
           throw new Error('Could not reset chores. Please try again.');
         }
         set({

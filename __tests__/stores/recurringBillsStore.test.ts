@@ -32,7 +32,7 @@ import {
   useRecurringBillsStore,
   type RecurringBill,
   type HouseholdPayment,
-} from '../../stores/recurringBillsStore';
+} from '@stores/recurringBillsStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 const bill = (id: string, assignedTo: string): RecurringBill => ({
@@ -57,6 +57,9 @@ const payment = (billId: string, amount: number, splitBetween?: string[]): House
 beforeEach(() => {
   useRecurringBillsStore.setState({ bills: [], payments: [], isLoading: false, error: null });
   jest.clearAllMocks();
+  // Also drop configured return values (clearAllMocks only clears call history),
+  // so a persistent mockReturnValue can't leak into later tests.
+  mockFrom.mockReset();
 });
 
 describe('calculateFairness', () => {
@@ -274,18 +277,16 @@ describe('addBill', () => {
     mockFrom.mockReturnValueOnce(fail('insert failed'));
 
     await expect(
-      useRecurringBillsStore
-        .getState()
-        .addBill(
-          {
-            name: 'Water',
-            assignedTo: 'bob',
-            frequency: 'monthly',
-            typicalAmount: 120,
-            icon: '💧',
-          },
-          'house-1'
-        )
+      useRecurringBillsStore.getState().addBill(
+        {
+          name: 'Water',
+          assignedTo: 'bob',
+          frequency: 'monthly',
+          typicalAmount: 120,
+          icon: '💧',
+        },
+        'house-1'
+      )
     ).rejects.toThrow('Could not save the bill. Please try again.');
     expect(useRecurringBillsStore.getState().bills).toHaveLength(0);
   });
@@ -335,18 +336,16 @@ describe('logPayment', () => {
       })
     );
 
-    await useRecurringBillsStore
-      .getState()
-      .logPayment(
-        {
-          billId: 'b1',
-          amount: 250,
-          paidAt: '2026-07-10',
-          note: 'June bill',
-          splitBetween: ['alice', 'bob'],
-        },
-        'house-1'
-      );
+    await useRecurringBillsStore.getState().logPayment(
+      {
+        billId: 'b1',
+        amount: 250,
+        paidAt: '2026-07-10',
+        note: 'June bill',
+        splitBetween: ['alice', 'bob'],
+      },
+      'house-1'
+    );
 
     const s = useRecurringBillsStore.getState();
     expect(s.payments).toHaveLength(2);
