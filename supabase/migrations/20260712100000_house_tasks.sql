@@ -65,4 +65,14 @@ CREATE TRIGGER trg_house_tasks_updated_at
   BEFORE UPDATE ON house_tasks
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-ALTER PUBLICATION supabase_realtime ADD TABLE house_tasks;
+-- Idempotent realtime registration — re-running this migration must not fail
+-- if house_tasks is already a member of the publication.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'house_tasks'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE house_tasks;
+  END IF;
+END $$;

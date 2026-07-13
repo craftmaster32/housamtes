@@ -18,26 +18,39 @@ const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 // "max 3 notifications per user per day from one event type" limit.
 const MAX_REMINDERS_PER_USER = 3;
 
-// Today's short weekday name and day-of-month in the given IANA timezone.
-function getLocalToday(tz: string): { weekday: string; dayOfMonth: string } {
-  const now = new Date();
-  const dtf = new Intl.DateTimeFormat('en-CA', {
-    timeZone: tz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    weekday: 'short',
-  });
-  const parts = Object.fromEntries(
-    dtf
-      .formatToParts(now)
-      .filter((p) => p.type !== 'literal')
-      .map((p) => [p.type, p.value])
-  );
-  // en-CA short weekday names match the app's WEEK_DAYS values ('Sun'…'Sat').
-  const weekday = WEEK_DAYS.includes(parts['weekday'] ?? '') ? (parts['weekday'] as string) : '';
-  const dayOfMonth = String(parseInt(parts['day'] ?? '0', 10));
-  return { weekday, dayOfMonth };
+// Today in the given IANA timezone: short weekday, day-of-month, and how many
+// days the current month has (so month-end chores can be clamped). Returns null
+// when the timezone string is invalid, so one bad house row can be skipped
+// instead of throwing a RangeError that aborts the whole run.
+function getLocalToday(
+  tz: string
+): { weekday: string; dayOfMonth: number; daysInMonth: number } | null {
+  try {
+    const now = new Date();
+    const dtf = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      weekday: 'short',
+    });
+    const parts = Object.fromEntries(
+      dtf
+        .formatToParts(now)
+        .filter((p) => p.type !== 'literal')
+        .map((p) => [p.type, p.value])
+    );
+    // en-CA short weekday names match the app's WEEK_DAYS values ('Sun'…'Sat').
+    const weekday = WEEK_DAYS.includes(parts['weekday'] ?? '') ? (parts['weekday'] as string) : '';
+    const year = parseInt(parts['year'] ?? '0', 10);
+    const month = parseInt(parts['month'] ?? '0', 10); // 1-12
+    const dayOfMonth = parseInt(parts['day'] ?? '0', 10);
+    // Day 0 of the next month is the last day of this month.
+    const daysInMonth = new Date(year, month, 0).getDate();
+    return { weekday, dayOfMonth, daysInMonth };
+  } catch (_err) {
+    return null; // invalid timezone — caller skips this house
+  }
 }
 
 // Deliver a push batch to Expo. Retries up to 3 attempts with exponential
@@ -114,10 +127,17 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     const dueChores = (chores as ChoreRow[]).filter((c) => {
       const tz = houseTz.get(c.house_id);
       if (!tz) return false; // house not loaded — skip rather than guess
-      const { weekday, dayOfMonth } = getLocalToday(tz);
-      if (c.recurrence === 'weekly') return c.recurrence_day === weekday;
-      if (c.recurrence === 'monthly')
-        return String(parseInt(c.recurrence_day ?? '', 10)) === dayOfMonth;
+      const today = getLocalToday(tz);
+      if (!today) return false; // invalid timezone — skip this house
+      if (c.recurrence === 'weekly') return c.recurrence_day === today.weekday;
+      if (c.recurrence === 'monthly') {
+        const targetDay = parseInt(c.recurrence_day ?? '', 10);
+        if (!Number.isFinite(targetDay)) return false;
+        // Clamp a day past the end of a short month (e.g. the 31st in Feb) to
+        // the month's last day, so month-end chores still fire.
+        const effectiveDay = Math.min(targetDay, today.daysInMonth);
+        return effectiveDay === today.dayOfMonth;
+      }
       return false;
     });
 

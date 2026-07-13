@@ -11,6 +11,7 @@ import { useAuthStore } from '@stores/authStore';
 import { NoteCard } from '@components/notes/NoteCard';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { Alert } from '@lib/alert';
 import { getErrorMessage } from '@utils/errors';
 
 export default function NotesScreen(): React.JSX.Element {
@@ -59,9 +60,11 @@ export default function NotesScreen(): React.JSX.Element {
 
   const handleDelete = useCallback(
     (id: string): void => {
-      remove(id);
+      remove(id).catch((err) => {
+        Alert.alert(t('common.error'), getErrorMessage(err, t('notes.failed_delete')));
+      });
     },
-    [remove]
+    [remove, t]
   );
 
   const renderNote = useCallback(

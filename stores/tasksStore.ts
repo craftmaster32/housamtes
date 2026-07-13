@@ -6,7 +6,7 @@ import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 import { z } from 'zod';
 import { houseTaskSchema } from '@utils/validation';
-import type { HouseTaskRow } from '@/types/database';
+import type { HouseTaskRow } from '../types/database';
 
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskFilter = 'all' | 'active' | 'completed';

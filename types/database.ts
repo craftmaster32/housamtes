@@ -5,11 +5,11 @@ export interface HouseTaskRow {
   id: string;
   house_id: string;
   title: string;
-  description: string | null;
-  priority: string | null;
+  description: string;
+  priority: 'low' | 'medium' | 'high';
   assigned_to: string | null;
   due_date: string | null;
-  is_done: boolean | null;
+  is_done: boolean;
   completed_at: string | null;
   completed_by: string | null;
   created_by: string;
