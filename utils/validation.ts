@@ -174,6 +174,22 @@ export function parseAndValidateAddBill(input: {
   };
 }
 
+export const houseNoteSchema = z.object({
+  text: z.string().trim().min(1, 'Note text is required').max(500),
+});
+
+export const houseTaskSchema = z.object({
+  title: z.string().trim().min(1, 'Task title is required').max(100),
+  description: z.string().trim().max(1000),
+  priority: z.enum(['low', 'medium', 'high']),
+  assignedTo: z.string().uuid().nullable(),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Due date must be a valid date')
+    .nullable(),
+  houseId: z.string().min(1),
+});
+
 export const maintenanceRequestSchema = z.object({
   title: z.string().trim().min(1, 'Issue title is required').max(100),
   description: z.string().trim().max(1000),

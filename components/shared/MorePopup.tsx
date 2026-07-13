@@ -61,6 +61,18 @@ const POPUP_NAV: NavItem[] = [
     route: '/(tabs)/bills/setup',
   },
   {
+    icon: 'list-outline',
+    iconActive: 'list',
+    labelKey: 'nav.tasks',
+    route: '/(tabs)/tasks',
+  },
+  {
+    icon: 'clipboard-outline',
+    iconActive: 'clipboard',
+    labelKey: 'nav.notes',
+    route: '/(tabs)/notes',
+  },
+  {
     icon: 'hand-left-outline',
     iconActive: 'hand-left',
     labelKey: 'nav.votes',
