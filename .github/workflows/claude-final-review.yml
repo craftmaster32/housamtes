@@ -48,7 +48,7 @@ jobs:
       - name: Run Claude final review
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           trigger_phrase: "@claude"
           allowed_tools: "Bash,Glob,Grep,LS,Read,mcp__github_comment__update_claude_comment"
           show_full_output: "true"
