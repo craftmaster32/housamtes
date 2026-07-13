@@ -125,7 +125,7 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
           .select()
           .single();
         if (error) {
-          captureError(error, { context: 'post-note', houseId });
+          captureError(error, { context: 'post-note', houseId, userId: authorUserId });
           throw new Error('Could not pin the note. Please try again.');
         }
         const next = [rowToNote(data as Record<string, unknown>), ...get().items];
@@ -141,7 +141,11 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
           .eq('is_pinned', true)
           .order('created_at', { ascending: false });
         if (pinnedError) {
-          captureError(pinnedError, { context: 'archive-notes-query', houseId });
+          captureError(pinnedError, {
+            context: 'archive-notes-query',
+            houseId,
+            userId: authorUserId,
+          });
           return;
         }
         const overflowIds = ((pinnedRows ?? []) as Array<{ id: string }>)
@@ -153,7 +157,7 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
             .update({ is_pinned: false })
             .in('id', overflowIds);
           if (archiveError) {
-            captureError(archiveError, { context: 'archive-notes', houseId });
+            captureError(archiveError, { context: 'archive-notes', houseId, userId: authorUserId });
           }
         }
       },
@@ -164,7 +168,11 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
           .update({ text: parsed.text })
           .eq('id', id);
         if (error) {
-          captureError(error, { context: 'edit-note', announcementId: id });
+          captureError(error, {
+            context: 'edit-note',
+            announcementId: id,
+            houseId: useAuthStore.getState().houseId ?? '',
+          });
           throw new Error('Could not save the note. Please try again.');
         }
         const now = new Date().toISOString();
@@ -177,7 +185,11 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
       remove: async (id): Promise<void> => {
         const { error } = await supabase.from('announcements').delete().eq('id', id);
         if (error) {
-          captureError(error, { context: 'delete-note', announcementId: id });
+          captureError(error, {
+            context: 'delete-note',
+            announcementId: id,
+            houseId: useAuthStore.getState().houseId ?? '',
+          });
           throw new Error('Could not delete the note. Please try again.');
         }
         set({ items: get().items.filter((i) => i.id !== id) });

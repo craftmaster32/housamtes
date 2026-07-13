@@ -1,8 +1,8 @@
 -- House task list (FEATURES.md 4.4).
 -- Shared to-do list for the house: title, description, priority,
 -- optional assignee and due date. Completed tasks stay in history.
--- Also adds the per-user preference for the "new task assigned to you"
--- push notification (Phase 6), which ships with this feature.
+-- The matching notification preference column ships in the next
+-- migration file (one logical change per file).
 
 CREATE TABLE IF NOT EXISTS house_tasks (
   id           uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -10,18 +10,26 @@ CREATE TABLE IF NOT EXISTS house_tasks (
   title        text NOT NULL,
   description  text NOT NULL DEFAULT '',
   priority     text NOT NULL DEFAULT 'medium' CHECK (priority IN ('low','medium','high')),
-  assigned_to  uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  assigned_to  uuid,
   due_date     date,
   is_done      boolean NOT NULL DEFAULT false,
   completed_at timestamptz,
   completed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_by   uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at   timestamptz DEFAULT now(),
-  updated_at   timestamptz DEFAULT now()
+  updated_at   timestamptz DEFAULT now(),
+  -- A task can only be assigned to a member of the same house. When that
+  -- membership is deleted (member leaves), the task simply becomes
+  -- unassigned instead of blocking the removal.
+  CONSTRAINT house_tasks_assignee_is_member
+    FOREIGN KEY (house_id, assigned_to)
+    REFERENCES house_members(house_id, user_id)
+    ON DELETE SET NULL (assigned_to)
 );
 
 CREATE INDEX IF NOT EXISTS idx_house_tasks_house_id ON house_tasks(house_id);
 CREATE INDEX IF NOT EXISTS idx_house_tasks_assigned_to ON house_tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_house_tasks_created_by ON house_tasks(created_by);
 
 ALTER TABLE house_tasks ENABLE ROW LEVEL SECURITY;
 
@@ -58,7 +66,3 @@ CREATE TRIGGER trg_house_tasks_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 ALTER PUBLICATION supabase_realtime ADD TABLE house_tasks;
-
--- Per-user toggle for the "new task assigned to you" push notification.
-ALTER TABLE notification_preferences
-  ADD COLUMN IF NOT EXISTS notify_task_assigned boolean DEFAULT true;

@@ -4,6 +4,7 @@ import { supabase } from '@lib/supabase';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+import { z } from 'zod';
 import { houseTaskSchema } from '@utils/validation';
 import type { HouseTaskRow } from '@/types/database';
 
@@ -155,7 +156,17 @@ export const useTasksStore = create<TasksStore>()(
         }
       },
       addTask: async (input, houseId): Promise<void> => {
-        const parsed = houseTaskSchema.parse({ ...input, houseId });
+        let parsed: z.infer<typeof houseTaskSchema>;
+        try {
+          parsed = houseTaskSchema.parse({ ...input, houseId });
+        } catch (err) {
+          // Surface the first validation message in plain English instead of
+          // the raw ZodError JSON blob.
+          if (err instanceof z.ZodError) {
+            throw new Error(err.issues[0]?.message ?? 'Please check the task details.');
+          }
+          throw err;
+        }
         const userId = useAuthStore.getState().profile?.id ?? '';
         let task: HouseTask;
         try {

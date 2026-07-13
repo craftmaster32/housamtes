@@ -861,6 +861,8 @@
     "add_task": "Add task",
     "adding": "Adding…",
     "failed_add": "Failed to add task. Try again.",
+    "failed_update": "Could not update the task. Try again.",
+    "failed_delete": "Could not delete the task. Try again.",
     "filter_all": "All",
     "filter_active": "Active",
     "filter_completed": "Completed",

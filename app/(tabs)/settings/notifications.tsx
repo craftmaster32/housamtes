@@ -180,7 +180,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             <Text style={styles.subheading}>{t('settings.notifications_section')}</Text>
           </View>
 
-          <Text style={styles.sectionTitle}>💰 Bills</Text>
+          <Text style={styles.sectionTitle}>💰 {t('nav.bills')}</Text>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_bill_added')}
@@ -232,7 +232,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             )}
           </View>
 
-          <Text style={styles.sectionTitle}>🚗 Parking</Text>
+          <Text style={styles.sectionTitle}>🚗 {t('nav.parking')}</Text>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_parking_claimed')}
@@ -249,7 +249,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>🧹 Chores</Text>
+          <Text style={styles.sectionTitle}>🧹 {t('nav.chores')}</Text>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_chore')}
@@ -260,7 +260,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>📋 Tasks</Text>
+          <Text style={styles.sectionTitle}>📋 {t('nav.tasks')}</Text>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_task_assigned')}
@@ -271,7 +271,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>💬 Chat</Text>
+          <Text style={styles.sectionTitle}>💬 {t('nav.chat')}</Text>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_chat')}

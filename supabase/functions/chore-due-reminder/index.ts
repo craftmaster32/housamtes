@@ -128,6 +128,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     }
 
     let totalSent = 0;
+    // Global per-user cap across every house in this run — a user in two
+    // houses must still get at most MAX_REMINDERS_PER_USER reminders per day.
+    const remindersPerUser = new Map<string, number>();
 
     for (const houseId of houseIds) {
       const houseChores = dueChores.filter((c) => c.house_id === houseId);
@@ -157,7 +160,6 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       );
 
       const messages: Array<Record<string, unknown>> = [];
-      const remindersPerUser = new Map<string, number>();
       for (const chore of houseChores) {
         const assignee = chore.assigned_to as string;
         if (optedOut.has(assignee)) continue;

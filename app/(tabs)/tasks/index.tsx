@@ -13,6 +13,8 @@ import {
   type TaskFilter,
 } from '@stores/tasksStore';
 import { useAuthStore } from '@stores/authStore';
+import { Alert } from '@lib/alert';
+import { getErrorMessage } from '@utils/errors';
 import { TaskRow } from '@components/tasks/TaskRow';
 import { AddTaskForm } from '@components/tasks/AddTaskForm';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -58,16 +60,20 @@ export default function TasksScreen(): React.JSX.Element {
 
   const handleToggle = useCallback(
     (id: string): void => {
-      toggleTask(id);
+      toggleTask(id).catch((err) => {
+        Alert.alert(t('common.error'), getErrorMessage(err, t('tasks.failed_update')));
+      });
     },
-    [toggleTask]
+    [toggleTask, t]
   );
 
   const handleDelete = useCallback(
     (id: string): void => {
-      deleteTask(id);
+      deleteTask(id).catch((err) => {
+        Alert.alert(t('common.error'), getErrorMessage(err, t('tasks.failed_delete')));
+      });
     },
-    [deleteTask]
+    [deleteTask, t]
   );
 
   const renderTask = useCallback(
