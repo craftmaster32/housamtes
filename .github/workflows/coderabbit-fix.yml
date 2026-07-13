@@ -26,6 +26,7 @@ jobs:
          github.event.review.user.login == 'coderabbitai[bot]')
       }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     concurrency:
       group: coderabbit-fix-${{ github.event.issue.number || github.event.pull_request.number }}
       cancel-in-progress: true
@@ -137,4 +138,4 @@ jobs:
             - After all commits: push with `git push origin HEAD`
             - Then run `npx tsc --noEmit` to confirm no TypeScript errors
             - Do NOT post any PR comment — stay silent, just fix, commit, and push
-          claude_args: --max-turns 15
+          claude_args: --max-turns 15 --permission-mode acceptEdits

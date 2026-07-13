@@ -140,6 +140,7 @@ jobs:
 
       - name: Auto-fix on failure
         if: steps.tsc.outcome == 'failure' || steps.lint.outcome == 'failure' || steps.test.outcome == 'failure'
+        timeout-minutes: 20
         uses: anthropics/claude-code-action@4eaab9b1bbfbbf62abf34216270d6002ab02915c # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -159,4 +160,4 @@ jobs:
             5. Push the branch and open a PR titled "fix: post-merge check failures"
 
             Follow all rules in CLAUDE.md strictly.
-          claude_args: --max-turns 20
+          claude_args: --max-turns 20 --permission-mode acceptEdits
