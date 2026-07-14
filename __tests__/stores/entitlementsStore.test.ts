@@ -10,31 +10,31 @@ import {
   useEntitlementsStore,
   PREMIUM_FEATURES,
   FREE_PHOTO_LIMIT,
-} from '../../stores/entitlementsStore';
+} from '@stores/entitlementsStore';
 
-beforeEach(() => {
+beforeEach((): void => {
   useEntitlementsStore.setState({ isPremium: false, isLoading: false, error: null });
 });
 
-describe('entitlementsStore — free tier defaults', () => {
-  it('defaults everyone to free', () => {
+describe('entitlementsStore — free tier defaults', (): void => {
+  it('defaults everyone to free', (): void => {
     expect(useEntitlementsStore.getState().isPremium).toBe(false);
   });
 
-  it('locks every premium feature on the free tier', () => {
+  it('locks every premium feature on the free tier', (): void => {
     const { hasEntitlement } = useEntitlementsStore.getState();
     for (const feature of PREMIUM_FEATURES) {
       expect(hasEntitlement(feature.key)).toBe(false);
     }
   });
 
-  it('caps photos at the free limit', () => {
+  it('caps photos at the free limit', (): void => {
     expect(useEntitlementsStore.getState().photoLimit()).toBe(FREE_PHOTO_LIMIT);
   });
 });
 
-describe('entitlementsStore — flipping isPremium unlocks everything', () => {
-  it('unlocks every premium feature', () => {
+describe('entitlementsStore — flipping isPremium unlocks everything', (): void => {
+  it('unlocks every premium feature', (): void => {
     useEntitlementsStore.getState().setPremium(true);
 
     const { hasEntitlement } = useEntitlementsStore.getState();
@@ -43,13 +43,13 @@ describe('entitlementsStore — flipping isPremium unlocks everything', () => {
     }
   });
 
-  it('removes the photo limit', () => {
+  it('removes the photo limit', (): void => {
     useEntitlementsStore.getState().setPremium(true);
 
     expect(useEntitlementsStore.getState().photoLimit()).toBeNull();
   });
 
-  it('re-locks everything when premium is turned off again', () => {
+  it('re-locks everything when premium is turned off again', (): void => {
     useEntitlementsStore.getState().setPremium(true);
     useEntitlementsStore.getState().setPremium(false);
 
@@ -59,26 +59,26 @@ describe('entitlementsStore — flipping isPremium unlocks everything', () => {
   });
 });
 
-describe('entitlementsStore — canAddPhotos', () => {
-  it('allows uploads under the free limit', () => {
+describe('entitlementsStore — canAddPhotos', (): void => {
+  it('allows uploads under the free limit', (): void => {
     const { canAddPhotos } = useEntitlementsStore.getState();
     expect(canAddPhotos(0, 1)).toBe(true);
     expect(canAddPhotos(FREE_PHOTO_LIMIT - 1, 1)).toBe(true);
   });
 
-  it('allows exactly reaching the free limit but not passing it', () => {
+  it('allows exactly reaching the free limit but not passing it', (): void => {
     const { canAddPhotos } = useEntitlementsStore.getState();
     expect(canAddPhotos(FREE_PHOTO_LIMIT - 3, 3)).toBe(true);
     expect(canAddPhotos(FREE_PHOTO_LIMIT - 3, 4)).toBe(false);
   });
 
-  it('blocks any upload at or over the free limit', () => {
+  it('blocks any upload at or over the free limit', (): void => {
     const { canAddPhotos } = useEntitlementsStore.getState();
     expect(canAddPhotos(FREE_PHOTO_LIMIT, 1)).toBe(false);
     expect(canAddPhotos(FREE_PHOTO_LIMIT + 5, 1)).toBe(false);
   });
 
-  it('never blocks premium users', () => {
+  it('never blocks premium users', (): void => {
     useEntitlementsStore.getState().setPremium(true);
 
     const { canAddPhotos } = useEntitlementsStore.getState();
@@ -86,8 +86,8 @@ describe('entitlementsStore — canAddPhotos', () => {
   });
 });
 
-describe('entitlementsStore — paywall feature list', () => {
-  it('advertises exactly the four planned premium features', () => {
+describe('entitlementsStore — paywall feature list', (): void => {
+  it('advertises exactly the four planned premium features', (): void => {
     expect(PREMIUM_FEATURES.map((f) => f.key)).toEqual([
       'ad_free',
       'unlimited_photos',

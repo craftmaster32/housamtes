@@ -230,6 +230,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       minHeight: 52,
       marginTop: sizes.md,
     },
+    upgradeBtnPressed: { opacity: 0.85 },
     upgradeBtnText: { fontSize: 16, ...font.bold, color: '#fff' },
     priceNote: {
       fontSize: 13,
