@@ -38,7 +38,7 @@ import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailMod
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareModal';
 import { SavedListsSection } from '@components/grocery/SavedListsSection';
-import { GroceryRemindersSection } from '@components/grocery/GroceryRemindersSection';
+import { GroceryRemindersModal } from '@components/grocery/GroceryRemindersModal';
 import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
 import { ReminderPromptBanner } from '@components/grocery/ReminderPromptBanner';
 import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
@@ -507,6 +507,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const leaveWarningShownRef = useRef(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
+  const [showRemindersListModal, setShowRemindersListModal] = useState(false);
   const [reminderListTarget, setReminderListTarget] = useState<GroceryList | null>(null);
   const [reminderDefaultLabel, setReminderDefaultLabel] = useState('');
   const {
@@ -751,10 +752,19 @@ export default function GroceryScreen(): React.JSX.Element {
   // ── Reminder handlers ───────────────────────────────────────────────────────
   const handleOpenGeneralReminder = useCallback((): void => {
     dismissAddedItemPrompt();
+    setShowRemindersListModal(false);
     setReminderListTarget(null);
     setReminderDefaultLabel('');
     setShowReminderModal(true);
   }, [dismissAddedItemPrompt]);
+
+  const handleOpenRemindersList = useCallback((): void => {
+    setShowRemindersListModal(true);
+  }, []);
+
+  const handleCloseRemindersList = useCallback((): void => {
+    setShowRemindersListModal(false);
+  }, []);
 
   const handleOpenListReminder = useCallback(
     (list: GroceryList): void => {
@@ -1167,9 +1177,27 @@ export default function GroceryScreen(): React.JSX.Element {
                 <View>
                   {/* ── Hero card ─────────────────────────────────────────── */}
                   <View style={styles.headerCard}>
-                    <View style={styles.headerCopy}>
-                      <Text style={styles.titleHero}>{t('grocery.shared_groceries')}</Text>
-                      <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
+                    <View style={styles.headerTopRow}>
+                      <View style={[styles.headerCopy, styles.headerCopyFlex]}>
+                        <Text style={styles.titleHero}>{t('grocery.shared_groceries')}</Text>
+                        <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
+                      </View>
+                      <Pressable
+                        style={styles.remindersBellBtn}
+                        onPress={handleOpenRemindersList}
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel={t('grocery.reminders_count', {
+                          count: reminders.length,
+                        })}
+                      >
+                        <Ionicons name="alarm-outline" size={22} color={C.textPrimary} />
+                        {reminders.length > 0 && (
+                          <View style={styles.remindersBadge}>
+                            <Text style={styles.remindersBadgeText}>{reminders.length}</Text>
+                          </View>
+                        )}
+                      </Pressable>
                     </View>
 
                     {/* ── Add mode toggle: Shared | Private ────────────── */}
@@ -1389,15 +1417,6 @@ export default function GroceryScreen(): React.JSX.Element {
                     </View>
                   </View>
 
-                  {/* ── Reminders section ────────────────────────────────────── */}
-                  <GroceryRemindersSection
-                    reminders={reminders}
-                    isLoading={isLoadingReminders}
-                    error={remindersError}
-                    onAddReminder={handleOpenGeneralReminder}
-                    onDeleteReminder={handleDeleteReminder}
-                  />
-
                   {/* ── Saved Lists section ──────────────────────────────────── */}
                   <SavedListsSection
                     lists={savedLists}
@@ -1482,6 +1501,16 @@ export default function GroceryScreen(): React.JSX.Element {
         onClose={handleCloseReminderModal}
         onSave={handleSaveReminder}
       />
+
+      <GroceryRemindersModal
+        visible={showRemindersListModal}
+        reminders={reminders}
+        isLoading={isLoadingReminders}
+        error={remindersError}
+        onAddReminder={handleOpenGeneralReminder}
+        onDeleteReminder={handleDeleteReminder}
+        onClose={handleCloseRemindersList}
+      />
     </>
   );
 }
@@ -1517,7 +1546,28 @@ function makeStyles(C: ColorTokens) {
       shadowRadius: 8,
       elevation: 2,
     },
+    headerTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
     headerCopy: { gap: 6 },
+    headerCopyFlex: { flex: 1 },
+    remindersBellBtn: {
+      width: 44,
+      height: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    remindersBadge: {
+      position: 'absolute',
+      top: 2,
+      right: 2,
+      backgroundColor: C.primary,
+      borderRadius: 9999,
+      minWidth: 16,
+      height: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 4,
+    },
+    remindersBadgeText: { fontSize: 10, ...font.bold, color: '#fff' },
 
     titleHero: {
       fontSize: 26,
