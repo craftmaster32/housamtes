@@ -108,7 +108,7 @@ export default function PremiumScreen(): React.JSX.Element {
           {!isPremium && (
             <>
               <Pressable
-                style={({ pressed }) => [styles.upgradeBtn, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [styles.upgradeBtn, pressed && styles.upgradeBtnPressed]}
                 onPress={handleUpgrade}
                 accessible
                 accessibilityRole="button"
@@ -147,6 +147,7 @@ export default function PremiumScreen(): React.JSX.Element {
                   accessible
                   accessibilityRole="switch"
                   accessibilityLabel={t('premium.dev_toggle')}
+                  accessibilityHint={t('premium.dev_toggle_sub')}
                   accessibilityState={{ checked: isPremium }}
                 />
               </View>
@@ -158,7 +159,7 @@ export default function PremiumScreen(): React.JSX.Element {
   );
 }
 
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },

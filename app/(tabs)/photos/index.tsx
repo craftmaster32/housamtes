@@ -203,6 +203,9 @@ export default function PhotosScreen(): React.JSX.Element {
   const isPremium = useEntitlementsStore((s) => s.isPremium);
   const canAddPhotos = useEntitlementsStore((s) => s.canAddPhotos);
   const photoLimit = useEntitlementsStore((s) => s.photoLimit);
+  // Entitlements are still rehydrating from AsyncStorage — don't enforce the
+  // free-tier cap yet, or a premium user could briefly get blocked/upsold.
+  const entitlementsLoading = useEntitlementsStore((s) => s.isLoading);
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -357,7 +360,7 @@ export default function PhotosScreen(): React.JSX.Element {
   const handleUpload = useCallback(
     async (caption: string, category: PhotoCategory): Promise<void> => {
       if (!pickedAssets.length || !user || !houseId || !profile) return;
-      if (!canAddPhotos(photos.length, pickedAssets.length)) {
+      if (!entitlementsLoading && !canAddPhotos(photos.length, pickedAssets.length)) {
         setError(t('photos.limit_title'));
         return;
       }
@@ -387,11 +390,23 @@ export default function PhotosScreen(): React.JSX.Element {
         setUploadProgress({ current: 0, total: 0 });
       }
     },
-    [pickedAssets, user, houseId, profile, photos.length, canAddPhotos, upload, load, t]
+    [
+      pickedAssets,
+      user,
+      houseId,
+      profile,
+      photos.length,
+      canAddPhotos,
+      entitlementsLoading,
+      upload,
+      load,
+      t,
+    ]
   );
 
   const limit = photoLimit();
-  const atPhotoLimit = !isPremium && limit !== null && photos.length >= limit;
+  const atPhotoLimit =
+    !entitlementsLoading && !isPremium && limit !== null && photos.length >= limit;
 
   const handleDelete = useCallback(
     (photo: Photo): void => {

@@ -12,12 +12,15 @@ import { font } from '@constants/typography';
 // the real <BannerAd> from react-native-google-mobile-ads — the isPremium gate
 // and the slot placement (above the bottom tab bar in app/_layout.tsx) stay
 // exactly as they are. See MONETIZATION.md.
-export const AdBanner: React.FC = () => {
+export const AdBanner = (): React.JSX.Element | null => {
   const { t } = useTranslation();
   const C = useThemedColors();
   const adFree = useEntitlementsStore((s) => s.isPremium);
+  const isLoading = useEntitlementsStore((s) => s.isLoading);
 
-  if (adFree) return null;
+  // Wait for entitlements to rehydrate — otherwise a premium user briefly
+  // sees the free-tier ad slot before AsyncStorage confirms isPremium.
+  if (isLoading || adFree) return null;
 
   return (
     <View

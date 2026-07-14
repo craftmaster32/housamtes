@@ -41,7 +41,8 @@ export const PremiumUpsell: React.FC<PremiumUpsellProps> = ({ title, body }) => 
       <Pressable
         style={({ pressed }) => [
           styles.button,
-          { backgroundColor: C.primary, opacity: pressed ? 0.85 : 1 },
+          { backgroundColor: C.primary },
+          pressed && styles.buttonPressed,
         ]}
         onPress={handlePress}
         accessible
@@ -81,4 +82,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: { fontSize: 14, ...font.semibold, color: '#fff' },
+  buttonPressed: { opacity: 0.85 },
 });

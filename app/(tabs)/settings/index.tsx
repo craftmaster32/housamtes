@@ -220,6 +220,7 @@ export default function SettingsScreen(): React.JSX.Element {
             <Link href="/(tabs)/settings/premium" asChild>
               <Pressable
                 style={styles.row}
+                accessible
                 accessibilityRole="button"
                 accessibilityLabel={t('premium.title')}
               >

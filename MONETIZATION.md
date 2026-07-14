@@ -10,23 +10,24 @@ section in Settings.
 
 ## What was built (Session 5 — monetization groundwork)
 
-| Piece              | File                                         | What it does                                                                                                                                                               |
-| ------------------ | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Entitlements store | `stores/entitlementsStore.ts`                | Single source of truth: `isPremium` flag (defaults to **false**), `hasEntitlement(feature)` gate helper, photo-limit maths. Persisted locally.                             |
-| Ad slot            | `components/premium/AdBanner.tsx`            | One 50pt banner placeholder, rendered above the bottom tab bar (`app/_layout.tsx`). Premium users see nothing.                                                             |
-| Upsell card        | `components/premium/PremiumUpsell.tsx`       | Reusable "Unlock with Premium" card — drop it wherever a free user hits a premium boundary.                                                                                |
-| Paywall screen     | `app/(tabs)/settings/premium.tsx`            | Lists the four premium unlocks. The upgrade / restore buttons show a "coming soon" notice until real billing exists. Includes a dev-build-only switch to simulate Premium. |
-| Photo limit gate   | `app/(tabs)/photos/index.tsx`                | The existing 50-photo cap now reads from the entitlements store — Premium removes it. Free users at the cap see the upsell card.                                           |
-| Settings entry     | `app/(tabs)/settings/index.tsx`              | "HouseMates Premium" row → paywall screen.                                                                                                                                 |
-| Tests              | `__tests__/stores/entitlementsStore.test.ts` | Locks in the gating and photo-limit behaviour.                                                                                                                             |
-| Strings            | `locales/en.json`, `he.json`, `es.json`      | All premium copy in all three languages.                                                                                                                                   |
+| Piece              | File                                                    | What it does                                                                                                                                                               |
+| ------------------ | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entitlements store | `stores/entitlementsStore.ts`                           | Single source of truth: `isPremium` flag (defaults to **false**), `hasEntitlement(feature)` gate helper, photo-limit maths. Persisted locally.                             |
+| Ad slot            | `components/premium/AdBanner.tsx`                       | One 50pt banner placeholder, rendered above the bottom tab bar (`app/_layout.tsx`). Premium users see nothing.                                                             |
+| Upsell card        | `components/premium/PremiumUpsell.tsx`                  | Reusable "Unlock with Premium" card — drop it wherever a free user hits a premium boundary.                                                                                |
+| Paywall screen     | `app/(tabs)/settings/premium.tsx`                       | Lists the four premium unlocks. The upgrade / restore buttons show a "coming soon" notice until real billing exists. Includes a dev-build-only switch to simulate Premium. |
+| Photo limit gate   | `app/(tabs)/photos/index.tsx`                           | The existing 50-photo cap now reads from the entitlements store — Premium removes it. Free users at the cap see the upsell card.                                           |
+| Settings entry     | `app/(tabs)/settings/index.tsx`                         | "HouseMates Premium" row → paywall screen.                                                                                                                                 |
+| Tests              | `__tests__/stores/entitlementsStore.test.ts`            | Locks in the gating and photo-limit behaviour.                                                                                                                             |
+| Strings            | `locales/en.json`, `locales/he.json`, `locales/es.json` | All premium copy in all three languages.                                                                                                                                   |
 
 **The four premium unlocks** (from FEATURES.md Phase 7 + IDEAS.md):
 ad-free · unlimited photos · PDF reports · custom themes.
 
 PDF reports and custom themes are not built yet — the paywall advertises them
 as part of the premium plan, and when they are built they must check
-`useEntitlementsStore.getState().hasEntitlement('pdf_reports' | 'custom_themes')`.
+`useEntitlementsStore.getState().hasEntitlement('pdf_reports')` and/or
+`hasEntitlement('custom_themes')` before unlocking each one.
 
 ---
 
@@ -53,6 +54,13 @@ swap points:
   the real IAP flow.
 - `stores/entitlementsStore.ts` — `setPremium` is the hook the IAP layer calls.
 
+`setPremium(true)` is only the happy path. When the real IAP layer lands, it
+must also re-check the verified entitlement on app launch and foreground (not
+just once at purchase time), and call `setPremium(false)` when access is no
+longer active — expired, refunded, or subscription cancelled — so the
+persisted flag can never keep premium features unlocked past the point the
+purchase is actually valid.
+
 ---
 
 ## Your to-do list to go live (only you can do these)
@@ -71,8 +79,9 @@ swap points:
 ### 2. Payments SDK (needs your accounts + a dependency approval)
 
 - [ ] Pick the IAP layer — recommendation: **RevenueCat** (free up to
-      $2.5k/month revenue, handles receipt validation, restores, and
-      subscription state so we don't build a backend for it).
+      $2.5k/month Monthly Tracked Revenue (MTR), handles receipt validation,
+      restores, and subscription state so we don't build a backend for it —
+      recheck their current pricing terms before launch, vendor pricing shifts).
 - [ ] Create the RevenueCat account, add the App Store app, and get the API key.
 - [ ] Approve adding the SDK (`react-native-purchases`) — per CLAUDE.md no
       dependency is installed without your yes.
@@ -83,8 +92,10 @@ swap points:
 - [ ] Create one **banner ad unit** and note its unit ID.
 - [ ] Approve adding the SDK (`react-native-google-mobile-ads`) and the
       `app.json` config (AdMob app ID goes there).
-- [ ] Decide on consent: AdMob in the EU/UK needs a consent prompt (UMP). We
-      build that when the SDK lands.
+- [ ] Decide on consent: AdMob requires a CMP/UMP consent flow for users in
+      the EEA, UK, and Switzerland specifically (not universally), including a
+      visible "privacy options" entry point so a user can withdraw consent
+      later. We build the exact flow when the SDK lands and the setup is final.
 
 ### 4. Keys & secrets
 

@@ -52,6 +52,9 @@ export const FREE_PHOTO_LIMIT = 50;
 
 interface EntitlementsStore {
   isPremium: boolean;
+  // True until AsyncStorage rehydration finishes. Consumers that gate paid
+  // features (AdBanner, photo cap) must wait for this to go false so a
+  // premium user is never shown the free-tier state during startup.
   isLoading: boolean;
   error: string | null;
   clearError: () => void;
@@ -64,12 +67,16 @@ interface EntitlementsStore {
   canAddPhotos: (currentCount: number, adding: number) => boolean;
 }
 
+type PersistedEntitlements = Pick<EntitlementsStore, 'isPremium'>;
+
 export const useEntitlementsStore = create<EntitlementsStore>()(
   devtools(
     persist(
-      (set, get) => ({
+      (set, get): EntitlementsStore => ({
         isPremium: false,
-        isLoading: false,
+        // Starts true — flips to false once onRehydrateStorage below confirms
+        // AsyncStorage has been read, whether or not a premium flag was found.
+        isLoading: true,
         error: null,
 
         clearError: (): void => {
@@ -99,10 +106,15 @@ export const useEntitlementsStore = create<EntitlementsStore>()(
       }),
       {
         name: 'housemates-entitlements',
-        storage: createJSONStorage(() => AsyncStorage),
+        storage: createJSONStorage((): typeof AsyncStorage => AsyncStorage),
         version: 1,
         // Only the flag is persisted — helpers are recreated on rehydrate.
-        partialize: (s) => ({ isPremium: s.isPremium }),
+        partialize: (s): PersistedEntitlements => ({ isPremium: s.isPremium }),
+        // Fires once AsyncStorage has been read (found or not). Until then,
+        // isLoading stays true so consumers never treat a premium user as free.
+        onRehydrateStorage: (): (() => void) => (): void => {
+          useEntitlementsStore.setState({ isLoading: false });
+        },
       }
     ),
     { name: 'entitlements-store' }
