@@ -9,14 +9,19 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.housemates.app"
+      "bundleIdentifier": "com.housemates.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.housemates.app"
+      "package": "com.housemates.app",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -28,6 +33,13 @@
       "expo-secure-store",
       "expo-notifications",
       "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "HouseMates uses your camera so you can snap photos of receipts, damage, and house memories to share with your housemates.",
+          "photosPermission": "HouseMates needs access to your photo library so you can pick photos of receipts, damage, and memories to share with your housemates."
+        }
+      ],
       [
         "expo-media-library",
         {

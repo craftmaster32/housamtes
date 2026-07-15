@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
     if (!payload.sub || payload['role'] !== 'authenticated') throw new Error('not authenticated');
     callerId = payload.sub;
   } catch (err) {
-    console.log(`[send-push] JWT verification failed: ${err}`);
+    console.warn(`[send-push] JWT verification failed: ${err}`);
     return new Response('Unauthorized', { status: 401, headers: CORS_HEADERS });
   }
 
