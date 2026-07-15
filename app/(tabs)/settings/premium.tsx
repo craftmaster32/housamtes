@@ -31,6 +31,7 @@ export default function PremiumScreen(): React.JSX.Element {
   // paywall/free-state content yet, or a premium user could briefly see the
   // locked/upsell UI before isPremium is confirmed.
   const entitlementsLoading = useEntitlementsStore((s) => s.isLoading);
+  const entitlementsError = useEntitlementsStore((s) => s.error);
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -77,6 +78,10 @@ export default function PremiumScreen(): React.JSX.Element {
         {entitlementsLoading ? (
           <View style={styles.centered}>
             <ActivityIndicator color={C.primary} />
+          </View>
+        ) : entitlementsError ? (
+          <View style={styles.centered}>
+            <Text style={styles.heroSubtitle}>{t('premium.load_error')}</Text>
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.content}>

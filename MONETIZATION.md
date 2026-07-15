@@ -2,9 +2,9 @@
 
 The app is now **monetization-ready**: the free-with-ads + premium structure
 exists, but no real ads and no real payments are wired up. Everyone is on the
-free tier, nothing costs money, and the only visible change for users is a
-small labelled "Ad placeholder" strip above the bottom tab bar and a Premium
-section in Settings.
+free tier, nothing costs money. The visible changes for users are a small
+labelled "Ad placeholder" strip above the bottom tab bar, a Premium section in
+Settings, and an upgrade card when free users reach the photo cap.
 
 ---
 
@@ -123,6 +123,6 @@ event.
 - No payment SDK, ad SDK, or any new dependency was installed.
 - No App Store products were created.
 - No real money can change hands — the upgrade button only shows a notice.
-- No user-facing behaviour changed for premium-less users beyond the labelled
-  ad placeholder and the new Premium screens (the 50-photo cap already
-  existed).
+- No other user-facing behaviour changed for premium-less users beyond the
+  labelled ad placeholder, the new Premium screens, and the photo-limit
+  upgrade card (the 50-photo cap itself already existed).

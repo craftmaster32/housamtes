@@ -17,10 +17,13 @@ export const AdBanner = (): React.JSX.Element | null => {
   const C = useThemedColors();
   const adFree = useEntitlementsStore((s) => s.isPremium);
   const isLoading = useEntitlementsStore((s) => s.isLoading);
+  const entitlementsError = useEntitlementsStore((s) => s.error);
 
   // Wait for entitlements to rehydrate — otherwise a premium user briefly
-  // sees the free-tier ad slot before AsyncStorage confirms isPremium.
-  if (isLoading || adFree) return null;
+  // sees the free-tier ad slot before AsyncStorage confirms isPremium. A
+  // failed rehydrate is treated the same way: isPremium can't be trusted,
+  // so don't show ads to a user who might actually be premium.
+  if (isLoading || entitlementsError || adFree) return null;
 
   return (
     <View

@@ -203,9 +203,12 @@ export default function PhotosScreen(): React.JSX.Element {
   const isPremium = useEntitlementsStore((s) => s.isPremium);
   const canAddPhotos = useEntitlementsStore((s) => s.canAddPhotos);
   const photoLimit = useEntitlementsStore((s) => s.photoLimit);
-  // Entitlements are still rehydrating from AsyncStorage — don't enforce the
-  // free-tier cap yet, or a premium user could briefly get blocked/upsold.
-  const entitlementsLoading = useEntitlementsStore((s) => s.isLoading);
+  const entitlementsIsLoading = useEntitlementsStore((s) => s.isLoading);
+  const entitlementsError = useEntitlementsStore((s) => s.error);
+  // Entitlements are still rehydrating, or the read failed outright — either
+  // way isPremium can't be trusted, so don't enforce the free-tier cap or
+  // block uploads until a confirmed read comes back.
+  const entitlementsLoading = entitlementsIsLoading || !!entitlementsError;
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);

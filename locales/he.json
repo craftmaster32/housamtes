@@ -1532,6 +1532,7 @@
     "title": "HouseMates פרימיום",
     "subtitle": "תמכו באפליקציה ופתחו את החוויה המלאה לבית שלכם.",
     "active_subtitle": "פרימיום פעיל — תודה שאתם תומכים ב-HouseMates!",
+    "load_error": "לא ניתן היה לבדוק את מצב הפרימיום שלך. נסו שוב.",
     "unlocks_section": "מה נפתח לכם",
     "feature_ad_free": "בלי פרסומות",
     "feature_ad_free_sub": "בלי באנרים, בשום מקום באפליקציה",

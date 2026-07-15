@@ -1532,6 +1532,7 @@
     "title": "HouseMates Premium",
     "subtitle": "Support the app and unlock the full experience for your house.",
     "active_subtitle": "Premium is active — thanks for supporting HouseMates!",
+    "load_error": "Could not check your Premium status. Please try again.",
     "unlocks_section": "WHAT YOU UNLOCK",
     "feature_ad_free": "Ad-free",
     "feature_ad_free_sub": "No banners, anywhere in the app",
