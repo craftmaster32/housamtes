@@ -138,4 +138,4 @@ jobs:
             - After all commits: push with `git push origin HEAD`
             - Then run `npx tsc --noEmit` to confirm no TypeScript errors
             - Do NOT post any PR comment — stay silent, just fix, commit, and push
-          claude_args: --max-turns 15 --permission-mode acceptEdits
+          claude_args: --max-turns 15 --permission-mode bypassPermissions

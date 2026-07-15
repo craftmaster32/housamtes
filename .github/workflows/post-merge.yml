@@ -160,4 +160,4 @@ jobs:
             5. Push the branch and open a PR titled "fix: post-merge check failures"
 
             Follow all rules in CLAUDE.md strictly.
-          claude_args: --max-turns 20 --permission-mode acceptEdits
+          claude_args: --max-turns 20 --permission-mode bypassPermissions
