@@ -56,10 +56,13 @@ swap points:
 
 `setPremium(true)` is only the happy path. When the real IAP layer lands, it
 must also re-check the verified entitlement on app launch and foreground (not
-just once at purchase time), and call `setPremium(false)` when access is no
-longer active — expired, refunded, or subscription cancelled — so the
-persisted flag can never keep premium features unlocked past the point the
-purchase is actually valid.
+just once at purchase time), and call `setPremium(false)` only when that
+entitlement has actually become inactive — expired or refunded. A
+**cancellation** is not the same thing: cancelling only turns off
+auto-renewal, and the user typically keeps access for the rest of the period
+they already paid for. Don't revoke on cancellation alone — base
+`setPremium(false)` on the entitlement itself lapsing, not the cancellation
+event.
 
 ---
 

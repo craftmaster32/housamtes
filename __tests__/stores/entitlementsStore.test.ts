@@ -13,8 +13,12 @@ import {
   FREE_PHOTO_LIMIT,
 } from '@stores/entitlementsStore';
 
-beforeEach((): void => {
+beforeEach(async (): Promise<void> => {
   useEntitlementsStore.setState({ isPremium: false, isLoading: false, error: null });
+  // The persist middleware writes real entries into the AsyncStorage mock —
+  // clear it too, or a later rehydration test could read state a prior test
+  // left behind instead of starting from a clean slate.
+  await AsyncStorage.clear();
 });
 
 describe('entitlementsStore — free tier defaults', (): void => {
