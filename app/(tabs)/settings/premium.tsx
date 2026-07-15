@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Animated, Switch } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -27,6 +27,10 @@ export default function PremiumScreen(): React.JSX.Element {
 
   const isPremium = useEntitlementsStore((s) => s.isPremium);
   const setPremium = useEntitlementsStore((s) => s.setPremium);
+  // Entitlements are still rehydrating from AsyncStorage — don't render the
+  // paywall/free-state content yet, or a premium user could briefly see the
+  // locked/upsell UI before isPremium is confirmed.
+  const entitlementsLoading = useEntitlementsStore((s) => s.isLoading);
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -70,90 +74,96 @@ export default function PremiumScreen(): React.JSX.Element {
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
-          {/* ── Hero ── */}
-          <View style={styles.hero}>
-            <View style={styles.heroIconWrap}>
-              <Ionicons name="sparkles" size={32} color={C.primary} />
-            </View>
-            <Text style={styles.heroTitle}>{t('premium.title')}</Text>
-            <Text style={styles.heroSubtitle}>
-              {isPremium ? t('premium.active_subtitle') : t('premium.subtitle')}
-            </Text>
+        {entitlementsLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={C.primary} />
           </View>
-
-          {/* ── What you unlock ── */}
-          <Text style={styles.sectionLabel}>{t('premium.unlocks_section')}</Text>
-          <View style={styles.card}>
-            {PREMIUM_FEATURES.map((feature, index) => (
-              <View
-                key={feature.key}
-                style={[styles.row, index < PREMIUM_FEATURES.length - 1 && styles.rowBorder]}
-              >
-                <Text style={styles.icon}>{feature.icon}</Text>
-                <View style={styles.info}>
-                  <Text style={styles.label}>{t(feature.titleKey)}</Text>
-                  <Text style={styles.description}>{t(feature.descriptionKey)}</Text>
-                </View>
-                <Ionicons
-                  name={isPremium ? 'checkmark-circle' : 'lock-closed-outline'}
-                  size={20}
-                  color={isPremium ? C.positive : C.textSecondary}
-                />
+        ) : (
+          <ScrollView contentContainerStyle={styles.content}>
+            {/* ── Hero ── */}
+            <View style={styles.hero}>
+              <View style={styles.heroIconWrap}>
+                <Ionicons name="sparkles" size={32} color={C.primary} />
               </View>
-            ))}
-          </View>
+              <Text style={styles.heroTitle}>{t('premium.title')}</Text>
+              <Text style={styles.heroSubtitle}>
+                {isPremium ? t('premium.active_subtitle') : t('premium.subtitle')}
+              </Text>
+            </View>
 
-          {/* ── Upgrade ── */}
-          {!isPremium && (
-            <>
-              <Pressable
-                style={({ pressed }) => [styles.upgradeBtn, pressed && styles.upgradeBtnPressed]}
-                onPress={handleUpgrade}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('premium.upgrade_button')}
-              >
-                <Ionicons name="sparkles" size={18} color="#fff" />
-                <Text style={styles.upgradeBtnText}>{t('premium.upgrade_button')}</Text>
-              </Pressable>
-              <Text style={styles.priceNote}>{t('premium.price_placeholder')}</Text>
-              <Pressable
-                style={styles.restoreBtn}
-                onPress={handleUpgrade}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('premium.restore_button')}
-              >
-                <Text style={styles.restoreBtnText}>{t('premium.restore_button')}</Text>
-              </Pressable>
-            </>
-          )}
-
-          {/* ── Dev-only entitlement toggle (never shipped in release builds) ── */}
-          {__DEV__ && (
-            <View style={[styles.card, styles.devCard]}>
-              <View style={styles.row}>
-                <Text style={styles.icon}>🛠️</Text>
-                <View style={styles.info}>
-                  <Text style={styles.label}>{t('premium.dev_toggle')}</Text>
-                  <Text style={styles.description}>{t('premium.dev_toggle_sub')}</Text>
+            {/* ── What you unlock ── */}
+            <Text style={styles.sectionLabel}>{t('premium.unlocks_section')}</Text>
+            <View style={styles.card}>
+              {PREMIUM_FEATURES.map((feature, index) => (
+                <View
+                  key={feature.key}
+                  style={[styles.row, index < PREMIUM_FEATURES.length - 1 && styles.rowBorder]}
+                >
+                  <Text style={styles.icon}>{feature.icon}</Text>
+                  <View style={styles.info}>
+                    <Text style={styles.label}>{t(feature.titleKey)}</Text>
+                    <Text style={styles.description}>{t(feature.descriptionKey)}</Text>
+                  </View>
+                  <Ionicons
+                    name={isPremium ? 'checkmark-circle' : 'lock-closed-outline'}
+                    size={20}
+                    color={isPremium ? C.positive : C.textSecondary}
+                  />
                 </View>
-                <Switch
-                  value={isPremium}
-                  onValueChange={handleDevToggle}
-                  trackColor={{ false: C.border, true: C.primary + '66' }}
-                  thumbColor={isPremium ? C.primary : C.textSecondary}
+              ))}
+            </View>
+
+            {/* ── Upgrade ── */}
+            {!isPremium && (
+              <>
+                <Pressable
+                  style={({ pressed }) => [styles.upgradeBtn, pressed && styles.upgradeBtnPressed]}
+                  onPress={handleUpgrade}
                   accessible
-                  accessibilityRole="switch"
-                  accessibilityLabel={t('premium.dev_toggle')}
-                  accessibilityHint={t('premium.dev_toggle_sub')}
-                  accessibilityState={{ checked: isPremium }}
-                />
+                  accessibilityRole="button"
+                  accessibilityLabel={t('premium.upgrade_button')}
+                >
+                  <Ionicons name="sparkles" size={18} color="#fff" />
+                  <Text style={styles.upgradeBtnText}>{t('premium.upgrade_button')}</Text>
+                </Pressable>
+                <Text style={styles.priceNote}>{t('premium.price_placeholder')}</Text>
+                <Pressable
+                  style={styles.restoreBtn}
+                  onPress={handleUpgrade}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('premium.restore_button')}
+                >
+                  <Text style={styles.restoreBtnText}>{t('premium.restore_button')}</Text>
+                </Pressable>
+              </>
+            )}
+
+            {/* ── Dev-only entitlement toggle (never shipped in release builds) ── */}
+            {__DEV__ && (
+              <View style={[styles.card, styles.devCard]}>
+                <View style={styles.row}>
+                  <Text style={styles.icon}>🛠️</Text>
+                  <View style={styles.info}>
+                    <Text style={styles.label}>{t('premium.dev_toggle')}</Text>
+                    <Text style={styles.description}>{t('premium.dev_toggle_sub')}</Text>
+                  </View>
+                  <Switch
+                    value={isPremium}
+                    onValueChange={handleDevToggle}
+                    trackColor={{ false: C.border, true: C.primary + '66' }}
+                    thumbColor={isPremium ? C.primary : C.textSecondary}
+                    accessible
+                    accessibilityRole="switch"
+                    accessibilityLabel={t('premium.dev_toggle')}
+                    accessibilityHint={t('premium.dev_toggle_sub')}
+                    accessibilityState={{ checked: isPremium }}
+                  />
+                </View>
               </View>
-            </View>
-          )}
-        </ScrollView>
+            )}
+          </ScrollView>
+        )}
       </Animated.View>
     </SafeAreaView>
   );
@@ -163,6 +173,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: { paddingHorizontal: sizes.lg, paddingTop: sizes.sm },
     backBtn: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
     backRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },

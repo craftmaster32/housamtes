@@ -112,9 +112,16 @@ export const useEntitlementsStore = create<EntitlementsStore>()(
         partialize: (s): PersistedEntitlements => ({ isPremium: s.isPremium }),
         // Fires once AsyncStorage has been read (found or not). Until then,
         // isLoading stays true so consumers never treat a premium user as free.
-        onRehydrateStorage: (): (() => void) => (): void => {
-          useEntitlementsStore.setState({ isLoading: false });
-        },
+        // A failed hydration must surface an error instead of silently
+        // clearing isLoading as if the read had succeeded.
+        onRehydrateStorage:
+          (): ((state?: EntitlementsStore, error?: unknown) => void) =>
+          (_state, error): void => {
+            useEntitlementsStore.setState({
+              isLoading: false,
+              error: error ? 'Could not load your entitlements. Please try again.' : null,
+            });
+          },
       }
     ),
     { name: 'entitlements-store' }

@@ -6,6 +6,7 @@
  * limit maths can't silently drift (it's what blocks uploads on the free plan).
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   useEntitlementsStore,
   PREMIUM_FEATURES,
@@ -94,5 +95,30 @@ describe('entitlementsStore — paywall feature list', (): void => {
       'pdf_reports',
       'custom_themes',
     ]);
+  });
+});
+
+describe('entitlementsStore — rehydration', (): void => {
+  it('clears isLoading and error once AsyncStorage has been read', async (): Promise<void> => {
+    useEntitlementsStore.setState({ isLoading: true, error: null });
+
+    await useEntitlementsStore.persist.rehydrate();
+
+    const s = useEntitlementsStore.getState();
+    expect(s.isLoading).toBe(false);
+    expect(s.error).toBeNull();
+  });
+
+  it('surfaces an error and still clears isLoading when rehydration fails', async (): Promise<void> => {
+    useEntitlementsStore.setState({ isLoading: true, error: null });
+    const getItemSpy = jest.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('boom'));
+
+    await useEntitlementsStore.persist.rehydrate();
+
+    const s = useEntitlementsStore.getState();
+    expect(s.isLoading).toBe(false);
+    expect(s.error).toBe('Could not load your entitlements. Please try again.');
+
+    getItemSpy.mockRestore();
   });
 });

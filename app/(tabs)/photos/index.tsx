@@ -360,7 +360,14 @@ export default function PhotosScreen(): React.JSX.Element {
   const handleUpload = useCallback(
     async (caption: string, category: PhotoCategory): Promise<void> => {
       if (!pickedAssets.length || !user || !houseId || !profile) return;
-      if (!entitlementsLoading && !canAddPhotos(photos.length, pickedAssets.length)) {
+      // Fail closed while entitlements are still rehydrating — otherwise a
+      // free user could upload past the cap in the brief window before
+      // AsyncStorage confirms they aren't premium.
+      if (entitlementsLoading) {
+        setError(t('common.loading'));
+        return;
+      }
+      if (!canAddPhotos(photos.length, pickedAssets.length)) {
         setError(t('photos.limit_title'));
         return;
       }
