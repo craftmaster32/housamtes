@@ -214,6 +214,26 @@ export default function SettingsScreen(): React.JSX.Element {
             </View>
           </View>
 
+          {/* ── Premium ── */}
+          <Text style={styles.sectionLabel}>{t('premium.settings_section')}</Text>
+          <View style={styles.card}>
+            <Link href="/(tabs)/settings/premium" asChild>
+              <Pressable
+                style={styles.row}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('premium.title')}
+              >
+                <Text style={styles.icon}>✨</Text>
+                <View style={styles.info}>
+                  <Text style={styles.label}>{t('premium.title')}</Text>
+                  <Text style={styles.description}>{t('premium.settings_sub')}</Text>
+                </View>
+                <Text style={styles.chevron}>{rtlChevron}</Text>
+              </Pressable>
+            </Link>
+          </View>
+
           <Text style={styles.sectionLabel}>{t('settings.features_section')}</Text>
 
           <View style={styles.card}>

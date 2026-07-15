@@ -23,6 +23,8 @@ import {
   type PhotoCategory,
 } from '@stores/photoStore';
 import { useAuthStore } from '@stores/authStore';
+import { useEntitlementsStore } from '@stores/entitlementsStore';
+import { PremiumUpsell } from '@components/premium/PremiumUpsell';
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -36,7 +38,6 @@ const { width: SW } = Dimensions.get('window');
 const GRID_COLS = 3;
 const GRID_GAP = sizes.xs;
 const GRID_ITEM = (SW - sizes.lg * 2 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
-const MAX_PHOTOS = 50;
 
 const DATE_FNS_LOCALES = { en: enUS, es: dateFnsEs, he: dateFnsHe } as const;
 
@@ -101,6 +102,7 @@ const makeStyles = (C: ColorTokens) =>
       marginBottom: sizes.xs,
     },
     listContent: { paddingHorizontal: sizes.lg, paddingBottom: 100 },
+    upsellWrap: { paddingHorizontal: sizes.lg, marginBottom: sizes.sm },
     sectionHeader: { paddingTop: sizes.sm, paddingBottom: sizes.xs },
     sectionTitle: {
       fontSize: 12,
@@ -198,6 +200,15 @@ export default function PhotosScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
   const houseId = useAuthStore((s) => s.houseId);
+  const isPremium = useEntitlementsStore((s) => s.isPremium);
+  const canAddPhotos = useEntitlementsStore((s) => s.canAddPhotos);
+  const photoLimit = useEntitlementsStore((s) => s.photoLimit);
+  const entitlementsIsLoading = useEntitlementsStore((s) => s.isLoading);
+  const entitlementsError = useEntitlementsStore((s) => s.error);
+  // Entitlements are still rehydrating, or the read failed outright — either
+  // way isPremium can't be trusted, so don't enforce the free-tier cap or
+  // block uploads until a confirmed read comes back.
+  const entitlementsLoading = entitlementsIsLoading || !!entitlementsError;
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -352,7 +363,14 @@ export default function PhotosScreen(): React.JSX.Element {
   const handleUpload = useCallback(
     async (caption: string, category: PhotoCategory): Promise<void> => {
       if (!pickedAssets.length || !user || !houseId || !profile) return;
-      if (photos.length + pickedAssets.length > MAX_PHOTOS) {
+      // Fail closed while entitlements are still rehydrating — otherwise a
+      // free user could upload past the cap in the brief window before
+      // AsyncStorage confirms they aren't premium.
+      if (entitlementsLoading) {
+        setError(t('common.loading'));
+        return;
+      }
+      if (!canAddPhotos(photos.length, pickedAssets.length)) {
         setError(t('photos.limit_title'));
         return;
       }
@@ -382,8 +400,23 @@ export default function PhotosScreen(): React.JSX.Element {
         setUploadProgress({ current: 0, total: 0 });
       }
     },
-    [pickedAssets, user, houseId, profile, photos.length, upload, load, t]
+    [
+      pickedAssets,
+      user,
+      houseId,
+      profile,
+      photos.length,
+      canAddPhotos,
+      entitlementsLoading,
+      upload,
+      load,
+      t,
+    ]
   );
+
+  const limit = photoLimit();
+  const atPhotoLimit =
+    !entitlementsLoading && !isPremium && limit !== null && photos.length >= limit;
 
   const handleDelete = useCallback(
     (photo: Photo): void => {
@@ -568,6 +601,15 @@ export default function PhotosScreen(): React.JSX.Element {
         </View>
 
         {!!error && <Text style={styles.error}>{error}</Text>}
+
+        {atPhotoLimit && (
+          <View style={styles.upsellWrap}>
+            <PremiumUpsell
+              title={t('premium.photo_limit_title')}
+              body={t('premium.photo_limit_body', { count: limit ?? 0 })}
+            />
+          </View>
+        )}
 
         <SectionList<PhotoRow, PhotoSection>
           sections={sections}

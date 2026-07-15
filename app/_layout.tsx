@@ -35,6 +35,7 @@ import { MorePopup } from '@components/shared/MorePopup';
 import { ProfilePopup } from '@components/shared/ProfilePopup';
 import { WebAlertHost } from '@components/shared/WebAlertHost';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
+import { AdBanner } from '@components/premium/AdBanner';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
 import { darkColors } from '@constants/colors';
 import { useColors } from '@hooks/useColors';
@@ -447,6 +448,7 @@ export default function RootLayout(): React.JSX.Element | null {
             <View style={styles.content}>
               <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
             </View>
+            {showChrome && <AdBanner />}
             {showChrome && <BottomTabBar />}
             {showChrome && <MorePopup />}
             {showChrome && <ProfilePopup />}
