@@ -27,7 +27,8 @@ ad-free · unlimited photos · PDF reports · custom themes.
 PDF reports and custom themes are not built yet — the paywall advertises them
 as part of the premium plan, and when they are built they must check
 `useEntitlementsStore.getState().hasEntitlement('pdf_reports')` and/or
-`hasEntitlement('custom_themes')` before unlocking each one.
+`useEntitlementsStore.getState().hasEntitlement('custom_themes')` before
+unlocking each one.
 
 ---
 
