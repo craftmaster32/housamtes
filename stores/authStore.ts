@@ -6,6 +6,7 @@ import { supabase } from '@lib/supabase';
 import { identifyUser, clearUser, captureError } from '@lib/errorTracking';
 import { registerPushToken, unregisterPushToken } from '@lib/notifications';
 import { registerWebPush, unregisterWebPush } from '@lib/webPush';
+import { emailOtpSchema } from '@utils/validation';
 import type { User, Session } from '@supabase/supabase-js';
 
 const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
@@ -112,6 +113,12 @@ function sanitizeAuthError(err: unknown): string {
   }
   if (msg.includes('rate limit') || msg.includes('too many requests')) {
     return 'Too many attempts. Please wait a moment and try again';
+  }
+  if (
+    msg.includes('otp') ||
+    (msg.includes('token') && (msg.includes('expired') || msg.includes('invalid')))
+  ) {
+    return 'Invalid or expired code. Request a new one';
   }
   // Covers RN ("Network request failed"), Chrome ("Failed to fetch"),
   // Safari ("Load failed") and Node ("fetch failed")
@@ -395,9 +402,10 @@ export const useAuthStore = create<AuthStore>()(
       verifyEmailOtp: async (email, token): Promise<void> => {
         set({ isLoading: true, error: null });
         try {
+          const parsed = emailOtpSchema.parse({ email, token });
           const { data, error } = await supabase.auth.verifyOtp({
-            email: email.trim(),
-            token: token.trim(),
+            email: parsed.email,
+            token: parsed.token,
             type: 'signup',
           });
           if (error) throw error;

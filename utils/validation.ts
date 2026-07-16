@@ -52,6 +52,18 @@ export const signInSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+export const emailOtpSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address')
+    .toLowerCase(),
+  token: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Please enter the 6-digit code from your email'),
+});
+
 // ── Add Bill Validation ──────────────────────────────────────────────────────
 
 type SplitType = 'equal' | 'custom' | 'percentage';

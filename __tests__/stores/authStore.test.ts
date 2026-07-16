@@ -589,7 +589,7 @@ describe('authStore — verifyEmailOtp', () => {
     expect(s.error).toBeNull();
   });
 
-  it('surfaces a sanitized error and stays signed out when the code is wrong', async () => {
+  it('surfaces an invalid-code error and stays signed out when the code is wrong', async () => {
     mockAuth.verifyOtp.mockResolvedValue({
       data: { user: null, session: null },
       error: new Error('Token has expired or is invalid'),
@@ -597,13 +597,20 @@ describe('authStore — verifyEmailOtp', () => {
 
     await expect(
       useAuthStore.getState().verifyEmailOtp('alice@example.com', '000000')
-    ).rejects.toThrow();
+    ).rejects.toThrow('Invalid or expired code. Request a new one');
 
     const s = useAuthStore.getState();
     expect(s.user).toBeNull();
     expect(s.session).toBeNull();
     expect(s.isLoading).toBe(false);
-    expect(s.error).not.toBeNull();
+    expect(s.error).toBe('Invalid or expired code. Request a new one');
+  });
+
+  it('rejects a malformed code before calling Supabase', async () => {
+    await expect(
+      useAuthStore.getState().verifyEmailOtp('alice@example.com', '12')
+    ).rejects.toThrow();
+    expect(mockAuth.verifyOtp).not.toHaveBeenCalled();
   });
 });
 

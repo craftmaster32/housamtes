@@ -63,6 +63,10 @@ export default function VerifyEmailScreen(): React.JSX.Element {
     [t]
   );
 
+  const handleCodeChange = useCallback((text: string): void => {
+    setCode(text.replace(/[^0-9]/g, '').slice(0, 6));
+  }, []);
+
   const handleVerify = useCallback(async (): Promise<void> => {
     if (!pendingEmail) return;
     if (code.trim().length < 6) {
@@ -76,8 +80,8 @@ export default function VerifyEmailScreen(): React.JSX.Element {
       // On success the auth state becomes signed-in and the root layout
       // routes the new user onward to house setup — no navigation needed here.
     } catch (err) {
-      const msg = getErrorMessage(err, '');
-      if (msg.toLowerCase().includes('token') || msg.toLowerCase().includes('otp')) {
+      const msg = getErrorMessage(err, '').toLowerCase();
+      if (/token|otp|code|invalid|expired/.test(msg)) {
         setError(t('auth.invalid_expired_code'));
       } else {
         setError(t('auth.something_went_wrong'));
@@ -143,7 +147,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
           <TextInput
             mode="outlined"
             value={code}
-            onChangeText={(text) => setCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
+            onChangeText={handleCodeChange}
             keyboardType="number-pad"
             maxLength={6}
             autoFocus
@@ -174,6 +178,10 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('auth.verify_button')}
+            accessibilityState={{
+              disabled: isVerifying || !pendingEmail || code.trim().length < 6,
+              busy: isVerifying,
+            }}
           >
             {isVerifying ? t('auth.verifying') : t('auth.verify_button')}
           </Button>

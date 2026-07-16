@@ -21,6 +21,11 @@ Supabase Dashboard → **Authentication → Providers → Email**
 That's the switch that makes new users verify before they're let in. With it
 off, accounts are created already-verified and the code screen never appears.
 
+> **Heads up for real launch:** Supabase's built-in email sender is meant for
+> testing and low volume — it has a small hourly cap and shared deliverability.
+> Before a public App Store launch, set up your own sender (Step 3) so
+> verification emails always arrive.
+
 While you're there (the two owner-only security items from the playbook):
 Dashboard → **Authentication → Policies / Settings** → turn on
 **"Leaked password protection"** and confirm **email confirmations are required**.
