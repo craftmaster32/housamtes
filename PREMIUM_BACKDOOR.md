@@ -39,12 +39,13 @@ it just has no way in while the switch is off.
 
 ## What was changed to hide it (so you can trust it's reversible)
 
-Only **4 small edits**, all guarded by the switch — no premium code was deleted:
+Only **5 small edits**, all guarded by the switch — no premium code was deleted:
 
 1. `constants/featureFlags.ts` — **new file**, holds the switch.
 2. `components/premium/AdBanner.tsx` — shows nothing while off.
 3. `app/(tabs)/settings/index.tsx` — hides the Premium row while off.
 4. `app/(tabs)/photos/index.tsx` — no photo limit / no upsell while off.
+5. `app/(tabs)/settings/premium.tsx` — redirects direct navigation while off.
 
 The "engine" (`stores/entitlementsStore.ts`) and its tests were **not touched**,
 so everything is still proven to work for when you flip it on.
