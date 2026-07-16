@@ -25,6 +25,7 @@ import {
 import { useAuthStore } from '@stores/authStore';
 import { useEntitlementsStore } from '@stores/entitlementsStore';
 import { PremiumUpsell } from '@components/premium/PremiumUpsell';
+import { PREMIUM_ENABLED } from '@constants/featureFlags';
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -366,11 +367,13 @@ export default function PhotosScreen(): React.JSX.Element {
       // Fail closed while entitlements are still rehydrating — otherwise a
       // free user could upload past the cap in the brief window before
       // AsyncStorage confirms they aren't premium.
-      if (entitlementsLoading) {
+      if (PREMIUM_ENABLED && entitlementsLoading) {
         setError(t('common.loading'));
         return;
       }
-      if (!canAddPhotos(photos.length, pickedAssets.length)) {
+      // Premium parked — don't enforce the free-tier photo cap while there's
+      // no way to upgrade. See constants/featureFlags.ts.
+      if (PREMIUM_ENABLED && !canAddPhotos(photos.length, pickedAssets.length)) {
         setError(t('photos.limit_title'));
         return;
       }
@@ -415,8 +418,9 @@ export default function PhotosScreen(): React.JSX.Element {
   );
 
   const limit = photoLimit();
+  // The upsell card only appears once premium is live (constants/featureFlags.ts).
   const atPhotoLimit =
-    !entitlementsLoading && !isPremium && limit !== null && photos.length >= limit;
+    PREMIUM_ENABLED && !entitlementsLoading && !isPremium && limit !== null && photos.length >= limit;
 
   const handleDelete = useCallback(
     (photo: Photo): void => {

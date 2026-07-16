@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useEntitlementsStore } from '@stores/entitlementsStore';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
+import { PREMIUM_ENABLED } from '@constants/featureFlags';
 
 // The single ad slot for the whole app. Renders a clearly-labelled placeholder
 // for free users and nothing at all for premium users.
@@ -19,11 +20,15 @@ export const AdBanner = (): React.JSX.Element | null => {
   const isLoading = useEntitlementsStore((s) => s.isLoading);
   const entitlementsError = useEntitlementsStore((s) => s.error);
 
+  // Premium/ads are parked — see constants/featureFlags.ts. While
+  // PREMIUM_ENABLED is false nothing renders; all the code below stays ready
+  // to go for when we publish.
+  //
   // Wait for entitlements to rehydrate — otherwise a premium user briefly
   // sees the free-tier ad slot before AsyncStorage confirms isPremium. A
   // failed rehydrate is treated the same way: isPremium can't be trusted,
   // so don't show ads to a user who might actually be premium.
-  if (isLoading || entitlementsError || adFree) return null;
+  if (!PREMIUM_ENABLED || isLoading || entitlementsError || adFree) return null;
 
   return (
     <View

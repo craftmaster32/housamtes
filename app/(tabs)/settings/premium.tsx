@@ -12,6 +12,7 @@ import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { useEntitlementsStore, PREMIUM_FEATURES } from '@stores/entitlementsStore';
+import { PREMIUM_ENABLED } from '@constants/featureFlags';
 
 // Paywall / upgrade screen. Purely structural for now: no payment SDK is
 // wired up, so the upgrade button explains that purchases aren't live yet.
@@ -37,6 +38,14 @@ export default function PremiumScreen(): React.JSX.Element {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
   }, [fadeAnim]);
 
+  // Route-level kill switch. Hiding the Settings row removes the only link in,
+  // but the screen would still render if opened directly (deep link / back
+  // stack). While premium is parked, bounce straight back. See
+  // constants/featureFlags.ts and PREMIUM_BACKDOOR.md.
+  useEffect(() => {
+    if (!PREMIUM_ENABLED) router.replace('/(tabs)/settings');
+  }, []);
+
   const handleBack = useCallback((): void => {
     router.back();
   }, []);
@@ -51,6 +60,9 @@ export default function PremiumScreen(): React.JSX.Element {
     },
     [setPremium]
   );
+
+  // Parked — the effect above is redirecting away; render nothing meanwhile.
+  if (!PREMIUM_ENABLED) return <View style={styles.root} />;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
