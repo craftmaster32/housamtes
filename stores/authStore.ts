@@ -6,6 +6,7 @@ import { supabase } from '@lib/supabase';
 import { identifyUser, clearUser, captureError } from '@lib/errorTracking';
 import { registerPushToken, unregisterPushToken } from '@lib/notifications';
 import { registerWebPush, unregisterWebPush } from '@lib/webPush';
+import { emailOtpSchema } from '@utils/validation';
 import type { User, Session } from '@supabase/supabase-js';
 
 const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
@@ -113,6 +114,12 @@ function sanitizeAuthError(err: unknown): string {
   if (msg.includes('rate limit') || msg.includes('too many requests')) {
     return 'Too many attempts. Please wait a moment and try again';
   }
+  if (
+    msg.includes('otp') ||
+    (msg.includes('token') && (msg.includes('expired') || msg.includes('invalid')))
+  ) {
+    return 'Invalid or expired code. Request a new one';
+  }
   // Covers RN ("Network request failed"), Chrome ("Failed to fetch"),
   // Safari ("Load failed") and Node ("fetch failed")
   if (msg.includes('network') || msg.includes('fetch') || msg.includes('load failed')) {
@@ -179,6 +186,7 @@ interface AuthStore {
     avatarColor: string
   ) => Promise<{ needsVerification: boolean }>;
   resendVerification: (email: string) => Promise<void>;
+  verifyEmailOtp: (email: string, token: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (name: string) => Promise<void>;
@@ -389,6 +397,52 @@ export const useAuthStore = create<AuthStore>()(
       resendVerification: async (email): Promise<void> => {
         const { error } = await supabase.auth.resend({ type: 'signup', email });
         if (error) throw new Error('Could not resend. Please try again.');
+      },
+
+      verifyEmailOtp: async (email, token): Promise<void> => {
+        set({ isLoading: true, error: null });
+        try {
+          const parsed = emailOtpSchema.parse({ email, token });
+          const { data, error } = await supabase.auth.verifyOtp({
+            email: parsed.email,
+            token: parsed.token,
+            type: 'signup',
+          });
+          if (error) throw error;
+          if (data.user && data.session) {
+            const [profile, memberData, consentOk] = await Promise.all([
+              fetchProfile(data.user.id, data.user.user_metadata as Record<string, unknown>),
+              fetchMemberData(data.user.id),
+              hasCurrentConsent(data.user.id),
+            ]);
+            clearPendingEmail().catch(() => {});
+            set({
+              user: data.user,
+              session: data.session,
+              profile,
+              houseId: memberData.houseId,
+              role: memberData.role,
+              permissions: memberData.permissions,
+              needsTermsAcceptance: !consentOk,
+              isLoading: false,
+              pendingEmail: null,
+            });
+            if (memberData.houseId) {
+              registerPushToken(data.user.id, memberData.houseId);
+              registerWebPush(data.user.id, memberData.houseId);
+            }
+          } else {
+            // Supabase can resolve verifyOtp with no user/session and no error
+            // (e.g. an already-used or invalid token). Treat that as a failed
+            // verification so the screen surfaces the invalid-code message
+            // instead of waiting for a sign-in that never arrives.
+            throw new Error('Invalid or expired token');
+          }
+        } catch (err) {
+          const message = sanitizeAuthError(err);
+          set({ error: message, isLoading: false });
+          throw new Error(message);
+        }
       },
 
       signIn: async (email, password): Promise<void> => {
