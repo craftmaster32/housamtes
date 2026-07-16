@@ -78,6 +78,22 @@ jobs:
               /Actionable comments posted: [1-9]\d*/.test(c.body)
             );
 
+            // CodeRabbit posts most findings as PR *reviews*, not issue comments —
+            // without this check the pipeline declared "approved" while actionable
+            // review findings were still open (seen on PR #183).
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              per_page: 100,
+            });
+            const freshReviewIssues = reviews.find(r =>
+              r.user.login === 'coderabbitai[bot]' &&
+              r.submitted_at &&
+              new Date(r.submitted_at) >= commitDate &&
+              /Actionable comments posted: [1-9]\d*/.test(r.body || '')
+            );
+
             const latestCRComment = comments.find(c =>
               c.user.login === 'coderabbitai[bot]' &&
               new Date(c.created_at) >= commitDate
@@ -92,7 +108,7 @@ jobs:
               return;
             }
 
-            const isClean = !freshIssues;
+            const isClean = !freshIssues && !freshReviewIssues;
             core.setOutput('is_clean', isClean.toString());
             core.setOutput('is_rate_limited', 'false');
             core.info(`CodeRabbit approved (no fresh issues): ${isClean}`);
@@ -113,6 +129,27 @@ jobs:
             const hasLabel = labels.some(l => l.name === 'coderabbit-full-reviewed');
 
             if (!hasLabel) {
+              // Cap the automated full-review cycles. Every fix push can remove the
+              // label and re-request a full review — on a PR with only nitpicks this
+              // looped indefinitely (PR #183 got 3 automated requests). After 2
+              // requests, treat the full review as done and move to the final review.
+              const { data: allComments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                per_page: 100,
+              });
+              const requestCount = allComments.filter(c =>
+                c.user.login === 'github-actions[bot]' &&
+                c.body.trim() === '@coderabbitai full review'
+              ).length;
+
+              if (requestCount >= 2) {
+                core.setOutput('full_review_done', 'true');
+                core.info(`Full review already requested ${requestCount} times — capping and moving to final review`);
+                return;
+              }
+
               core.setOutput('full_review_done', 'false');
               core.info('Full review not yet requested');
               return;
