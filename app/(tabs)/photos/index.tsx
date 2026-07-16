@@ -367,7 +367,7 @@ export default function PhotosScreen(): React.JSX.Element {
       // Fail closed while entitlements are still rehydrating — otherwise a
       // free user could upload past the cap in the brief window before
       // AsyncStorage confirms they aren't premium.
-      if (entitlementsLoading) {
+      if (PREMIUM_ENABLED && entitlementsLoading) {
         setError(t('common.loading'));
         return;
       }
