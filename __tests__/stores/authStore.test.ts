@@ -24,6 +24,7 @@ const mockAuth = {
   signOut: jest.fn(),
   updateUser: jest.fn(),
   resend: jest.fn(),
+  verifyOtp: jest.fn(),
   onAuthStateChange: jest.fn(),
   getSession: jest.fn(),
   startAutoRefresh: jest.fn(),
@@ -54,6 +55,7 @@ jest.mock('@lib/supabase', () => ({
       signOut: (...a: unknown[]): unknown => mockAuth.signOut(...a),
       updateUser: (...a: unknown[]): unknown => mockAuth.updateUser(...a),
       resend: (...a: unknown[]): unknown => mockAuth.resend(...a),
+      verifyOtp: (...a: unknown[]): unknown => mockAuth.verifyOtp(...a),
       onAuthStateChange: (...a: unknown[]): unknown => mockAuth.onAuthStateChange(...a),
       getSession: (...a: unknown[]): unknown => mockAuth.getSession(...a),
       startAutoRefresh: (...a: unknown[]): unknown => mockAuth.startAutoRefresh(...a),
@@ -556,6 +558,52 @@ describe('authStore — resendVerification', () => {
     await expect(useAuthStore.getState().resendVerification('alice@example.com')).rejects.toThrow(
       'Could not resend. Please try again.'
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// verifyEmailOtp
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — verifyEmailOtp', () => {
+  it('verifies the signup code and signs the user in on success', async () => {
+    mockMemberOfHouse();
+    mockAuth.verifyOtp.mockResolvedValue({
+      data: { user: fakeUser(), session: fakeSession() },
+      error: null,
+    });
+    useAuthStore.setState({ pendingEmail: 'alice@example.com' });
+
+    await useAuthStore.getState().verifyEmailOtp('alice@example.com', '123456');
+
+    expect(mockAuth.verifyOtp).toHaveBeenCalledWith({
+      email: 'alice@example.com',
+      token: '123456',
+      type: 'signup',
+    });
+    const s = useAuthStore.getState();
+    expect(s.user?.id).toBe('u1');
+    expect(s.session).not.toBeNull();
+    expect(s.pendingEmail).toBeNull();
+    expect(s.isLoading).toBe(false);
+    expect(s.error).toBeNull();
+  });
+
+  it('surfaces a sanitized error and stays signed out when the code is wrong', async () => {
+    mockAuth.verifyOtp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: new Error('Token has expired or is invalid'),
+    });
+
+    await expect(
+      useAuthStore.getState().verifyEmailOtp('alice@example.com', '000000')
+    ).rejects.toThrow();
+
+    const s = useAuthStore.getState();
+    expect(s.user).toBeNull();
+    expect(s.session).toBeNull();
+    expect(s.isLoading).toBe(false);
+    expect(s.error).not.toBeNull();
   });
 });
 

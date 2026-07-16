@@ -179,6 +179,7 @@ interface AuthStore {
     avatarColor: string
   ) => Promise<{ needsVerification: boolean }>;
   resendVerification: (email: string) => Promise<void>;
+  verifyEmailOtp: (email: string, token: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (name: string) => Promise<void>;
@@ -389,6 +390,47 @@ export const useAuthStore = create<AuthStore>()(
       resendVerification: async (email): Promise<void> => {
         const { error } = await supabase.auth.resend({ type: 'signup', email });
         if (error) throw new Error('Could not resend. Please try again.');
+      },
+
+      verifyEmailOtp: async (email, token): Promise<void> => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data, error } = await supabase.auth.verifyOtp({
+            email: email.trim(),
+            token: token.trim(),
+            type: 'signup',
+          });
+          if (error) throw error;
+          if (data.user && data.session) {
+            const [profile, memberData, consentOk] = await Promise.all([
+              fetchProfile(data.user.id, data.user.user_metadata as Record<string, unknown>),
+              fetchMemberData(data.user.id),
+              hasCurrentConsent(data.user.id),
+            ]);
+            clearPendingEmail().catch(() => {});
+            set({
+              user: data.user,
+              session: data.session,
+              profile,
+              houseId: memberData.houseId,
+              role: memberData.role,
+              permissions: memberData.permissions,
+              needsTermsAcceptance: !consentOk,
+              isLoading: false,
+              pendingEmail: null,
+            });
+            if (memberData.houseId) {
+              registerPushToken(data.user.id, memberData.houseId);
+              registerWebPush(data.user.id, memberData.houseId);
+            }
+          } else {
+            set({ isLoading: false });
+          }
+        } catch (err) {
+          const message = sanitizeAuthError(err);
+          set({ error: message, isLoading: false });
+          throw new Error(message);
+        }
       },
 
       signIn: async (email, password): Promise<void> => {

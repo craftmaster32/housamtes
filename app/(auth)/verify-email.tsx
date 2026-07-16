@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import { Text, Button, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,9 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const pendingEmail = useAuthStore((s) => s.pendingEmail);
   const resendVerification = useAuthStore((s) => s.resendVerification);
+  const verifyEmailOtp = useAuthStore((s) => s.verifyEmailOtp);
+  const [code, setCode] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
   const [resent, setResent] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
@@ -59,6 +62,30 @@ export default function VerifyEmailScreen(): React.JSX.Element {
     ],
     [t]
   );
+
+  const handleVerify = useCallback(async (): Promise<void> => {
+    if (!pendingEmail) return;
+    if (code.trim().length < 6) {
+      setError(t('auth.enter_code_error'));
+      return;
+    }
+    try {
+      setIsVerifying(true);
+      setError('');
+      await verifyEmailOtp(pendingEmail, code);
+      // On success the auth state becomes signed-in and the root layout
+      // routes the new user onward to house setup — no navigation needed here.
+    } catch (err) {
+      const msg = getErrorMessage(err, '');
+      if (msg.toLowerCase().includes('token') || msg.toLowerCase().includes('otp')) {
+        setError(t('auth.invalid_expired_code'));
+      } else {
+        setError(t('auth.something_went_wrong'));
+      }
+    } finally {
+      setIsVerifying(false);
+    }
+  }, [pendingEmail, code, verifyEmailOtp, t]);
 
   const handleResend = useCallback(async (): Promise<void> => {
     if (!pendingEmail) return;
@@ -107,12 +134,25 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             <Text style={styles.heading}>{t('auth.check_inbox_title')}</Text>
             {!!pendingEmail && (
               <Text style={styles.bodyText}>
-                {t('auth.check_inbox_body', { email: pendingEmail })}
+                {t('auth.check_inbox_body_code', { email: pendingEmail })}
               </Text>
             )}
             {!pendingEmail && <Text style={styles.errorText}>{t('auth.no_pending_email')}</Text>}
-            <Text style={styles.hintText}>{t('auth.link_expires')}</Text>
           </View>
+
+          <TextInput
+            mode="outlined"
+            value={code}
+            onChangeText={(text) => setCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
+            keyboardType="number-pad"
+            maxLength={6}
+            autoFocus
+            style={styles.codeInput}
+            label={t('auth.code_from_email')}
+            disabled={!pendingEmail || isVerifying}
+            accessibilityLabel={t('auth.verification_code_label')}
+            accessibilityHint={t('auth.verification_code_hint')}
+          />
 
           {!!error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -122,6 +162,21 @@ export default function VerifyEmailScreen(): React.JSX.Element {
               <Text style={styles.resentText}>{t('auth.email_sent')}</Text>
             </View>
           )}
+
+          <Button
+            mode="contained"
+            onPress={handleVerify}
+            loading={isVerifying}
+            disabled={isVerifying || !pendingEmail || code.trim().length < 6}
+            style={styles.verifyButton}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.verify_button')}
+          >
+            {isVerifying ? t('auth.verifying') : t('auth.verify_button')}
+          </Button>
 
           <Button
             mode="outlined"
@@ -242,6 +297,15 @@ function makeStyles(C: ColorTokens) {
       color: C.success,
       ...font.semibold,
       fontSize: 14,
+    },
+    codeInput: {
+      width: '100%',
+      backgroundColor: C.surface,
+      letterSpacing: 4,
+    },
+    verifyButton: {
+      borderRadius: 14,
+      width: '100%',
     },
     ghostButton: {
       borderRadius: 14,
