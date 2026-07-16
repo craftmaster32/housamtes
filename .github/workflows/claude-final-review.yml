@@ -12,13 +12,17 @@ permissions:
 
 jobs:
   review:
-    # Only run on the specific automated trigger comment (not general @claude mentions)
+    # Only run on the specific automated trigger comment (not general @claude mentions).
+    # The trigger is posted with GH_PAT, so it arrives authored by the repo OWNER,
+    # not github-actions[bot] — accept both so the review actually fires.
     if: >-
       ${{
         github.event.issue.pull_request != null &&
         contains(github.event.comment.body, '[AUTOMATED-FINAL-REVIEW]') &&
-        github.event.comment.user.type == 'Bot' &&
-        github.event.comment.user.login == 'github-actions[bot]'
+        (
+          github.event.comment.user.login == 'github-actions[bot]' ||
+          github.event.comment.author_association == 'OWNER'
+        )
       }}
     runs-on: ubuntu-latest
     concurrency:
