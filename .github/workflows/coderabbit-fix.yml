@@ -26,7 +26,9 @@ jobs:
          github.event.review.user.login == 'coderabbitai[bot]')
       }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Room for two fix attempts (--max-turns 20 each) plus the classify and
+    # owner-notification steps.
+    timeout-minutes: 25
     concurrency:
       group: coderabbit-fix-${{ github.event.issue.number || github.event.pull_request.number }}
       cancel-in-progress: true
@@ -153,20 +155,9 @@ jobs:
       - name: Classify attempt 1 failure
         id: why1
         if: steps.check.outputs.has_issues == 'true' && steps.fix1.outcome == 'failure'
-        run: |
-          f="${RUNNER_TEMP}/claude-execution-output.json"
-          reason="other"; reset=""
-          if [ -f "$f" ]; then
-            if grep -qiE 'usage limit|rate limit|limit reached|too many requests|resets? at' "$f"; then
-              reason="usage_limit"
-              reset="$(grep -oiE 'resets?[^,"}]*' "$f" | head -n1 || true)"
-            elif grep -qi 'max_turns' "$f"; then
-              reason="max_turns"
-            fi
-          fi
-          echo "reason=$reason" >> "$GITHUB_OUTPUT"
-          echo "reset=$reset" >> "$GITHUB_OUTPUT"
-          echo "Attempt 1 failure reason: $reason ${reset:+(resets: $reset)}"
+        env:
+          OUTPUT_FILE: ${{ runner.temp }}/claude-execution-output.json
+        run: bash "${GITHUB_WORKSPACE}/.github/scripts/classify-fixer-failure.sh"
 
       # Attempt 2 — auto-restart, ONLY when attempt 1 ran out of steps (not on a
       # usage limit). A fresh run continues from the commits attempt 1 already
@@ -209,20 +200,9 @@ jobs:
       - name: Classify attempt 2 failure
         id: why2
         if: steps.check.outputs.has_issues == 'true' && steps.fix2.outcome == 'failure'
-        run: |
-          f="${RUNNER_TEMP}/claude-execution-output.json"
-          reason="other"; reset=""
-          if [ -f "$f" ]; then
-            if grep -qiE 'usage limit|rate limit|limit reached|too many requests|resets? at' "$f"; then
-              reason="usage_limit"
-              reset="$(grep -oiE 'resets?[^,"}]*' "$f" | head -n1 || true)"
-            elif grep -qi 'max_turns' "$f"; then
-              reason="max_turns"
-            fi
-          fi
-          echo "reason=$reason" >> "$GITHUB_OUTPUT"
-          echo "reset=$reset" >> "$GITHUB_OUTPUT"
-          echo "Attempt 2 failure reason: $reason ${reset:+(resets: $reset)}"
+        env:
+          OUTPUT_FILE: ${{ runner.temp }}/claude-execution-output.json
+        run: bash "${GITHUB_WORKSPACE}/.github/scripts/classify-fixer-failure.sh"
 
       # Tell the owner only when the fixer genuinely could not finish: either the
       # usage limit was hit (paused, will need a re-run after it resets) or both
@@ -236,14 +216,18 @@ jobs:
             steps.why2.outputs.reason == 'usage_limit' ||
             (steps.fix1.outcome == 'failure' && steps.fix2.outcome == 'failure')
           )
+        env:
+          WHY1_REASON: ${{ steps.why1.outputs.reason }}
+          WHY2_REASON: ${{ steps.why2.outputs.reason }}
+          WHY1_RESET: ${{ steps.why1.outputs.reset }}
+          WHY2_RESET: ${{ steps.why2.outputs.reset }}
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const usageLimited =
-              '${{ steps.why1.outputs.reason }}' === 'usage_limit' ||
-              '${{ steps.why2.outputs.reason }}' === 'usage_limit';
-            const reset =
-              ('${{ steps.why2.outputs.reset }}' || '${{ steps.why1.outputs.reset }}' || '').trim();
+              process.env.WHY1_REASON === 'usage_limit' ||
+              process.env.WHY2_REASON === 'usage_limit';
+            const reset = (process.env.WHY2_RESET || process.env.WHY1_RESET || '').trim();
 
             const body = usageLimited
               ? [
