@@ -54,9 +54,15 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           trigger_phrase: "@claude"
-          allowed_tools: "Bash,Glob,Grep,LS,Read,mcp__github_comment__update_claude_comment"
           show_full_output: "true"
-          claude_args: --max-turns 5
+          # 5 turns wasn't enough to diff the branch, read the changed files, and
+          # post the verdict — the run hit the turn limit and errored before it
+          # could comment, so no "Ready to merge" ever appeared. Give it room.
+          # Allowed tools now live in claude_args: the top-level `allowed_tools`
+          # input was removed in this action version and was silently ignored.
+          claude_args: >-
+            --max-turns 20
+            --allowedTools "Bash,Glob,Grep,LS,Read,mcp__github_comment__update_claude_comment"
 
       - name: Remove full-review label
         if: always()
