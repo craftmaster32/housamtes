@@ -432,7 +432,11 @@ export const useAuthStore = create<AuthStore>()(
               registerWebPush(data.user.id, memberData.houseId);
             }
           } else {
-            set({ isLoading: false });
+            // Supabase can resolve verifyOtp with no user/session and no error
+            // (e.g. an already-used or invalid token). Treat that as a failed
+            // verification so the screen surfaces the invalid-code message
+            // instead of waiting for a sign-in that never arrives.
+            throw new Error('Invalid or expired token');
           }
         } catch (err) {
           const message = sanitizeAuthError(err);

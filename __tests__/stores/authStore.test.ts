@@ -566,7 +566,7 @@ describe('authStore — resendVerification', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — verifyEmailOtp', () => {
-  it('verifies the signup code and signs the user in on success', async () => {
+  it('verifies the signup code and signs the user in on success', async (): Promise<void> => {
     mockMemberOfHouse();
     mockAuth.verifyOtp.mockResolvedValue({
       data: { user: fakeUser(), session: fakeSession() },
@@ -589,7 +589,7 @@ describe('authStore — verifyEmailOtp', () => {
     expect(s.error).toBeNull();
   });
 
-  it('surfaces an invalid-code error and stays signed out when the code is wrong', async () => {
+  it('surfaces an invalid-code error and stays signed out when the code is wrong', async (): Promise<void> => {
     mockAuth.verifyOtp.mockResolvedValue({
       data: { user: null, session: null },
       error: new Error('Token has expired or is invalid'),
@@ -606,11 +606,28 @@ describe('authStore — verifyEmailOtp', () => {
     expect(s.error).toBe('Invalid or expired code. Request a new one');
   });
 
-  it('rejects a malformed code before calling Supabase', async () => {
+  it('rejects a malformed code before calling Supabase', async (): Promise<void> => {
     await expect(
       useAuthStore.getState().verifyEmailOtp('alice@example.com', '12')
     ).rejects.toThrow();
     expect(mockAuth.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it('treats an empty (no user/session) response as a failure, not a silent success', async (): Promise<void> => {
+    mockAuth.verifyOtp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: null,
+    });
+
+    await expect(
+      useAuthStore.getState().verifyEmailOtp('alice@example.com', '123456')
+    ).rejects.toThrow();
+
+    const s = useAuthStore.getState();
+    expect(s.user).toBeNull();
+    expect(s.session).toBeNull();
+    expect(s.isLoading).toBe(false);
+    expect(s.error).not.toBeNull();
   });
 });
 

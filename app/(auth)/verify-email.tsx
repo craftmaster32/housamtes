@@ -153,7 +153,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             autoFocus
             style={styles.codeInput}
             label={t('auth.code_from_email')}
-            disabled={!pendingEmail || isVerifying}
+            disabled={!pendingEmail || isVerifying || isResending}
             accessibilityLabel={t('auth.verification_code_label')}
             accessibilityHint={t('auth.verification_code_hint')}
           />
@@ -171,7 +171,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             mode="contained"
             onPress={handleVerify}
             loading={isVerifying}
-            disabled={isVerifying || !pendingEmail || code.trim().length < 6}
+            disabled={isVerifying || isResending || !pendingEmail || code.trim().length < 6}
             style={styles.verifyButton}
             contentStyle={styles.buttonContent}
             labelStyle={styles.buttonLabel}
@@ -179,7 +179,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('auth.verify_button')}
             accessibilityState={{
-              disabled: isVerifying || !pendingEmail || code.trim().length < 6,
+              disabled: isVerifying || isResending || !pendingEmail || code.trim().length < 6,
               busy: isVerifying,
             }}
           >
@@ -190,7 +190,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             mode="outlined"
             onPress={handleResend}
             loading={isResending}
-            disabled={isResending || !pendingEmail}
+            disabled={isResending || isVerifying || !pendingEmail}
             style={styles.ghostButton}
             contentStyle={styles.buttonContent}
             labelStyle={[styles.buttonLabel, { color: C.textPrimary }]}
