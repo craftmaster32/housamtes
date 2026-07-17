@@ -169,8 +169,10 @@ export const useHousematesStore = create<HousematesStore>()(
             .filter((h) => h !== null) as Housemate[];
 
           // Departed members — exclude anyone who has since re-joined (they're
-          // a current member again, so their old "left" row is stale).
-          const currentIds = new Set(housemates.map((h) => h.id));
+          // a current member again, so their old "left" row is stale). Use the
+          // raw membership rows, not `housemates`, so a member whose profile
+          // lookup failed isn't mistaken for someone who left.
+          const currentIds = new Set(userIds);
           const formerMembers: FormerMember[] = (formerRes.data ?? [])
             .filter((f) => !currentIds.has(f.user_id as string))
             .map((f) => ({
@@ -280,18 +282,25 @@ export const useHousematesStore = create<HousematesStore>()(
       },
       removeMember: async (houseId, userId, name, color): Promise<void> => {
         // Snapshot the person first so their past bills/messages keep showing
-        // "Name (left)" instead of a blank, then drop their membership.
-        await supabase.from('former_members').upsert(
+        // "Name (left)" instead of a blank. If the snapshot fails, abort before
+        // deleting the membership — otherwise we'd lose the name forever.
+        const now = new Date().toISOString();
+        const { error: snapshotError } = await supabase.from('former_members').upsert(
           {
             house_id: houseId,
             user_id: userId,
             name,
             avatar_color: color,
             left_reason: 'removed',
-            left_at: new Date().toISOString(),
+            left_at: now,
+            updated_at: now,
           },
           { onConflict: 'house_id,user_id' }
         );
+        if (snapshotError) {
+          captureError(snapshotError, { context: 'snapshot-former-member', houseId, userId });
+          throw new Error('Could not remove this member. Please try again.');
+        }
         const { error } = await supabase
           .from('house_members')
           .delete()

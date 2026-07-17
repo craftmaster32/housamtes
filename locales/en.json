@@ -1427,7 +1427,9 @@
     "remove_body": "They'll be taken off the house and can't see it anymore. Their past bills and messages stay, shown as \"(left)\". They can rejoin later with the invite code.",
     "yes_remove": "Remove from house",
     "removing": "Removing…",
-    "remove_failed": "Could not remove this member. Please try again."
+    "remove_failed": "Could not remove this member. Please try again.",
+    "avatar_of": "{{name}}'s avatar",
+    "checking_bills": "Checking for unsettled bills…"
   },
   "not_found": {
     "title": "Page not found",

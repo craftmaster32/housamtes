@@ -224,7 +224,12 @@ const makeStyles = (C: ColorTokens) =>
       marginTop: sizes.sm,
     },
     modalDangerText: { color: '#fff', ...font.semibold, fontSize: 15 },
-    modalCancelBtn: { paddingVertical: 12, alignItems: 'center' },
+    modalCancelBtn: {
+      paddingVertical: 12,
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     modalCancelText: { color: C.textSecondary, ...font.semibold, fontSize: 15 },
   });
 
@@ -245,6 +250,7 @@ export default function HousematesScreen(): React.JSX.Element {
   const isOwner = role === 'owner';
 
   const bills = useBillsStore((s) => s.bills);
+  const billsLoading = useBillsStore((s) => s.isLoading);
   const loadBills = useBillsStore((s) => s.load);
   const settleBill = useBillsStore((s) => s.settleBill);
   const removeMember = useHousematesStore((s) => s.removeMember);
@@ -380,6 +386,7 @@ export default function HousematesScreen(): React.JSX.Element {
                           source={{ uri: h.avatarUrl }}
                           style={styles.avatarImg}
                           contentFit="cover"
+                          accessibilityLabel={t('members.avatar_of', { name: h.name })}
                         />
                       ) : (
                         <Text style={styles.avatarText}>{initial}</Text>
@@ -450,6 +457,10 @@ export default function HousematesScreen(): React.JSX.Element {
                           accessible
                           accessibilityRole="button"
                           accessibilityLabel={t('members.settle')}
+                          accessibilityState={{
+                            disabled: settlingId === b.id,
+                            busy: settlingId === b.id,
+                          }}
                         >
                           <Text style={styles.settleBtnText}>
                             {settlingId === b.id ? t('members.settling') : t('members.settle')}
@@ -459,6 +470,10 @@ export default function HousematesScreen(): React.JSX.Element {
                     ))}
                   </View>
                 </>
+              ) : billsLoading ? (
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoText}>{t('members.checking_bills')}</Text>
+                </View>
               ) : (
                 <View style={styles.infoBox}>
                   <Text style={styles.infoText}>{t('members.nothing_to_settle')}</Text>
@@ -477,9 +492,16 @@ export default function HousematesScreen(): React.JSX.Element {
           visible={memberToRemove !== null}
           transparent
           animationType="fade"
-          onRequestClose={() => setMemberToRemove(null)}
+          onRequestClose={() => {
+            if (!removing) setMemberToRemove(null);
+          }}
         >
-          <Pressable style={styles.modalBackdrop} onPress={() => setMemberToRemove(null)}>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => {
+              if (!removing) setMemberToRemove(null);
+            }}
+          >
             <Pressable style={styles.modalCard} onPress={() => {}}>
               <Text style={styles.modalTitle}>
                 {t('members.remove_title', { name: memberToRemove?.name ?? '' })}
@@ -492,6 +514,7 @@ export default function HousematesScreen(): React.JSX.Element {
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel={t('members.yes_remove')}
+                accessibilityState={{ disabled: removing, busy: removing }}
               >
                 <Text style={styles.modalDangerText}>
                   {removing ? t('members.removing') : t('members.yes_remove')}
@@ -504,6 +527,7 @@ export default function HousematesScreen(): React.JSX.Element {
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel={t('common.cancel')}
+                accessibilityState={{ disabled: removing }}
               >
                 <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
               </Pressable>

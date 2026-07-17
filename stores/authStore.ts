@@ -648,19 +648,28 @@ export const useAuthStore = create<AuthStore>()(
         // "Alex (left)" on their past bills and messages. Best-effort — a
         // failure here must not block the person from leaving.
         try {
-          await supabase.from('former_members').upsert(
+          const now = new Date().toISOString();
+          const { error: snapshotError } = await supabase.from('former_members').upsert(
             {
               house_id: houseId,
               user_id: user.id,
               name: profile?.name ?? 'Housemate',
               avatar_color: profile?.avatarColor ?? null,
               left_reason: 'left',
-              left_at: new Date().toISOString(),
+              left_at: now,
+              updated_at: now,
             },
             { onConflict: 'house_id,user_id' }
           );
+          if (snapshotError) {
+            captureError(snapshotError, {
+              context: 'snapshot-former-member',
+              houseId,
+              userId: user.id,
+            });
+          }
         } catch {
-          /* non-fatal */
+          /* non-fatal — leaving must not be blocked by the snapshot */
         }
         try {
           await supabase

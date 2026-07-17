@@ -140,12 +140,16 @@ $$;
 CREATE TABLE IF NOT EXISTS former_members (
   id            uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   house_id      uuid NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
-  user_id       uuid NOT NULL,   -- no FK: the account may still exist, or not
+  -- Cascade on erasure: if a person who left later deletes their account, this
+  -- snapshot (which holds their name) must disappear too, so "delete my
+  -- account" stays a full erasure.
+  user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name          text NOT NULL,
   avatar_color  text,
   left_reason   text NOT NULL DEFAULT 'left',  -- 'left' | 'removed'
   left_at       timestamptz NOT NULL DEFAULT now(),
   created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
   UNIQUE (house_id, user_id)
 );
 
@@ -160,21 +164,25 @@ CREATE POLICY "house members can read former members"
   ON former_members FOR SELECT
   USING (house_id IN (SELECT public.get_my_house_ids()));
 
--- A member may record their own departure (leaving); the house owner may record
--- anyone's departure (removing a member).
+-- A member may record their own departure from a house they currently belong to
+-- (leaving); the house owner may record anyone's departure (removing a member).
 DROP POLICY IF EXISTS "record own or owned-house departure" ON former_members;
 CREATE POLICY "record own or owned-house departure"
   ON former_members FOR INSERT
   WITH CHECK (
-    user_id = auth.uid()
+    (user_id = auth.uid() AND house_id IN (SELECT public.get_my_house_ids()))
     OR house_id IN (SELECT id FROM houses WHERE created_by = auth.uid())
   );
 
--- If a former member re-joins and leaves again, allow the row to be refreshed.
+-- Refresh an existing row when someone re-joins then leaves again — either the
+-- person themselves (while a current member) or the house owner.
 DROP POLICY IF EXISTS "owner can update former members" ON former_members;
 CREATE POLICY "owner can update former members"
   ON former_members FOR UPDATE
-  USING (house_id IN (SELECT id FROM houses WHERE created_by = auth.uid()));
+  USING (
+    (user_id = auth.uid() AND house_id IN (SELECT public.get_my_house_ids()))
+    OR house_id IN (SELECT id FROM houses WHERE created_by = auth.uid())
+  );
 
 -- Removing the stale row when someone re-joins (own row or owner-managed).
 DROP POLICY IF EXISTS "clear own or owned-house former row" ON former_members;

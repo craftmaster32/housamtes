@@ -1596,7 +1596,10 @@ function buildActivityEvents(
         actor:
           i.addedBy === myId
             ? t('common.you')
-            : resolveName(i.addedBy, housemates, t('common.unknown')),
+            : resolveMemberName(i.addedBy, housemates, formerMembers, {
+                fallback: t('members.former'),
+                leftLabel: t('common.left'),
+              }),
         text: t('dashboard.activity_added_grocery', { name: i.name }),
         time: i.createdAt,
       });
@@ -1613,7 +1616,10 @@ function buildActivityEvents(
           ? t('common.someone')
           : ch.claimedBy === myId
             ? t('common.you')
-            : resolveName(ch.claimedBy, housemates, t('common.unknown')),
+            : resolveMemberName(ch.claimedBy, housemates, formerMembers, {
+                fallback: t('members.former'),
+                leftLabel: t('common.left'),
+              }),
         text: t('dashboard.activity_completed_chore', { name: ch.name }),
         time: ch.completedAt!,
       });

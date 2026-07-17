@@ -1452,7 +1452,9 @@
     "remove_body": "Se le quitará de la casa y ya no podrá verla. Sus cuentas y mensajes anteriores se conservan, mostrados como \"(se fue)\". Puede volver a unirse con el código de invitación.",
     "yes_remove": "Quitar de la casa",
     "removing": "Quitando…",
-    "remove_failed": "No se pudo quitar a este miembro. Inténtalo de nuevo."
+    "remove_failed": "No se pudo quitar a este miembro. Inténtalo de nuevo.",
+    "avatar_of": "Avatar de {{name}}",
+    "checking_bills": "Buscando cuentas sin saldar…"
   },
   "spending": {
     "spending_label": "GASTOS",
