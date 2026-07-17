@@ -27,7 +27,7 @@ import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBill
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { resolveName } from '@utils/housemates';
+import { useMemberName } from '@hooks/useMemberName';
 import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useThemedColors } from '@constants/colors';
@@ -99,7 +99,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const housemates = useHousematesStore((s) => s.housemates);
+  const memberName = useMemberName();
   const share = bill.amount / Math.max(bill.splitBetween.length, 1);
   const icon = getCategoryIcon(bill.category ?? '');
   return (
@@ -135,7 +135,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
           {t('bills.paid_by_each', {
-            name: resolveName(bill.paidBy, housemates, t('common.unknown')),
+            name: memberName(bill.paidBy),
             amount: formatFull(share, currencyCode),
           })}
         </Text>
@@ -168,7 +168,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const housemates = useHousematesStore((s) => s.housemates);
+  const memberName = useMemberName();
   const share = row.amount / Math.max(row.splitBetween.length, 1);
   return (
     <Pressable
@@ -194,7 +194,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
           {t('bills.paid_by_each', {
-            name: resolveName(row.paidBy, housemates, t('common.unknown')),
+            name: memberName(row.paidBy),
             amount: formatFull(share, currencyCode),
           })}
         </Text>
@@ -225,6 +225,7 @@ function SettleUpPanel(): React.JSX.Element {
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const bills = useBillsStore((s) => s.bills);
   const housemates = useHousematesStore((s) => s.housemates);
+  const memberName = useMemberName();
   const avatarById = new Map(housemates.map((h) => [h.id, h.avatarUrl]));
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
@@ -253,8 +254,8 @@ function SettleUpPanel(): React.JSX.Element {
   return (
     <View style={styles.settleList}>
       {settlements.map((s, idx) => {
-        const fromName = resolveName(s.from, housemates, t('common.unknown'));
-        const toName = resolveName(s.to, housemates, t('common.unknown'));
+        const fromName = memberName(s.from);
+        const toName = memberName(s.to);
         return (
           <View
             key={idx}

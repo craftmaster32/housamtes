@@ -14,7 +14,7 @@ import {
 } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
-import { resolveName } from '@utils/housemates';
+import { useMemberName } from '@hooks/useMemberName';
 import { useSettingsStore } from '@stores/settingsStore';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { useThemedColors } from '@constants/colors';
@@ -62,6 +62,7 @@ function FairnessSection(): React.JSX.Element {
   const bills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const housemates = useHousematesStore((s) => s.housemates);
+  const memberName = useMemberName();
   const currency = useSettingsStore((s) => s.currency);
   const fairness = calculateFairness(
     bills,
@@ -86,7 +87,7 @@ function FairnessSection(): React.JSX.Element {
       {fairness.map((f) => (
         <View key={f.person} style={styles.fairnessRow}>
           <Text style={[styles.fairnessPerson, { color: c.textPrimary }]} numberOfLines={1}>
-            {resolveName(f.person, housemates, t('common.unknown'))}
+            {memberName(f.person)}
           </Text>
           <View style={[styles.barTrack, { backgroundColor: c.surfaceSecondary }]}>
             <View
@@ -130,6 +131,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const deletePayment = useRecurringBillsStore((s) => s.deletePayment);
   const houseId = useAuthStore((s) => s.houseId);
   const housemates = useHousematesStore((s) => s.housemates);
+  const memberName = useMemberName();
   const currency = useSettingsStore((s) => s.currency);
 
   const todayStr = ((): string => {
@@ -258,7 +260,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           <View style={styles.billMeta}>
             <View style={[styles.metaChip, { backgroundColor: c.primary + '20' }]}>
               <Text style={[styles.metaChipText, { color: c.primary }]}>
-                {resolveName(bill.assignedTo, housemates)}
+                {memberName(bill.assignedTo)}
               </Text>
             </View>
             <View style={[styles.metaChip, { backgroundColor: c.primary + '20' }]}>

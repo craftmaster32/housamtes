@@ -43,6 +43,7 @@
     "you": "You",
     "someone": "Someone",
     "error": "Error",
+    "left": "left",
     "on_it": "On it…",
     "and": "and",
     "retry": "Retry",
@@ -1410,7 +1411,16 @@
     "perm_voting": "Voting",
     "perm_maintenance": "Maintenance",
     "perm_condition": "Property Condition",
-    "toggle_permission": "Toggle {{permission}} for {{name}}"
+    "toggle_permission": "Toggle {{permission}} for {{name}}",
+    "former": "Former member",
+    "left_section": "People who left",
+    "name_left": "{{name}} (left)",
+    "settle_hint": "These unsettled bills still involve someone who left the house. Settle them to clear the books.",
+    "leftover_bill_meta": "Paid by {{name}} · {{amount}}",
+    "settle": "Settle",
+    "settling": "Settling…",
+    "settle_failed": "Could not settle this bill. Please try again.",
+    "nothing_to_settle": "Nothing left to settle — the books are clear."
   },
   "not_found": {
     "title": "Page not found",

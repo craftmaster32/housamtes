@@ -31,8 +31,9 @@ import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
 import { useChoresStore, type Chore } from '@stores/choresStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useEventsStore } from '@stores/eventsStore';
-import { useHousematesStore, type Housemate } from '@stores/housematesStore';
-import { resolveName } from '@utils/housemates';
+import { useHousematesStore, type Housemate, type FormerMember } from '@stores/housematesStore';
+import { resolveName, resolveMemberName } from '@utils/housemates';
+import { useMemberName } from '@hooks/useMemberName';
 import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
@@ -401,7 +402,7 @@ function RecentExpenses(): React.JSX.Element {
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const housemates = useHousematesStore((s) => s.housemates);
+  const memberName = useMemberName();
   const language = useLanguageStore((s) => s.language);
 
   const recent = useMemo(() => {
@@ -483,7 +484,7 @@ function RecentExpenses(): React.JSX.Element {
                   </Text>
                   <Text style={[styles.recentSub, { color: c.textSecondary }]}>
                     {t('dashboard.paid_by_name', {
-                      name: resolveName(paidBy, housemates, t('common.unknown')),
+                      name: memberName(paidBy),
                       time: timeAgo(timeIso, t, language),
                     })}
                   </Text>
@@ -1560,6 +1561,7 @@ function buildActivityEvents(
   chores: Chore[],
   myId: string,
   housemates: Housemate[],
+  formerMembers: FormerMember[],
   t: (key: string, opts?: Record<string, unknown>) => string
 ): ActivityEvent[] {
   const events: ActivityEvent[] = [];
@@ -1575,7 +1577,10 @@ function buildActivityEvents(
         actor:
           b.paidBy === myId
             ? t('common.you')
-            : resolveName(b.paidBy, housemates, t('common.unknown')),
+            : resolveMemberName(b.paidBy, housemates, formerMembers, {
+                fallback: t('members.former'),
+                leftLabel: t('common.left'),
+              }),
         text: t('dashboard.activity_added_bill', { title: b.title }),
         time: b.createdAt,
       });
@@ -1624,11 +1629,12 @@ function ActivityFeed(): React.JSX.Element {
   const chores = useChoresStore((s) => s.chores);
   const profile = useAuthStore((s) => s.profile);
   const housemates = useHousematesStore((s) => s.housemates);
+  const formerMembers = useHousematesStore((s) => s.formerMembers);
   const language = useLanguageStore((s) => s.language);
   const myId = profile?.id ?? '';
   const events = useMemo(
-    () => buildActivityEvents(bills, groceryItems, chores, myId, housemates, t),
-    [bills, groceryItems, chores, myId, housemates, t]
+    () => buildActivityEvents(bills, groceryItems, chores, myId, housemates, formerMembers, t),
+    [bills, groceryItems, chores, myId, housemates, formerMembers, t]
   );
 
   return (

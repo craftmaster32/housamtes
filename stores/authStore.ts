@@ -642,8 +642,26 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       leaveHouse: async (): Promise<void> => {
-        const { user, houseId } = useAuthStore.getState();
+        const { user, houseId, profile } = useAuthStore.getState();
         if (!user || !houseId) return;
+        // Snapshot the departing member so the house can still show
+        // "Alex (left)" on their past bills and messages. Best-effort — a
+        // failure here must not block the person from leaving.
+        try {
+          await supabase.from('former_members').upsert(
+            {
+              house_id: houseId,
+              user_id: user.id,
+              name: profile?.name ?? 'Housemate',
+              avatar_color: profile?.avatarColor ?? null,
+              left_reason: 'left',
+              left_at: new Date().toISOString(),
+            },
+            { onConflict: 'house_id,user_id' }
+          );
+        } catch {
+          /* non-fatal */
+        }
         try {
           await supabase
             .from('house_members')
