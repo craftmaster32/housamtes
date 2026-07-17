@@ -1445,7 +1445,14 @@
     "settle": "Saldar",
     "settling": "Saldando…",
     "settle_failed": "No se pudo saldar esta cuenta. Inténtalo de nuevo.",
-    "nothing_to_settle": "Nada por saldar: las cuentas están claras."
+    "nothing_to_settle": "Nada por saldar: las cuentas están claras.",
+    "remove": "Quitar",
+    "remove_member": "Quitar a {{name}} de la casa",
+    "remove_title": "¿Quitar a {{name}}?",
+    "remove_body": "Se le quitará de la casa y ya no podrá verla. Sus cuentas y mensajes anteriores se conservan, mostrados como \"(se fue)\". Puede volver a unirse con el código de invitación.",
+    "yes_remove": "Quitar de la casa",
+    "removing": "Quitando…",
+    "remove_failed": "No se pudo quitar a este miembro. Inténtalo de nuevo."
   },
   "spending": {
     "spending_label": "GASTOS",

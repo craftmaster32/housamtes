@@ -1420,7 +1420,14 @@
     "settle": "Settle",
     "settling": "Settling…",
     "settle_failed": "Could not settle this bill. Please try again.",
-    "nothing_to_settle": "Nothing left to settle — the books are clear."
+    "nothing_to_settle": "Nothing left to settle — the books are clear.",
+    "remove": "Remove",
+    "remove_member": "Remove {{name}} from the house",
+    "remove_title": "Remove {{name}}?",
+    "remove_body": "They'll be taken off the house and can't see it anymore. Their past bills and messages stay, shown as \"(left)\". They can rejoin later with the invite code.",
+    "yes_remove": "Remove from house",
+    "removing": "Removing…",
+    "remove_failed": "Could not remove this member. Please try again."
   },
   "not_found": {
     "title": "Page not found",

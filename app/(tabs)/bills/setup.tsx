@@ -1,10 +1,19 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Platform, Animated, Alert } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Platform,
+  Animated,
+  Alert,
+  Modal,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { useHousematesStore } from '@stores/housematesStore';
+import { useHousematesStore, type Housemate } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -179,6 +188,44 @@ const makeStyles = (C: ColorTokens) =>
     },
     settleBtnBusy: { opacity: 0.6 },
     settleBtnText: { color: '#fff', ...font.semibold, fontSize: 14 },
+
+    removeBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: sizes.md,
+      minHeight: 44,
+      justifyContent: 'center',
+      borderRadius: sizes.borderRadiusFull,
+    },
+    removeBtnPressed: { opacity: 0.6 },
+    removeBtnText: { color: C.negative, ...font.semibold, fontSize: 14 },
+
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: '#00000088',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: sizes.lg,
+    },
+    modalCard: {
+      width: '100%',
+      maxWidth: 400,
+      backgroundColor: C.surface,
+      borderRadius: 20,
+      padding: sizes.lg,
+      gap: sizes.sm,
+    },
+    modalTitle: { fontSize: 18, ...font.bold, color: C.textPrimary },
+    modalBody: { fontSize: 14, ...font.regular, color: C.textSecondary, lineHeight: 20 },
+    modalDangerBtn: {
+      backgroundColor: C.negative,
+      borderRadius: sizes.borderRadiusFull,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: sizes.sm,
+    },
+    modalDangerText: { color: '#fff', ...font.semibold, fontSize: 15 },
+    modalCancelBtn: { paddingVertical: 12, alignItems: 'center' },
+    modalCancelText: { color: C.textSecondary, ...font.semibold, fontSize: 15 },
   });
 
 export default function HousematesScreen(): React.JSX.Element {
@@ -193,15 +240,34 @@ export default function HousematesScreen(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId);
   const myId = profile?.id ?? '';
   const isManager = role === 'owner' || role === 'admin';
+  // Only the house owner (creator) may remove others — this matches the
+  // database policy, so showing it to a plain admin would just fail server-side.
+  const isOwner = role === 'owner';
 
   const bills = useBillsStore((s) => s.bills);
   const loadBills = useBillsStore((s) => s.load);
   const settleBill = useBillsStore((s) => s.settleBill);
+  const removeMember = useHousematesStore((s) => s.removeMember);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
 
   const [copied, setCopied] = useState(false);
   const [settlingId, setSettlingId] = useState<string | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<Housemate | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  const handleConfirmRemove = useCallback(async (): Promise<void> => {
+    if (!houseId || !memberToRemove) return;
+    setRemoving(true);
+    try {
+      await removeMember(houseId, memberToRemove.id, memberToRemove.name, memberToRemove.color);
+      setMemberToRemove(null);
+    } catch {
+      Alert.alert(t('common.error'), t('members.remove_failed'));
+    } finally {
+      setRemoving(false);
+    }
+  }, [houseId, memberToRemove, removeMember, t]);
 
   // Managers need the bill list to clear anything left behind by a departed
   // member. Load it if another screen hasn't already.
@@ -323,6 +389,20 @@ export default function HousematesScreen(): React.JSX.Element {
                       <Text style={styles.memberName}>{h.name}</Text>
                       {isMe && <Text style={styles.memberYou}>{t('housemates.thats_you')}</Text>}
                     </View>
+                    {isOwner && !isMe && (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.removeBtn,
+                          pressed && styles.removeBtnPressed,
+                        ]}
+                        onPress={() => setMemberToRemove(h)}
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel={t('members.remove_member', { name: h.name })}
+                      >
+                        <Text style={styles.removeBtnText}>{t('members.remove')}</Text>
+                      </Pressable>
+                    )}
                   </View>
                 );
               })}
@@ -391,6 +471,45 @@ export default function HousematesScreen(): React.JSX.Element {
             <Text style={styles.infoText}>{t('housemates.join_instructions')}</Text>
           </View>
         </ScrollView>
+
+        {/* Remove-member confirmation */}
+        <Modal
+          visible={memberToRemove !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setMemberToRemove(null)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setMemberToRemove(null)}>
+            <Pressable style={styles.modalCard} onPress={() => {}}>
+              <Text style={styles.modalTitle}>
+                {t('members.remove_title', { name: memberToRemove?.name ?? '' })}
+              </Text>
+              <Text style={styles.modalBody}>{t('members.remove_body')}</Text>
+              <Pressable
+                style={[styles.modalDangerBtn, removing && styles.settleBtnBusy]}
+                onPress={handleConfirmRemove}
+                disabled={removing}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('members.yes_remove')}
+              >
+                <Text style={styles.modalDangerText}>
+                  {removing ? t('members.removing') : t('members.yes_remove')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.modalCancelBtn}
+                onPress={() => setMemberToRemove(null)}
+                disabled={removing}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('common.cancel')}
+              >
+                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </Animated.View>
     </SafeAreaView>
   );
