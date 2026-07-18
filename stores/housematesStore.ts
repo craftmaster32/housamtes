@@ -168,6 +168,17 @@ export const useHousematesStore = create<HousematesStore>()(
             })
             .filter((h) => h !== null) as Housemate[];
 
+          // A failed former-members query resolves with { error } rather than
+          // throwing; log it so we don't silently drop every "(left)" label.
+          // Non-fatal — the current-member list is what the screen mainly needs.
+          if (formerRes.error) {
+            captureError(formerRes.error, {
+              store: 'housemates',
+              context: 'load-former-members',
+              houseId,
+            });
+          }
+
           // Departed members — exclude anyone who has since re-joined (they're
           // a current member again, so their old "left" row is stale). Use the
           // raw membership rows, not `housemates`, so a member whose profile

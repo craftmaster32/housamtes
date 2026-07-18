@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS former_members (
   user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name          text NOT NULL,
   avatar_color  text,
-  left_reason   text NOT NULL DEFAULT 'left',  -- 'left' | 'removed'
+  left_reason   text NOT NULL DEFAULT 'left' CHECK (left_reason IN ('left', 'removed')),
   left_at       timestamptz NOT NULL DEFAULT now(),
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),

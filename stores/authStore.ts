@@ -668,8 +668,10 @@ export const useAuthStore = create<AuthStore>()(
               userId: user.id,
             });
           }
-        } catch {
-          /* non-fatal — leaving must not be blocked by the snapshot */
+        } catch (snapErr) {
+          // Non-fatal — leaving must not be blocked by the snapshot — but a
+          // thrown network/client failure should still be visible in Sentry.
+          captureError(snapErr, { context: 'snapshot-former-member', houseId, userId: user.id });
         }
         try {
           await supabase
