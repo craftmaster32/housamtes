@@ -665,7 +665,7 @@ describe('parkingStore — voteOnReservation', () => {
     expect(notifyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         includeUserIds: ['u2'],
-        title: '🗳️ Your vote is needed!',
+        title: '🗳️ A housemate voted!',
         notificationType: 'parking_reservation',
       })
     );
@@ -718,7 +718,7 @@ describe('parkingStore — voteOnReservation', () => {
       })
     );
     expect(notifyMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ title: '🗳️ Your vote is needed!' })
+      expect.objectContaining({ title: '🗳️ A housemate voted!' })
     );
   });
 

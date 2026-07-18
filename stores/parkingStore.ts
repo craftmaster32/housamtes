@@ -624,7 +624,9 @@ export const useParkingStore = create<ParkingStore>()(
               });
             }
           } else {
-            // Vote cast but still pending — remind whoever hasn't voted yet
+            // Vote cast but still pending — let whoever hasn't voted yet know a
+            // housemate just voted and it's their turn to weigh in.
+            const voterName = useAuthStore.getState().profile?.name ?? '';
             const votedUserIds = new Set(votes.map((v) => v.userId));
             const nonVoterIds = voterIds.filter((id) => !votedUserIds.has(id));
             if (nonVoterIds.length > 0) {
@@ -632,8 +634,10 @@ export const useParkingStore = create<ParkingStore>()(
                 houseId,
                 excludeUserId: userId,
                 includeUserIds: nonVoterIds,
-                title: '🗳️ Your vote is needed!',
-                body: `The parking vote for ${localReservation.date} is still open — cast your vote before it expires.`,
+                title: '🗳️ A housemate voted!',
+                body: voterName
+                  ? `${voterName} voted on the parking request for ${localReservation.date}. Add your vote too!`
+                  : `Someone voted on the parking request for ${localReservation.date}. Add your vote too!`,
                 data: { screen: 'parking' },
                 notificationType: 'parking_reservation',
               }).catch((err) =>
