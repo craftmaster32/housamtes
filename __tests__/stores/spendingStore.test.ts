@@ -39,8 +39,8 @@ function month(overrides: Partial<MonthSpend> = {}): MonthSpend {
     label: 'This month',
     total: 30,
     houseTotal: 90,
-    categories: [{ name: 'internet', icon: '', color: '#000000', amount: 30 }],
-    houseCategories: [{ name: 'internet', icon: '', color: '#000000', amount: 90 }],
+    categories: [{ name: 'internet', icon: '', color: '#000000', amount: 30, isHouse: true }],
+    houseCategories: [{ name: 'internet', icon: '', color: '#000000', amount: 90, isHouse: true }],
     billsByCategory: {},
     ...overrides,
   };
@@ -151,6 +151,78 @@ describe('spendingStore', () => {
     expect(current.categories[0].name).toBe('water');
     // Drill-down labels the slice so users understand the halved amount.
     expect(current.billsByCategory['water'][0].title).toBe('Water (2-month split)');
+  });
+
+  it('classifies a Hebrew-named recurring bill (ארנונה) as a house bill', async () => {
+    mockFrom.mockImplementation((table: string): unknown => {
+      if (table === 'household_payments') {
+        return ok([
+          {
+            id: 'pay-1',
+            amount: 388.5,
+            paid_at: currentMonthDate(),
+            recurring_bills: { name: 'ארנונה', assigned_to: 'user-1', frequency: 'bimonthly' },
+          },
+        ]);
+      }
+      return ok([]);
+    });
+
+    await useSpendingStore.getState().load('house-1', 'Lior');
+
+    const current = useSpendingStore.getState().months[0];
+    const arnona = current.houseCategories.find((c) => c.name === 'ארנונה');
+    expect(arnona).toBeDefined();
+    // Recurring household bills are house bills whatever they're named.
+    expect(arnona?.isHouse).toBe(true);
+  });
+
+  it('classifies a one-off Hebrew utility bill (חשמל) as a house bill', async () => {
+    mockFrom.mockImplementation((table: string): unknown => {
+      if (table === 'bills') {
+        return ok([
+          {
+            id: 'bill-1',
+            title: 'חשמל',
+            amount: 120,
+            paid_by: 'user-1',
+            split_between: ['user-1'],
+            date: currentMonthDate(),
+            category: 'חשמל',
+          },
+        ]);
+      }
+      return ok([]);
+    });
+
+    await useSpendingStore.getState().load('house-1', 'Lior');
+
+    const current = useSpendingStore.getState().months[0];
+    expect(current.houseCategories.find((c) => c.name === 'חשמל')?.isHouse).toBe(true);
+  });
+
+  it('leaves a non-house category (groceries) out of the house section', async () => {
+    mockFrom.mockImplementation((table: string): unknown => {
+      if (table === 'bills') {
+        return ok([
+          {
+            id: 'bill-1',
+            title: 'Groceries',
+            amount: 50,
+            paid_by: 'user-1',
+            split_between: ['user-1'],
+            date: currentMonthDate(),
+            category: 'Groceries',
+          },
+        ]);
+      }
+      return ok([]);
+    });
+
+    await useSpendingStore.getState().load('house-1', 'Lior');
+
+    const current = useSpendingStore.getState().months[0];
+    expect(current.houseCategories.find((c) => c.name === 'groceries')?.isHouse).toBe(false);
   });
 
   it('does not credit recurring payments assigned to someone else to the user', async () => {
