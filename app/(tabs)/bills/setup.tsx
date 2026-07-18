@@ -288,12 +288,15 @@ export default function HousematesScreen(): React.JSX.Element {
   // settle to compensate for the person vanishing.
   const leftoverBills = useMemo(() => {
     if (!isManager) return [];
-    const currentIds = new Set(housemates.map((h) => h.id));
-    const isGone = (id: string | null): boolean => !id || !currentIds.has(id);
+    const formerIds = new Set(formerMembers.map((f) => f.id));
+    // "Gone" = no payer at all (erased account, reference blanked) or a known
+    // departed member. Deriving from formerMembers rather than "absent from the
+    // current list" avoids flagging a live member whose profile failed to load.
+    const isGone = (id: string | null): boolean => !id || formerIds.has(id);
     return bills.filter(
       (b) => !b.settled && (isGone(b.paidBy) || b.splitBetween.some((id) => isGone(id)))
     );
-  }, [isManager, bills, housemates]);
+  }, [isManager, bills, formerMembers]);
 
   const handleSettle = useCallback(
     async (billId: string): Promise<void> => {
@@ -453,12 +456,12 @@ export default function HousematesScreen(): React.JSX.Element {
                         <Pressable
                           style={[styles.settleBtn, settlingId === b.id && styles.settleBtnBusy]}
                           onPress={() => handleSettle(b.id)}
-                          disabled={settlingId === b.id}
+                          disabled={settlingId !== null}
                           accessible
                           accessibilityRole="button"
                           accessibilityLabel={t('members.settle')}
                           accessibilityState={{
-                            disabled: settlingId === b.id,
+                            disabled: settlingId !== null,
                             busy: settlingId === b.id,
                           }}
                         >
@@ -501,8 +504,10 @@ export default function HousematesScreen(): React.JSX.Element {
             onPress={() => {
               if (!removing) setMemberToRemove(null);
             }}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
           >
-            <Pressable style={styles.modalCard} onPress={() => {}}>
+            <Pressable style={styles.modalCard} onPress={() => {}} accessible={false}>
               <Text style={styles.modalTitle}>
                 {t('members.remove_title', { name: memberToRemove?.name ?? '' })}
               </Text>

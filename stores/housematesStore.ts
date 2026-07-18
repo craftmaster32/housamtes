@@ -285,29 +285,31 @@ export const useHousematesStore = create<HousematesStore>()(
         // "Name (left)" instead of a blank. If the snapshot fails, abort before
         // deleting the membership — otherwise we'd lose the name forever.
         const now = new Date().toISOString();
-        const { error: snapshotError } = await supabase.from('former_members').upsert(
-          {
-            house_id: houseId,
-            user_id: userId,
-            name,
-            avatar_color: color,
-            left_reason: 'removed',
-            left_at: now,
-            updated_at: now,
-          },
-          { onConflict: 'house_id,user_id' }
-        );
-        if (snapshotError) {
-          captureError(snapshotError, { context: 'snapshot-former-member', houseId, userId });
-          throw new Error('Could not remove this member. Please try again.');
-        }
-        const { error } = await supabase
-          .from('house_members')
-          .delete()
-          .eq('house_id', houseId)
-          .eq('user_id', userId);
-        if (error) {
-          captureError(error, { context: 'remove-member', houseId, userId });
+        try {
+          const { error: snapshotError } = await supabase.from('former_members').upsert(
+            {
+              house_id: houseId,
+              user_id: userId,
+              name,
+              avatar_color: color,
+              left_reason: 'removed',
+              left_at: now,
+              updated_at: now,
+            },
+            { onConflict: 'house_id,user_id' }
+          );
+          if (snapshotError) throw snapshotError;
+
+          const { error } = await supabase
+            .from('house_members')
+            .delete()
+            .eq('house_id', houseId)
+            .eq('user_id', userId);
+          if (error) throw error;
+        } catch (err) {
+          // Covers both returned Supabase errors and thrown client/network
+          // failures, so every failure path gets Sentry context + a clean message.
+          captureError(err, { context: 'remove-member', houseId, userId });
           throw new Error('Could not remove this member. Please try again.');
         }
         // Realtime on house_members will trigger a reload; update locally too.
