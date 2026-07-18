@@ -85,3 +85,33 @@ describe('housematesStore — load error state', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 });
+
+describe('housematesStore — removeMember', () => {
+  it('snapshots the removed member, drops their membership, and updates state', async () => {
+    mockFrom.mockImplementation(() => ok(null));
+    useHousematesStore.setState({
+      housemates: [
+        {
+          id: 'u2',
+          memberId: 'm2',
+          name: 'Bob',
+          color: '#222',
+          role: 'member',
+          permissions: {} as never,
+          joinedAt: null,
+        },
+      ],
+      formerMembers: [],
+    });
+
+    await useHousematesStore.getState().removeMember('h1', 'u2', 'Bob', '#222');
+
+    expect(mockFrom).toHaveBeenCalledWith('former_members');
+    expect(mockFrom).toHaveBeenCalledWith('house_members');
+    const s = useHousematesStore.getState();
+    expect(s.housemates.find((h) => h.id === 'u2')).toBeUndefined();
+    expect(s.formerMembers).toEqual([
+      expect.objectContaining({ id: 'u2', name: 'Bob', reason: 'removed' }),
+    ]);
+  });
+});

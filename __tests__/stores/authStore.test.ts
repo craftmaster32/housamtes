@@ -385,6 +385,20 @@ describe('authStore — leaveHouse', () => {
     // The account itself must survive leaving a house
     expect(s.user?.id).toBe('u1');
   });
+
+  it('snapshots the departing member into former_members so history keeps their name', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      houseId: 'h1',
+      role: 'member',
+      profile: { id: 'u1', name: 'Alice', avatarColor: '#6366f1' },
+    });
+    mockTables({ house_members: ok(null), former_members: ok(null) });
+
+    await useAuthStore.getState().leaveHouse();
+
+    expect(mockFrom).toHaveBeenCalledWith('former_members');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

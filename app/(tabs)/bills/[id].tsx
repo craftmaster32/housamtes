@@ -8,12 +8,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { useBillsStore, getPersonShare, EditBillSchema, CATEGORIES } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
-import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
-import { resolveName } from '@utils/housemates';
+import { useMemberName } from '@hooks/useMemberName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { Button, EmptyState, Pill } from '@components/ui';
@@ -62,7 +61,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const role = useAuthStore((s) => s.role);
   const canDelete = role === 'owner' || role === 'admin';
   const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const housemates = useHousematesStore((s) => s.housemates);
+  const memberName = useMemberName();
   const markSeen = useBadgeStore((s) => s.markSeen);
 
   useFocusEffect(
@@ -215,7 +214,7 @@ export default function BillDetailScreen(): React.JSX.Element {
         {bill.settled && (
           <Pill tone="success" size="md" icon="checkmark-circle-outline">
             {t('bills.settled_by_on', {
-              name: bill.settledBy ? resolveName(bill.settledBy, housemates) : '',
+              name: bill.settledBy ? memberName(bill.settledBy) : '',
               date: bill.settledAt ? new Date(bill.settledAt).toLocaleDateString() : '',
             })}
           </Pill>
@@ -341,7 +340,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
-              <Text style={styles.metaValue}>{resolveName(bill.paidBy, housemates)}</Text>
+              <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
             </View>
             {bill.notes ? (
               <View style={styles.metaRow}>
@@ -367,7 +366,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>
                 <View style={styles.splitDot} />
-                <Text style={styles.splitPerson}>{resolveName(person, housemates)}</Text>
+                <Text style={styles.splitPerson}>{memberName(person)}</Text>
                 <Text style={styles.splitAmount}>
                   {formatFull(getPersonShare(bill, person), currencyCode)}
                 </Text>

@@ -18,8 +18,19 @@ export interface Housemate {
   joinedAt: string | null;
 }
 
+/** Someone who used to be in the house (left or was removed). Their account
+ *  may still exist; we keep their name so history can show "Alex (left)". */
+export interface FormerMember {
+  id: string; // user_id
+  name: string;
+  color: string;
+  reason: 'left' | 'removed';
+  leftAt: string | null;
+}
+
 interface HousematesStore {
   housemates: Housemate[];
+  formerMembers: FormerMember[];
   houseName: string;
   inviteCode: string;
   timezone: string;
@@ -33,6 +44,7 @@ interface HousematesStore {
   updatePermissions: (memberId: string, permissions: MemberPermissions) => Promise<void>;
   updateRole: (memberId: string, role: MemberRole) => Promise<void>;
   updateTimezone: (houseId: string, tz: string) => Promise<void>;
+  removeMember: (houseId: string, userId: string, name: string, color: string) => Promise<void>;
 }
 
 export const COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
@@ -48,6 +60,7 @@ export const useHousematesStore = create<HousematesStore>()(
   devtools(
     (set, get) => ({
       housemates: [],
+      formerMembers: [],
       houseName: '',
       inviteCode: '',
       timezone: 'UTC',
@@ -63,7 +76,7 @@ export const useHousematesStore = create<HousematesStore>()(
         }
         const seq = ++_loadSeq;
         try {
-          const [membersRes, houseRes] = await Promise.all([
+          const [membersRes, houseRes, formerRes] = await Promise.all([
             supabase
               .from('house_members')
               .select('id, user_id, role, permissions, joined_at')
@@ -73,6 +86,10 @@ export const useHousematesStore = create<HousematesStore>()(
               .select('name, invite_code, timezone')
               .eq('id', houseId)
               .single(),
+            supabase
+              .from('former_members')
+              .select('user_id, name, avatar_color, left_reason, left_at')
+              .eq('house_id', houseId),
           ]);
 
           const defaultPerms: MemberPermissions = {
@@ -151,10 +168,39 @@ export const useHousematesStore = create<HousematesStore>()(
             })
             .filter((h) => h !== null) as Housemate[];
 
+          // A failed former-members query resolves with { error } rather than
+          // throwing; log it so we don't silently drop every "(left)" label.
+          // Non-fatal — the current-member list is what the screen mainly needs.
+          if (formerRes.error) {
+            captureError(formerRes.error, {
+              store: 'housemates',
+              context: 'load-former-members',
+              houseId,
+            });
+          }
+
+          // Departed members — exclude anyone who has since re-joined (they're
+          // a current member again, so their old "left" row is stale). Use the
+          // raw membership rows, not `housemates`, so a member whose profile
+          // lookup failed isn't mistaken for someone who left.
+          const currentIds = new Set(userIds);
+          const formerMembers: FormerMember[] = (formerRes.data ?? [])
+            .filter((f) => !currentIds.has(f.user_id as string))
+            .map((f) => ({
+              id: f.user_id as string,
+              name: (f.name as string | null) ?? 'Housemate',
+              color: (f.avatar_color as string | null) ?? '#9ca3af',
+              reason: ((f.left_reason as string | undefined) === 'removed'
+                ? 'removed'
+                : 'left') as FormerMember['reason'],
+              leftAt: (f.left_at as string | undefined) ?? null,
+            }));
+
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
           set({
             housemates,
+            formerMembers,
             houseName: houseRes.data?.name ?? '',
             inviteCode: houseRes.data?.invite_code ?? '',
             timezone: houseRes.data?.timezone ?? 'UTC',
@@ -244,6 +290,47 @@ export const useHousematesStore = create<HousematesStore>()(
           throw new Error('Could not update timezone. Please try again.');
         }
         set({ timezone: tz });
+      },
+      removeMember: async (houseId, userId, name, color): Promise<void> => {
+        // Snapshot the person first so their past bills/messages keep showing
+        // "Name (left)" instead of a blank. If the snapshot fails, abort before
+        // deleting the membership — otherwise we'd lose the name forever.
+        const now = new Date().toISOString();
+        try {
+          const { error: snapshotError } = await supabase.from('former_members').upsert(
+            {
+              house_id: houseId,
+              user_id: userId,
+              name,
+              avatar_color: color,
+              left_reason: 'removed',
+              left_at: now,
+              updated_at: now,
+            },
+            { onConflict: 'house_id,user_id' }
+          );
+          if (snapshotError) throw snapshotError;
+
+          const { error } = await supabase
+            .from('house_members')
+            .delete()
+            .eq('house_id', houseId)
+            .eq('user_id', userId);
+          if (error) throw error;
+        } catch (err) {
+          // Covers both returned Supabase errors and thrown client/network
+          // failures, so every failure path gets Sentry context + a clean message.
+          captureError(err, { context: 'remove-member', houseId, userId });
+          throw new Error('Could not remove this member. Please try again.');
+        }
+        // Realtime on house_members will trigger a reload; update locally too.
+        set({
+          housemates: get().housemates.filter((h) => h.id !== userId),
+          formerMembers: [
+            ...get().formerMembers.filter((f) => f.id !== userId),
+            { id: userId, name, color, reason: 'removed', leftAt: new Date().toISOString() },
+          ],
+        });
       },
     }),
     { name: 'housemates-store' }
