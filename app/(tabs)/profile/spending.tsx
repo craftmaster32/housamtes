@@ -31,37 +31,7 @@ import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
 
 const BAR_MAX_H = 56;
 
-// Keyword-based matching so names like "Electricity Bill" or "Wifi" still land here
-const HOUSE_BILL_KEYWORDS = [
-  'rent',
-  'electric',
-  'water',
-  'internet',
-  'wifi',
-  'gas',
-  'tax',
-  'arnona',
-  'insurance',
-  'maintenance',
-  'rates',
-  'mortgage',
-  'strata',
-  'municipal',
-  'building',
-  'utilities',
-  'utility',
-  'phone',
-  'broadband',
-  'council',
-  'body corporate',
-];
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-function isHouseCat(name: string): boolean {
-  const n = name.toLowerCase();
-  return HOUSE_BILL_KEYWORDS.some((kw) => n.includes(kw));
-}
 
 function fmtFull(n: number, sym: string): string {
   return `${sym}${n.toFixed(2)}`;
@@ -595,8 +565,8 @@ export default function SpendingScreen(): React.JSX.Element {
     const prevCats =
       viewMode === 'house' ? previousMonth?.houseCategories : previousMonth?.categories;
 
-    const houseBillCats = sourceCats.filter((c) => isHouseCat(c.name));
-    const lifestyleCats = sourceCats.filter((c) => !isHouseCat(c.name));
+    const houseBillCats = sourceCats.filter((c): boolean => c.isHouse);
+    const lifestyleCats = sourceCats.filter((c): boolean => !c.isHouse);
     const houseBillTotal = houseBillCats.reduce((s, c) => s + c.amount, 0);
     const lifestyleTotal = lifestyleCats.reduce((s, c) => s + c.amount, 0);
 

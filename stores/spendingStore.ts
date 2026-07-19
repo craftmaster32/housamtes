@@ -29,12 +29,72 @@ function categoryMeta(name: string): { icon: string; color: string } {
   return CATEGORY_META[name.toLowerCase()] ?? { icon: '📦', color: '#8D8F8F' };
 }
 
+// ── House-bill classification ────────────────────────────────────────────────────
+// Keyword-based matching so names like "Electricity Bill" or "Wifi" still land in
+// House Bills. Hebrew terms are included so ארנונה, חשמל, מים … don't fall through
+// to Lifestyle. Recurring household bills are always treated as house bills too —
+// see `isHouse` below — regardless of what they're named.
+const HOUSE_BILL_KEYWORDS = [
+  // English
+  'rent',
+  'electric',
+  'water',
+  'internet',
+  'wifi',
+  'gas',
+  'tax',
+  'arnona',
+  'insurance',
+  'maintenance',
+  'rates',
+  'mortgage',
+  'strata',
+  'municipal',
+  'building',
+  'utilities',
+  'utility',
+  'phone',
+  'broadband',
+  'council',
+  'body corporate',
+  // Hebrew
+  'ארנונה', // arnona (municipal tax)
+  'חשמל', // electricity
+  'מים', // water
+  'גז', // gas
+  'אינטרנט', // internet
+  'שכירות', // rent
+  'שכ"ד', // rent (abbrev.)
+  'ועד בית', // building committee / HOA
+  'ביטוח', // insurance
+  'דמי ניהול', // management fees
+  'מיסים', // taxes
+];
+
+// Short generic keywords that risk matching as substrings of unrelated words (e.g. "tax" → "taxi",
+// "rent" → "parenting", "gas" → "vegas").
+const BOUNDARY_PATTERNS: Readonly<Record<string, RegExp>> = {
+  tax: /\btax\b/,
+  arnona: /\barnona\b/,
+  rent: /\brent\b/,
+  gas: /\bgas\b/,
+};
+
+export function isHouseCategoryName(name: string): boolean {
+  const n = name.toLowerCase();
+  return HOUSE_BILL_KEYWORDS.some((kw): boolean => {
+    const pattern = BOUNDARY_PATTERNS[kw];
+    return pattern ? pattern.test(n) : n.includes(kw);
+  });
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 export interface CategorySpend {
   name: string;
   icon: string;
   color: string;
   amount: number;
+  isHouse: boolean; // true → belongs in the House Bills section, not Lifestyle
 }
 
 export interface DrillDownItem {
@@ -236,6 +296,8 @@ export const useSpendingStore = create<SpendingStore>()(
           const tally = new Map<string, Map<string, number>>();
           const houseTally = new Map<string, Map<string, number>>();
           const detailTally = new Map<string, Map<string, DrillDownItem[]>>();
+          // Category names sourced from recurring household bills — always house bills.
+          const recurringCategories = new Set<string>();
 
           const addDetail = (mk: string, cat: string, item: DrillDownItem): void => {
             if (!detailTally.has(mk)) detailTally.set(mk, new Map());
@@ -277,6 +339,7 @@ export const useSpendingStore = create<SpendingStore>()(
             const freq: Frequency =
               rb.frequency in FREQ_MONTHS ? (rb.frequency as Frequency) : 'monthly';
             const cat = rb.name.toLowerCase();
+            recurringCategories.add(cat);
             const n = FREQ_MONTHS[freq];
             const shares = paymentMonthShares(p.paid_at, freq);
 
@@ -297,17 +360,30 @@ export const useSpendingStore = create<SpendingStore>()(
           }
 
           // ── Build MonthSpend[] ─────────────────────────────────────────────
-          const months: MonthSpend[] = lastNMonths(6).map((mk) => {
+          const classifyHouse = (name: string): boolean =>
+            recurringCategories.has(name) || isHouseCategoryName(name);
+
+          const months: MonthSpend[] = lastNMonths(6).map((mk): MonthSpend => {
             const catMap = tally.get(mk) ?? new Map();
             const categories: CategorySpend[] = Array.from(catMap.entries())
-              .map(([name, amount]) => ({ name, amount, ...categoryMeta(name) }))
-              .sort((a, b) => b.amount - a.amount);
+              .map(([name, amount]): CategorySpend => ({
+                name,
+                amount,
+                isHouse: classifyHouse(name),
+                ...categoryMeta(name),
+              }))
+              .sort((a, b): number => b.amount - a.amount);
             const total = categories.reduce((s, c) => s + c.amount, 0);
 
             const houseCatMap = houseTally.get(mk) ?? new Map();
             const houseCategories: CategorySpend[] = Array.from(houseCatMap.entries())
-              .map(([name, amount]) => ({ name, amount, ...categoryMeta(name) }))
-              .sort((a, b) => b.amount - a.amount);
+              .map(([name, amount]): CategorySpend => ({
+                name,
+                amount,
+                isHouse: classifyHouse(name),
+                ...categoryMeta(name),
+              }))
+              .sort((a, b): number => b.amount - a.amount);
             const houseTotal = houseCategories.reduce((s, c) => s + c.amount, 0);
 
             const billsByCategory: Record<string, DrillDownItem[]> = {};
