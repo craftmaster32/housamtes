@@ -565,8 +565,8 @@ export default function SpendingScreen(): React.JSX.Element {
     const prevCats =
       viewMode === 'house' ? previousMonth?.houseCategories : previousMonth?.categories;
 
-    const houseBillCats = sourceCats.filter((c) => c.isHouse);
-    const lifestyleCats = sourceCats.filter((c) => !c.isHouse);
+    const houseBillCats = sourceCats.filter((c): boolean => c.isHouse);
+    const lifestyleCats = sourceCats.filter((c): boolean => !c.isHouse);
     const houseBillTotal = houseBillCats.reduce((s, c) => s + c.amount, 0);
     const lifestyleTotal = lifestyleCats.reduce((s, c) => s + c.amount, 0);
 

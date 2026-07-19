@@ -153,7 +153,7 @@ describe('spendingStore', () => {
     expect(current.billsByCategory['water'][0].title).toBe('Water (2-month split)');
   });
 
-  it('classifies a Hebrew-named recurring bill (ארנונה) as a house bill', async () => {
+  it('classifies a Hebrew-named recurring bill (ארנונה) as a house bill', async (): Promise<void> => {
     mockFrom.mockImplementation((table: string): unknown => {
       if (table === 'household_payments') {
         return ok([
@@ -177,7 +177,7 @@ describe('spendingStore', () => {
     expect(arnona?.isHouse).toBe(true);
   });
 
-  it('classifies a one-off Hebrew utility bill (חשמל) as a house bill', async () => {
+  it('classifies a one-off Hebrew utility bill (חשמל) as a house bill', async (): Promise<void> => {
     mockFrom.mockImplementation((table: string): unknown => {
       if (table === 'bills') {
         return ok([
@@ -201,7 +201,7 @@ describe('spendingStore', () => {
     expect(current.houseCategories.find((c) => c.name === 'חשמל')?.isHouse).toBe(true);
   });
 
-  it('leaves a non-house category (groceries) out of the house section', async () => {
+  it('leaves a non-house category (groceries) out of the house section', async (): Promise<void> => {
     mockFrom.mockImplementation((table: string): unknown => {
       if (table === 'bills') {
         return ok([

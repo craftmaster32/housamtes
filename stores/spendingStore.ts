@@ -360,27 +360,27 @@ export const useSpendingStore = create<SpendingStore>()(
           const classifyHouse = (name: string): boolean =>
             recurringCategories.has(name) || isHouseCategoryName(name);
 
-          const months: MonthSpend[] = lastNMonths(6).map((mk) => {
+          const months: MonthSpend[] = lastNMonths(6).map((mk): MonthSpend => {
             const catMap = tally.get(mk) ?? new Map();
             const categories: CategorySpend[] = Array.from(catMap.entries())
-              .map(([name, amount]) => ({
+              .map(([name, amount]): CategorySpend => ({
                 name,
                 amount,
                 isHouse: classifyHouse(name),
                 ...categoryMeta(name),
               }))
-              .sort((a, b) => b.amount - a.amount);
+              .sort((a, b): number => b.amount - a.amount);
             const total = categories.reduce((s, c) => s + c.amount, 0);
 
             const houseCatMap = houseTally.get(mk) ?? new Map();
             const houseCategories: CategorySpend[] = Array.from(houseCatMap.entries())
-              .map(([name, amount]) => ({
+              .map(([name, amount]): CategorySpend => ({
                 name,
                 amount,
                 isHouse: classifyHouse(name),
                 ...categoryMeta(name),
               }))
-              .sort((a, b) => b.amount - a.amount);
+              .sort((a, b): number => b.amount - a.amount);
             const houseTotal = houseCategories.reduce((s, c) => s + c.amount, 0);
 
             const billsByCategory: Record<string, DrillDownItem[]> = {};
