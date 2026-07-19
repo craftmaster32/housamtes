@@ -1215,7 +1215,7 @@ export default function GroceryScreen(): React.JSX.Element {
                             size={16}
                             color={isDraftOn ? 'rgb(133,77,14)' : C.textSecondary}
                           />
-                          <View>
+                          <View style={styles.draftToggleText}>
                             <Text
                               style={[
                                 styles.draftToggleLabel,
@@ -1593,7 +1593,8 @@ function makeStyles(C: ColorTokens) {
       borderColor: 'rgba(224,178,77,0.55)',
       backgroundColor: 'rgba(224,178,77,0.08)',
     },
-    draftToggleInfo: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+    draftToggleInfo: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, flex: 1 },
+    draftToggleText: { flex: 1 },
     draftToggleLabel: { fontSize: 14, ...font.semibold, color: C.textPrimary },
     draftToggleLabelOn: { color: 'rgb(133,77,14)' },
     draftToggleSub: { fontSize: 12, ...font.regular, color: C.textSecondary, marginTop: 1 },
