@@ -153,7 +153,7 @@ describe('spendingStore', () => {
     expect(current.billsByCategory['water'][0].title).toBe('Water (2-month split)');
   });
 
-  it('charges the user only their share of a recurring bill split across housemates', async () => {
+  it('charges the user only their share of a recurring bill split across housemates', async (): Promise<void> => {
     // Real-world arnona case: ₪777 bimonthly, shared by all 3 housemates.
     mockFrom.mockImplementation((table: string): unknown => {
       if (table === 'household_payments') {
@@ -182,7 +182,7 @@ describe('spendingStore', () => {
     expect(current.total).toBeCloseTo(129.5);
   });
 
-  it('honours an explicit split_between for a recurring bill', async () => {
+  it('honours an explicit split_between for a recurring bill', async (): Promise<void> => {
     // ₪777 bimonthly but only shared between two of the three housemates.
     mockFrom.mockImplementation((table: string): unknown => {
       if (table === 'household_payments') {

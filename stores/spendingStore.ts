@@ -300,7 +300,7 @@ export const useSpendingStore = create<SpendingStore>()(
           // Everyone currently in the house — the default split for a recurring
           // payment that doesn't name specific people (empty split_between).
           const memberIds: string[] = (membersRes.data ?? [])
-            .map((m) => m.user_id as string)
+            .map((m): string => m.user_id as string)
             .filter(Boolean);
 
           const tally = new Map<string, Map<string, number>>();
