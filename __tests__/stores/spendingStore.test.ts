@@ -154,60 +154,68 @@ describe('spendingStore', () => {
   });
 
   it('charges the user only their share of a recurring bill split across housemates', async (): Promise<void> => {
-    // Real-world arnona case: ₪777 bimonthly, shared by all 3 housemates.
-    mockFrom.mockImplementation((table: string): unknown => {
-      if (table === 'household_payments') {
-        return ok([
-          {
-            id: 'pay-1',
-            amount: 777,
-            paid_at: currentMonthDate(),
-            split_between: [], // empty → split among all current housemates
-            recurring_bills: { name: 'ארנונה', assigned_to: 'user-1', frequency: 'bimonthly' },
-          },
-        ]);
-      }
-      if (table === 'house_members') {
-        return ok([{ user_id: 'user-1' }, { user_id: 'user-2' }, { user_id: 'user-3' }]);
-      }
-      return ok([]);
-    });
+    try {
+      // Real-world arnona case: ₪777 bimonthly, shared by all 3 housemates.
+      mockFrom.mockImplementation((table: string): unknown => {
+        if (table === 'household_payments') {
+          return ok([
+            {
+              id: 'pay-1',
+              amount: 777,
+              paid_at: currentMonthDate(),
+              split_between: [], // empty → split among all current housemates
+              recurring_bills: { name: 'ארנונה', assigned_to: 'user-1', frequency: 'bimonthly' },
+            },
+          ]);
+        }
+        if (table === 'house_members') {
+          return ok([{ user_id: 'user-1' }, { user_id: 'user-2' }, { user_id: 'user-3' }]);
+        }
+        return ok([]);
+      });
 
-    await useSpendingStore.getState().load('house-1', 'Lior');
+      await useSpendingStore.getState().load('house-1', 'Lior');
 
-    const current = useSpendingStore.getState().months[0];
-    // House view: 777 over two months → 388.50/month for the whole house.
-    expect(current.houseTotal).toBeCloseTo(388.5);
-    // Personal view: 388.50 ÷ 3 housemates → 129.50/month, not the full house slice.
-    expect(current.total).toBeCloseTo(129.5);
+      const current = useSpendingStore.getState().months[0];
+      // House view: 777 over two months → 388.50/month for the whole house.
+      expect(current.houseTotal).toBeCloseTo(388.5);
+      // Personal view: 388.50 ÷ 3 housemates → 129.50/month, not the full house slice.
+      expect(current.total).toBeCloseTo(129.5);
+    } catch (err) {
+      throw err;
+    }
   });
 
   it('honours an explicit split_between for a recurring bill', async (): Promise<void> => {
-    // ₪777 bimonthly but only shared between two of the three housemates.
-    mockFrom.mockImplementation((table: string): unknown => {
-      if (table === 'household_payments') {
-        return ok([
-          {
-            id: 'pay-1',
-            amount: 777,
-            paid_at: currentMonthDate(),
-            split_between: ['user-1', 'user-2'],
-            recurring_bills: { name: 'ארנונה', assigned_to: 'user-1', frequency: 'bimonthly' },
-          },
-        ]);
-      }
-      if (table === 'house_members') {
-        return ok([{ user_id: 'user-1' }, { user_id: 'user-2' }, { user_id: 'user-3' }]);
-      }
-      return ok([]);
-    });
+    try {
+      // ₪777 bimonthly but only shared between two of the three housemates.
+      mockFrom.mockImplementation((table: string): unknown => {
+        if (table === 'household_payments') {
+          return ok([
+            {
+              id: 'pay-1',
+              amount: 777,
+              paid_at: currentMonthDate(),
+              split_between: ['user-1', 'user-2'],
+              recurring_bills: { name: 'ארנונה', assigned_to: 'user-1', frequency: 'bimonthly' },
+            },
+          ]);
+        }
+        if (table === 'house_members') {
+          return ok([{ user_id: 'user-1' }, { user_id: 'user-2' }, { user_id: 'user-3' }]);
+        }
+        return ok([]);
+      });
 
-    await useSpendingStore.getState().load('house-1', 'Lior');
+      await useSpendingStore.getState().load('house-1', 'Lior');
 
-    const current = useSpendingStore.getState().months[0];
-    expect(current.houseTotal).toBeCloseTo(388.5);
-    // 388.50 ÷ 2 people sharing → 194.25/month.
-    expect(current.total).toBeCloseTo(194.25);
+      const current = useSpendingStore.getState().months[0];
+      expect(current.houseTotal).toBeCloseTo(388.5);
+      // 388.50 ÷ 2 people sharing → 194.25/month.
+      expect(current.total).toBeCloseTo(194.25);
+    } catch (err) {
+      throw err;
+    }
   });
 
   it('classifies a non-keyword recurring bill as a house bill', async (): Promise<void> => {

@@ -435,7 +435,7 @@ export const useSpendingStore = create<SpendingStore>()(
 
           set({ months, isLoading: false });
         } catch (err) {
-          captureError(err, { store: 'spending', houseId });
+          captureError(err, { store: 'spending', houseId, userId: currentUserId });
           set({ isLoading: false, error: 'Failed to load spending data' });
         }
       },
