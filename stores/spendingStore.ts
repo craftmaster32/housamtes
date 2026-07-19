@@ -71,10 +71,13 @@ const HOUSE_BILL_KEYWORDS = [
   'מיסים', // taxes
 ];
 
-// Short generic keywords that risk matching as substrings of unrelated words (e.g. "tax" → "taxi").
+// Short generic keywords that risk matching as substrings of unrelated words (e.g. "tax" → "taxi",
+// "rent" → "parenting", "gas" → "vegas").
 const BOUNDARY_PATTERNS: Readonly<Record<string, RegExp>> = {
   tax: /\btax\b/,
   arnona: /\barnona\b/,
+  rent: /\brent\b/,
+  gas: /\bgas\b/,
 };
 
 export function isHouseCategoryName(name: string): boolean {

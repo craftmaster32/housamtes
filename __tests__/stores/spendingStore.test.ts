@@ -153,7 +153,7 @@ describe('spendingStore', () => {
     expect(current.billsByCategory['water'][0].title).toBe('Water (2-month split)');
   });
 
-  it('classifies a Hebrew-named recurring bill (ארנונה) as a house bill', async (): Promise<void> => {
+  it('classifies a non-keyword recurring bill as a house bill', async (): Promise<void> => {
     mockFrom.mockImplementation((table: string): unknown => {
       if (table === 'household_payments') {
         return ok([
@@ -161,7 +161,7 @@ describe('spendingStore', () => {
             id: 'pay-1',
             amount: 388.5,
             paid_at: currentMonthDate(),
-            recurring_bills: { name: 'ארנונה', assigned_to: 'user-1', frequency: 'bimonthly' },
+            recurring_bills: { name: 'Shared household fund', assigned_to: 'user-1', frequency: 'bimonthly' },
           },
         ]);
       }
@@ -171,10 +171,10 @@ describe('spendingStore', () => {
     await useSpendingStore.getState().load('house-1', 'Lior');
 
     const current = useSpendingStore.getState().months[0];
-    const arnona = current.houseCategories.find((c) => c.name === 'ארנונה');
-    expect(arnona).toBeDefined();
+    const recurring = current.houseCategories.find((c) => c.name === 'shared household fund');
+    expect(recurring).toBeDefined();
     // Recurring household bills are house bills whatever they're named.
-    expect(arnona?.isHouse).toBe(true);
+    expect(recurring?.isHouse).toBe(true);
   });
 
   it('classifies a one-off Hebrew utility bill (חשמל) as a house bill', async (): Promise<void> => {
