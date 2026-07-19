@@ -171,7 +171,7 @@ describe('spendingStore', () => {
     await useSpendingStore.getState().load('house-1', 'Lior');
 
     const current = useSpendingStore.getState().months[0];
-    const recurring = current.houseCategories.find((c) => c.name === 'shared household fund');
+    const recurring = current.houseCategories.find((c): boolean => c.name === 'shared household fund');
     expect(recurring).toBeDefined();
     // Recurring household bills are house bills whatever they're named.
     expect(recurring?.isHouse).toBe(true);
@@ -198,7 +198,7 @@ describe('spendingStore', () => {
     await useSpendingStore.getState().load('house-1', 'Lior');
 
     const current = useSpendingStore.getState().months[0];
-    expect(current.houseCategories.find((c) => c.name === 'חשמל')?.isHouse).toBe(true);
+    expect(current.houseCategories.find((c): boolean => c.name === 'חשמל')?.isHouse).toBe(true);
   });
 
   it('leaves a non-house category (groceries) out of the house section', async (): Promise<void> => {
@@ -222,7 +222,7 @@ describe('spendingStore', () => {
     await useSpendingStore.getState().load('house-1', 'Lior');
 
     const current = useSpendingStore.getState().months[0];
-    expect(current.houseCategories.find((c) => c.name === 'groceries')?.isHouse).toBe(false);
+    expect(current.houseCategories.find((c): boolean => c.name === 'groceries')?.isHouse).toBe(false);
   });
 
   it('does not credit recurring payments assigned to someone else to the user', async () => {

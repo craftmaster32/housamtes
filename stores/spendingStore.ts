@@ -82,7 +82,7 @@ const BOUNDARY_PATTERNS: Readonly<Record<string, RegExp>> = {
 
 export function isHouseCategoryName(name: string): boolean {
   const n = name.toLowerCase();
-  return HOUSE_BILL_KEYWORDS.some((kw) => {
+  return HOUSE_BILL_KEYWORDS.some((kw): boolean => {
     const pattern = BOUNDARY_PATTERNS[kw];
     return pattern ? pattern.test(n) : n.includes(kw);
   });
