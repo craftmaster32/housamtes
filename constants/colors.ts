@@ -43,6 +43,8 @@ export interface ColorPalette {
   owedShadow: string;
   spendGradient: Gradient;
   spendShadow: string;
+  successGradient: Gradient;
+  dangerGradient: Gradient;
   avatar: string[];
 }
 
@@ -91,6 +93,8 @@ export const lightColors: ColorPalette = {
   owedShadow: 'rgba(41,82,160,0.34)',
   spendGradient: ['#4E7CC4', '#3A62A6'],
   spendShadow: 'rgba(40,70,130,0.28)',
+  successGradient: ['#3AA968', '#248049'],
+  dangerGradient: ['#CE6660', '#A5403B'],
 
   // Avatar palette
   avatar: ['#3B6FBF', '#FF2D55', '#E0B24D', '#4FB071', '#007AFF', '#AF52DE'],
@@ -141,6 +145,8 @@ export const darkColors: ColorPalette = {
   owedShadow: 'rgba(20,44,90,0.55)',
   spendGradient: ['#4E7CC4', '#3A62A6'],
   spendShadow: 'rgba(40,70,130,0.32)',
+  successGradient: ['#2F9160', '#1C6E45'],
+  dangerGradient: ['#C85752', '#8E3B37'],
 
   // Avatar palette (same — these are identity colors)
   avatar: ['#3B6FBF', '#FF2D55', '#E0B24D', '#4FB071', '#007AFF', '#AF52DE'],

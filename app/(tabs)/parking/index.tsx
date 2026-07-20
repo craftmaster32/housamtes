@@ -12,6 +12,7 @@ import {
   type AppStateStatus,
   type ListRenderItemInfo,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -1050,21 +1051,20 @@ export default function ParkingScreen(): React.JSX.Element {
                 </Text>
               </View>
 
-              <View
+              <LinearGradient
+                colors={isFree ? C.successGradient : C.dangerGradient}
+                start={{ x: 0.2, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
                 style={[
                   styles.statusCircle,
-                  { backgroundColor: isFree ? C.positive + '18' : C.negative + '18' },
+                  { shadowColor: isFree ? C.successGradient[1] : C.dangerGradient[1] },
                 ]}
               >
-                <Ionicons
-                  name={isFree ? 'car-outline' : 'car'}
-                  size={38}
-                  color={isFree ? C.positive : C.negative}
-                />
-                <Text style={[styles.statusLabel, { color: isFree ? C.positive : C.negative }]}>
+                <Ionicons name={isFree ? 'car-outline' : 'car'} size={38} color="#fff" />
+                <Text style={[styles.statusLabel, styles.statusLabelOnGradient]}>
                   {isFree ? t('parking.free') : t('parking.taken')}
                 </Text>
-              </View>
+              </LinearGradient>
 
               {isFree && (
                 <Pressable
@@ -1204,8 +1204,14 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
       gap: 4,
+      overflow: 'hidden',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 14,
+      elevation: 6,
     },
     statusLabel: { fontSize: 12, ...font.bold, letterSpacing: 0.6 },
+    statusLabelOnGradient: { color: '#fff' },
 
     btnPrimary: {
       flexDirection: 'row',
