@@ -40,7 +40,7 @@ const BILL_ICON_LABELS: Record<string, string> = {
 
 function dueBadge(
   nextDue: string | null,
-  textSecondaryColor: string
+  tone: { secondary: string; danger: string; warning: string }
 ): { key: string; params?: Record<string, string | number>; color: string } | null {
   if (!nextDue) return null;
   const today = new Date();
@@ -48,10 +48,10 @@ function dueBadge(
   const due = new Date(nextDue + 'T00:00:00');
   const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
   if (diff < 0)
-    return { key: 'bills.household_overdue', params: { n: Math.abs(diff) }, color: '#D9534F' };
-  if (diff === 0) return { key: 'bills.household_due_today', color: '#D9534F' };
-  if (diff <= 7) return { key: 'bills.household_due_in', params: { n: diff }, color: '#E0B24D' };
-  return { key: 'bills.household_due_in', params: { n: diff }, color: textSecondaryColor };
+    return { key: 'bills.household_overdue', params: { n: Math.abs(diff) }, color: tone.danger };
+  if (diff === 0) return { key: 'bills.household_due_today', color: tone.danger };
+  if (diff <= 7) return { key: 'bills.household_due_in', params: { n: diff }, color: tone.warning };
+  return { key: 'bills.household_due_in', params: { n: diff }, color: tone.secondary };
 }
 
 // ── Fairness bar ──────────────────────────────────────────────────────────────
@@ -153,7 +153,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
 
   const last = getLastPayment(bill.id, payments);
   const nextDue = getNextDueDate(bill, payments);
-  const badge = dueBadge(nextDue, c.textSecondary);
+  const badge = dueBadge(nextDue, {
+    secondary: c.textSecondary,
+    danger: c.danger,
+    warning: c.warning,
+  });
   const billPayments = payments
     .filter((p) => p.billId === bill.id)
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
