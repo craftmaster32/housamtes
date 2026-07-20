@@ -1843,8 +1843,13 @@ function makeStyles(C: ColorTokens) {
     avatarText: { color: '#FFFFFF', ...font.bold },
 
     loadingIndicator: { marginBottom: 8 },
-    errorBanner: { backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 8 },
-    errorBannerText: { fontSize: 13, color: '#D94F4F' },
+    errorBanner: {
+      backgroundColor: C.dangerTint,
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 8,
+    },
+    errorBannerText: { fontSize: 13, color: C.danger },
 
     emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 8 },
     emptyIcon: { fontSize: 44 },
