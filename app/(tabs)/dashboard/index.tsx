@@ -1,20 +1,19 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   Pressable,
-  TextInput,
-  FlatList,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle } from 'react-native-svg';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Swipeable } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
-import { router, Link } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '@stores/authStore';
@@ -23,18 +22,16 @@ import {
   useBillsStore,
   calculateAllNetBalances,
   calculateSimplifiedBalancesForUser,
-  type Bill,
 } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useParkingStore } from '@stores/parkingStore';
-import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
-import { useChoresStore, type Chore } from '@stores/choresStore';
-import { useVotingStore } from '@stores/votingStore';
+import { useGroceryStore } from '@stores/groceryStore';
+import { useChoresStore } from '@stores/choresStore';
 import { useEventsStore } from '@stores/eventsStore';
-import { useHousematesStore, type Housemate, type FormerMember } from '@stores/housematesStore';
-import { resolveName, resolveMemberName } from '@utils/housemates';
+import { useAnnouncementsStore } from '@stores/announcementsStore';
+import { useHousematesStore } from '@stores/housematesStore';
+import { resolveName } from '@utils/housemates';
 import { useMemberName } from '@hooks/useMemberName';
-import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { font } from '@constants/typography';
@@ -44,17 +41,22 @@ import { formatFull } from '@constants/currencies';
 import { useTranslation } from 'react-i18next';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
-import { SpendingCard } from '@components/profile/SpendingCard';
-import { UserAvatar } from '@components/shared/UserAvatar';
-import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
+
+// The parking tile stays a deep slate in both themes — a deliberate anchor on
+// the home grid, matching the design.
+const PARK_TILE_BG = '#23323E';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string, t: (key: string) => string): string {
   const h = new Date().getHours();
   const timeKey = h < 12 ? 'greeting_morning' : h < 18 ? 'greeting_afternoon' : 'greeting_evening';
   return `${t(`dashboard.${timeKey}`)}, ${name}`;
+}
+
+function localeFor(lang: string): string {
+  return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
 }
 
 function timeAgo(
@@ -68,80 +70,205 @@ function timeAgo(
   if (mins < 60) return t('common.minutes_ago', { n: mins });
   const hours = Math.floor(mins / 60);
   if (hours < 24) return t('common.hours_ago', { n: hours });
-  const locale = lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
-  return new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+  return new Date(iso).toLocaleDateString(localeFor(lang), { month: 'short', day: 'numeric' });
 }
 
-function parkingAge(
-  startTime: string,
-  t: (key: string, opts?: Record<string, unknown>) => string
-): string {
-  const diff = Date.now() - new Date(startTime).getTime();
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  if (h > 0)
-    return m > 0
-      ? t('dashboard.parking_age_hours', { h, m })
-      : t('dashboard.parking_age_hours_only', { h });
-  if (m > 0) return t('dashboard.parking_age_mins', { m });
-  return t('common.just_now');
+function todayYMD(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function todayDateLabel(lang: string): string {
-  const locale = lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
-  return new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
+// Split a formatted amount ("₪746.46") into its leading symbol and the number,
+// so the currency mark can sit smaller beside the big figure.
+function splitAmount(formatted: string): { symbol: string; value: string } {
+  const m = formatted.match(/^([^\d-]*)(.*)$/);
+  return { symbol: m?.[1] ?? '', value: m?.[2] ?? formatted };
 }
 
-const CATEGORY_ICON_MAP: Record<string, { name: string; color: string; bg: string }> = {
-  rent: { name: 'home-outline', color: '#8B5CF6', bg: '#2D1F4A' },
-  groceries: { name: 'cart-outline', color: '#22C55E', bg: '#0A2A1A' },
-  food: { name: 'fast-food-outline', color: '#F59E0B', bg: '#2A1A0A' },
-  transport: { name: 'car-outline', color: '#64748B', bg: '#1A1F2A' },
-  utilities: { name: 'flash-outline', color: '#F59E0B', bg: '#2A1A0A' },
-  internet: { name: 'wifi-outline', color: '#06B6D4', bg: '#0A1F2A' },
-  phone: { name: 'phone-portrait-outline', color: '#06B6D4', bg: '#0A1F2A' },
-  entertainment: { name: 'musical-notes-outline', color: '#EC4899', bg: '#2A0A1A' },
-  health: { name: 'medkit-outline', color: '#10B981', bg: '#0A2A1A' },
-  shopping: { name: 'bag-outline', color: '#10B981', bg: '#0A2A1A' },
-  travel: { name: 'airplane-outline', color: '#3B82F6', bg: '#0A1A2A' },
-  other: { name: 'receipt-outline', color: '#6B7280', bg: '#1A1A1A' },
-};
-
-function catIconMeta(category: string | null): { name: string; color: string; bg: string } {
-  return CATEGORY_ICON_MAP[(category ?? '').toLowerCase()] ?? CATEGORY_ICON_MAP.other;
-}
-
-// ── Widget Card wrapper ───────────────────────────────────────────────────────
-export interface WidgetCardProps {
-  children: React.ReactNode;
-  style?: object;
-  onPress?: () => void;
-}
-
-function WidgetCard({ children, style, onPress }: WidgetCardProps): React.JSX.Element {
-  const c = useThemedColors();
-  const cardStyle = [styles.card, { backgroundColor: c.surface, borderColor: c.border }, style];
-  if (onPress) {
-    return (
-      <Pressable style={cardStyle} onPress={onPress} accessibilityRole="button">
-        {children}
-      </Pressable>
-    );
-  }
-  return <View style={cardStyle}>{children}</View>;
-}
-
-// ── Balance Hero Card ─────────────────────────────────────────────────────────
-function BalanceHeroCard(): React.JSX.Element {
+// ── Header ──────────────────────────────────────────────────────────────────
+function Header(): React.JSX.Element {
   const { t } = useTranslation();
+  const c = useThemedColors();
+  const profile = useAuthStore((s) => s.profile);
+  const houseName = useHousematesStore((s) => s.houseName);
+  const events = useEventsStore((s) => s.events);
+  const openProfile = useProfilePopupStore((s) => s.open);
+
+  const myName = profile?.name ?? 'there';
+  const initials = myName.charAt(0).toUpperCase();
+  const today = todayYMD();
+  const todaysEvents = events.filter((e) => e.date === today).length;
+
+  return (
+    <View style={styles.header}>
+      <Pressable
+        style={({ pressed }) => [
+          styles.avatar,
+          {
+            backgroundColor: profile?.avatarUrl
+              ? 'transparent'
+              : (profile?.avatarColor ?? c.primary),
+          },
+          pressed && styles.pressed,
+        ]}
+        onPress={openProfile}
+        accessibilityRole="button"
+        accessibilityLabel={t('dashboard.open_profile')}
+      >
+        {profile?.avatarUrl ? (
+          <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
+        ) : (
+          <Text style={styles.avatarText}>{initials}</Text>
+        )}
+      </Pressable>
+
+      <View style={styles.headerText}>
+        {houseName ? (
+          <Text style={[styles.headerHouse, { color: c.textSecondary }]} numberOfLines={1}>
+            {houseName}
+          </Text>
+        ) : null}
+        <Text style={[styles.headerGreeting, { color: c.textPrimary }]} numberOfLines={1}>
+          {greetingText(myName, t)}
+        </Text>
+      </View>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.bell,
+          { backgroundColor: c.surface, borderColor: c.border },
+          pressed && styles.pressed,
+        ]}
+        onPress={() => router.push('/(tabs)/calendar')}
+        accessibilityRole="button"
+        accessibilityLabel={t('nav.calendar')}
+      >
+        <Ionicons name="notifications-outline" size={20} color={c.textPrimary} />
+        {todaysEvents > 0 && (
+          <View
+            style={[styles.bellBadge, { backgroundColor: c.danger, borderColor: c.background }]}
+          >
+            <Text style={styles.bellBadgeText}>{todaysEvents > 9 ? '9+' : todaysEvents}</Text>
+          </View>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+// ── Today row (next upcoming event) ───────────────────────────────────────────
+function TodayRow(): React.JSX.Element {
+  const { t } = useTranslation();
+  const c = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const events = useEventsStore((s) => s.events);
+  const today = todayYMD();
+
+  const next = useMemo(
+    () =>
+      [...events]
+        .filter((e) => e.date >= today)
+        .sort(
+          (a, b) =>
+            a.date.localeCompare(b.date) || (a.startTime ?? '').localeCompare(b.startTime ?? '')
+        )[0],
+    [events, today]
+  );
+
+  if (!next) return <></>;
+
+  const d = new Date(`${next.date}T12:00:00`);
+  const month = d.toLocaleDateString(localeFor(language), { month: 'short' });
+  const day = d.getDate();
+  const isToday = next.date === today;
+  const dateLabel = isToday
+    ? t('common.today').toUpperCase()
+    : d.toLocaleDateString(localeFor(language), { weekday: 'short' }).toUpperCase();
+  const title = next.startTime ? `${next.title} · ${next.startTime}` : next.title;
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.todayRow,
+        { backgroundColor: c.surface, borderColor: c.border, borderLeftColor: c.primary },
+        pressed && styles.pressed,
+      ]}
+      onPress={() => router.push('/(tabs)/calendar')}
+      accessibilityRole="button"
+      accessibilityLabel={`${dateLabel} ${title}`}
+    >
+      <View style={[styles.todayDate, { backgroundColor: c.primaryTint }]}>
+        <Text style={[styles.todayDateM, { color: c.primary }]}>{month}</Text>
+        <Text style={[styles.todayDateN, { color: c.primary }]}>{day}</Text>
+      </View>
+      <View style={styles.flex1}>
+        <Text style={[styles.todayEyebrow, { color: c.primary }]}>{dateLabel}</Text>
+        <Text style={[styles.todayTitle, { color: c.textPrimary }]} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
+      <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={17} color={c.textTertiary} />
+    </Pressable>
+  );
+}
+
+// ── Pinned note (latest house announcement) ───────────────────────────────────
+function PinnedNote(): React.JSX.Element {
+  const { t } = useTranslation();
+  const c = useThemedColors();
+  const language = useLanguageStore((s) => s.language);
+  const notes = useAnnouncementsStore((s) => s.items);
+  const memberName = useMemberName();
+  const latest = notes[0];
+
+  if (!latest) return <></>;
+
+  const author = memberName(latest.author).split(' ')[0];
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.pinned,
+        { backgroundColor: c.secondary },
+        pressed && styles.pressed,
+      ]}
+      onPress={() => router.push('/(tabs)/notes')}
+      accessibilityRole="button"
+      accessibilityLabel={t('dashboard.pinned_by', { name: author })}
+    >
+      <View style={styles.pinnedIcon}>
+        <Ionicons name="megaphone-outline" size={16} color={c.secondaryForeground} />
+      </View>
+      <View style={styles.flex1}>
+        <View style={styles.pinnedTop}>
+          <Text style={[styles.pinnedLabel, { color: c.secondaryForeground }]} numberOfLines={1}>
+            {t('dashboard.pinned_by', { name: author })}
+          </Text>
+          <Text style={[styles.pinnedAgo, { color: c.textSecondary }]}>
+            {timeAgo(latest.createdAt, t, language)}
+          </Text>
+        </View>
+        <Text style={[styles.pinnedText, { color: c.textPrimary }]} numberOfLines={3}>
+          {latest.text}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+// ── "You're owed" hero ────────────────────────────────────────────────────────
+function OwedHero(): React.JSX.Element {
+  const { t } = useTranslation();
+  const c = useThemedColors();
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const bills = useBillsStore((s) => s.bills);
   const profile = useAuthStore((s) => s.profile);
-  const lastSeen = useBadgeStore((s) => s.lastSeen);
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const householdMembers = useHousematesStore((s) => s.housemates);
   const myId = profile?.id ?? '';
+
   const activeBills = bills.filter((b) => !b.settled);
   const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
   for (const { person, balance } of calculateFairness(
@@ -155,110 +282,112 @@ function BalanceHeroCard(): React.JSX.Element {
   const totalOwed = balances.filter((b) => b.amount > 0).reduce((s, b) => s + b.amount, 0);
   const totalOwe = balances.filter((b) => b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
   const netAmount = totalOwed - totalOwe;
-  const newBills = countNewSimple(
-    bills.filter((b) => !b.settled),
-    lastSeen.bills
-  );
   const isOwed = netAmount >= 0;
   const peopleCount = balances.length;
+  const settled = balances.length === 0;
+  const { symbol, value } = splitAmount(formatFull(Math.abs(netAmount), currencyCode));
 
   return (
     <Pressable
-      style={styles.balanceHero}
+      style={({ pressed }) => [styles.heroWrap, pressed && styles.pressed]}
       onPress={() => router.push('/(tabs)/bills')}
       accessibilityRole="button"
       accessibilityLabel={
-        balances.length === 0
+        settled
           ? t('dashboard.balance_all_settled')
           : t(isOwed ? 'dashboard.balance_owed_amount' : 'dashboard.balance_you_owe_amount', {
               amount: formatFull(Math.abs(netAmount), currencyCode),
             })
       }
     >
-      {/* Decorative circle */}
-      <View style={styles.balanceHeroDeco} />
+      <LinearGradient
+        colors={c.owedGradient}
+        start={{ x: 0.15, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
+        style={[styles.hero, { shadowColor: c.owedShadow }]}
+      >
+        <View style={styles.heroDeco} />
+        <View style={styles.heroDecoSm} />
 
-      <View style={styles.balanceHeroTop}>
-        <Text style={styles.balanceHeroLabel}>
-          {balances.length === 0
-            ? t('dashboard.balance_all_settled')
-            : isOwed
-              ? t('dashboard.balance_owed')
-              : t('dashboard.balance_you_owe')}
-        </Text>
-        {newBills > 0 && (
-          <View style={styles.balanceHeroNewBadge}>
-            <Text style={styles.balanceHeroNewBadgeText}>
-              {t('dashboard.new_count', { n: newBills })}
+        {settled ? (
+          <View style={styles.heroSettledRow}>
+            <View>
+              <Text style={styles.heroLabel}>{t('dashboard.balance_all_settled')}</Text>
+              <Text style={styles.heroSub}>{t('dashboard.no_debts')}</Text>
+            </View>
+            <View style={styles.heroCheck}>
+              <Ionicons name="checkmark" size={22} color="#fff" />
+            </View>
+          </View>
+        ) : (
+          <View style={styles.heroCol}>
+            <Text style={styles.heroLabel}>
+              {isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')}
             </Text>
+            <View style={styles.heroAmtRow}>
+              <Text style={styles.heroAmtSym}>{symbol}</Text>
+              <Text style={styles.heroAmt} numberOfLines={1} adjustsFontSizeToFit>
+                {value}
+              </Text>
+            </View>
+            <Text style={styles.heroSub}>
+              {peopleCount !== 1
+                ? t('dashboard.balance_across_plural', { count: peopleCount })
+                : t('dashboard.balance_across', { count: peopleCount })}
+            </Text>
+            <View style={styles.heroBtns}>
+              <Pressable
+                style={({ pressed }) => [styles.heroSettleBtn, pressed && styles.pressed]}
+                onPress={() => router.push('/(tabs)/bills')}
+                accessibilityRole="button"
+                accessibilityLabel={t('dashboard.settle_up')}
+              >
+                <Text style={[styles.heroSettleBtnText, { color: c.owedFg }]}>
+                  {t('dashboard.settle_up')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.heroDetailsBtn, pressed && styles.pressed]}
+                onPress={() => router.push('/(tabs)/profile/spending')}
+                accessibilityRole="button"
+                accessibilityLabel={t('spending.view_spending')}
+              >
+                <Ionicons name="stats-chart-outline" size={16} color="#fff" />
+                <Text style={styles.heroDetailsBtnText}>{t('dashboard.details')}</Text>
+              </Pressable>
+            </View>
           </View>
         )}
-        {peopleCount > 0 && (
-          <Text style={styles.balanceHeroSub}>
-            {peopleCount !== 1
-              ? t('dashboard.balance_across_plural', { count: peopleCount })
-              : t('dashboard.balance_across', { count: peopleCount })}
-          </Text>
-        )}
-      </View>
-
-      <Text style={styles.balanceHeroAmt}>{formatFull(Math.abs(netAmount), currencyCode)}</Text>
-
-      {balances.length > 0 && (
-        <View style={styles.balanceHeroBtns}>
-          <Pressable
-            style={styles.balanceHeroSettleBtn}
-            onPress={() => router.push('/(tabs)/bills')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.balanceHeroSettleBtnText}>{t('dashboard.settle_up')}</Text>
-          </Pressable>
-          <Pressable
-            style={styles.balanceHeroDetailsBtn}
-            onPress={() => router.push('/(tabs)/bills')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.balanceHeroDetailsBtnText}>{t('dashboard.details')}</Text>
-          </Pressable>
-        </View>
-      )}
+      </LinearGradient>
     </Pressable>
   );
 }
 
-// ── Today at Home ─────────────────────────────────────────────────────────────
-function TodayAtHome(): React.JSX.Element {
+// ── Parking tile (dark) ───────────────────────────────────────────────────────
+function ParkingTile(): React.JSX.Element {
   const { t } = useTranslation();
-  const c = useThemedColors();
   const current = useParkingStore((s) => s.current);
   const claim = useParkingStore((s) => s.claim);
   const release = useParkingStore((s) => s.release);
-  const chores = useChoresStore((s) => s.chores);
-  const items = useGroceryStore((s) => s.items);
   const housemates = useHousematesStore((s) => s.housemates);
-  const isEnabled = useSettingsStore((s) => s.isEnabled);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
-
   const myId = profile?.id ?? '';
   const myName = profile?.name ?? '';
   const isFree = !current;
   const isMine = current?.occupant === myId;
+  const [busy, setBusy] = useState(false);
 
-  const [isParkingBusy, setIsParkingBusy] = useState(false);
-
-  const pendingChores = chores.filter((ch) => !ch.isComplete).length;
-  const totalChores = chores.length;
-  const groceryPending = items.filter((i) => !i.isChecked && !i.isPersonal).length;
-
-  const handleParkingPress = useCallback(async (): Promise<void> => {
-    if (isParkingBusy) return;
-    if (!myId || !houseId) return;
+  const handlePress = useCallback(async (): Promise<void> => {
+    if (busy || !myId || !houseId) {
+      router.push('/(tabs)/parking');
+      return;
+    }
     if (!isFree && !isMine) {
       router.push('/(tabs)/parking');
       return;
     }
-    setIsParkingBusy(true);
+    setBusy(true);
     try {
       if (isFree) {
         await claim(myId, myName, houseId ?? '');
@@ -267,2114 +396,555 @@ function TodayAtHome(): React.JSX.Element {
         await release(houseId ?? '', myName);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
-    } catch (err) {
+    } catch {
       Alert.alert(t('dashboard.parking_error'), t('common.failed_try_again'));
     } finally {
-      setIsParkingBusy(false);
+      setBusy(false);
     }
-  }, [isParkingBusy, isFree, isMine, claim, release, myId, myName, houseId, t]);
+  }, [busy, isFree, isMine, claim, release, myId, myName, houseId, t]);
 
-  const parkingSubLabel = isParkingBusy
-    ? t('common.on_it')
-    : isFree
-      ? t('dashboard.parking_first_come')
-      : isMine
-        ? t('dashboard.parking_free_it_up')
-        : ((): string => {
-            const resolved = resolveName(current?.occupant ?? '', housemates, '');
-            const displayName = resolved ? resolved.split(' ')[0] : t('common.unknown');
-            return t('dashboard.parking_by', { name: displayName });
-          })();
+  const accent = isFree ? '#8FE0AC' : '#FF8478';
+  const chipBg = isFree ? 'rgba(79,176,113,0.22)' : 'rgba(255,97,85,0.22)';
+  const pillBg = isFree ? 'rgba(79,176,113,0.16)' : 'rgba(255,97,85,0.16)';
+  const occupantName = resolveName(current?.occupant ?? '', housemates, '');
+  const sub = isFree
+    ? t('dashboard.parking_first_come')
+    : isMine
+      ? t('dashboard.parking_free_it_up')
+      : occupantName
+        ? occupantName.split(' ')[0]
+        : t('common.unknown');
 
   return (
-    <View style={styles.todaySection}>
-      <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-        {t('dashboard.today_at_home')}
-      </Text>
-      <View style={styles.todayRow}>
-        {isEnabled('parking') && (
-          <Pressable
-            style={[styles.todayCard, { backgroundColor: c.surface, borderColor: c.border }]}
-            onPress={handleParkingPress}
-            disabled={!myId || !houseId || isParkingBusy}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isFree
-                ? t('dashboard.claim_parking_spot')
-                : isMine
-                  ? t('dashboard.release_parking_spot')
-                  : t('dashboard.view_parking')
-            }
-            accessibilityState={{
-              disabled: Boolean(!myId || !houseId || isParkingBusy),
-              busy: isParkingBusy,
-            }}
-          >
-            <View
-              style={[styles.todayIconWrap, { backgroundColor: isFree ? '#0A2418' : '#2A0A0A' }]}
-            >
-              {isParkingBusy ? (
-                <ActivityIndicator size="small" color={isFree ? '#4FB071' : '#D9534F'} />
-              ) : (
-                <Ionicons
-                  name={isFree ? 'car-outline' : 'car'}
-                  size={20}
-                  color={isFree ? '#4FB071' : '#D9534F'}
-                />
-              )}
-            </View>
-            <Text style={styles.todayCardCat}>{t('dashboard.parking_label')}</Text>
-            <Text style={[styles.todayCardStatus, { color: c.textPrimary }]}>
-              {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
-            </Text>
-            <Text
-              style={[
-                styles.todayCardSub,
-                { color: isFree || isMine ? c.primary : c.textSecondary },
-              ]}
-            >
-              {parkingSubLabel}
-            </Text>
-          </Pressable>
-        )}
-        {isEnabled('chores') && (
-          <Pressable
-            style={[styles.todayCard, { backgroundColor: c.surface, borderColor: c.border }]}
-            onPress={() => router.push('/(tabs)/chores')}
-            accessibilityRole="button"
-          >
-            <View style={[styles.todayIconWrap, { backgroundColor: '#0A1E30' }]}>
-              <Ionicons name="checkmark-done-outline" size={20} color="#4F78B6" />
-            </View>
-            <Text style={styles.todayCardCat}>{t('dashboard.chores_label')}</Text>
-            <Text style={[styles.todayCardStatus, { color: c.textPrimary }]}>
-              {totalChores - pendingChores}/{totalChores}
-            </Text>
-            <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {pendingChores === 0
-                ? t('dashboard.chores_smashed')
-                : t('dashboard.chores_someone_on_it')}
-            </Text>
-          </Pressable>
-        )}
-        {isEnabled('grocery') && (
-          <Pressable
-            style={[styles.todayCard, { backgroundColor: c.surface, borderColor: c.border }]}
-            onPress={() => router.push('/(tabs)/grocery')}
-            accessibilityRole="button"
-          >
-            <View style={[styles.todayIconWrap, { backgroundColor: '#2A1E0A' }]}>
-              <Ionicons name="cart-outline" size={20} color="#E0B24D" />
-            </View>
-            <Text style={styles.todayCardCat}>{t('dashboard.grocery_label')}</Text>
-            <Text style={[styles.todayCardStatus, { color: c.textPrimary }]}>{groceryPending}</Text>
-            <Text style={[styles.todayCardSub, { color: c.textSecondary }]}>
-              {t(
-                groceryPending === 1 ? 'dashboard.items_to_buy_one' : 'dashboard.items_to_buy_other'
-              )}
-            </Text>
-          </Pressable>
-        )}
+    <Pressable
+      style={({ pressed }) => [styles.parkTile, pressed && styles.pressed]}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={isFree ? t('dashboard.claim_parking_spot') : t('dashboard.view_parking')}
+    >
+      <View style={styles.parkTop}>
+        <View style={[styles.parkChip, { backgroundColor: chipBg }]}>
+          {busy ? (
+            <ActivityIndicator size="small" color={accent} />
+          ) : (
+            <Ionicons name={isFree ? 'car-outline' : 'car'} size={17} color={accent} />
+          )}
+        </View>
+        <View style={[styles.parkPill, { backgroundColor: pillBg }]}>
+          <Text style={[styles.parkPillText, { color: accent }]}>
+            {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
+          </Text>
+        </View>
       </View>
-    </View>
-  );
-}
-
-// ── Recent Expenses ───────────────────────────────────────────────────────────
-// A one-off bill or a logged recurring payment, unified for the recent list.
-type RecentRow =
-  | { kind: 'bill'; id: string; ts: number; bill: Bill }
-  | {
-      kind: 'payment';
-      id: string;
-      ts: number;
-      title: string;
-      icon: string;
-      paidBy: string;
-      amount: number;
-      paidAtIso: string;
-    };
-
-function RecentExpenses(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const bills = useBillsStore((s) => s.bills);
-  const householdBills = useRecurringBillsStore((s) => s.bills);
-  const payments = useRecurringBillsStore((s) => s.payments);
-  const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const memberName = useMemberName();
-  const language = useLanguageStore((s) => s.language);
-
-  const recent = useMemo(() => {
-    const billMeta = new Map(
-      householdBills.map((b) => [b.id, { name: b.name, icon: b.icon, assignedTo: b.assignedTo }])
-    );
-    const rows: RecentRow[] = [
-      ...bills.map((bill) => ({
-        kind: 'bill' as const,
-        id: bill.id,
-        ts: new Date(bill.createdAt).getTime(),
-        bill,
-      })),
-      ...payments.map((p) => {
-        const meta = billMeta.get(p.billId);
-        // paid_at is a date; anchor to midday so timezone never shifts it a day.
-        const paidAtIso = `${p.paidAt}T12:00:00`;
-        return {
-          kind: 'payment' as const,
-          id: `recurring:${p.id}`,
-          ts: new Date(paidAtIso).getTime(),
-          title: meta?.name ?? '',
-          icon: meta?.icon ?? '🧾',
-          paidBy: meta?.assignedTo ?? '',
-          amount: p.amount,
-          paidAtIso,
-        };
-      }),
-    ];
-    return rows.sort((a, b) => b.ts - a.ts).slice(0, 4);
-  }, [bills, householdBills, payments]);
-
-  if (recent.length === 0) return <></>;
-
-  return (
-    <View style={styles.recentSection}>
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: c.textPrimary }]}>
-          {t('dashboard.recent_expenses')}
+      <View>
+        <Text style={styles.parkLabel}>{t('dashboard.parking_label')}</Text>
+        <Text style={styles.parkStatus}>
+          {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
         </Text>
-        <Link href="/(tabs)/bills" asChild>
-          <Pressable accessibilityRole="button">
-            <Text style={[styles.sectionSeeAll, { color: c.primary }]}>
-              {t('dashboard.see_all')}
-            </Text>
-          </Pressable>
-        </Link>
+        <Text style={styles.parkSub} numberOfLines={1}>
+          {sub}
+        </Text>
       </View>
-      <View style={[styles.recentCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-        {recent.map((row, idx) => {
-          const meta = row.kind === 'bill' ? catIconMeta(row.bill.category) : null;
-          const title = row.kind === 'bill' ? row.bill.title : row.title;
-          const paidBy = row.kind === 'bill' ? row.bill.paidBy : row.paidBy;
-          const timeIso = row.kind === 'bill' ? row.bill.createdAt : row.paidAtIso;
-          const amount = row.kind === 'bill' ? row.bill.amount : row.amount;
-          const onPress = (): void => {
-            if (row.kind === 'bill') router.push(`/(tabs)/bills/${row.bill.id}`);
-            else router.push('/(tabs)/bills?openRecurring=1');
-          };
-          return (
-            <View key={row.id}>
-              {idx > 0 && <View style={[styles.recentSep, { backgroundColor: c.border }]} />}
-              <Pressable style={styles.recentRow} onPress={onPress} accessibilityRole="button">
-                <View
-                  style={[
-                    styles.recentIconWrap,
-                    { backgroundColor: meta ? meta.bg : c.primary + '12' },
-                  ]}
-                >
-                  {row.kind === 'bill' && meta ? (
-                    <Ionicons name={meta.name as never} size={16} color={meta.color} />
-                  ) : (
-                    <Text style={styles.recentEmoji}>{row.kind === 'payment' ? row.icon : ''}</Text>
-                  )}
-                </View>
-                <View style={styles.recentInfo}>
-                  <Text style={[styles.recentTitle, { color: c.textPrimary }]} numberOfLines={1}>
-                    {title}
-                  </Text>
-                  <Text style={[styles.recentSub, { color: c.textSecondary }]}>
-                    {t('dashboard.paid_by_name', {
-                      name: memberName(paidBy),
-                      time: timeAgo(timeIso, t, language),
-                    })}
-                  </Text>
-                </View>
-                <View style={styles.recentRight}>
-                  <Text style={[styles.recentAmt, { color: c.textPrimary }]}>
-                    {formatFull(amount, currencyCode)}
-                  </Text>
-                  {row.kind === 'payment' ? (
-                    <View style={[styles.recentBadge, { backgroundColor: c.primary + '18' }]}>
-                      <Text style={[styles.recentBadgeText, { color: c.primary }]}>
-                        {t('bills.recurring_tag')}
-                      </Text>
-                    </View>
-                  ) : (
-                    row.bill.settled && (
-                      <View style={[styles.recentBadge, { backgroundColor: c.positive + '18' }]}>
-                        <Text style={[styles.recentBadgeText, { color: c.positive }]}>
-                          {t('bills.settled')}
-                        </Text>
-                      </View>
-                    )
-                  )}
-                </View>
-              </Pressable>
-            </View>
-          );
-        })}
-      </View>
-    </View>
+    </Pressable>
   );
 }
 
-// ── Chore Card ────────────────────────────────────────────────────────────────
-function ChoreCard(): React.JSX.Element {
+// ── Chores ring tile ──────────────────────────────────────────────────────────
+function ChoresRing(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const chores = useChoresStore((s) => s.chores);
-  const toggleChore = useChoresStore((s) => s.toggleChore);
-  const profile = useAuthStore((s) => s.profile);
-  const lastSeen = useBadgeStore((s) => s.lastSeen);
-  const myId = profile?.id ?? '';
-  const myChore = chores.find((ch) => !ch.isComplete && ch.claimedBy === myId);
-  const pending = chores.filter((ch) => !ch.isComplete);
-  const done = chores.filter((ch) => ch.isComplete);
-  const newChores = countNewSimple(pending, lastSeen.chores);
+  const total = chores.length;
+  const done = chores.filter((ch) => ch.isComplete).length;
+  const next = chores.find((ch) => !ch.isComplete);
+
+  const R = 18;
+  const CIRC = 2 * Math.PI * R;
+  const pct = total > 0 ? done / total : 0;
+  const offset = CIRC * (1 - pct);
 
   return (
-    <WidgetCard onPress={() => router.push('/(tabs)/chores')}>
-      <View style={styles.cardHeader}>
-        <View style={[styles.cardIconWrap, { backgroundColor: '#1A1000' }]}>
-          <Ionicons name="checkmark-done-outline" size={18} color="#E0B24D" />
-        </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-          {t('dashboard.your_chore')}
-        </Text>
-        {newChores > 0 ? (
-          <View style={styles.cardBadge}>
-            <Text style={styles.cardBadgeText}>{newChores}</Text>
-          </View>
-        ) : chores.length > 0 ? (
-          <View style={[styles.badgePill, { backgroundColor: c.surfaceSecondary }]}>
-            <Text style={[styles.badgePillText, { color: c.textSecondary }]}>
-              {t('dashboard.x_of_y_done', { done: done.length, total: chores.length })}
-            </Text>
-          </View>
-        ) : null}
-      </View>
-      {myChore ? (
-        <>
-          <View style={[styles.choreBox, { backgroundColor: '#1A1000' }]}>
-            <Ionicons name="brush-outline" size={22} color="#E0B24D" />
-            <Text style={[styles.choreName, { color: c.textPrimary }]} numberOfLines={2}>
-              {myChore.name}
-            </Text>
-          </View>
-          <Pressable
-            style={[styles.doneBtn, { backgroundColor: c.positive + '18' }]}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              toggleChore(myChore.id);
-            }}
-            accessibilityRole="button"
-          >
-            <Ionicons name="checkmark" size={14} color={c.positive} />
-            <Text style={[styles.doneBtnText, { color: c.positive }]}>
-              {t('dashboard.mark_done')}
-            </Text>
-          </Pressable>
-        </>
-      ) : pending.length > 0 ? (
-        <>
-          <Text style={[styles.bigNumber, { color: c.textPrimary }]} numberOfLines={1}>
-            {pending[0].name}
-          </Text>
-          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-            {t('dashboard.nobody_stepped_up')}
-          </Text>
-        </>
-      ) : (
-        <>
-          <View style={styles.doneAllWrap}>
-            <Ionicons name="checkmark-circle" size={32} color={c.positive} />
-          </View>
-          <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-            {t('dashboard.all_done_proof')}
-          </Text>
-        </>
-      )}
-    </WidgetCard>
-  );
-}
-
-// ── Parking Card ──────────────────────────────────────────────────────────────
-function ParkingCard(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
-  const current = useParkingStore((s) => s.current);
-  const reservations = useParkingStore((s) => s.reservations);
-  const claim = useParkingStore((s) => s.claim);
-  const release = useParkingStore((s) => s.release);
-  const profile = useAuthStore((s) => s.profile);
-  const houseId = useAuthStore((s) => s.houseId);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const myId = profile?.id ?? '';
-  const myName = profile?.name ?? '';
-  const isFree = !current;
-  const isMine = current?.occupant === myId;
-
-  const lastSeen = useBadgeStore((s) => s.lastSeen);
-  const sortedReservations = [...reservations].sort((a, b) => a.date.localeCompare(b.date));
-  const pendingFromOthers = sortedReservations.filter(
-    (r) =>
-      r.status === 'pending' && r.requestedBy !== myId && !r.votes.some((v) => v.userId === myId)
-  );
-  const myReservation = sortedReservations.find((r) => r.requestedBy === myId) ?? null;
-  const pendingCount = reservations.filter((r) => r.status === 'pending').length;
-  const newReservations = countNew(reservations, lastSeen.parking, myId, 'requestedBy');
-
-  const handleClaim = useCallback(async (): Promise<void> => {
-    await claim(myId, myName, houseId ?? '').catch(() => {});
-  }, [claim, myId, myName, houseId]);
-  const handleRelease = useCallback(async (): Promise<void> => {
-    try {
-      await release(houseId ?? '', myName);
-    } catch (err) {
-      Alert.alert(t('dashboard.parking_error'), t('common.failed_try_again'));
-    }
-  }, [release, houseId, myName, t]);
-
-  return (
-    <WidgetCard onPress={() => router.push('/(tabs)/parking')}>
-      <View style={styles.cardHeader}>
-        <View style={[styles.cardIconWrap, { backgroundColor: isFree ? '#0A2418' : '#2A0A0A' }]}>
-          <Ionicons
-            name={isFree ? 'car-outline' : 'car'}
-            size={18}
-            color={isFree ? c.positive : c.negative}
-          />
-        </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-          {t('dashboard.parking_spot_title')}
-        </Text>
-        {newReservations > 0 ? (
-          <View style={styles.cardBadge}>
-            <Text style={styles.cardBadgeText}>{newReservations}</Text>
-          </View>
-        ) : pendingCount > 0 ? (
-          <View style={[styles.badgePill, { backgroundColor: '#E0B24D' }]}>
-            <Text style={[styles.badgePillText, { color: '#1A1000' }]}>
-              {t('dashboard.pending_count', { count: pendingCount })}
-            </Text>
-          </View>
-        ) : (
-          <Ionicons
-            name={rtl ? 'chevron-back' : 'chevron-forward'}
-            size={16}
-            color={c.textSecondary}
-          />
-        )}
-      </View>
-      <View
-        style={[
-          styles.parkingStatus,
-          { backgroundColor: isFree ? c.positive + '14' : c.negative + '14' },
-        ]}
-      >
-        <Text style={[styles.parkingStatusText, { color: isFree ? c.positive : c.negative }]}>
-          {isFree
-            ? t('dashboard.available_now')
-            : isMine
-              ? t('dashboard.your_car')
-              : resolveName(current?.occupant ?? '', housemates, t('common.unknown'))}
-        </Text>
-        {current && !isFree && current.startTime && (
-          <Text style={[styles.parkingAge, { color: c.textSecondary }]}>
-            {parkingAge(current.startTime, t)}
-          </Text>
-        )}
-      </View>
-      <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-        {isFree
-          ? t('dashboard.empty_spot')
-          : isMine
-            ? current?.startTime
-              ? t('dashboard.your_car_been_there', { time: parkingAge(current.startTime, t) })
-              : t('dashboard.your_car_all_day')
-            : current?.startTime
-              ? t('dashboard.used_by_time', {
-                  name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')),
-                  time: parkingAge(current.startTime, t),
-                })
-              : t('dashboard.used_by_all_day', {
-                  name: resolveName(current?.occupant ?? '', housemates, t('common.unknown')),
-                })}
-      </Text>
-      {pendingFromOthers.map((r) => (
-        <View key={r.id} style={[styles.parkingPendingRow, { backgroundColor: '#2A1A00' }]}>
-          <View style={styles.parkingPendingInfo}>
-            <Ionicons name="time-outline" size={14} color="#E0B24D" />
-            <Text style={[styles.parkingPendingText, { color: '#E0B24D', flex: 1 }]}>
-              {r.startTime
-                ? t('dashboard.wants_date_at', {
-                    name: resolveName(r.requestedBy, housemates, t('common.unknown')),
-                    date: new Date(r.date + 'T12:00:00').toLocaleDateString(
-                      language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB',
-                      { month: 'short', day: 'numeric' }
-                    ),
-                    time: r.startTime,
-                  })
-                : t('dashboard.wants_date', {
-                    name: resolveName(r.requestedBy, housemates, t('common.unknown')),
-                    date: new Date(r.date + 'T12:00:00').toLocaleDateString(
-                      language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB',
-                      { month: 'short', day: 'numeric' }
-                    ),
-                  })}
-            </Text>
-          </View>
-          <View style={[styles.approveBtn, { backgroundColor: c.positive }]}>
-            <Text style={styles.approveBtnText}>{t('dashboard.vote')}</Text>
-          </View>
-        </View>
-      ))}
-      {myReservation && pendingFromOthers.length === 0 && (
-        <View
-          style={[
-            styles.parkingReservationRow,
-            {
-              backgroundColor:
-                myReservation.status === 'approved'
-                  ? c.positive + '14'
-                  : myReservation.status === 'rejected'
-                    ? c.negative + '14'
-                    : '#2A1A00',
-            },
-          ]}
-        >
-          <Ionicons
-            name={
-              myReservation.status === 'approved'
-                ? 'checkmark-circle-outline'
-                : myReservation.status === 'rejected'
-                  ? 'close-circle-outline'
-                  : 'time-outline'
-            }
-            size={14}
-            color={
-              myReservation.status === 'approved'
-                ? c.positive
-                : myReservation.status === 'rejected'
-                  ? c.negative
-                  : '#E0B24D'
-            }
-          />
-          <Text
-            style={[
-              styles.parkingReservationText,
-              {
-                color:
-                  myReservation.status === 'approved'
-                    ? c.positive
-                    : myReservation.status === 'rejected'
-                      ? c.negative
-                      : '#E0B24D',
-              },
-            ]}
-          >
-            {myReservation.status === 'approved'
-              ? t('dashboard.spot_confirmed')
-              : myReservation.status === 'rejected'
-                ? t('dashboard.request_rejected')
-                : t('dashboard.request_pending')}
-            {' · '}
-            {new Date(myReservation.date + 'T12:00:00').toLocaleDateString(
-              language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB',
-              { month: 'short', day: 'numeric' }
-            )}
-            {myReservation.startTime ? ` ${myReservation.startTime}` : ''}
-          </Text>
-        </View>
-      )}
-      {isFree && (
-        <Pressable
-          style={[styles.claimBtn, { backgroundColor: c.positive }]}
-          onPress={(e) => {
-            e.stopPropagation?.();
-            handleClaim();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={t('dashboard.claim_parking_spot')}
-        >
-          <Ionicons name="car" size={14} color="#fff" />
-          <Text style={styles.claimBtnText}>{t('dashboard.claim_spot')}</Text>
-        </Pressable>
-      )}
-      {isMine && (
-        <Pressable
-          style={[styles.releaseBtn, { borderColor: c.negative + '40' }]}
-          onPress={(e) => {
-            e.stopPropagation?.();
-            handleRelease();
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={t('dashboard.release_parking_spot')}
-        >
-          <Ionicons name="exit-outline" size={14} color={c.negative} />
-          <Text style={[styles.releaseBtnText, { color: c.negative }]}>
-            {t('dashboard.release_spot')}
-          </Text>
-        </Pressable>
-      )}
-    </WidgetCard>
-  );
-}
-
-// ── Grocery Widget ────────────────────────────────────────────────────────────
-interface GroceryWidgetRowProps {
-  item: GroceryItem;
-  myId: string;
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
-  onLongPress?: (item: GroceryItem) => void;
-}
-
-function GroceryWidgetRow({
-  item,
-  myId,
-  onToggle,
-  onDelete,
-  onLongPress,
-}: GroceryWidgetRowProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const swipeRef = useRef<Swipeable>(null);
-  const canDelete = item.addedBy === myId;
-
-  const handleToggle = useCallback((): void => {
-    swipeRef.current?.close();
-    onToggle(item.id);
-  }, [item.id, onToggle]);
-  const handleDelete = useCallback((): void => {
-    swipeRef.current?.close();
-    onDelete(item.id);
-  }, [item.id, onDelete]);
-  const handleLongPress = useCallback((): void => {
-    if (!onLongPress) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    onLongPress(item);
-  }, [item, onLongPress]);
-
-  const renderCheckAction = useCallback(
-    (): React.JSX.Element => (
-      <Pressable
-        accessible
-        style={[styles.widgetSwipeCheck, item.isChecked && styles.widgetSwipeUncheck]}
-        onPress={handleToggle}
-        accessibilityRole="button"
-        accessibilityLabel={
-          item.isChecked ? t('grocery.mark_as_needed') : t('grocery.mark_as_done')
-        }
-      >
-        <Ionicons
-          name={item.isChecked ? 'arrow-undo-outline' : 'checkmark'}
-          size={16}
-          color="#fff"
-        />
-      </Pressable>
-    ),
-    [item.isChecked, handleToggle, t]
-  );
-
-  const renderDeleteAction = useCallback(
-    (): React.JSX.Element => (
-      <Pressable
-        accessible
-        style={styles.widgetSwipeDelete}
-        onPress={handleDelete}
-        accessibilityRole="button"
-        accessibilityLabel={t('grocery.delete_item')}
-      >
-        <Ionicons name="trash-outline" size={16} color="#fff" />
-      </Pressable>
-    ),
-    [handleDelete, t]
-  );
-
-  return (
-    <Swipeable
-      ref={swipeRef}
-      renderLeftActions={renderCheckAction}
-      renderRightActions={canDelete ? renderDeleteAction : undefined}
-      overshootLeft={false}
-      overshootRight={false}
-      friction={2}
+    <Pressable
+      style={({ pressed }) => [
+        styles.choreTile,
+        { backgroundColor: c.surface, borderColor: c.border },
+        pressed && styles.pressed,
+      ]}
+      onPress={() => router.push('/(tabs)/chores')}
+      accessibilityRole="button"
+      accessibilityLabel={t('dashboard.x_of_y_done', { done, total })}
     >
-      <Pressable
-        style={[styles.groceryRow, { backgroundColor: c.surface }]}
-        onPress={handleToggle}
-        onLongPress={onLongPress ? handleLongPress : undefined}
-        delayLongPress={400}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: item.isChecked }}
-        accessibilityHint={onLongPress ? t('grocery.long_press_hint') : undefined}
-      >
-        <Ionicons
-          name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-          size={18}
-          color={item.isChecked ? c.positive : c.border}
-        />
-        <Text
-          style={[
-            styles.groceryItemText,
-            { color: c.textPrimary },
-            item.isChecked && styles.groceryItemDone,
-          ]}
-        >
-          {item.name}
+      <View style={styles.choreTop}>
+        <Text style={[styles.choreLabel, { color: c.textSecondary }]}>
+          {t('dashboard.chores_label')}
         </Text>
-        {item.quantity && item.quantity !== '1' && (
-          <Text style={[styles.groceryQty, { color: c.textSecondary }]}>{item.quantity}</Text>
-        )}
-        <UserAvatar userId={item.addedBy} size={22} />
-        {!!item.comment && (
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={12}
-            color={c.textSecondary}
-            accessibilityLabel={t('dashboard.has_note')}
+        <Svg width={46} height={46} viewBox="0 0 46 46">
+          <Circle cx={23} cy={23} r={R} fill="none" stroke={c.surfaceSecondary} strokeWidth={5} />
+          <Circle
+            cx={23}
+            cy={23}
+            r={R}
+            fill="none"
+            stroke={c.success}
+            strokeWidth={5}
+            strokeLinecap="round"
+            strokeDasharray={CIRC}
+            strokeDashoffset={offset}
+            transform="rotate(-90 23 23)"
           />
-        )}
-      </Pressable>
-    </Swipeable>
+        </Svg>
+      </View>
+      <View>
+        <Text style={[styles.choreNum, { color: c.textPrimary }]}>
+          {done}
+          <Text style={[styles.choreDenom, { color: c.textTertiary }]}>/{total}</Text>
+        </Text>
+        <Text style={[styles.choreSub, { color: c.textSecondary }]} numberOfLines={1}>
+          {next ? t('dashboard.chore_next', { name: next.name }) : t('dashboard.chores_smashed')}
+        </Text>
+      </View>
+    </Pressable>
   );
 }
 
-function GroceryWidget(): React.JSX.Element {
+// ── Grocery list ──────────────────────────────────────────────────────────────
+function GroceryList(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const items = useGroceryStore((s) => s.items);
-  const addItem = useGroceryStore((s) => s.addItem);
   const toggleItem = useGroceryStore((s) => s.toggleItem);
-  const deleteItem = useGroceryStore((s) => s.deleteItem);
-  const publishDraftItems = useGroceryStore((s) => s.publishDraftItems);
-  const addComment = useGroceryStore((s) => s.addComment);
-  const profile = useAuthStore((s) => s.profile);
-  const houseId = useAuthStore((s) => s.houseId);
-  const lastSeen = useBadgeStore((s) => s.lastSeen);
-  const draftEnabled = useSettingsStore(
-    (s) => s.features.find((f) => f.key === 'grocery_draft')?.enabled ?? true
-  );
-  const myId = profile?.id ?? '';
+  const memberName = useMemberName();
 
-  const [input, setInput] = useState('');
-  const [qty, setQty] = useState('');
-  const [unit, setUnit] = useState('');
-  const [addError, setAddError] = useState<string | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
-
-  const myDraftItems = useMemo(
-    () => items.filter((i) => i.isDraft && i.addedBy === myId),
-    [items, myId]
-  );
-  const sharedPending = useMemo(() => items.filter((i) => !i.isPersonal && !i.isChecked), [items]);
-
-  const newGrocery = countNew(
-    items.filter((i) => !i.isChecked && !i.isDraft),
-    lastSeen.grocery,
-    myId,
-    'addedBy'
-  );
-
-  const handleUnitToggle = useCallback((u: string): void => {
-    setUnit((prev) => (prev === u ? '' : u));
-  }, []);
-
-  const unitPressHandlers = useMemo(
-    () =>
-      (['ml', 'L', 'g', 'kg'] as const).reduce<Record<string, () => void>>((acc, u) => {
-        acc[u] = (): void => handleUnitToggle(u);
-        return acc;
-      }, {}),
-    [handleUnitToggle]
-  );
-
-  const handleAdd = useCallback(async (): Promise<void> => {
-    const n = input.trim();
-    if (!n) return;
-    const numPart = qty.trim();
-    if (numPart && !/^\d+$/.test(numPart)) {
-      setAddError(t('dashboard.qty_whole_number'));
-      return;
-    }
-    const quantityStr = numPart ? numPart + unit : unit ? `1${unit}` : '';
-    try {
-      await addItem(n, quantityStr, myId, houseId ?? '', draftEnabled ? 'draft' : 'shared');
-      setInput('');
-      setQty('');
-      setUnit('');
-      setAddError(null);
-    } catch {
-      setAddError(t('dashboard.could_not_add_item'));
-    }
-  }, [input, qty, unit, addItem, myId, houseId, draftEnabled, t]);
-
-  const handlePublish = useCallback(async (): Promise<void> => {
-    if (isPublishing || !myId) return;
-    setAddError(null);
-    setIsPublishing(true);
-    try {
-      await publishDraftItems(myId, houseId ?? '');
-    } catch {
-      setAddError(t('dashboard.could_not_share_draft'));
-    } finally {
-      setIsPublishing(false);
-    }
-  }, [publishDraftItems, myId, houseId, isPublishing, t]);
-
-  const handleToggle = useCallback(
-    (id: string): void => {
-      toggleItem(id);
-    },
-    [toggleItem]
-  );
-  const handleDelete = useCallback(
-    (id: string): void => {
-      deleteItem(id).catch(() => {});
-    },
-    [deleteItem]
-  );
-  const handleItemLongPress = useCallback((item: GroceryItem): void => {
-    setSelectedItem(item);
-  }, []);
-  const handleCloseModal = useCallback((): void => {
-    setSelectedItem(null);
-  }, []);
-  const onSaveComment = useCallback(
-    (id: string, comment: string): Promise<void> => addComment(id, comment),
-    [addComment]
-  );
-
-  const draftHeader =
-    myDraftItems.length > 0 ? (
-      <>
-        <View style={styles.groceryDraftHeader}>
-          <Text style={styles.groceryDraftTitle}>{t('dashboard.my_draft')}</Text>
-          <Pressable
-            onPress={handlePublish}
-            disabled={isPublishing || !myId}
-            style={[
-              styles.groceryDraftApproveBtn,
-              (isPublishing || !myId) && styles.groceryDraftApproveBtnDisabled,
-            ]}
-            accessible
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isPublishing || !myId }}
-            accessibilityLabel={t('grocery.share_draft_a11y')}
-          >
-            {isPublishing ? (
-              <ActivityIndicator size="small" color="#E0B24D" />
-            ) : (
-              <Ionicons name="checkmark-circle" size={22} color="#E0B24D" />
-            )}
-          </Pressable>
-        </View>
-        {myDraftItems.map((item) => (
-          <GroceryWidgetRow
-            key={item.id}
-            item={item}
-            myId={myId}
-            onToggle={handleToggle}
-            onDelete={handleDelete}
-            onLongPress={handleItemLongPress}
-          />
-        ))}
-        {sharedPending.length > 0 && (
-          <Text style={[styles.grocerySharedLabel, { color: c.textSecondary }]}>
-            {t('dashboard.shared_label')}
-          </Text>
-        )}
-      </>
-    ) : null;
+  const shared = items.filter((i) => !i.isPersonal && !i.isDraft);
+  const toBuy = shared.filter((i) => !i.isChecked).length;
+  const preview = shared.slice(0, 3);
 
   return (
-    <>
-      <WidgetCard>
-        <View style={styles.cardHeader}>
-          <View style={[styles.cardIconWrap, { backgroundColor: '#0A2418' }]}>
-            <Ionicons name="cart-outline" size={18} color="#4FB071" />
-          </View>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-            {t('dashboard.shared_groceries')}
-          </Text>
-          {newGrocery > 0 ? (
-            <View style={styles.cardBadge}>
-              <Text style={styles.cardBadgeText}>{newGrocery}</Text>
-            </View>
-          ) : (
-            <Pressable onPress={() => router.push('/(tabs)/grocery')} accessibilityRole="button">
-              <Text style={[styles.viewAll, { color: c.primary }]}>{t('dashboard.view_all')}</Text>
-            </Pressable>
-          )}
+    <Pressable
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: c.surface, borderColor: c.border },
+        pressed && styles.pressed,
+      ]}
+      onPress={() => router.push('/(tabs)/grocery')}
+      accessibilityRole="button"
+      accessibilityLabel={t('dashboard.shared_groceries')}
+    >
+      <View style={styles.cardHeader}>
+        <View style={[styles.cardIcon, { backgroundColor: c.warningTint }]}>
+          <Ionicons name="cart-outline" size={16} color={c.warning} />
         </View>
-        <View
-          style={[
-            styles.groceryInputRow,
-            { backgroundColor: c.surfaceSecondary, borderColor: c.border },
-          ]}
-        >
-          <Ionicons name="add" size={16} color={c.textSecondary} />
-          <TextInput
-            style={[styles.groceryInput, { color: c.textPrimary }]}
-            value={input}
-            onChangeText={(t) => {
-              setInput(t);
-              if (addError) setAddError(null);
-            }}
-            placeholder={t('dashboard.add_item_placeholder')}
-            placeholderTextColor={c.textSecondary}
-            returnKeyType="next"
-            onSubmitEditing={handleAdd}
-            accessibilityLabel={t('grocery.add_item_a11y')}
-            accessibilityHint={t('grocery.add_item_hint')}
-          />
-          <View style={[styles.groceryQtySep, { backgroundColor: c.border }]} />
-          <TextInput
-            style={[styles.groceryQtyInput, { color: c.textPrimary }]}
-            value={qty}
-            onChangeText={setQty}
-            placeholder={t('grocery.qty_label')}
-            placeholderTextColor={c.textSecondary}
-            keyboardType="number-pad"
-            returnKeyType="done"
-            onSubmitEditing={handleAdd}
-            accessibilityLabel={t('grocery.qty_label')}
-            accessibilityHint={t('grocery.custom_qty_hint')}
-          />
-          {input.trim().length > 0 && (
+        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
+          {t('dashboard.grocery_list')}
+        </Text>
+        <Text style={[styles.cardMetaRight, { color: c.textSecondary }]}>
+          {t('dashboard.n_to_buy', { count: toBuy })}
+        </Text>
+      </View>
+      {preview.length === 0 ? (
+        <Text style={[styles.emptyText, { color: c.textSecondary }]}>
+          {t('dashboard.grocery_empty')}
+        </Text>
+      ) : (
+        <View style={styles.groceryItems}>
+          {preview.map((item) => (
             <Pressable
-              accessible
-              onPress={handleAdd}
-              style={[styles.groceryAddBtn, { backgroundColor: c.primary }]}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.add')}
-              accessibilityState={{ disabled: false }}
+              key={item.id}
+              style={styles.groceryRow}
+              onPress={() => toggleItem(item.id)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: item.isChecked }}
+              accessibilityLabel={item.name}
             >
-              <Ionicons name="return-down-back-outline" size={15} color="#fff" />
-            </Pressable>
-          )}
-        </View>
-        {!!addError && (
-          <Text style={[styles.groceryAddError, { color: c.negative }]}>{addError}</Text>
-        )}
-        <View style={styles.groceryUnitRow}>
-          {(['ml', 'L', 'g', 'kg'] as const).map((u) => (
-            <Pressable
-              key={u}
-              style={[
-                styles.groceryUnitBtn,
-                {
-                  backgroundColor: unit === u ? c.primary : c.surfaceSecondary,
-                  borderColor: unit === u ? c.primary : c.border,
-                },
-              ]}
-              onPress={unitPressHandlers[u]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: unit === u }}
-              accessibilityLabel={t('grocery.unit_preset', { u })}
-            >
-              <Text
+              <View
                 style={[
-                  styles.groceryUnitBtnText,
-                  { color: unit === u ? '#fff' : c.textSecondary },
+                  styles.groceryBox,
+                  item.isChecked
+                    ? { backgroundColor: c.success, borderColor: c.success }
+                    : { borderColor: c.border },
                 ]}
               >
-                {u}
+                {item.isChecked && <Ionicons name="checkmark" size={12} color="#fff" />}
+              </View>
+              <Text
+                style={[
+                  styles.groceryName,
+                  { color: item.isChecked ? c.textTertiary : c.textPrimary },
+                  item.isChecked && styles.groceryDone,
+                ]}
+                numberOfLines={1}
+              >
+                {item.name}
+              </Text>
+              <Text style={[styles.groceryWho, { color: c.textSecondary }]}>
+                {memberName(item.addedBy).split(' ')[0]}
               </Text>
             </Pressable>
           ))}
         </View>
-        <FlatList
-          data={sharedPending}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <GroceryWidgetRow
-              item={item}
-              myId={myId}
-              onToggle={handleToggle}
-              onDelete={handleDelete}
-              onLongPress={handleItemLongPress}
-            />
-          )}
-          ListHeaderComponent={draftHeader}
-          ListEmptyComponent={
-            myDraftItems.length === 0 ? (
-              <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-                {t('dashboard.grocery_empty')}
-              </Text>
-            ) : null
-          }
-          scrollEnabled={false}
-          nestedScrollEnabled
-        />
-      </WidgetCard>
-      <GroceryItemDetailModal
-        item={selectedItem}
-        visible={!!selectedItem}
-        myId={myId}
-        onClose={handleCloseModal}
-        onSaveComment={onSaveComment}
-      />
-    </>
+      )}
+    </Pressable>
   );
 }
 
-// ── Votes Widget ──────────────────────────────────────────────────────────────
-function VotesWidget(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const proposals = useVotingStore((s) => s.proposals);
-  const profile = useAuthStore((s) => s.profile);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const myId = profile?.id ?? '';
-  const totalPeople = Math.max(1, housemates.length);
-  const active = proposals.filter((p) => p.isOpen);
-  const newVotes = myId
-    ? active.filter((p) => p.createdBy !== myId && !p.votes.some((v) => v.person === myId)).length
-    : 0;
-
-  if (active.length === 0) {
-    return (
-      <WidgetCard onPress={() => router.push('/(tabs)/voting')}>
-        <View style={styles.cardHeader}>
-          <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
-            <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
-          </View>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-            {t('dashboard.active_votes')}
-          </Text>
-        </View>
-        <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-          {t('dashboard.no_drama')}
-        </Text>
-      </WidgetCard>
-    );
-  }
-
-  const top = active[0];
-  const yesCount = top.votes.filter((v) => v.choice === 'yes').length;
-  const noCount = top.votes.filter((v) => v.choice === 'no').length;
-  const totalVotes = yesCount + noCount;
-  const yesWidth = totalVotes > 0 ? (yesCount / totalVotes) * 100 : 0;
-  const myVote = top.votes.find((v) => v.person === myId)?.choice ?? null;
-  const allVoted = totalVotes >= totalPeople;
-
-  type BadgeState = { label: string; bg: string; color: string };
-  const badge: BadgeState = ((): BadgeState => {
-    if (!myVote) return { label: t('dashboard.vote_now'), bg: c.danger + '20', color: c.danger };
-    if (!allVoted)
-      return {
-        label: t('dashboard.waiting_votes', { voted: totalVotes, total: totalPeople }),
-        bg: c.textSecondary + '18',
-        color: c.textSecondary,
-      };
-    if (yesCount > noCount)
-      return { label: t('dashboard.passed'), bg: c.positive + '20', color: c.positive };
-    return { label: t('dashboard.rejected'), bg: c.negative + '20', color: c.negative };
-  })();
-
-  return (
-    <WidgetCard onPress={() => router.push('/(tabs)/voting')}>
-      <View style={styles.cardHeader}>
-        <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
-          <Ionicons name="hand-left-outline" size={18} color="#7C4DFF" />
-        </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-          {t('dashboard.active_votes')}
-        </Text>
-        {newVotes > 0 ? (
-          <View style={styles.cardBadge}>
-            <Text style={styles.cardBadgeText}>{newVotes}</Text>
-          </View>
-        ) : (
-          <View style={[styles.badgePill, { backgroundColor: badge.bg }]}>
-            <Text style={[styles.badgePillText, { color: badge.color }]}>{badge.label}</Text>
-          </View>
-        )}
-      </View>
-      <Text style={[styles.voteQuestion, { color: c.textPrimary }]} numberOfLines={2}>
-        {top.title}
-      </Text>
-      <View style={styles.voteBarRow}>
-        <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>{t('common.yes')}</Text>
-        <View style={[styles.voteTrack, { backgroundColor: c.surfaceSecondary }]}>
-          <View
-            style={[
-              styles.voteBar,
-              { width: `${yesWidth}%` as `${number}%`, backgroundColor: '#7C4DFF' },
-            ]}
-          />
-        </View>
-        <Text style={[styles.voteCount, { color: c.textPrimary }]}>{yesCount}</Text>
-      </View>
-      <View style={styles.voteBarRow}>
-        <Text style={[styles.voteBarLabel, { color: c.textSecondary }]}>{t('common.no')}</Text>
-        <View style={[styles.voteTrack, { backgroundColor: c.surfaceSecondary }]}>
-          <View
-            style={[
-              styles.voteBar,
-              { width: `${100 - yesWidth}%` as `${number}%`, backgroundColor: c.border },
-            ]}
-          />
-        </View>
-        <Text style={[styles.voteCount, { color: c.textPrimary }]}>{noCount}</Text>
-      </View>
-    </WidgetCard>
-  );
-}
-
-// ── Mini Calendar Widget ──────────────────────────────────────────────────────
-const CAL_MONTH_KEYS = [
-  'dashboard.cal_month_jan',
-  'dashboard.cal_month_feb',
-  'dashboard.cal_month_mar',
-  'dashboard.cal_month_apr',
-  'dashboard.cal_month_may',
-  'dashboard.cal_month_jun',
-  'dashboard.cal_month_jul',
-  'dashboard.cal_month_aug',
-  'dashboard.cal_month_sep',
-  'dashboard.cal_month_oct',
-  'dashboard.cal_month_nov',
-  'dashboard.cal_month_dec',
-];
-const CAL_DAY_KEYS = [
-  'dashboard.cal_day_sun',
-  'dashboard.cal_day_mon',
-  'dashboard.cal_day_tue',
-  'dashboard.cal_day_wed',
-  'dashboard.cal_day_thu',
-  'dashboard.cal_day_fri',
-  'dashboard.cal_day_sat',
-];
-
-function toYMD(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function MiniCalendarWidget(): React.JSX.Element {
+// ── Games button ──────────────────────────────────────────────────────────────
+function GamesButton(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
-  const events = useEventsStore((s) => s.events);
-  const reservations = useParkingStore((s) => s.reservations);
-  const recurringBills = useRecurringBillsStore((s) => s.bills);
-  const recurringPayments = useRecurringBillsStore((s) => s.payments);
-  const chores = useChoresStore((s) => s.chores);
-  const showRecurring = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
-
-  const today = new Date();
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
-
-  const eventMap = useMemo((): Record<string, Array<{ title: string; color: string }>> => {
-    const map: Record<string, Array<{ title: string; color: string }>> = {};
-    const push = (date: string, title: string, color: string): void => {
-      if (!date) return;
-      if (!map[date]) map[date] = [];
-      map[date].push({ title, color });
-    };
-    const billNameById = new Map(recurringBills.map((b) => [b.id, b.name]));
-    events.forEach((e) => push(e.date, e.title, '#6366f1'));
-    reservations.forEach((r) => push(r.date, t('dashboard.cal_parking'), '#f59e0b'));
-    if (showRecurring)
-      recurringPayments.forEach((p) =>
-        push(p.paidAt, billNameById.get(p.billId) ?? t('dashboard.cal_recurring'), '#ef4444')
-      );
-    chores.forEach((ch) => {
-      if (ch.recurrence === 'once' && ch.recurrenceDay) push(ch.recurrenceDay, ch.name, '#22c55e');
-    });
-    return map;
-  }, [events, reservations, recurringPayments, recurringBills, chores, showRecurring, t]);
-
-  const grid = useMemo((): Date[] => {
-    const first = new Date(viewYear, viewMonth, 1);
-    const start = new Date(first);
-    start.setDate(1 - first.getDay());
-    const days: Date[] = [];
-    for (let i = 0; i < 35; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      days.push(d);
-    }
-    return days;
-  }, [viewYear, viewMonth]);
-
-  const prevMonth = useCallback((): void => {
-    if (viewMonth === 0) {
-      setViewYear((y) => y - 1);
-      setViewMonth(11);
-    } else setViewMonth((m) => m - 1);
-  }, [viewMonth]);
-  const nextMonth = useCallback((): void => {
-    if (viewMonth === 11) {
-      setViewYear((y) => y + 1);
-      setViewMonth(0);
-    } else setViewMonth((m) => m + 1);
-  }, [viewMonth]);
-
-  const todayStr = toYMD(today);
-
   return (
-    <WidgetCard>
-      <View style={styles.calHeader}>
-        <Pressable
-          style={styles.calTitleRow}
-          onPress={() => router.push('/(tabs)/calendar')}
-          accessibilityRole="button"
-          accessibilityLabel={t('dashboard.open_calendar')}
-        >
-          <View style={[styles.cardIconWrap, { backgroundColor: '#1A0F2A' }]}>
-            <Ionicons name="calendar-outline" size={18} color="#6366f1" />
-          </View>
-          <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-            {t('dashboard.calendar')}
-          </Text>
-          <Ionicons
-            name={rtl ? 'chevron-back' : 'chevron-forward'}
-            size={16}
-            color={c.textSecondary}
-          />
-        </Pressable>
-        <View style={styles.calNavRow}>
-          <Pressable
-            onPress={prevMonth}
-            style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('dashboard.prev_month')}
-            hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
-          >
-            <Ionicons
-              name={rtl ? 'chevron-forward' : 'chevron-back'}
-              size={15}
-              color={c.textSecondary}
-            />
-          </Pressable>
-          <Text style={[styles.calMonthLabel, { color: c.textPrimary }]}>
-            {t(CAL_MONTH_KEYS[viewMonth])} {viewYear}
-          </Text>
-          <Pressable
-            onPress={nextMonth}
-            style={[styles.calNavBtn, { backgroundColor: c.surfaceSecondary }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('dashboard.next_month')}
-            hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
-          >
-            <Ionicons
-              name={rtl ? 'chevron-back' : 'chevron-forward'}
-              size={15}
-              color={c.textSecondary}
-            />
-          </Pressable>
-        </View>
+    <Pressable
+      style={({ pressed }) => [
+        styles.games,
+        { backgroundColor: c.surface, borderColor: c.border },
+        pressed && styles.pressed,
+      ]}
+      onPress={() => router.push('/(tabs)/games')}
+      accessibilityRole="button"
+      accessibilityLabel={t('dashboard.games_fun')}
+    >
+      <View style={styles.gamesEmoji}>
+        <Text style={styles.gamesEmojiText}>🎮</Text>
       </View>
-      <View style={styles.calWeekRow}>
-        {CAL_DAY_KEYS.map((key) => (
-          <Text key={key} style={[styles.calWeekDay, { color: c.textSecondary }]}>
-            {t(key)}
-          </Text>
-        ))}
-      </View>
-      <View style={styles.calGrid}>
-        {[0, 1, 2, 3, 4].map((row) => (
-          <View key={row} style={styles.calRow}>
-            {grid.slice(row * 7, row * 7 + 7).map((day, idx) => {
-              const ymd = toYMD(day);
-              const isToday = ymd === todayStr;
-              const isCurrentMonth = day.getMonth() === viewMonth;
-              const dayEvents = eventMap[ymd] ?? [];
-              return (
-                <Pressable
-                  key={idx}
-                  style={styles.calDayCell}
-                  onPress={() => router.push('/(tabs)/calendar')}
-                  accessibilityRole="button"
-                >
-                  <View style={[styles.calDayInner, isToday && { backgroundColor: c.primary }]}>
-                    <Text
-                      style={[
-                        styles.calDayNum,
-                        { color: c.textPrimary },
-                        !isCurrentMonth && { color: c.textDisabled },
-                        isToday && { color: c.white, ...font.bold },
-                      ]}
-                    >
-                      {day.getDate()}
-                    </Text>
-                  </View>
-                  {dayEvents[0] && (
-                    <View style={[styles.calEventChip, { backgroundColor: dayEvents[0].color }]}>
-                      <Text style={styles.calEventChipText} numberOfLines={1}>
-                        {dayEvents[0].title}
-                      </Text>
-                    </View>
-                  )}
-                  {dayEvents.length > 1 && (
-                    <Text style={[styles.calMoreText, { color: c.textSecondary }]}>
-                      +{dayEvents.length - 1}
-                    </Text>
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
-      </View>
-      <View style={styles.calLegend}>
-        {(
-          [
-            ['#6366f1', t('dashboard.cal_events')],
-            ['#ef4444', t('dashboard.cal_recurring')],
-            ['#22c55e', t('dashboard.cal_chores')],
-            ['#f59e0b', t('dashboard.cal_parking')],
-          ] as [string, string][]
-        ).map(([col, label]) => (
-          <View key={label} style={styles.calLegendItem}>
-            <View style={[styles.calLegendDot, { backgroundColor: col }]} />
-            <Text style={[styles.calLegendLabel, { color: c.textSecondary }]}>{label}</Text>
-          </View>
-        ))}
-      </View>
-    </WidgetCard>
-  );
-}
-
-// ── Activity feed ─────────────────────────────────────────────────────────────
-interface ActivityEvent {
-  id: string;
-  icon: string;
-  iconColor: string;
-  iconBg: string;
-  actor: string;
-  text: string;
-  time: string;
-}
-
-function buildActivityEvents(
-  bills: Bill[],
-  groceryItems: GroceryItem[],
-  chores: Chore[],
-  myId: string,
-  housemates: Housemate[],
-  formerMembers: FormerMember[],
-  t: (key: string, opts?: Record<string, unknown>) => string
-): ActivityEvent[] {
-  const events: ActivityEvent[] = [];
-  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  bills
-    .filter((b) => new Date(b.createdAt).getTime() > cutoff)
-    .forEach((b) => {
-      events.push({
-        id: `bill-${b.id}`,
-        icon: 'card-outline',
-        iconColor: '#FF4757',
-        iconBg: '#2A0A0A',
-        actor:
-          b.paidBy === myId
-            ? t('common.you')
-            : resolveMemberName(b.paidBy, housemates, formerMembers, {
-                fallback: t('members.former'),
-                leftLabel: t('common.left'),
-              }),
-        text: t('dashboard.activity_added_bill', { title: b.title }),
-        time: b.createdAt,
-      });
-    });
-  groceryItems
-    .filter((i) => new Date(i.createdAt).getTime() > cutoff)
-    .forEach((i) => {
-      events.push({
-        id: `grocery-${i.id}`,
-        icon: 'cart-outline',
-        iconColor: '#4FB071',
-        iconBg: '#0A2418',
-        actor:
-          i.addedBy === myId
-            ? t('common.you')
-            : resolveMemberName(i.addedBy, housemates, formerMembers, {
-                fallback: t('members.former'),
-                leftLabel: t('common.left'),
-              }),
-        text: t('dashboard.activity_added_grocery', { name: i.name }),
-        time: i.createdAt,
-      });
-    });
-  chores
-    .filter((ch) => ch.isComplete && ch.completedAt && new Date(ch.completedAt).getTime() > cutoff)
-    .forEach((ch) => {
-      events.push({
-        id: `chore-${ch.id}`,
-        icon: 'checkmark-done-outline',
-        iconColor: '#E0B24D',
-        iconBg: '#1A1000',
-        actor: !ch.claimedBy
-          ? t('common.someone')
-          : ch.claimedBy === myId
-            ? t('common.you')
-            : resolveMemberName(ch.claimedBy, housemates, formerMembers, {
-                fallback: t('members.former'),
-                leftLabel: t('common.left'),
-              }),
-        text: t('dashboard.activity_completed_chore', { name: ch.name }),
-        time: ch.completedAt!,
-      });
-    });
-  return events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 8);
-}
-
-function ActivityFeed(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const bills = useBillsStore((s) => s.bills);
-  const groceryItems = useGroceryStore((s) => s.items);
-  const chores = useChoresStore((s) => s.chores);
-  const profile = useAuthStore((s) => s.profile);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const formerMembers = useHousematesStore((s) => s.formerMembers);
-  const language = useLanguageStore((s) => s.language);
-  const myId = profile?.id ?? '';
-  const events = useMemo(
-    () => buildActivityEvents(bills, groceryItems, chores, myId, housemates, formerMembers, t),
-    [bills, groceryItems, chores, myId, housemates, formerMembers, t]
-  );
-
-  return (
-    <WidgetCard>
-      <View style={styles.cardHeader}>
-        <View style={[styles.cardIconWrap, { backgroundColor: '#0A1A30' }]}>
-          <Ionicons name="pulse-outline" size={18} color="#4F78B6" />
-        </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-          {t('dashboard.recent_activity')}
+      <View style={styles.flex1}>
+        <Text style={[styles.gamesTitle, { color: c.textPrimary }]}>
+          {t('dashboard.games_fun')}
+        </Text>
+        <Text style={[styles.gamesSub, { color: c.textSecondary }]}>
+          {t('dashboard.games_sub')}
         </Text>
       </View>
-      {events.length === 0 ? (
-        <Text style={[styles.cardMuted, { color: c.textSecondary }]}>
-          {t('dashboard.eerie_silence')}
-        </Text>
-      ) : (
-        events.map((event) => (
-          <View key={event.id} style={[styles.activityRow, { borderTopColor: c.border }]}>
-            <View style={[styles.activityIconWrap, { backgroundColor: event.iconBg }]}>
-              <Ionicons name={event.icon as never} size={14} color={event.iconColor} />
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={[styles.activityText, { color: c.textPrimary }]} numberOfLines={2}>
-                <Text style={[styles.activityActor, { color: c.textPrimary }]}>{event.actor} </Text>
-                {event.text}
-              </Text>
-              <Text style={[styles.activityTime, { color: c.textSecondary }]}>
-                {timeAgo(event.time, t, language)}
-              </Text>
-            </View>
-          </View>
-        ))
-      )}
-    </WidgetCard>
+      <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textTertiary} />
+    </Pressable>
   );
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
+// ── Dashboard screen ────────────────────────────────────────────────────────────
 export default function DashboardScreen(): React.JSX.Element {
-  const { t } = useTranslation();
   const c = useThemedColors();
-  const currentLanguage = useLanguageStore((s) => s.language);
-  const rtl = isRTL(currentLanguage);
-  const profile = useAuthStore((s) => s.profile);
-  const houseId = useAuthStore((s) => s.houseId);
-  const houseName = useHousematesStore((s) => s.houseName);
   const isEnabled = useSettingsStore((s) => s.isEnabled);
   const { width } = useWindowDimensions();
-
-  const openProfile = useProfilePopupStore((s) => s.open);
-
   const isWide = width >= 680;
-  const myName = profile?.name ?? 'there';
-  const initials = myName.charAt(0).toUpperCase();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
-      <View style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={[styles.scroll, isWide && styles.scrollWide]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* ── Hero greeting ─────────────────────────────────────────── */}
-          <Animated.View entering={FadeIn.duration(400)} style={styles.hero}>
-            <View style={styles.heroLeft}>
-              <Text style={[styles.heroDate, { color: c.textSecondary }]}>
-                {todayDateLabel(currentLanguage)}
-              </Text>
-              <Text style={[styles.greeting, { color: c.textPrimary }]}>
-                {greetingText(myName, t)}
-              </Text>
-              {houseName ? (
-                <Text style={[styles.greetingSub, { color: c.textSecondary }]}>{houseName}</Text>
-              ) : null}
-            </View>
-            <View style={styles.heroRight}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.heroAvatar,
-                  {
-                    backgroundColor: profile?.avatarUrl ? 'transparent' : c.primary,
-                    transform: [{ scale: pressed ? 0.92 : 1 }],
-                  },
-                ]}
-                onPress={openProfile}
-                accessible={true}
-                accessibilityRole="button"
-                accessibilityLabel={t('dashboard.open_profile')}
-                accessibilityState={{ selected: false }}
-              >
-                {profile?.avatarUrl ? (
-                  <Image
-                    source={{ uri: profile.avatarUrl }}
-                    style={styles.heroAvatarImg}
-                    contentFit="cover"
-                    accessibilityLabel={
-                      profile?.name
-                        ? t('profile.avatar_label', { name: profile.name })
-                        : t('profile.profile_photo')
-                    }
-                  />
-                ) : (
-                  <Text style={styles.heroAvatarText}>{initials}</Text>
-                )}
-              </Pressable>
-            </View>
-          </Animated.View>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, isWide && styles.scrollWide]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Animated.View entering={FadeIn.duration(400)}>
+          <Header />
+        </Animated.View>
 
-          <DashboardErrorBanner />
+        <DashboardErrorBanner />
 
-          {/* Quick actions */}
-          <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.quickActions}>
-            <Link asChild href="/(tabs)/bills/add">
-              <Pressable
-                style={({ pressed }) => [
-                  styles.quickBtn,
-                  {
-                    backgroundColor: c.primary,
-                    transform: [{ scale: pressed ? 0.96 : 1 }],
-                    opacity: pressed ? 0.88 : 1,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={t('dashboard.add_expense_btn')}
-              >
-                <Ionicons name="add" size={16} color="#fff" />
-                <Text style={styles.quickBtnText}>{t('dashboard.expense_btn')}</Text>
-              </Pressable>
-            </Link>
-            <Link asChild href="/(tabs)/bills?openRecurring=1">
-              <Pressable
-                style={({ pressed }) => [
-                  styles.quickBtnOutline,
-                  {
-                    borderColor: c.border,
-                    backgroundColor: c.surface,
-                    transform: [{ scale: pressed ? 0.96 : 1 }],
-                    opacity: pressed ? 0.88 : 1,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={t('dashboard.add_house_bill_btn')}
-              >
-                <Ionicons name="home-outline" size={16} color={c.primary} />
-                <Text style={[styles.quickBtnOutlineText, { color: c.primary }]}>
-                  {t('dashboard.house_bill_btn')}
-                </Text>
-              </Pressable>
-            </Link>
-          </Animated.View>
+        <Animated.View entering={FadeInDown.delay(60).duration(400)}>
+          <TodayRow />
+        </Animated.View>
 
-          {/* ── Balance Hero ──────────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(120).duration(450)} style={styles.row}>
-            <BalanceHeroCard />
-          </Animated.View>
+        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+          <PinnedNote />
+        </Animated.View>
 
-          {houseId && profile?.name && (
-            <View style={styles.row}>
-              <SpendingCard houseId={houseId} userName={profile.name} />
-            </View>
-          )}
+        <Animated.View entering={FadeInDown.delay(140).duration(450)} style={styles.block}>
+          <OwedHero />
+        </Animated.View>
 
-          {/* ── Today at home ─────────────────────────────────────────── */}
-          {(isEnabled('parking') || isEnabled('chores') || isEnabled('grocery')) && (
-            <Animated.View entering={FadeInDown.delay(180).duration(450)} style={styles.row}>
-              <TodayAtHome />
-            </Animated.View>
-          )}
-
-          {/* ── Recent expenses ───────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(240).duration(450)} style={styles.row}>
-            <RecentExpenses />
-          </Animated.View>
-
-          {/* ── Chore + Parking detail cards ──────────────────────────── */}
-          <Animated.View
-            entering={FadeInDown.delay(300).duration(450)}
-            style={[styles.row, isWide && styles.rowWide]}
-          >
-            {isEnabled('chores') && (
-              <View style={isWide ? styles.colHalf : styles.colFull}>
-                <ChoreCard />
-              </View>
-            )}
+        {(isEnabled('parking') || isEnabled('chores')) && (
+          <Animated.View entering={FadeInDown.delay(200).duration(450)} style={styles.gridRow}>
             {isEnabled('parking') && (
-              <View style={isWide ? styles.colHalf : styles.colFull}>
-                <ParkingCard />
+              <View style={styles.gridCol}>
+                <ParkingTile />
+              </View>
+            )}
+            {isEnabled('chores') && (
+              <View style={styles.gridCol}>
+                <ChoresRing />
               </View>
             )}
           </Animated.View>
+        )}
 
-          {/* ── Grocery · Votes ───────────────────────────────────────── */}
-          <Animated.View
-            entering={FadeInDown.delay(360).duration(450)}
-            style={[styles.row, isWide && styles.rowWide]}
-          >
-            {isEnabled('grocery') && (
-              <View style={isWide ? styles.colHalf : styles.colFull}>
-                <GroceryWidget />
-              </View>
-            )}
-            {isEnabled('voting') && (
-              <View style={isWide ? styles.colHalf : styles.colFull}>
-                <VotesWidget />
-              </View>
-            )}
+        {isEnabled('grocery') && (
+          <Animated.View entering={FadeInDown.delay(260).duration(450)} style={styles.block}>
+            <GroceryList />
           </Animated.View>
+        )}
 
-          {/* ── Calendar ──────────────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(420).duration(450)} style={styles.row}>
-            <View style={styles.colFull}>
-              <MiniCalendarWidget />
-            </View>
-          </Animated.View>
+        <Animated.View entering={FadeInDown.delay(320).duration(450)} style={styles.block}>
+          <DadJokeCard />
+        </Animated.View>
 
-          {/* ── Activity feed ─────────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(480).duration(450)} style={styles.row}>
-            <View style={styles.colFull}>
-              <ActivityFeed />
-            </View>
-          </Animated.View>
-
-          {/* ── Dad Joke + Games ──────────────────────────────────────── */}
-          <Animated.View entering={FadeInDown.delay(540).duration(450)} style={styles.row}>
-            <View style={styles.colFull}>
-              <DadJokeCard />
-            </View>
-          </Animated.View>
-
-          <Animated.View entering={FadeInDown.delay(600).duration(450)} style={styles.row}>
-            <Pressable
-              style={[styles.gamesLink, { backgroundColor: c.surface, borderColor: c.border }]}
-              onPress={() => router.push('/(tabs)/games')}
-              accessibilityRole="button"
-              accessibilityLabel={t('dashboard.games_fun')}
-            >
-              <View style={[styles.gamesIconWrap, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={styles.gamesIcon}>🎮</Text>
-              </View>
-              <View style={styles.gamesTextWrap}>
-                <Text style={[styles.gamesTitle, { color: c.textPrimary }]}>
-                  {t('dashboard.games_fun')}
-                </Text>
-                <Text style={[styles.gamesSub, { color: c.textSecondary }]}>
-                  {t('dashboard.games_sub')}
-                </Text>
-              </View>
-              <Ionicons
-                name={rtl ? 'chevron-back' : 'chevron-forward'}
-                size={18}
-                color={c.textDisabled}
-              />
-            </Pressable>
-          </Animated.View>
-        </ScrollView>
-      </View>
+        <Animated.View entering={FadeInDown.delay(380).duration(450)} style={styles.block}>
+          <GamesButton />
+        </Animated.View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-// Colors here use dark values (dark is the default theme).
-// Dynamic color overrides are passed via inline style arrays in each component.
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  flex: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: sizes.bottomTabContentPadding },
-  scrollWide: { paddingHorizontal: 24 },
+  scroll: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: sizes.bottomTabContentPadding },
+  scrollWide: { paddingHorizontal: 24, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  flex1: { flex: 1, minWidth: 0 },
+  block: { marginTop: 14 },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
 
-  // ── Hero
-  hero: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    gap: 12,
-  },
-  heroLeft: { flex: 1, gap: 2 },
-  heroRight: { alignItems: 'center', gap: 8 },
-  heroDate: { fontSize: 13, ...font.regular },
-  greeting: { fontSize: 26, ...font.extrabold, letterSpacing: -0.6, marginTop: 2 },
-  greetingSub: { fontSize: 13, ...font.regular, marginTop: 2 },
-  heroAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  // ── Header
+  header: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 8 },
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
     overflow: 'hidden',
   },
-  heroAvatarImg: { width: 44, height: 44 },
-  heroAvatarText: { fontSize: 18, ...font.bold, color: '#fff' },
-
-  quickActions: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  quickBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    shadowColor: '#4F78B6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  quickBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
-  quickBtnOutline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  quickBtnOutlineText: { fontSize: 14, ...font.semibold },
-
-  // ── Balance hero card
-  balanceHero: {
+  avatarImg: { width: '100%', height: '100%' },
+  avatarText: { fontSize: 17, ...font.bold, color: '#fff' },
+  headerText: { flex: 1, minWidth: 0 },
+  headerHouse: { fontSize: 12, ...font.medium },
+  headerGreeting: { fontSize: 19, ...font.extrabold, letterSpacing: -0.5 },
+  bell: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    padding: 20,
-    gap: 8,
-    overflow: 'hidden',
-    backgroundColor: '#1A3578',
-    shadowColor: '#1E3578',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  balanceHeroDeco: {
+  bellBadge: {
     position: 'absolute',
-    top: -40,
-    end: -30,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: -2,
+    right: -2,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
   },
-  balanceHeroTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  balanceHeroLabel: { fontSize: 14, ...font.semibold, color: 'rgba(255,255,255,0.80)' },
-  balanceHeroSub: {
-    fontSize: 12,
-    ...font.regular,
-    color: 'rgba(255,255,255,0.55)',
-    marginStart: 'auto',
+  bellBadgeText: { fontSize: 10, ...font.bold, color: '#fff' },
+
+  // ── Today row
+  todayRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    borderRadius: 14,
+    padding: 11,
   },
-  balanceHeroNewBadge: {
-    backgroundColor: '#D9534F',
-    borderRadius: 99,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  todayDate: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  balanceHeroNewBadgeText: { fontSize: 11, ...font.bold, color: '#fff' },
-  balanceHeroAmt: {
-    fontSize: 48,
-    ...font.extrabold,
-    color: '#fff',
-    letterSpacing: -1.5,
-    lineHeight: 56,
+  todayDateM: { fontSize: 9, ...font.bold, textTransform: 'uppercase', lineHeight: 11 },
+  todayDateN: { fontSize: 15, ...font.extrabold, lineHeight: 17 },
+  todayEyebrow: { fontSize: 10, ...font.bold, letterSpacing: 0.5, textTransform: 'uppercase' },
+  todayTitle: { fontSize: 14, ...font.semibold, marginTop: 1 },
+
+  // ── Pinned note
+  pinned: { marginTop: 14, flexDirection: 'row', gap: 11, borderRadius: 18, padding: 14 },
+  pinnedIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  balanceHeroBtns: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  balanceHeroSettleBtn: {
+  pinnedTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  pinnedLabel: {
+    flex: 1,
+    fontSize: 10.5,
+    ...font.bold,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  pinnedAgo: { fontSize: 11, ...font.regular },
+  pinnedText: { fontSize: 13.5, ...font.medium, lineHeight: 20 },
+
+  // ── Owed hero
+  heroWrap: { borderRadius: 18 },
+  hero: {
+    borderRadius: 18,
+    padding: 20,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  heroDeco: {
+    position: 'absolute',
+    bottom: -40,
+    right: -20,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.13)',
+  },
+  heroDecoSm: {
+    position: 'absolute',
+    bottom: -8,
+    right: 20,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  heroCol: { position: 'relative' },
+  heroSettledRow: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroCheck: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroLabel: { fontSize: 12, ...font.medium, color: 'rgba(255,255,255,0.8)' },
+  heroAmtRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
+  heroAmtSym: { fontSize: 22, ...font.medium, color: 'rgba(255,255,255,0.7)', marginRight: 2 },
+  heroAmt: { fontSize: 44, ...font.extrabold, color: '#fff', letterSpacing: -1.6, lineHeight: 48 },
+  heroSub: { fontSize: 11, color: 'rgba(255,255,255,0.72)', marginTop: 4 },
+  heroBtns: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
+  heroSettleBtn: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    minHeight: 44,
+    paddingHorizontal: 22,
+    height: 42,
     justifyContent: 'center',
   },
-  balanceHeroSettleBtnText: { fontSize: 14, ...font.bold, color: '#1A3578' },
-  balanceHeroDetailsBtn: {
+  heroSettleBtnText: { fontSize: 14, ...font.bold },
+  heroDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    minHeight: 44,
-    justifyContent: 'center',
+    paddingHorizontal: 18,
+    height: 42,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
+    borderColor: 'rgba(255,255,255,0.35)',
   },
-  balanceHeroDetailsBtnText: { fontSize: 14, ...font.semibold, color: 'rgba(255,255,255,0.85)' },
+  heroDetailsBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
 
-  // ── Today at home
-  todaySection: { gap: 10 },
-  sectionTitle: { fontSize: 17, ...font.bold },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionSeeAll: { fontSize: 14, ...font.semibold },
-  todayRow: { flexDirection: 'row', gap: 10 },
-  todayCard: {
+  // ── Grid row (parking + chores)
+  gridRow: { flexDirection: 'row', gap: 12, marginTop: 14 },
+  gridCol: { flex: 1 },
+
+  // ── Parking tile
+  parkTile: {
     flex: 1,
-    borderRadius: 16,
-    padding: 14,
-    gap: 4,
-    borderWidth: 1,
-    alignItems: 'flex-start',
+    minHeight: 118,
+    borderRadius: 18,
+    padding: 15,
+    backgroundColor: PARK_TILE_BG,
+    justifyContent: 'space-between',
   },
-  todayIconWrap: {
+  parkTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  parkChip: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  parkPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999 },
+  parkPillText: { fontSize: 10.5, ...font.bold },
+  parkLabel: {
+    fontSize: 11,
+    ...font.semibold,
+    color: 'rgba(255,255,255,0.6)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  parkStatus: { fontSize: 17, ...font.bold, color: '#fff', letterSpacing: -0.3, marginTop: 2 },
+  parkSub: { fontSize: 11.5, color: 'rgba(255,255,255,0.62)', marginTop: 1 },
+
+  // ── Chores tile
+  choreTile: {
+    flex: 1,
+    minHeight: 118,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 15,
+    justifyContent: 'space-between',
+  },
+  choreTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  choreLabel: {
+    fontSize: 11,
+    ...font.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  choreNum: { fontSize: 22, ...font.extrabold, letterSpacing: -0.5 },
+  choreDenom: { fontSize: 15, ...font.bold },
+  choreSub: { fontSize: 11.5, ...font.regular, marginTop: 1 },
+
+  // ── Generic card (grocery)
+  card: { borderRadius: 18, borderWidth: 1, padding: 16 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 12 },
+  cardIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTitle: { fontSize: 14, ...font.bold },
+  cardMetaRight: { marginLeft: 'auto', fontSize: 12, ...font.semibold },
+  emptyText: { fontSize: 13, ...font.regular },
+  groceryItems: { gap: 11 },
+  groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  groceryBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groceryName: { flex: 1, fontSize: 13.5, ...font.medium },
+  groceryDone: { textDecorationLine: 'line-through' },
+  groceryWho: { fontSize: 11, ...font.regular },
+
+  // ── Games
+  games: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 13,
+  },
+  gamesEmoji: {
     width: 38,
     height: 38,
     borderRadius: 12,
+    backgroundColor: '#F6E7C4',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
   },
-  todayCardCat: { fontSize: 10, ...font.extrabold, color: '#4D5870', letterSpacing: 0.8 },
-  todayCardStatus: { fontSize: 16, ...font.extrabold, letterSpacing: -0.3 },
-  todayCardSub: { fontSize: 12, ...font.regular },
-
-  // ── Recent expenses
-  recentSection: { gap: 10 },
-  recentCard: { borderRadius: 16, overflow: 'hidden', borderWidth: 1 },
-  recentSep: { height: StyleSheet.hairlineWidth },
-  recentRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  recentIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  recentEmoji: { fontSize: 18, lineHeight: 22 },
-  recentInfo: { flex: 1, gap: 3 },
-  recentTitle: { fontSize: 14, ...font.semibold },
-  recentSub: { fontSize: 12, ...font.regular },
-  recentRight: { alignItems: 'flex-end', gap: 4 },
-  recentAmt: { fontSize: 14, ...font.bold },
-  recentBadge: { borderRadius: 99, paddingHorizontal: 8, paddingVertical: 3 },
-  recentBadgeText: { fontSize: 11, ...font.semibold },
-
-  // ── Grid
-  row: { flexDirection: 'column', gap: 12, marginBottom: 12 },
-  rowWide: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  colFull: {},
-  colHalf: { flex: 1 },
-  colThird: { flex: 1 },
-
-  // ── Base card
-  card: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 16,
-    gap: 10,
-    boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-  } as never,
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  cardTitle: { fontSize: 15, ...font.semibold, flex: 1 },
-  cardMuted: { fontSize: 13, ...font.regular, lineHeight: 18 },
-  cardBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#D9534F',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 5,
-  },
-  cardBadgeText: { color: '#fff', fontSize: 11, ...font.bold },
-  bigNumber: { fontSize: 28, ...font.extrabold, letterSpacing: -0.8 },
-  viewAll: { fontSize: 13, ...font.semibold },
-
-  statusPill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 9999,
-  },
-  statusPillText: { fontSize: 12, ...font.semibold },
-  badgePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999 },
-  badgePillText: { fontSize: 11, ...font.bold },
-
-  // ── Chore card
-  choreBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, padding: 12 },
-  choreName: { flex: 1, fontSize: 15, ...font.semibold },
-  doneBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 9,
-  },
-  doneBtnText: { fontSize: 13, ...font.semibold },
-  doneAllWrap: { alignItems: 'center', paddingVertical: 8 },
-
-  // ── Parking card
-  parkingStatus: {
-    borderRadius: 10,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  parkingStatusText: { fontSize: 15, ...font.bold },
-  parkingAge: { fontSize: 12, ...font.regular },
-  parkingReservationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    marginTop: 8,
-  },
-  parkingReservationText: { fontSize: 13, ...font.semibold, flex: 1 },
-  parkingPendingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginTop: 8,
-    gap: 8,
-  },
-  parkingPendingInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
-  parkingPendingText: { fontSize: 13, ...font.medium },
-  approveBtn: { borderRadius: 7, paddingHorizontal: 10, paddingVertical: 5 },
-  approveBtnText: { fontSize: 12, ...font.bold, color: '#fff' },
-  claimBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 9,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    boxShadow: '0 4px 12px rgba(79,176,113,0.28)',
-  } as never,
-  claimBtnText: { fontSize: 13, ...font.semibold, color: '#fff' },
-  releaseBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderRadius: 9,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-  },
-  releaseBtnText: { fontSize: 13, ...font.semibold },
-
-  // ── Grocery widget
-  groceryInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-  },
-  groceryInput: { flex: 1, fontSize: 14, ...font.regular },
-  groceryQtySep: { width: StyleSheet.hairlineWidth, height: 18 },
-  groceryQtyInput: { width: 40, fontSize: 14, ...font.regular, textAlign: 'center' },
-  groceryAddBtn: {
-    minWidth: 44,
-    minHeight: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  groceryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 6,
-    minHeight: 44,
-  },
-  groceryAddError: { fontSize: 12, ...font.regular, marginTop: 4 },
-  groceryDraftHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 8,
-    paddingBottom: 2,
-  },
-  groceryDraftTitle: {
-    fontSize: 12,
-    ...font.bold,
-    color: '#E0B24D',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  groceryDraftApproveBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  groceryDraftApproveBtnDisabled: { opacity: 0.4 },
-  grocerySharedLabel: {
-    fontSize: 12,
-    ...font.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    paddingTop: 10,
-    paddingBottom: 2,
-  },
-  widgetSwipeCheck: {
-    backgroundColor: '#22c55e',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 48,
-    borderRadius: 10,
-    marginEnd: 4,
-  },
-  widgetSwipeUncheck: { backgroundColor: '#94a3b8' },
-  widgetSwipeDelete: {
-    backgroundColor: '#ef4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 48,
-    borderRadius: 10,
-    marginStart: 4,
-  },
-  groceryItemText: { flex: 1, fontSize: 14, ...font.regular },
-  groceryItemDone: { textDecorationLine: 'line-through' },
-  groceryQty: { fontSize: 12, ...font.regular },
-  groceryUnitRow: { flexDirection: 'row', gap: 6, paddingTop: 6 },
-  groceryUnitBtn: {
-    minWidth: 44,
-    minHeight: 44,
-    borderRadius: 9999,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    borderWidth: 1,
-  },
-  groceryUnitBtnText: { fontSize: 12, ...font.semibold },
-
-  // ── Votes widget
-  voteQuestion: { fontSize: 14, ...font.semibold, lineHeight: 20 },
-  voteBarRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  voteBarLabel: { width: 28, fontSize: 12, ...font.medium },
-  voteTrack: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
-  voteBar: { height: 8, borderRadius: 4 },
-  voteCount: { width: 20, fontSize: 12, ...font.bold, textAlign: 'right' },
-
-  // ── Activity feed
-  activityRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingVertical: 7,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  activityIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-    marginTop: 1,
-  },
-  activityContent: { flex: 1, gap: 2 },
-  activityActor: { fontSize: 13, ...font.semibold },
-  activityText: { fontSize: 13, ...font.regular, lineHeight: 18 },
-  activityTime: { fontSize: 11, ...font.regular },
-
-  // ── Mini Calendar
-  calHeader: { gap: 6 },
-  calTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  calNavRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  calNavBtn: {
-    width: 26,
-    height: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 13,
-  },
-  calMonthLabel: { flex: 1, fontSize: 12, ...font.semibold, textAlign: 'center' },
-  calWeekRow: { flexDirection: 'row', marginTop: 4, marginBottom: 2 },
-  calWeekDay: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 9,
-    ...font.bold,
-    letterSpacing: 0.3,
-    paddingVertical: 2,
-  },
-  calGrid: { gap: 0 },
-  calRow: { flexDirection: 'row' },
-  calDayCell: {
-    flex: 1,
-    alignItems: 'stretch',
-    paddingVertical: 1,
-    paddingHorizontal: 1,
-    minHeight: 40,
-  },
-  calDayInner: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 1,
-  },
-  calDayNum: { fontSize: 11, ...font.medium },
-  calEventChip: { borderRadius: 2, paddingHorizontal: 2, paddingVertical: 1, marginTop: 0 },
-  calEventChipText: { fontSize: 7, ...font.semibold, color: '#fff', lineHeight: 10 },
-  calMoreText: { fontSize: 7, ...font.regular, paddingHorizontal: 2 },
-  calLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  calLegendDot: { width: 6, height: 6, borderRadius: 3 },
-  calLegendLabel: { fontSize: 10, ...font.regular },
-
-  // ── Games link
-  gamesLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: sizes.borderRadiusLg,
-    padding: sizes.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 12,
-  },
-  gamesIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gamesIcon: { fontSize: 20 },
-  gamesTextWrap: { flex: 1, gap: 1 },
-  gamesTitle: { fontSize: 15, ...font.semibold },
-  gamesSub: { fontSize: 12, ...font.regular },
+  gamesEmojiText: { fontSize: 19 },
+  gamesTitle: { fontSize: 14.5, ...font.bold },
+  gamesSub: { fontSize: 12, ...font.regular, marginTop: 1 },
 });

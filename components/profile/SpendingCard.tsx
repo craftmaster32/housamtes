@@ -1,12 +1,13 @@
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSpendingStore } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { colors } from '@constants/colors';
+import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
@@ -25,6 +26,7 @@ function fmt(n: number, sym: string): string {
 
 export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const c = useThemedColors();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const months = useSpendingStore((s) => s.months);
@@ -53,7 +55,13 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
   if (isLoading) {
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { shadowColor: c.spendShadow }]}>
+        <LinearGradient
+          colors={c.spendGradient}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
         <View style={styles.decoCircle} />
         <View style={styles.pad}>
           <Text style={styles.label}>
@@ -61,7 +69,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
               ? t('spending.month_spending_header', { month: monthName })
               : t('spending.spending_label')}
           </Text>
-          <ActivityIndicator color={colors.white} size="small" style={styles.loadingIndicator} />
+          <ActivityIndicator color="#fff" size="small" style={styles.loadingIndicator} />
         </View>
       </View>
     );
@@ -73,12 +81,18 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
   return (
     <Pressable
-      style={styles.card}
+      style={[styles.card, { shadowColor: c.spendShadow }]}
       onPress={handleOpen}
       accessible
       accessibilityRole="button"
       accessibilityLabel={t('spending.view_spending')}
     >
+      <LinearGradient
+        colors={c.spendGradient}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <View style={styles.decoCircle} />
       <View style={styles.decoCircleSm} />
 
@@ -144,9 +158,12 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.primary,
-    borderRadius: sizes.borderRadiusLg,
+    borderRadius: sizes.borderRadiusXl,
     overflow: 'hidden',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 8,
   },
   decoCircle: {
     position: 'absolute',
@@ -172,14 +189,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     ...font.extrabold,
-    color: colors.white,
+    color: '#fff',
     letterSpacing: 1.1,
     opacity: 0.88,
   },
 
   totalsRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.md },
   totalBlock: { flex: 1, gap: 2 },
-  totalAmt: { fontSize: 28, ...font.extrabold, color: colors.white, letterSpacing: -0.8 },
+  totalAmt: { fontSize: 28, ...font.extrabold, color: '#fff', letterSpacing: -0.8 },
   totalSub: { fontSize: 12, ...font.regular, color: 'rgba(255,255,255,0.72)' },
   divider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.20)' },
 
