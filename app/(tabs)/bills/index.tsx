@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
@@ -532,39 +533,30 @@ export default function BillsScreen(): React.JSX.Element {
       style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}
     >
       {/* ── Balance stats ────────────────────────────────────────── */}
-      <View style={[styles.balanceCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <LinearGradient
+        colors={c.owedGradient}
+        start={{ x: 0.15, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
+        style={[styles.balanceCard, { shadowColor: c.owedShadow }]}
+      >
         <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>
+          <Text style={[styles.balanceStatLabel, styles.balanceOnHero]}>
             {t('bills.owed_to_you')}
           </Text>
-          <Text
-            style={[styles.balanceStatNum, { color: totalOwed > 0 ? c.positive : c.textPrimary }]}
-          >
+          <Text style={[styles.balanceStatNum, { color: '#8FE0AC' }]}>
             {formatFull(totalOwed, currencyCode)}
           </Text>
         </View>
-        <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
+        <View style={[styles.balanceDivider, styles.balanceDividerHero]} />
         <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>
+          <Text style={[styles.balanceStatLabel, styles.balanceOnHero]}>
             {t('bills.net_balance')}
           </Text>
-          <Text
-            style={[
-              styles.balanceStatNum,
-              { color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textPrimary },
-            ]}
-          >
+          <Text style={[styles.balanceStatNum, styles.balanceNetHero]}>
             {netBalance > 0 ? '+' : ''}
             {formatFull(Math.abs(netBalance), currencyCode)}
           </Text>
-          <Text
-            style={[
-              styles.balanceStatTag,
-              {
-                color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textSecondary,
-              },
-            ]}
-          >
+          <Text style={[styles.balanceStatTag, styles.balanceOnHero]}>
             {netBalance > 0
               ? t('bills.you_are_owed')
               : netBalance < 0
@@ -572,18 +564,14 @@ export default function BillsScreen(): React.JSX.Element {
                 : t('bills.all_settled_tag')}
           </Text>
         </View>
-        <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
+        <View style={[styles.balanceDivider, styles.balanceDividerHero]} />
         <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>
-            {t('bills.you_owe')}
-          </Text>
-          <Text
-            style={[styles.balanceStatNum, { color: totalOwe > 0 ? c.negative : c.textPrimary }]}
-          >
+          <Text style={[styles.balanceStatLabel, styles.balanceOnHero]}>{t('bills.you_owe')}</Text>
+          <Text style={[styles.balanceStatNum, { color: '#FF8478' }]}>
             {formatFull(totalOwe, currencyCode)}
           </Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* ── Settle Up collapsible ────────────────────────────────── */}
       <View>
@@ -747,15 +735,17 @@ const styles = StyleSheet.create({
   balanceCard: {
     flexDirection: 'row',
     borderRadius: 20,
-    borderWidth: 1,
     padding: 20,
     alignItems: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 1,
+    shadowRadius: 22,
+    elevation: 8,
   },
+  balanceOnHero: { color: 'rgba(255,255,255,0.75)' },
+  balanceNetHero: { color: '#fff' },
+  balanceDividerHero: { backgroundColor: 'rgba(255,255,255,0.22)' },
   balanceStat: { flex: 1, alignItems: 'center', gap: 3 },
   balanceDivider: { width: 1, height: 52, alignSelf: 'center' },
   balanceStatLabel: { fontSize: 12, ...font.medium, textAlign: 'center' },
