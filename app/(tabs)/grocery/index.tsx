@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Animated,
   BackHandler,
-  Switch,
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -495,6 +494,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const [isAdding, setIsAdding] = useState(false);
   const [addMode, setAddMode] = useState<AddMode>('shared');
   const [isDraftOn, setIsDraftOn] = useState(false);
+  const [note, setNote] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [unit, setUnit] = useState<string>('');
@@ -613,6 +613,10 @@ export default function GroceryScreen(): React.JSX.Element {
   const resolvedQty = (showCustomQty ? customQty : qty) + unit;
   const effectiveMode: AddMode =
     addMode === 'private' ? 'private' : draftEnabled && isDraftOn ? 'draft' : 'shared';
+  // Which "Add to" destination is currently selected (drives the top chooser).
+  const destShared = addMode === 'shared' && !isDraftOn;
+  const destPersonal = addMode === 'private';
+  const destDraft = addMode === 'shared' && isDraftOn && draftEnabled;
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
   const sections = useMemo((): SectionData[] => {
@@ -666,8 +670,14 @@ export default function GroceryScreen(): React.JSX.Element {
         .sort((a, b) => (firstIndex.get(a) ?? 99) - (firstIndex.get(b) ?? 99))
         .map((k) => map.get(k)!)
     );
-    return result;
-  }, [items, myId, t]);
+
+    // Surface the section you're currently adding to: bring its section(s) to
+    // the top while keeping everything else visible below (stable order).
+    const targetType = effectiveMode === 'private' ? 'private' : effectiveMode;
+    const selected = result.filter((s) => s.sectionType === targetType);
+    const rest = result.filter((s) => s.sectionType !== targetType);
+    return [...selected, ...rest];
+  }, [items, myId, t, effectiveMode]);
 
   const handleAdd = useCallback(
     async (quick?: string): Promise<void> => {
@@ -676,12 +686,20 @@ export default function GroceryScreen(): React.JSX.Element {
       setIsAdding(true);
       setAddError(null);
       try {
-        await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '', effectiveMode);
+        await addItem(
+          n,
+          quick ? '' : resolvedQty,
+          myId,
+          houseId ?? '',
+          effectiveMode,
+          quick ? undefined : note.trim() || undefined
+        );
         setItemName('');
         setQty('1');
         setCustomQty('');
         setShowCustomQty(false);
         setUnit('');
+        setNote('');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         showAddedItemPrompt(n);
         setTimeout(() => inputRef.current?.focus(), 50);
@@ -691,7 +709,18 @@ export default function GroceryScreen(): React.JSX.Element {
         setIsAdding(false);
       }
     },
-    [itemName, resolvedQty, myId, houseId, addItem, isAdding, effectiveMode, t, showAddedItemPrompt]
+    [
+      itemName,
+      resolvedQty,
+      myId,
+      houseId,
+      addItem,
+      isAdding,
+      effectiveMode,
+      note,
+      t,
+      showAddedItemPrompt,
+    ]
   );
 
   const handlePublishDraft = useCallback(async (): Promise<void> => {
@@ -967,6 +996,16 @@ export default function GroceryScreen(): React.JSX.Element {
     [t]
   );
 
+  // "Add to" chooser: Shared / Personal / Draft map onto addMode + isDraftOn.
+  const handleSelectShared = useCallback((): void => {
+    handleSetShared();
+    handleToggleDraft(false);
+  }, [handleSetShared, handleToggleDraft]);
+  const handleSelectDraft = useCallback((): void => {
+    handleSetShared();
+    handleToggleDraft(true);
+  }, [handleSetShared, handleToggleDraft]);
+
   const handleItemNameChange = useCallback((v: string): void => {
     setItemName(v);
     setAddError(null);
@@ -1172,79 +1211,67 @@ export default function GroceryScreen(): React.JSX.Element {
                       <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
                     </View>
 
-                    {/* ── Add mode toggle: Shared | Private ────────────── */}
-                    <View style={styles.modeToggle}>
+                    {/* ── "Add to" chooser: Shared | Personal | Draft ──── */}
+                    <Text style={styles.addToLabel}>{t('grocery.add_to')}</Text>
+                    <View style={styles.segWrap}>
                       <Pressable
-                        style={[styles.modeBtn, addMode === 'shared' && styles.modeBtnOn]}
-                        onPress={handleSetShared}
+                        style={[styles.segBtn, destShared && styles.segBtnShared]}
+                        onPress={handleSelectShared}
                         accessibilityRole="button"
-                        accessibilityState={{ selected: addMode === 'shared' }}
+                        accessibilityState={{ selected: destShared }}
+                        accessibilityLabel={t('grocery.shared_tab')}
                       >
-                        <Text
-                          style={[styles.modeBtnText, addMode === 'shared' && styles.modeBtnTextOn]}
-                        >
-                          {t('grocery.shared_tab')}
+                        <Ionicons
+                          name="people-outline"
+                          size={15}
+                          color={destShared ? '#fff' : C.textSecondary}
+                        />
+                        <Text style={[styles.segText, destShared && styles.segTextOn]}>
+                          {t('grocery.shared_seg')}
                         </Text>
                       </Pressable>
                       <Pressable
-                        style={[styles.modeBtn, addMode === 'private' && styles.modeBtnPersonal]}
+                        style={[styles.segBtn, destPersonal && styles.segBtnPersonalOn]}
                         onPress={handleSetPrivate}
                         accessibilityRole="button"
-                        accessibilityState={{ selected: addMode === 'private' }}
+                        accessibilityState={{ selected: destPersonal }}
+                        accessibilityLabel={t('grocery.private_tab')}
                       >
-                        <Text
-                          style={[
-                            styles.modeBtnText,
-                            addMode === 'private' && styles.modeBtnTextPersonal,
-                          ]}
-                        >
-                          {t('grocery.private_tab')}
+                        <Ionicons
+                          name="person-outline"
+                          size={15}
+                          color={destPersonal ? '#fff' : C.textSecondary}
+                        />
+                        <Text style={[styles.segText, destPersonal && styles.segTextOn]}>
+                          {t('grocery.personal_seg')}
                         </Text>
                       </Pressable>
-                    </View>
-
-                    {/* ── Draft mode toggle (Shared only) ──────────────── */}
-                    {addMode !== 'private' && draftEnabled && (
-                      <View
-                        style={[styles.draftToggleRow, isDraftOn && styles.draftToggleRowOn]}
-                        accessible={false}
-                      >
-                        <View style={styles.draftToggleInfo}>
+                      {draftEnabled && (
+                        <Pressable
+                          style={[styles.segBtn, destDraft && styles.segBtnDraftOn]}
+                          onPress={handleSelectDraft}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: destDraft }}
+                          accessibilityLabel={t('grocery.draft_mode')}
+                        >
                           <Ionicons
                             name="create-outline"
-                            size={16}
-                            color={isDraftOn ? 'rgb(133,77,14)' : C.textSecondary}
+                            size={15}
+                            color={destDraft ? '#fff' : C.textSecondary}
                           />
-                          <View style={styles.draftToggleText}>
-                            <Text
-                              style={[
-                                styles.draftToggleLabel,
-                                isDraftOn && styles.draftToggleLabelOn,
-                              ]}
-                            >
-                              {t('grocery.draft_mode')}
-                            </Text>
-                            <Text style={styles.draftToggleSub}>
-                              {isDraftOn ? t('grocery.draft_on_hint') : t('grocery.draft_off_hint')}
-                            </Text>
-                          </View>
-                        </View>
-                        <Switch
-                          value={isDraftOn}
-                          onValueChange={handleToggleDraft}
-                          trackColor={{ false: C.border, true: 'rgba(224,178,77,0.55)' }}
-                          thumbColor={isDraftOn ? 'rgb(133,77,14)' : '#f4f3f4'}
-                          activeThumbColor={'rgb(133,77,14)'}
-                          style={styles.switchLtr}
-                          ios_backgroundColor={C.border}
-                          accessible
-                          accessibilityRole="switch"
-                          accessibilityState={{ checked: isDraftOn }}
-                          accessibilityLabel={t('grocery.draft_mode')}
-                          accessibilityHint={t('grocery.draft_mode_a11y_hint')}
-                        />
-                      </View>
-                    )}
+                          <Text style={[styles.segText, destDraft && styles.segTextOn]}>
+                            {t('grocery.draft_seg')}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                    <Text style={styles.addToHint}>
+                      {destPersonal
+                        ? t('grocery.personal_hint')
+                        : destDraft
+                          ? t('grocery.draft_on_hint')
+                          : t('grocery.shared_hint')}
+                    </Text>
 
                     {/* ── Error banner ──────────────────────────────────── */}
                     {!!addError && (
@@ -1366,6 +1393,22 @@ export default function GroceryScreen(): React.JSX.Element {
                           );
                         })}
                       </View>
+                    </View>
+
+                    {/* ── Note (optional) ─────────────────────────────── */}
+                    <View style={styles.noteRow}>
+                      <Ionicons name="chatbubble-outline" size={15} color={C.textTertiary} />
+                      <TextInput
+                        value={note}
+                        onChangeText={setNote}
+                        placeholder={t('grocery.note_placeholder')}
+                        placeholderTextColor={C.textTertiary}
+                        style={styles.noteInput}
+                        returnKeyType="done"
+                        onSubmitEditing={handleAddPress}
+                        accessibilityLabel={t('grocery.note_label')}
+                        accessibilityHint={t('grocery.note_hint')}
+                      />
                     </View>
 
                     {/* ── Quick Add (to current mode) ───────────────────── */}
@@ -1548,6 +1591,50 @@ function makeStyles(C: ColorTokens) {
       letterSpacing: 0.72,
       textTransform: 'uppercase',
     },
+
+    // ── "Add to" chooser (v2)
+    addToLabel: {
+      fontSize: 11,
+      ...font.bold,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: C.textTertiary,
+      marginBottom: 7,
+    },
+    segWrap: {
+      flexDirection: 'row',
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 13,
+      padding: 4,
+      gap: 4,
+    },
+    segBtn: {
+      flex: 1,
+      minHeight: 40,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      borderRadius: 10,
+      paddingHorizontal: 4,
+    },
+    segBtnShared: { backgroundColor: C.primary },
+    segBtnPersonalOn: { backgroundColor: '#7C4DFF' },
+    segBtnDraftOn: { backgroundColor: C.warning },
+    segText: { fontSize: 13, ...font.bold, color: C.textSecondary },
+    segTextOn: { color: '#fff' },
+    addToHint: { fontSize: 11.5, ...font.regular, color: C.textTertiary, marginTop: 7 },
+    noteRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 11,
+      paddingHorizontal: 11,
+      minHeight: 44,
+      marginTop: 10,
+    },
+    noteInput: { flex: 1, fontSize: 14, ...font.regular, color: C.textPrimary, paddingVertical: 8 },
 
     modeToggle: { flexDirection: 'row', gap: 6 },
     modeBtn: {

@@ -96,7 +96,8 @@ interface GroceryStore {
     quantity: string,
     addedByUserId: string,
     houseId: string,
-    mode?: AddMode
+    mode?: AddMode,
+    comment?: string
   ) => Promise<void>;
   updateItem: (id: string, name: string, quantity: string) => Promise<void>;
   addComment: (id: string, comment: string) => Promise<void>;
@@ -353,9 +354,17 @@ export const useGroceryStore = create<GroceryStore>()(
         }
       },
 
-      addItem: async (name, quantity, addedByUserId, houseId, mode = 'shared'): Promise<void> => {
+      addItem: async (
+        name,
+        quantity,
+        addedByUserId,
+        houseId,
+        mode = 'shared',
+        comment
+      ): Promise<void> => {
         const isPersonal = mode !== 'shared';
         const isDraft = mode === 'draft';
+        const trimmedComment = comment?.trim();
         const draftExpiresAt = isDraft
           ? new Date(Date.now() + DRAFT_EXPIRES_MS).toISOString()
           : null;
@@ -368,6 +377,7 @@ export const useGroceryStore = create<GroceryStore>()(
             added_by: addedByUserId,
             is_personal: isPersonal,
             is_draft: isDraft,
+            ...(trimmedComment ? { comment: trimmedComment } : {}),
             ...(draftExpiresAt ? { draft_expires_at: draftExpiresAt } : {}),
           })
           .select()
