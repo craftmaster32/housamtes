@@ -1,10 +1,10 @@
-import { useCallback } from 'react';
-import { View, Image, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { View, Image, Pressable, StyleSheet, ScrollView, type ImageStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '@lib/alert';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
 interface PhotoPickerProps {
@@ -19,6 +19,8 @@ export function PhotoPicker({
   maxPhotos = 6,
 }: PhotoPickerProps): React.JSX.Element {
   const { t } = useTranslation();
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const handlePick = useCallback(async (): Promise<void> => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -60,7 +62,7 @@ export function PhotoPicker({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailRow}>
           {photos.map((src, i) => (
             <View key={i} style={styles.thumbWrap}>
-              <Image source={{ uri: src }} style={styles.thumb} />
+              <Image source={{ uri: src }} style={styles.thumb as ImageStyle} />
               <Pressable
                 style={styles.removeBtn}
                 onPress={() => removePhoto(i)}
@@ -91,40 +93,41 @@ export function PhotoPicker({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { gap: sizes.sm },
-  thumbnailRow: { flexDirection: 'row' },
-  thumbWrap: { position: 'relative', marginEnd: sizes.sm },
-  thumb: {
-    width: 80,
-    height: 80,
-    borderRadius: sizes.borderRadiusSm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  removeBtn: {
-    position: 'absolute',
-    top: -6,
-    end: -6,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.danger,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeBtnText: { color: colors.white, fontSize: 10, fontWeight: '700' },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sizes.xs,
-    paddingHorizontal: sizes.md,
-    paddingVertical: sizes.sm,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    borderRadius: sizes.borderRadius,
-    alignSelf: 'flex-start',
-  },
-  addBtnText: { color: colors.primary, fontWeight: '700', fontSize: sizes.fontSm },
-});
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    container: { gap: sizes.sm },
+    thumbnailRow: { flexDirection: 'row' },
+    thumbWrap: { position: 'relative', marginEnd: sizes.sm },
+    thumb: {
+      width: 80,
+      height: 80,
+      borderRadius: sizes.borderRadiusSm,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    removeBtn: {
+      position: 'absolute',
+      top: -6,
+      end: -6,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: C.danger,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    removeBtnText: { color: C.white, fontSize: 10, fontWeight: '700' },
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.xs,
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderWidth: 2,
+      borderColor: C.border,
+      borderStyle: 'dashed',
+      borderRadius: sizes.borderRadius,
+      alignSelf: 'flex-start',
+    },
+    addBtnText: { color: C.primary, fontWeight: '700', fontSize: sizes.fontSm },
+  });

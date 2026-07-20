@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   NativeScrollEvent,
@@ -12,13 +12,13 @@ import {
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 
 // ─── constants ───────────────────────────────────────────────────────────────
 const ITEM_H = 48;
 const VISIBLE = 5;
-const WHEEL_H = ITEM_H * VISIBLE;           // 240
+const WHEEL_H = ITEM_H * VISIBLE; // 240
 const PAD = ITEM_H * Math.floor(VISIBLE / 2); // 96
 
 const HOURS_LIST = Array.from({ length: 24 }, (_, i) => i);
@@ -53,7 +53,10 @@ function closestMinuteIndex(m: number): number {
   let bestDiff = 60;
   MINUTES_LIST.forEach((v, i) => {
     const diff = Math.abs(v - m);
-    if (diff < bestDiff) { bestDiff = diff; best = i; }
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = i;
+    }
   });
   return best;
 }
@@ -66,32 +69,44 @@ interface WheelColumnProps {
   colWidth: number;
 }
 
-function WheelColumn({ items, selectedIndex, onSelect, colWidth }: WheelColumnProps): React.JSX.Element {
-  const scrollRef   = useRef<ScrollView>(null);
-  const hasMounted  = useRef(false);
-  const lastEmitted = useRef(selectedIndex);       // last index we sent up via onSelect
-  const liveY       = useRef(selectedIndex * ITEM_H); // real-time scroll position
+function WheelColumn({
+  items,
+  selectedIndex,
+  onSelect,
+  colWidth,
+}: WheelColumnProps): React.JSX.Element {
+  const c = useThemedColors();
+  const colStyles = useMemo(() => makeColStyles(c), [c]);
+  const scrollRef = useRef<ScrollView>(null);
+  const hasMounted = useRef(false);
+  const lastEmitted = useRef(selectedIndex); // last index we sent up via onSelect
+  const liveY = useRef(selectedIndex * ITEM_H); // real-time scroll position
   const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSettling  = useRef(false);               // true while we're programmatically scrolling
+  const isSettling = useRef(false); // true while we're programmatically scrolling
 
   // snap + commit at a given index — used after debounce and on press
-  const selectItem = useCallback((index: number): void => {
-    const clipped = Math.max(0, Math.min(index, items.length - 1));
-    const y = clipped * ITEM_H;
+  const selectItem = useCallback(
+    (index: number): void => {
+      const clipped = Math.max(0, Math.min(index, items.length - 1));
+      const y = clipped * ITEM_H;
 
-    isSettling.current = true;
-    scrollRef.current?.scrollTo({ y, animated: true });
-    liveY.current = y;
+      isSettling.current = true;
+      scrollRef.current?.scrollTo({ y, animated: true });
+      liveY.current = y;
 
-    if (settleTimer.current !== null) clearTimeout(settleTimer.current);
-    settleTimer.current = setTimeout(() => { isSettling.current = false; }, 450);
+      if (settleTimer.current !== null) clearTimeout(settleTimer.current);
+      settleTimer.current = setTimeout(() => {
+        isSettling.current = false;
+      }, 450);
 
-    if (clipped !== lastEmitted.current) {
-      lastEmitted.current = clipped;
-      onSelect(clipped);
-    }
-  }, [items.length, onSelect]);
+      if (clipped !== lastEmitted.current) {
+        lastEmitted.current = clipped;
+        onSelect(clipped);
+      }
+    },
+    [items.length, onSelect]
+  );
 
   // when parent changes selectedIndex externally (e.g. text entry)
   useEffect(() => {
@@ -111,36 +126,41 @@ function WheelColumn({ items, selectedIndex, onSelect, colWidth }: WheelColumnPr
       scrollRef.current?.scrollTo({ y, animated: true });
       liveY.current = y;
       if (settleTimer.current !== null) clearTimeout(settleTimer.current);
-      settleTimer.current = setTimeout(() => { isSettling.current = false; }, 450);
+      settleTimer.current = setTimeout(() => {
+        isSettling.current = false;
+      }, 450);
       lastEmitted.current = selectedIndex;
     }
     return undefined;
   }, [selectedIndex]);
 
   // debounced scroll handler — fires on every frame while scrolling
-  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>): void => {
-    if (isSettling.current) return; // ignore our own programmatic scrolls
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>): void => {
+      if (isSettling.current) return; // ignore our own programmatic scrolls
 
-    liveY.current = e.nativeEvent.contentOffset.y;
+      liveY.current = e.nativeEvent.contentOffset.y;
 
-    // reset debounce: commit 100 ms after the last scroll event
-    if (commitTimer.current !== null) clearTimeout(commitTimer.current);
-    commitTimer.current = setTimeout(() => {
-      commitTimer.current = null;
-      const index = Math.max(0, Math.min(Math.round(liveY.current / ITEM_H), items.length - 1));
-      selectItem(index);
-    }, 100);
-  }, [items.length, selectItem]);
+      // reset debounce: commit 100 ms after the last scroll event
+      if (commitTimer.current !== null) clearTimeout(commitTimer.current);
+      commitTimer.current = setTimeout(() => {
+        commitTimer.current = null;
+        const index = Math.max(0, Math.min(Math.round(liveY.current / ITEM_H), items.length - 1));
+        selectItem(index);
+      }, 100);
+    },
+    [items.length, selectItem]
+  );
 
   return (
     <ScrollView
       ref={scrollRef}
       style={{ height: WHEEL_H, width: colWidth }}
       showsVerticalScrollIndicator={false}
-      snapToInterval={ITEM_H}          // native snap as first-line assist
+      snapToInterval={ITEM_H} // native snap as first-line assist
       decelerationRate="fast"
       onScroll={handleScroll}
-      scrollEventThrottle={16}         // ~60 fps updates
+      scrollEventThrottle={16} // ~60 fps updates
       contentContainerStyle={{ paddingVertical: PAD }}
     >
       {items.map((label, index) => {
@@ -154,12 +174,14 @@ function WheelColumn({ items, selectedIndex, onSelect, colWidth }: WheelColumnPr
             accessibilityLabel={label}
             accessibilityState={{ selected: dist === 0 }}
           >
-            <Text style={[
-              colStyles.label,
-              dist === 0 && colStyles.labelSelected,
-              dist === 1 && colStyles.labelNear,
-              dist >= 2  && colStyles.labelFar,
-            ]}>
+            <Text
+              style={[
+                colStyles.label,
+                dist === 0 && colStyles.labelSelected,
+                dist === 1 && colStyles.labelNear,
+                dist >= 2 && colStyles.labelFar,
+              ]}
+            >
               {label}
             </Text>
           </Pressable>
@@ -169,13 +191,14 @@ function WheelColumn({ items, selectedIndex, onSelect, colWidth }: WheelColumnPr
   );
 }
 
-const colStyles = StyleSheet.create({
-  item: { height: ITEM_H, justifyContent: 'center', alignItems: 'center' },
-  label:         { fontSize: 22, ...font.semibold, color: colors.textPrimary },
-  labelSelected: { fontSize: 28, ...font.bold,     color: colors.textPrimary },
-  labelNear:     { fontSize: 20, ...font.medium,   color: colors.textSecondary, opacity: 0.55 },
-  labelFar:      { fontSize: 17, ...font.regular,  color: colors.textSecondary, opacity: 0.22 },
-});
+const makeColStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    item: { height: ITEM_H, justifyContent: 'center', alignItems: 'center' },
+    label: { fontSize: 22, ...font.semibold, color: C.textPrimary },
+    labelSelected: { fontSize: 28, ...font.bold, color: C.textPrimary },
+    labelNear: { fontSize: 20, ...font.medium, color: C.textSecondary, opacity: 0.55 },
+    labelFar: { fontSize: 17, ...font.regular, color: C.textSecondary, opacity: 0.22 },
+  });
 
 // ─── TimePicker ──────────────────────────────────────────────────────────────
 interface TimePickerProps {
@@ -185,26 +208,32 @@ interface TimePickerProps {
 
 export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Element {
   const { t } = useTranslation();
+  const c = useThemedColors();
+  const pickerStyles = useMemo(() => makePickerStyles(c), [c]);
   const [isEditing, setIsEditing] = useState(false);
-  const [rawInput, setRawInput]   = useState('');
+  const [rawInput, setRawInput] = useState('');
   const inputRef = useRef<TextInput>(null);
 
   const hourIndex = value ? parseInt(value.split(':')[0], 10) : 9;
-  const minIndex  = value ? closestMinuteIndex(parseInt(value.split(':')[1], 10)) : 0;
+  const minIndex = value ? closestMinuteIndex(parseInt(value.split(':')[1], 10)) : 0;
 
-  const handleHourSelect = useCallback((index: number): void => {
-    const h = HOURS_LIST[index];
-    const m = value
-      ? MINUTES_LIST[closestMinuteIndex(parseInt(value.split(':')[1], 10))]
-      : 0;
-    onChange(`${pad(h)}:${pad(m)}`);
-  }, [value, onChange]);
+  const handleHourSelect = useCallback(
+    (index: number): void => {
+      const h = HOURS_LIST[index];
+      const m = value ? MINUTES_LIST[closestMinuteIndex(parseInt(value.split(':')[1], 10))] : 0;
+      onChange(`${pad(h)}:${pad(m)}`);
+    },
+    [value, onChange]
+  );
 
-  const handleMinuteSelect = useCallback((index: number): void => {
-    const m = MINUTES_LIST[index];
-    const h = value ? parseInt(value.split(':')[0], 10) : 9;
-    onChange(`${pad(h)}:${pad(m)}`);
-  }, [value, onChange]);
+  const handleMinuteSelect = useCallback(
+    (index: number): void => {
+      const m = MINUTES_LIST[index];
+      const h = value ? parseInt(value.split(':')[0], 10) : 9;
+      onChange(`${pad(h)}:${pad(m)}`);
+    },
+    [value, onChange]
+  );
 
   const startEditing = (): void => {
     setRawInput(value);
@@ -232,7 +261,7 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
         accessibilityRole="button"
         accessibilityLabel={t('common.add_time')}
       >
-        <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
+        <Ionicons name="add-circle-outline" size={17} color={c.primary} />
         <Text style={pickerStyles.addBtnText}>{t('common.add_time')}</Text>
       </Pressable>
     );
@@ -250,7 +279,7 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
           onBlur={commitEdit}
           onSubmitEditing={commitEdit}
           placeholder="HH:MM"
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor={c.textTertiary}
           keyboardType="numbers-and-punctuation"
           maxLength={5}
           autoFocus
@@ -305,7 +334,7 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
           accessibilityRole="button"
           accessibilityLabel={t('common.type_time_manually')}
         >
-          <Ionicons name="pencil-outline" size={18} color={colors.textSecondary} />
+          <Ionicons name="pencil-outline" size={18} color={c.textSecondary} />
         </Pressable>
       </View>
 
@@ -322,48 +351,87 @@ export function TimePicker({ value, onChange }: TimePickerProps): React.JSX.Elem
   );
 }
 
-const pickerStyles = StyleSheet.create({
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start',
-    minHeight: 44, paddingVertical: 8, paddingHorizontal: 14,
-    borderRadius: 20, borderWidth: 1,
-    borderColor: colors.primary, backgroundColor: colors.secondary,
-  },
-  addBtnText: { fontSize: 14, ...font.medium, color: colors.primary },
+const makePickerStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      minHeight: 44,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: C.primary,
+      backgroundColor: C.secondary,
+    },
+    addBtnText: { fontSize: 14, ...font.medium, color: C.primary },
 
-  editRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  textInput: {
-    flex: 1, paddingHorizontal: 20, paddingVertical: 12,
-    borderRadius: 14, backgroundColor: colors.surface,
-    borderWidth: 1.5, borderColor: colors.primary,
-    fontSize: 26, ...font.semibold, color: colors.textPrimary,
-    letterSpacing: 3, textAlign: 'center',
-  },
-  cancelBtn: { minHeight: 44, justifyContent: 'center' as const, paddingVertical: 8, paddingHorizontal: 4 },
-  cancelText: { fontSize: 14, ...font.medium, color: colors.textSecondary },
+    editRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    textInput: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 14,
+      backgroundColor: C.surface,
+      borderWidth: 1.5,
+      borderColor: C.primary,
+      fontSize: 26,
+      ...font.semibold,
+      color: C.textPrimary,
+      letterSpacing: 3,
+      textAlign: 'center',
+    },
+    cancelBtn: {
+      minHeight: 44,
+      justifyContent: 'center' as const,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
+    },
+    cancelText: { fontSize: 14, ...font.medium, color: C.textSecondary },
 
-  wrap: { gap: 8 },
-  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  wheelsWrap: { position: 'relative' },
-  highlight: {
-    position: 'absolute',
-    left: 0, right: 0,
-    top: PAD, height: ITEM_H,
-    backgroundColor: colors.textPrimary,
-    borderRadius: 14, opacity: 0.07,
-  },
-  columnsRow: { flexDirection: 'row', alignItems: 'center' },
-  colon: {
-    fontSize: 30, ...font.bold, color: colors.textPrimary, marginHorizontal: 4,
-  },
-  editBtn: {
-    minWidth: 44, minHeight: 44, justifyContent: 'center' as const, alignItems: 'center' as const,
-    padding: 10, borderRadius: 20,
-    backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1, borderColor: colors.border,
-  },
+    wrap: { gap: 8 },
+    pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    wheelsWrap: { position: 'relative' },
+    highlight: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: PAD,
+      height: ITEM_H,
+      backgroundColor: C.textPrimary,
+      borderRadius: 14,
+      opacity: 0.07,
+    },
+    columnsRow: { flexDirection: 'row', alignItems: 'center' },
+    colon: {
+      fontSize: 30,
+      ...font.bold,
+      color: C.textPrimary,
+      marginHorizontal: 4,
+    },
+    editBtn: {
+      minWidth: 44,
+      minHeight: 44,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      padding: 10,
+      borderRadius: 20,
+      backgroundColor: C.surfaceSecondary,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
 
-  clearBtn: { alignSelf: 'flex-start' as const, minHeight: 44, justifyContent: 'center' as const },
-  clearText: { fontSize: 12, ...font.regular, color: colors.textSecondary, textDecorationLine: 'underline' },
-});
+    clearBtn: {
+      alignSelf: 'flex-start' as const,
+      minHeight: 44,
+      justifyContent: 'center' as const,
+    },
+    clearText: {
+      fontSize: 12,
+      ...font.regular,
+      color: C.textSecondary,
+      textDecorationLine: 'underline',
+    },
+  });
