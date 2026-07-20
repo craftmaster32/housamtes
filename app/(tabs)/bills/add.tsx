@@ -762,13 +762,14 @@ const makeStyles = (C: ColorTokens) =>
     splitCount: { color: C.textSecondary, fontSize: 12, ...font.regular, marginTop: 2 },
 
     previewBox: {
-      backgroundColor: C.primary + '12',
-      borderRadius: 10,
-      padding: sizes.sm,
+      backgroundColor: C.primaryTint,
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: sizes.md,
       alignItems: 'center',
-      marginTop: sizes.xs,
+      marginTop: sizes.sm,
     },
-    previewText: { color: C.primary, ...font.semibold, fontSize: 15 },
+    previewText: { color: C.primary, ...font.bold, fontSize: 16 },
 
     customBox: {
       backgroundColor: C.surface,

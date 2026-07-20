@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router';
@@ -327,29 +328,42 @@ export default function BillDetailScreen(): React.JSX.Element {
             </View>
           </View>
         ) : (
-          <View style={styles.card}>
-            <Text style={styles.billTitle}>{bill.title}</Text>
-            <Text style={styles.billAmount}>{formatFull(bill.amount, currencyCode)}</Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t('bills.category')}</Text>
-              <Text style={styles.metaValue}>{bill.category}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t('bills.date')}</Text>
-              <Text style={styles.metaValue}>{formatDisplayDate(bill.date, i18n.language)}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
-              <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
-            </View>
-            {bill.notes ? (
+          <View>
+            <LinearGradient
+              colors={C.owedGradient}
+              start={{ x: 0.15, y: 0 }}
+              end={{ x: 0.85, y: 1 }}
+              style={styles.detailHero}
+            >
+              <Text style={styles.detailHeroTitle} numberOfLines={2}>
+                {bill.title}
+              </Text>
+              <Text style={styles.detailHeroAmount} numberOfLines={1} adjustsFontSizeToFit>
+                {formatFull(bill.amount, currencyCode)}
+              </Text>
+            </LinearGradient>
+            <View style={[styles.card, styles.detailMetaCard]}>
               <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>{t('bills.notes_label')}</Text>
-                <Text style={styles.metaValue} selectable>
-                  {bill.notes}
-                </Text>
+                <Text style={styles.metaLabel}>{t('bills.category')}</Text>
+                <Text style={styles.metaValue}>{bill.category}</Text>
               </View>
-            ) : null}
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t('bills.date')}</Text>
+                <Text style={styles.metaValue}>{formatDisplayDate(bill.date, i18n.language)}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
+                <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
+              </View>
+              {bill.notes ? (
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>{t('bills.notes_label')}</Text>
+                  <Text style={styles.metaValue} selectable>
+                    {bill.notes}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </View>
         )}
 
@@ -429,8 +443,20 @@ const makeStyles = (C: ColorTokens) =>
       shadowRadius: 8,
       elevation: 2,
     },
-    billTitle: { fontSize: 22, ...font.bold, color: C.textPrimary, letterSpacing: -0.3 },
-    billAmount: { fontSize: 34, ...font.extrabold, color: C.primary, letterSpacing: -1 },
+    detailHero: {
+      borderRadius: 20,
+      padding: 22,
+      gap: 4,
+      overflow: 'hidden',
+      shadowColor: C.owedShadow,
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 1,
+      shadowRadius: 22,
+      elevation: 8,
+    },
+    detailHeroTitle: { fontSize: 15, ...font.semibold, color: 'rgba(255,255,255,0.85)' },
+    detailHeroAmount: { fontSize: 40, ...font.extrabold, color: '#fff', letterSpacing: -1.4 },
+    detailMetaCard: { marginTop: 12 },
     metaRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
