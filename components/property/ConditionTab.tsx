@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, type ImageStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
@@ -17,7 +17,7 @@ import {
 } from '@stores/conditionStore';
 import { DateInput } from '@components/shared/DateInput';
 import { PhotoPicker } from '@components/shared/PhotoPicker';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
@@ -30,6 +30,8 @@ function getAreaIcon(area: string): string {
 }
 
 function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { t } = useTranslation();
   const remove = useConditionStore((s) => s.remove);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -78,7 +80,7 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
             <Image
               key={i}
               source={{ uri: src }}
-              style={styles.photoThumb}
+              style={styles.photoThumb as ImageStyle}
               accessibilityLabel={`Photo ${i + 1} of ${entry.photos!.length}`}
             />
           ))}
@@ -98,6 +100,8 @@ function AddEntryForm({
   houseId: string;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const add = useConditionStore((s) => s.add);
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -207,7 +211,7 @@ function AddEntryForm({
           value={customArea}
           onChangeText={setCustomArea}
           placeholder={t('condition.room_placeholder')}
-          placeholderTextColor={colors.textDisabled}
+          placeholderTextColor={c.textDisabled}
           autoFocus
           maxLength={60}
           accessibilityLabel={t('condition.room_area')}
@@ -250,7 +254,7 @@ function AddEntryForm({
         value={description}
         onChangeText={setDescription}
         placeholder={t('condition.notes_placeholder')}
-        placeholderTextColor={colors.textDisabled}
+        placeholderTextColor={c.textDisabled}
         multiline
         numberOfLines={3}
         maxLength={1000}
@@ -294,6 +298,8 @@ function AddEntryForm({
 }
 
 export function ConditionTab(): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { t } = useTranslation();
   const entries = useConditionStore((s) => s.entries);
   const isLoading = useConditionStore((s) => s.isLoading);
@@ -356,7 +362,7 @@ export function ConditionTab(): React.JSX.Element {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={[styles.statNum, { color: hasDamage ? colors.danger : colors.positive }]}>
+            <Text style={[styles.statNum, { color: hasDamage ? c.danger : c.positive }]}>
               {hasDamage ? '⚠️' : '✓'}
             </Text>
             <Text style={styles.statLbl}>
@@ -434,208 +440,209 @@ export function ConditionTab(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
 
-  statsStrip: {
-    flexDirection: 'row',
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: sizes.md,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  } as never,
-  statItem: { flex: 1, alignItems: 'center', gap: 2 },
-  statNum: { fontSize: sizes.fontLg, ...font.extrabold, color: colors.textPrimary },
-  statLbl: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
-  statDivider: { width: 1, backgroundColor: colors.border, marginHorizontal: sizes.xs },
+    statsStrip: {
+      flexDirection: 'row',
+      backgroundColor: C.white,
+      borderRadius: 16,
+      padding: sizes.md,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    } as never,
+    statItem: { flex: 1, alignItems: 'center', gap: 2 },
+    statNum: { fontSize: sizes.fontLg, ...font.extrabold, color: C.textPrimary },
+    statLbl: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
+    statDivider: { width: 1, backgroundColor: C.border, marginHorizontal: sizes.xs },
 
-  addBtn: {
-    borderWidth: 2,
-    borderColor: colors.primary + '40',
-    borderStyle: 'dashed',
-    borderRadius: 14,
-    paddingVertical: sizes.md,
-    alignItems: 'center',
-  },
-  addBtnText: { color: colors.primary, ...font.semibold, fontSize: sizes.fontMd },
+    addBtn: {
+      borderWidth: 2,
+      borderColor: C.primary + '40',
+      borderStyle: 'dashed',
+      borderRadius: 14,
+      paddingVertical: sizes.md,
+      alignItems: 'center',
+    },
+    addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
 
-  filterBar: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
-  filterChip: {
-    paddingHorizontal: sizes.md,
-    paddingVertical: 6,
-    borderRadius: sizes.borderRadiusFull,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterChipText: { fontSize: sizes.fontSm, ...font.semibold, color: colors.textSecondary },
-  filterChipTextActive: { color: colors.white },
+    filterBar: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
+    filterChip: {
+      paddingHorizontal: sizes.md,
+      paddingVertical: 6,
+      borderRadius: sizes.borderRadiusFull,
+      backgroundColor: C.white,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    filterChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    filterChipText: { fontSize: sizes.fontSm, ...font.semibold, color: C.textSecondary },
+    filterChipTextActive: { color: C.white },
 
-  areaGroup: { gap: 6 },
-  areaGroupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sizes.xs,
-    paddingVertical: 4,
-  },
-  areaGroupIcon: { fontSize: 18 },
-  areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: colors.textPrimary, flex: 1 },
-  condDot: { width: 10, height: 10, borderRadius: 5 },
+    areaGroup: { gap: 6 },
+    areaGroupHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.xs,
+      paddingVertical: 4,
+    },
+    areaGroupIcon: { fontSize: 18 },
+    areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary, flex: 1 },
+    condDot: { width: 10, height: 10, borderRadius: 5 },
 
-  entryCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: sizes.sm,
-    gap: sizes.xs,
-    marginStart: sizes.md,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-  } as never,
-  entryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-  entryMeta: { flex: 1, gap: 3 },
-  entryBadgeRow: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
-  typeBadge: {
-    borderRadius: sizes.borderRadiusFull,
-    paddingHorizontal: sizes.xs,
-    paddingVertical: 2,
-  },
-  typeBadgeText: { fontSize: 11, ...font.bold },
-  condBadge: {
-    borderRadius: sizes.borderRadiusFull,
-    paddingHorizontal: sizes.xs,
-    paddingVertical: 2,
-  },
-  condBadgeText: { fontSize: 11, ...font.bold },
-  entryDate: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
-  entryDescription: {
-    fontSize: sizes.fontSm,
-    ...font.regular,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginStart: sizes.lg + sizes.sm,
-  },
-  photoRow: { marginStart: sizes.lg + sizes.sm, marginTop: 2 },
-  photoThumb: {
-    width: 80,
-    height: 80,
-    borderRadius: sizes.borderRadiusSm,
-    marginEnd: sizes.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  removeBtn: {
-    padding: 8,
-    minWidth: sizes.touchTarget,
-    minHeight: sizes.touchTarget,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeBtnText: { color: colors.textDisabled, fontSize: sizes.fontXs },
+    entryCard: {
+      backgroundColor: C.white,
+      borderRadius: 12,
+      padding: sizes.sm,
+      gap: sizes.xs,
+      marginStart: sizes.md,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+    } as never,
+    entryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
+    entryMeta: { flex: 1, gap: 3 },
+    entryBadgeRow: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
+    typeBadge: {
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.xs,
+      paddingVertical: 2,
+    },
+    typeBadgeText: { fontSize: 11, ...font.bold },
+    condBadge: {
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.xs,
+      paddingVertical: 2,
+    },
+    condBadgeText: { fontSize: 11, ...font.bold },
+    entryDate: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
+    entryDescription: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: 18,
+      marginStart: sizes.lg + sizes.sm,
+    },
+    photoRow: { marginStart: sizes.lg + sizes.sm, marginTop: 2 },
+    photoThumb: {
+      width: 80,
+      height: 80,
+      borderRadius: sizes.borderRadiusSm,
+      marginEnd: sizes.xs,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    removeBtn: {
+      padding: 8,
+      minWidth: sizes.touchTarget,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    removeBtnText: { color: C.textDisabled, fontSize: sizes.fontXs },
 
-  form: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: sizes.md,
-    gap: sizes.sm,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  } as never,
-  formTitle: { fontSize: 17, ...font.bold, color: colors.textPrimary, marginBottom: sizes.xs },
-  fieldLabel: {
-    fontSize: 12,
-    ...font.semibold,
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  chip: {
-    paddingHorizontal: sizes.sm,
-    paddingVertical: 6,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: sizes.fontSm, ...font.medium, color: colors.textPrimary },
-  chipTextActive: { color: colors.white },
-  areaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  areaChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: sizes.sm,
-    paddingVertical: 6,
-    borderRadius: sizes.borderRadiusSm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  areaChipActive: { backgroundColor: colors.primary + '12', borderColor: colors.primary },
-  areaChipIcon: { fontSize: 14 },
-  areaChipText: { fontSize: sizes.fontSm, ...font.medium, color: colors.textPrimary },
-  areaChipTextActive: { color: colors.primary, ...font.bold },
-  condChip: {
-    paddingHorizontal: sizes.sm,
-    paddingVertical: 6,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 2,
-    backgroundColor: colors.white,
-  },
-  condChipText: { fontSize: sizes.fontSm, ...font.semibold, color: colors.textPrimary },
-  condChipTextActive: { color: colors.white },
-  input: {
-    backgroundColor: colors.background,
-    borderRadius: sizes.borderRadiusSm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: sizes.sm,
-    paddingVertical: sizes.sm,
-    fontSize: sizes.fontMd,
-    color: colors.textPrimary,
-    ...font.regular,
-  },
-  inputMultiline: { height: 80, textAlignVertical: 'top' },
-  saveError: { color: colors.danger, fontSize: sizes.fontSm, ...font.regular },
-  formActions: {
-    flexDirection: 'row',
-    gap: sizes.sm,
-    justifyContent: 'flex-end',
-    marginTop: sizes.xs,
-  },
-  cancelBtn: {
-    paddingHorizontal: sizes.md,
-    paddingVertical: sizes.sm,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cancelBtnText: { color: colors.textSecondary, ...font.medium },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: sizes.md,
-    paddingVertical: sizes.sm,
-    borderRadius: 12,
-  },
-  saveBtnDisabled: { backgroundColor: colors.textDisabled },
-  saveBtnText: { color: colors.white, ...font.semibold },
+    form: {
+      backgroundColor: C.white,
+      borderRadius: 16,
+      padding: sizes.md,
+      gap: sizes.sm,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    } as never,
+    formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
+    fieldLabel: {
+      fontSize: 12,
+      ...font.semibold,
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+    chip: {
+      paddingHorizontal: sizes.sm,
+      paddingVertical: 6,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.white,
+    },
+    chipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    chipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
+    chipTextActive: { color: C.white },
+    areaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+    areaChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: 6,
+      borderRadius: sizes.borderRadiusSm,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.white,
+    },
+    areaChipActive: { backgroundColor: C.primary + '12', borderColor: C.primary },
+    areaChipIcon: { fontSize: 14 },
+    areaChipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
+    areaChipTextActive: { color: C.primary, ...font.bold },
+    condChip: {
+      paddingHorizontal: sizes.sm,
+      paddingVertical: 6,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 2,
+      backgroundColor: C.white,
+    },
+    condChipText: { fontSize: sizes.fontSm, ...font.semibold, color: C.textPrimary },
+    condChipTextActive: { color: C.white },
+    input: {
+      backgroundColor: C.background,
+      borderRadius: sizes.borderRadiusSm,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: sizes.sm,
+      fontSize: sizes.fontMd,
+      color: C.textPrimary,
+      ...font.regular,
+    },
+    inputMultiline: { height: 80, textAlignVertical: 'top' },
+    saveError: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
+    formActions: {
+      flexDirection: 'row',
+      gap: sizes.sm,
+      justifyContent: 'flex-end',
+      marginTop: sizes.xs,
+    },
+    cancelBtn: {
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    cancelBtnText: { color: C.textSecondary, ...font.medium },
+    saveBtn: {
+      backgroundColor: C.primary,
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: 12,
+    },
+    saveBtnDisabled: { backgroundColor: C.textDisabled },
+    saveBtnText: { color: C.white, ...font.semibold },
 
-  emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
-  emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
-  emptyText: {
-    fontSize: sizes.fontSm,
-    ...font.regular,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  errorBanner: {
-    backgroundColor: colors.danger + '15',
-    borderRadius: 10,
-    padding: sizes.sm,
-    borderWidth: 1,
-    borderColor: colors.danger + '40',
-  },
-  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.danger },
-});
+    emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
+    emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
+    emptyText: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    errorBanner: {
+      backgroundColor: C.danger + '15',
+      borderRadius: 10,
+      padding: sizes.sm,
+      borderWidth: 1,
+      borderColor: C.danger + '40',
+    },
+    errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.danger },
+  });

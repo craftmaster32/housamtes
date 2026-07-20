@@ -1,5 +1,13 @@
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Platform, TextInput } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Platform,
+  TextInput,
+  type ImageStyle,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,7 +18,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { Alert } from '@lib/alert';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
@@ -32,6 +40,8 @@ function MenuItem({
   rightText?: string;
   rtl?: boolean;
 }): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   return (
     <Pressable
       style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
@@ -58,15 +68,21 @@ function MenuItem({
 }
 
 function SectionDivider({ label }: { label: string }): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   return <Text style={styles.sectionLabel}>{label}</Text>;
 }
 
 function RowDivider(): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   return <View style={styles.rowDivider} />;
 }
 
 export default function ProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
@@ -163,14 +179,14 @@ export default function ProfileScreen(): React.JSX.Element {
               {
                 backgroundColor: profile?.avatarUrl
                   ? 'transparent'
-                  : (profile?.avatarColor ?? colors.primary),
+                  : (profile?.avatarColor ?? c.primary),
               },
             ]}
           >
             {profile?.avatarUrl ? (
               <Image
                 source={{ uri: profile.avatarUrl }}
-                style={styles.avatarLargeImg}
+                style={styles.avatarLargeImg as ImageStyle}
                 contentFit="cover"
               />
             ) : (
@@ -341,134 +357,137 @@ function PasswordInput({
   onChange: (t: string) => void;
   placeholder: string;
 }): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   return (
     <TextInput
       style={styles.textInput}
       value={value}
       onChangeText={onChange}
       placeholder={placeholder}
-      placeholderTextColor={colors.textDisabled}
+      placeholderTextColor={c.textDisabled}
       secureTextEntry
       autoCapitalize="none"
     />
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll: { padding: sizes.lg, paddingBottom: 60 },
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    scroll: { padding: sizes.lg, paddingBottom: 60 },
 
-  // Profile header
-  profileHeader: {
-    alignItems: 'center',
-    paddingVertical: sizes.xl,
-    gap: sizes.xs,
-    marginBottom: sizes.lg,
-  },
-  avatarLarge: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: sizes.sm,
-    overflow: 'hidden',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-  } as never,
-  avatarLargeImg: { width: 96, height: 96 },
-  avatarLargeText: { color: colors.white, fontSize: 40, ...font.bold },
-  profileName: { fontSize: 24, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
-  profileEmail: { fontSize: 14, ...font.regular, color: colors.textSecondary },
-  housePill: {
-    backgroundColor: colors.primary + '15',
-    paddingHorizontal: sizes.md,
-    paddingVertical: 4,
-    borderRadius: sizes.borderRadiusFull,
-    marginTop: sizes.xs,
-  },
-  housePillText: { fontSize: 13, ...font.semibold, color: colors.primary },
+    // Profile header
+    profileHeader: {
+      alignItems: 'center',
+      paddingVertical: sizes.xl,
+      gap: sizes.xs,
+      marginBottom: sizes.lg,
+    },
+    avatarLarge: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: sizes.sm,
+      overflow: 'hidden',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+    } as never,
+    avatarLargeImg: { width: 96, height: 96 },
+    avatarLargeText: { color: C.white, fontSize: 40, ...font.bold },
+    profileName: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    profileEmail: { fontSize: 14, ...font.regular, color: C.textSecondary },
+    housePill: {
+      backgroundColor: C.primary + '15',
+      paddingHorizontal: sizes.md,
+      paddingVertical: 4,
+      borderRadius: sizes.borderRadiusFull,
+      marginTop: sizes.xs,
+    },
+    housePillText: { fontSize: 13, ...font.semibold, color: C.primary },
 
-  // Section labels
-  sectionLabel: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    ...font.bold,
-    letterSpacing: 1.2,
-    marginBottom: sizes.sm,
-    marginTop: sizes.xs,
-    marginStart: 4,
-  },
+    // Section labels
+    sectionLabel: {
+      color: C.textSecondary,
+      fontSize: 11,
+      ...font.bold,
+      letterSpacing: 1.2,
+      marginBottom: sizes.sm,
+      marginTop: sizes.xs,
+      marginStart: 4,
+    },
 
-  // Menu
-  menuGroup: {
-    backgroundColor: colors.white,
-    borderRadius: sizes.borderRadiusLg,
-    marginBottom: sizes.lg,
-    overflow: 'hidden',
-  },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
-  menuItemPressed: { backgroundColor: colors.background },
-  menuIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: sizes.borderRadiusSm,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuIconDanger: { backgroundColor: colors.negative + '15' },
-  menuIconText: { fontSize: 18 },
-  menuText: { flex: 1 },
-  menuLabel: { color: colors.textPrimary, ...font.semibold, fontSize: 15 },
-  menuLabelDanger: { color: colors.negative },
-  menuSub: { color: colors.textSecondary, fontSize: 13, ...font.regular, marginTop: 1 },
-  menuChevron: { color: colors.textDisabled, fontSize: 22 },
-  menuRightText: { color: colors.primary, ...font.bold, fontSize: 15 },
-  rowDivider: { height: 1, backgroundColor: colors.border, marginStart: sizes.md + 36 + sizes.sm },
+    // Menu
+    menuGroup: {
+      backgroundColor: C.white,
+      borderRadius: sizes.borderRadiusLg,
+      marginBottom: sizes.lg,
+      overflow: 'hidden',
+    },
+    menuItem: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
+    menuItemPressed: { backgroundColor: C.background },
+    menuIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: sizes.borderRadiusSm,
+      backgroundColor: C.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    menuIconDanger: { backgroundColor: C.negative + '15' },
+    menuIconText: { fontSize: 18 },
+    menuText: { flex: 1 },
+    menuLabel: { color: C.textPrimary, ...font.semibold, fontSize: 15 },
+    menuLabelDanger: { color: C.negative },
+    menuSub: { color: C.textSecondary, fontSize: 13, ...font.regular, marginTop: 1 },
+    menuChevron: { color: C.textDisabled, fontSize: 22 },
+    menuRightText: { color: C.primary, ...font.bold, fontSize: 15 },
+    rowDivider: { height: 1, backgroundColor: C.border, marginStart: sizes.md + 36 + sizes.sm },
 
-  // Password form
-  passwordForm: {
-    padding: sizes.md,
-    paddingTop: 0,
-    gap: sizes.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  passwordField: { gap: 4 },
-  fieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginStart: 2 },
-  textInput: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 12,
-    fontSize: 15,
-    ...font.regular,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  fieldError: { color: colors.danger, fontSize: 13, ...font.regular },
-  passwordButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sizes.md,
-    marginTop: sizes.xs,
-  },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: sizes.lg,
-    borderRadius: 10,
-  },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: colors.white, ...font.semibold, fontSize: 14 },
-  cancelText: { color: colors.textSecondary, fontSize: 14, ...font.regular },
+    // Password form
+    passwordForm: {
+      padding: sizes.md,
+      paddingTop: 0,
+      gap: sizes.sm,
+      borderTopWidth: 1,
+      borderTopColor: C.border,
+    },
+    passwordField: { gap: 4 },
+    fieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginStart: 2 },
+    textInput: {
+      backgroundColor: C.background,
+      borderRadius: 10,
+      paddingHorizontal: sizes.md,
+      paddingVertical: 12,
+      fontSize: 15,
+      ...font.regular,
+      color: C.textPrimary,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    fieldError: { color: C.danger, fontSize: 13, ...font.regular },
+    passwordButtons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.md,
+      marginTop: sizes.xs,
+    },
+    saveBtn: {
+      backgroundColor: C.primary,
+      paddingVertical: 10,
+      paddingHorizontal: sizes.lg,
+      borderRadius: 10,
+    },
+    saveBtnDisabled: { opacity: 0.6 },
+    saveBtnText: { color: C.white, ...font.semibold, fontSize: 14 },
+    cancelText: { color: C.textSecondary, fontSize: 14, ...font.regular },
 
-  version: {
-    color: colors.textDisabled,
-    fontSize: 13,
-    ...font.regular,
-    textAlign: 'center',
-    marginTop: sizes.md,
-  },
-});
+    version: {
+      color: C.textDisabled,
+      fontSize: 13,
+      ...font.regular,
+      textAlign: 'center',
+      marginTop: sizes.md,
+    },
+  });
