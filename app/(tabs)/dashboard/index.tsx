@@ -320,42 +320,31 @@ function OwedHero(): React.JSX.Element {
             </View>
           </View>
         ) : (
-          <View style={styles.heroCol}>
-            <Text style={styles.heroLabel}>
-              {isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')}
-            </Text>
-            <View style={styles.heroAmtRow}>
-              <Text style={styles.heroAmtSym}>{symbol}</Text>
-              <Text style={styles.heroAmt} numberOfLines={1} adjustsFontSizeToFit>
-                {value}
+          <View style={styles.heroRow}>
+            <View style={styles.flex1}>
+              <Text style={styles.heroLabel}>
+                {isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')}
+              </Text>
+              <View style={styles.heroAmtRow}>
+                <Text style={styles.heroAmtSym}>{symbol}</Text>
+                <Text style={styles.heroAmt} numberOfLines={1} adjustsFontSizeToFit>
+                  {value}
+                </Text>
+              </View>
+              <Text style={styles.heroSub}>
+                {peopleCount !== 1
+                  ? t('dashboard.balance_across_plural', { count: peopleCount })
+                  : t('dashboard.balance_across', { count: peopleCount })}
               </Text>
             </View>
-            <Text style={styles.heroSub}>
-              {peopleCount !== 1
-                ? t('dashboard.balance_across_plural', { count: peopleCount })
-                : t('dashboard.balance_across', { count: peopleCount })}
-            </Text>
-            <View style={styles.heroBtns}>
-              <Pressable
-                style={({ pressed }) => [styles.heroSettleBtn, pressed && styles.pressed]}
-                onPress={() => router.push('/(tabs)/bills')}
-                accessibilityRole="button"
-                accessibilityLabel={t('dashboard.settle_up')}
-              >
-                <Text style={[styles.heroSettleBtnText, { color: c.owedFg }]}>
-                  {t('dashboard.settle_up')}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.heroDetailsBtn, pressed && styles.pressed]}
-                onPress={() => router.push('/(tabs)/profile/spending')}
-                accessibilityRole="button"
-                accessibilityLabel={t('spending.view_spending')}
-              >
-                <Ionicons name="stats-chart-outline" size={16} color="#fff" />
-                <Text style={styles.heroDetailsBtnText}>{t('dashboard.details')}</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={({ pressed }) => [styles.heroAnalysisBtn, pressed && styles.pressed]}
+              onPress={() => router.push('/(tabs)/profile/spending')}
+              accessibilityRole="button"
+              accessibilityLabel={t('spending.view_spending')}
+            >
+              <Ionicons name="stats-chart-outline" size={20} color="#fff" />
+            </Pressable>
           </View>
         )}
       </LinearGradient>
@@ -806,7 +795,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.10)',
   },
-  heroCol: { position: 'relative' },
+  heroRow: {
+    position: 'relative',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  heroAnalysisBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   heroSettledRow: {
     position: 'relative',
     flexDirection: 'row',
@@ -826,26 +828,6 @@ const styles = StyleSheet.create({
   heroAmtSym: { fontSize: 22, ...font.medium, color: 'rgba(255,255,255,0.7)', marginRight: 2 },
   heroAmt: { fontSize: 44, ...font.extrabold, color: '#fff', letterSpacing: -1.6, lineHeight: 48 },
   heroSub: { fontSize: 11, color: 'rgba(255,255,255,0.72)', marginTop: 4 },
-  heroBtns: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
-  heroSettleBtn: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 22,
-    height: 42,
-    justifyContent: 'center',
-  },
-  heroSettleBtnText: { fontSize: 14, ...font.bold },
-  heroDetailsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    height: 42,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-  },
-  heroDetailsBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
 
   // ── Grid row (parking + chores)
   gridRow: { flexDirection: 'row', gap: 12, marginTop: 14 },
