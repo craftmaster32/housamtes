@@ -153,6 +153,63 @@ describe('spendingStore', () => {
     expect(current.billsByCategory['water'][0].title).toBe('Water (2-month split)');
   });
 
+  it('charges the user only their share of a recurring bill split across housemates', async (): Promise<void> => {
+    // Real-world arnona case: ₪777 bimonthly, shared by all 3 housemates.
+    mockFrom.mockImplementation((table: string): unknown => {
+      if (table === 'household_payments') {
+        return ok([
+          {
+            id: 'pay-1',
+            amount: 777,
+            paid_at: currentMonthDate(),
+            split_between: [], // empty → split among all current housemates
+            recurring_bills: { name: 'ארנונה', assigned_to: 'user-1', frequency: 'bimonthly' },
+          },
+        ]);
+      }
+      if (table === 'house_members') {
+        return ok([{ user_id: 'user-1' }, { user_id: 'user-2' }, { user_id: 'user-3' }]);
+      }
+      return ok([]);
+    });
+
+    await useSpendingStore.getState().load('house-1', 'Lior');
+
+    const current = useSpendingStore.getState().months[0];
+    // House view: 777 over two months → 388.50/month for the whole house.
+    expect(current.houseTotal).toBeCloseTo(388.5);
+    // Personal view: 388.50 ÷ 3 housemates → 129.50/month, not the full house slice.
+    expect(current.total).toBeCloseTo(129.5);
+  });
+
+  it('honours an explicit split_between for a recurring bill', async (): Promise<void> => {
+    // ₪777 bimonthly but only shared between two of the three housemates.
+    mockFrom.mockImplementation((table: string): unknown => {
+      if (table === 'household_payments') {
+        return ok([
+          {
+            id: 'pay-1',
+            amount: 777,
+            paid_at: currentMonthDate(),
+            split_between: ['user-1', 'user-2'],
+            recurring_bills: { name: 'ארנונה', assigned_to: 'user-1', frequency: 'bimonthly' },
+          },
+        ]);
+      }
+      if (table === 'house_members') {
+        return ok([{ user_id: 'user-1' }, { user_id: 'user-2' }, { user_id: 'user-3' }]);
+      }
+      return ok([]);
+    });
+
+    await useSpendingStore.getState().load('house-1', 'Lior');
+
+    const current = useSpendingStore.getState().months[0];
+    expect(current.houseTotal).toBeCloseTo(388.5);
+    // 388.50 ÷ 2 people sharing → 194.25/month.
+    expect(current.total).toBeCloseTo(194.25);
+  });
+
   it('classifies a non-keyword recurring bill as a house bill', async (): Promise<void> => {
     mockFrom.mockImplementation((table: string): unknown => {
       if (table === 'household_payments') {
@@ -161,7 +218,11 @@ describe('spendingStore', () => {
             id: 'pay-1',
             amount: 388.5,
             paid_at: currentMonthDate(),
-            recurring_bills: { name: 'Shared household fund', assigned_to: 'user-1', frequency: 'bimonthly' },
+            recurring_bills: {
+              name: 'Shared household fund',
+              assigned_to: 'user-1',
+              frequency: 'bimonthly',
+            },
           },
         ]);
       }
@@ -171,7 +232,9 @@ describe('spendingStore', () => {
     await useSpendingStore.getState().load('house-1', 'Lior');
 
     const current = useSpendingStore.getState().months[0];
-    const recurring = current.houseCategories.find((c): boolean => c.name === 'shared household fund');
+    const recurring = current.houseCategories.find(
+      (c): boolean => c.name === 'shared household fund'
+    );
     expect(recurring).toBeDefined();
     // Recurring household bills are house bills whatever they're named.
     expect(recurring?.isHouse).toBe(true);
@@ -222,7 +285,9 @@ describe('spendingStore', () => {
     await useSpendingStore.getState().load('house-1', 'Lior');
 
     const current = useSpendingStore.getState().months[0];
-    expect(current.houseCategories.find((c): boolean => c.name === 'groceries')?.isHouse).toBe(false);
+    expect(current.houseCategories.find((c): boolean => c.name === 'groceries')?.isHouse).toBe(
+      false
+    );
   });
 
   it('does not credit recurring payments assigned to someone else to the user', async () => {

@@ -278,7 +278,7 @@ export const useSpendingStore = create<SpendingStore>()(
             return d.toISOString().split('T')[0];
           })();
 
-          const [billsRes, paymentsRes] = await Promise.all([
+          const [billsRes, paymentsRes, membersRes] = await Promise.all([
             supabase
               .from('bills')
               .select('id, title, amount, paid_by, split_between, date, category')
@@ -286,12 +286,22 @@ export const useSpendingStore = create<SpendingStore>()(
               .gte('date', sixMonthsAgo),
             supabase
               .from('household_payments')
-              .select('id, amount, paid_at, recurring_bills(name, assigned_to, frequency)')
+              .select(
+                'id, amount, paid_at, split_between, recurring_bills(name, assigned_to, frequency)'
+              )
               .eq('house_id', houseId)
               .gte('paid_at', sixMonthsAgo),
+            supabase.from('house_members').select('user_id').eq('house_id', houseId),
           ]);
           if (billsRes.error) throw billsRes.error;
           if (paymentsRes.error) throw paymentsRes.error;
+          if (membersRes.error) throw membersRes.error;
+
+          // Everyone currently in the house — the default split for a recurring
+          // payment that doesn't name specific people (empty split_between).
+          const memberIds: string[] = (membersRes.data ?? [])
+            .map((m): string => m.user_id as string)
+            .filter(Boolean);
 
           const tally = new Map<string, Map<string, number>>();
           const houseTally = new Map<string, Map<string, number>>();
@@ -343,6 +353,18 @@ export const useSpendingStore = create<SpendingStore>()(
             const n = FREQ_MONTHS[freq];
             const shares = paymentMonthShares(p.paid_at, freq);
 
+            // Who shares this payment's cost — mirrors calculateFairness in the
+            // recurring-bills store. An explicit split wins; an empty split means
+            // "everyone in the house"; with no members known, the payer alone.
+            const paymentSplit: string[] =
+              Array.isArray(p.split_between) && p.split_between.length > 0
+                ? (p.split_between as string[])
+                : memberIds.length > 0
+                  ? memberIds
+                  : [rb.assigned_to];
+            const isUserSharing = !!currentUserId && paymentSplit.includes(currentUserId);
+            const userFraction = isUserSharing ? 1 / paymentSplit.length : 0;
+
             for (const { monthKey, share } of shares) {
               const sliceAmt = Number(p.amount) * share;
               addToTally(houseTally, monthKey, cat, sliceAmt);
@@ -353,8 +375,10 @@ export const useSpendingStore = create<SpendingStore>()(
                 date: p.paid_at,
                 type: 'recurring',
               });
-              if (currentUserId && rb.assigned_to === currentUserId) {
-                addToTally(tally, monthKey, cat, sliceAmt);
+              // The user's own share of the monthly slice — the bill divided by
+              // the number of people splitting it, not the whole house amount.
+              if (userFraction > 0) {
+                addToTally(tally, monthKey, cat, sliceAmt * userFraction);
               }
             }
           }
@@ -366,23 +390,27 @@ export const useSpendingStore = create<SpendingStore>()(
           const months: MonthSpend[] = lastNMonths(6).map((mk): MonthSpend => {
             const catMap = tally.get(mk) ?? new Map();
             const categories: CategorySpend[] = Array.from(catMap.entries())
-              .map(([name, amount]): CategorySpend => ({
-                name,
-                amount,
-                isHouse: classifyHouse(name),
-                ...categoryMeta(name),
-              }))
+              .map(
+                ([name, amount]): CategorySpend => ({
+                  name,
+                  amount,
+                  isHouse: classifyHouse(name),
+                  ...categoryMeta(name),
+                })
+              )
               .sort((a, b): number => b.amount - a.amount);
             const total = categories.reduce((s, c) => s + c.amount, 0);
 
             const houseCatMap = houseTally.get(mk) ?? new Map();
             const houseCategories: CategorySpend[] = Array.from(houseCatMap.entries())
-              .map(([name, amount]): CategorySpend => ({
-                name,
-                amount,
-                isHouse: classifyHouse(name),
-                ...categoryMeta(name),
-              }))
+              .map(
+                ([name, amount]): CategorySpend => ({
+                  name,
+                  amount,
+                  isHouse: classifyHouse(name),
+                  ...categoryMeta(name),
+                })
+              )
               .sort((a, b): number => b.amount - a.amount);
             const houseTotal = houseCategories.reduce((s, c) => s + c.amount, 0);
 
@@ -407,7 +435,7 @@ export const useSpendingStore = create<SpendingStore>()(
 
           set({ months, isLoading: false });
         } catch (err) {
-          captureError(err, { store: 'spending', houseId });
+          captureError(err, { store: 'spending', houseId, userId: currentUserId });
           set({ isLoading: false, error: 'Failed to load spending data' });
         }
       },
