@@ -671,6 +671,7 @@
     "note_placeholder": "Add a note — e.g. the oat one",
     "note_label": "Note",
     "note_hint": "Optional note shown with the item",
+    "n_of_m_bought": "{{bought}} of {{total}} bought",
     "you_at_store": "You're at the store",
     "at_store": "{{name}} is at the store!",
     "at_store_hint": "Add last-minute items — they'll see the list update live",

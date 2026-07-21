@@ -731,6 +731,7 @@
     "note_placeholder": "Añade una nota — ej. el de avena",
     "note_label": "Nota",
     "note_hint": "Nota opcional que se muestra con el artículo",
+    "n_of_m_bought": "{{bought}} de {{total}} comprados",
     "you_at_store": "Estás en la tienda",
     "at_store": "¡{{name}} está en la tienda!",
     "at_store_hint": "Agrega artículos de último momento — verán la lista actualizada en vivo",

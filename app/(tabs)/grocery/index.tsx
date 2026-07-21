@@ -355,16 +355,33 @@ function ItemRow({
         />
       )}
       <View style={rowStyles.itemDetails}>
-        <View style={rowStyles.itemNameWrap}>
-          <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>
-            {item.name}
-          </Text>
-          {!!item.quantity && (
-            <View style={rowStyles.itemQty}>
-              <Text style={rowStyles.itemQtyText}>
-                {hasCount
-                  ? `x${qtyNum}`
-                  : localizeQuantityForDisplay(item.quantity, language === 'he')}
+        <View style={rowStyles.itemMain}>
+          <View style={rowStyles.itemNameWrap}>
+            <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>
+              {item.name}
+            </Text>
+            {!!item.quantity && (
+              <View style={rowStyles.itemQty}>
+                <Text style={rowStyles.itemQtyText}>
+                  {hasCount
+                    ? `x${qtyNum}`
+                    : localizeQuantityForDisplay(item.quantity, language === 'he')}
+                </Text>
+              </View>
+            )}
+          </View>
+          {hasCount && (
+            <View style={rowStyles.progressWrap}>
+              <View style={rowStyles.progressTrack}>
+                <View
+                  style={[
+                    rowStyles.progressFill,
+                    { width: `${Math.round((bought / qtyNum) * 100)}%` as `${number}%` },
+                  ]}
+                />
+              </View>
+              <Text style={rowStyles.progressLabel}>
+                {t('grocery.n_of_m_bought', { bought, total: qtyNum })}
               </Text>
             </View>
           )}
@@ -1862,7 +1879,17 @@ function makeStyles(C: ColorTokens) {
       gap: 12,
       minWidth: 0,
     },
-    itemNameWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
+    itemMain: { flex: 1, minWidth: 0, gap: 6 },
+    itemNameWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
+    progressWrap: { gap: 4 },
+    progressTrack: {
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: C.surfaceSecondary,
+      overflow: 'hidden',
+    },
+    progressFill: { height: '100%', borderRadius: 3, backgroundColor: C.success },
+    progressLabel: { fontSize: 11.5, ...font.semibold, color: C.textSecondary },
     itemName: { fontSize: 15, ...font.semibold, color: C.textPrimary, flexShrink: 1 },
     itemNameDone: { textDecorationLine: 'line-through', color: C.textSecondary },
     itemQty: {
