@@ -830,6 +830,7 @@
   "chores": {
     "title": "מטלות",
     "reset_all": "אפס הכל",
+    "done_label": "בוצעו",
     "new_chore": "מטלה חדשה",
     "chore_placeholder": "למשל: שואב אבק בסלון",
     "repeat": "חזרה",

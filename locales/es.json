@@ -830,6 +830,7 @@
   "chores": {
     "title": "Tareas",
     "reset_all": "Restablecer todo",
+    "done_label": "hechas",
     "new_chore": "Nueva tarea",
     "chore_placeholder": "ej. Pasar la aspiradora en la sala",
     "repeat": "Repetir",

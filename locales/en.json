@@ -830,6 +830,7 @@
   "chores": {
     "title": "Chores",
     "reset_all": "Reset all",
+    "done_label": "done",
     "new_chore": "New chore",
     "chore_placeholder": "e.g. Vacuum living room",
     "repeat": "Repeat",
