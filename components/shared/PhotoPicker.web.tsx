@@ -120,7 +120,17 @@ export function PhotoPicker({
                   lineHeight: 1,
                 }}
               >
-                ✕
+                <svg
+                  width={12}
+                  height={12}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                >
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
               </button>
             </div>
           ))}
@@ -150,7 +160,20 @@ export function PhotoPicker({
             width: 'fit-content',
           }}
         >
-          {loading ? `⏳ ${t('common.loading')}` : `📷 ${t('photos.add_photo')}`}
+          <svg
+            width={16}
+            height={16}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.9}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+            <circle cx={12} cy={13} r={4} />
+          </svg>
+          {loading ? t('common.loading') : t('photos.add_photo')}
         </button>
       )}
 

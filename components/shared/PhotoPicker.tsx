@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { View, Image, Pressable, StyleSheet, ScrollView, type ImageStyle } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '@lib/alert';
@@ -71,7 +72,7 @@ export function PhotoPicker({
                 accessibilityRole="button"
                 accessibilityLabel={t('photos.remove_photo')}
               >
-                <Text style={styles.removeBtnText}>✕</Text>
+                <Ionicons name="close" size={14} color="#fff" />
               </Pressable>
             </View>
           ))}

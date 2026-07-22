@@ -45,7 +45,19 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
         ...((style as React.CSSProperties) || {}),
       }}
     >
-      <span style={{ fontSize: '14px', lineHeight: '1' }}>📅</span>
+      <svg
+        width={15}
+        height={15}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={c.textSecondary}
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x={3} y={4.5} width={18} height={17} rx={2.5} />
+        <path d="M3 9h18M8 2.5v4M16 2.5v4" />
+      </svg>
       <span
         style={{
           fontSize: `${sizes.fontSm}px`,

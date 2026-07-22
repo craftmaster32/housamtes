@@ -12,6 +12,7 @@ import {
   type NativeScrollEvent,
 } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { captureError } from '@lib/errorTracking';
@@ -194,7 +195,7 @@ export function PhotoViewer({
             accessibilityRole="button"
             accessibilityLabel={t('common.close')}
           >
-            <Text style={styles.closeTxt}>✕</Text>
+            <Ionicons name="close" size={26} color="#fff" />
           </Pressable>
 
           {photos.length > 1 ? (
@@ -217,7 +218,7 @@ export function PhotoViewer({
             {isDownloading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.downloadTxt}>⬇️</Text>
+              <Ionicons name="download-outline" size={24} color="#fff" />
             )}
           </Pressable>
         </View>

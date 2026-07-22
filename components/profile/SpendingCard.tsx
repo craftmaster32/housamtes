@@ -128,7 +128,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
             <ActivityIndicator color="rgba(255,255,255,0.7)" size="small" />
           ) : insight ? (
             <>
-              <Text style={styles.insightIcon}>✨</Text>
+              <Ionicons name="sparkles" size={14} color="#fff" style={styles.insightIcon} />
               <Text style={styles.insightText} numberOfLines={2}>
                 {insight}
               </Text>

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import i18next from 'i18next';
 import { captureError } from '@lib/errorTracking';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -21,7 +22,7 @@ function ErrorFallback({ onRetry }: { onRetry: () => void }): React.JSX.Element 
   const styles = useMemo(() => makeStyles(c), [c]);
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>⚠️</Text>
+      <Ionicons name="warning-outline" size={40} color={c.warning} style={styles.icon} />
       <Text style={styles.title}>{i18next.t('common.something_went_wrong')}</Text>
       <Text style={styles.message}>{i18next.t('common.error_boundary_message')}</Text>
       <Pressable
