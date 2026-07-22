@@ -8,6 +8,7 @@ import {
   type ListRenderItemInfo,
 } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import type { ImagePickerAsset } from 'expo-image-picker';
@@ -62,6 +63,9 @@ const makeStyles = (C: ColorTokens) =>
     },
     catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
     catChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
       paddingVertical: 4,
       paddingHorizontal: sizes.sm,
       borderRadius: sizes.borderRadiusFull,
@@ -179,10 +183,15 @@ export function PhotoUploadModal({
                 accessibilityRole="button"
                 accessibilityLabel={t(cat.labelKey)}
               >
+                <Ionicons
+                  name={cat.icon}
+                  size={13}
+                  color={category === cat.key ? '#fff' : C.textSecondary}
+                />
                 <Text
                   style={[styles.catChipText, category === cat.key && styles.catChipTextActive]}
                 >
-                  {cat.icon} {t(cat.labelKey)}
+                  {t(cat.labelKey)}
                 </Text>
               </Pressable>
             ))}

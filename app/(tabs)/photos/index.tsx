@@ -9,6 +9,7 @@ import {
   type ListRenderItemInfo,
 } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
@@ -76,7 +77,6 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    headerBtnText: { fontSize: 20 },
     categoryRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -85,6 +85,9 @@ const makeStyles = (C: ColorTokens) =>
       marginBottom: sizes.sm,
     },
     catChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
       paddingVertical: 4,
       paddingHorizontal: sizes.sm,
       borderRadius: sizes.borderRadiusFull,
@@ -136,7 +139,6 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    checkMark: { color: '#fff', fontSize: 13, ...font.bold },
     unselectedOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0,0,0,0.25)',
@@ -180,7 +182,7 @@ const makeStyles = (C: ColorTokens) =>
     selectionDownloadBtnDisabled: { opacity: 0.45 },
     selectionDownloadTxt: { fontSize: 15, ...font.semibold, color: '#fff' },
     emptyState: { alignItems: 'center', paddingTop: sizes.xxl, gap: sizes.sm },
-    emptyIcon: { fontSize: 48 },
+    emptyIcon: { marginBottom: sizes.sm },
     emptyTitle: { fontSize: 17, ...font.bold, color: C.textPrimary },
     emptyText: {
       fontSize: 14,
@@ -420,7 +422,11 @@ export default function PhotosScreen(): React.JSX.Element {
   const limit = photoLimit();
   // The upsell card only appears once premium is live (constants/featureFlags.ts).
   const atPhotoLimit =
-    PREMIUM_ENABLED && !entitlementsLoading && !isPremium && limit !== null && photos.length >= limit;
+    PREMIUM_ENABLED &&
+    !entitlementsLoading &&
+    !isPremium &&
+    limit !== null &&
+    photos.length >= limit;
 
   const handleDelete = useCallback(
     (photo: Photo): void => {
@@ -507,7 +513,7 @@ export default function PhotosScreen(): React.JSX.Element {
               {isSelectMode && isSelected && (
                 <View style={styles.selectedOverlay}>
                   <View style={styles.checkCircle}>
-                    <Text style={styles.checkMark}>✓</Text>
+                    <Ionicons name="checkmark" size={13} color="#fff" />
                   </View>
                 </View>
               )}
@@ -528,12 +534,12 @@ export default function PhotosScreen(): React.JSX.Element {
   const EmptyComponent = useMemo(
     () => (
       <View style={styles.emptyState}>
-        <Text style={styles.emptyIcon}>📷</Text>
+        <Ionicons name="camera-outline" size={48} color={C.textTertiary} style={styles.emptyIcon} />
         <Text style={styles.emptyTitle}>{t('photos.no_photos')}</Text>
         <Text style={styles.emptyText}>{t('photos.no_photos_hint')}</Text>
       </View>
     ),
-    [styles, t]
+    [styles, t, C]
   );
 
   const selectedCount = selectedIds.size;
@@ -565,7 +571,7 @@ export default function PhotosScreen(): React.JSX.Element {
               accessibilityRole="button"
               accessibilityLabel="Take photo"
             >
-              <Text style={styles.headerBtnText}>📷</Text>
+              <Ionicons name="camera-outline" size={22} color={C.primary} />
             </Pressable>
             <Pressable
               onPress={pickFromLibrary}
@@ -574,7 +580,7 @@ export default function PhotosScreen(): React.JSX.Element {
               accessibilityRole="button"
               accessibilityLabel="Choose from library"
             >
-              <Text style={styles.headerBtnText}>🖼️</Text>
+              <Ionicons name="images-outline" size={22} color={C.primary} />
             </Pressable>
           </View>
         </View>
@@ -590,13 +596,18 @@ export default function PhotosScreen(): React.JSX.Element {
                 accessible
                 accessibilityRole="button"
               >
+                <Ionicons
+                  name={cat.icon}
+                  size={13}
+                  color={selectedCategory === cat.key ? '#fff' : C.textSecondary}
+                />
                 <Text
                   style={[
                     styles.catChipText,
                     selectedCategory === cat.key && styles.catChipTextActive,
                   ]}
                 >
-                  {cat.icon} {t(cat.labelKey)}
+                  {t(cat.labelKey)}
                   {count > 0 ? ` (${count})` : ''}
                 </Text>
               </Pressable>
