@@ -95,6 +95,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
       />
       <View style={styles.decoCircle} />
       <View style={styles.decoCircleSm} />
+      <View style={styles.highlight} />
 
       <View style={styles.pad}>
         {/* Header */}
@@ -182,6 +183,14 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  highlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   pad: { padding: 22, gap: 16 },
   loadingIndicator: { marginTop: 8 },

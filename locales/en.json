@@ -568,7 +568,10 @@
     "min_transfers": "Minimum transfers to clear all balances",
     "all_expenses": "ALL EXPENSES",
     "no_expenses_yet": "No expenses yet",
-    "no_expenses_hint": "Tap Add Expense to record your first shared spend"
+    "no_expenses_hint": "Tap Add Expense to record your first shared spend",
+    "n_transfers": "{{count}} transfer to square up",
+    "n_transfers_plural": "{{count}} transfers to square up",
+    "you_label": "You"
   },
   "parking": {
     "title": "Parking",
@@ -1401,7 +1404,13 @@
     "could_not_create_vote": "Could not create the vote. Please try again.",
     "approve_leave_title": "Approve {{name}}'s departure?",
     "approve_leave_body": "{{name}} wants to leave the house. They have an outstanding balance of {{amount}}. Do you approve?",
-    "back_rtl": "Profile →"
+    "back_rtl": "Profile →",
+    "integrations_section": "Integrations",
+    "legal_section": "Legal",
+    "nfc_title": "NFC parking tag",
+    "nfc_desc": "Toggle your spot by tapping a tag in your car",
+    "calendar_desc_web": "Open any event in the Calendar tab to export to Google Calendar or download an .ics file",
+    "currency_pick": "Choose currency"
   },
   "members": {
     "title": "Member Permissions",

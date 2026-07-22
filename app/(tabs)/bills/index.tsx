@@ -33,6 +33,7 @@ import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useThemedColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
+import { Money } from '@components/shared/Money';
 import { Pill } from '@components/ui';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
@@ -217,91 +218,23 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
   );
 }
 
-// ── Settle Up panel ───────────────────────────────────────────────────────────
-function SettleUpPanel(): React.JSX.Element {
-  const c = useThemedColors();
-  const { t } = useTranslation();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
-  const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const bills = useBillsStore((s) => s.bills);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const memberName = useMemberName();
-  const avatarById = new Map(housemates.map((h) => [h.id, h.avatarUrl]));
-  const householdBills = useRecurringBillsStore((s) => s.bills);
-  const payments = useRecurringBillsStore((s) => s.payments);
-
-  const memberIds = housemates.map((h) => h.id);
-  const sharedNet = calculateAllNetBalances(bills.filter((b) => !b.settled));
-  const householdFairness = calculateFairness(householdBills, payments, memberIds);
-
-  const combined = new Map<string, number>(sharedNet);
-  for (const { person, balance } of householdFairness) {
-    combined.set(person, (combined.get(person) ?? 0) + balance);
-  }
-  const settlements = settleDebts(new Map(combined));
-
-  if (settlements.length === 0) {
-    return (
-      <View style={styles.settleAllGood}>
-        <Ionicons name="checkmark-circle" size={20} color={c.positive} />
-        <Text style={[styles.settleAllGoodText, { color: c.positive }]}>
-          {t('bills.everyone_settled')}
-        </Text>
-      </View>
-    );
-  }
-
+// ── Settle avatar (small, on-gradient) ──────────────────────────────────────────
+function SettleAvatar({
+  name,
+  uri,
+  isYou,
+}: {
+  name: string;
+  uri?: string;
+  isYou: boolean;
+}): React.JSX.Element {
   return (
-    <View style={styles.settleList}>
-      {settlements.map((s, idx) => {
-        const fromName = memberName(s.from);
-        const toName = memberName(s.to);
-        return (
-          <View
-            key={idx}
-            style={[styles.settleRow, { backgroundColor: c.background, borderColor: c.border }]}
-          >
-            <View style={[styles.settleAvatar, { backgroundColor: c.primary + '22' }]}>
-              {avatarById.get(s.from) ? (
-                <Image
-                  source={{ uri: avatarById.get(s.from) }}
-                  style={styles.settleAvatarImg}
-                  contentFit="cover"
-                />
-              ) : (
-                <Text style={[styles.settleAvatarText, { color: c.primary }]}>
-                  {fromName[0]?.toUpperCase()}
-                </Text>
-              )}
-            </View>
-            <Text style={[styles.settleName, { color: c.textPrimary }]}>{fromName}</Text>
-            <Ionicons
-              name={rtl ? 'arrow-back' : 'arrow-forward'}
-              size={12}
-              color={c.textSecondary}
-              style={styles.settleArrow}
-            />
-            <View style={[styles.settleAvatar, { backgroundColor: c.primary + '22' }]}>
-              {avatarById.get(s.to) ? (
-                <Image
-                  source={{ uri: avatarById.get(s.to) }}
-                  style={styles.settleAvatarImg}
-                  contentFit="cover"
-                />
-              ) : (
-                <Text style={[styles.settleAvatarText, { color: c.primary }]}>
-                  {toName[0]?.toUpperCase()}
-                </Text>
-              )}
-            </View>
-            <Text style={[styles.settleName, { color: c.textPrimary }]}>{toName}</Text>
-            <Text style={[styles.settleAmt, { color: c.textPrimary }]}>
-              {formatFull(s.amount, currencyCode)}
-            </Text>
-          </View>
-        );
-      })}
+    <View style={[styles.settleAv, isYou && styles.settleAvYou]}>
+      {uri ? (
+        <Image source={{ uri }} style={styles.settleAvImg} contentFit="cover" />
+      ) : (
+        <Text style={styles.settleAvText}>{name[0]?.toUpperCase() ?? '?'}</Text>
+      )}
     </View>
   );
 }
@@ -354,6 +287,17 @@ export default function BillsScreen(): React.JSX.Element {
     .filter((b) => b.amount < 0)
     .reduce((s, b) => s + Math.abs(b.amount), 0);
   const netBalance = totalOwed - totalOwe;
+  const isOwed = netBalance >= 0;
+
+  // Fewest-transfer settlement plan for the whole house — powers the "Settle up"
+  // strip merged into the balance card.
+  const settlements = settleDebts(new Map(combinedNet));
+  const memberName = useMemberName();
+  const billsRtl = isRTL(i18n.language as never);
+  const avatarById = useMemo(
+    () => new Map(housemates.map((h) => [h.id, h.avatarUrl])),
+    [housemates]
+  );
 
   const billSections = useMemo(() => {
     // Merge one-off bills and logged recurring payments into one date-grouped history.
@@ -532,90 +476,121 @@ export default function BillsScreen(): React.JSX.Element {
       entering={FadeInDown.duration(400)}
       style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}
     >
-      {/* ── Balance stats ────────────────────────────────────────── */}
+      {/* ── Balance + settle (one merged card) ───────────────────── */}
       <LinearGradient
-        colors={c.owedGradient}
+        colors={isOwed ? c.owedGradient : c.dangerGradient}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 1 }}
-        style={[styles.balanceCard, { shadowColor: c.owedShadow }]}
+        style={[styles.balanceCard, { shadowColor: isOwed ? c.owedShadow : c.dangerGradient[1] }]}
       >
-        <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, styles.balanceOnHero]}>
-            {t('bills.owed_to_you')}
-          </Text>
-          <Text style={[styles.balanceStatNum, { color: '#8FE0AC' }]}>
-            {formatFull(totalOwed, currencyCode)}
-          </Text>
-        </View>
-        <View style={[styles.balanceDivider, styles.balanceDividerHero]} />
-        <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, styles.balanceOnHero]}>
-            {t('bills.net_balance')}
-          </Text>
-          <Text style={[styles.balanceStatNum, styles.balanceNetHero]}>
-            {netBalance > 0 ? '+' : ''}
-            {formatFull(Math.abs(netBalance), currencyCode)}
-          </Text>
-          <Text style={[styles.balanceStatTag, styles.balanceOnHero]}>
-            {netBalance > 0
-              ? t('bills.you_are_owed')
-              : netBalance < 0
-                ? t('bills.you_owe')
-                : t('bills.all_settled_tag')}
-          </Text>
-        </View>
-        <View style={[styles.balanceDivider, styles.balanceDividerHero]} />
-        <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, styles.balanceOnHero]}>{t('bills.you_owe')}</Text>
-          <Text style={[styles.balanceStatNum, { color: '#FF8478' }]}>
-            {formatFull(totalOwe, currencyCode)}
-          </Text>
-        </View>
-      </LinearGradient>
+        <View style={styles.balanceHighlight} />
 
-      {/* ── Settle Up collapsible ────────────────────────────────── */}
-      <View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.settleCard,
-            {
-              borderColor: showSettle ? c.positive + '60' : c.positive + '35',
-              backgroundColor: c.surface,
-            },
-            pressed && { opacity: 0.85 },
-          ]}
-          onPress={() => setShowSettle((v) => !v)}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel={t('bills.toggle_settle')}
-          accessibilityState={{ expanded: showSettle }}
-        >
-          <View style={styles.settleCardHeader}>
-            <View style={[styles.settleIconWrap, { backgroundColor: c.positive + '18' }]}>
-              <Ionicons name="swap-horizontal-outline" size={16} color={c.positive} />
-            </View>
-            <Text style={[styles.settleCardTitle, { color: c.textPrimary }]}>
-              {t('bills.settle_up')}
+        <View style={styles.balanceTop}>
+          <View style={styles.flexShrink}>
+            <Text style={[styles.balanceLabel, styles.balanceOnHero]}>
+              {settlements.length === 0
+                ? t('bills.all_settled_tag')
+                : isOwed
+                  ? t('bills.you_are_owed')
+                  : t('bills.you_owe')}
             </Text>
-            <Text style={[styles.settleCardHint, { color: c.textSecondary }]}>
-              {showSettle ? t('bills.hide') : t('bills.see_transfers')}
-            </Text>
-            <Ionicons
-              name={showSettle ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={c.textSecondary}
-            />
+            {settlements.length === 0 ? (
+              <Text style={styles.balanceSettledSub}>{t('bills.everyone_settled')}</Text>
+            ) : (
+              <>
+                <Money
+                  amount={Math.abs(netBalance)}
+                  currencyCode={currencyCode}
+                  size={40}
+                  color="#fff"
+                  mutedColor="rgba(255,255,255,0.72)"
+                  style={styles.balanceBigAmt}
+                />
+                <Text style={styles.balanceSub}>
+                  {sharedBalances.length === 1
+                    ? t('dashboard.balance_across', { count: sharedBalances.length })
+                    : t('dashboard.balance_across_plural', { count: sharedBalances.length })}
+                </Text>
+              </>
+            )}
           </View>
-          {showSettle && (
-            <View style={styles.settleContent}>
-              <Text style={[styles.settleCardSub, { color: c.textSecondary }]}>
-                {t('bills.min_transfers')}
-              </Text>
-              <SettleUpPanel />
+          {settlements.length === 0 ? (
+            <View style={styles.balanceCheck}>
+              <Ionicons name="checkmark" size={24} color="#fff" />
             </View>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.balanceAnalysis, pressed && { opacity: 0.85 }]}
+              onPress={() => router.push('/(tabs)/profile/spending')}
+              accessibilityRole="button"
+              accessibilityLabel={t('spending.view_spending')}
+            >
+              <Ionicons name="stats-chart-outline" size={20} color="#fff" />
+            </Pressable>
           )}
-        </Pressable>
-      </View>
+        </View>
+
+        {settlements.length > 0 && (
+          <Pressable
+            style={({ pressed }) => [styles.settleStrip, pressed && { opacity: 0.85 }]}
+            onPress={() => setShowSettle((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={t('bills.toggle_settle')}
+            accessibilityState={{ expanded: showSettle }}
+          >
+            <View style={styles.settleStripIcon}>
+              <Ionicons name="swap-horizontal" size={16} color="#fff" />
+            </View>
+            <View style={styles.flexShrink}>
+              <Text style={styles.settleStripTitle}>{t('bills.settle_up')}</Text>
+              <Text style={styles.settleStripSub}>
+                {showSettle
+                  ? t('bills.min_transfers')
+                  : settlements.length === 1
+                    ? t('bills.n_transfers', { count: settlements.length })
+                    : t('bills.n_transfers_plural', { count: settlements.length })}
+              </Text>
+            </View>
+            <Ionicons name={showSettle ? 'chevron-up' : 'chevron-down'} size={18} color="#fff" />
+          </Pressable>
+        )}
+
+        {settlements.length > 0 && showSettle && (
+          <View style={styles.settleList}>
+            {settlements.map((s, idx) => {
+              const fromName = memberName(s.from).split(' ')[0];
+              const toName = memberName(s.to).split(' ')[0];
+              const amtColor =
+                s.to === myId ? '#8FE0AC' : s.from === myId ? '#FF8478' : 'rgba(255,255,255,0.92)';
+              return (
+                <View key={idx} style={styles.settleXfer}>
+                  <SettleAvatar
+                    name={fromName}
+                    uri={avatarById.get(s.from)}
+                    isYou={s.from === myId}
+                  />
+                  <Text style={styles.settleXferName} numberOfLines={1}>
+                    {s.from === myId ? t('bills.you_label') : fromName}
+                  </Text>
+                  <Ionicons
+                    name={billsRtl ? 'arrow-back' : 'arrow-forward'}
+                    size={14}
+                    color="rgba(255,255,255,0.55)"
+                    style={styles.settleXferArrow}
+                  />
+                  <SettleAvatar name={toName} uri={avatarById.get(s.to)} isYou={s.to === myId} />
+                  <Text style={styles.settleXferName} numberOfLines={1}>
+                    {s.to === myId ? t('bills.you_label') : toName}
+                  </Text>
+                  <Text style={[styles.settleXferAmt, { color: amtColor }]}>
+                    {formatFull(s.amount, currencyCode)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </LinearGradient>
 
       {/* Recurring household bills */}
       {filter === 'recurring' && (
@@ -731,85 +706,108 @@ const styles = StyleSheet.create({
   },
   addBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
 
-  // ── Balance card
+  // ── Balance + settle (merged card)
   balanceCard: {
-    flexDirection: 'row',
     borderRadius: 20,
     padding: 20,
-    alignItems: 'flex-start',
     overflow: 'hidden',
-    shadowOffset: { width: 0, height: 12 },
+    shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 1,
-    shadowRadius: 22,
-    elevation: 8,
+    shadowRadius: 26,
+    elevation: 9,
   },
-  balanceOnHero: { color: 'rgba(255,255,255,0.75)' },
-  balanceNetHero: { color: '#fff' },
-  balanceDividerHero: { backgroundColor: 'rgba(255,255,255,0.22)' },
-  balanceStat: { flex: 1, alignItems: 'center', gap: 3 },
-  balanceDivider: { width: 1, height: 52, alignSelf: 'center' },
-  balanceStatLabel: { fontSize: 12, ...font.medium, textAlign: 'center' },
-  // RNP's Text forces writingDirection from I18nManager; isolate to LTR so the +/- sign
-  // doesn't get bidi-reordered to the wrong side of the amount under Hebrew/RTL.
-  balanceStatNum: {
-    fontSize: 22,
-    ...font.extrabold,
-    letterSpacing: -0.5,
-    textAlign: 'center',
-    writingDirection: 'ltr',
+  balanceHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
-  balanceStatTag: { fontSize: 11, ...font.semibold, textAlign: 'center' },
-
-  // ── Settle card
-  settleCard: {
-    borderRadius: 16,
+  balanceOnHero: { color: 'rgba(255,255,255,0.85)' },
+  balanceTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  flexShrink: { flex: 1, minWidth: 0 },
+  balanceLabel: { fontSize: 12.5, ...font.semibold },
+  // Isolate money to LTR so digits/symbol don't bidi-reorder under Hebrew/RTL.
+  balanceBigAmt: { marginTop: 6, writingDirection: 'ltr' },
+  balanceSub: { fontSize: 11.5, ...font.medium, color: 'rgba(255,255,255,0.78)', marginTop: 6 },
+  balanceSettledSub: { fontSize: 13, ...font.medium, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
+  balanceAnalysis: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  settleCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  settleIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    justifyContent: 'center',
+    borderColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  settleCardTitle: { flex: 1, fontSize: 15, ...font.semibold },
-  settleCardHint: { fontSize: 13, ...font.regular },
-  settleContent: { marginTop: 12, gap: 10 },
-  settleCardSub: { fontSize: 13, ...font.regular, lineHeight: 18 },
-
-  settleAllGood: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  settleAllGoodText: { fontSize: 14, ...font.semibold },
-  settleList: { gap: 8 },
-  settleRow: {
+  balanceCheck: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Settle strip attached under the amount, on the gradient.
+  settleStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    marginTop: 16,
+    marginHorizontal: -20,
+    marginBottom: -20,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.16)',
+  },
+  settleStripIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settleStripTitle: { fontSize: 14, ...font.bold, color: '#fff' },
+  settleStripSub: { fontSize: 11.5, ...font.medium, color: 'rgba(255,255,255,0.75)', marginTop: 1 },
+  settleList: {
+    marginHorizontal: -20,
+    marginBottom: -20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  settleXfer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
-  settleAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
+  settleXferName: { fontSize: 13, ...font.bold, color: '#fff', maxWidth: 74 },
+  settleXferArrow: { marginHorizontal: 1 },
+  settleXferAmt: {
+    marginStart: 'auto' as never,
+    fontSize: 14,
+    ...font.extrabold,
+    writingDirection: 'ltr',
+  },
+  settleAv: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
+    justifyContent: 'center',
     overflow: 'hidden',
   },
-  settleAvatarImg: { width: 28, height: 28 },
-  settleAvatarText: { fontSize: 12, ...font.bold },
-  settleName: { fontSize: 13, ...font.semibold },
-  settleArrow: { marginHorizontal: 2 },
-  settleAmt: { marginStart: 'auto' as never, fontSize: 14, ...font.bold },
+  settleAvYou: { backgroundColor: 'rgba(255,255,255,0.32)' },
+  settleAvImg: { width: 26, height: 26 },
+  settleAvText: { fontSize: 11, ...font.bold, color: '#fff' },
 
   // ── Filter tabs
   filterRow: {

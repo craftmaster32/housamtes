@@ -568,7 +568,10 @@
     "min_transfers": "מינימום העברות לאיפוס כל היתרות",
     "all_expenses": "כל ההוצאות",
     "no_expenses_yet": "אין הוצאות עדיין",
-    "no_expenses_hint": "לחץ על הוסף הוצאה כדי לתעד את ההוצאה המשותפת הראשונה"
+    "no_expenses_hint": "לחץ על הוסף הוצאה כדי לתעד את ההוצאה המשותפת הראשונה",
+    "n_transfers": "העברה אחת לסגירת חשבון",
+    "n_transfers_plural": "{{count}} העברות לסגירת חשבון",
+    "you_label": "אתה"
   },
   "parking": {
     "title": "חניה",
@@ -1401,7 +1404,13 @@
     "could_not_create_vote": "לא ניתן ליצור הצבעה. נסה שוב.",
     "approve_leave_title": "לאשר את עזיבת {{name}}?",
     "approve_leave_body": "{{name}} רוצה לעזוב את הבית. יתרת החוב שלו/ה היא {{amount}}. האם לאשר?",
-    "back_rtl": "פרופיל →"
+    "back_rtl": "פרופיל →",
+    "integrations_section": "אינטגרציות",
+    "legal_section": "משפטי",
+    "nfc_title": "תג NFC לחניה",
+    "nfc_desc": "החלף את מצב החניה בהקשה על תג ברכב",
+    "calendar_desc_web": "פתח אירוע כלשהו בלשונית היומן כדי לייצא ל-Google Calendar או להוריד קובץ .ics",
+    "currency_pick": "בחר מטבע"
   },
   "members": {
     "title": "הרשאות חברים",

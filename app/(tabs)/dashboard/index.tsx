@@ -38,6 +38,7 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useThemedColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
+import { Money } from '@components/shared/Money';
 import { useTranslation } from 'react-i18next';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
@@ -45,8 +46,9 @@ import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
 
 // The parking tile stays a deep slate in both themes — a deliberate anchor on
-// the home grid, matching the design.
-const PARK_TILE_BG = '#23323E';
+// the home grid. A soft top-to-bottom gradient (rather than a flat fill) gives
+// it the same "lit surface" depth as the owed hero.
+const PARK_GRADIENT = ['#2C3E4C', '#1A2732'] as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string, t: (key: string) => string): string {
@@ -76,13 +78,6 @@ function timeAgo(
 function todayYMD(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// Split a formatted amount ("₪746.46") into its leading symbol and the number,
-// so the currency mark can sit smaller beside the big figure.
-function splitAmount(formatted: string): { symbol: string; value: string } {
-  const m = formatted.match(/^([^\d-]*)(.*)$/);
-  return { symbol: m?.[1] ?? '', value: m?.[2] ?? formatted };
 }
 
 // ── Header ──────────────────────────────────────────────────────────────────
@@ -285,7 +280,6 @@ function OwedHero(): React.JSX.Element {
   const isOwed = netAmount >= 0;
   const peopleCount = balances.length;
   const settled = balances.length === 0;
-  const { symbol, value } = splitAmount(formatFull(Math.abs(netAmount), currencyCode));
 
   return (
     <Pressable
@@ -308,6 +302,7 @@ function OwedHero(): React.JSX.Element {
       >
         <View style={styles.heroDeco} />
         <View style={styles.heroDecoSm} />
+        <View style={styles.heroHighlight} />
 
         {settled ? (
           <View style={styles.heroSettledRow}>
@@ -325,12 +320,13 @@ function OwedHero(): React.JSX.Element {
               <Text style={styles.heroLabel}>
                 {isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')}
               </Text>
-              <View style={styles.heroAmtRow}>
-                <Text style={styles.heroAmtSym}>{symbol}</Text>
-                <Text style={styles.heroAmt} numberOfLines={1} adjustsFontSizeToFit>
-                  {value}
-                </Text>
-              </View>
+              <Money
+                amount={Math.abs(netAmount)}
+                currencyCode={currencyCode}
+                size={44}
+                color="#fff"
+                style={styles.heroAmtRow}
+              />
               <Text style={styles.heroSub}>
                 {peopleCount !== 1
                   ? t('dashboard.balance_across_plural', { count: peopleCount })
@@ -411,6 +407,13 @@ function ParkingTile(): React.JSX.Element {
       accessibilityRole="button"
       accessibilityLabel={isFree ? t('dashboard.claim_parking_spot') : t('dashboard.view_parking')}
     >
+      <LinearGradient
+        colors={PARK_GRADIENT}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.parkHighlight} />
       <View style={styles.parkTop}>
         <View style={[styles.parkChip, { backgroundColor: chipBg }]}>
           {busy ? (
@@ -467,21 +470,30 @@ function ChoresRing(): React.JSX.Element {
         <Text style={[styles.choreLabel, { color: c.textSecondary }]}>
           {t('dashboard.chores_label')}
         </Text>
-        <Svg width={46} height={46} viewBox="0 0 46 46">
-          <Circle cx={23} cy={23} r={R} fill="none" stroke={c.surfaceSecondary} strokeWidth={5} />
-          <Circle
-            cx={23}
-            cy={23}
-            r={R}
-            fill="none"
-            stroke={c.success}
-            strokeWidth={5}
-            strokeLinecap="round"
-            strokeDasharray={CIRC}
-            strokeDashoffset={offset}
-            transform="rotate(-90 23 23)"
-          />
-        </Svg>
+        <View style={styles.choreRingWrap}>
+          <Svg width={46} height={46} viewBox="0 0 46 46">
+            <Circle cx={23} cy={23} r={R} fill="none" stroke={c.surfaceSecondary} strokeWidth={5} />
+            <Circle
+              cx={23}
+              cy={23}
+              r={R}
+              fill="none"
+              stroke={c.success}
+              strokeWidth={5}
+              strokeLinecap="round"
+              strokeDasharray={CIRC}
+              strokeDashoffset={offset}
+              transform="rotate(-90 23 23)"
+            />
+          </Svg>
+          {total > 0 && (
+            <View style={styles.choreRingLabel} pointerEvents="none">
+              <Text style={[styles.choreRingPct, { color: c.success }]}>
+                {Math.round(pct * 100)}%
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
       <View>
         <Text style={[styles.choreNum, { color: c.textPrimary }]}>
@@ -593,8 +605,8 @@ function GamesButton(): React.JSX.Element {
       accessibilityRole="button"
       accessibilityLabel={t('dashboard.games_fun')}
     >
-      <View style={styles.gamesEmoji}>
-        <Text style={styles.gamesEmojiText}>🎮</Text>
+      <View style={[styles.gamesIcon, { backgroundColor: c.primaryTint }]}>
+        <Ionicons name="game-controller-outline" size={20} color={c.primary} />
       </View>
       <View style={styles.flex1}>
         <Text style={[styles.gamesTitle, { color: c.textPrimary }]}>
@@ -795,6 +807,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.10)',
   },
+  // Hairline of light along the top edge — the "lit from above" cue that reads
+  // as depth on the gradient.
+  heroHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
   heroRow: {
     position: 'relative',
     flexDirection: 'row',
@@ -823,11 +845,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  heroLabel: { fontSize: 12, ...font.medium, color: 'rgba(255,255,255,0.8)' },
-  heroAmtRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 4 },
-  heroAmtSym: { fontSize: 22, ...font.medium, color: 'rgba(255,255,255,0.7)', marginRight: 2 },
-  heroAmt: { fontSize: 44, ...font.extrabold, color: '#fff', letterSpacing: -1.6, lineHeight: 48 },
-  heroSub: { fontSize: 11, color: 'rgba(255,255,255,0.72)', marginTop: 4 },
+  heroLabel: { fontSize: 12.5, ...font.semibold, color: 'rgba(255,255,255,0.82)' },
+  heroAmtRow: { marginTop: 6 },
+  heroSub: { fontSize: 11.5, ...font.medium, color: 'rgba(255,255,255,0.74)', marginTop: 6 },
 
   // ── Grid row (parking + chores)
   gridRow: { flexDirection: 'row', gap: 12, marginTop: 14 },
@@ -839,8 +859,16 @@ const styles = StyleSheet.create({
     minHeight: 118,
     borderRadius: 18,
     padding: 15,
-    backgroundColor: PARK_TILE_BG,
+    overflow: 'hidden',
     justifyContent: 'space-between',
+  },
+  parkHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.07)',
   },
   parkTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   parkChip: {
@@ -872,6 +900,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   choreTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  choreRingWrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
+  choreRingLabel: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  choreRingPct: { fontSize: 11, ...font.extrabold },
   choreLabel: {
     fontSize: 11,
     ...font.semibold,
@@ -918,15 +957,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 13,
   },
-  gamesEmoji: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#F6E7C4',
+  gamesIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gamesEmojiText: { fontSize: 19 },
   gamesTitle: { fontSize: 14.5, ...font.bold },
   gamesSub: { fontSize: 12, ...font.regular, marginTop: 1 },
 });

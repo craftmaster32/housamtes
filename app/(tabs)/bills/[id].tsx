@@ -16,6 +16,7 @@ import { isRTL } from '@lib/i18n';
 import { useMemberName } from '@hooks/useMemberName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
+import { Money } from '@components/shared/Money';
 import { Button, EmptyState, Pill } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -335,12 +336,17 @@ export default function BillDetailScreen(): React.JSX.Element {
               end={{ x: 0.85, y: 1 }}
               style={styles.detailHero}
             >
+              <View style={styles.detailHeroHighlight} />
               <Text style={styles.detailHeroTitle} numberOfLines={2}>
                 {bill.title}
               </Text>
-              <Text style={styles.detailHeroAmount} numberOfLines={1} adjustsFontSizeToFit>
-                {formatFull(bill.amount, currencyCode)}
-              </Text>
+              <Money
+                amount={bill.amount}
+                currencyCode={currencyCode}
+                size={40}
+                color="#fff"
+                style={styles.detailHeroAmount}
+              />
             </LinearGradient>
             <View style={[styles.card, styles.detailMetaCard]}>
               <View style={styles.metaRow}>
@@ -454,8 +460,16 @@ const makeStyles = (C: ColorTokens) =>
       shadowRadius: 22,
       elevation: 8,
     },
+    detailHeroHighlight: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+    },
     detailHeroTitle: { fontSize: 15, ...font.semibold, color: 'rgba(255,255,255,0.85)' },
-    detailHeroAmount: { fontSize: 40, ...font.extrabold, color: '#fff', letterSpacing: -1.4 },
+    detailHeroAmount: { marginTop: 2 },
     detailMetaCard: { marginTop: 12 },
     metaRow: {
       flexDirection: 'row',

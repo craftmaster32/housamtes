@@ -568,7 +568,10 @@
     "min_transfers": "Mínimo de transferencias para liquidar todos los saldos",
     "all_expenses": "TODOS LOS GASTOS",
     "no_expenses_yet": "Aún no hay gastos",
-    "no_expenses_hint": "Toca Agregar gasto para registrar tu primer gasto compartido"
+    "no_expenses_hint": "Toca Agregar gasto para registrar tu primer gasto compartido",
+    "n_transfers": "{{count}} transferencia para saldar",
+    "n_transfers_plural": "{{count}} transferencias para saldar",
+    "you_label": "Tú"
   },
   "parking": {
     "title": "Estacionamiento",
@@ -1426,7 +1429,13 @@
     "could_not_create_vote": "No se pudo crear la votación. Intenta de nuevo.",
     "approve_leave_title": "¿Aprobar la salida de {{name}}?",
     "approve_leave_body": "{{name}} quiere dejar la casa. Tiene un saldo pendiente de {{amount}}. ¿Apruebas?",
-    "back_rtl": "Perfil →"
+    "back_rtl": "Perfil →",
+    "integrations_section": "Integraciones",
+    "legal_section": "Legal",
+    "nfc_title": "Etiqueta NFC de aparcamiento",
+    "nfc_desc": "Cambia tu plaza tocando una etiqueta en tu coche",
+    "calendar_desc_web": "Abre cualquier evento en la pestaña Calendario para exportarlo a Google Calendar o descargar un archivo .ics",
+    "currency_pick": "Elegir moneda"
   },
   "members": {
     "title": "Permisos de miembros",

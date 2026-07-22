@@ -292,6 +292,7 @@ export default function ChoresScreen(): React.JSX.Element {
                     end={{ x: 0.85, y: 1 }}
                     style={styles.progressHero}
                   >
+                    <View style={styles.progressHeroHighlight} />
                     <View style={styles.progressHeroTop}>
                       <Text style={styles.progressHeroNum}>
                         {done.length}
@@ -514,6 +515,14 @@ function makeStyles(C: ColorTokens) {
       shadowOpacity: 0.35,
       shadowRadius: 18,
       elevation: 6,
+    },
+    progressHeroHighlight: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: 'rgba(255,255,255,0.2)',
     },
     progressHeroTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     progressHeroNum: { fontSize: 30, ...font.extrabold, color: '#fff', letterSpacing: -0.8 },
