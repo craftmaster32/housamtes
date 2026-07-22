@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput, type ImageStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -25,8 +26,22 @@ import { formatDateDDMMYYYY } from '@utils/dates';
 
 type FilterType = 'all' | EntryType;
 
-function getAreaIcon(area: string): string {
-  return PRESET_AREAS.find((a) => a.label === area)?.icon ?? '📝';
+// Areas carry an emoji in the store; render a line icon here instead so the
+// page speaks one visual language (no emoji beside icons).
+const AREA_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  'Living Room': 'tv-outline',
+  Kitchen: 'restaurant-outline',
+  Bathroom: 'water-outline',
+  'Master Bedroom': 'bed-outline',
+  'Bedroom 2': 'bed-outline',
+  'Bedroom 3': 'bed-outline',
+  Hallway: 'walk-outline',
+  'Balcony/Garden': 'leaf-outline',
+  Appliances: 'cog-outline',
+  Other: 'document-text-outline',
+};
+function getAreaIcon(area: string): React.ComponentProps<typeof Ionicons>['name'] {
+  return AREA_ICONS[area] ?? 'document-text-outline';
 }
 
 function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
@@ -52,9 +67,8 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
               <Text style={[styles.typeBadgeText, { color: type.color }]}>{type.label}</Text>
             </View>
             <View style={[styles.condBadge, { backgroundColor: cond.color + '18' }]}>
-              <Text style={[styles.condBadgeText, { color: cond.color }]}>
-                {cond.icon} {cond.label}
-              </Text>
+              <View style={[styles.condBadgeDot, { backgroundColor: cond.color }]} />
+              <Text style={[styles.condBadgeText, { color: cond.color }]}>{cond.label}</Text>
             </View>
           </View>
           <Text style={styles.entryDate}>
@@ -69,7 +83,7 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('common.delete')}
         >
-          <Text style={styles.removeBtnText}>✕</Text>
+          <Ionicons name="close" size={18} color={c.textTertiary} />
         </Pressable>
       </View>
       {entry.description ? <Text style={styles.entryDescription}>{entry.description}</Text> : null}
@@ -180,7 +194,11 @@ function AddEntryForm({
             accessibilityLabel={a.label}
             accessibilityState={{ selected: !useCustom && area === a.label }}
           >
-            <Text style={styles.areaChipIcon}>{a.icon}</Text>
+            <Ionicons
+              name={getAreaIcon(a.label)}
+              size={14}
+              color={!useCustom && area === a.label ? c.primary : c.textSecondary}
+            />
             <Text
               style={[
                 styles.areaChipText,
@@ -199,7 +217,11 @@ function AddEntryForm({
           accessibilityLabel={t('condition.custom')}
           accessibilityState={{ selected: useCustom }}
         >
-          <Text style={styles.areaChipIcon}>✏️</Text>
+          <Ionicons
+            name="create-outline"
+            size={14}
+            color={useCustom ? c.primary : c.textSecondary}
+          />
           <Text style={[styles.areaChipText, useCustom && styles.areaChipTextActive]}>
             {t('condition.custom')}
           </Text>
@@ -238,7 +260,7 @@ function AddEntryForm({
               accessibilityState={{ selected: condition === c }}
             >
               <Text style={[styles.condChipText, condition === c && styles.condChipTextActive]}>
-                {cfg.icon} {cfg.label}
+                {cfg.label}
               </Text>
             </Pressable>
           );
@@ -362,9 +384,11 @@ export function ConditionTab(): React.JSX.Element {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={[styles.statNum, { color: hasDamage ? c.danger : c.positive }]}>
-              {hasDamage ? '⚠️' : '✓'}
-            </Text>
+            <Ionicons
+              name={hasDamage ? 'warning' : 'checkmark-circle'}
+              size={22}
+              color={hasDamage ? c.danger : c.positive}
+            />
             <Text style={styles.statLbl}>
               {hasDamage ? t('condition.issues_found') : t('condition.all_good')}
             </Text>
@@ -422,7 +446,9 @@ export function ConditionTab(): React.JSX.Element {
       {grouped.map(([area, areaEntries]) => (
         <View key={area} style={styles.areaGroup}>
           <View style={styles.areaGroupHeader}>
-            <Text style={styles.areaGroupIcon}>{getAreaIcon(area)}</Text>
+            <View style={styles.areaGroupIcon}>
+              <Ionicons name={getAreaIcon(area)} size={15} color={c.primary} />
+            </View>
             <Text style={styles.areaGroupName}>{area}</Text>
             <View
               style={[
@@ -446,8 +472,10 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
 
     statsStrip: {
       flexDirection: 'row',
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
       borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.border,
       padding: sizes.md,
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     } as never,
@@ -471,13 +499,13 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       paddingHorizontal: sizes.md,
       paddingVertical: 6,
       borderRadius: sizes.borderRadiusFull,
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
     },
     filterChipActive: { backgroundColor: C.primary, borderColor: C.primary },
     filterChipText: { fontSize: sizes.fontSm, ...font.semibold, color: C.textSecondary },
-    filterChipTextActive: { color: C.white },
+    filterChipTextActive: { color: '#fff' },
 
     areaGroup: { gap: 6 },
     areaGroupHeader: {
@@ -486,13 +514,22 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       gap: sizes.xs,
       paddingVertical: 4,
     },
-    areaGroupIcon: { fontSize: 18 },
+    areaGroupIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: 9,
+      backgroundColor: C.primary + '15',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary, flex: 1 },
     condDot: { width: 10, height: 10, borderRadius: 5 },
 
     entryCard: {
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
       borderRadius: 12,
+      borderWidth: 1,
+      borderColor: C.border,
       padding: sizes.sm,
       gap: sizes.xs,
       marginStart: sizes.md,
@@ -508,10 +545,14 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     },
     typeBadgeText: { fontSize: 11, ...font.bold },
     condBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
       borderRadius: sizes.borderRadiusFull,
-      paddingHorizontal: sizes.xs,
-      paddingVertical: 2,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
     },
+    condBadgeDot: { width: 6, height: 6, borderRadius: 3 },
     condBadgeText: { fontSize: 11, ...font.bold },
     entryDate: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
     entryDescription: {
@@ -537,10 +578,9 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    removeBtnText: { color: C.textDisabled, fontSize: sizes.fontXs },
 
     form: {
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
       borderRadius: 16,
       padding: sizes.md,
       gap: sizes.sm,
@@ -561,11 +601,11 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,
       borderColor: C.border,
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
     },
     chipActive: { backgroundColor: C.primary, borderColor: C.primary },
     chipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
-    chipTextActive: { color: C.white },
+    chipTextActive: { color: '#fff' },
     areaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
     areaChip: {
       flexDirection: 'row',
@@ -576,10 +616,9 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       borderRadius: sizes.borderRadiusSm,
       borderWidth: 1,
       borderColor: C.border,
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
     },
     areaChipActive: { backgroundColor: C.primary + '12', borderColor: C.primary },
-    areaChipIcon: { fontSize: 14 },
     areaChipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
     areaChipTextActive: { color: C.primary, ...font.bold },
     condChip: {
@@ -587,10 +626,10 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       paddingVertical: 6,
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 2,
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
     },
     condChipText: { fontSize: sizes.fontSm, ...font.semibold, color: C.textPrimary },
-    condChipTextActive: { color: C.white },
+    condChipTextActive: { color: '#fff' },
     input: {
       backgroundColor: C.background,
       borderRadius: sizes.borderRadiusSm,
@@ -625,7 +664,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       borderRadius: 12,
     },
     saveBtnDisabled: { backgroundColor: C.textDisabled },
-    saveBtnText: { color: C.white, ...font.semibold },
+    saveBtnText: { color: '#fff', ...font.semibold },
 
     emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
     emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },

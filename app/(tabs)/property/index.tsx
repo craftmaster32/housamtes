@@ -8,12 +8,14 @@ import { ConditionTab } from '@components/property/ConditionTab';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 type ActiveTab = 'issues' | 'condition';
 
 export default function PropertyScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ActiveTab>('issues');
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -29,7 +31,7 @@ export default function PropertyScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root} edges={['top']}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Text style={styles.heading}>{t('nav.property')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('nav.property')}</Text>
           <View style={styles.segmented}>
             <Pressable
               style={[styles.segment, activeTab === 'issues' && styles.segmentActive]}
@@ -39,7 +41,9 @@ export default function PropertyScreen(): React.JSX.Element {
               accessibilityState={{ selected: activeTab === 'issues' }}
               accessibilityLabel={t('property.tab_issues')}
             >
-              <Text style={[styles.segmentText, activeTab === 'issues' && styles.segmentTextActive]}>
+              <Text
+                style={[styles.segmentText, activeTab === 'issues' && styles.segmentTextActive]}
+              >
                 {t('property.tab_issues')}
               </Text>
             </Pressable>
@@ -51,7 +55,9 @@ export default function PropertyScreen(): React.JSX.Element {
               accessibilityState={{ selected: activeTab === 'condition' }}
               accessibilityLabel={t('property.tab_condition')}
             >
-              <Text style={[styles.segmentText, activeTab === 'condition' && styles.segmentTextActive]}>
+              <Text
+                style={[styles.segmentText, activeTab === 'condition' && styles.segmentTextActive]}
+              >
                 {t('property.tab_condition')}
               </Text>
             </Pressable>
@@ -93,7 +99,7 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surface,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.10,
+      shadowOpacity: 0.1,
       shadowRadius: 3,
       elevation: 1,
     },

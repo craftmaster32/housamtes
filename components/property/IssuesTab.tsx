@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -20,6 +21,20 @@ import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
+
+// Categories carry an emoji in the store; render a line icon here so the page
+// speaks one visual language (no emoji beside icons).
+const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  Plumbing: 'water-outline',
+  Electrical: 'flash-outline',
+  Appliance: 'construct-outline',
+  Structure: 'business-outline',
+  Pest: 'bug-outline',
+  Other: 'document-text-outline',
+};
+function categoryIcon(label: string): React.ComponentProps<typeof Ionicons>['name'] {
+  return CATEGORY_ICONS[label] ?? 'document-text-outline';
+}
 
 function timeAgo(iso: string, t: TFunction): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -62,7 +77,6 @@ function RequestCard({ request, myId }: RequestCardProps): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const updateStatus = useMaintenanceStore((s) => s.updateStatus);
   const remove = useMaintenanceStore((s) => s.remove);
-  const category = MAINTENANCE_CATEGORIES.find((c) => c.label === request.category);
 
   const handleNextStatus = useCallback(() => {
     void updateStatus(request.id, NEXT_STATUS[request.status]);
@@ -75,7 +89,21 @@ function RequestCard({ request, myId }: RequestCardProps): React.JSX.Element {
   return (
     <View style={[styles.card, request.status === 'resolved' && styles.cardResolved]}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardIcon}>{category?.icon ?? '📝'}</Text>
+        <View
+          style={[
+            styles.cardIcon,
+            {
+              backgroundColor:
+                request.status === 'resolved' ? c.surfaceSecondary : c.primary + '18',
+            },
+          ]}
+        >
+          <Ionicons
+            name={categoryIcon(request.category)}
+            size={19}
+            color={request.status === 'resolved' ? c.textTertiary : c.primary}
+          />
+        </View>
         <View style={styles.cardInfo}>
           <Text
             style={[styles.cardTitle, request.status === 'resolved' && styles.cardTitleResolved]}
@@ -92,11 +120,12 @@ function RequestCard({ request, myId }: RequestCardProps): React.JSX.Element {
           <Pressable
             onPress={handleRemove}
             style={styles.removeBtn}
+            hitSlop={8}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('common.delete')}
           >
-            <Text style={styles.removeBtnText}>✕</Text>
+            <Ionicons name="close" size={18} color={c.textTertiary} />
           </Pressable>
         )}
       </View>
@@ -183,22 +212,27 @@ function AddRequestForm({
 
       <Text style={styles.fieldLabel}>{t('maintenance.category')}</Text>
       <View style={styles.chipRow}>
-        {MAINTENANCE_CATEGORIES.map((c) => (
-          <Pressable
-            key={c.label}
-            style={[styles.chip, category === c.label && styles.chipActive]}
-            onPress={() => setCategory(c.label)}
-            accessible
-            accessibilityRole="radio"
-            accessibilityLabel={c.label}
-            accessibilityState={{ selected: category === c.label }}
-          >
-            <Text style={styles.chipIcon}>{c.icon}</Text>
-            <Text style={[styles.chipText, category === c.label && styles.chipTextActive]}>
-              {c.label}
-            </Text>
-          </Pressable>
-        ))}
+        {MAINTENANCE_CATEGORIES.map((cat) => {
+          const active = category === cat.label;
+          return (
+            <Pressable
+              key={cat.label}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => setCategory(cat.label)}
+              accessible
+              accessibilityRole="radio"
+              accessibilityLabel={cat.label}
+              accessibilityState={{ selected: active }}
+            >
+              <Ionicons
+                name={categoryIcon(cat.label)}
+                size={14}
+                color={active ? '#fff' : c.textSecondary}
+              />
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{cat.label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Text style={styles.fieldLabel}>{t('maintenance.issue_label')}</Text>
@@ -296,15 +330,20 @@ export function IssuesTab(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityState={{ expanded: showResolved }}
           >
+            <Ionicons
+              name={showResolved ? 'chevron-up' : 'chevron-down'}
+              size={15}
+              color={c.textSecondary}
+            />
             <Text style={styles.resolvedToggleText}>
-              {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
+              {t('maintenance.resolved_section')} ({resolved.length})
             </Text>
           </Pressable>
         );
       }
       return <RequestCard request={item.request} myId={myId} />;
     },
-    [showResolved, resolved.length, t, myId, styles]
+    [showResolved, resolved.length, t, myId, styles, c]
   );
 
   const keyExtractor = useCallback((item: ListItem) => {
@@ -374,21 +413,35 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
 
     card: {
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
       borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.border,
       padding: sizes.md,
       gap: sizes.sm,
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     } as never,
     cardResolved: { opacity: 0.65 },
-    cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-    cardIcon: { fontSize: 24, lineHeight: 30 },
+    cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
+    cardIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
     cardInfo: { flex: 1, gap: 2 },
     cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
     cardTitleResolved: { textDecorationLine: 'line-through', color: C.textSecondary },
     cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
-    removeBtn: { padding: 4 },
-    removeBtnText: { color: C.textDisabled, fontSize: sizes.fontSm },
+    removeBtn: {
+      padding: 4,
+      minWidth: 30,
+      minHeight: 30,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     cardDescription: {
       fontSize: sizes.fontSm,
       ...font.regular,
@@ -419,8 +472,10 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     reopenBtnText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.regular },
 
     form: {
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
       borderRadius: 16,
+      borderWidth: 1,
+      borderColor: C.border,
       padding: sizes.md,
       gap: sizes.sm,
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
@@ -443,12 +498,11 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,
       borderColor: C.border,
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
     },
     chipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    chipIcon: { fontSize: 14 },
     chipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
-    chipTextActive: { color: C.white },
+    chipTextActive: { color: '#fff' },
     input: {
       backgroundColor: C.background,
       borderRadius: sizes.borderRadiusSm,
@@ -482,10 +536,16 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       borderRadius: 12,
     },
     saveBtnDisabled: { backgroundColor: C.textDisabled },
-    saveBtnText: { color: C.white, ...font.semibold },
+    saveBtnText: { color: '#fff', ...font.semibold },
     saveError: { color: C.danger, fontSize: 13, ...font.regular },
 
-    resolvedToggle: { paddingVertical: sizes.sm, alignItems: 'center' },
+    resolvedToggle: {
+      flexDirection: 'row',
+      gap: 6,
+      paddingVertical: sizes.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     resolvedToggleText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.medium },
 
     emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
