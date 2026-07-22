@@ -30,6 +30,9 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function MenuItem({
   icon,
@@ -39,7 +42,7 @@ function MenuItem({
   rightText,
   disabled,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   sub?: string;
   onPress: () => void;
@@ -58,7 +61,7 @@ function MenuItem({
       accessibilityRole="button"
     >
       <View style={[styles.menuIcon, disabled && styles.menuIconDisabled]}>
-        <Text style={styles.menuIconText}>{icon}</Text>
+        <Ionicons name={icon} size={18} color={disabled ? C.textTertiary : C.primary} />
       </View>
       <View style={styles.menuText}>
         <Text style={[styles.menuLabel, disabled && styles.menuLabelDisabled]}>{label}</Text>
@@ -67,9 +70,11 @@ function MenuItem({
       {rightText ? (
         <Text style={styles.menuRightText}>{rightText}</Text>
       ) : (
-        <Text style={[styles.menuChevron, disabled && styles.menuChevronDisabled]}>
-          {isRTL(currentLanguage) ? '‹' : '›'}
-        </Text>
+        <Ionicons
+          name={isRTL(currentLanguage) ? 'chevron-back' : 'chevron-forward'}
+          size={18}
+          color={disabled ? C.textTertiary : C.textTertiary}
+        />
       )}
     </Pressable>
   );
@@ -82,7 +87,7 @@ function ToggleRow({
   value,
   onToggle,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   sub?: string;
   value: boolean;
@@ -93,7 +98,7 @@ function ToggleRow({
   return (
     <View style={styles.menuItem}>
       <View style={styles.menuIcon}>
-        <Text style={styles.menuIconText}>{icon}</Text>
+        <Ionicons name={icon} size={18} color={C.primary} />
       </View>
       <View style={styles.menuText}>
         <Text style={styles.menuLabel}>{label}</Text>
@@ -194,6 +199,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -228,7 +234,7 @@ export default function SettingsScreen(): React.JSX.Element {
       const result = await refreshWebPush(user.id, houseId);
       setWebPushStatus(getWebPushStatus());
       if (result.ok) {
-        Alert.alert('✅', 'Fresh subscription saved. Notifications should work now.');
+        Alert.alert(t('common.done'), 'Fresh subscription saved. Notifications should work now.');
       } else {
         const detail = result.message ? `\n\n${result.message}` : '';
         Alert.alert('Refresh failed', `${result.reason}${detail}`);
@@ -236,7 +242,7 @@ export default function SettingsScreen(): React.JSX.Element {
       return;
     }
     await handleEnableWebPush();
-  }, [user?.id, houseId, webPushStatus, handleEnableWebPush]);
+  }, [user?.id, houseId, webPushStatus, handleEnableWebPush, t]);
 
   const handleLeavePress = useCallback((): void => {
     const myId = profile?.id ?? '';
@@ -374,7 +380,7 @@ export default function SettingsScreen(): React.JSX.Element {
         </Pressable>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.heading}>{t('settings.title')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('settings.title')}</Text>
 
           {/* Currency */}
           <SectionDivider label={t('settings.currency_section')} />
@@ -411,7 +417,7 @@ export default function SettingsScreen(): React.JSX.Element {
           <SectionDivider label={t('settings.house_section')} />
           <View style={styles.menuGroup}>
             <MenuItem
-              icon="🏠"
+              icon="home-outline"
               label={t('settings.house_name')}
               rightText={houseName || '—'}
               onPress={() => {}}
@@ -421,7 +427,7 @@ export default function SettingsScreen(): React.JSX.Element {
               <>
                 <RowDivider />
                 <MenuItem
-                  icon="🎟️"
+                  icon="ticket-outline"
                   label={t('settings.invite_code')}
                   sub={t('settings.invite_code_sub')}
                   onPress={handleCopyInviteCode}
@@ -430,7 +436,7 @@ export default function SettingsScreen(): React.JSX.Element {
             )}
             <RowDivider />
             <MenuItem
-              icon="🌍"
+              icon="globe-outline"
               label={t('settings.timezone')}
               sub={
                 myRole === 'owner' ? t('settings.timezone_tap') : t('settings.timezone_owner_only')
@@ -443,7 +449,7 @@ export default function SettingsScreen(): React.JSX.Element {
             />
             <RowDivider />
             <MenuItem
-              icon="👥"
+              icon="people-outline"
               label={t('settings.housemates')}
               sub={t('common.person', { count: housemates.length })}
               onPress={() => router.push('/(tabs)/bills/setup')}
@@ -468,9 +474,11 @@ export default function SettingsScreen(): React.JSX.Element {
                     : t('settings.leave_house_desc_default')}
                 </Text>
               </View>
-              <Text style={[styles.menuChevron, { color: C.negative }]}>
-                {isRTL(currentLanguage) ? '‹' : '›'}
-              </Text>
+              <Ionicons
+                name={isRTL(currentLanguage) ? 'chevron-back' : 'chevron-forward'}
+                size={18}
+                color={C.negative}
+              />
             </Pressable>
           </View>
 
@@ -597,9 +605,7 @@ export default function SettingsScreen(): React.JSX.Element {
                           <Text style={styles.menuSub}>{tz.region}</Text>
                         </View>
                         {houseTimezone === tz.id && (
-                          <Text style={[styles.menuChevron, { color: C.primary, fontSize: 18 }]}>
-                            ✓
-                          </Text>
+                          <Ionicons name="checkmark" size={20} color={C.primary} />
                         )}
                       </Pressable>
                     </View>
@@ -621,7 +627,7 @@ export default function SettingsScreen(): React.JSX.Element {
           <View style={styles.menuGroup}>
             <View style={styles.menuItem}>
               <View style={styles.menuIcon}>
-                <Text style={styles.menuIconText}>📅</Text>
+                <Ionicons name="calendar-outline" size={18} color={C.primary} />
               </View>
               <View style={styles.menuText}>
                 <Text style={styles.menuLabel}>{t('settings.calendar_connect')}</Text>
@@ -651,7 +657,7 @@ export default function SettingsScreen(): React.JSX.Element {
                 <RowDivider />
                 <View style={styles.menuItem}>
                   <View style={styles.menuIcon}>
-                    <Text style={styles.menuIconText}>📋</Text>
+                    <Ionicons name="checkmark-done-outline" size={18} color={C.primary} />
                   </View>
                   <View style={styles.menuText}>
                     <Text style={styles.menuLabel}>{t('settings.calendar_auto_events')}</Text>
@@ -674,7 +680,7 @@ export default function SettingsScreen(): React.JSX.Element {
                 <RowDivider />
                 <View style={styles.menuItem}>
                   <View style={styles.menuIcon}>
-                    <Text style={styles.menuIconText}>🚗</Text>
+                    <Ionicons name="car-outline" size={18} color={C.primary} />
                   </View>
                   <View style={styles.menuText}>
                     <Text style={styles.menuLabel}>{t('settings.calendar_auto_parking')}</Text>
@@ -698,7 +704,7 @@ export default function SettingsScreen(): React.JSX.Element {
             )}
             <RowDivider />
             <ToggleRow
-              icon="💰"
+              icon="cash-outline"
               label={t('settings.calendar_recurring')}
               sub={t('settings.calendar_recurring_desc')}
               value={showRecurringBillsOnCalendar}
@@ -722,7 +728,7 @@ export default function SettingsScreen(): React.JSX.Element {
                   accessibilityLabel={t('settings.browser_notifications')}
                 >
                   <View style={styles.menuIcon}>
-                    <Text style={styles.menuIconText}>🔔</Text>
+                    <Ionicons name="notifications-outline" size={18} color={C.primary} />
                   </View>
                   <View style={styles.menuText}>
                     <Text style={styles.menuLabel}>{t('settings.browser_notifications')}</Text>
@@ -738,14 +744,18 @@ export default function SettingsScreen(): React.JSX.Element {
                     <Text style={styles.webPushOn}>{t('settings.notifications_on')}</Text>
                   )}
                   {webPushStatus !== 'denied' && (
-                    <Text style={styles.menuChevron}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
+                    <Ionicons
+                      name={isRTL(currentLanguage) ? 'chevron-back' : 'chevron-forward'}
+                      size={18}
+                      color={C.textTertiary}
+                    />
                   )}
                 </Pressable>
                 <RowDivider />
               </>
             )}
             <ToggleRow
-              icon="💰"
+              icon="cash-outline"
               label={t('settings.notify_bill_added')}
               sub={t('settings.notify_bill_added_sub')}
               value={prefs.notifyBillAdded}
@@ -753,7 +763,7 @@ export default function SettingsScreen(): React.JSX.Element {
             />
             <RowDivider />
             <ToggleRow
-              icon="✅"
+              icon="checkmark-circle-outline"
               label={t('settings.notify_bill_settled')}
               sub={t('settings.notify_bill_settled_sub')}
               value={prefs.notifyBillSettled}
@@ -761,7 +771,7 @@ export default function SettingsScreen(): React.JSX.Element {
             />
             <RowDivider />
             <ToggleRow
-              icon="⏰"
+              icon="time-outline"
               label={t('settings.notify_bill_due')}
               sub={t('settings.notify_bill_due_sub')}
               value={prefs.notifyBillDue}
@@ -800,7 +810,7 @@ export default function SettingsScreen(): React.JSX.Element {
             )}
             <RowDivider />
             <ToggleRow
-              icon="🚗"
+              icon="car-outline"
               label={t('settings.notify_parking_claimed')}
               sub={t('settings.notify_parking_claimed_sub')}
               value={prefs.notifyParkingClaimed}
@@ -808,7 +818,7 @@ export default function SettingsScreen(): React.JSX.Element {
             />
             <RowDivider />
             <ToggleRow
-              icon="📅"
+              icon="calendar-outline"
               label={t('settings.notify_parking_reservation')}
               sub={t('settings.notify_parking_reservation_sub')}
               value={prefs.notifyParkingReservation}
@@ -816,7 +826,7 @@ export default function SettingsScreen(): React.JSX.Element {
             />
             <RowDivider />
             <ToggleRow
-              icon="🧹"
+              icon="sparkles-outline"
               label={t('settings.notify_chore')}
               sub={t('settings.notify_chore_sub')}
               value={prefs.notifyChoreOverdue}
@@ -824,7 +834,7 @@ export default function SettingsScreen(): React.JSX.Element {
             />
             <RowDivider />
             <ToggleRow
-              icon="💬"
+              icon="chatbubble-ellipses-outline"
               label={t('settings.notify_chat')}
               sub={t('settings.notify_chat_sub')}
               value={prefs.notifyChatMessage}
@@ -832,7 +842,7 @@ export default function SettingsScreen(): React.JSX.Element {
             />
             <RowDivider />
             <ToggleRow
-              icon="🛒"
+              icon="cart-outline"
               label={t('settings.notify_grocery_shared')}
               sub={t('settings.notify_grocery_shared_sub')}
               value={prefs.notifyGroceryShared}
@@ -860,7 +870,7 @@ export default function SettingsScreen(): React.JSX.Element {
                     <Text style={styles.menuLabel}>{opt.label}</Text>
                   </View>
                   {currentLanguage === opt.code && (
-                    <Text style={[styles.menuChevron, { color: C.primary, fontSize: 18 }]}>✓</Text>
+                    <Ionicons name="checkmark" size={20} color={C.primary} />
                   )}
                 </Pressable>
               </View>
@@ -871,7 +881,7 @@ export default function SettingsScreen(): React.JSX.Element {
           <SectionDivider label={t('settings.about_section')} />
           <View style={styles.menuGroup}>
             <MenuItem
-              icon="📋"
+              icon="list-outline"
               label={t('settings.version')}
               sub="HouseMates"
               onPress={() => {}}
@@ -880,14 +890,14 @@ export default function SettingsScreen(): React.JSX.Element {
             />
             <RowDivider />
             <MenuItem
-              icon="📄"
+              icon="document-text-outline"
               label={t('settings.terms')}
               sub={t('settings.terms_sub')}
               onPress={() => router.push('/(tabs)/settings/terms')}
             />
             <RowDivider />
             <MenuItem
-              icon="🔒"
+              icon="lock-closed-outline"
               label={t('settings.privacy')}
               sub={t('settings.privacy_sub')}
               onPress={() => router.push('/(tabs)/settings/privacy-policy')}
