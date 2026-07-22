@@ -28,7 +28,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name
   Plumbing: 'water-outline',
   Electrical: 'flash-outline',
   Appliance: 'construct-outline',
-  Structure: 'business-outline',
+  Structure: 'home-outline',
   Pest: 'bug-outline',
   Other: 'document-text-outline',
 };

@@ -184,7 +184,7 @@ export const MAINTENANCE_CATEGORIES: { label: string; icon: IoniconName }[] = [
   { label: 'Plumbing', icon: 'water-outline' },
   { label: 'Electrical', icon: 'flash-outline' },
   { label: 'Appliance', icon: 'construct-outline' },
-  { label: 'Structure', icon: 'business-outline' },
+  { label: 'Structure', icon: 'home-outline' },
   { label: 'Pest', icon: 'bug-outline' },
   { label: 'Other', icon: 'document-text-outline' },
 ];
