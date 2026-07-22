@@ -90,7 +90,13 @@ export function SaveListModal({
         <Pressable style={styles.box} onPress={() => {}}>
           {/* Icon */}
           <View style={styles.iconWrap}>
-            <Text style={styles.iconText}>{mode === 'update' ? '🔄' : '📋'}</Text>
+            <View style={styles.iconBadge}>
+              <Ionicons
+                name={mode === 'update' ? 'sync-outline' : 'bookmark-outline'}
+                size={28}
+                color={C.primary}
+              />
+            </View>
           </View>
 
           {mode === 'update' ? (
@@ -232,7 +238,14 @@ function makeStyles(C: ColorTokens) {
       elevation: 10,
     },
     iconWrap: { alignItems: 'center' },
-    iconText: { fontSize: 40 },
+    iconBadge: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: C.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     title: {
       fontSize: 20,
       ...font.bold,

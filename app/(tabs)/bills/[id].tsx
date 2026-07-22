@@ -196,9 +196,12 @@ export default function BillDetailScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
-            <Text style={styles.backText}>
-              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
-            </Text>
+            <Ionicons
+              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
+              size={20}
+              color={C.primary}
+            />
+            <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
           {!bill.settled && !isEditing && !isDeleting && (
             <Pressable
@@ -434,7 +437,14 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
       marginBottom: sizes.xs,
     },
-    backBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    backBtn: {
+      minWidth: 44,
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+    },
     editBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     editText: { color: C.primary, fontSize: 15, ...font.medium },

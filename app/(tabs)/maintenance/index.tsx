@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
@@ -31,7 +32,13 @@ const makeStyles = (C: ColorTokens) =>
     },
     addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
 
-    resolvedToggle: { paddingVertical: sizes.sm, alignItems: 'center' },
+    resolvedToggle: {
+      paddingVertical: sizes.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
     resolvedToggleText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.medium },
 
     emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
@@ -137,8 +144,13 @@ export default function MaintenanceScreen(): React.JSX.Element {
                 accessibilityLabel={`${t('maintenance.resolved_section')} (${resolved.length})`}
                 accessibilityState={{ expanded: showResolved }}
               >
+                <Ionicons
+                  name={showResolved ? 'chevron-up' : 'chevron-down'}
+                  size={15}
+                  color={C.textSecondary}
+                />
                 <Text style={styles.resolvedToggleText}>
-                  {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
+                  {t('maintenance.resolved_section')} ({resolved.length})
                 </Text>
               </Pressable>
               {showResolved &&

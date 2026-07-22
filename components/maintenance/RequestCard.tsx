@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useHousematesStore } from '@stores/housematesStore';
 import { resolveName } from '@utils/housemates';
@@ -48,7 +49,7 @@ const makeStyles = (C: ColorTokens) =>
     },
     cardResolved: { opacity: 0.65 },
     cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-    cardIcon: { fontSize: 24, lineHeight: 30 },
+    cardIcon: { width: 28, alignItems: 'center', paddingTop: 1 },
     cardInfo: { flex: 1, gap: 2 },
     cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
     cardTitleResolved: { textDecorationLine: 'line-through', color: C.textSecondary },
@@ -59,7 +60,6 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    removeBtnText: { color: C.textDisabled, fontSize: sizes.fontSm },
     cardDescription: {
       fontSize: sizes.fontSm,
       ...font.regular,
@@ -137,7 +137,13 @@ export const RequestCard: React.FC<RequestCardProps> = ({ request, myId }) => {
   return (
     <View style={[styles.card, request.status === 'resolved' && styles.cardResolved]}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardIcon}>{category?.icon ?? '📝'}</Text>
+        <View style={styles.cardIcon}>
+          <Ionicons
+            name={category?.icon ?? 'document-text-outline'}
+            size={22}
+            color={C.textSecondary}
+          />
+        </View>
         <View style={styles.cardInfo}>
           <Text
             style={[styles.cardTitle, request.status === 'resolved' && styles.cardTitleResolved]}
@@ -159,7 +165,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({ request, myId }) => {
             accessibilityRole="button"
             accessibilityLabel={`${t('common.delete')}: ${request.title}`}
           >
-            <Text style={styles.removeBtnText}>✕</Text>
+            <Ionicons name="close" size={16} color={C.textDisabled} />
           </Pressable>
         )}
       </View>

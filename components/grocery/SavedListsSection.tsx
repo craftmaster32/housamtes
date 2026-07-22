@@ -100,7 +100,8 @@ export function SavedListsSection({
         accessibilityLabel={t('grocery.saved_lists_count', { count: lists.length })}
       >
         <View style={styles.headerLeft}>
-          <Text style={styles.headerIcon}>📋</Text>
+          <Ionicons name="bookmarks-outline" size={16} color={C.textSecondary} />
+
           <Text style={styles.headerLabel}>{t('grocery.saved_lists')}</Text>
           {lists.length > 0 && (
             <View style={styles.badge}>
@@ -203,7 +204,6 @@ function makeStyles(C: ColorTokens) {
       minHeight: 48,
     },
     headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    headerIcon: { fontSize: 16 },
     headerLabel: { fontSize: 15, ...font.semibold, color: C.textPrimary },
     badge: {
       backgroundColor: C.primary,

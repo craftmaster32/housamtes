@@ -11,6 +11,7 @@ import {
   Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -90,7 +91,7 @@ const makeStyles = (C: ColorTokens) =>
       shadowRadius: 8,
       elevation: 2,
     },
-    backBtn: { width: 60 },
+    backBtn: { width: 60, flexDirection: 'row', alignItems: 'center', gap: 2 },
     backText: { color: C.primary, fontSize: sizes.fontMd, ...font.medium },
     headerTitle: { color: C.textPrimary, ...font.bold, fontSize: sizes.fontLg },
 
@@ -205,7 +206,6 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
     },
     sendBtnDisabled: { backgroundColor: C.border },
-    sendBtnText: { color: '#fff', fontSize: 18, ...font.bold, marginTop: -2 },
   });
 
 // ── MessageBubble ─────────────────────────────────────────────────────────────
@@ -391,9 +391,12 @@ export default function ChatScreen(): React.JSX.Element {
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>
-              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
-            </Text>
+            <Ionicons
+              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
+              size={20}
+              color={C.primary}
+            />
+            <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
           <Text style={styles.headerTitle}>{t('chat.title')}</Text>
           <View style={styles.backBtn} />
@@ -455,7 +458,11 @@ export default function ChatScreen(): React.JSX.Element {
               style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
               onPress={handleSend}
             >
-              <Text style={styles.sendBtnText}>↑</Text>
+              <Ionicons
+                name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-up'}
+                size={20}
+                color="#fff"
+              />
             </Pressable>
           </View>
         </KeyboardAvoidingView>

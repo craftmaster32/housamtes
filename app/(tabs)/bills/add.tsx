@@ -313,9 +313,12 @@ export default function AddBillScreen(): React.JSX.Element {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>
-              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
-            </Text>
+            <Ionicons
+              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
+              size={20}
+              color={C.primary}
+            />
+            <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
           <Text style={styles.heading}>{t('bills.add_title')}</Text>
         </View>
@@ -733,8 +736,10 @@ const makeStyles = (C: ColorTokens) =>
       alignSelf: 'flex-start',
       minWidth: 44,
       minHeight: 44,
+      flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
+      gap: 2,
     },
     backText: { color: C.primary, fontSize: 15, ...font.semibold },
     heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
