@@ -13,6 +13,13 @@ import { getErrorMessage } from '@utils/errors';
 
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high'];
 
+// Matches the priority colours on TaskRow so the form echoes the cards.
+const PRIORITY_COLORS = (C: ColorTokens): Record<TaskPriority, string> => ({
+  low: C.positive,
+  medium: C.warning,
+  high: C.danger,
+});
+
 interface AddTaskFormProps {
   onAdd: (input: NewTaskInput) => Promise<void>;
 }
@@ -93,13 +100,19 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps): React.JSX.Element {
         {PRIORITIES.map((p) => (
           <Pressable
             key={p}
-            style={[styles.chip, priority === p && styles.chipActive]}
+            style={[styles.chip, styles.chipWithDot, priority === p && styles.chipActive]}
             onPress={() => setPriority(p)}
             accessible
             accessibilityRole="radio"
             accessibilityLabel={t(`tasks.priority_${p}`)}
             accessibilityState={{ selected: priority === p }}
           >
+            <View
+              style={[
+                styles.priorityDot,
+                { backgroundColor: priority === p ? '#fff' : PRIORITY_COLORS(C)[p] },
+              ]}
+            />
             <Text style={[styles.chipText, priority === p && styles.chipTextActive]}>
               {t(`tasks.priority_${p}`)}
             </Text>
@@ -216,6 +229,8 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surfaceSecondary,
     },
     chipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    chipWithDot: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    priorityDot: { width: 8, height: 8, borderRadius: 4 },
     chipText: { fontSize: 13, ...font.semibold, color: C.textSecondary },
     chipTextActive: { color: '#fff' },
     dueToggle: {
