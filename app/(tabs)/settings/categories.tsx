@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, FlatList, Pressable, TextInput, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as Sentry from '@sentry/react-native';
@@ -9,6 +10,9 @@ import { useAuthStore } from '@stores/authStore';
 import {
   useExpenseCategoriesStore,
   PRESET_COLORS,
+  CATEGORY_PICKER_ICONS,
+  DEFAULT_CATEGORY_ICON,
+  resolveCategoryIcon,
   type ExpenseCategory,
 } from '@stores/expenseCategoriesStore';
 import { Alert } from '@lib/alert';
@@ -81,7 +85,6 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
     },
     iconPreviewBtnActive: { borderColor: C.primary, borderWidth: 2 },
-    iconPreviewText: { fontSize: 22 },
     iconPickerWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     iconPickerItem: {
       width: 44,
@@ -96,7 +99,6 @@ const makeStyles = (C: ColorTokens) =>
       borderWidth: 2,
       borderColor: C.primary,
     },
-    iconPickerEmoji: { fontSize: 20 },
     nameInput: {
       flex: 1,
       height: 46,
@@ -139,7 +141,6 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    catIcon: { fontSize: 18 },
     catInfo: { flex: 1 },
     catName: { fontSize: 15, ...font.semibold, color: C.textPrimary },
     catDefault: { fontSize: 12, ...font.regular, color: C.textSecondary },
@@ -156,58 +157,7 @@ const makeStyles = (C: ColorTokens) =>
     empty: { textAlign: 'center', color: C.textSecondary, fontSize: 14, paddingVertical: 24 },
   });
 
-const PICKER_ICONS = [
-  '🏠',
-  '🛋️',
-  '🔑',
-  '🏗️',
-  '⚡',
-  '💧',
-  '🔥',
-  '📶',
-  '📺',
-  '🌡️',
-  '🛒',
-  '🍕',
-  '🍔',
-  '🥗',
-  '☕',
-  '🍺',
-  '🍜',
-  '🥡',
-  '🍣',
-  '🧃',
-  '🚗',
-  '🚌',
-  '✈️',
-  '🚂',
-  '🛵',
-  '⛽',
-  '🎉',
-  '🎬',
-  '🎮',
-  '🎵',
-  '🏥',
-  '💊',
-  '🦷',
-  '🧘',
-  '🛍️',
-  '💰',
-  '💳',
-  '📦',
-  '🧹',
-  '🧺',
-  '🐾',
-  '📚',
-  '🎓',
-  '💼',
-  '🔧',
-  '🌿',
-  '📱',
-  '🏋️',
-  '🎁',
-  '🌐',
-];
+const PICKER_ICONS = CATEGORY_PICKER_ICONS;
 
 // ── Add / Edit form ────────────────────────────────────────────────────────────
 interface FormState {
@@ -243,7 +193,7 @@ function CategoryForm({
           accessibilityRole="button"
           accessibilityLabel={t('categories.choose_icon')}
         >
-          <Text style={styles.iconPreviewText}>{form.icon || '📦'}</Text>
+          <Ionicons name={resolveCategoryIcon(form.icon)} size={22} color={C.primary} />
         </Pressable>
         <TextInput
           value={form.name}
@@ -259,19 +209,26 @@ function CategoryForm({
       </View>
       {showIconPicker && (
         <View style={styles.iconPickerWrap}>
-          {PICKER_ICONS.map((emoji) => (
+          {PICKER_ICONS.map((iconName) => (
             <Pressable
-              key={emoji}
-              style={[styles.iconPickerItem, form.icon === emoji && styles.iconPickerItemSelected]}
+              key={iconName}
+              style={[
+                styles.iconPickerItem,
+                form.icon === iconName && styles.iconPickerItemSelected,
+              ]}
               onPress={() => {
-                setForm((f) => ({ ...f, icon: emoji }));
+                setForm((f) => ({ ...f, icon: iconName }));
                 setShowIconPicker(false);
               }}
               accessibilityRole="radio"
-              accessibilityLabel={emoji}
-              accessibilityState={{ selected: form.icon === emoji }}
+              accessibilityLabel={iconName}
+              accessibilityState={{ selected: form.icon === iconName }}
             >
-              <Text style={styles.iconPickerEmoji}>{emoji}</Text>
+              <Ionicons
+                name={iconName}
+                size={20}
+                color={form.icon === iconName ? C.primary : C.textSecondary}
+              />
             </Pressable>
           ))}
         </View>
@@ -337,7 +294,7 @@ function CategoryRow({
   return (
     <View style={styles.catRow}>
       <View style={[styles.catIconWrap, { backgroundColor: cat.color + '20' }]}>
-        <Text style={styles.catIcon}>{cat.icon}</Text>
+        <Ionicons name={resolveCategoryIcon(cat.icon)} size={18} color={cat.color} />
       </View>
       <View style={styles.catInfo}>
         <Text style={styles.catName}>{cat.name}</Text>
@@ -402,7 +359,10 @@ export default function CategoriesScreen(): React.JSX.Element {
       if (!houseId) return;
       setSaving(true);
       try {
-        await add({ name: form.name.trim(), icon: form.icon || '📦', color: form.color }, houseId);
+        await add(
+          { name: form.name.trim(), icon: form.icon || DEFAULT_CATEGORY_ICON, color: form.color },
+          houseId
+        );
         setShowAdd(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
@@ -478,7 +438,7 @@ export default function CategoriesScreen(): React.JSX.Element {
 
               {showAdd && (
                 <CategoryForm
-                  initial={{ name: '', icon: '📦', color: PRESET_COLORS[0] }}
+                  initial={{ name: '', icon: DEFAULT_CATEGORY_ICON, color: PRESET_COLORS[0] }}
                   onSave={handleAdd}
                   onCancel={() => setShowAdd(false)}
                   saving={saving}
