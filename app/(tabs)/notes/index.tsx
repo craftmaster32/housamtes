@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -102,16 +103,36 @@ export default function NotesScreen(): React.JSX.Element {
                   <Text style={styles.textBase}>{t('notes.subtitle')}</Text>
                 </View>
 
-                <TextInput
-                  value={text}
-                  onChangeText={setText}
-                  placeholder={t('notes.placeholder')}
-                  placeholderTextColor={C.textSecondary}
-                  style={styles.input}
-                  multiline
-                  accessibilityLabel={t('notes.note_label')}
-                  accessibilityHint={t('notes.note_hint')}
-                />
+                <View style={styles.composeRow}>
+                  <View
+                    style={[
+                      styles.composeAvatar,
+                      { backgroundColor: profile?.avatarColor ?? C.primary },
+                    ]}
+                  >
+                    {profile?.avatarUrl ? (
+                      <Image
+                        source={{ uri: profile.avatarUrl }}
+                        style={styles.composeAvatarImg}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <Text style={styles.composeAvatarText}>
+                        {(profile?.name ?? '?').trim().charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <TextInput
+                    value={text}
+                    onChangeText={setText}
+                    placeholder={t('notes.placeholder')}
+                    placeholderTextColor={C.textSecondary}
+                    style={[styles.input, styles.composeInput]}
+                    multiline
+                    accessibilityLabel={t('notes.note_label')}
+                    accessibilityHint={t('notes.note_hint')}
+                  />
+                </View>
 
                 {!!postError && (
                   <View style={styles.errorBox}>
@@ -206,6 +227,18 @@ function makeStyles(C: ColorTokens) {
       color: C.textPrimary,
       textAlignVertical: 'top',
     },
+    composeRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+    composeInput: { flex: 1, backgroundColor: C.surfaceSecondary },
+    composeAvatar: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    composeAvatarImg: { width: 34, height: 34 },
+    composeAvatarText: { fontSize: 14, ...font.extrabold, color: '#fff' },
 
     btnPrimary: {
       flexDirection: 'row',

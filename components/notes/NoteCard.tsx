@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { Announcement } from '@stores/announcementsStore';
@@ -37,7 +38,9 @@ export function NoteCard({
 
   const authorName =
     note.author === myId ? t('notes.author_you') : resolveName(note.author, housemates);
-  const authorColor = housemates.find((h) => h.id === note.author)?.color ?? C.primary;
+  const author = housemates.find((h) => h.id === note.author);
+  const authorColor = author?.color ?? C.primary;
+  const authorInitial = (authorName || '?').trim().charAt(0).toUpperCase();
   const postedDate = new Date(note.createdAt).toLocaleDateString(i18n.language, {
     day: 'numeric',
     month: 'short',
@@ -108,13 +111,26 @@ export function NoteCard({
         </View>
       ) : (
         <>
-          <Text style={styles.noteText}>{note.text}</Text>
+          <View style={[styles.accent, { backgroundColor: authorColor }]} pointerEvents="none" />
           <View style={styles.metaRow}>
-            <View style={[styles.authorDot, { backgroundColor: authorColor }]} />
-            <Text style={styles.metaText}>
-              {authorName} · {postedDate}
-              {wasEdited ? ` · ${t('notes.edited')}` : ''}
-            </Text>
+            <View style={[styles.avatar, { backgroundColor: authorColor }]}>
+              {author?.avatarUrl ? (
+                <Image
+                  source={{ uri: author.avatarUrl }}
+                  style={styles.avatarImg}
+                  contentFit="cover"
+                />
+              ) : (
+                <Text style={styles.avatarText}>{authorInitial}</Text>
+              )}
+            </View>
+            <View style={styles.metaTextWrap}>
+              <Text style={styles.authorName}>{authorName}</Text>
+              <Text style={styles.metaText}>
+                {postedDate}
+                {wasEdited ? ` · ${t('notes.edited')}` : ''}
+              </Text>
+            </View>
             <View style={styles.actions}>
               <Pressable
                 onPress={startEdit}
@@ -140,6 +156,7 @@ export function NoteCard({
               )}
             </View>
           </View>
+          <Text style={styles.noteText}>{note.text}</Text>
         </>
       )}
     </View>
@@ -149,22 +166,38 @@ export function NoteCard({
 function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     card: {
+      position: 'relative',
       backgroundColor: C.surface,
-      borderRadius: 14,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: C.border,
-      padding: 14,
+      paddingVertical: 14,
+      paddingRight: 14,
+      paddingLeft: 16,
       gap: 10,
+      overflow: 'hidden',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    noteText: { fontSize: 15, ...font.regular, color: C.textPrimary, lineHeight: 22 },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    authorDot: { width: 8, height: 8, borderRadius: 4 },
-    metaText: { fontSize: 12, ...font.medium, color: C.textSecondary, flex: 1 },
+    accent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
+    noteText: { fontSize: 14.5, ...font.regular, color: C.textPrimary, lineHeight: 21 },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+    avatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImg: { width: 28, height: 28 },
+    avatarText: { fontSize: 12, ...font.extrabold, color: '#fff' },
+    metaTextWrap: { flex: 1 },
+    authorName: { fontSize: 13, ...font.bold, color: C.textPrimary },
+    metaText: { fontSize: 11.5, ...font.medium, color: C.textTertiary, marginTop: 1 },
     actions: { flexDirection: 'row', gap: 4 },
     iconBtn: {
       minWidth: 44,
