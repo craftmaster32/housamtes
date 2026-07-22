@@ -41,6 +41,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 function formatTime(iso: string, locale: string): string {
   return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
@@ -744,6 +745,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
   const isLoading = useParkingStore((s) => s.isLoading);
   const current = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
@@ -1022,7 +1024,7 @@ export default function ParkingScreen(): React.JSX.Element {
             {/* ── Hero card ── */}
             <View style={styles.heroCard}>
               <View style={styles.heroCopy}>
-                <Text style={styles.titleHero}>{t('parking.title')}</Text>
+                <Text style={[styles.titleHero, headingFont]}>{t('parking.title')}</Text>
                 <Text style={styles.textBase}>
                   {isFree
                     ? t('parking.free_real_estate')

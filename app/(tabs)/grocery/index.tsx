@@ -44,6 +44,7 @@ import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getErrorMessage } from '@utils/errors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 // ── Accent constants ───────────────────────────────────────────────────────────
 const SHOP_BORDER = 'rgba(191,219,254,0.7)';
@@ -535,6 +536,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const inputRef = useRef<TextInput>(null);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -1224,7 +1226,9 @@ export default function GroceryScreen(): React.JSX.Element {
                   {/* ── Hero card ─────────────────────────────────────────── */}
                   <View style={styles.headerCard}>
                     <View style={styles.headerCopy}>
-                      <Text style={styles.titleHero}>{t('grocery.shared_groceries')}</Text>
+                      <Text style={[styles.titleHero, headingFont]}>
+                        {t('grocery.shared_groceries')}
+                      </Text>
                       <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
                     </View>
 

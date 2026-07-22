@@ -17,6 +17,7 @@ import { resolveName } from '@utils/housemates';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
@@ -168,6 +169,7 @@ export default function ChoresScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
 
   const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
     { value: 'once', label: t('chores.once') },
@@ -278,7 +280,7 @@ export default function ChoresScreen(): React.JSX.Element {
               {/* ── Hero card ──────────────────────────────────────── */}
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>
-                  <Text style={styles.titleHero}>{t('chores.title')}</Text>
+                  <Text style={[styles.titleHero, headingFont]}>{t('chores.title')}</Text>
                   <Text style={styles.textBase}>
                     {"Assign tasks, claim what you'll do, and check them off together."}
                   </Text>

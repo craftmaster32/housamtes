@@ -13,6 +13,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { Alert } from '@lib/alert';
 import { getErrorMessage } from '@utils/errors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 export default function NotesScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -28,6 +29,7 @@ export default function NotesScreen(): React.JSX.Element {
   const role = useAuthStore((s) => s.role);
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const myId = profile?.id ?? '';
@@ -96,7 +98,7 @@ export default function NotesScreen(): React.JSX.Element {
             <View>
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>
-                  <Text style={styles.titleHero}>{t('notes.title')}</Text>
+                  <Text style={[styles.titleHero, headingFont]}>{t('notes.title')}</Text>
                   <Text style={styles.textBase}>{t('notes.subtitle')}</Text>
                 </View>
 

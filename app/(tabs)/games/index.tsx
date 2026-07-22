@@ -19,6 +19,7 @@ import {
   type WordChallenge,
 } from '@constants/wordGame';
 import { getDailyJoke, getRandomJoke, type DadJoke } from '@constants/dadJokes';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 type GameTab = 'scramble' | 'jokes';
 
@@ -129,7 +130,9 @@ function WordScrambleGame(): React.JSX.Element {
           accessibilityLabel={t('games.show_hint')}
         >
           <Ionicons name="bulb-outline" size={16} color={c.textSecondary} />
-          <Text style={[styles.hintBtnText, { color: c.textSecondary }]}>{t('games.hint_cost')}</Text>
+          <Text style={[styles.hintBtnText, { color: c.textSecondary }]}>
+            {t('games.hint_cost')}
+          </Text>
         </Pressable>
       )}
 
@@ -212,7 +215,9 @@ function WordScrambleGame(): React.JSX.Element {
           accessibilityLabel={t('games.shuffle_letters')}
         >
           <Ionicons name="shuffle-outline" size={16} color={c.textSecondary} />
-          <Text style={[styles.shuffleBtnText, { color: c.textSecondary }]}>{t('games.shuffle')}</Text>
+          <Text style={[styles.shuffleBtnText, { color: c.textSecondary }]}>
+            {t('games.shuffle')}
+          </Text>
         </Pressable>
       )}
     </Animated.View>
@@ -272,7 +277,9 @@ function JokeBrowser(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('games.reveal_punchline')}
           >
-            <Text style={[styles.jokeRevealText, { color: c.primary }]}>{t('games.tap_to_reveal')}</Text>
+            <Text style={[styles.jokeRevealText, { color: c.primary }]}>
+              {t('games.tap_to_reveal')}
+            </Text>
           </Pressable>
         )}
       </View>
@@ -285,7 +292,9 @@ function JokeBrowser(): React.JSX.Element {
         accessibilityLabel={t('games.next_joke')}
       >
         <Ionicons name="refresh-outline" size={18} color={c.textSecondary} />
-        <Text style={[styles.jokeNextText, { color: c.textSecondary }]}>{t('games.another_one')}</Text>
+        <Text style={[styles.jokeNextText, { color: c.textSecondary }]}>
+          {t('games.another_one')}
+        </Text>
       </Pressable>
     </Animated.View>
   );
@@ -297,6 +306,7 @@ export default function GamesScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const c = useThemedColors();
+  const headingFont = useHeadingFont();
   const [tab, setTab] = useState<GameTab>('scramble');
 
   return (
@@ -310,9 +320,15 @@ export default function GamesScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('games.go_back')}
         >
-          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={c.textPrimary} />
+          <Ionicons
+            name={rtl ? 'chevron-forward' : 'chevron-back'}
+            size={24}
+            color={c.textPrimary}
+          />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: c.textPrimary }]}>{t('games.title')}</Text>
+        <Text style={[styles.headerTitle, headingFont, { color: c.textPrimary }]}>
+          {t('games.title')}
+        </Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -326,7 +342,9 @@ export default function GamesScreen(): React.JSX.Element {
           accessibilityState={{ selected: tab === 'scramble' }}
           accessibilityLabel={t('games.word_scramble_game')}
         >
-          <Text style={[styles.tabText, { color: tab === 'scramble' ? c.primary : c.textSecondary }]}>
+          <Text
+            style={[styles.tabText, { color: tab === 'scramble' ? c.primary : c.textSecondary }]}
+          >
             {t('games.tab_scramble')}
           </Text>
         </Pressable>

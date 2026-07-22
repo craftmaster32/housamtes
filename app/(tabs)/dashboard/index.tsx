@@ -44,6 +44,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 // The parking tile stays a deep slate in both themes — a deliberate anchor on
 // the home grid. A soft top-to-bottom gradient (rather than a flat fill) gives
@@ -84,6 +85,7 @@ function todayYMD(): string {
 function Header(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
+  const headingFont = useHeadingFont();
   const profile = useAuthStore((s) => s.profile);
   const houseName = useHousematesStore((s) => s.houseName);
   const events = useEventsStore((s) => s.events);
@@ -123,7 +125,10 @@ function Header(): React.JSX.Element {
             {houseName}
           </Text>
         ) : null}
-        <Text style={[styles.headerGreeting, { color: c.textPrimary }]} numberOfLines={1}>
+        <Text
+          style={[styles.headerGreeting, headingFont, { color: c.textPrimary }]}
+          numberOfLines={1}
+        >
           {greetingText(myName, t)}
         </Text>
       </View>

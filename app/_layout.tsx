@@ -132,6 +132,11 @@ export default function RootLayout(): React.JSX.Element | null {
     Inter_700Bold: require('../assets/fonts/Inter_700Bold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
+    // Fraunces — display serif for headings (Latin only; Hebrew falls back to Heebo).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Fraunces_600SemiBold: require('../assets/fonts/Fraunces_600SemiBold.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Fraunces_700Bold: require('../assets/fonts/Fraunces_700Bold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Heebo_400Regular: require('../assets/fonts/Heebo_400Regular.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports

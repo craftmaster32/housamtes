@@ -40,6 +40,7 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 type BillFilter = 'recurring' | 'one-off';
 
@@ -243,6 +244,7 @@ function SettleAvatar({
 export default function BillsScreen(): React.JSX.Element {
   const c = useThemedColors();
   const { t, i18n } = useTranslation();
+  const headingFont = useHeadingFont();
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
 
@@ -384,7 +386,9 @@ export default function BillsScreen(): React.JSX.Element {
     >
       <View style={styles.pageHeader}>
         <View>
-          <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('bills.title')}</Text>
+          <Text style={[styles.pageTitle, headingFont, { color: c.textPrimary }]}>
+            {t('bills.title')}
+          </Text>
           <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>
             {t('bills.page_subtitle')}
           </Text>
