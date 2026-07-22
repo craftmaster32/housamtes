@@ -187,7 +187,7 @@ export const CONDITION_CONFIG: Record<
   { label: string; color: string; icon: IoniconName }
 > = {
   good: { label: 'Good', color: '#22c55e', icon: 'checkmark-circle' },
-  fair: { label: 'Fair', color: '#f59e0b', icon: 'warning' },
+  fair: { label: 'Fair', color: '#f59e0b', icon: 'remove-circle' },
   poor: { label: 'Poor / Damaged', color: '#ef4444', icon: 'close-circle' },
 };
 
