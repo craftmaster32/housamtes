@@ -116,7 +116,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <View style={styles.iconRow}>
-            <Text style={styles.nfcIcon}>📡</Text>
+            <Ionicons name="radio-outline" size={26} color={C.primary} />
             <Text style={styles.cardTitle}>{t('nfc_parking.how_it_works')}</Text>
           </View>
           <Text style={styles.cardBody}>{t('nfc_parking.how_it_works_body')}</Text>
@@ -208,7 +208,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
         <Text style={styles.sectionLabel}>{t('nfc_parking.nfc_tag_title')}</Text>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.icon}>🏷️</Text>
+            <Ionicons name="pricetag-outline" size={20} color={C.primary} style={styles.icon} />
             <Text style={styles.cardBody}>{t('nfc_parking.nfc_tag_body')}</Text>
           </View>
         </View>
@@ -255,7 +255,6 @@ function makeStyles(C: ColorTokens) {
       gap: sizes.sm,
     },
     iconRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-    nfcIcon: { fontSize: 28 },
     cardTitle: { fontSize: 16, ...font.bold, color: C.textPrimary },
     cardBody: { fontSize: 14, color: C.textSecondary, ...font.regular, lineHeight: 21 },
     loadingRow: { alignItems: 'center', paddingVertical: sizes.md },

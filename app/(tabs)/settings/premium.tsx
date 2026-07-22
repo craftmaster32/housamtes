@@ -160,7 +160,12 @@ export default function PremiumScreen(): React.JSX.Element {
             {__DEV__ && (
               <View style={[styles.card, styles.devCard]}>
                 <View style={styles.row}>
-                  <Text style={styles.icon}>🛠️</Text>
+                  <Ionicons
+                    name="construct-outline"
+                    size={22}
+                    color={C.textSecondary}
+                    style={styles.icon}
+                  />
                   <View style={styles.info}>
                     <Text style={styles.label}>{t('premium.dev_toggle')}</Text>
                     <Text style={styles.description}>{t('premium.dev_toggle_sub')}</Text>
