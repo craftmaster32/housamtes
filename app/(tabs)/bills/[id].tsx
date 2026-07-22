@@ -7,6 +7,7 @@ import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router'
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
+import { UserAvatar } from '@components/shared/UserAvatar';
 import { useBillsStore, getPersonShare, EditBillSchema, CATEGORIES } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -20,6 +21,7 @@ import { Money } from '@components/shared/Money';
 import { Button, EmptyState, Pill } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   rent: 'home-outline',
@@ -53,6 +55,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
   const isLoading = useBillsStore((s) => s.isLoading);
@@ -228,7 +231,7 @@ export default function BillDetailScreen(): React.JSX.Element {
         {/* Detail / Edit form */}
         {isEditing ? (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('bills.edit_bill')}</Text>
+            <Text style={[styles.sectionTitle, headingFont]}>{t('bills.edit_bill')}</Text>
             <TextInput
               label={t('bills.title_label')}
               value={title}
@@ -354,7 +357,16 @@ export default function BillDetailScreen(): React.JSX.Element {
             <View style={[styles.card, styles.detailMetaCard]}>
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>{t('bills.category')}</Text>
-                <Text style={styles.metaValue}>{bill.category}</Text>
+                <View style={styles.metaValueRow}>
+                  <View style={styles.catPill}>
+                    <Ionicons
+                      name={CATEGORY_ICONS[bill.category?.toLowerCase() ?? ''] ?? 'receipt-outline'}
+                      size={16}
+                      color={C.primary}
+                    />
+                  </View>
+                  <Text style={styles.metaValue}>{bill.category}</Text>
+                </View>
               </View>
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>{t('bills.date')}</Text>
@@ -362,7 +374,10 @@ export default function BillDetailScreen(): React.JSX.Element {
               </View>
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
-                <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
+                <View style={styles.metaValueRow}>
+                  <UserAvatar userId={bill.paidBy} size={24} />
+                  <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
+                </View>
               </View>
               {bill.notes ? (
                 <View style={styles.metaRow}>
@@ -379,7 +394,7 @@ export default function BillDetailScreen(): React.JSX.Element {
         {/* Split breakdown */}
         {!isEditing && (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('bills.split_breakdown')}</Text>
+            <Text style={[styles.sectionTitle, headingFont]}>{t('bills.split_breakdown')}</Text>
             <Text style={styles.splitTotal}>
               {t('bills.total')} {formatFull(bill.amount, currencyCode)} ·{' '}
               {isCustomSplit
@@ -388,7 +403,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             </Text>
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>
-                <View style={styles.splitDot} />
+                <UserAvatar userId={person} size={26} />
                 <Text style={styles.splitPerson}>{memberName(person)}</Text>
                 <Text style={styles.splitAmount}>
                   {formatFull(getPersonShare(bill, person), currencyCode)}
@@ -484,10 +499,11 @@ const makeStyles = (C: ColorTokens) =>
     metaRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      paddingVertical: 2,
+      alignItems: 'center',
+      paddingVertical: 6,
     },
     metaLabel: { color: C.textSecondary, fontSize: 14, ...font.regular },
+    metaValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
     metaValue: {
       color: C.textPrimary,
       fontSize: 14,
@@ -495,10 +511,17 @@ const makeStyles = (C: ColorTokens) =>
       flexShrink: 1,
       textAlign: 'right',
     },
-    sectionTitle: { color: C.textPrimary, ...font.bold, fontSize: 15, marginBottom: sizes.xs },
+    catPill: {
+      width: 30,
+      height: 30,
+      borderRadius: 9,
+      backgroundColor: C.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionTitle: { color: C.textPrimary, fontSize: 18, marginBottom: sizes.xs },
     splitTotal: { color: C.textSecondary, fontSize: 14, ...font.regular },
-    splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: 4 },
-    splitDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
+    splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: 5 },
     splitPerson: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
     splitAmount: { color: C.primary, fontSize: 15, ...font.semibold },
     input: { backgroundColor: C.surface },
