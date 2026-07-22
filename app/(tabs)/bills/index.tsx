@@ -321,7 +321,7 @@ export default function BillsScreen(): React.JSX.Element {
           payment: {
             id: p.id,
             title: meta?.name ?? '',
-            icon: meta?.icon ?? '🧾',
+            icon: meta?.icon ?? 'receipt-outline',
             amount: p.amount,
             paidBy: meta?.assignedTo ?? '',
             splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
