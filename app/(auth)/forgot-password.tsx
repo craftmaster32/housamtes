@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
@@ -31,6 +32,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const fadeHeader = useRef(new Animated.Value(0)).current;
@@ -129,7 +131,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
           <View style={styles.successIcon}>
             <Ionicons name="checkmark-circle" size={56} color={C.success} />
           </View>
-          <Text style={styles.successTitle}>{t('auth.password_updated_title')}</Text>
+          <Text style={[styles.successTitle, headingFont]}>{t('auth.password_updated_title')}</Text>
           <Text style={styles.successBody}>{t('auth.password_updated_body')}</Text>
           <Button
             mode="contained"
@@ -179,7 +181,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
             />
             <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>
+          <Text style={[styles.headerTitle, headingFont]}>
             {done
               ? t('auth.password_updated_title')
               : step === 'email'

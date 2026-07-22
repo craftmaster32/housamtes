@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
@@ -16,6 +17,7 @@ import { getErrorMessage } from '@utils/errors';
 
 export default function ResetPasswordScreen(): React.JSX.Element {
   const c = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(c), [c]);
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
@@ -57,7 +59,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
-          <Text style={styles.title}>{t('auth.password_updated_title')}</Text>
+          <Text style={[styles.title, headingFont]}>{t('auth.password_updated_title')}</Text>
           <Text style={styles.subtitle}>{t('auth.password_updated_body')}</Text>
           <Button
             mode="contained"
@@ -88,7 +90,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.title}>{t('auth.reset_title')}</Text>
+          <Text style={[styles.title, headingFont]}>{t('auth.reset_title')}</Text>
           <Text style={styles.subtitle}>{t('auth.reset_subtitle')}</Text>
         </View>
 

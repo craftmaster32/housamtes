@@ -19,6 +19,7 @@ import { COLORS } from '@stores/housematesStore';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
@@ -63,6 +64,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
   const signOut = useAuthStore((s) => s.signOut);
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -240,7 +242,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
           />
           <Text style={styles.backText}>{t('house_setup.back_to_login')}</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>{t('house_setup.title')}</Text>
+        <Text style={[styles.headerTitle, headingFont]}>{t('house_setup.title')}</Text>
         <Text style={styles.headerSubtitle}>{t('house_setup.subtitle')}</Text>
       </SafeAreaView>
 

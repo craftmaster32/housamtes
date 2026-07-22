@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
@@ -24,6 +25,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   const [error, setError] = useState('');
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -135,7 +137,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
           </Animated.View>
 
           <View style={styles.textBlock}>
-            <Text style={styles.heading}>{t('auth.check_inbox_title')}</Text>
+            <Text style={[styles.heading, headingFont]}>{t('auth.check_inbox_title')}</Text>
             {!!pendingEmail && (
               <Text style={styles.bodyText}>
                 {t('auth.check_inbox_body_code', { email: pendingEmail })}

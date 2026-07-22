@@ -12,6 +12,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { HouseSkyline } from '@components/shared/HouseSkyline';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
 const SKYLINE_HEIGHT = 90;
@@ -21,6 +22,7 @@ export default function WelcomeScreen(): React.JSX.Element {
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
 
   const fadeTop = useRef(new Animated.Value(0)).current;
   const slideCard = useRef(new Animated.Value(40)).current;
@@ -78,7 +80,7 @@ export default function WelcomeScreen(): React.JSX.Element {
             <Ionicons name="home" size={32} color={C.primary} />
           </View>
 
-          <Text style={styles.appName}>HouseMates</Text>
+          <Text style={[styles.appName, headingFont]}>HouseMates</Text>
           <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
         </SafeAreaView>
 
@@ -100,7 +102,7 @@ export default function WelcomeScreen(): React.JSX.Element {
           },
         ]}
       >
-        <Text style={styles.cardHeading}>{t('welcome.card_heading')}</Text>
+        <Text style={[styles.cardHeading, headingFont]}>{t('welcome.card_heading')}</Text>
         <Text style={styles.cardBody}>{t('welcome.card_body')}</Text>
 
         <Button
