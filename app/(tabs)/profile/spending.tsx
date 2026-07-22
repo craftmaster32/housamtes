@@ -29,6 +29,8 @@ import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
 const BAR_MAX_H = 56;
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -61,7 +63,7 @@ interface CategoryRowItem {
 
 interface SpendingSection {
   title: string;
-  icon: string;
+  icon: IoniconName;
   total: number;
   data: CategoryRowItem[];
 }
@@ -89,7 +91,10 @@ function InsightCard({
       <View style={styles.insightCardDeco} />
       <View style={styles.insightCardPad}>
         <View style={styles.insightCardHeader}>
-          <Text style={styles.insightCardLabel}>✨ {t('spending.ai_insight')}</Text>
+          <View style={styles.insightCardLabelRow}>
+            <Ionicons name="sparkles" size={13} color="#fff" style={styles.insightCardLabelIcon} />
+            <Text style={styles.insightCardLabel}>{t('spending.ai_insight')}</Text>
+          </View>
           <Pressable
             onPress={onRefresh}
             disabled={isLoading}
@@ -164,8 +169,13 @@ function OverviewCard({
                 { backgroundColor: isUp ? C.danger + '18' : C.positive + '18' },
               ]}
             >
+              <Ionicons
+                name={isUp ? 'arrow-up' : 'arrow-down'}
+                size={13}
+                color={isUp ? C.danger : C.positive}
+              />
               <Text style={[styles.overviewBadgeText, { color: isUp ? C.danger : C.positive }]}>
-                {isUp ? '↑' : '↓'} {fmtShort(Math.abs(primaryDiff), currency)}
+                {fmtShort(Math.abs(primaryDiff), currency)}
                 {primaryPct !== null ? `  ${Math.abs(primaryPct)}%` : ''}
               </Text>
             </View>
@@ -375,7 +385,7 @@ function CategoryRow({
       accessibilityState={canExpand ? { expanded: isExpanded } : undefined}
     >
       <View style={[styles.catIcon, { backgroundColor: cat.color + '18' }]}>
-        <Text style={styles.catIconText}>{cat.icon}</Text>
+        <Ionicons name={cat.icon} size={18} color={cat.color} />
       </View>
       <View style={styles.catInfo}>
         <View style={styles.catTopRow}>
@@ -383,10 +393,16 @@ function CategoryRow({
           <View style={styles.catAmtGroup}>
             <Text style={styles.catAmt}>{fmtFull(cat.amount, currency)}</Text>
             {pct !== null && (
-              <Text style={[styles.catPct, { color: isUp ? C.danger : C.positive }]}>
-                {isUp ? '↑' : '↓'}
-                {Math.abs(pct)}%
-              </Text>
+              <View style={styles.catPctRow}>
+                <Ionicons
+                  name={isUp ? 'arrow-up' : 'arrow-down'}
+                  size={11}
+                  color={isUp ? C.danger : C.positive}
+                />
+                <Text style={[styles.catPct, { color: isUp ? C.danger : C.positive }]}>
+                  {Math.abs(pct)}%
+                </Text>
+              </View>
             )}
           </View>
           {canExpand && (
@@ -444,7 +460,9 @@ function CategoryRow({
                 </Link>
               ) : (
                 <View key={d.id} style={styles.drillDownRow} accessible accessibilityRole="none">
-                  <Text style={styles.drillDownType}>↻</Text>
+                  <View style={styles.drillDownType}>
+                    <Ionicons name="repeat" size={12} color={C.textSecondary} />
+                  </View>
                   <Text style={styles.drillDownTitle} numberOfLines={1}>
                     {d.title}
                   </Text>
@@ -461,7 +479,7 @@ function CategoryRow({
 
 interface SectionHeaderProps {
   title: string;
-  icon: string;
+  icon: IoniconName;
   total: number;
   currency: string;
 }
@@ -476,7 +494,7 @@ function SpendingSectionHeader({
   const styles = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionHeaderIcon}>{icon}</Text>
+      <Ionicons name={icon} size={15} color={C.textSecondary} style={styles.sectionHeaderIcon} />
       <Text style={styles.sectionHeaderTitle}>{title}</Text>
       <Text style={styles.sectionHeaderTotal}>{fmtFull(total, currency)}</Text>
     </View>
@@ -584,7 +602,7 @@ export default function SpendingScreen(): React.JSX.Element {
     if (houseBillCats.length > 0) {
       result.push({
         title: t('spending.house_bills_section'),
-        icon: '🏠',
+        icon: 'home-outline',
         total: houseBillTotal,
         data: houseBillCats.map((c) => toCatRow(c, houseBillTotal)),
       });
@@ -592,7 +610,7 @@ export default function SpendingScreen(): React.JSX.Element {
     if (lifestyleCats.length > 0) {
       result.push({
         title: t('spending.lifestyle_section'),
-        icon: '🛍️',
+        icon: 'bag-handle-outline',
         total: lifestyleTotal,
         data: lifestyleCats.map((c) => toCatRow(c, lifestyleTotal)),
       });
@@ -815,12 +833,13 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'space-between',
       alignItems: 'center',
     },
+    insightCardLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, opacity: 0.88 },
+    insightCardLabelIcon: { marginTop: -1 },
     insightCardLabel: {
       fontSize: 11,
       ...font.extrabold,
       color: '#fff',
       letterSpacing: 1.1,
-      opacity: 0.88,
     },
     refreshBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     insightCardText: { fontSize: 14, ...font.regular, color: '#fff', lineHeight: 21 },
@@ -850,6 +869,9 @@ function makeStyles(C: ColorTokens) {
     overviewLbl: { fontSize: 12, ...font.regular, color: C.textSecondary },
     overviewAmt: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.6 },
     overviewBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
       alignSelf: 'flex-start',
       borderRadius: 8,
       paddingHorizontal: 8,
@@ -964,7 +986,7 @@ function makeStyles(C: ColorTokens) {
       paddingHorizontal: 2,
       marginTop: sizes.sm,
     },
-    sectionHeaderIcon: { fontSize: 16 },
+    sectionHeaderIcon: { marginEnd: 2 },
     sectionHeaderTitle: { flex: 1, fontSize: 14, ...font.bold, color: C.textPrimary },
     sectionHeaderTotal: { fontSize: 14, ...font.bold, color: C.textSecondary },
 
@@ -991,11 +1013,11 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       marginTop: 2,
     },
-    catIconText: { fontSize: 20 },
     catInfo: { flex: 1, gap: 4 },
     catTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     catName: { fontSize: 14, ...font.semibold, color: C.textPrimary, flex: 1 },
     catAmtGroup: { alignItems: 'flex-end', gap: 1 },
+    catPctRow: { flexDirection: 'row', alignItems: 'center', gap: 1 },
     catAmt: { fontSize: 14, ...font.bold, color: C.textPrimary },
     catPct: { fontSize: 11, ...font.bold },
     catBarTrack: {
@@ -1023,7 +1045,13 @@ function makeStyles(C: ColorTokens) {
       minHeight: 44,
       paddingVertical: 4,
     },
-    drillDownType: { width: 14, fontSize: 13, color: C.textSecondary, textAlign: 'center' },
+    drillDownType: {
+      width: 14,
+      fontSize: 13,
+      color: C.textSecondary,
+      textAlign: 'center',
+      alignItems: 'center',
+    },
     drillDownTitle: { flex: 1, fontSize: 13, ...font.regular, color: C.textSecondary },
     drillDownAmt: { fontSize: 13, ...font.semibold, color: C.textPrimary },
 

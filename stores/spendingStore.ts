@@ -1,32 +1,36 @@
+import type * as React from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
 // ── Category metadata ──────────────────────────────────────────────────────────
-export const CATEGORY_META: Record<string, { icon: string; color: string }> = {
-  rent: { icon: '🏠', color: '#8B5CF6' },
-  electricity: { icon: '⚡', color: '#F59E0B' },
-  water: { icon: '💧', color: '#3B6FBF' },
-  internet: { icon: '📶', color: '#06B6D4' },
-  gas: { icon: '🔥', color: '#EF4444' },
-  tax: { icon: '🏛️', color: '#6366F1' },
-  taxes: { icon: '🏛️', color: '#6366F1' },
-  insurance: { icon: '🛡️', color: '#7C3AED' },
-  arnona: { icon: '🏛️', color: '#6366F1' },
-  groceries: { icon: '🛒', color: '#4FB071' },
-  shopping: { icon: '🛍️', color: '#10B981' },
-  'outside food': { icon: '🍕', color: '#E0B24D' },
-  food: { icon: '🍕', color: '#E0B24D' },
-  transport: { icon: '🚗', color: '#64748B' },
-  entertainment: { icon: '🎉', color: '#EC4899' },
-  health: { icon: '🏥', color: '#10B981' },
-  other: { icon: '📦', color: '#8D8F8F' },
+export const CATEGORY_META: Record<string, { icon: IoniconName; color: string }> = {
+  rent: { icon: 'home', color: '#8B5CF6' },
+  electricity: { icon: 'flash', color: '#F59E0B' },
+  water: { icon: 'water', color: '#3B6FBF' },
+  internet: { icon: 'wifi', color: '#06B6D4' },
+  gas: { icon: 'flame', color: '#EF4444' },
+  tax: { icon: 'business', color: '#6366F1' },
+  taxes: { icon: 'business', color: '#6366F1' },
+  insurance: { icon: 'shield-checkmark', color: '#7C3AED' },
+  arnona: { icon: 'business', color: '#6366F1' },
+  groceries: { icon: 'cart', color: '#4FB071' },
+  shopping: { icon: 'bag-handle', color: '#10B981' },
+  'outside food': { icon: 'fast-food', color: '#E0B24D' },
+  food: { icon: 'fast-food', color: '#E0B24D' },
+  transport: { icon: 'car', color: '#64748B' },
+  entertainment: { icon: 'film', color: '#EC4899' },
+  health: { icon: 'medkit', color: '#10B981' },
+  other: { icon: 'cube', color: '#8D8F8F' },
 };
 
-function categoryMeta(name: string): { icon: string; color: string } {
-  return CATEGORY_META[name.toLowerCase()] ?? { icon: '📦', color: '#8D8F8F' };
+function categoryMeta(name: string): { icon: IoniconName; color: string } {
+  return CATEGORY_META[name.toLowerCase()] ?? { icon: 'cube', color: '#8D8F8F' };
 }
 
 // ── House-bill classification ────────────────────────────────────────────────────
@@ -91,7 +95,7 @@ export function isHouseCategoryName(name: string): boolean {
 // ── Types ──────────────────────────────────────────────────────────────────────
 export interface CategorySpend {
   name: string;
-  icon: string;
+  icon: IoniconName;
   color: string;
   amount: number;
   isHouse: boolean; // true → belongs in the House Bills section, not Lifestyle
