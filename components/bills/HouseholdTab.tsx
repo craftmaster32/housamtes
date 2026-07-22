@@ -9,6 +9,7 @@ import {
   getLastPayment,
   getNextDueDate,
   BILL_ICONS,
+  resolveBillIcon,
   type RecurringBill,
   type BillFrequency,
 } from '@stores/recurringBillsStore';
@@ -26,16 +27,16 @@ import { formatDateDDMMYYYY } from '@utils/dates';
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
 
 const BILL_ICON_LABELS: Record<string, string> = {
-  '🏛️': 'Tax',
-  '⚡': 'Electric',
-  '💧': 'Water',
-  '🔥': 'Gas',
-  '📶': 'Internet',
-  '🏢': 'Building',
-  '🏠': 'Rent',
-  '🧾': 'Other',
-  '🌡️': 'Heating',
-  '♻️': 'Waste',
+  'business-outline': 'Tax',
+  'flash-outline': 'Electric',
+  'water-outline': 'Water',
+  'flame-outline': 'Gas',
+  'wifi-outline': 'Internet',
+  business: 'Building',
+  'home-outline': 'Rent',
+  'receipt-outline': 'Other',
+  'thermometer-outline': 'Heating',
+  'trash-outline': 'Waste',
 };
 
 function dueBadge(
@@ -258,7 +259,9 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     <View style={[styles.billCard, { backgroundColor: c.surface, borderColor: c.border }]}>
       {/* Header row */}
       <View style={styles.billHeader}>
-        <Text style={styles.billIcon}>{bill.icon}</Text>
+        <View style={styles.billIcon}>
+          <Ionicons name={resolveBillIcon(bill.icon)} size={24} color={c.primary} />
+        </View>
         <View style={styles.billHeaderInfo}>
           <Text style={[styles.billName, { color: c.textPrimary }]}>{bill.name}</Text>
           <View style={styles.billMeta}>
@@ -600,7 +603,7 @@ function AddBillForm({
             accessibilityLabel={BILL_ICON_LABELS[ic] ?? ic}
             accessibilityState={{ selected: icon === ic }}
           >
-            <Text style={styles.iconChipEmoji}>{ic}</Text>
+            <Ionicons name={ic} size={20} color={icon === ic ? c.primary : c.textSecondary} />
             <Text
               style={[styles.iconChipLabel, { color: icon === ic ? c.primary : c.textSecondary }]}
             >
@@ -843,7 +846,7 @@ const styles = StyleSheet.create({
   // Bill card
   billCard: { borderRadius: sizes.borderRadius, borderWidth: 1, padding: sizes.md, gap: sizes.sm },
   billHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-  billIcon: { fontSize: 28, lineHeight: 36 },
+  billIcon: { width: 32, alignItems: 'center', paddingTop: 2 },
   billHeaderInfo: { flex: 1, gap: 4 },
   billName: { fontSize: sizes.fontMd, ...font.bold },
   billMeta: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs, flexWrap: 'wrap' },
@@ -939,7 +942,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     gap: 2,
   },
-  iconChipEmoji: { fontSize: 20 },
   iconChipLabel: { fontSize: 9, textAlign: 'center' },
   fieldHint: { fontSize: 11, marginTop: -2 },
   dateTrigger: {

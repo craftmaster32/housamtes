@@ -24,7 +24,11 @@ import {
   settleDebts,
   type Bill,
 } from '@stores/billsStore';
-import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
+import {
+  useRecurringBillsStore,
+  calculateFairness,
+  resolveBillIcon,
+} from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -189,7 +193,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
       accessibilityLabel={row.title}
     >
       <View style={[styles.billIconWrap, { backgroundColor: c.primary + '12' }]}>
-        <Text style={styles.recurringEmoji}>{row.icon}</Text>
+        <Ionicons name={resolveBillIcon(row.icon)} size={20} color={c.primary} />
       </View>
       <View style={styles.billInfo}>
         <Text style={[styles.billTitle, { color: c.textPrimary }]} numberOfLines={1}>
@@ -884,7 +888,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexShrink: 0,
   },
-  recurringEmoji: { fontSize: 20, lineHeight: 26 },
   billInfo: { flex: 1 },
   billTitle: { fontSize: 15, ...font.semibold },
   billMeta: { fontSize: 12, ...font.regular, marginTop: 2 },

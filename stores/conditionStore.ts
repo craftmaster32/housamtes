@@ -184,11 +184,11 @@ export const PRESET_AREAS: { label: string; icon: IoniconName }[] = [
 
 export const CONDITION_CONFIG: Record<
   ConditionLevel,
-  { label: string; color: string; icon: string }
+  { label: string; color: string; icon: IoniconName }
 > = {
-  good: { label: 'Good', color: '#22c55e', icon: '✅' },
-  fair: { label: 'Fair', color: '#f59e0b', icon: '⚠️' },
-  poor: { label: 'Poor / Damaged', color: '#ef4444', icon: '❌' },
+  good: { label: 'Good', color: '#22c55e', icon: 'checkmark-circle' },
+  fair: { label: 'Fair', color: '#f59e0b', icon: 'warning' },
+  poor: { label: 'Poor / Damaged', color: '#ef4444', icon: 'close-circle' },
 };
 
 export const ENTRY_TYPE_CONFIG: Record<EntryType, { label: string; color: string }> = {

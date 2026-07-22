@@ -115,6 +115,9 @@ const makeStyles = (C: ColorTokens) =>
     },
     typeBadgeText: { fontSize: 11, ...font.bold },
     condBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.xs,
       paddingVertical: 2,
@@ -192,6 +195,9 @@ const makeStyles = (C: ColorTokens) =>
     areaChipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
     areaChipTextActive: { color: C.primary, ...font.bold },
     condChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
       paddingHorizontal: sizes.sm,
       paddingVertical: 6,
       borderRadius: sizes.borderRadiusFull,
@@ -276,9 +282,8 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
               <Text style={[styles.typeBadgeText, { color: type.color }]}>{type.label}</Text>
             </View>
             <View style={[styles.condBadge, { backgroundColor: cond.color + '18' }]}>
-              <Text style={[styles.condBadgeText, { color: cond.color }]}>
-                {cond.icon} {cond.label}
-              </Text>
+              <Ionicons name={cond.icon} size={12} color={cond.color} />
+              <Text style={[styles.condBadgeText, { color: cond.color }]}>{cond.label}</Text>
             </View>
           </View>
           <Text style={styles.entryDate}>
@@ -471,8 +476,9 @@ function AddEntryForm({
               accessibilityLabel={cfg.label}
               accessibilityState={{ selected: condition === c }}
             >
+              <Ionicons name={cfg.icon} size={13} color={condition === c ? '#fff' : cfg.color} />
               <Text style={[styles.condChipText, condition === c && styles.condChipTextActive]}>
-                {cfg.icon} {cfg.label}
+                {cfg.label}
               </Text>
             </Pressable>
           );
