@@ -98,35 +98,37 @@ function localizeQuantityForDisplay(quantity: string, isHebrew: boolean): string
 }
 
 // ── Category detection ─────────────────────────────────────────────────────────
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
 interface Category {
   labelKey: string;
-  icon: string;
+  icon: IoniconName;
   order: number;
 }
 
 const RULES: Array<{ re: RegExp; cat: Category }> = [
   {
     re: /banana|apple|avocado|tomato|carrot|onion|lettuce|orange|strawberry|grape|cucumber|pepper|lime|lemon|herb|spinach|broccoli|salad/i,
-    cat: { labelKey: 'grocery.cat_produce', icon: '🍎', order: 0 },
+    cat: { labelKey: 'grocery.cat_produce', icon: 'nutrition-outline', order: 0 },
   },
   {
     re: /milk|oat milk|almond milk|egg|cheese|butter|yogurt|cream|dairy/i,
-    cat: { labelKey: 'grocery.cat_dairy_fridge', icon: '🥛', order: 1 },
+    cat: { labelKey: 'grocery.cat_dairy_fridge', icon: 'snow-outline', order: 1 },
   },
   {
     re: /toilet|soap|trash|bin bag|sponge|paper towel|dish|laundry|detergent|bleach|towel|cleaning/i,
-    cat: { labelKey: 'grocery.cat_household', icon: '🧺', order: 2 },
+    cat: { labelKey: 'grocery.cat_household', icon: 'basket-outline', order: 2 },
   },
   {
     re: /chicken|beef|fish|salmon|tuna|pork|lamb|shrimp|sausage|meat|mince/i,
-    cat: { labelKey: 'grocery.cat_meat_fish', icon: '🥩', order: 3 },
+    cat: { labelKey: 'grocery.cat_meat_fish', icon: 'restaurant-outline', order: 3 },
   },
   {
     re: /pasta|rice|bread|flour|sugar|salt|olive oil|oil|cereal|oats|coffee|tea|sauce|can|tin/i,
-    cat: { labelKey: 'grocery.cat_pantry', icon: '🥫', order: 4 },
+    cat: { labelKey: 'grocery.cat_pantry', icon: 'file-tray-stacked-outline', order: 4 },
   },
 ];
-const OTHER_CAT: Category = { labelKey: 'grocery.cat_other', icon: '📦', order: 99 };
+const OTHER_CAT: Category = { labelKey: 'grocery.cat_other', icon: 'cube-outline', order: 99 };
 
 function detectCategory(name: string): Category {
   return RULES.find((r) => r.re.test(name))?.cat ?? OTHER_CAT;
@@ -452,7 +454,7 @@ interface GroceryItemWithMeta extends GroceryItem {
 }
 interface SectionData {
   title: string;
-  icon: string;
+  icon: IoniconName;
   data: GroceryItemWithMeta[];
   sectionType: 'draft' | 'private' | 'shared';
 }
@@ -648,7 +650,7 @@ export default function GroceryScreen(): React.JSX.Element {
     if (draftItems.length > 0) {
       result.push({
         title: t('grocery.my_draft'),
-        icon: '📝',
+        icon: 'create-outline',
         sectionType: 'draft',
         data: draftItems.map((i) => ({
           ...i,
@@ -659,7 +661,7 @@ export default function GroceryScreen(): React.JSX.Element {
     if (privateItems.length > 0) {
       result.push({
         title: t('grocery.my_private_list'),
-        icon: '🔒',
+        icon: 'lock-closed-outline',
         sectionType: 'private',
         data: privateItems,
       });
@@ -1075,7 +1077,7 @@ export default function GroceryScreen(): React.JSX.Element {
         return (
           <View style={styles.catTitleDraftRow}>
             <View style={[styles.catTitle, styles.catTitleFlex]}>
-              <Text style={styles.catTitleIcon}>{section.icon}</Text>
+              <Ionicons name={section.icon} size={15} color="rgb(133,77,14)" />
               <Text style={[styles.catTitleText, styles.catTitleTextDraft]}>{section.title}</Text>
             </View>
             <Pressable
@@ -1100,19 +1102,19 @@ export default function GroceryScreen(): React.JSX.Element {
       if (section.sectionType === 'private') {
         return (
           <View style={[styles.catTitle, styles.catTitlePersonal]}>
-            <Text style={styles.catTitleIcon}>{section.icon}</Text>
+            <Ionicons name={section.icon} size={15} color="rgb(76,29,149)" />
             <Text style={[styles.catTitleText, styles.catTitleTextPersonal]}>{section.title}</Text>
           </View>
         );
       }
       return (
         <View style={styles.catTitle}>
-          <Text style={styles.catTitleIcon}>{section.icon}</Text>
+          <Ionicons name={section.icon} size={15} color={C.textSecondary} />
           <Text style={styles.catTitleText}>{section.title}</Text>
         </View>
       );
     },
-    [handlePublishDraft, isPublishing, myId, styles, t]
+    [handlePublishDraft, isPublishing, myId, styles, t, C]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
@@ -1122,7 +1124,7 @@ export default function GroceryScreen(): React.JSX.Element {
       return (
         <View style={[styles.shoppingRunCard, styles.shoppingRunCardActive]}>
           <View style={[styles.shoppingIcon, styles.shoppingIconActive]}>
-            <Text style={styles.shoppingIconText}>🛍️</Text>
+            <Ionicons name="bag-handle" size={26} color="rgb(22,101,52)" />
           </View>
           <View style={styles.shoppingCopy}>
             <Text style={styles.titleLg}>{t('grocery.you_at_store')}</Text>
@@ -1144,7 +1146,7 @@ export default function GroceryScreen(): React.JSX.Element {
       return (
         <View style={[styles.shoppingRunCard, styles.shoppingRunCardActive]}>
           <View style={[styles.shoppingIcon, styles.shoppingIconActive]}>
-            <Text style={styles.shoppingIconText}>🛍️</Text>
+            <Ionicons name="bag-handle" size={26} color="rgb(22,101,52)" />
           </View>
           <View style={styles.shoppingCopy}>
             <Text style={styles.titleLg}>
@@ -1162,7 +1164,7 @@ export default function GroceryScreen(): React.JSX.Element {
     return (
       <View style={styles.shoppingRunCard}>
         <View style={styles.shoppingIcon}>
-          <Text style={styles.shoppingIconText}>🛍️</Text>
+          <Ionicons name="bag-handle-outline" size={26} color={C.primary} />
         </View>
         <View style={styles.shoppingCopy}>
           <Text style={styles.titleLg}>{t('grocery.start_shopping_run')}</Text>
@@ -1368,9 +1370,11 @@ export default function GroceryScreen(): React.JSX.Element {
                           accessibilityHint={t('grocery.custom_quantity_hint')}
                           accessibilityState={{ selected: showCustomQty }}
                         >
-                          <Text style={[styles.qtyBtnText, showCustomQty && styles.qtyBtnTextOn]}>
-                            ✏️
-                          </Text>
+                          <Ionicons
+                            name="pencil"
+                            size={14}
+                            color={showCustomQty ? '#FFFFFF' : C.textPrimary}
+                          />
                         </Pressable>
                       </View>
                       {showCustomQty && (
@@ -1490,7 +1494,12 @@ export default function GroceryScreen(): React.JSX.Element {
               }
               ListEmptyComponent={
                 <View style={styles.emptyWrap}>
-                  <Text style={styles.emptyIcon}>🛒</Text>
+                  <Ionicons
+                    name="cart-outline"
+                    size={44}
+                    color={C.textTertiary}
+                    style={styles.emptyIcon}
+                  />
                   <Text style={styles.emptyTitle}>{t('grocery.empty')}</Text>
                   <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
                 </View>
@@ -1835,7 +1844,6 @@ function makeStyles(C: ColorTokens) {
       gap: 8,
     },
     catTitleFlex: { flex: 1 },
-    catTitleIcon: { fontSize: 15 },
     catTitleText: { fontSize: 14, ...font.bold, color: C.textPrimary },
     catTitleTextDraft: { color: 'rgb(133,77,14)' },
     catTitleTextPersonal: { color: 'rgb(76,29,149)' },
@@ -1970,7 +1978,7 @@ function makeStyles(C: ColorTokens) {
     errorBannerText: { fontSize: 13, color: C.danger },
 
     emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 8 },
-    emptyIcon: { fontSize: 44 },
+    emptyIcon: { marginBottom: sizes.sm },
     emptyTitle: { fontSize: 16, ...font.bold, color: C.textPrimary },
     emptyText: { fontSize: 14, ...font.regular, color: C.textSecondary, textAlign: 'center' },
 
@@ -2025,7 +2033,6 @@ function makeStyles(C: ColorTokens) {
       elevation: 2,
     },
     shoppingIconActive: { backgroundColor: 'rgba(220,255,230,0.9)' },
-    shoppingIconText: { fontSize: 26 },
     shoppingCopy: { alignItems: 'center', gap: 4, paddingHorizontal: 8 },
     shopperBadge: {
       flexDirection: 'row',
