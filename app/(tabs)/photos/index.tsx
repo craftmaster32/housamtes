@@ -33,7 +33,6 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
-import { PhotoUploadModal } from '@components/photos/PhotoUploadModal';
 import { getErrorMessage } from '@utils/errors';
 
 const { width: SW } = Dimensions.get('window');
@@ -191,6 +190,27 @@ const makeStyles = (C: ColorTokens) =>
       textAlign: 'center',
       paddingHorizontal: sizes.lg,
     },
+    uploadOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    uploadCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      backgroundColor: C.surface,
+      paddingVertical: sizes.md,
+      paddingHorizontal: sizes.lg,
+      borderRadius: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 8,
+    },
+    uploadText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
   });
 
 export default function PhotosScreen(): React.JSX.Element {
@@ -225,7 +245,6 @@ export default function PhotosScreen(): React.JSX.Element {
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory | 'general'>('general');
   const [viewIndex, setViewIndex] = useState(-1);
-  const [pickedAssets, setPickedAssets] = useState<ImagePickerAsset[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState('');
@@ -326,6 +345,52 @@ export default function PhotosScreen(): React.JSX.Element {
     }
   }, [isBulkDownloading, photos, exitSelectMode, t]);
 
+  // Straight-to-upload: whatever the user picks in the system gallery (single
+  // or multi-select) is uploaded immediately. Captions/albums come later.
+  const uploadPicked = useCallback(
+    async (assets: ImagePickerAsset[]): Promise<void> => {
+      if (!assets.length || !user || !houseId || !profile) return;
+      // Fail closed while entitlements are still rehydrating — otherwise a
+      // free user could upload past the cap in the brief window before
+      // AsyncStorage confirms they aren't premium.
+      if (PREMIUM_ENABLED && entitlementsLoading) {
+        setError(t('common.loading'));
+        return;
+      }
+      // Premium parked — don't enforce the free-tier photo cap while there's
+      // no way to upgrade. See constants/featureFlags.ts.
+      if (PREMIUM_ENABLED && !canAddPhotos(photos.length, assets.length)) {
+        setError(t('photos.limit_title'));
+        return;
+      }
+      setIsUploading(true);
+      setUploadProgress({ current: 0, total: assets.length });
+      try {
+        for (let i = 0; i < assets.length; i++) {
+          setUploadProgress({ current: i + 1, total: assets.length });
+          const asset = assets[i];
+          await upload({
+            localUri: asset.uri,
+            fileName: asset.fileName ?? `photo_${Date.now()}.jpg`,
+            mimeType: asset.mimeType ?? 'image/jpeg',
+            caption: '',
+            category: 'general',
+            uploadedBy: profile.name,
+            userId: user.id,
+            houseId,
+          });
+        }
+      } catch (err) {
+        setError(getErrorMessage(err, t('photos.upload_failed')));
+      } finally {
+        await load(houseId);
+        setIsUploading(false);
+        setUploadProgress({ current: 0, total: 0 });
+      }
+    },
+    [user, houseId, profile, photos.length, canAddPhotos, entitlementsLoading, upload, load, t]
+  );
+
   const pickFromCamera = useCallback(async (): Promise<void> => {
     try {
       const { granted } = await ImagePicker.requestCameraPermissionsAsync();
@@ -335,12 +400,12 @@ export default function PhotosScreen(): React.JSX.Element {
       }
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
       if (!result.canceled && result.assets[0]) {
-        setPickedAssets([result.assets[0]]);
+        await uploadPicked([result.assets[0]]);
       }
     } catch {
       setError(t('photos.camera_error'));
     }
-  }, [t]);
+  }, [t, uploadPicked]);
 
   const pickFromLibrary = useCallback(async (): Promise<void> => {
     try {
@@ -356,68 +421,12 @@ export default function PhotosScreen(): React.JSX.Element {
         quality: 0.8,
       });
       if (!result.canceled && result.assets.length > 0) {
-        setPickedAssets(result.assets);
+        await uploadPicked(result.assets);
       }
     } catch {
       setError(t('photos.library_error'));
     }
-  }, [t]);
-
-  const handleUpload = useCallback(
-    async (caption: string, category: PhotoCategory): Promise<void> => {
-      if (!pickedAssets.length || !user || !houseId || !profile) return;
-      // Fail closed while entitlements are still rehydrating — otherwise a
-      // free user could upload past the cap in the brief window before
-      // AsyncStorage confirms they aren't premium.
-      if (PREMIUM_ENABLED && entitlementsLoading) {
-        setError(t('common.loading'));
-        return;
-      }
-      // Premium parked — don't enforce the free-tier photo cap while there's
-      // no way to upgrade. See constants/featureFlags.ts.
-      if (PREMIUM_ENABLED && !canAddPhotos(photos.length, pickedAssets.length)) {
-        setError(t('photos.limit_title'));
-        return;
-      }
-      setIsUploading(true);
-      setUploadProgress({ current: 0, total: pickedAssets.length });
-      try {
-        for (let i = 0; i < pickedAssets.length; i++) {
-          setUploadProgress({ current: i + 1, total: pickedAssets.length });
-          const asset = pickedAssets[i];
-          await upload({
-            localUri: asset.uri,
-            fileName: asset.fileName ?? `photo_${Date.now()}.jpg`,
-            mimeType: asset.mimeType ?? 'image/jpeg',
-            caption,
-            category,
-            uploadedBy: profile.name,
-            userId: user.id,
-            houseId,
-          });
-        }
-      } catch (err) {
-        setError(getErrorMessage(err, t('photos.upload_failed')));
-      } finally {
-        setPickedAssets([]);
-        await load(houseId);
-        setIsUploading(false);
-        setUploadProgress({ current: 0, total: 0 });
-      }
-    },
-    [
-      pickedAssets,
-      user,
-      houseId,
-      profile,
-      photos.length,
-      canAddPhotos,
-      entitlementsLoading,
-      upload,
-      load,
-      t,
-    ]
-  );
+  }, [t, uploadPicked]);
 
   const limit = photoLimit();
   // The upsell card only appears once premium is live (constants/featureFlags.ts).
@@ -476,7 +485,6 @@ export default function PhotosScreen(): React.JSX.Element {
   );
 
   const onCloseViewer = useCallback(() => setViewIndex(-1), []);
-  const onClearPicked = useCallback(() => setPickedAssets([]), []);
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionListData<PhotoRow, PhotoSection> }) => (
@@ -648,14 +656,21 @@ export default function PhotosScreen(): React.JSX.Element {
           />
         )}
 
-        <PhotoUploadModal
-          visible={pickedAssets.length > 0}
-          assets={pickedAssets}
-          isUploading={isUploading}
-          progress={uploadProgress}
-          onClose={onClearPicked}
-          onUpload={handleUpload}
-        />
+        {isUploading && (
+          <View style={styles.uploadOverlay} pointerEvents="auto">
+            <View style={styles.uploadCard}>
+              <ActivityIndicator color={C.primary} />
+              <Text style={styles.uploadText}>
+                {uploadProgress.total > 1
+                  ? t('photos.uploading_progress', {
+                      current: uploadProgress.current,
+                      total: uploadProgress.total,
+                    })
+                  : t('photos.uploading')}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {isSelectMode && (
           <View style={styles.selectionBar}>
