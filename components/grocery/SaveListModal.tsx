@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 export type SaveListMode = 'new' | 'update';
 
@@ -39,6 +40,7 @@ export function SaveListModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = makeStyles(C);
+  const headingFont = useHeadingFont('bold');
 
   const [listName, setListName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -102,7 +104,7 @@ export function SaveListModal({
           {mode === 'update' ? (
             /* ── Update mode ──────────────────────────────────────────────── */
             <>
-              <Text style={styles.title}>{t('grocery.update_saved_list')}</Text>
+              <Text style={[styles.title, headingFont]}>{t('grocery.update_saved_list')}</Text>
               <Text style={styles.body}>
                 {t('grocery.update_saved_list_body', { name: existingListName })}
               </Text>
@@ -135,7 +137,7 @@ export function SaveListModal({
           ) : (
             /* ── Save new mode ────────────────────────────────────────────── */
             <>
-              <Text style={styles.title}>{t('grocery.save_this_list')}</Text>
+              <Text style={[styles.title, headingFont]}>{t('grocery.save_this_list')}</Text>
               <Text style={styles.body}>{t('grocery.save_this_list_body')}</Text>
 
               <TextInput

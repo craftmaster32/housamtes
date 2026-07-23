@@ -811,6 +811,7 @@
     "housemates_can_see": "Housemates can see the list",
     "failed_restore_prefs": "Failed to restore your grocery preferences. Please try again.",
     "set_reminder": "Set reminder",
+    "reminder_sub": "We'll nudge the house to pick this up",
     "reminders": "Reminders",
     "reminders_count_one": "Reminders, {{count}} reminder",
     "reminders_count_other": "Reminders, {{count}} reminders",

@@ -811,6 +811,7 @@
     "housemates_can_see": "Los compañeros pueden ver la lista",
     "failed_restore_prefs": "No se pudieron restaurar tus preferencias de compras. Intenta de nuevo.",
     "set_reminder": "Poner recordatorio",
+    "reminder_sub": "Le avisaremos a la casa para que lo compre",
     "reminders": "Recordatorios",
     "reminders_count_one": "Recordatorios, {{count}} recordatorio",
     "reminders_count_other": "Recordatorios, {{count}} recordatorios",

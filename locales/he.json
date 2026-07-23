@@ -811,6 +811,7 @@
     "housemates_can_see": "השותפים יכולים לראות את הרשימה",
     "failed_restore_prefs": "שחזור ההעדפות נכשל. נסה שוב.",
     "set_reminder": "הגדרת תזכורת",
+    "reminder_sub": "נזכיר לדיירים לקנות את זה",
     "reminders": "תזכורות",
     "reminders_count_one": "תזכורות, תזכורת אחת",
     "reminders_count_other": "תזכורות, {{count}} תזכורות",
