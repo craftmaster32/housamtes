@@ -31,6 +31,7 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
 import { getErrorMessage } from '@utils/errors';
@@ -235,6 +236,7 @@ export default function PhotosScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
 
   useEffect(() => {
     if (houseId) load(houseId);
@@ -570,7 +572,7 @@ export default function PhotosScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root}>
       <View style={styles.flex}>
         <View style={styles.header}>
-          <Text style={styles.heading}>{t('photos.title')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('photos.title')}</Text>
           <View style={styles.headerActions}>
             <Pressable
               onPress={pickFromCamera}

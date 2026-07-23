@@ -22,6 +22,7 @@ import {
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
@@ -525,6 +526,7 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -661,7 +663,7 @@ export default function SpendingScreen(): React.JSX.Element {
       >
         <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={C.textPrimary} />
       </Pressable>
-      <Text style={styles.title}>{t('spending.spending_analysis')}</Text>
+      <Text style={[styles.title, headingFont]}>{t('spending.spending_analysis')}</Text>
       <View style={styles.backBtn} />
     </View>
   );

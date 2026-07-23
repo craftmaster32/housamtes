@@ -93,7 +93,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             assignedTo: r.assigned_to,
             frequency: r.frequency as BillFrequency,
             typicalAmount: Number(r.typical_amount),
-            icon: r.icon ?? '🧾',
+            icon: r.icon ?? 'receipt-outline',
             createdAt: r.created_at,
             nextDueDate: r.next_due_date ?? undefined,
           }));
@@ -189,7 +189,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           assignedTo: inserted.assigned_to,
           frequency: inserted.frequency as BillFrequency,
           typicalAmount: Number(inserted.typical_amount),
-          icon: inserted.icon ?? '🧾',
+          icon: inserted.icon ?? 'receipt-outline',
           createdAt: inserted.created_at,
           nextDueDate: inserted.next_due_date ?? undefined,
         };

@@ -1,6 +1,10 @@
+import type * as React from 'react';
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
+import type { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 // Monetization groundwork — single source of truth for premium entitlements.
 // No payment SDK is wired up yet: everyone defaults to the free tier, and
@@ -12,7 +16,7 @@ export type PremiumFeature = 'ad_free' | 'unlimited_photos' | 'pdf_reports' | 'c
 
 export interface PremiumFeatureInfo {
   key: PremiumFeature;
-  icon: string;
+  icon: IoniconName;
   titleKey: string;
   descriptionKey: string;
 }
@@ -23,25 +27,25 @@ export interface PremiumFeatureInfo {
 export const PREMIUM_FEATURES: PremiumFeatureInfo[] = [
   {
     key: 'ad_free',
-    icon: '🚫',
+    icon: 'ban-outline',
     titleKey: 'premium.feature_ad_free',
     descriptionKey: 'premium.feature_ad_free_sub',
   },
   {
     key: 'unlimited_photos',
-    icon: '📸',
+    icon: 'images-outline',
     titleKey: 'premium.feature_unlimited_photos',
     descriptionKey: 'premium.feature_unlimited_photos_sub',
   },
   {
     key: 'pdf_reports',
-    icon: '📄',
+    icon: 'document-text-outline',
     titleKey: 'premium.feature_pdf_reports',
     descriptionKey: 'premium.feature_pdf_reports_sub',
   },
   {
     key: 'custom_themes',
-    icon: '🎨',
+    icon: 'color-palette-outline',
     titleKey: 'premium.feature_custom_themes',
     descriptionKey: 'premium.feature_custom_themes_sub',
   },

@@ -22,6 +22,7 @@ import { PhotoPicker } from '@components/shared/PhotoPicker';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { getErrorMessage } from '@utils/errors';
 import { formatDateDDMMYYYY } from '@utils/dates';
 
@@ -551,6 +552,7 @@ export default function ConditionScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -601,7 +603,7 @@ export default function ConditionScreen(): React.JSX.Element {
           )}
 
           <View style={styles.pageHeader}>
-            <Text style={styles.heading}>{t('condition.title')}</Text>
+            <Text style={[styles.heading, headingFont]}>{t('condition.title')}</Text>
             <Text style={styles.headingSub}>{t('condition.subtitle')}</Text>
           </View>
 

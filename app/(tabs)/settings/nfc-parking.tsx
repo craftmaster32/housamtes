@@ -12,6 +12,7 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 
@@ -25,6 +26,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
   const isRTLMode = isRTL(language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
 
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,7 +111,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
             color={C.primary}
           />
         </Pressable>
-        <Text style={styles.title}>{t('nfc_parking.title')}</Text>
+        <Text style={[styles.title, headingFont]}>{t('nfc_parking.title')}</Text>
         <View style={styles.backBtn} />
       </View>
 

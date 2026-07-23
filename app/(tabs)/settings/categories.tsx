@@ -18,6 +18,7 @@ import {
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 
 const makeStyles = (C: ColorTokens) =>
@@ -345,6 +346,7 @@ export default function CategoriesScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -433,7 +435,7 @@ export default function CategoriesScreen(): React.JSX.Element {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <View>
-              <Text style={styles.screenTitle}>{t('categories.title')}</Text>
+              <Text style={[styles.screenTitle, headingFont]}>{t('categories.title')}</Text>
               <Text style={styles.screenSub}>{t('categories.subtitle')}</Text>
 
               {showAdd && (

@@ -11,6 +11,7 @@ import { AddRequestForm } from '@components/maintenance/AddRequestForm';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
@@ -71,6 +72,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -101,7 +103,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
           )}
 
           <View style={styles.pageHeader}>
-            <Text style={styles.heading}>{t('maintenance.title')}</Text>
+            <Text style={[styles.heading, headingFont]}>{t('maintenance.title')}</Text>
             <Text style={styles.headingSub}>{t('maintenance.subtitle')}</Text>
           </View>
 

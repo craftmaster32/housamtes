@@ -18,6 +18,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
 
@@ -151,6 +152,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -182,7 +184,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             >
               <Text style={styles.backText}>{t('common.back')}</Text>
             </Pressable>
-            <Text style={styles.heading}>{t('nav.settings')}</Text>
+            <Text style={[styles.heading, headingFont]}>{t('nav.settings')}</Text>
             <Text style={styles.subheading}>{t('settings.notifications_section')}</Text>
           </View>
 
