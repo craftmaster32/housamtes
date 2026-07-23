@@ -151,7 +151,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: C.white,
+      backgroundColor: C.background,
     },
     content: {
       flex: 1,
@@ -183,7 +183,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       lineHeight: 22,
     },
     input: {
-      backgroundColor: C.white,
+      backgroundColor: C.surface,
     },
     error: {
       ...font.regular,
