@@ -2,21 +2,13 @@ import { useState, useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getDailyJoke, getRandomJoke, type DadJoke } from '@constants/dadJokes';
-
-const CATEGORY_EMOJI: Record<DadJoke['category'], string> = {
-  bills: '💸',
-  parking: '🚗',
-  chores: '🧹',
-  grocery: '🛒',
-  house: '🏠',
-  general: '😄',
-};
 
 export function DadJokeCard(): React.JSX.Element {
   const c = useThemedColors();
@@ -40,9 +32,13 @@ export function DadJokeCard(): React.JSX.Element {
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={styles.header}>
-        <Text style={styles.emoji}>{CATEGORY_EMOJI[joke.category]}</Text>
-        <Text style={[styles.title, { color: c.textPrimary }]}>{t('games.dad_joke_of_the_day')}</Text>
-        <View style={[styles.categoryPill, { backgroundColor: c.primary + '18' }]}>
+        <View style={[styles.iconWrap, { backgroundColor: c.primaryTint }]}>
+          <Ionicons name="happy-outline" size={18} color={c.primary} />
+        </View>
+        <Text style={[styles.title, { color: c.textPrimary }]}>
+          {t('games.dad_joke_of_the_day')}
+        </Text>
+        <View style={[styles.categoryPill, { backgroundColor: c.primaryTint }]}>
           <Text style={[styles.categoryText, { color: c.primary }]}>{joke.category}</Text>
         </View>
       </View>
@@ -56,13 +52,14 @@ export function DadJokeCard(): React.JSX.Element {
           </Animated.View>
         ) : (
           <Pressable
-            style={[styles.revealBtn, { backgroundColor: c.primary + '15' }]}
+            style={[styles.revealBtn, { backgroundColor: c.primary }]}
             onPress={handleReveal}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('games.tap_to_reveal')}
           >
-            <Text style={[styles.revealText, { color: c.primary }]}>{t('games.tap_to_reveal')}</Text>
+            <Text style={styles.revealText}>{t('games.tap_to_reveal')}</Text>
+            <Ionicons name="chevron-forward" size={15} color="#fff" />
           </Pressable>
         )}
       </Animated.View>
@@ -76,7 +73,9 @@ export function DadJokeCard(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('games.another_one')}
           >
-            <Text style={[styles.nextText, { color: c.textSecondary }]}>{t('games.another_one')}</Text>
+            <Text style={[styles.nextText, { color: c.textSecondary }]}>
+              {t('games.another_one')}
+            </Text>
           </Pressable>
         </Animated.View>
       )}
@@ -96,24 +95,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: sizes.sm,
   },
-  emoji: { fontSize: 20 },
-  title: { fontSize: 15, ...font.semibold, flex: 1 },
+  iconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 15, ...font.bold, flex: 1 },
   categoryPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: sizes.borderRadiusFull,
   },
-  categoryText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
+  categoryText: { fontSize: 10.5, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.3 },
   setup: { fontSize: 15, ...font.medium, lineHeight: 22, marginTop: sizes.xs },
   punchline: { fontSize: 16, ...font.bold, lineHeight: 24, marginTop: sizes.sm },
   revealBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     alignSelf: 'flex-start',
-    paddingHorizontal: sizes.md,
+    paddingLeft: sizes.md,
+    paddingRight: sizes.sm,
     paddingVertical: sizes.sm,
     borderRadius: sizes.borderRadius,
     marginTop: sizes.sm,
   },
-  revealText: { fontSize: 14, ...font.semibold },
+  revealText: { fontSize: 13, ...font.bold, color: '#fff' },
   nextBtn: {
     alignSelf: 'flex-start',
     paddingHorizontal: sizes.md,

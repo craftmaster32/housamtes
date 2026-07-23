@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Animated,
   BackHandler,
-  Switch,
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -45,6 +44,7 @@ import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getErrorMessage } from '@utils/errors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 // ── Accent constants ───────────────────────────────────────────────────────────
 const SHOP_BORDER = 'rgba(191,219,254,0.7)';
@@ -98,35 +98,37 @@ function localizeQuantityForDisplay(quantity: string, isHebrew: boolean): string
 }
 
 // ── Category detection ─────────────────────────────────────────────────────────
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
 interface Category {
   labelKey: string;
-  icon: string;
+  icon: IoniconName;
   order: number;
 }
 
 const RULES: Array<{ re: RegExp; cat: Category }> = [
   {
     re: /banana|apple|avocado|tomato|carrot|onion|lettuce|orange|strawberry|grape|cucumber|pepper|lime|lemon|herb|spinach|broccoli|salad/i,
-    cat: { labelKey: 'grocery.cat_produce', icon: '🍎', order: 0 },
+    cat: { labelKey: 'grocery.cat_produce', icon: 'nutrition-outline', order: 0 },
   },
   {
     re: /milk|oat milk|almond milk|egg|cheese|butter|yogurt|cream|dairy/i,
-    cat: { labelKey: 'grocery.cat_dairy_fridge', icon: '🥛', order: 1 },
+    cat: { labelKey: 'grocery.cat_dairy_fridge', icon: 'snow-outline', order: 1 },
   },
   {
     re: /toilet|soap|trash|bin bag|sponge|paper towel|dish|laundry|detergent|bleach|towel|cleaning/i,
-    cat: { labelKey: 'grocery.cat_household', icon: '🧺', order: 2 },
+    cat: { labelKey: 'grocery.cat_household', icon: 'basket-outline', order: 2 },
   },
   {
     re: /chicken|beef|fish|salmon|tuna|pork|lamb|shrimp|sausage|meat|mince/i,
-    cat: { labelKey: 'grocery.cat_meat_fish', icon: '🥩', order: 3 },
+    cat: { labelKey: 'grocery.cat_meat_fish', icon: 'restaurant-outline', order: 3 },
   },
   {
     re: /pasta|rice|bread|flour|sugar|salt|olive oil|oil|cereal|oats|coffee|tea|sauce|can|tin/i,
-    cat: { labelKey: 'grocery.cat_pantry', icon: '🥫', order: 4 },
+    cat: { labelKey: 'grocery.cat_pantry', icon: 'file-tray-stacked-outline', order: 4 },
   },
 ];
-const OTHER_CAT: Category = { labelKey: 'grocery.cat_other', icon: '📦', order: 99 };
+const OTHER_CAT: Category = { labelKey: 'grocery.cat_other', icon: 'cube-outline', order: 99 };
 
 function detectCategory(name: string): Category {
   return RULES.find((r) => r.re.test(name))?.cat ?? OTHER_CAT;
@@ -356,16 +358,33 @@ function ItemRow({
         />
       )}
       <View style={rowStyles.itemDetails}>
-        <View style={rowStyles.itemNameWrap}>
-          <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>
-            {item.name}
-          </Text>
-          {!!item.quantity && (
-            <View style={rowStyles.itemQty}>
-              <Text style={rowStyles.itemQtyText}>
-                {hasCount
-                  ? `x${qtyNum}`
-                  : localizeQuantityForDisplay(item.quantity, language === 'he')}
+        <View style={rowStyles.itemMain}>
+          <View style={rowStyles.itemNameWrap}>
+            <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>
+              {item.name}
+            </Text>
+            {!!item.quantity && (
+              <View style={rowStyles.itemQty}>
+                <Text style={rowStyles.itemQtyText}>
+                  {hasCount
+                    ? `x${qtyNum}`
+                    : localizeQuantityForDisplay(item.quantity, language === 'he')}
+                </Text>
+              </View>
+            )}
+          </View>
+          {hasCount && (
+            <View style={rowStyles.progressWrap}>
+              <View style={rowStyles.progressTrack}>
+                <View
+                  style={[
+                    rowStyles.progressFill,
+                    { width: `${Math.round((bought / qtyNum) * 100)}%` as `${number}%` },
+                  ]}
+                />
+              </View>
+              <Text style={rowStyles.progressLabel}>
+                {t('grocery.n_of_m_bought', { bought, total: qtyNum })}
               </Text>
             </View>
           )}
@@ -435,7 +454,7 @@ interface GroceryItemWithMeta extends GroceryItem {
 }
 interface SectionData {
   title: string;
-  icon: string;
+  icon: IoniconName;
   data: GroceryItemWithMeta[];
   sectionType: 'draft' | 'private' | 'shared';
 }
@@ -495,6 +514,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const [isAdding, setIsAdding] = useState(false);
   const [addMode, setAddMode] = useState<AddMode>('shared');
   const [isDraftOn, setIsDraftOn] = useState(false);
+  const [note, setNote] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [unit, setUnit] = useState<string>('');
@@ -518,6 +538,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const inputRef = useRef<TextInput>(null);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -613,6 +634,10 @@ export default function GroceryScreen(): React.JSX.Element {
   const resolvedQty = (showCustomQty ? customQty : qty) + unit;
   const effectiveMode: AddMode =
     addMode === 'private' ? 'private' : draftEnabled && isDraftOn ? 'draft' : 'shared';
+  // Which "Add to" destination is currently selected (drives the top chooser).
+  const destShared = addMode === 'shared' && !isDraftOn;
+  const destPersonal = addMode === 'private';
+  const destDraft = addMode === 'shared' && isDraftOn && draftEnabled;
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
   const sections = useMemo((): SectionData[] => {
@@ -625,7 +650,7 @@ export default function GroceryScreen(): React.JSX.Element {
     if (draftItems.length > 0) {
       result.push({
         title: t('grocery.my_draft'),
-        icon: '📝',
+        icon: 'create-outline',
         sectionType: 'draft',
         data: draftItems.map((i) => ({
           ...i,
@@ -636,7 +661,7 @@ export default function GroceryScreen(): React.JSX.Element {
     if (privateItems.length > 0) {
       result.push({
         title: t('grocery.my_private_list'),
-        icon: '🔒',
+        icon: 'lock-closed-outline',
         sectionType: 'private',
         data: privateItems,
       });
@@ -666,8 +691,14 @@ export default function GroceryScreen(): React.JSX.Element {
         .sort((a, b) => (firstIndex.get(a) ?? 99) - (firstIndex.get(b) ?? 99))
         .map((k) => map.get(k)!)
     );
-    return result;
-  }, [items, myId, t]);
+
+    // Surface the section you're currently adding to: bring its section(s) to
+    // the top while keeping everything else visible below (stable order).
+    const targetType = effectiveMode === 'private' ? 'private' : effectiveMode;
+    const selected = result.filter((s) => s.sectionType === targetType);
+    const rest = result.filter((s) => s.sectionType !== targetType);
+    return [...selected, ...rest];
+  }, [items, myId, t, effectiveMode]);
 
   const handleAdd = useCallback(
     async (quick?: string): Promise<void> => {
@@ -676,12 +707,20 @@ export default function GroceryScreen(): React.JSX.Element {
       setIsAdding(true);
       setAddError(null);
       try {
-        await addItem(n, quick ? '' : resolvedQty, myId, houseId ?? '', effectiveMode);
+        await addItem(
+          n,
+          quick ? '' : resolvedQty,
+          myId,
+          houseId ?? '',
+          effectiveMode,
+          quick ? undefined : note.trim() || undefined
+        );
         setItemName('');
         setQty('1');
         setCustomQty('');
         setShowCustomQty(false);
         setUnit('');
+        setNote('');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         showAddedItemPrompt(n);
         setTimeout(() => inputRef.current?.focus(), 50);
@@ -691,7 +730,18 @@ export default function GroceryScreen(): React.JSX.Element {
         setIsAdding(false);
       }
     },
-    [itemName, resolvedQty, myId, houseId, addItem, isAdding, effectiveMode, t, showAddedItemPrompt]
+    [
+      itemName,
+      resolvedQty,
+      myId,
+      houseId,
+      addItem,
+      isAdding,
+      effectiveMode,
+      note,
+      t,
+      showAddedItemPrompt,
+    ]
   );
 
   const handlePublishDraft = useCallback(async (): Promise<void> => {
@@ -967,6 +1017,16 @@ export default function GroceryScreen(): React.JSX.Element {
     [t]
   );
 
+  // "Add to" chooser: Shared / Personal / Draft map onto addMode + isDraftOn.
+  const handleSelectShared = useCallback((): void => {
+    handleSetShared();
+    handleToggleDraft(false);
+  }, [handleSetShared, handleToggleDraft]);
+  const handleSelectDraft = useCallback((): void => {
+    handleSetShared();
+    handleToggleDraft(true);
+  }, [handleSetShared, handleToggleDraft]);
+
   const handleItemNameChange = useCallback((v: string): void => {
     setItemName(v);
     setAddError(null);
@@ -1017,7 +1077,7 @@ export default function GroceryScreen(): React.JSX.Element {
         return (
           <View style={styles.catTitleDraftRow}>
             <View style={[styles.catTitle, styles.catTitleFlex]}>
-              <Text style={styles.catTitleIcon}>{section.icon}</Text>
+              <Ionicons name={section.icon} size={15} color="rgb(133,77,14)" />
               <Text style={[styles.catTitleText, styles.catTitleTextDraft]}>{section.title}</Text>
             </View>
             <Pressable
@@ -1042,19 +1102,19 @@ export default function GroceryScreen(): React.JSX.Element {
       if (section.sectionType === 'private') {
         return (
           <View style={[styles.catTitle, styles.catTitlePersonal]}>
-            <Text style={styles.catTitleIcon}>{section.icon}</Text>
+            <Ionicons name={section.icon} size={15} color="rgb(76,29,149)" />
             <Text style={[styles.catTitleText, styles.catTitleTextPersonal]}>{section.title}</Text>
           </View>
         );
       }
       return (
         <View style={styles.catTitle}>
-          <Text style={styles.catTitleIcon}>{section.icon}</Text>
+          <Ionicons name={section.icon} size={15} color={C.textSecondary} />
           <Text style={styles.catTitleText}>{section.title}</Text>
         </View>
       );
     },
-    [handlePublishDraft, isPublishing, myId, styles, t]
+    [handlePublishDraft, isPublishing, myId, styles, t, C]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
@@ -1064,7 +1124,7 @@ export default function GroceryScreen(): React.JSX.Element {
       return (
         <View style={[styles.shoppingRunCard, styles.shoppingRunCardActive]}>
           <View style={[styles.shoppingIcon, styles.shoppingIconActive]}>
-            <Text style={styles.shoppingIconText}>🛍️</Text>
+            <Ionicons name="bag-handle" size={26} color="rgb(22,101,52)" />
           </View>
           <View style={styles.shoppingCopy}>
             <Text style={styles.titleLg}>{t('grocery.you_at_store')}</Text>
@@ -1086,7 +1146,7 @@ export default function GroceryScreen(): React.JSX.Element {
       return (
         <View style={[styles.shoppingRunCard, styles.shoppingRunCardActive]}>
           <View style={[styles.shoppingIcon, styles.shoppingIconActive]}>
-            <Text style={styles.shoppingIconText}>🛍️</Text>
+            <Ionicons name="bag-handle" size={26} color="rgb(22,101,52)" />
           </View>
           <View style={styles.shoppingCopy}>
             <Text style={styles.titleLg}>
@@ -1104,7 +1164,7 @@ export default function GroceryScreen(): React.JSX.Element {
     return (
       <View style={styles.shoppingRunCard}>
         <View style={styles.shoppingIcon}>
-          <Text style={styles.shoppingIconText}>🛍️</Text>
+          <Ionicons name="bag-handle-outline" size={26} color={C.primary} />
         </View>
         <View style={styles.shoppingCopy}>
           <Text style={styles.titleLg}>{t('grocery.start_shopping_run')}</Text>
@@ -1168,83 +1228,73 @@ export default function GroceryScreen(): React.JSX.Element {
                   {/* ── Hero card ─────────────────────────────────────────── */}
                   <View style={styles.headerCard}>
                     <View style={styles.headerCopy}>
-                      <Text style={styles.titleHero}>{t('grocery.shared_groceries')}</Text>
+                      <Text style={[styles.titleHero, headingFont]}>
+                        {t('grocery.shared_groceries')}
+                      </Text>
                       <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
                     </View>
 
-                    {/* ── Add mode toggle: Shared | Private ────────────── */}
-                    <View style={styles.modeToggle}>
+                    {/* ── "Add to" chooser: Shared | Personal | Draft ──── */}
+                    <Text style={styles.addToLabel}>{t('grocery.add_to')}</Text>
+                    <View style={styles.segWrap}>
                       <Pressable
-                        style={[styles.modeBtn, addMode === 'shared' && styles.modeBtnOn]}
-                        onPress={handleSetShared}
+                        style={[styles.segBtn, destShared && styles.segBtnShared]}
+                        onPress={handleSelectShared}
                         accessibilityRole="button"
-                        accessibilityState={{ selected: addMode === 'shared' }}
+                        accessibilityState={{ selected: destShared }}
+                        accessibilityLabel={t('grocery.shared_tab')}
                       >
-                        <Text
-                          style={[styles.modeBtnText, addMode === 'shared' && styles.modeBtnTextOn]}
-                        >
-                          {t('grocery.shared_tab')}
+                        <Ionicons
+                          name="people-outline"
+                          size={15}
+                          color={destShared ? '#fff' : C.textSecondary}
+                        />
+                        <Text style={[styles.segText, destShared && styles.segTextOn]}>
+                          {t('grocery.shared_seg')}
                         </Text>
                       </Pressable>
                       <Pressable
-                        style={[styles.modeBtn, addMode === 'private' && styles.modeBtnPersonal]}
+                        style={[styles.segBtn, destPersonal && styles.segBtnPersonalOn]}
                         onPress={handleSetPrivate}
                         accessibilityRole="button"
-                        accessibilityState={{ selected: addMode === 'private' }}
+                        accessibilityState={{ selected: destPersonal }}
+                        accessibilityLabel={t('grocery.private_tab')}
                       >
-                        <Text
-                          style={[
-                            styles.modeBtnText,
-                            addMode === 'private' && styles.modeBtnTextPersonal,
-                          ]}
-                        >
-                          {t('grocery.private_tab')}
+                        <Ionicons
+                          name="person-outline"
+                          size={15}
+                          color={destPersonal ? '#fff' : C.textSecondary}
+                        />
+                        <Text style={[styles.segText, destPersonal && styles.segTextOn]}>
+                          {t('grocery.personal_seg')}
                         </Text>
                       </Pressable>
-                    </View>
-
-                    {/* ── Draft mode toggle (Shared only) ──────────────── */}
-                    {addMode !== 'private' && draftEnabled && (
-                      <View
-                        style={[styles.draftToggleRow, isDraftOn && styles.draftToggleRowOn]}
-                        accessible={false}
-                      >
-                        <View style={styles.draftToggleInfo}>
+                      {draftEnabled && (
+                        <Pressable
+                          style={[styles.segBtn, destDraft && styles.segBtnDraftOn]}
+                          onPress={handleSelectDraft}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: destDraft }}
+                          accessibilityLabel={t('grocery.draft_mode')}
+                        >
                           <Ionicons
                             name="create-outline"
-                            size={16}
-                            color={isDraftOn ? 'rgb(133,77,14)' : C.textSecondary}
+                            size={15}
+                            color={destDraft ? '#fff' : C.textSecondary}
                           />
-                          <View style={styles.draftToggleText}>
-                            <Text
-                              style={[
-                                styles.draftToggleLabel,
-                                isDraftOn && styles.draftToggleLabelOn,
-                              ]}
-                            >
-                              {t('grocery.draft_mode')}
-                            </Text>
-                            <Text style={styles.draftToggleSub}>
-                              {isDraftOn ? t('grocery.draft_on_hint') : t('grocery.draft_off_hint')}
-                            </Text>
-                          </View>
-                        </View>
-                        <Switch
-                          value={isDraftOn}
-                          onValueChange={handleToggleDraft}
-                          trackColor={{ false: C.border, true: 'rgba(224,178,77,0.55)' }}
-                          thumbColor={isDraftOn ? 'rgb(133,77,14)' : '#f4f3f4'}
-                          activeThumbColor={'rgb(133,77,14)'}
-                          style={styles.switchLtr}
-                          ios_backgroundColor={C.border}
-                          accessible
-                          accessibilityRole="switch"
-                          accessibilityState={{ checked: isDraftOn }}
-                          accessibilityLabel={t('grocery.draft_mode')}
-                          accessibilityHint={t('grocery.draft_mode_a11y_hint')}
-                        />
-                      </View>
-                    )}
+                          <Text style={[styles.segText, destDraft && styles.segTextOn]}>
+                            {t('grocery.draft_seg')}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                    <Text style={styles.addToHint}>
+                      {destPersonal
+                        ? t('grocery.personal_hint')
+                        : destDraft
+                          ? t('grocery.draft_on_hint')
+                          : t('grocery.shared_hint')}
+                    </Text>
 
                     {/* ── Error banner ──────────────────────────────────── */}
                     {!!addError && (
@@ -1320,9 +1370,11 @@ export default function GroceryScreen(): React.JSX.Element {
                           accessibilityHint={t('grocery.custom_quantity_hint')}
                           accessibilityState={{ selected: showCustomQty }}
                         >
-                          <Text style={[styles.qtyBtnText, showCustomQty && styles.qtyBtnTextOn]}>
-                            ✏️
-                          </Text>
+                          <Ionicons
+                            name="pencil"
+                            size={14}
+                            color={showCustomQty ? '#FFFFFF' : C.textPrimary}
+                          />
                         </Pressable>
                       </View>
                       {showCustomQty && (
@@ -1366,6 +1418,22 @@ export default function GroceryScreen(): React.JSX.Element {
                           );
                         })}
                       </View>
+                    </View>
+
+                    {/* ── Note (optional) ─────────────────────────────── */}
+                    <View style={styles.noteRow}>
+                      <Ionicons name="chatbubble-outline" size={15} color={C.textTertiary} />
+                      <TextInput
+                        value={note}
+                        onChangeText={setNote}
+                        placeholder={t('grocery.note_placeholder')}
+                        placeholderTextColor={C.textTertiary}
+                        style={styles.noteInput}
+                        returnKeyType="done"
+                        onSubmitEditing={handleAddPress}
+                        accessibilityLabel={t('grocery.note_label')}
+                        accessibilityHint={t('grocery.note_hint')}
+                      />
                     </View>
 
                     {/* ── Quick Add (to current mode) ───────────────────── */}
@@ -1426,7 +1494,12 @@ export default function GroceryScreen(): React.JSX.Element {
               }
               ListEmptyComponent={
                 <View style={styles.emptyWrap}>
-                  <Text style={styles.emptyIcon}>🛒</Text>
+                  <Ionicons
+                    name="cart-outline"
+                    size={44}
+                    color={C.textTertiary}
+                    style={styles.emptyIcon}
+                  />
                   <Text style={styles.emptyTitle}>{t('grocery.empty')}</Text>
                   <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
                 </View>
@@ -1548,6 +1621,50 @@ function makeStyles(C: ColorTokens) {
       letterSpacing: 0.72,
       textTransform: 'uppercase',
     },
+
+    // ── "Add to" chooser (v2)
+    addToLabel: {
+      fontSize: 11,
+      ...font.bold,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: C.textTertiary,
+      marginBottom: 7,
+    },
+    segWrap: {
+      flexDirection: 'row',
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 13,
+      padding: 4,
+      gap: 4,
+    },
+    segBtn: {
+      flex: 1,
+      minHeight: 40,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      borderRadius: 10,
+      paddingHorizontal: 4,
+    },
+    segBtnShared: { backgroundColor: C.primary },
+    segBtnPersonalOn: { backgroundColor: '#7C4DFF' },
+    segBtnDraftOn: { backgroundColor: C.warning },
+    segText: { fontSize: 13, ...font.bold, color: C.textSecondary },
+    segTextOn: { color: '#fff' },
+    addToHint: { fontSize: 11.5, ...font.regular, color: C.textTertiary, marginTop: 7 },
+    noteRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 11,
+      paddingHorizontal: 11,
+      minHeight: 44,
+      marginTop: 10,
+    },
+    noteInput: { flex: 1, fontSize: 14, ...font.regular, color: C.textPrimary, paddingVertical: 8 },
 
     modeToggle: { flexDirection: 'row', gap: 6 },
     modeBtn: {
@@ -1727,7 +1844,6 @@ function makeStyles(C: ColorTokens) {
       gap: 8,
     },
     catTitleFlex: { flex: 1 },
-    catTitleIcon: { fontSize: 15 },
     catTitleText: { fontSize: 14, ...font.bold, color: C.textPrimary },
     catTitleTextDraft: { color: 'rgb(133,77,14)' },
     catTitleTextPersonal: { color: 'rgb(76,29,149)' },
@@ -1775,7 +1891,17 @@ function makeStyles(C: ColorTokens) {
       gap: 12,
       minWidth: 0,
     },
-    itemNameWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
+    itemMain: { flex: 1, minWidth: 0, gap: 6 },
+    itemNameWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
+    progressWrap: { gap: 4 },
+    progressTrack: {
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: C.surfaceSecondary,
+      overflow: 'hidden',
+    },
+    progressFill: { height: '100%', borderRadius: 3, backgroundColor: C.success },
+    progressLabel: { fontSize: 11.5, ...font.semibold, color: C.textSecondary },
     itemName: { fontSize: 15, ...font.semibold, color: C.textPrimary, flexShrink: 1 },
     itemNameDone: { textDecorationLine: 'line-through', color: C.textSecondary },
     itemQty: {
@@ -1843,11 +1969,16 @@ function makeStyles(C: ColorTokens) {
     avatarText: { color: '#FFFFFF', ...font.bold },
 
     loadingIndicator: { marginBottom: 8 },
-    errorBanner: { backgroundColor: '#FFF0F0', borderRadius: 10, padding: 12, marginBottom: 8 },
-    errorBannerText: { fontSize: 13, color: '#D94F4F' },
+    errorBanner: {
+      backgroundColor: C.dangerTint,
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 8,
+    },
+    errorBannerText: { fontSize: 13, color: C.danger },
 
     emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 8 },
-    emptyIcon: { fontSize: 44 },
+    emptyIcon: { marginBottom: sizes.sm },
     emptyTitle: { fontSize: 16, ...font.bold, color: C.textPrimary },
     emptyText: { fontSize: 14, ...font.regular, color: C.textSecondary, textAlign: 'center' },
 
@@ -1902,7 +2033,6 @@ function makeStyles(C: ColorTokens) {
       elevation: 2,
     },
     shoppingIconActive: { backgroundColor: 'rgba(220,255,230,0.9)' },
-    shoppingIconText: { fontSize: 26 },
     shoppingCopy: { alignItems: 'center', gap: 4, paddingHorizontal: 8 },
     shopperBadge: {
       flexDirection: 'row',

@@ -9,6 +9,7 @@ import {
   type ListRenderItemInfo,
 } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
@@ -30,9 +31,9 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
-import { PhotoUploadModal } from '@components/photos/PhotoUploadModal';
 import { getErrorMessage } from '@utils/errors';
 
 const { width: SW } = Dimensions.get('window');
@@ -76,7 +77,6 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    headerBtnText: { fontSize: 20 },
     categoryRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -85,6 +85,9 @@ const makeStyles = (C: ColorTokens) =>
       marginBottom: sizes.sm,
     },
     catChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
       paddingVertical: 4,
       paddingHorizontal: sizes.sm,
       borderRadius: sizes.borderRadiusFull,
@@ -136,7 +139,6 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    checkMark: { color: '#fff', fontSize: 13, ...font.bold },
     unselectedOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0,0,0,0.25)',
@@ -180,7 +182,7 @@ const makeStyles = (C: ColorTokens) =>
     selectionDownloadBtnDisabled: { opacity: 0.45 },
     selectionDownloadTxt: { fontSize: 15, ...font.semibold, color: '#fff' },
     emptyState: { alignItems: 'center', paddingTop: sizes.xxl, gap: sizes.sm },
-    emptyIcon: { fontSize: 48 },
+    emptyIcon: { marginBottom: sizes.sm },
     emptyTitle: { fontSize: 17, ...font.bold, color: C.textPrimary },
     emptyText: {
       fontSize: 14,
@@ -189,6 +191,27 @@ const makeStyles = (C: ColorTokens) =>
       textAlign: 'center',
       paddingHorizontal: sizes.lg,
     },
+    uploadOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    uploadCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      backgroundColor: C.surface,
+      paddingVertical: sizes.md,
+      paddingHorizontal: sizes.lg,
+      borderRadius: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 8,
+    },
+    uploadText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
   });
 
 export default function PhotosScreen(): React.JSX.Element {
@@ -213,6 +236,7 @@ export default function PhotosScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
 
   useEffect(() => {
     if (houseId) load(houseId);
@@ -223,7 +247,6 @@ export default function PhotosScreen(): React.JSX.Element {
 
   const [selectedCategory, setSelectedCategory] = useState<PhotoCategory | 'general'>('general');
   const [viewIndex, setViewIndex] = useState(-1);
-  const [pickedAssets, setPickedAssets] = useState<ImagePickerAsset[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState('');
@@ -324,6 +347,52 @@ export default function PhotosScreen(): React.JSX.Element {
     }
   }, [isBulkDownloading, photos, exitSelectMode, t]);
 
+  // Straight-to-upload: whatever the user picks in the system gallery (single
+  // or multi-select) is uploaded immediately. Captions/albums come later.
+  const uploadPicked = useCallback(
+    async (assets: ImagePickerAsset[]): Promise<void> => {
+      if (!assets.length || !user || !houseId || !profile) return;
+      // Fail closed while entitlements are still rehydrating — otherwise a
+      // free user could upload past the cap in the brief window before
+      // AsyncStorage confirms they aren't premium.
+      if (PREMIUM_ENABLED && entitlementsLoading) {
+        setError(t('common.loading'));
+        return;
+      }
+      // Premium parked — don't enforce the free-tier photo cap while there's
+      // no way to upgrade. See constants/featureFlags.ts.
+      if (PREMIUM_ENABLED && !canAddPhotos(photos.length, assets.length)) {
+        setError(t('photos.limit_title'));
+        return;
+      }
+      setIsUploading(true);
+      setUploadProgress({ current: 0, total: assets.length });
+      try {
+        for (let i = 0; i < assets.length; i++) {
+          setUploadProgress({ current: i + 1, total: assets.length });
+          const asset = assets[i];
+          await upload({
+            localUri: asset.uri,
+            fileName: asset.fileName ?? `photo_${Date.now()}.jpg`,
+            mimeType: asset.mimeType ?? 'image/jpeg',
+            caption: '',
+            category: 'general',
+            uploadedBy: profile.name,
+            userId: user.id,
+            houseId,
+          });
+        }
+      } catch (err) {
+        setError(getErrorMessage(err, t('photos.upload_failed')));
+      } finally {
+        await load(houseId);
+        setIsUploading(false);
+        setUploadProgress({ current: 0, total: 0 });
+      }
+    },
+    [user, houseId, profile, photos.length, canAddPhotos, entitlementsLoading, upload, load, t]
+  );
+
   const pickFromCamera = useCallback(async (): Promise<void> => {
     try {
       const { granted } = await ImagePicker.requestCameraPermissionsAsync();
@@ -333,12 +402,12 @@ export default function PhotosScreen(): React.JSX.Element {
       }
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
       if (!result.canceled && result.assets[0]) {
-        setPickedAssets([result.assets[0]]);
+        await uploadPicked([result.assets[0]]);
       }
     } catch {
       setError(t('photos.camera_error'));
     }
-  }, [t]);
+  }, [t, uploadPicked]);
 
   const pickFromLibrary = useCallback(async (): Promise<void> => {
     try {
@@ -354,73 +423,21 @@ export default function PhotosScreen(): React.JSX.Element {
         quality: 0.8,
       });
       if (!result.canceled && result.assets.length > 0) {
-        setPickedAssets(result.assets);
+        await uploadPicked(result.assets);
       }
     } catch {
       setError(t('photos.library_error'));
     }
-  }, [t]);
-
-  const handleUpload = useCallback(
-    async (caption: string, category: PhotoCategory): Promise<void> => {
-      if (!pickedAssets.length || !user || !houseId || !profile) return;
-      // Fail closed while entitlements are still rehydrating — otherwise a
-      // free user could upload past the cap in the brief window before
-      // AsyncStorage confirms they aren't premium.
-      if (PREMIUM_ENABLED && entitlementsLoading) {
-        setError(t('common.loading'));
-        return;
-      }
-      // Premium parked — don't enforce the free-tier photo cap while there's
-      // no way to upgrade. See constants/featureFlags.ts.
-      if (PREMIUM_ENABLED && !canAddPhotos(photos.length, pickedAssets.length)) {
-        setError(t('photos.limit_title'));
-        return;
-      }
-      setIsUploading(true);
-      setUploadProgress({ current: 0, total: pickedAssets.length });
-      try {
-        for (let i = 0; i < pickedAssets.length; i++) {
-          setUploadProgress({ current: i + 1, total: pickedAssets.length });
-          const asset = pickedAssets[i];
-          await upload({
-            localUri: asset.uri,
-            fileName: asset.fileName ?? `photo_${Date.now()}.jpg`,
-            mimeType: asset.mimeType ?? 'image/jpeg',
-            caption,
-            category,
-            uploadedBy: profile.name,
-            userId: user.id,
-            houseId,
-          });
-        }
-      } catch (err) {
-        setError(getErrorMessage(err, t('photos.upload_failed')));
-      } finally {
-        setPickedAssets([]);
-        await load(houseId);
-        setIsUploading(false);
-        setUploadProgress({ current: 0, total: 0 });
-      }
-    },
-    [
-      pickedAssets,
-      user,
-      houseId,
-      profile,
-      photos.length,
-      canAddPhotos,
-      entitlementsLoading,
-      upload,
-      load,
-      t,
-    ]
-  );
+  }, [t, uploadPicked]);
 
   const limit = photoLimit();
   // The upsell card only appears once premium is live (constants/featureFlags.ts).
   const atPhotoLimit =
-    PREMIUM_ENABLED && !entitlementsLoading && !isPremium && limit !== null && photos.length >= limit;
+    PREMIUM_ENABLED &&
+    !entitlementsLoading &&
+    !isPremium &&
+    limit !== null &&
+    photos.length >= limit;
 
   const handleDelete = useCallback(
     (photo: Photo): void => {
@@ -470,7 +487,6 @@ export default function PhotosScreen(): React.JSX.Element {
   );
 
   const onCloseViewer = useCallback(() => setViewIndex(-1), []);
-  const onClearPicked = useCallback(() => setPickedAssets([]), []);
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionListData<PhotoRow, PhotoSection> }) => (
@@ -507,7 +523,7 @@ export default function PhotosScreen(): React.JSX.Element {
               {isSelectMode && isSelected && (
                 <View style={styles.selectedOverlay}>
                   <View style={styles.checkCircle}>
-                    <Text style={styles.checkMark}>✓</Text>
+                    <Ionicons name="checkmark" size={13} color="#fff" />
                   </View>
                 </View>
               )}
@@ -528,12 +544,12 @@ export default function PhotosScreen(): React.JSX.Element {
   const EmptyComponent = useMemo(
     () => (
       <View style={styles.emptyState}>
-        <Text style={styles.emptyIcon}>📷</Text>
+        <Ionicons name="camera-outline" size={48} color={C.textTertiary} style={styles.emptyIcon} />
         <Text style={styles.emptyTitle}>{t('photos.no_photos')}</Text>
         <Text style={styles.emptyText}>{t('photos.no_photos_hint')}</Text>
       </View>
     ),
-    [styles, t]
+    [styles, t, C]
   );
 
   const selectedCount = selectedIds.size;
@@ -556,7 +572,7 @@ export default function PhotosScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root}>
       <View style={styles.flex}>
         <View style={styles.header}>
-          <Text style={styles.heading}>{t('photos.title')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('photos.title')}</Text>
           <View style={styles.headerActions}>
             <Pressable
               onPress={pickFromCamera}
@@ -565,7 +581,7 @@ export default function PhotosScreen(): React.JSX.Element {
               accessibilityRole="button"
               accessibilityLabel="Take photo"
             >
-              <Text style={styles.headerBtnText}>📷</Text>
+              <Ionicons name="camera-outline" size={22} color={C.primary} />
             </Pressable>
             <Pressable
               onPress={pickFromLibrary}
@@ -574,7 +590,7 @@ export default function PhotosScreen(): React.JSX.Element {
               accessibilityRole="button"
               accessibilityLabel="Choose from library"
             >
-              <Text style={styles.headerBtnText}>🖼️</Text>
+              <Ionicons name="images-outline" size={22} color={C.primary} />
             </Pressable>
           </View>
         </View>
@@ -590,13 +606,18 @@ export default function PhotosScreen(): React.JSX.Element {
                 accessible
                 accessibilityRole="button"
               >
+                <Ionicons
+                  name={cat.icon}
+                  size={13}
+                  color={selectedCategory === cat.key ? '#fff' : C.textSecondary}
+                />
                 <Text
                   style={[
                     styles.catChipText,
                     selectedCategory === cat.key && styles.catChipTextActive,
                   ]}
                 >
-                  {cat.icon} {t(cat.labelKey)}
+                  {t(cat.labelKey)}
                   {count > 0 ? ` (${count})` : ''}
                 </Text>
               </Pressable>
@@ -637,14 +658,21 @@ export default function PhotosScreen(): React.JSX.Element {
           />
         )}
 
-        <PhotoUploadModal
-          visible={pickedAssets.length > 0}
-          assets={pickedAssets}
-          isUploading={isUploading}
-          progress={uploadProgress}
-          onClose={onClearPicked}
-          onUpload={handleUpload}
-        />
+        {isUploading && (
+          <View style={styles.uploadOverlay} pointerEvents="auto">
+            <View style={styles.uploadCard}>
+              <ActivityIndicator color={C.primary} />
+              <Text style={styles.uploadText}>
+                {uploadProgress.total > 1
+                  ? t('photos.uploading_progress', {
+                      current: uploadProgress.current,
+                      total: uploadProgress.total,
+                    })
+                  : t('photos.uploading')}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {isSelectMode && (
           <View style={styles.selectionBar}>

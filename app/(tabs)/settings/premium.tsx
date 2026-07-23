@@ -9,6 +9,7 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { useEntitlementsStore, PREMIUM_FEATURES } from '@stores/entitlementsStore';
@@ -24,6 +25,7 @@ export default function PremiumScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const isPremium = useEntitlementsStore((s) => s.isPremium);
@@ -102,7 +104,7 @@ export default function PremiumScreen(): React.JSX.Element {
               <View style={styles.heroIconWrap}>
                 <Ionicons name="sparkles" size={32} color={C.primary} />
               </View>
-              <Text style={styles.heroTitle}>{t('premium.title')}</Text>
+              <Text style={[styles.heroTitle, headingFont]}>{t('premium.title')}</Text>
               <Text style={styles.heroSubtitle}>
                 {isPremium ? t('premium.active_subtitle') : t('premium.subtitle')}
               </Text>
@@ -116,7 +118,9 @@ export default function PremiumScreen(): React.JSX.Element {
                   key={feature.key}
                   style={[styles.row, index < PREMIUM_FEATURES.length - 1 && styles.rowBorder]}
                 >
-                  <Text style={styles.icon}>{feature.icon}</Text>
+                  <View style={styles.featIcon}>
+                    <Ionicons name={feature.icon} size={22} color={C.primary} />
+                  </View>
                   <View style={styles.info}>
                     <Text style={styles.label}>{t(feature.titleKey)}</Text>
                     <Text style={styles.description}>{t(feature.descriptionKey)}</Text>
@@ -160,7 +164,12 @@ export default function PremiumScreen(): React.JSX.Element {
             {__DEV__ && (
               <View style={[styles.card, styles.devCard]}>
                 <View style={styles.row}>
-                  <Text style={styles.icon}>🛠️</Text>
+                  <Ionicons
+                    name="construct-outline"
+                    size={22}
+                    color={C.textSecondary}
+                    style={styles.icon}
+                  />
                   <View style={styles.info}>
                     <Text style={styles.label}>{t('premium.dev_toggle')}</Text>
                     <Text style={styles.description}>{t('premium.dev_toggle_sub')}</Text>
@@ -244,6 +253,14 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     },
     rowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
     icon: { fontSize: 24, width: 32, textAlign: 'center' },
+    featIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: C.primary + '15',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     info: { flex: 1 },
     label: { fontSize: 16, color: C.textPrimary, ...font.semibold },
     description: { fontSize: 13, color: C.textSecondary, ...font.regular, marginTop: 2 },

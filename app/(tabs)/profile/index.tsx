@@ -30,6 +30,7 @@ import { SpendingCard } from '@components/profile/SpendingCard';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import type { Bill } from '@stores/billsStore';
 import type { Housemate } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
@@ -159,7 +160,7 @@ function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): Rea
   return (
     <View style={s.activityItem}>
       <View style={[s.activityIcon, { backgroundColor: meta.color + '20' }]}>
-        <Text style={s.activityIconText}>{meta.icon}</Text>
+        <Ionicons name={meta.icon} size={17} color={meta.color} />
       </View>
       <View style={s.activityInfo}>
         <Text style={s.activityTitle} numberOfLines={1}>
@@ -676,6 +677,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -1058,8 +1060,8 @@ export default function ProfileScreen(): React.JSX.Element {
                 <View style={styles.expenseGrid}>
                   {topCategories.map((cat) => (
                     <View key={cat.name} style={styles.expenseCard}>
-                      <View style={styles.expenseIconWrap}>
-                        <Text style={styles.expenseIcon}>{cat.icon}</Text>
+                      <View style={[styles.expenseIconWrap, { backgroundColor: cat.color + '18' }]}>
+                        <Ionicons name={cat.icon} size={20} color={cat.color} />
                       </View>
                       <Text style={styles.expenseName}>
                         {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
@@ -1251,7 +1253,7 @@ export default function ProfileScreen(): React.JSX.Element {
       <Modal visible={cropSource !== null} transparent animationType="fade">
         <View style={styles.cropOverlay}>
           <View style={styles.cropModal}>
-            <Text style={styles.cropTitle}>Crop photo</Text>
+            <Text style={[styles.cropTitle, headingFont]}>{t('profile.crop_photo')}</Text>
             {cropSource && (
               <CropEditor
                 source={cropSource}
@@ -1433,7 +1435,6 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
       alignItems: 'center',
     },
-    expenseIcon: { fontSize: 20 },
     expenseName: { fontSize: 13, ...font.bold, color: C.textSecondary },
     expenseAmt: { fontSize: 18, ...font.extrabold, color: C.textPrimary },
 
@@ -1503,7 +1504,6 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
       alignItems: 'center',
     },
-    activityIconText: { fontSize: 20 },
     activityInfo: { flex: 1 },
     activityTitle: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
     activitySub: { fontSize: 13, ...font.regular, color: C.textSecondary },

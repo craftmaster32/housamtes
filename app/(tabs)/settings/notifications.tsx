@@ -9,6 +9,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +18,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
 
@@ -34,12 +36,17 @@ const makeStyles = (C: ColorTokens) =>
     heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
     subheading: { fontSize: 14, ...font.regular, color: C.textSecondary, marginTop: 2 },
 
+    sectionTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: sizes.xs,
+    },
     sectionTitle: {
       fontSize: 13,
       ...font.semibold,
       color: C.textSecondary,
       letterSpacing: 0.5,
-      marginTop: sizes.xs,
     },
     card: {
       backgroundColor: C.surface,
@@ -145,6 +152,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -176,11 +184,14 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             >
               <Text style={styles.backText}>{t('common.back')}</Text>
             </Pressable>
-            <Text style={styles.heading}>{t('nav.settings')}</Text>
+            <Text style={[styles.heading, headingFont]}>{t('nav.settings')}</Text>
             <Text style={styles.subheading}>{t('settings.notifications_section')}</Text>
           </View>
 
-          <Text style={styles.sectionTitle}>💰 {t('nav.bills')}</Text>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="cash-outline" size={15} color={C.textSecondary} />
+            <Text style={styles.sectionTitle}>{t('nav.bills')}</Text>
+          </View>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_bill_added')}
@@ -232,7 +243,10 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             )}
           </View>
 
-          <Text style={styles.sectionTitle}>🚗 {t('nav.parking')}</Text>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="car-outline" size={15} color={C.textSecondary} />
+            <Text style={styles.sectionTitle}>{t('nav.parking')}</Text>
+          </View>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_parking_claimed')}
@@ -249,7 +263,10 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>🧹 {t('nav.chores')}</Text>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="sparkles-outline" size={15} color={C.textSecondary} />
+            <Text style={styles.sectionTitle}>{t('nav.chores')}</Text>
+          </View>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_chore')}
@@ -260,7 +277,10 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>📋 {t('nav.tasks')}</Text>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="list-outline" size={15} color={C.textSecondary} />
+            <Text style={styles.sectionTitle}>{t('nav.tasks')}</Text>
+          </View>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_task_assigned')}
@@ -271,7 +291,10 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>💬 {t('nav.chat')}</Text>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="chatbubble-ellipses-outline" size={15} color={C.textSecondary} />
+            <Text style={styles.sectionTitle}>{t('nav.chat')}</Text>
+          </View>
           <View style={styles.card}>
             <ToggleRow
               label={t('settings.notify_chat')}

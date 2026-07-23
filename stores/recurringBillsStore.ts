@@ -1,9 +1,13 @@
+import type * as React from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { parseISO, addMonths, format } from 'date-fns';
+import type { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 export type BillFrequency = 'monthly' | 'bimonthly' | 'quarterly';
 
@@ -89,7 +93,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             assignedTo: r.assigned_to,
             frequency: r.frequency as BillFrequency,
             typicalAmount: Number(r.typical_amount),
-            icon: r.icon ?? '🧾',
+            icon: r.icon ?? 'receipt-outline',
             createdAt: r.created_at,
             nextDueDate: r.next_due_date ?? undefined,
           }));
@@ -185,7 +189,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           assignedTo: inserted.assigned_to,
           frequency: inserted.frequency as BillFrequency,
           typicalAmount: Number(inserted.typical_amount),
-          icon: inserted.icon ?? '🧾',
+          icon: inserted.icon ?? 'receipt-outline',
           createdAt: inserted.created_at,
           nextDueDate: inserted.next_due_date ?? undefined,
         };
@@ -258,7 +262,44 @@ const FREQUENCY_MONTHS: Record<BillFrequency, number> = {
   quarterly: 3,
 };
 
-export const BILL_ICONS = ['🏛️', '⚡', '💧', '🔥', '📶', '🏢', '🏠', '🧾', '🌡️', '♻️'];
+// Ionicon names offered in the bill-icon picker (new bills store these).
+export const BILL_ICONS: IoniconName[] = [
+  'business-outline',
+  'flash-outline',
+  'water-outline',
+  'flame-outline',
+  'wifi-outline',
+  'business',
+  'home-outline',
+  'receipt-outline',
+  'thermometer-outline',
+  'trash-outline',
+];
+
+// Legacy bills stored an emoji in the `icon` column. Map those to the matching
+// Ionicon so existing data keeps rendering after the switch to icon-name picks.
+const LEGACY_BILL_ICONS: Record<string, IoniconName> = {
+  '🏛️': 'business-outline',
+  '⚡': 'flash-outline',
+  '💧': 'water-outline',
+  '🔥': 'flame-outline',
+  '📶': 'wifi-outline',
+  '🏢': 'business',
+  '🏠': 'home-outline',
+  '🧾': 'receipt-outline',
+  '🌡️': 'thermometer-outline',
+  '♻️': 'trash-outline',
+};
+
+const VALID_BILL_ICONS = new Set<string>(BILL_ICONS);
+
+// Resolve whatever is stored in a bill's `icon` field (legacy emoji or a new
+// Ionicon name) to a renderable Ionicon name.
+export function resolveBillIcon(stored: string | null | undefined): IoniconName {
+  if (stored && VALID_BILL_ICONS.has(stored)) return stored as IoniconName;
+  if (stored && LEGACY_BILL_ICONS[stored]) return LEGACY_BILL_ICONS[stored];
+  return 'receipt-outline';
+}
 
 export function getLastPayment(
   billId: string,

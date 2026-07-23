@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
@@ -23,18 +24,21 @@ import {
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 
-const PERMISSION_KEYS: Array<{ key: keyof MemberPermissions; tKey: string; icon: string }> = [
-  { key: 'bills', tKey: 'members.perm_bills', icon: '💰' },
-  { key: 'grocery', tKey: 'members.perm_grocery', icon: '🛒' },
-  { key: 'parking', tKey: 'members.perm_parking', icon: '🚗' },
-  { key: 'chores', tKey: 'members.perm_chores', icon: '🧹' },
-  { key: 'chat', tKey: 'members.perm_chat', icon: '💬' },
-  { key: 'photos', tKey: 'members.perm_photos', icon: '📷' },
-  { key: 'voting', tKey: 'members.perm_voting', icon: '🗳️' },
-  { key: 'maintenance', tKey: 'members.perm_maintenance', icon: '🔧' },
-  { key: 'condition', tKey: 'members.perm_condition', icon: '📋' },
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const PERMISSION_KEYS: Array<{ key: keyof MemberPermissions; tKey: string; icon: IoniconName }> = [
+  { key: 'bills', tKey: 'members.perm_bills', icon: 'cash-outline' },
+  { key: 'grocery', tKey: 'members.perm_grocery', icon: 'cart-outline' },
+  { key: 'parking', tKey: 'members.perm_parking', icon: 'car-outline' },
+  { key: 'chores', tKey: 'members.perm_chores', icon: 'sparkles-outline' },
+  { key: 'chat', tKey: 'members.perm_chat', icon: 'chatbubble-ellipses-outline' },
+  { key: 'photos', tKey: 'members.perm_photos', icon: 'camera-outline' },
+  { key: 'voting', tKey: 'members.perm_voting', icon: 'podium-outline' },
+  { key: 'maintenance', tKey: 'members.perm_maintenance', icon: 'construct-outline' },
+  { key: 'condition', tKey: 'members.perm_condition', icon: 'clipboard-outline' },
 ];
 
 const makeStyles = (C: ColorTokens) =>
@@ -80,7 +84,8 @@ const makeStyles = (C: ColorTokens) =>
     memberAvatarText: { color: '#FFF', fontSize: 18, ...font.bold },
     memberMeta: { flex: 1 },
     memberName: { fontSize: 16, ...font.semibold, color: C.textPrimary },
-    memberRole: { fontSize: 13, ...font.regular, color: C.textSecondary, marginTop: 1 },
+    memberRoleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+    memberRole: { fontSize: 13, ...font.regular, color: C.textSecondary },
     memberJoined: { fontSize: 12, ...font.regular, color: C.textSecondary, marginTop: 2 },
     changeRoleBtn: { paddingHorizontal: 8, paddingVertical: 4 },
     changeRoleBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
@@ -102,7 +107,7 @@ const makeStyles = (C: ColorTokens) =>
       marginBottom: sizes.sm,
     },
     permRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-    permIcon: { fontSize: 16, width: 28 },
+    permIcon: { width: 28 },
     permLabel: { flex: 1, fontSize: 14, ...font.regular, color: C.textPrimary },
     permNote: {
       fontSize: 13,
@@ -142,11 +147,13 @@ function MemberCard({
         }),
       })
     : null;
+  const roleIcon: IoniconName | null =
+    member.role === 'owner' ? 'star' : member.role === 'admin' ? 'shield-checkmark' : null;
   const roleLabel =
     member.role === 'owner'
-      ? `👑 ${t('members.owner')}`
+      ? t('members.owner')
       : member.role === 'admin'
-        ? `🛡 ${t('members.admin')}`
+        ? t('members.admin')
         : t('members.member');
 
   return (
@@ -172,7 +179,10 @@ function MemberCard({
           <Text style={styles.memberName}>
             {isMe ? t('members.name_with_you', { name: member.name }) : member.name}
           </Text>
-          <Text style={styles.memberRole}>{roleLabel}</Text>
+          <View style={styles.memberRoleRow}>
+            {roleIcon && <Ionicons name={roleIcon} size={12} color={C.textSecondary} />}
+            <Text style={styles.memberRole}>{roleLabel}</Text>
+          </View>
           {joinedLabel && <Text style={styles.memberJoined}>{joinedLabel}</Text>}
         </View>
         {canEdit && !isMe && member.role !== 'owner' && (
@@ -193,7 +203,7 @@ function MemberCard({
           <Text style={styles.permTitle}>{t('members.what_can_see', { name: member.name })}</Text>
           {PERMISSION_KEYS.map(({ key, tKey, icon }) => (
             <View key={key} style={styles.permRow}>
-              <Text style={styles.permIcon}>{icon}</Text>
+              <Ionicons name={icon} size={16} color={C.textSecondary} style={styles.permIcon} />
               <Text style={styles.permLabel}>{t(tKey)}</Text>
               <Switch
                 value={member.permissions[key]}
@@ -233,6 +243,7 @@ export default function MembersScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -299,7 +310,7 @@ export default function MembersScreen(): React.JSX.Element {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <View>
-              <Text style={styles.screenTitle}>{t('members.title')}</Text>
+              <Text style={[styles.screenTitle, headingFont]}>{t('members.title')}</Text>
               <Text style={styles.screenSub}>{t('members.subtitle')}</Text>
             </View>
           }

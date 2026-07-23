@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ import { resolveName } from '@utils/housemates';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
@@ -167,6 +169,7 @@ export default function ChoresScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
 
   const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
     { value: 'once', label: t('chores.once') },
@@ -277,38 +280,48 @@ export default function ChoresScreen(): React.JSX.Element {
               {/* ── Hero card ──────────────────────────────────────── */}
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>
-                  <Text style={styles.titleHero}>{t('chores.title')}</Text>
+                  <Text style={[styles.titleHero, headingFont]}>{t('chores.title')}</Text>
                   <Text style={styles.textBase}>
                     {"Assign tasks, claim what you'll do, and check them off together."}
                   </Text>
                 </View>
 
-                {/* Progress bar */}
+                {/* Progress hero */}
                 {chores.length > 0 && (
-                  <View style={styles.progressSection}>
-                    <View style={styles.progressLabelRow}>
-                      <Text style={styles.progressLabel}>
-                        {done.length} of {chores.length} done
+                  <LinearGradient
+                    colors={C.successGradient}
+                    start={{ x: 0.15, y: 0 }}
+                    end={{ x: 0.85, y: 1 }}
+                    style={styles.progressHero}
+                  >
+                    <View style={styles.progressHeroHighlight} />
+                    <View style={styles.progressHeroTop}>
+                      <Text style={styles.progressHeroNum}>
+                        {done.length}
+                        <Text style={styles.progressHeroDenom}>/{chores.length}</Text>
                       </Text>
+                      <View style={styles.progressHeroCopy}>
+                        <Text style={styles.progressHeroLabel}>{t('chores.done_label')}</Text>
+                      </View>
                       {done.length > 0 && canReset && (
                         <Pressable
                           onPress={() => resetAll(houseId ?? '')}
-                          style={styles.resetBtn}
+                          style={styles.progressHeroReset}
                           accessibilityRole="button"
                         >
-                          <Text style={styles.resetBtnText}>{t('chores.reset_all')}</Text>
+                          <Text style={styles.progressHeroResetText}>{t('chores.reset_all')}</Text>
                         </Pressable>
                       )}
                     </View>
-                    <View style={styles.progressTrack}>
+                    <View style={styles.progressHeroTrack}>
                       <View
                         style={[
-                          styles.progressFill,
-                          { width: `${progress * 100}%` as unknown as number },
+                          styles.progressHeroFill,
+                          { width: `${progress * 100}%` as `${number}%` },
                         ]}
                       />
                     </View>
-                  </View>
+                  </LinearGradient>
                 )}
 
                 {/* Add form */}
@@ -494,27 +507,50 @@ function makeStyles(C: ColorTokens) {
     titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
     textBase: { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
 
-    progressSection: { gap: 8 },
-    progressLabelRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+    progressHero: {
+      borderRadius: 18,
+      padding: 18,
+      gap: 12,
+      overflow: 'hidden',
+      shadowColor: C.successGradient[1],
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.35,
+      shadowRadius: 18,
+      elevation: 6,
     },
-    progressLabel: { fontSize: 13, ...font.semibold, color: C.textSecondary },
-    resetBtn: {
-      paddingVertical: 4,
-      paddingHorizontal: 8,
+    progressHeroHighlight: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+    },
+    progressHeroTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    progressHeroNum: { fontSize: 30, ...font.extrabold, color: '#fff', letterSpacing: -0.8 },
+    progressHeroDenom: { fontSize: 18, ...font.bold, color: 'rgba(255,255,255,0.7)' },
+    progressHeroCopy: { flex: 1 },
+    progressHeroLabel: {
+      fontSize: 12,
+      ...font.bold,
+      color: 'rgba(255,255,255,0.85)',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    progressHeroReset: {
+      paddingVertical: 6,
+      paddingHorizontal: 12,
       borderRadius: 9999,
-      backgroundColor: C.surfaceSecondary,
+      backgroundColor: 'rgba(255,255,255,0.18)',
     },
-    resetBtnText: { fontSize: 12, ...font.semibold, color: C.textSecondary },
-    progressTrack: {
+    progressHeroResetText: { fontSize: 12, ...font.bold, color: '#fff' },
+    progressHeroTrack: {
       height: 6,
-      backgroundColor: C.surfaceSecondary,
+      backgroundColor: 'rgba(255,255,255,0.25)',
       borderRadius: 3,
       overflow: 'hidden',
     },
-    progressFill: { height: 6, backgroundColor: C.positive, borderRadius: 3 },
+    progressHeroFill: { height: 6, backgroundColor: '#fff', borderRadius: 3 },
 
     formInput: {
       height: 46,

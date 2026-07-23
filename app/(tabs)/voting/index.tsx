@@ -1,8 +1,11 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { summarizeProposalVotes, useVotingStore, type Proposal } from '@stores/votingStore';
@@ -76,37 +79,47 @@ const makeStyles = (C: ColorTokens) =>
     },
     resultBadgeText: { fontSize: sizes.fontXs, ...font.bold },
     removeBtn: { padding: 4 },
-    removeBtnText: { color: C.textDisabled, fontSize: sizes.fontSm },
 
-    tallyRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, height: 32 },
-    tallyItem: { width: 32, alignItems: 'center', gap: 1 },
-    tallyNum: { fontSize: sizes.fontLg, ...font.extrabold, lineHeight: 22 },
-    tallyLabel: { fontSize: 10, color: C.textSecondary, ...font.semibold },
-    tallyBar: {
-      flex: 1,
-      height: 10,
-      borderRadius: 5,
-      overflow: 'hidden',
-      backgroundColor: C.border,
-      flexDirection: 'row',
-    },
-    tallyFillYes: { backgroundColor: C.positive, minWidth: 1 },
-    tallyFillNo: { backgroundColor: C.negative, minWidth: 1 },
     tallyMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
 
-    voteRow: { flexDirection: 'row', gap: sizes.sm, flexWrap: 'wrap' },
-    voteBtn: {
-      paddingHorizontal: sizes.md,
-      paddingVertical: sizes.sm,
-      borderRadius: sizes.borderRadiusFull,
-      borderWidth: 2,
+    // Poll bars (Yes / No) — tap to vote; the fill shows each side's share and
+    // the voters' faces sit on it. Replaces the old tally + voter list + buttons.
+    poll: { gap: 10 },
+    pollRow: {
+      position: 'relative',
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: C.surfaceSecondary,
+      overflow: 'hidden',
+      justifyContent: 'center',
     },
-    voteBtnYes: { borderColor: C.positive, backgroundColor: C.surface },
-    voteBtnYesActive: { backgroundColor: C.positive },
-    voteBtnNo: { borderColor: C.negative, backgroundColor: C.surface },
-    voteBtnNoActive: { backgroundColor: C.negative },
-    voteBtnText: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary },
-    voteBtnTextActive: { color: '#fff' },
+    pollFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 12 },
+    pollContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 13 },
+    pollIco: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pollOpt: { fontSize: 15, ...font.extrabold },
+    pollFaces: { flexDirection: 'row', marginStart: 6 },
+    pollFace: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+      marginStart: -7,
+      borderWidth: 2,
+      borderColor: C.surface,
+    },
+    pollFaceImg: { width: 22, height: 22 },
+    pollFaceText: { fontSize: 9, ...font.extrabold, color: '#fff' },
+    pollCount: { marginStart: 'auto' as never, fontSize: 16, ...font.extrabold },
+    pollMine: { marginStart: 6 },
+
     closeBtn: {
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
@@ -124,19 +137,6 @@ const makeStyles = (C: ColorTokens) =>
     closeResultBtnPositive: { backgroundColor: C.positive },
     closeResultBtnText: { color: '#fff', fontSize: sizes.fontSm, ...font.bold },
     voteErrorText: { color: C.danger, fontSize: sizes.fontXs, ...font.regular },
-
-    voterList: { gap: 6 },
-    voterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    voterName: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
-    voterChip: {
-      borderRadius: sizes.borderRadiusFull,
-      paddingHorizontal: sizes.sm,
-      paddingVertical: 2,
-      backgroundColor: C.border + '60',
-    },
-    voterChipYes: { backgroundColor: C.positive + '18' },
-    voterChipNo: { backgroundColor: C.negative + '18' },
-    voterChipText: { fontSize: sizes.fontXs, ...font.semibold },
 
     form: {
       backgroundColor: C.surface,
@@ -193,7 +193,13 @@ const makeStyles = (C: ColorTokens) =>
     saveBtnText: { color: '#fff', ...font.semibold },
     saveError: { color: C.danger, fontSize: 13, ...font.regular },
 
-    closedToggle: { paddingVertical: sizes.sm, alignItems: 'center' },
+    closedToggle: {
+      flexDirection: 'row',
+      gap: 6,
+      paddingVertical: sizes.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     closedToggleText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.medium },
 
     emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
@@ -251,6 +257,27 @@ function ProposalCard({
   );
 
   const result = !proposal.isOpen ? voteSummary.result : null;
+  const closed = !proposal.isOpen;
+  const yesIds = voteSummary.votes.filter((v) => v.choice === 'yes').map((v) => v.person);
+  const noIds = voteSummary.votes.filter((v) => v.choice === 'no').map((v) => v.person);
+  const pctOf = (n: number): number => (totalPeople > 0 ? (n / totalPeople) * 100 : 0);
+
+  const renderFaces = (ids: string[]): React.JSX.Element => (
+    <View style={styles.pollFaces}>
+      {ids.slice(0, 3).map((id) => {
+        const hm = housemates.find((h) => h.id === id);
+        return (
+          <View key={id} style={[styles.pollFace, { backgroundColor: hm?.color ?? C.primary }]}>
+            {hm?.avatarUrl ? (
+              <Image source={{ uri: hm.avatarUrl }} style={styles.pollFaceImg} contentFit="cover" />
+            ) : (
+              <Text style={styles.pollFaceText}>{(hm?.name ?? '?')[0]?.toUpperCase()}</Text>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
 
   const resultColor =
     result === 'passed'
@@ -295,7 +322,7 @@ function ProposalCard({
             accessibilityRole="button"
             accessibilityLabel={`${t('common.delete')}: ${proposal.title}`}
           >
-            <Text style={styles.removeBtnText}>✕</Text>
+            <Ionicons name="close" size={18} color={C.textDisabled} />
           </Pressable>
         )}
       </View>
@@ -304,94 +331,68 @@ function ProposalCard({
         <Text style={styles.cardDescription}>{proposal.description}</Text>
       ) : null}
 
-      <View style={styles.tallyRow}>
-        <View style={styles.tallyItem}>
-          <Text style={[styles.tallyNum, { color: C.positive }]}>{yesVotes}</Text>
-          <Text style={styles.tallyLabel}>Yes</Text>
-        </View>
-        <View style={styles.tallyBar}>
-          {totalVoted > 0 && <View style={[styles.tallyFillYes, { flex: yesVotes }]} />}
-          {totalVoted > 0 && noVotes > 0 && (
-            <View style={[styles.tallyFillNo, { flex: noVotes }]} />
-          )}
-          {totalVoted === 0 && (
-            <View style={{ flex: 1, backgroundColor: C.border, borderRadius: 4 }} />
-          )}
-        </View>
-        <View style={styles.tallyItem}>
-          <Text style={[styles.tallyNum, { color: C.negative }]}>{noVotes}</Text>
-          <Text style={styles.tallyLabel}>No</Text>
-        </View>
+      <View style={styles.poll}>
+        <Pressable
+          style={styles.pollRow}
+          onPress={closed ? undefined : (): void => handleVote('yes')}
+          disabled={closed}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: myVote === 'yes', disabled: closed }}
+          accessibilityLabel={t('voting.yes_label')}
+        >
+          <View
+            style={[
+              styles.pollFill,
+              { backgroundColor: C.positive + '22', width: `${Math.max(pctOf(yesVotes), 6)}%` },
+            ]}
+          />
+          <View style={styles.pollContent}>
+            <View style={[styles.pollIco, { backgroundColor: C.positive }]}>
+              <Ionicons name="checkmark" size={13} color="#fff" />
+            </View>
+            <Text style={[styles.pollOpt, { color: C.positive }]}>{t('voting.yes')}</Text>
+            {renderFaces(yesIds)}
+            <Text style={[styles.pollCount, { color: C.positive }]}>{yesVotes}</Text>
+            {myVote === 'yes' && (
+              <Ionicons name="checkmark" size={18} color={C.positive} style={styles.pollMine} />
+            )}
+          </View>
+        </Pressable>
+
+        <Pressable
+          style={styles.pollRow}
+          onPress={closed ? undefined : (): void => handleVote('no')}
+          disabled={closed}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: myVote === 'no', disabled: closed }}
+          accessibilityLabel={t('voting.no_label')}
+        >
+          <View
+            style={[
+              styles.pollFill,
+              { backgroundColor: C.negative + '22', width: `${Math.max(pctOf(noVotes), 6)}%` },
+            ]}
+          />
+          <View style={styles.pollContent}>
+            <View style={[styles.pollIco, { backgroundColor: C.negative }]}>
+              <Ionicons name="close" size={14} color="#fff" />
+            </View>
+            <Text style={[styles.pollOpt, { color: C.negative }]}>{t('voting.no')}</Text>
+            {renderFaces(noIds)}
+            <Text style={[styles.pollCount, { color: C.negative }]}>{noVotes}</Text>
+            {myVote === 'no' && (
+              <Ionicons name="checkmark" size={18} color={C.negative} style={styles.pollMine} />
+            )}
+          </View>
+        </Pressable>
       </View>
 
       <Text style={styles.tallyMeta}>
         {t('voting.voted_count', { voted: totalVoted, total: totalPeople })}
       </Text>
 
-      <View style={styles.voterList}>
-        {housemates.map((hm) => {
-          const vote = voteSummary.votes.find((v) => v.person === hm.id);
-          return (
-            <View key={hm.id} style={styles.voterRow}>
-              <Text style={styles.voterName}>{hm.name}</Text>
-              {vote?.choice === 'yes' && (
-                <View style={[styles.voterChip, styles.voterChipYes]}>
-                  <Text style={[styles.voterChipText, { color: C.positive }]}>
-                    {t('voting.yes')}
-                  </Text>
-                </View>
-              )}
-              {vote?.choice === 'no' && (
-                <View style={[styles.voterChip, styles.voterChipNo]}>
-                  <Text style={[styles.voterChipText, { color: C.negative }]}>
-                    {t('voting.no')}
-                  </Text>
-                </View>
-              )}
-              {!vote && (
-                <View style={styles.voterChip}>
-                  <Text style={[styles.voterChipText, { color: C.textDisabled }]}>
-                    {t('voting.waiting')}
-                  </Text>
-                </View>
-              )}
-            </View>
-          );
-        })}
-      </View>
-
       {proposal.isOpen && (
         <>
-          <View style={styles.voteRow}>
-            <Pressable
-              style={[
-                styles.voteBtn,
-                styles.voteBtnYes,
-                myVote === 'yes' && styles.voteBtnYesActive,
-              ]}
-              onPress={() => handleVote('yes')}
-              accessible
-              accessibilityRole="radio"
-              accessibilityLabel={t('voting.yes_label')}
-              accessibilityState={{ selected: myVote === 'yes' }}
-            >
-              <Text style={[styles.voteBtnText, myVote === 'yes' && styles.voteBtnTextActive]}>
-                {t('voting.yes_vote')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.voteBtn, styles.voteBtnNo, myVote === 'no' && styles.voteBtnNoActive]}
-              onPress={() => handleVote('no')}
-              accessible
-              accessibilityRole="radio"
-              accessibilityLabel={t('voting.no_label')}
-              accessibilityState={{ selected: myVote === 'no' }}
-            >
-              <Text style={[styles.voteBtnText, myVote === 'no' && styles.voteBtnTextActive]}>
-                {t('voting.no_vote')}
-              </Text>
-            </Pressable>
-          </View>
           {allVotedYes ? (
             <Pressable
               style={[styles.closeResultBtn, styles.closeResultBtnPositive]}
@@ -529,6 +530,7 @@ export default function VotingScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -565,7 +567,7 @@ export default function VotingScreen(): React.JSX.Element {
           )}
 
           <View style={styles.pageHeader}>
-            <Text style={styles.heading}>{t('voting.title')}</Text>
+            <Text style={[styles.heading, headingFont]}>{t('voting.title')}</Text>
             <Text style={styles.headingSub}>{t('voting.subtitle')}</Text>
           </View>
 
@@ -604,8 +606,13 @@ export default function VotingScreen(): React.JSX.Element {
                 accessibilityLabel={`${t('voting.past_votes')} (${closed.length})`}
                 accessibilityState={{ expanded: showClosed }}
               >
+                <Ionicons
+                  name={showClosed ? 'chevron-up' : 'chevron-down'}
+                  size={15}
+                  color={C.textSecondary}
+                />
                 <Text style={styles.closedToggleText}>
-                  {showClosed ? '▲' : '▼'} {t('voting.past_votes')} ({closed.length})
+                  {t('voting.past_votes')} ({closed.length})
                 </Text>
               </Pressable>
               {showClosed &&

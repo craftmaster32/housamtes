@@ -19,6 +19,7 @@ import {
   type WordChallenge,
 } from '@constants/wordGame';
 import { getDailyJoke, getRandomJoke, type DadJoke } from '@constants/dadJokes';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 type GameTab = 'scramble' | 'jokes';
 
@@ -90,15 +91,17 @@ function WordScrambleGame(): React.JSX.Element {
         </View>
         <View style={styles.scorePart}>
           <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.streak')}</Text>
-          <Text style={[styles.scoreValue, { color: streak >= 3 ? '#F59E0B' : c.textPrimary }]}>
-            {streak > 0 ? `${streak}🔥` : '0'}
-          </Text>
+          <View style={styles.streakWrap}>
+            <Text style={[styles.scoreValue, { color: streak >= 3 ? '#E8892B' : c.textPrimary }]}>
+              {streak}
+            </Text>
+            {streak > 0 && <Ionicons name="flame" size={16} color="#E8892B" />}
+          </View>
         </View>
       </View>
 
       {/* Category pill */}
       <View style={[styles.catPill, { backgroundColor: c.primary + '15' }]}>
-        <Text style={styles.catEmoji}>{catInfo.emoji}</Text>
         <Text style={[styles.catLabel, { color: c.primary }]}>{catInfo.label}</Text>
       </View>
 
@@ -117,8 +120,9 @@ function WordScrambleGame(): React.JSX.Element {
 
       {/* Hint */}
       {showHint ? (
-        <Animated.View entering={FadeIn.duration(300)}>
-          <Text style={[styles.hintText, { color: c.textSecondary }]}>💡 {challenge.hint}</Text>
+        <Animated.View entering={FadeIn.duration(300)} style={styles.hintShown}>
+          <Ionicons name="bulb" size={15} color={c.textSecondary} />
+          <Text style={[styles.hintText, { color: c.textSecondary }]}>{challenge.hint}</Text>
         </Animated.View>
       ) : (
         <Pressable
@@ -129,7 +133,9 @@ function WordScrambleGame(): React.JSX.Element {
           accessibilityLabel={t('games.show_hint')}
         >
           <Ionicons name="bulb-outline" size={16} color={c.textSecondary} />
-          <Text style={[styles.hintBtnText, { color: c.textSecondary }]}>{t('games.hint_cost')}</Text>
+          <Text style={[styles.hintBtnText, { color: c.textSecondary }]}>
+            {t('games.hint_cost')}
+          </Text>
         </Pressable>
       )}
 
@@ -177,14 +183,14 @@ function WordScrambleGame(): React.JSX.Element {
         <Animated.View entering={FadeInDown.duration(300)} style={styles.resultArea}>
           {result === 'correct' ? (
             <View style={[styles.resultCard, { backgroundColor: '#10B981' + '18' }]}>
-              <Text style={[styles.resultEmoji]}>🎉</Text>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
               <Text style={[styles.resultText, { color: '#10B981' }]}>
                 {t('games.correct', { points: showHint ? 5 : 10 })}
               </Text>
             </View>
           ) : (
             <View style={[styles.resultCard, { backgroundColor: '#EF4444' + '18' }]}>
-              <Text style={[styles.resultEmoji]}>😅</Text>
+              <Ionicons name="close-circle" size={24} color="#EF4444" />
               <Text style={[styles.resultText, { color: '#EF4444' }]}>
                 {t('games.wrong', { word: challenge.word })}
               </Text>
@@ -212,7 +218,9 @@ function WordScrambleGame(): React.JSX.Element {
           accessibilityLabel={t('games.shuffle_letters')}
         >
           <Ionicons name="shuffle-outline" size={16} color={c.textSecondary} />
-          <Text style={[styles.shuffleBtnText, { color: c.textSecondary }]}>{t('games.shuffle')}</Text>
+          <Text style={[styles.shuffleBtnText, { color: c.textSecondary }]}>
+            {t('games.shuffle')}
+          </Text>
         </Pressable>
       )}
     </Animated.View>
@@ -239,20 +247,13 @@ function JokeBrowser(): React.JSX.Element {
     setKey((k) => k + 1);
   }, []);
 
-  const CATEGORY_EMOJI: Record<DadJoke['category'], string> = {
-    bills: '💸',
-    parking: '🚗',
-    chores: '🧹',
-    grocery: '🛒',
-    house: '🏠',
-    general: '😄',
-  };
-
   return (
     <Animated.View key={key} entering={FadeIn.duration(300)} style={styles.jokeContent}>
       <View style={[styles.jokeCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={styles.jokeHeader}>
-          <Text style={styles.jokeEmoji}>{CATEGORY_EMOJI[joke.category]}</Text>
+          <View style={[styles.jokeIcon, { backgroundColor: c.primary + '18' }]}>
+            <Ionicons name="happy-outline" size={18} color={c.primary} />
+          </View>
           <View style={[styles.jokeCatPill, { backgroundColor: c.primary + '15' }]}>
             <Text style={[styles.jokeCatText, { color: c.primary }]}>{joke.category}</Text>
           </View>
@@ -266,13 +267,14 @@ function JokeBrowser(): React.JSX.Element {
           </Animated.View>
         ) : (
           <Pressable
-            style={[styles.jokeRevealBtn, { backgroundColor: c.primary + '15' }]}
+            style={[styles.jokeRevealBtn, { backgroundColor: c.primary }]}
             onPress={handleReveal}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('games.reveal_punchline')}
           >
-            <Text style={[styles.jokeRevealText, { color: c.primary }]}>{t('games.tap_to_reveal')}</Text>
+            <Text style={styles.jokeRevealText}>{t('games.tap_to_reveal')}</Text>
+            <Ionicons name="chevron-forward" size={15} color="#fff" />
           </Pressable>
         )}
       </View>
@@ -285,7 +287,9 @@ function JokeBrowser(): React.JSX.Element {
         accessibilityLabel={t('games.next_joke')}
       >
         <Ionicons name="refresh-outline" size={18} color={c.textSecondary} />
-        <Text style={[styles.jokeNextText, { color: c.textSecondary }]}>{t('games.another_one')}</Text>
+        <Text style={[styles.jokeNextText, { color: c.textSecondary }]}>
+          {t('games.another_one')}
+        </Text>
       </Pressable>
     </Animated.View>
   );
@@ -297,6 +301,7 @@ export default function GamesScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const c = useThemedColors();
+  const headingFont = useHeadingFont();
   const [tab, setTab] = useState<GameTab>('scramble');
 
   return (
@@ -310,9 +315,15 @@ export default function GamesScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('games.go_back')}
         >
-          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={c.textPrimary} />
+          <Ionicons
+            name={rtl ? 'chevron-forward' : 'chevron-back'}
+            size={24}
+            color={c.textPrimary}
+          />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: c.textPrimary }]}>{t('games.title')}</Text>
+        <Text style={[styles.headerTitle, headingFont, { color: c.textPrimary }]}>
+          {t('games.title')}
+        </Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -326,7 +337,9 @@ export default function GamesScreen(): React.JSX.Element {
           accessibilityState={{ selected: tab === 'scramble' }}
           accessibilityLabel={t('games.word_scramble_game')}
         >
-          <Text style={[styles.tabText, { color: tab === 'scramble' ? c.primary : c.textSecondary }]}>
+          <Text
+            style={[styles.tabText, { color: tab === 'scramble' ? c.primary : c.textSecondary }]}
+          >
             {t('games.tab_scramble')}
           </Text>
         </Pressable>
@@ -394,16 +407,16 @@ const styles = StyleSheet.create({
   scorePart: { flex: 1, alignItems: 'center', gap: 2 },
   scoreLabel: { fontSize: 11, ...font.medium, textTransform: 'uppercase', letterSpacing: 0.8 },
   scoreValue: { fontSize: 20, ...font.bold },
+  streakWrap: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   catPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: sizes.md,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: sizes.borderRadiusFull,
   },
-  catEmoji: { fontSize: 14 },
-  catLabel: { fontSize: 13, ...font.semibold },
+  catLabel: { fontSize: 12, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
   scrambleRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -420,6 +433,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   letterText: { fontSize: 22, ...font.bold },
+  hintShown: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   hintText: { fontSize: 14, ...font.medium, textAlign: 'center' },
   hintBtn: {
     flexDirection: 'row',
@@ -464,7 +478,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.lg,
     borderRadius: sizes.borderRadius,
   },
-  resultEmoji: { fontSize: 28 },
   resultText: { fontSize: 16, ...font.semibold, flex: 1 },
   nextBtn: {
     paddingHorizontal: sizes.xl,
@@ -499,22 +512,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: sizes.sm,
   },
-  jokeEmoji: { fontSize: 28 },
+  jokeIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   jokeCatPill: {
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: sizes.borderRadiusFull,
   },
-  jokeCatText: { fontSize: 12, ...font.semibold, textTransform: 'capitalize' },
+  jokeCatText: { fontSize: 11, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.3 },
   jokeSetup: { fontSize: 18, ...font.semibold, lineHeight: 26 },
   jokePunchline: { fontSize: 20, ...font.bold, lineHeight: 28 },
   jokeRevealBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     alignSelf: 'flex-start',
-    paddingHorizontal: sizes.lg,
+    paddingLeft: sizes.lg,
+    paddingRight: sizes.md,
     paddingVertical: sizes.sm + 2,
     borderRadius: sizes.borderRadius,
   },
-  jokeRevealText: { fontSize: 15, ...font.semibold },
+  jokeRevealText: { fontSize: 14, ...font.bold, color: '#fff' },
   jokeNextBtn: {
     flexDirection: 'row',
     alignSelf: 'center',

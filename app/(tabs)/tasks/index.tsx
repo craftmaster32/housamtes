@@ -19,6 +19,7 @@ import { TaskRow } from '@components/tasks/TaskRow';
 import { AddTaskForm } from '@components/tasks/AddTaskForm';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const FILTERS: TaskFilter[] = ['all', 'active', 'completed'];
 
@@ -36,6 +37,7 @@ export default function TasksScreen(): React.JSX.Element {
   const role = useAuthStore((s) => s.role);
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const myId = profile?.id ?? '';
@@ -105,7 +107,7 @@ export default function TasksScreen(): React.JSX.Element {
             <View>
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>
-                  <Text style={styles.titleHero}>{t('tasks.title')}</Text>
+                  <Text style={[styles.titleHero, headingFont]}>{t('tasks.title')}</Text>
                   <Text style={styles.textBase}>{t('tasks.subtitle')}</Text>
                 </View>
                 <AddTaskForm onAdd={handleAdd} />

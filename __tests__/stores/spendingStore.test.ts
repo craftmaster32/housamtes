@@ -39,8 +39,10 @@ function month(overrides: Partial<MonthSpend> = {}): MonthSpend {
     label: 'This month',
     total: 30,
     houseTotal: 90,
-    categories: [{ name: 'internet', icon: '', color: '#000000', amount: 30, isHouse: true }],
-    houseCategories: [{ name: 'internet', icon: '', color: '#000000', amount: 90, isHouse: true }],
+    categories: [{ name: 'internet', icon: 'wifi', color: '#000000', amount: 30, isHouse: true }],
+    houseCategories: [
+      { name: 'internet', icon: 'wifi', color: '#000000', amount: 90, isHouse: true },
+    ],
     billsByCategory: {},
     ...overrides,
   };

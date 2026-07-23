@@ -1,8 +1,12 @@
+import type * as React from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 export type ConditionLevel = 'good' | 'fair' | 'poor';
 export type EntryType = 'move_in' | 'update' | 'damage';
@@ -165,26 +169,26 @@ export const useConditionStore = create<ConditionStore>()(
   )
 );
 
-export const PRESET_AREAS = [
-  { label: 'Living Room', icon: '🛋️' },
-  { label: 'Kitchen', icon: '🍳' },
-  { label: 'Bathroom', icon: '🚿' },
-  { label: 'Master Bedroom', icon: '🛏️' },
-  { label: 'Bedroom 2', icon: '🛏️' },
-  { label: 'Bedroom 3', icon: '🛏️' },
-  { label: 'Hallway', icon: '🚪' },
-  { label: 'Balcony/Garden', icon: '🌿' },
-  { label: 'Appliances', icon: '⚙️' },
-  { label: 'Other', icon: '📝' },
+export const PRESET_AREAS: { label: string; icon: IoniconName }[] = [
+  { label: 'Living Room', icon: 'tv-outline' },
+  { label: 'Kitchen', icon: 'restaurant-outline' },
+  { label: 'Bathroom', icon: 'water-outline' },
+  { label: 'Master Bedroom', icon: 'bed-outline' },
+  { label: 'Bedroom 2', icon: 'bed-outline' },
+  { label: 'Bedroom 3', icon: 'bed-outline' },
+  { label: 'Hallway', icon: 'enter-outline' },
+  { label: 'Balcony/Garden', icon: 'leaf-outline' },
+  { label: 'Appliances', icon: 'construct-outline' },
+  { label: 'Other', icon: 'document-text-outline' },
 ];
 
 export const CONDITION_CONFIG: Record<
   ConditionLevel,
-  { label: string; color: string; icon: string }
+  { label: string; color: string; icon: IoniconName }
 > = {
-  good: { label: 'Good', color: '#22c55e', icon: '✅' },
-  fair: { label: 'Fair', color: '#f59e0b', icon: '⚠️' },
-  poor: { label: 'Poor / Damaged', color: '#ef4444', icon: '❌' },
+  good: { label: 'Good', color: '#22c55e', icon: 'checkmark-circle' },
+  fair: { label: 'Fair', color: '#f59e0b', icon: 'remove-circle' },
+  poor: { label: 'Poor / Damaged', color: '#ef4444', icon: 'close-circle' },
 };
 
 export const ENTRY_TYPE_CONFIG: Record<EntryType, { label: string; color: string }> = {

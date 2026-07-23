@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signInSchema, mapZodError } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
@@ -33,6 +34,7 @@ export default function LoginScreen(): React.JSX.Element {
 
   const { t } = useTranslation();
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -131,7 +133,7 @@ export default function LoginScreen(): React.JSX.Element {
             <View style={styles.logoChip}>
               <Ionicons name="home" size={20} color={C.primary} />
             </View>
-            <Text style={styles.brandName}>HouseMates</Text>
+            <Text style={[styles.brandName, headingFont]}>HouseMates</Text>
           </View>
           <Text style={styles.headerTagline}>{t('welcome.tagline')}</Text>
         </SafeAreaView>

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Platform, View, TextInput as RNTextInput, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
 interface DateInputProps {
@@ -12,12 +12,18 @@ interface DateInputProps {
 
 export function DateInput({ value, onChange, style }: DateInputProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const inputRef = React.useRef<{ showPicker?: () => void } | null>(null);
 
   if (Platform.OS === 'web') {
     const localeMap: Record<string, string> = { en: 'en-GB', es: 'es-ES', he: 'he-IL' };
     const displayText = value
-      ? new Date(value + 'T00:00:00').toLocaleDateString(localeMap[i18n.language] ?? 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      ? new Date(value + 'T00:00:00').toLocaleDateString(localeMap[i18n.language] ?? 'en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
       : t('common.pick_date');
 
     return React.createElement(
@@ -29,23 +35,37 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
           display: 'inline-flex',
           alignItems: 'center',
           gap: '8px',
-          backgroundColor: colors.white,
+          backgroundColor: c.surface,
           borderRadius: '10px',
-          border: `1px solid ${colors.border}`,
+          border: `1px solid ${c.border}`,
           padding: `11px ${sizes.md}px`,
           cursor: 'pointer',
           userSelect: 'none',
           boxSizing: 'border-box',
-          ...(style as React.CSSProperties || {}),
+          ...((style as React.CSSProperties) || {}),
         },
       },
-      React.createElement('span', { style: { fontSize: '14px', lineHeight: 1 } }, '📅'),
+      React.createElement(
+        'svg',
+        {
+          width: 15,
+          height: 15,
+          viewBox: '0 0 24 24',
+          fill: 'none',
+          stroke: c.textSecondary,
+          strokeWidth: 1.9,
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+        },
+        React.createElement('rect', { x: 3, y: 4.5, width: 18, height: 17, rx: 2.5 }),
+        React.createElement('path', { d: 'M3 9h18M8 2.5v4M16 2.5v4' })
+      ),
       React.createElement(
         'span',
         {
           style: {
             fontSize: `${sizes.fontSm}px`,
-            color: value ? colors.textPrimary : colors.textSecondary,
+            color: value ? c.textPrimary : c.textSecondary,
             fontFamily: 'Inter_500Medium, Inter, system-ui, sans-serif',
           },
         },
@@ -54,7 +74,9 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
       // The actual date input — invisible, full-coverage, used only for the picker popup.
       // pointerEvents: 'none' so the div handles all clicks.
       React.createElement('input', {
-        ref: (el: unknown) => { inputRef.current = el as { showPicker?: () => void } | null; },
+        ref: (el: unknown) => {
+          inputRef.current = el as { showPicker?: () => void } | null;
+        },
         type: 'date',
         value: value || '',
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value),
@@ -81,7 +103,7 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
         value={value}
         onChangeText={onChange}
         placeholder={t('common.pick_date')}
-        placeholderTextColor={colors.textDisabled}
+        placeholderTextColor={c.textDisabled}
         accessibilityLabel={t('bills.pick_date')}
         accessibilityHint={t('bills.date_format_hint')}
       />
@@ -89,18 +111,19 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.white,
-    borderRadius: sizes.borderRadius,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: 'center',
-  },
-  input: {
-    paddingHorizontal: sizes.sm,
-    paddingVertical: sizes.sm,
-    fontSize: sizes.fontSm,
-    color: colors.textPrimary,
-  },
-});
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: C.surface,
+      borderRadius: sizes.borderRadius,
+      borderWidth: 1,
+      borderColor: C.border,
+      justifyContent: 'center',
+    },
+    input: {
+      paddingHorizontal: sizes.sm,
+      paddingVertical: sizes.sm,
+      fontSize: sizes.fontSm,
+      color: C.textPrimary,
+    },
+  });

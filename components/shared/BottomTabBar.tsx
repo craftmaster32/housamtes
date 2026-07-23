@@ -50,7 +50,13 @@ const TABS: TabItem[] = [
     label: 'Parking',
     route: '/(tabs)/parking',
   },
-  { id: 'more', icon: 'grid-outline', iconActive: 'grid', label: 'More', route: '' },
+  {
+    id: 'more',
+    icon: 'ellipsis-horizontal',
+    iconActive: 'ellipsis-horizontal',
+    label: 'More',
+    route: '',
+  },
 ];
 
 interface AnimatedIconProps {
@@ -192,7 +198,7 @@ export function BottomTabBar(): React.JSX.Element {
               <AnimatedIcon
                 active={active}
                 name={active ? tab.iconActive : tab.icon}
-                size={22}
+                size={27}
                 color={active ? c.primary : c.textSecondary}
               />
               {badge > 0 && (
@@ -203,15 +209,6 @@ export function BottomTabBar(): React.JSX.Element {
                 </View>
               )}
             </View>
-            <Text
-              style={[
-                styles.label,
-                { color: active ? c.primary : c.textSecondary },
-                active && styles.labelActive,
-              ]}
-            >
-              {tabLabels[tab.id]}
-            </Text>
             {active && (
               <Animated.View
                 entering={FadeIn.duration(200)}
@@ -254,7 +251,7 @@ export function BottomTabBar(): React.JSX.Element {
               <AnimatedIcon
                 active={active}
                 name={active ? tab.iconActive : tab.icon}
-                size={22}
+                size={27}
                 color={active ? c.primary : c.textSecondary}
               />
               {badge > 0 && (
@@ -265,15 +262,6 @@ export function BottomTabBar(): React.JSX.Element {
                 </View>
               )}
             </View>
-            <Text
-              style={[
-                styles.label,
-                { color: active ? c.primary : c.textSecondary },
-                active && styles.labelActive,
-              ]}
-            >
-              {tabLabels[tab.id]}
-            </Text>
             {active && (
               <Animated.View
                 entering={FadeIn.duration(200)}
@@ -298,13 +286,11 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
     minHeight: 44,
     justifyContent: 'center',
   },
   tabIconWrap: { position: 'relative', alignItems: 'center' },
-  label: { fontSize: 11, letterSpacing: 0.2 },
-  labelActive: { fontWeight: '700' },
   badge: {
     position: 'absolute',
     top: -4,

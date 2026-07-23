@@ -272,7 +272,7 @@ describe('addBill', () => {
       );
 
     expect(returned.id).toBe('b9');
-    expect(returned.icon).toBe('🧾'); // null icon falls back to the default
+    expect(returned.icon).toBe('receipt-outline'); // null icon falls back to the default
     expect(returned.typicalAmount).toBe(120);
     expect(useRecurringBillsStore.getState().bills).toHaveLength(1);
   });

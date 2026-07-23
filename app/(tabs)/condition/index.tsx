@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
@@ -21,13 +22,16 @@ import { PhotoPicker } from '@components/shared/PhotoPicker';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { getErrorMessage } from '@utils/errors';
 import { formatDateDDMMYYYY } from '@utils/dates';
 
 type FilterType = 'all' | EntryType;
 
-function getAreaIcon(area: string): string {
-  return PRESET_AREAS.find((a) => a.label === area)?.icon ?? '📝';
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+function getAreaIcon(area: string): IoniconName {
+  return PRESET_AREAS.find((a) => a.label === area)?.icon ?? 'document-text-outline';
 }
 
 const makeStyles = (C: ColorTokens) =>
@@ -53,6 +57,7 @@ const makeStyles = (C: ColorTokens) =>
     },
     statItem: { flex: 1, alignItems: 'center', gap: 2 },
     statNum: { fontSize: sizes.fontLg, ...font.extrabold, color: C.textPrimary },
+    statIcon: { height: sizes.fontLg + 4, textAlignVertical: 'center' },
     statLbl: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
     statDivider: { width: 1, backgroundColor: C.border, marginHorizontal: sizes.xs },
 
@@ -86,7 +91,6 @@ const makeStyles = (C: ColorTokens) =>
       gap: sizes.xs,
       paddingVertical: 4,
     },
-    areaGroupIcon: { fontSize: 18 },
     areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary, flex: 1 },
     condDot: { width: 10, height: 10, borderRadius: 5 },
 
@@ -112,6 +116,9 @@ const makeStyles = (C: ColorTokens) =>
     },
     typeBadgeText: { fontSize: 11, ...font.bold },
     condBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.xs,
       paddingVertical: 2,
@@ -141,7 +148,6 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    removeBtnText: { color: C.textDisabled, fontSize: sizes.fontXs },
 
     form: {
       backgroundColor: C.surface,
@@ -187,10 +193,12 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.surface,
     },
     areaChipActive: { backgroundColor: C.primary + '12', borderColor: C.primary },
-    areaChipIcon: { fontSize: 14 },
     areaChipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
     areaChipTextActive: { color: C.primary, ...font.bold },
     condChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
       paddingHorizontal: sizes.sm,
       paddingVertical: 6,
       borderRadius: sizes.borderRadiusFull,
@@ -275,9 +283,8 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
               <Text style={[styles.typeBadgeText, { color: type.color }]}>{type.label}</Text>
             </View>
             <View style={[styles.condBadge, { backgroundColor: cond.color + '18' }]}>
-              <Text style={[styles.condBadgeText, { color: cond.color }]}>
-                {cond.icon} {cond.label}
-              </Text>
+              <Ionicons name={cond.icon} size={12} color={cond.color} />
+              <Text style={[styles.condBadgeText, { color: cond.color }]}>{cond.label}</Text>
             </View>
           </View>
           <Text style={styles.entryDate}>
@@ -292,7 +299,7 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel="Remove entry"
         >
-          <Text style={styles.removeBtnText}>✕</Text>
+          <Ionicons name="close" size={15} color={C.textDisabled} />
         </Pressable>
       </View>
       {entry.description ? <Text style={styles.entryDescription}>{entry.description}</Text> : null}
@@ -405,7 +412,11 @@ function AddEntryForm({
             accessibilityLabel={a.label}
             accessibilityState={{ selected: !useCustom && area === a.label }}
           >
-            <Text style={styles.areaChipIcon}>{a.icon}</Text>
+            <Ionicons
+              name={a.icon}
+              size={14}
+              color={!useCustom && area === a.label ? C.primary : C.textSecondary}
+            />
             <Text
               style={[
                 styles.areaChipText,
@@ -424,7 +435,11 @@ function AddEntryForm({
           accessibilityLabel={t('condition.custom')}
           accessibilityState={{ selected: useCustom }}
         >
-          <Text style={styles.areaChipIcon}>✏️</Text>
+          <Ionicons
+            name="create-outline"
+            size={14}
+            color={useCustom ? C.primary : C.textSecondary}
+          />
           <Text style={[styles.areaChipText, useCustom && styles.areaChipTextActive]}>
             {t('condition.custom')}
           </Text>
@@ -462,8 +477,9 @@ function AddEntryForm({
               accessibilityLabel={cfg.label}
               accessibilityState={{ selected: condition === c }}
             >
+              <Ionicons name={cfg.icon} size={13} color={condition === c ? '#fff' : cfg.color} />
               <Text style={[styles.condChipText, condition === c && styles.condChipTextActive]}>
-                {cfg.icon} {cfg.label}
+                {cfg.label}
               </Text>
             </Pressable>
           );
@@ -536,6 +552,7 @@ export default function ConditionScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -586,7 +603,7 @@ export default function ConditionScreen(): React.JSX.Element {
           )}
 
           <View style={styles.pageHeader}>
-            <Text style={styles.heading}>{t('condition.title')}</Text>
+            <Text style={[styles.heading, headingFont]}>{t('condition.title')}</Text>
             <Text style={styles.headingSub}>{t('condition.subtitle')}</Text>
           </View>
 
@@ -603,9 +620,12 @@ export default function ConditionScreen(): React.JSX.Element {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={[styles.statNum, { color: hasDamage ? C.danger : C.positive }]}>
-                  {hasDamage ? '⚠️' : '✓'}
-                </Text>
+                <Ionicons
+                  name={hasDamage ? 'warning' : 'checkmark-circle'}
+                  size={22}
+                  color={hasDamage ? C.danger : C.positive}
+                  style={styles.statIcon}
+                />
                 <Text style={styles.statLbl}>
                   {hasDamage ? t('condition.issues_found') : t('condition.all_good')}
                 </Text>
@@ -663,7 +683,7 @@ export default function ConditionScreen(): React.JSX.Element {
           {grouped.map(([area, areaEntries]) => (
             <View key={area} style={styles.areaGroup}>
               <View style={styles.areaGroupHeader}>
-                <Text style={styles.areaGroupIcon}>{getAreaIcon(area)}</Text>
+                <Ionicons name={getAreaIcon(area)} size={17} color={C.textSecondary} />
                 <Text style={styles.areaGroupName}>{area}</Text>
                 <View
                   style={[

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,8 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
@@ -15,6 +16,9 @@ import { isRTL } from '@lib/i18n';
 import { getErrorMessage } from '@utils/errors';
 
 export default function ResetPasswordScreen(): React.JSX.Element {
+  const c = useThemedColors();
+  const headingFont = useHeadingFont();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
@@ -55,7 +59,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
-          <Text style={styles.title}>{t('auth.password_updated_title')}</Text>
+          <Text style={[styles.title, headingFont]}>{t('auth.password_updated_title')}</Text>
           <Text style={styles.subtitle}>{t('auth.password_updated_body')}</Text>
           <Button
             mode="contained"
@@ -63,7 +67,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
             style={styles.button}
             contentStyle={styles.buttonContent}
             labelStyle={styles.buttonLabel}
-            buttonColor={colors.primary}
+            buttonColor={c.primary}
           >
             {t('auth.go_to_sign_in')}
           </Button>
@@ -82,15 +86,11 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
         >
-          <Ionicons
-            name={rtl ? 'chevron-forward' : 'chevron-back'}
-            size={24}
-            color={colors.primary}
-          />
+          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={c.primary} />
         </Pressable>
 
         <View style={styles.header}>
-          <Text style={styles.title}>{t('auth.reset_title')}</Text>
+          <Text style={[styles.title, headingFont]}>{t('auth.reset_title')}</Text>
           <Text style={styles.subtitle}>{t('auth.reset_subtitle')}</Text>
         </View>
 
@@ -134,7 +134,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           style={styles.button}
           contentStyle={styles.buttonContent}
           labelStyle={styles.buttonLabel}
-          buttonColor={colors.primary}
+          buttonColor={c.primary}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('auth.update_password')}
@@ -147,58 +147,59 @@ export default function ResetPasswordScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: sizes.lg,
-    paddingTop: sizes.sm,
-    gap: sizes.md,
-  },
-  backBtn: {
-    width: sizes.touchTarget,
-    height: sizes.touchTarget,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    marginBottom: sizes.xs,
-  },
-  header: {
-    gap: 4,
-    marginBottom: sizes.xs,
-  },
-  title: {
-    fontSize: 28,
-    ...font.extrabold,
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 15,
-    ...font.medium,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  input: {
-    backgroundColor: colors.white,
-  },
-  error: {
-    ...font.regular,
-    color: colors.danger,
-    fontSize: sizes.fontSm,
-  },
-  button: {
-    borderRadius: 14,
-    marginTop: sizes.sm,
-  },
-  buttonContent: {
-    height: 52,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    ...font.semibold,
-    letterSpacing: 0.2,
-  },
-});
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: C.background,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: sizes.lg,
+      paddingTop: sizes.sm,
+      gap: sizes.md,
+    },
+    backBtn: {
+      width: sizes.touchTarget,
+      height: sizes.touchTarget,
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+      marginBottom: sizes.xs,
+    },
+    header: {
+      gap: 4,
+      marginBottom: sizes.xs,
+    },
+    title: {
+      fontSize: 28,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: 15,
+      ...font.medium,
+      color: C.textSecondary,
+      lineHeight: 22,
+    },
+    input: {
+      backgroundColor: C.surface,
+    },
+    error: {
+      ...font.regular,
+      color: C.danger,
+      fontSize: sizes.fontSm,
+    },
+    button: {
+      borderRadius: 14,
+      marginTop: sizes.sm,
+    },
+    buttonContent: {
+      height: 52,
+    },
+    buttonLabel: {
+      fontSize: 16,
+      ...font.semibold,
+      letterSpacing: 0.2,
+    },
+  });

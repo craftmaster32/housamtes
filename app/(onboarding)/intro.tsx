@@ -1,15 +1,27 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Dimensions, Pressable, ViewToken, Animated } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  Dimensions,
+  Pressable,
+  ViewToken,
+  Animated,
+} from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+type SlideIcon = React.ComponentProps<typeof Ionicons>['name'];
 
 const ONBOARDING_KEY = 'housemates_onboarding_seen';
 
@@ -25,24 +37,30 @@ export async function hasSeenOnboarding(): Promise<boolean> {
 export default function IntroScreen(): React.JSX.Element {
   const { t } = useTranslation();
 
-  const SLIDES = [
+  const SLIDES: {
+    id: string;
+    icon: SlideIcon;
+    title: string;
+    subtitle: string;
+    body: string;
+  }[] = [
     {
       id: '1',
-      emoji: '🏠',
+      icon: 'home-outline',
       title: t('onboarding.slide1_title'),
       subtitle: t('onboarding.slide1_subtitle'),
       body: t('onboarding.slide1_body'),
     },
     {
       id: '2',
-      emoji: '💰',
+      icon: 'wallet-outline',
       title: t('onboarding.slide2_title'),
       subtitle: t('onboarding.slide2_subtitle'),
       body: t('onboarding.slide2_body'),
     },
     {
       id: '3',
-      emoji: '🚗',
+      icon: 'car-outline',
       title: t('onboarding.slide3_title'),
       subtitle: t('onboarding.slide3_subtitle'),
       body: t('onboarding.slide3_body'),
@@ -55,6 +73,7 @@ export default function IntroScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -88,7 +107,13 @@ export default function IntroScreen(): React.JSX.Element {
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         {/* Skip button */}
         {!isLast && (
-          <Pressable onPress={handleSkip} style={styles.skipBtn} accessible accessibilityRole="button" accessibilityLabel={t('onboarding.skip')}>
+          <Pressable
+            onPress={handleSkip}
+            style={styles.skipBtn}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('onboarding.skip')}
+          >
             <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
           </Pressable>
         )}
@@ -106,9 +131,9 @@ export default function IntroScreen(): React.JSX.Element {
           renderItem={({ item }) => (
             <View style={styles.slide}>
               <View style={styles.emojiCircle}>
-                <Text style={styles.emoji}>{item.emoji}</Text>
+                <Ionicons name={item.icon} size={54} color={C.primary} />
               </View>
-              <Text style={styles.title}>{item.title}</Text>
+              <Text style={[styles.title, headingFont]}>{item.title}</Text>
               <Text style={styles.subtitle}>{item.subtitle}</Text>
               <Text style={styles.body}>{item.body}</Text>
             </View>
@@ -160,13 +185,12 @@ function makeStyles(C: ColorTokens) {
     emojiCircle: {
       width: 120,
       height: 120,
-      borderRadius: 60,
+      borderRadius: 36,
       backgroundColor: C.primary + '15',
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: sizes.md,
     },
-    emoji: { fontSize: 56 },
     title: {
       fontSize: 28,
       ...font.extrabold,

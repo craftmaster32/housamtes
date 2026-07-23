@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signUpSchema, mapZodError } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
@@ -49,6 +50,7 @@ export default function SignupScreen(): React.JSX.Element {
   const confirmRef = useRef<RNTextInput>(null);
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const fadeHeader = useRef(new Animated.Value(0)).current;
@@ -150,7 +152,7 @@ export default function SignupScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.headerBlock}>
-            <Text style={styles.title}>{t('auth.create_account')}</Text>
+            <Text style={[styles.title, headingFont]}>{t('auth.create_account')}</Text>
             <Text style={styles.subtitle}>{t('auth.free_to_use')}</Text>
           </View>
 

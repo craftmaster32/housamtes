@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 export type SaveListMode = 'new' | 'update';
 
@@ -39,6 +40,7 @@ export function SaveListModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = makeStyles(C);
+  const headingFont = useHeadingFont('bold');
 
   const [listName, setListName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -90,13 +92,19 @@ export function SaveListModal({
         <Pressable style={styles.box} onPress={() => {}}>
           {/* Icon */}
           <View style={styles.iconWrap}>
-            <Text style={styles.iconText}>{mode === 'update' ? '🔄' : '📋'}</Text>
+            <View style={styles.iconBadge}>
+              <Ionicons
+                name={mode === 'update' ? 'sync-outline' : 'bookmark-outline'}
+                size={28}
+                color={C.primary}
+              />
+            </View>
           </View>
 
           {mode === 'update' ? (
             /* ── Update mode ──────────────────────────────────────────────── */
             <>
-              <Text style={styles.title}>{t('grocery.update_saved_list')}</Text>
+              <Text style={[styles.title, headingFont]}>{t('grocery.update_saved_list')}</Text>
               <Text style={styles.body}>
                 {t('grocery.update_saved_list_body', { name: existingListName })}
               </Text>
@@ -129,7 +137,7 @@ export function SaveListModal({
           ) : (
             /* ── Save new mode ────────────────────────────────────────────── */
             <>
-              <Text style={styles.title}>{t('grocery.save_this_list')}</Text>
+              <Text style={[styles.title, headingFont]}>{t('grocery.save_this_list')}</Text>
               <Text style={styles.body}>{t('grocery.save_this_list_body')}</Text>
 
               <TextInput
@@ -232,7 +240,14 @@ function makeStyles(C: ColorTokens) {
       elevation: 10,
     },
     iconWrap: { alignItems: 'center' },
-    iconText: { fontSize: 40 },
+    iconBadge: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: C.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     title: {
       fontSize: 20,
       ...font.bold,

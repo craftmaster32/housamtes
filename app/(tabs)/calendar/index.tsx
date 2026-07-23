@@ -34,6 +34,7 @@ import { TimePicker } from '@components/shared/TimePicker';
 import { addWeeks, addMonths, addYears } from 'date-fns';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -53,13 +54,15 @@ interface CalendarEvent {
   person?: string;
 }
 
-const TYPE_META: Record<CalendarEvent['type'], { icon: string; color: string }> = {
-  event: { icon: '📅', color: '#6366f1' },
-  parking: { icon: '🚗', color: '#f59e0b' },
-  'parking-pending': { icon: '🅿️', color: '#94a3b8' },
-  bill: { icon: '💰', color: '#ef4444' },
-  chore: { icon: '🧹', color: '#22c55e' },
-  personal: { icon: '👤', color: '#8b5cf6' },
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const TYPE_META: Record<CalendarEvent['type'], { icon: IoniconName; color: string }> = {
+  event: { icon: 'calendar-outline', color: '#6366f1' },
+  parking: { icon: 'car-outline', color: '#f59e0b' },
+  'parking-pending': { icon: 'car-outline', color: '#94a3b8' },
+  bill: { icon: 'cash-outline', color: '#ef4444' },
+  chore: { icon: 'sparkles-outline', color: '#22c55e' },
+  personal: { icon: 'person-outline', color: '#8b5cf6' },
 };
 
 const WEEKDAY_KEYS = [
@@ -155,6 +158,7 @@ function EventFormModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const formStyles = useMemo(() => makeFormStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const RECURRENCE_OPTIONS = useRecurrenceOptions();
 
   const addEvent = useEventsStore((s) => s.addEvent);
@@ -305,8 +309,11 @@ function EventFormModal({
       <Pressable style={formStyles.backdrop} onPress={handleClose}>
         <Pressable style={formStyles.sheet} onPress={() => {}}>
           <View style={formStyles.handle} />
-          <Text style={formStyles.title}>
+          <Text style={[formStyles.title, headingFont]}>
             {isEditing ? t('calendar.edit_event') : t('calendar.add_event')}
+          </Text>
+          <Text style={formStyles.subtitle}>
+            {isEditing ? t('calendar.edit_event_sub') : t('calendar.add_event_sub')}
           </Text>
 
           <ScrollView
@@ -406,20 +413,18 @@ function EventFormModal({
             />
 
             <Text style={[formStyles.label, formStyles.labelGap]}>{t('calendar.repeat')}</Text>
-            <View style={formStyles.chips}>
+            <View style={formStyles.segment} accessibilityRole="radiogroup">
               {RECURRENCE_OPTIONS.map(({ label, value }) => (
                 <Pressable
                   key={value || 'none'}
-                  style={[formStyles.chip, recurrence === value && formStyles.chipSelected]}
+                  style={[formStyles.segItem, recurrence === value && formStyles.segItemSelected]}
                   onPress={() => setRecurrence(value)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: recurrence === value }}
                 >
                   <Text
-                    style={[
-                      formStyles.chipText,
-                      recurrence === value && formStyles.chipTextSelected,
-                    ]}
+                    style={[formStyles.segText, recurrence === value && formStyles.segTextSelected]}
+                    numberOfLines={1}
                   >
                     {label}
                   </Text>
@@ -690,7 +695,7 @@ export default function CalendarScreen(): React.JSX.Element {
             sourceId: `bl-${bill.id}`,
             id: `bl-${bill.id}`,
             date: nextDue,
-            title: `${bill.icon} ${bill.name}`,
+            title: bill.name,
             type: 'bill',
             detail: `Due · ${currency}${bill.typicalAmount.toFixed(2)}`,
           });
@@ -949,13 +954,13 @@ export default function CalendarScreen(): React.JSX.Element {
             {(
               Object.entries(TYPE_META) as [
                 CalendarEvent['type'],
-                { icon: string; color: string },
+                { icon: IoniconName; color: string },
               ][]
             ).map(([type, meta]) => (
               <View key={type} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
                 <Text style={styles.legendLabel}>
-                  {meta.icon} {t(`calendar.legend_${type.replace('-', '_')}`)}
+                  {t(`calendar.legend_${type.replace('-', '_')}`)}
                 </Text>
               </View>
             ))}
@@ -1038,7 +1043,11 @@ export default function CalendarScreen(): React.JSX.Element {
                           { backgroundColor: TYPE_META[item.type].color + '20' },
                         ]}
                       >
-                        <Text style={styles.eventIcon}>{TYPE_META[item.type].icon}</Text>
+                        <Ionicons
+                          name={TYPE_META[item.type].icon}
+                          size={16}
+                          color={TYPE_META[item.type].color}
+                        />
                       </View>
                       <View style={styles.eventInfo}>
                         <View style={styles.eventTitleRow}>
@@ -1047,7 +1056,8 @@ export default function CalendarScreen(): React.JSX.Element {
                           </Text>
                           {item.recurrence && (
                             <View style={styles.recurrenceBadge}>
-                              <Text style={styles.recurrenceBadgeText}>↻ {item.recurrence}</Text>
+                              <Ionicons name="repeat" size={11} color="#6366f1" />
+                              <Text style={styles.recurrenceBadgeText}>{item.recurrence}</Text>
                             </View>
                           )}
                         </View>
@@ -1350,11 +1360,13 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       marginTop: 2,
     },
-    eventIcon: { fontSize: 18 },
     eventInfo: { flex: 1, gap: 2, minWidth: 0 },
     eventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
     eventTitle: { fontSize: 14, ...font.semibold, color: C.textPrimary, flex: 1 },
     recurrenceBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
       backgroundColor: '#6366f120',
       paddingHorizontal: 6,
       paddingVertical: 2,
@@ -1409,7 +1421,14 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       alignSelf: 'center',
       marginBottom: 4,
     },
-    title: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    title: { fontSize: 24, color: C.textPrimary, letterSpacing: -0.3 },
+    subtitle: {
+      fontSize: 12.5,
+      ...font.medium,
+      color: C.textSecondary,
+      marginTop: 2,
+      marginBottom: 2,
+    },
     label: { fontSize: 13, ...font.semibold, color: C.textPrimary, marginBottom: 6 },
     labelGap: { marginTop: 14 },
     optional: { ...font.regular, color: C.textSecondary },
@@ -1445,37 +1464,55 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       color: C.textSecondary,
       textDecorationLine: 'underline',
     },
-    chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-    chip: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-      borderWidth: 1.5,
-      borderColor: C.border,
+    segment: {
+      flexDirection: 'row',
       backgroundColor: C.surfaceSecondary,
+      borderRadius: 12,
+      padding: 4,
+      gap: 3,
     },
-    chipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-    chipText: { fontSize: 14, ...font.semibold, color: C.textSecondary },
-    chipTextSelected: { color: '#fff' },
+    segItem: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 9,
+      minHeight: 40,
+      borderRadius: 9,
+    },
+    segItemSelected: {
+      backgroundColor: C.primary,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    segText: { fontSize: 12.5, ...font.semibold, color: C.textSecondary },
+    segTextSelected: { color: '#fff' },
     errorText: { fontSize: 13, ...font.regular, color: C.negative },
     btns: { flexDirection: 'row', gap: 10, marginTop: 4 },
     btnOutline: {
       flex: 1,
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: 15,
+      borderRadius: 14,
       borderWidth: 1.5,
       borderColor: C.border,
       alignItems: 'center',
     },
-    btnOutlineText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    btnOutlineText: { fontSize: 15, ...font.bold, color: C.textPrimary },
     btnPrimary: {
       flex: 1,
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: 15,
+      borderRadius: 14,
       backgroundColor: C.primary,
       alignItems: 'center',
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 16,
+      elevation: 6,
     },
-    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+    btnPrimaryText: { fontSize: 15, ...font.bold, color: '#fff' },
     btnDisabled: { opacity: 0.6 },
   });
 }

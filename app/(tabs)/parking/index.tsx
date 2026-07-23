@@ -12,6 +12,7 @@ import {
   type AppStateStatus,
   type ListRenderItemInfo,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -40,6 +41,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 function formatTime(iso: string, locale: string): string {
   return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
@@ -171,6 +173,7 @@ function DayScheduleSheet({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const language = useLanguageStore((s) => s.language);
   const housemates = useHousematesStore((s) => s.housemates);
   const allReservations = useParkingStore((s) => s.reservations);
@@ -195,7 +198,7 @@ function DayScheduleSheet({
       <Pressable style={styles.daySheetBackdrop} onPress={onClose}>
         <Pressable style={styles.daySheetPanel} onPress={() => {}}>
           <View style={styles.modalHandle} />
-          <Text style={styles.daySheetTitle}>
+          <Text style={[styles.daySheetTitle, headingFont]}>
             {weekdayFull}, {dayNum} {monthAbbr}
           </Text>
 
@@ -554,6 +557,7 @@ function ReserveModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const addReservation = useParkingStore((s) => s.addReservation);
   const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -659,7 +663,7 @@ function ReserveModal({
       <Pressable style={styles.modalBackdrop} onPress={handleClose}>
         <Pressable style={styles.modalSheet} onPress={() => {}}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>{t('parking.reserve_parking')}</Text>
+          <Text style={[styles.modalTitle, headingFont]}>{t('parking.reserve_parking')}</Text>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
             <Text style={styles.fieldLabel}>{t('parking.date')}</Text>
@@ -743,6 +747,7 @@ export default function ParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
   const isLoading = useParkingStore((s) => s.isLoading);
   const current = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
@@ -1021,7 +1026,7 @@ export default function ParkingScreen(): React.JSX.Element {
             {/* ── Hero card ── */}
             <View style={styles.heroCard}>
               <View style={styles.heroCopy}>
-                <Text style={styles.titleHero}>{t('parking.title')}</Text>
+                <Text style={[styles.titleHero, headingFont]}>{t('parking.title')}</Text>
                 <Text style={styles.textBase}>
                   {isFree
                     ? t('parking.free_real_estate')
@@ -1050,21 +1055,20 @@ export default function ParkingScreen(): React.JSX.Element {
                 </Text>
               </View>
 
-              <View
+              <LinearGradient
+                colors={isFree ? C.successGradient : C.dangerGradient}
+                start={{ x: 0.2, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
                 style={[
                   styles.statusCircle,
-                  { backgroundColor: isFree ? C.positive + '18' : C.negative + '18' },
+                  { shadowColor: isFree ? C.successGradient[1] : C.dangerGradient[1] },
                 ]}
               >
-                <Ionicons
-                  name={isFree ? 'car-outline' : 'car'}
-                  size={38}
-                  color={isFree ? C.positive : C.negative}
-                />
-                <Text style={[styles.statusLabel, { color: isFree ? C.positive : C.negative }]}>
+                <Ionicons name={isFree ? 'car-outline' : 'car'} size={38} color="#fff" />
+                <Text style={[styles.statusLabel, styles.statusLabelOnGradient]}>
                   {isFree ? t('parking.free') : t('parking.taken')}
                 </Text>
-              </View>
+              </LinearGradient>
 
               {isFree && (
                 <Pressable
@@ -1204,8 +1208,14 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
       gap: 4,
+      overflow: 'hidden',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 14,
+      elevation: 6,
     },
     statusLabel: { fontSize: 12, ...font.bold, letterSpacing: 0.6 },
+    statusLabelOnGradient: { color: '#fff' },
 
     btnPrimary: {
       flexDirection: 'row',

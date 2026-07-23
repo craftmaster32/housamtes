@@ -1,17 +1,22 @@
+import type * as React from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
 export type PhotoCategory = 'receipts' | 'damage' | 'memories' | 'general';
 
-export const PHOTO_CATEGORIES: Array<{ key: PhotoCategory; labelKey: string; icon: string }> = [
-  { key: 'general', labelKey: 'photos.cat_all', icon: '📷' },
-  { key: 'receipts', labelKey: 'photos.cat_receipts', icon: '🧾' },
-  { key: 'damage', labelKey: 'photos.cat_damage', icon: '⚠️' },
-  { key: 'memories', labelKey: 'photos.cat_memories', icon: '🎉' },
-];
+export const PHOTO_CATEGORIES: Array<{ key: PhotoCategory; labelKey: string; icon: IoniconName }> =
+  [
+    { key: 'general', labelKey: 'photos.cat_all', icon: 'camera-outline' },
+    { key: 'receipts', labelKey: 'photos.cat_receipts', icon: 'receipt-outline' },
+    { key: 'damage', labelKey: 'photos.cat_damage', icon: 'warning-outline' },
+    { key: 'memories', labelKey: 'photos.cat_memories', icon: 'sparkles-outline' },
+  ];
 
 export interface Photo {
   id: string;

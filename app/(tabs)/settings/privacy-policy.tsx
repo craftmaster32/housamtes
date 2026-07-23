@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 
@@ -37,6 +38,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
               <Text style={styles.backText}>{t('common.back')}</Text>
             </View>
           </Pressable>
-          <Text style={styles.heading}>{t('legal.privacy_title')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('legal.privacy_title')}</Text>
           <Text style={styles.updated}>
             {t('legal.last_updated', { date: t('legal.legal_date') })}
           </Text>

@@ -10,6 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +23,7 @@ import { formatFull } from '@constants/currencies';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
@@ -35,16 +37,16 @@ const makeStyles = (C: ColorTokens) =>
     houseName: { fontSize: 15, ...font.regular, color: C.textSecondary, marginTop: -sizes.xs },
 
     inviteCard: {
-      backgroundColor: C.primary,
-      borderRadius: 20,
+      borderRadius: 22,
       padding: sizes.lg,
       alignItems: 'center',
       gap: sizes.sm,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
+      overflow: 'hidden',
+      shadowColor: C.owedShadow,
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 1,
+      shadowRadius: 20,
+      elevation: 8,
     },
     inviteLabel: {
       fontSize: 11,
@@ -317,6 +319,7 @@ export default function HousematesScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -344,12 +347,17 @@ export default function HousematesScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.heading}>{t('housemates.title')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('housemates.title')}</Text>
           {!!houseName && <Text style={styles.houseName}>{houseName}</Text>}
 
-          <View style={styles.inviteCard}>
+          <LinearGradient
+            colors={C.owedGradient}
+            start={{ x: 0.15, y: 0 }}
+            end={{ x: 0.85, y: 1 }}
+            style={styles.inviteCard}
+          >
             <Text style={styles.inviteLabel}>{t('housemates.invite_section')}</Text>
-            <Text style={styles.inviteCode}>{inviteCode || '------'}</Text>
+            <Text style={[styles.inviteCode, headingFont]}>{inviteCode || '------'}</Text>
             <Text style={styles.inviteHint}>{t('housemates.invite_body')}</Text>
             <Pressable
               style={[styles.copyBtn, copied && styles.copyBtnDone]}
@@ -362,7 +370,7 @@ export default function HousematesScreen(): React.JSX.Element {
                 {copied ? t('housemates.copied') : t('housemates.copy_code')}
               </Text>
             </Pressable>
-          </View>
+          </LinearGradient>
 
           <Text style={styles.sectionLabel}>
             {t('housemates.members_section')} ({housemates.length})

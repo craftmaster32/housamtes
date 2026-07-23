@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
+import { UserAvatar } from '@components/shared/UserAvatar';
 import { useBillsStore, getPersonShare, EditBillSchema, CATEGORIES } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -15,9 +17,11 @@ import { isRTL } from '@lib/i18n';
 import { useMemberName } from '@hooks/useMemberName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
+import { Money } from '@components/shared/Money';
 import { Button, EmptyState, Pill } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   rent: 'home-outline',
@@ -51,6 +55,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
   const isLoading = useBillsStore((s) => s.isLoading);
@@ -194,9 +199,12 @@ export default function BillDetailScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
-            <Text style={styles.backText}>
-              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
-            </Text>
+            <Ionicons
+              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
+              size={20}
+              color={C.primary}
+            />
+            <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
           {!bill.settled && !isEditing && !isDeleting && (
             <Pressable
@@ -223,7 +231,7 @@ export default function BillDetailScreen(): React.JSX.Element {
         {/* Detail / Edit form */}
         {isEditing ? (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('bills.edit_bill')}</Text>
+            <Text style={[styles.sectionTitle, headingFont]}>{t('bills.edit_bill')}</Text>
             <TextInput
               label={t('bills.title_label')}
               value={title}
@@ -327,36 +335,66 @@ export default function BillDetailScreen(): React.JSX.Element {
             </View>
           </View>
         ) : (
-          <View style={styles.card}>
-            <Text style={styles.billTitle}>{bill.title}</Text>
-            <Text style={styles.billAmount}>{formatFull(bill.amount, currencyCode)}</Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t('bills.category')}</Text>
-              <Text style={styles.metaValue}>{bill.category}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t('bills.date')}</Text>
-              <Text style={styles.metaValue}>{formatDisplayDate(bill.date, i18n.language)}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
-              <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
-            </View>
-            {bill.notes ? (
+          <View>
+            <LinearGradient
+              colors={C.owedGradient}
+              start={{ x: 0.15, y: 0 }}
+              end={{ x: 0.85, y: 1 }}
+              style={styles.detailHero}
+            >
+              <View style={styles.detailHeroHighlight} />
+              <Text style={styles.detailHeroTitle} numberOfLines={2}>
+                {bill.title}
+              </Text>
+              <Money
+                amount={bill.amount}
+                currencyCode={currencyCode}
+                size={40}
+                color="#fff"
+                style={styles.detailHeroAmount}
+              />
+            </LinearGradient>
+            <View style={[styles.card, styles.detailMetaCard]}>
               <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>{t('bills.notes_label')}</Text>
-                <Text style={styles.metaValue} selectable>
-                  {bill.notes}
-                </Text>
+                <Text style={styles.metaLabel}>{t('bills.category')}</Text>
+                <View style={styles.metaValueRow}>
+                  <View style={styles.catPill}>
+                    <Ionicons
+                      name={CATEGORY_ICONS[bill.category?.toLowerCase() ?? ''] ?? 'receipt-outline'}
+                      size={16}
+                      color={C.primary}
+                    />
+                  </View>
+                  <Text style={styles.metaValue}>{bill.category}</Text>
+                </View>
               </View>
-            ) : null}
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t('bills.date')}</Text>
+                <Text style={styles.metaValue}>{formatDisplayDate(bill.date, i18n.language)}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
+                <View style={styles.metaValueRow}>
+                  <UserAvatar userId={bill.paidBy} size={24} />
+                  <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
+                </View>
+              </View>
+              {bill.notes ? (
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>{t('bills.notes_label')}</Text>
+                  <Text style={styles.metaValue} selectable>
+                    {bill.notes}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </View>
         )}
 
         {/* Split breakdown */}
         {!isEditing && (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('bills.split_breakdown')}</Text>
+            <Text style={[styles.sectionTitle, headingFont]}>{t('bills.split_breakdown')}</Text>
             <Text style={styles.splitTotal}>
               {t('bills.total')} {formatFull(bill.amount, currencyCode)} ·{' '}
               {isCustomSplit
@@ -365,7 +403,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             </Text>
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>
-                <View style={styles.splitDot} />
+                <UserAvatar userId={person} size={26} />
                 <Text style={styles.splitPerson}>{memberName(person)}</Text>
                 <Text style={styles.splitAmount}>
                   {formatFull(getPersonShare(bill, person), currencyCode)}
@@ -414,7 +452,14 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
       marginBottom: sizes.xs,
     },
-    backBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+    backBtn: {
+      minWidth: 44,
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 2,
+    },
     editBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
     backText: { color: C.primary, fontSize: 15, ...font.medium },
     editText: { color: C.primary, fontSize: 15, ...font.medium },
@@ -429,15 +474,36 @@ const makeStyles = (C: ColorTokens) =>
       shadowRadius: 8,
       elevation: 2,
     },
-    billTitle: { fontSize: 22, ...font.bold, color: C.textPrimary, letterSpacing: -0.3 },
-    billAmount: { fontSize: 34, ...font.extrabold, color: C.primary, letterSpacing: -1 },
+    detailHero: {
+      borderRadius: 20,
+      padding: 22,
+      gap: 4,
+      overflow: 'hidden',
+      shadowColor: C.owedShadow,
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 1,
+      shadowRadius: 22,
+      elevation: 8,
+    },
+    detailHeroHighlight: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+    },
+    detailHeroTitle: { fontSize: 15, ...font.semibold, color: 'rgba(255,255,255,0.85)' },
+    detailHeroAmount: { marginTop: 2 },
+    detailMetaCard: { marginTop: 12 },
     metaRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      paddingVertical: 2,
+      alignItems: 'center',
+      paddingVertical: 6,
     },
     metaLabel: { color: C.textSecondary, fontSize: 14, ...font.regular },
+    metaValueRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
     metaValue: {
       color: C.textPrimary,
       fontSize: 14,
@@ -445,10 +511,17 @@ const makeStyles = (C: ColorTokens) =>
       flexShrink: 1,
       textAlign: 'right',
     },
-    sectionTitle: { color: C.textPrimary, ...font.bold, fontSize: 15, marginBottom: sizes.xs },
+    catPill: {
+      width: 30,
+      height: 30,
+      borderRadius: 9,
+      backgroundColor: C.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionTitle: { color: C.textPrimary, fontSize: 18, marginBottom: sizes.xs },
     splitTotal: { color: C.textSecondary, fontSize: 14, ...font.regular },
-    splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: 4 },
-    splitDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
+    splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: 5 },
     splitPerson: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
     splitAmount: { color: C.primary, fontSize: 15, ...font.semibold },
     input: { backgroundColor: C.surface },

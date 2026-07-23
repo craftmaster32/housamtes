@@ -35,6 +35,7 @@ import { MorePopup } from '@components/shared/MorePopup';
 import { ProfilePopup } from '@components/shared/ProfilePopup';
 import { WebAlertHost } from '@components/shared/WebAlertHost';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
+import { ChatFab } from '@components/shared/ChatFab';
 import { AdBanner } from '@components/premium/AdBanner';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
 import { darkColors } from '@constants/colors';
@@ -131,6 +132,11 @@ export default function RootLayout(): React.JSX.Element | null {
     Inter_700Bold: require('../assets/fonts/Inter_700Bold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
+    // Fraunces — display serif for headings (Latin only; Hebrew falls back to Heebo).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Fraunces_600SemiBold: require('../assets/fonts/Fraunces_600SemiBold.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Fraunces_700Bold: require('../assets/fonts/Fraunces_700Bold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Heebo_400Regular: require('../assets/fonts/Heebo_400Regular.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -449,6 +455,7 @@ export default function RootLayout(): React.JSX.Element | null {
               <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
             </View>
             {showChrome && <AdBanner />}
+            {showChrome && <ChatFab />}
             {showChrome && <BottomTabBar />}
             {showChrome && <MorePopup />}
             {showChrome && <ProfilePopup />}

@@ -7,6 +7,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
@@ -18,6 +19,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
   const signOut = useAuthStore((s) => s.signOut);
   const isLoading = useAuthStore((s) => s.isLoading);
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -53,7 +55,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.header}>
-            <Text style={styles.title}>{t('auth.terms_updated_title')}</Text>
+            <Text style={[styles.title, headingFont]}>{t('auth.terms_updated_title')}</Text>
             <Text style={styles.subtitle}>{t('auth.terms_updated_body')}</Text>
           </View>
 
