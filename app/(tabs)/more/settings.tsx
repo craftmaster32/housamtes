@@ -8,6 +8,7 @@ import {
   Modal,
   Platform,
   Animated,
+  TextInput,
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -136,25 +137,84 @@ function SectionDivider({ label }: { label: string }): React.JSX.Element {
 const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
 
 const TIMEZONES: { id: string; label: string; region: string }[] = [
-  { id: 'Pacific/Auckland', label: 'Auckland', region: 'UTC+12/13' },
-  { id: 'Australia/Sydney', label: 'Sydney', region: 'UTC+10/11' },
-  { id: 'Asia/Tokyo', label: 'Tokyo', region: 'UTC+9' },
-  { id: 'Australia/Perth', label: 'Perth', region: 'UTC+8' },
-  { id: 'Asia/Singapore', label: 'Singapore', region: 'UTC+8' },
-  { id: 'Asia/Bangkok', label: 'Bangkok', region: 'UTC+7' },
-  { id: 'Asia/Kolkata', label: 'Mumbai / Kolkata', region: 'UTC+5:30' },
-  { id: 'Asia/Dubai', label: 'Dubai', region: 'UTC+4' },
-  { id: 'Europe/Moscow', label: 'Moscow', region: 'UTC+3' },
-  { id: 'Asia/Jerusalem', label: 'Jerusalem', region: 'UTC+2/3' },
-  { id: 'Africa/Cairo', label: 'Cairo', region: 'UTC+2/3' },
-  { id: 'Europe/Paris', label: 'Paris / Berlin', region: 'UTC+1/2' },
-  { id: 'Europe/London', label: 'London', region: 'UTC+0/1' },
-  { id: 'America/Sao_Paulo', label: 'São Paulo', region: 'UTC−3' },
-  { id: 'America/New_York', label: 'New York', region: 'UTC−5' },
-  { id: 'America/Chicago', label: 'Chicago', region: 'UTC−6' },
-  { id: 'America/Denver', label: 'Denver', region: 'UTC−7' },
-  { id: 'America/Los_Angeles', label: 'Los Angeles', region: 'UTC−8' },
-  { id: 'Pacific/Honolulu', label: 'Honolulu', region: 'UTC−10' },
+  { id: 'Pacific/Kiritimati', label: 'Kiritimati', region: 'Kiribati · UTC+14' },
+  { id: 'Pacific/Auckland', label: 'Auckland', region: 'New Zealand · UTC+12/13' },
+  { id: 'Pacific/Fiji', label: 'Suva', region: 'Fiji · UTC+12' },
+  { id: 'Australia/Sydney', label: 'Sydney', region: 'Australia · UTC+10/11' },
+  { id: 'Australia/Melbourne', label: 'Melbourne', region: 'Australia · UTC+10/11' },
+  { id: 'Australia/Brisbane', label: 'Brisbane', region: 'Australia · UTC+10' },
+  { id: 'Pacific/Guam', label: 'Guam', region: 'Guam · UTC+10' },
+  { id: 'Australia/Adelaide', label: 'Adelaide', region: 'Australia · UTC+9:30/10:30' },
+  { id: 'Asia/Tokyo', label: 'Tokyo', region: 'Japan · UTC+9' },
+  { id: 'Asia/Seoul', label: 'Seoul', region: 'South Korea · UTC+9' },
+  { id: 'Asia/Shanghai', label: 'Beijing / Shanghai', region: 'China · UTC+8' },
+  { id: 'Asia/Hong_Kong', label: 'Hong Kong', region: 'Hong Kong · UTC+8' },
+  { id: 'Asia/Taipei', label: 'Taipei', region: 'Taiwan · UTC+8' },
+  { id: 'Australia/Perth', label: 'Perth', region: 'Australia · UTC+8' },
+  { id: 'Asia/Singapore', label: 'Singapore', region: 'Singapore · UTC+8' },
+  { id: 'Asia/Manila', label: 'Manila', region: 'Philippines · UTC+8' },
+  { id: 'Asia/Kuala_Lumpur', label: 'Kuala Lumpur', region: 'Malaysia · UTC+8' },
+  { id: 'Asia/Jakarta', label: 'Jakarta', region: 'Indonesia · UTC+7' },
+  { id: 'Asia/Bangkok', label: 'Bangkok', region: 'Thailand · UTC+7' },
+  { id: 'Asia/Ho_Chi_Minh', label: 'Ho Chi Minh City', region: 'Vietnam · UTC+7' },
+  { id: 'Asia/Dhaka', label: 'Dhaka', region: 'Bangladesh · UTC+6' },
+  { id: 'Asia/Almaty', label: 'Almaty', region: 'Kazakhstan · UTC+6' },
+  { id: 'Asia/Kathmandu', label: 'Kathmandu', region: 'Nepal · UTC+5:45' },
+  { id: 'Asia/Kolkata', label: 'Mumbai / Kolkata', region: 'India · UTC+5:30' },
+  { id: 'Asia/Colombo', label: 'Colombo', region: 'Sri Lanka · UTC+5:30' },
+  { id: 'Asia/Karachi', label: 'Karachi', region: 'Pakistan · UTC+5' },
+  { id: 'Asia/Tashkent', label: 'Tashkent', region: 'Uzbekistan · UTC+5' },
+  { id: 'Asia/Dubai', label: 'Dubai / Abu Dhabi', region: 'UAE · UTC+4' },
+  { id: 'Asia/Baku', label: 'Baku', region: 'Azerbaijan · UTC+4' },
+  { id: 'Asia/Tehran', label: 'Tehran', region: 'Iran · UTC+3:30' },
+  { id: 'Europe/Moscow', label: 'Moscow', region: 'Russia · UTC+3' },
+  { id: 'Asia/Jerusalem', label: 'Jerusalem / Tel Aviv', region: 'Israel · UTC+2/3' },
+  { id: 'Asia/Riyadh', label: 'Riyadh', region: 'Saudi Arabia · UTC+3' },
+  { id: 'Africa/Nairobi', label: 'Nairobi', region: 'Kenya · UTC+3' },
+  { id: 'Europe/Istanbul', label: 'Istanbul', region: 'Türkiye · UTC+3' },
+  { id: 'Africa/Cairo', label: 'Cairo', region: 'Egypt · UTC+2/3' },
+  { id: 'Africa/Johannesburg', label: 'Johannesburg', region: 'South Africa · UTC+2' },
+  { id: 'Europe/Athens', label: 'Athens', region: 'Greece · UTC+2/3' },
+  { id: 'Europe/Bucharest', label: 'Bucharest', region: 'Romania · UTC+2/3' },
+  { id: 'Europe/Helsinki', label: 'Helsinki', region: 'Finland · UTC+2/3' },
+  { id: 'Europe/Kyiv', label: 'Kyiv', region: 'Ukraine · UTC+2/3' },
+  { id: 'Europe/Paris', label: 'Paris', region: 'France · UTC+1/2' },
+  { id: 'Europe/Berlin', label: 'Berlin', region: 'Germany · UTC+1/2' },
+  { id: 'Europe/Madrid', label: 'Madrid', region: 'Spain · UTC+1/2' },
+  { id: 'Europe/Rome', label: 'Rome', region: 'Italy · UTC+1/2' },
+  { id: 'Europe/Amsterdam', label: 'Amsterdam', region: 'Netherlands · UTC+1/2' },
+  { id: 'Europe/Brussels', label: 'Brussels', region: 'Belgium · UTC+1/2' },
+  { id: 'Europe/Zurich', label: 'Zurich', region: 'Switzerland · UTC+1/2' },
+  { id: 'Europe/Vienna', label: 'Vienna', region: 'Austria · UTC+1/2' },
+  { id: 'Europe/Warsaw', label: 'Warsaw', region: 'Poland · UTC+1/2' },
+  { id: 'Europe/Stockholm', label: 'Stockholm', region: 'Sweden · UTC+1/2' },
+  { id: 'Africa/Lagos', label: 'Lagos', region: 'Nigeria · UTC+1' },
+  { id: 'Europe/London', label: 'London', region: 'United Kingdom · UTC+0/1' },
+  { id: 'Europe/Dublin', label: 'Dublin', region: 'Ireland · UTC+0/1' },
+  { id: 'Europe/Lisbon', label: 'Lisbon', region: 'Portugal · UTC+0/1' },
+  { id: 'Atlantic/Reykjavik', label: 'Reykjavík', region: 'Iceland · UTC+0' },
+  { id: 'Africa/Casablanca', label: 'Casablanca', region: 'Morocco · UTC+0/1' },
+  { id: 'Atlantic/Cape_Verde', label: 'Cape Verde', region: 'Cabo Verde · UTC−1' },
+  { id: 'America/Noronha', label: 'Fernando de Noronha', region: 'Brazil · UTC−2' },
+  { id: 'America/Sao_Paulo', label: 'São Paulo', region: 'Brazil · UTC−3' },
+  { id: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires', region: 'Argentina · UTC−3' },
+  { id: 'America/Santiago', label: 'Santiago', region: 'Chile · UTC−3/4' },
+  { id: 'America/St_Johns', label: "St. John's", region: 'Canada · UTC−3:30/2:30' },
+  { id: 'America/Halifax', label: 'Halifax', region: 'Canada · UTC−4/3' },
+  { id: 'America/Caracas', label: 'Caracas', region: 'Venezuela · UTC−4' },
+  { id: 'America/Toronto', label: 'Toronto', region: 'Canada · UTC−5/4' },
+  { id: 'America/New_York', label: 'New York', region: 'US Eastern · UTC−5/4' },
+  { id: 'America/Bogota', label: 'Bogotá', region: 'Colombia · UTC−5' },
+  { id: 'America/Lima', label: 'Lima', region: 'Peru · UTC−5' },
+  { id: 'America/Mexico_City', label: 'Mexico City', region: 'Mexico · UTC−6' },
+  { id: 'America/Chicago', label: 'Chicago', region: 'US Central · UTC−6/5' },
+  { id: 'America/Denver', label: 'Denver', region: 'US Mountain · UTC−7/6' },
+  { id: 'America/Phoenix', label: 'Phoenix', region: 'US Arizona · UTC−7' },
+  { id: 'America/Los_Angeles', label: 'Los Angeles', region: 'US Pacific · UTC−8/7' },
+  { id: 'America/Vancouver', label: 'Vancouver', region: 'Canada · UTC−8/7' },
+  { id: 'America/Anchorage', label: 'Anchorage', region: 'US Alaska · UTC−9/8' },
+  { id: 'Pacific/Honolulu', label: 'Honolulu', region: 'US Hawaii · UTC−10' },
+  { id: 'Pacific/Pago_Pago', label: 'Pago Pago', region: 'Samoa · UTC−11' },
 ];
 
 export default function SettingsScreen(): React.JSX.Element {
@@ -187,6 +247,17 @@ export default function SettingsScreen(): React.JSX.Element {
   const [showDebtModal, setShowDebtModal] = useState(false);
   const [showTimezoneModal, setShowTimezoneModal] = useState(false);
   const [savingTimezone, setSavingTimezone] = useState(false);
+  const [tzQuery, setTzQuery] = useState('');
+  const filteredTimezones = useMemo(() => {
+    const q = tzQuery.trim().toLowerCase();
+    if (!q) return TIMEZONES;
+    return TIMEZONES.filter(
+      (tz) =>
+        tz.label.toLowerCase().includes(q) ||
+        tz.region.toLowerCase().includes(q) ||
+        tz.id.toLowerCase().replace(/_/g, ' ').includes(q)
+    );
+  }, [tzQuery]);
   const [debtAmount, setDebtAmount] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [requestingVote, setRequestingVote] = useState(false);
@@ -494,7 +565,9 @@ export default function SettingsScreen(): React.JSX.Element {
                 <View style={styles.modalIconWrap}>
                   <Ionicons name="exit-outline" size={28} color={C.negative} />
                 </View>
-                <Text style={styles.modalTitle}>{t('settings.leave_house_title')}</Text>
+                <Text style={[styles.modalTitle, headingFont]}>
+                  {t('settings.leave_house_title')}
+                </Text>
                 <Text style={styles.modalBody}>
                   {t(houseName ? 'settings.leave_house_body_named' : 'settings.leave_house_body', {
                     name: houseName,
@@ -533,7 +606,9 @@ export default function SettingsScreen(): React.JSX.Element {
                 <View style={[styles.modalIconWrap, { backgroundColor: '#FFF3CD' }]}>
                   <Ionicons name="warning-outline" size={28} color="#856404" />
                 </View>
-                <Text style={styles.modalTitle}>{t('settings.settle_first_title')}</Text>
+                <Text style={[styles.modalTitle, headingFont]}>
+                  {t('settings.settle_first_title')}
+                </Text>
                 <Text style={styles.modalBody}>
                   {t('settings.settle_first_body', {
                     amount: `${currency}${debtAmount.toFixed(2)}`,
@@ -577,46 +652,96 @@ export default function SettingsScreen(): React.JSX.Element {
             visible={showTimezoneModal}
             transparent
             animationType="fade"
-            onRequestClose={() => setShowTimezoneModal(false)}
+            onRequestClose={() => {
+              setShowTimezoneModal(false);
+              setTzQuery('');
+            }}
           >
-            <Pressable style={styles.modalBackdrop} onPress={() => setShowTimezoneModal(false)}>
+            <Pressable
+              style={styles.modalBackdrop}
+              onPress={() => {
+                setShowTimezoneModal(false);
+                setTzQuery('');
+              }}
+            >
               <Pressable style={styles.tzModalBox} onPress={() => {}}>
-                <Text style={styles.modalTitle}>{t('settings.timezone_title')}</Text>
-                <Text style={[styles.modalBody, { marginBottom: 8 }]}>
+                <View style={styles.tzHandle} />
+                <Text style={[styles.modalTitle, headingFont]}>{t('settings.timezone_title')}</Text>
+                <Text style={[styles.modalBody, { marginBottom: 12 }]}>
                   {t('settings.timezone_desc')}
                 </Text>
-                <ScrollView style={styles.tzModalList} showsVerticalScrollIndicator={false}>
-                  {TIMEZONES.map((tz, idx) => (
-                    <View key={tz.id}>
-                      {idx > 0 && <View style={styles.rowDivider} />}
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.tzOption,
-                          pressed && styles.menuItemPressed,
-                        ]}
-                        onPress={() => {
-                          if (!savingTimezone) handleTimezoneSelect(tz.id);
-                        }}
-                        accessibilityRole="radio"
-                        accessibilityState={{ checked: houseTimezone === tz.id }}
-                      >
-                        <View style={styles.menuText}>
-                          <Text style={styles.menuLabel}>{tz.label}</Text>
-                          <Text style={styles.menuSub}>{tz.region}</Text>
-                        </View>
-                        {houseTimezone === tz.id && (
-                          <Ionicons name="checkmark" size={20} color={C.primary} />
-                        )}
-                      </Pressable>
-                    </View>
-                  ))}
+                <View style={styles.tzSearchBox}>
+                  <Ionicons name="search" size={16} color={C.textSecondary} />
+                  <TextInput
+                    value={tzQuery}
+                    onChangeText={setTzQuery}
+                    placeholder={t('settings.timezone_search')}
+                    placeholderTextColor={C.textDisabled}
+                    style={styles.tzSearchInput}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    accessibilityLabel={t('settings.timezone_search')}
+                  />
+                  {tzQuery.length > 0 && (
+                    <Pressable
+                      onPress={() => setTzQuery('')}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('common.clear')}
+                    >
+                      <Ionicons name="close-circle" size={17} color={C.textTertiary} />
+                    </Pressable>
+                  )}
+                </View>
+                <Text style={styles.tzCount}>
+                  {t('settings.timezone_matches', {
+                    count: filteredTimezones.length,
+                    total: TIMEZONES.length,
+                  })}
+                </Text>
+                <ScrollView
+                  style={styles.tzModalList}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {filteredTimezones.length === 0 ? (
+                    <Text style={styles.tzEmpty}>{t('settings.timezone_none')}</Text>
+                  ) : (
+                    filteredTimezones.map((tz, idx) => (
+                      <View key={tz.id}>
+                        {idx > 0 && <View style={styles.rowDivider} />}
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.tzOption,
+                            pressed && styles.menuItemPressed,
+                          ]}
+                          onPress={() => {
+                            if (!savingTimezone) handleTimezoneSelect(tz.id);
+                          }}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: houseTimezone === tz.id }}
+                        >
+                          <View style={styles.menuText}>
+                            <Text style={styles.menuLabel}>{tz.label}</Text>
+                            <Text style={styles.menuSub}>{tz.region}</Text>
+                          </View>
+                          {houseTimezone === tz.id && (
+                            <Ionicons name="checkmark" size={20} color={C.primary} />
+                          )}
+                        </Pressable>
+                      </View>
+                    ))
+                  )}
                 </ScrollView>
                 <Pressable
                   style={styles.modalBtnCancel}
-                  onPress={() => setShowTimezoneModal(false)}
+                  onPress={() => {
+                    setShowTimezoneModal(false);
+                    setTzQuery('');
+                  }}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
+                  <Text style={styles.modalBtnCancelText}>{t('common.close')}</Text>
                 </Pressable>
               </Pressable>
             </Pressable>
@@ -1061,14 +1186,56 @@ function makeStyles(C: ColorTokens) {
     },
     tzModalBox: {
       backgroundColor: C.surface,
-      borderRadius: 20,
-      padding: 20,
+      borderRadius: 24,
+      padding: 22,
       paddingBottom: 16,
       width: '100%',
-      maxWidth: 360,
-      maxHeight: '80%',
+      maxWidth: 380,
+      maxHeight: '82%',
       alignItems: 'stretch',
-      gap: 12,
+      gap: 8,
+    },
+    tzHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: C.border,
+      alignSelf: 'center',
+      marginBottom: 2,
+    },
+    tzSearchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 9,
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: C.border,
+      paddingHorizontal: 13,
+      paddingVertical: Platform.OS === 'ios' ? 12 : 4,
+    },
+    tzSearchInput: {
+      flex: 1,
+      fontSize: 15,
+      ...font.medium,
+      color: C.textPrimary,
+      padding: 0,
+    },
+    tzCount: {
+      fontSize: 11,
+      ...font.bold,
+      color: C.textTertiary,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      marginTop: 4,
+      marginBottom: 2,
+    },
+    tzEmpty: {
+      fontSize: 14,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      paddingVertical: 24,
     },
     tzModalList: { flexGrow: 0 },
     tzOption: {

@@ -56,7 +56,8 @@
     "pick_date": "בחר תאריך",
     "unknown": "לא ידוע",
     "something_went_wrong": "משהו השתבש.",
-    "error_boundary_message": "אירעה שגיאה בלתי צפויה. נסה שוב."
+    "error_boundary_message": "אירעה שגיאה בלתי צפויה. נסה שוב.",
+    "clear": "נקה"
   },
   "nav": {
     "dashboard": "ראשי",
@@ -1291,7 +1292,7 @@
     "remove_cover_failed": "לא ניתן להסיר תמונת רקע.",
     "change_cover_photo": "שנה תמונת רקע",
     "change_profile_photo": "שנה תמונת פרופיל",
-    "crop_photo": "חתוך תמונה",
+    "crop_photo": "חיתוך תמונה",
     "drag_pinch": "גרור · צבוט לזום",
     "zoom_out": "הקטן",
     "zoom_label": "זום",
@@ -1414,7 +1415,10 @@
     "nfc_title": "תג NFC לחניה",
     "nfc_desc": "החלף את מצב החניה בהקשה על תג ברכב",
     "calendar_desc_web": "פתח אירוע כלשהו בלשונית היומן כדי לייצא ל-Google Calendar או להוריד קובץ .ics",
-    "currency_pick": "בחר מטבע"
+    "currency_pick": "בחר מטבע",
+    "timezone_search": "חפשו עיר או מדינה…",
+    "timezone_matches": "{{count}} מתוך {{total}} תוצאות",
+    "timezone_none": "אין אזורי זמן שתואמים לחיפוש."
   },
   "members": {
     "title": "הרשאות חברים",

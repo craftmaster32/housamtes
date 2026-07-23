@@ -56,7 +56,8 @@
     "pick_date": "Pick date",
     "unknown": "Unknown",
     "something_went_wrong": "Something went wrong.",
-    "error_boundary_message": "An unexpected error occurred. Please try again."
+    "error_boundary_message": "An unexpected error occurred. Please try again.",
+    "clear": "Clear"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -1383,8 +1384,11 @@
     "settle_up": "Settle Up",
     "creating_vote": "Creating vote…",
     "request_vote_leave": "Request a Vote to Leave",
-    "timezone_title": "House Timezone",
+    "timezone_title": "House timezone",
     "timezone_desc": "Affects parking notifications for the whole house.",
+    "timezone_search": "Search a city or country…",
+    "timezone_matches": "{{count}} of {{total}} matches",
+    "timezone_none": "No timezones match your search.",
     "calendar_section": "CALENDAR",
     "calendar_connect": "Connect my calendar",
     "calendar_syncing": "Syncing with your device calendar",

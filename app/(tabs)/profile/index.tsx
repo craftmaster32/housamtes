@@ -30,6 +30,7 @@ import { SpendingCard } from '@components/profile/SpendingCard';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import type { Bill } from '@stores/billsStore';
 import type { Housemate } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
@@ -676,6 +677,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -1251,7 +1253,7 @@ export default function ProfileScreen(): React.JSX.Element {
       <Modal visible={cropSource !== null} transparent animationType="fade">
         <View style={styles.cropOverlay}>
           <View style={styles.cropModal}>
-            <Text style={styles.cropTitle}>Crop photo</Text>
+            <Text style={[styles.cropTitle, headingFont]}>{t('profile.crop_photo')}</Text>
             {cropSource && (
               <CropEditor
                 source={cropSource}

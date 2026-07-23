@@ -173,6 +173,7 @@ function DayScheduleSheet({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const language = useLanguageStore((s) => s.language);
   const housemates = useHousematesStore((s) => s.housemates);
   const allReservations = useParkingStore((s) => s.reservations);
@@ -197,7 +198,7 @@ function DayScheduleSheet({
       <Pressable style={styles.daySheetBackdrop} onPress={onClose}>
         <Pressable style={styles.daySheetPanel} onPress={() => {}}>
           <View style={styles.modalHandle} />
-          <Text style={styles.daySheetTitle}>
+          <Text style={[styles.daySheetTitle, headingFont]}>
             {weekdayFull}, {dayNum} {monthAbbr}
           </Text>
 
@@ -556,6 +557,7 @@ function ReserveModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const addReservation = useParkingStore((s) => s.addReservation);
   const syncParkingPending = useCalendarSyncStore((s) => s.syncParkingPending);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -661,7 +663,7 @@ function ReserveModal({
       <Pressable style={styles.modalBackdrop} onPress={handleClose}>
         <Pressable style={styles.modalSheet} onPress={() => {}}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>{t('parking.reserve_parking')}</Text>
+          <Text style={[styles.modalTitle, headingFont]}>{t('parking.reserve_parking')}</Text>
 
           <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
             <Text style={styles.fieldLabel}>{t('parking.date')}</Text>

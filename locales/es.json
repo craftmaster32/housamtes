@@ -56,7 +56,8 @@
     "pick_date": "Elegir fecha",
     "unknown": "Desconocido",
     "something_went_wrong": "Algo salió mal.",
-    "error_boundary_message": "Ocurrió un error inesperado. Intenta de nuevo."
+    "error_boundary_message": "Ocurrió un error inesperado. Intenta de nuevo.",
+    "clear": "Borrar"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -1439,7 +1440,10 @@
     "nfc_title": "Etiqueta NFC de aparcamiento",
     "nfc_desc": "Cambia tu plaza tocando una etiqueta en tu coche",
     "calendar_desc_web": "Abre cualquier evento en la pestaña Calendario para exportarlo a Google Calendar o descargar un archivo .ics",
-    "currency_pick": "Elegir moneda"
+    "currency_pick": "Elegir moneda",
+    "timezone_search": "Busca una ciudad o país…",
+    "timezone_matches": "{{count}} de {{total}} coincidencias",
+    "timezone_none": "Ninguna zona horaria coincide."
   },
   "members": {
     "title": "Permisos de miembros",
