@@ -107,6 +107,7 @@ export function GroceryItemDetailModal({
                 <Pressable
                   onPress={onClose}
                   style={s.closeBtn}
+                  hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
                   accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('grocery.close_details')}

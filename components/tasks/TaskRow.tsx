@@ -102,6 +102,8 @@ export function TaskRow({
                       source={{ uri: assignee.avatarUrl }}
                       style={styles.assigneeAvatarImg}
                       contentFit="cover"
+                      accessible
+                      accessibilityLabel={assigneeLabel ?? undefined}
                     />
                   ) : (
                     <Text style={styles.assigneeInitial}>

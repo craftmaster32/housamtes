@@ -1133,6 +1133,9 @@
     "report_submitted_title": "Reporte enviado",
     "report_submitted_body": "Gracias. Tu reporte sobre un mensaje de {{name}} ha sido registrado. Nuestro equipo lo revisará en 48 horas.\n\nPara asuntos de seguridad urgentes, escribe a safety@housemates.app",
     "delete_failed": "No se pudo eliminar el mensaje. Inténtalo de nuevo.",
+    "unread_label_one": "{{count}} mensaje sin leer",
+    "unread_label_other": "{{count}} mensajes sin leer",
+    "send": "Enviar mensaje",
     "back": "Volver"
   },
   "photos": {
@@ -1431,6 +1434,9 @@
     "notifications_enable_failed": "No se pudieron habilitar las notificaciones. Intenta de nuevo.",
     "could_not_leave": "No se pudo dejar la casa. Intenta de nuevo.",
     "could_not_update_timezone": "No se pudo actualizar la zona horaria. Intenta de nuevo.",
+    "push_refresh_success": "Suscripción actualizada. Las notificaciones deberían funcionar ahora.",
+    "push_refresh_failed_title": "Error al actualizar",
+    "timezone_search_hint": "Filtra la lista de zonas horarias mientras escribes",
     "could_not_create_vote": "No se pudo crear la votación. Intenta de nuevo.",
     "approve_leave_title": "¿Aprobar la salida de {{name}}?",
     "approve_leave_body": "{{name}} quiere dejar la casa. Tiene un saldo pendiente de {{amount}}. ¿Apruebas?",

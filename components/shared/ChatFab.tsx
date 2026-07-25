@@ -48,7 +48,11 @@ export function ChatFab(): React.JSX.Element | null {
         onPress={handlePress}
         accessible
         accessibilityRole="button"
-        accessibilityLabel={t('nav.chat')}
+        accessibilityLabel={
+          unread > 0
+            ? `${t('nav.chat')}, ${t('chat.unread_label', { count: unread })}`
+            : t('nav.chat')
+        }
       >
         <Ionicons name="chatbubble-ellipses-outline" size={24} color="#fff" />
         {unread > 0 && (

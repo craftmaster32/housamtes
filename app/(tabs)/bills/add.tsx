@@ -822,7 +822,7 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 9,
-      minHeight: 40,
+      minHeight: 44,
       borderRadius: 9,
     },
     segItemOn: {

@@ -89,24 +89,22 @@ export function DatePickerModal({
   const firstDow = (new Date(viewYear, viewMonth, 1).getDay() - firstDay + 7) % 7;
 
   const prevMonth = useCallback(() => {
-    setViewMonth((m) => {
-      if (m === 0) {
-        setViewYear((y) => y - 1);
-        return 11;
-      }
-      return m - 1;
-    });
-  }, []);
+    if (viewMonth === 0) {
+      setViewYear((y) => y - 1);
+      setViewMonth(11);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  }, [viewMonth]);
 
   const nextMonth = useCallback(() => {
-    setViewMonth((m) => {
-      if (m === 11) {
-        setViewYear((y) => y + 1);
-        return 0;
-      }
-      return m + 1;
-    });
-  }, []);
+    if (viewMonth === 11) {
+      setViewYear((y) => y + 1);
+      setViewMonth(0);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  }, [viewMonth]);
 
   const pickDay = useCallback(
     (day: number) => {

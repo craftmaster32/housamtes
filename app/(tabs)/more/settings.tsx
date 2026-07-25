@@ -74,7 +74,7 @@ function MenuItem({
         <Ionicons
           name={isRTL(currentLanguage) ? 'chevron-back' : 'chevron-forward'}
           size={18}
-          color={disabled ? C.textTertiary : C.textTertiary}
+          color={C.textTertiary}
         />
       )}
     </Pressable>
@@ -305,10 +305,10 @@ export default function SettingsScreen(): React.JSX.Element {
       const result = await refreshWebPush(user.id, houseId);
       setWebPushStatus(getWebPushStatus());
       if (result.ok) {
-        Alert.alert(t('common.done'), 'Fresh subscription saved. Notifications should work now.');
+        Alert.alert(t('common.done'), t('settings.push_refresh_success'));
       } else {
         const detail = result.message ? `\n\n${result.message}` : '';
-        Alert.alert('Refresh failed', `${result.reason}${detail}`);
+        Alert.alert(t('settings.push_refresh_failed_title'), `${result.reason}${detail}`);
       }
       return;
     }
@@ -681,11 +681,13 @@ export default function SettingsScreen(): React.JSX.Element {
                     autoCorrect={false}
                     autoCapitalize="none"
                     accessibilityLabel={t('settings.timezone_search')}
+                    accessibilityHint={t('settings.timezone_search_hint')}
                   />
                   {tzQuery.length > 0 && (
                     <Pressable
                       onPress={() => setTzQuery('')}
-                      hitSlop={8}
+                      hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                      accessible
                       accessibilityRole="button"
                       accessibilityLabel={t('common.clear')}
                     >

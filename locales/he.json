@@ -1133,6 +1133,9 @@
     "report_submitted_title": "הדיווח נשלח",
     "report_submitted_body": "תודה. הדיווח שלך על הודעה מ-{{name}} נרשם. הצוות שלנו יבדוק את הנושא תוך 48 שעות.\n\nלבעיות בטיחות דחופות, שלח אימייל ל-safety@housemates.app",
     "delete_failed": "לא ניתן היה למחוק את ההודעה. נסה/י שוב.",
+    "unread_label_one": "הודעה אחת שלא נקראה",
+    "unread_label_other": "{{count}} הודעות שלא נקראו",
+    "send": "שליחת הודעה",
     "back": "חזרה"
   },
   "photos": {
@@ -1406,6 +1409,9 @@
     "notifications_enable_failed": "לא ניתן להפעיל התראות. נסה שוב.",
     "could_not_leave": "לא ניתן לעזוב את הבית. נסה שוב.",
     "could_not_update_timezone": "לא ניתן לעדכן אזור זמן. נסה שוב.",
+    "push_refresh_success": "המנוי עודכן. ההתראות אמורות לעבוד עכשיו.",
+    "push_refresh_failed_title": "העדכון נכשל",
+    "timezone_search_hint": "מסנן את רשימת אזורי הזמן תוך כדי הקלדה",
     "could_not_create_vote": "לא ניתן ליצור הצבעה. נסה שוב.",
     "approve_leave_title": "לאשר את עזיבת {{name}}?",
     "approve_leave_body": "{{name}} רוצה לעזוב את הבית. יתרת החוב שלו/ה היא {{amount}}. האם לאשר?",

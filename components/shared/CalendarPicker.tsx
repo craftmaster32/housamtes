@@ -120,12 +120,18 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
             const isSelected = ymd === value;
             const isToday = ymd === todayStr;
             const inMonth = day.getMonth() === viewMonth;
+            const dayLabel = `${t(`dashboard.${MONTH_KEYS[day.getMonth()]}`)} ${day.getDate()}, ${day.getFullYear()}`;
             return (
               <Pressable
                 key={idx}
                 style={styles.dayCell}
                 onPress={() => onChange(ymd)}
+                // hitSlop lifts the effective tap target to ~44pt without changing the tight grid layout
+                hitSlop={{ top: 6, bottom: 6 }}
+                accessible
                 accessibilityRole="button"
+                accessibilityLabel={dayLabel}
+                accessibilityState={{ selected: isSelected }}
               >
                 <View
                   style={[

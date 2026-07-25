@@ -307,7 +307,10 @@ export default function ChoresScreen(): React.JSX.Element {
                         <Pressable
                           onPress={() => resetAll(houseId ?? '')}
                           style={styles.progressHeroReset}
+                          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                          accessible
                           accessibilityRole="button"
+                          accessibilityLabel={t('chores.reset_all')}
                         >
                           <Text style={styles.progressHeroResetText}>{t('chores.reset_all')}</Text>
                         </Pressable>

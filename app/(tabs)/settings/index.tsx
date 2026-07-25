@@ -16,6 +16,7 @@ import { router, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, CURRENCIES, type ThemeMode } from '@stores/settingsStore';
+import { formatFull } from '@constants/currencies';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
@@ -47,6 +48,7 @@ export default function SettingsScreen(): React.JSX.Element {
   const features = useSettingsStore((s) => s.features);
   const toggleFeature = useSettingsStore((s) => s.toggleFeature);
   const currency = useSettingsStore((s) => s.currency);
+  const currencyCode = useSettingsStore((s) => s.currencyCode);
   const setCurrency = useSettingsStore((s) => s.setCurrency);
   const themeMode = useSettingsStore((s) => s.themeMode);
   const setThemeMode = useSettingsStore((s) => s.setThemeMode);
@@ -142,7 +144,10 @@ export default function SettingsScreen(): React.JSX.Element {
     try {
       await addProposal(
         `Approve ${profile.name}'s request to leave`,
-        `${profile.name} wants to leave the house but has an unsettled balance of ${debtAmount.toFixed(2)}. Vote to approve their departure despite the outstanding balance.`,
+        `${profile.name} wants to leave the house but has an unsettled balance of ${formatFull(
+          debtAmount,
+          currencyCode
+        )}. Vote to approve their departure despite the outstanding balance.`,
         profile.id,
         houseId
       );
@@ -153,7 +158,7 @@ export default function SettingsScreen(): React.JSX.Element {
     } finally {
       setRequestingVote(false);
     }
-  }, [profile, houseId, debtAmount, addProposal]);
+  }, [profile, houseId, debtAmount, currencyCode, addProposal]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -517,7 +522,9 @@ export default function SettingsScreen(): React.JSX.Element {
                 </View>
                 <Text style={styles.modalTitle}>{t('settings.settle_first_title')}</Text>
                 <Text style={styles.modalBody}>
-                  {t('settings.settle_first_body', { amount: debtAmount.toFixed(2) })}
+                  {t('settings.settle_first_body', {
+                    amount: formatFull(debtAmount, currencyCode),
+                  })}
                 </Text>
                 <Pressable
                   style={[styles.modalBtnPrimary]}
@@ -570,23 +577,24 @@ export default function SettingsScreen(): React.JSX.Element {
 
           <Text style={styles.sectionLabel}>{t('settings.legal_section')}</Text>
           <View style={styles.card}>
-            <Pressable
-              style={[styles.row, styles.rowBorder]}
-              onPress={() => router.push('/(tabs)/settings/privacy-policy')}
-            >
-              <View style={[styles.rowSq, { backgroundColor: C.textSecondary + '18' }]}>
-                <Ionicons name="lock-closed-outline" size={18} color={C.textSecondary} />
-              </View>
-              <Text style={[styles.label, { flex: 1 }]}>{t('settings.privacy')}</Text>
-              <Ionicons name={chevronName} size={18} color={C.textTertiary} />
-            </Pressable>
-            <Pressable style={styles.row} onPress={() => router.push('/(tabs)/settings/terms')}>
-              <View style={[styles.rowSq, { backgroundColor: C.textSecondary + '18' }]}>
-                <Ionicons name="document-text-outline" size={18} color={C.textSecondary} />
-              </View>
-              <Text style={[styles.label, { flex: 1 }]}>{t('settings.terms')}</Text>
-              <Ionicons name={chevronName} size={18} color={C.textTertiary} />
-            </Pressable>
+            <Link href="/(tabs)/settings/privacy-policy" asChild>
+              <Pressable style={[styles.row, styles.rowBorder]} accessibilityRole="button">
+                <View style={[styles.rowSq, { backgroundColor: C.textSecondary + '18' }]}>
+                  <Ionicons name="lock-closed-outline" size={18} color={C.textSecondary} />
+                </View>
+                <Text style={[styles.label, { flex: 1 }]}>{t('settings.privacy')}</Text>
+                <Ionicons name={chevronName} size={18} color={C.textTertiary} />
+              </Pressable>
+            </Link>
+            <Link href="/(tabs)/settings/terms" asChild>
+              <Pressable style={styles.row} accessibilityRole="button">
+                <View style={[styles.rowSq, { backgroundColor: C.textSecondary + '18' }]}>
+                  <Ionicons name="document-text-outline" size={18} color={C.textSecondary} />
+                </View>
+                <Text style={[styles.label, { flex: 1 }]}>{t('settings.terms')}</Text>
+                <Ionicons name={chevronName} size={18} color={C.textTertiary} />
+              </Pressable>
+            </Link>
           </View>
         </ScrollView>
       </Animated.View>

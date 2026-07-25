@@ -92,7 +92,13 @@ const makeStyles = (C: ColorTokens) =>
       shadowRadius: 8,
       elevation: 2,
     },
-    backBtn: { width: 60, flexDirection: 'row', alignItems: 'center', gap: 2 },
+    backBtn: {
+      width: 60,
+      minHeight: 44,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
     backText: { color: C.primary, fontSize: sizes.fontMd, ...font.medium },
     headerTitle: { color: C.textPrimary, ...font.bold, fontSize: sizes.fontLg },
 
@@ -199,10 +205,10 @@ const makeStyles = (C: ColorTokens) =>
       ...font.regular,
     },
     sendBtn: {
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
       backgroundColor: C.primary,
-      borderRadius: 20,
+      borderRadius: 22,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -392,7 +398,14 @@ export default function ChatScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root}>
       <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
             <Ionicons
               name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
               size={20}
@@ -459,6 +472,11 @@ export default function ChatScreen(): React.JSX.Element {
             <Pressable
               style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
               onPress={handleSend}
+              disabled={!text.trim()}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('chat.send')}
+              accessibilityState={{ disabled: !text.trim() }}
             >
               <Ionicons
                 name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-up'}
