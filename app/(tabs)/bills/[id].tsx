@@ -366,9 +366,11 @@ export default function BillDetailScreen(): React.JSX.Element {
                     />
                   </View>
                   <Text style={styles.metaValue}>
-                    {t(`bills.cat_${bill.category?.toLowerCase() ?? ''}`, {
-                      defaultValue: bill.category,
-                    })}
+                    {bill.category
+                      ? t(`bills.cat_${bill.category.toLowerCase()}`, {
+                          defaultValue: bill.category,
+                        })
+                      : t('bills.cat_other')}
                   </Text>
                 </View>
               </View>
