@@ -119,6 +119,8 @@ export function NoteCard({
                   source={{ uri: author.avatarUrl }}
                   style={styles.avatarImg}
                   contentFit="cover"
+                  accessible
+                  accessibilityLabel={authorName}
                 />
               ) : (
                 <Text style={styles.avatarText}>{authorInitial}</Text>

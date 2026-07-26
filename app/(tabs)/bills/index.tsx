@@ -294,6 +294,9 @@ export default function BillsScreen(): React.JSX.Element {
     .reduce((s, b) => s + Math.abs(b.amount), 0);
   const netBalance = totalOwed - totalOwe;
   const isOwed = netBalance >= 0;
+  // The hero's "all settled" state must reflect the current user's own position,
+  // not the whole house: two housemates can still owe each other while I'm square.
+  const iAmSettled = sharedBalances.length === 0;
 
   // Fewest-transfer settlement plan for the whole house — powers the "Settle up"
   // strip merged into the balance card.
@@ -496,13 +499,13 @@ export default function BillsScreen(): React.JSX.Element {
         <View style={styles.balanceTop}>
           <View style={styles.flexShrink}>
             <Text style={[styles.balanceLabel, styles.balanceOnHero]}>
-              {settlements.length === 0
+              {iAmSettled
                 ? t('bills.all_settled_tag')
                 : isOwed
                   ? t('bills.you_are_owed')
                   : t('bills.you_owe')}
             </Text>
-            {settlements.length === 0 ? (
+            {iAmSettled ? (
               <Text style={styles.balanceSettledSub}>{t('bills.everyone_settled')}</Text>
             ) : (
               <>
@@ -522,7 +525,7 @@ export default function BillsScreen(): React.JSX.Element {
               </>
             )}
           </View>
-          {settlements.length === 0 ? (
+          {iAmSettled ? (
             <View style={styles.balanceCheck}>
               <Ionicons name="checkmark" size={24} color="#fff" />
             </View>

@@ -1143,6 +1143,8 @@
     "no_photos": "אין תמונות עדיין",
     "no_photos_hint": "לחץ על אייקון המצלמה למעלה כדי להוסיף.",
     "add_photo": "הוסף תמונה",
+    "take_photo": "צלם תמונה",
+    "choose_from_library": "בחר מהגלריה",
     "caption_placeholder": "כיתוב (אופציונלי)",
     "category": "קטגוריה",
     "upload": "העלה",

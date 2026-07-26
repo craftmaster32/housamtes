@@ -1,10 +1,7 @@
-import type * as React from 'react';
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
-import type { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+import type { IoniconName } from '../types/icons';
 
 // Monetization groundwork — single source of truth for premium entitlements.
 // No payment SDK is wired up yet: everyone defaults to the free tier, and

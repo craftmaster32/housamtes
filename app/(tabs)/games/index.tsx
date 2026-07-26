@@ -530,11 +530,13 @@ const styles = StyleSheet.create({
   jokeRevealBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 5,
     alignSelf: 'flex-start',
     paddingLeft: sizes.lg,
     paddingRight: sizes.md,
     paddingVertical: sizes.sm + 2,
+    minHeight: 44,
     borderRadius: sizes.borderRadius,
   },
   jokeRevealText: { fontSize: 14, ...font.bold, color: '#fff' },

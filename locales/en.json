@@ -1143,6 +1143,8 @@
     "no_photos": "No photos yet — does this house even exist?",
     "no_photos_hint": "Tap the camera icon above to prove you live here.",
     "add_photo": "Add photo",
+    "take_photo": "Take photo",
+    "choose_from_library": "Choose from library",
     "caption_placeholder": "Caption (optional)",
     "category": "Category",
     "upload": "Upload",

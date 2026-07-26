@@ -109,6 +109,7 @@ function Header(): React.JSX.Element {
           pressed && styles.pressed,
         ]}
         onPress={openProfile}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         accessibilityRole="button"
         accessibilityLabel={t('dashboard.open_profile')}
       >
@@ -140,6 +141,7 @@ function Header(): React.JSX.Element {
           pressed && styles.pressed,
         ]}
         onPress={() => router.push('/(tabs)/calendar')}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         accessibilityRole="button"
         accessibilityLabel={t('nav.calendar')}
       >
@@ -369,7 +371,9 @@ function ParkingTile(): React.JSX.Element {
   const [busy, setBusy] = useState(false);
 
   const handlePress = useCallback(async (): Promise<void> => {
-    if (busy || !myId || !houseId) {
+    // Ignore taps while a claim/release is in flight — don't navigate away mid-spinner.
+    if (busy) return;
+    if (!myId || !houseId) {
       router.push('/(tabs)/parking');
       return;
     }

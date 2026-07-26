@@ -115,6 +115,8 @@ export default function NotesScreen(): React.JSX.Element {
                         source={{ uri: profile.avatarUrl }}
                         style={styles.composeAvatarImg}
                         contentFit="cover"
+                        accessible
+                        accessibilityLabel={profile?.name ?? t('common.you')}
                       />
                     ) : (
                       <Text style={styles.composeAvatarText}>

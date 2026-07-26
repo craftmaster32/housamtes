@@ -114,11 +114,13 @@ const styles = StyleSheet.create({
   revealBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     alignSelf: 'flex-start',
     paddingLeft: sizes.md,
     paddingRight: sizes.sm,
     paddingVertical: sizes.sm,
+    minHeight: 44,
     borderRadius: sizes.borderRadius,
     marginTop: sizes.sm,
   },

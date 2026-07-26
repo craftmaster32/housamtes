@@ -343,7 +343,10 @@ function ProposalCard({
           <View
             style={[
               styles.pollFill,
-              { backgroundColor: C.positive + '22', width: `${Math.max(pctOf(yesVotes), 6)}%` },
+              {
+                backgroundColor: C.positive + '22',
+                width: `${Math.max(pctOf(yesVotes), 6)}%` as `${number}%`,
+              },
             ]}
           />
           <View style={styles.pollContent}>
@@ -370,7 +373,10 @@ function ProposalCard({
           <View
             style={[
               styles.pollFill,
-              { backgroundColor: C.negative + '22', width: `${Math.max(pctOf(noVotes), 6)}%` },
+              {
+                backgroundColor: C.negative + '22',
+                width: `${Math.max(pctOf(noVotes), 6)}%` as `${number}%`,
+              },
             ]}
           />
           <View style={styles.pollContent}>

@@ -195,6 +195,8 @@ export default function ProfileScreen(): React.JSX.Element {
                 source={{ uri: profile.avatarUrl }}
                 style={styles.avatarLargeImg as ImageStyle}
                 contentFit="cover"
+                accessible
+                accessibilityLabel={profile?.name ?? t('common.you')}
               />
             ) : (
               <Text style={styles.avatarLargeText}>{initial}</Text>

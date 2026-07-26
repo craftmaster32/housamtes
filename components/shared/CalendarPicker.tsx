@@ -36,6 +36,14 @@ function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// First day of week per locale (0 = Sunday), mirroring DatePickerModal so both
+// calendars agree. Spain / Latin America start on Monday; en/he start on Sunday.
+const LOCALE_FIRST_DAY: Record<string, number> = { en: 0, he: 0, es: 1 };
+
+function getFirstDay(lang: string): number {
+  return LOCALE_FIRST_DAY[lang] ?? 0;
+}
+
 interface CalendarPickerProps {
   value: string; // YYYY-MM-DD
   onChange: (d: string) => void;
@@ -47,6 +55,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
   const styles = useMemo(() => makeStyles(c), [c]);
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
+  const firstDay = getFirstDay(language);
   const today = new Date();
   const initDate = value ? new Date(value + 'T12:00:00') : today;
   const [viewYear, setViewYear] = useState(initDate.getFullYear());
@@ -69,7 +78,8 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
   const grid = useMemo((): Date[] => {
     const first = new Date(viewYear, viewMonth, 1);
     const start = new Date(first);
-    start.setDate(1 - first.getDay());
+    // Shift the leading day so column 0 is the locale's first day of the week.
+    start.setDate(1 - ((first.getDay() - firstDay + 7) % 7));
     const days: Date[] = [];
     for (let i = 0; i < 35; i++) {
       const d = new Date(start);
@@ -77,7 +87,13 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
       days.push(d);
     }
     return days;
-  }, [viewYear, viewMonth]);
+  }, [viewYear, viewMonth, firstDay]);
+
+  // Weekday headers, rotated to begin on the locale's first day of week.
+  const orderedDayKeys = useMemo(
+    () => [...DAY_KEYS.slice(firstDay), ...DAY_KEYS.slice(0, firstDay)],
+    [firstDay]
+  );
 
   const todayStr = toYMD(today);
 
@@ -106,7 +122,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
       </View>
 
       <View style={styles.weekRow}>
-        {DAY_KEYS.map((dk) => (
+        {orderedDayKeys.map((dk) => (
           <Text key={dk} style={styles.weekDay}>
             {t(`dashboard.${dk}`)}
           </Text>

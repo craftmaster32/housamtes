@@ -1,13 +1,10 @@
-import type * as React from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 import type { ExpenseCategoryRow } from '../types/database';
-
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+import type { IoniconName } from '../types/icons';
 
 export interface ExpenseCategory {
   id: string;

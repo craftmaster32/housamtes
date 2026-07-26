@@ -579,7 +579,7 @@ export default function PhotosScreen(): React.JSX.Element {
               style={styles.headerBtn}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Take photo"
+              accessibilityLabel={t('photos.take_photo')}
             >
               <Ionicons name="camera-outline" size={22} color={C.primary} />
             </Pressable>
@@ -588,7 +588,7 @@ export default function PhotosScreen(): React.JSX.Element {
               style={styles.headerBtn}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Choose from library"
+              accessibilityLabel={t('photos.choose_from_library')}
             >
               <Ionicons name="images-outline" size={22} color={C.primary} />
             </Pressable>

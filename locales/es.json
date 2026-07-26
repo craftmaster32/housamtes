@@ -1143,6 +1143,8 @@
     "no_photos": "Sin fotos aún",
     "no_photos_hint": "Toca el ícono de cámara arriba para agregar la primera.",
     "add_photo": "Agregar foto",
+    "take_photo": "Tomar foto",
+    "choose_from_library": "Elegir de la galería",
     "caption_placeholder": "Pie de foto (opcional)",
     "category": "Categoría",
     "upload": "Subir",

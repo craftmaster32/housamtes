@@ -143,11 +143,11 @@ export default function SettingsScreen(): React.JSX.Element {
     setRequestingVote(true);
     try {
       await addProposal(
-        `Approve ${profile.name}'s request to leave`,
-        `${profile.name} wants to leave the house but has an unsettled balance of ${formatFull(
-          debtAmount,
-          currencyCode
-        )}. Vote to approve their departure despite the outstanding balance.`,
+        t('settings.approve_leave_title', { name: profile.name }),
+        t('settings.approve_leave_body', {
+          name: profile.name,
+          amount: formatFull(debtAmount, currencyCode),
+        }),
         profile.id,
         houseId
       );
@@ -158,7 +158,7 @@ export default function SettingsScreen(): React.JSX.Element {
     } finally {
       setRequestingVote(false);
     }
-  }, [profile, houseId, debtAmount, currencyCode, addProposal]);
+  }, [profile, houseId, debtAmount, currencyCode, addProposal, t]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>

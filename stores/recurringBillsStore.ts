@@ -1,13 +1,10 @@
-import type * as React from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { parseISO, addMonths, format } from 'date-fns';
-import type { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
-
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+import type { IoniconName } from '../types/icons';
 
 export type BillFrequency = 'monthly' | 'bimonthly' | 'quarterly';
 
