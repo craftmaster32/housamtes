@@ -71,9 +71,13 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
     const first = new Date(viewYear, viewMonth, 1);
     const start = new Date(first);
     // Shift the leading day so column 0 is the locale's first day of the week.
-    start.setDate(1 - ((first.getDay() - firstDay + 7) % 7));
+    const leadingDays = (first.getDay() - firstDay + 7) % 7;
+    start.setDate(1 - leadingDays);
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    // Round up to the nearest full week to handle months spanning 6 weeks.
+    const cellCount = Math.ceil((leadingDays + daysInMonth) / 7) * 7;
     const days: Date[] = [];
-    for (let i = 0; i < 35; i++) {
+    for (let i = 0; i < cellCount; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       days.push(d);
@@ -121,7 +125,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
         ))}
       </View>
 
-      {[0, 1, 2, 3, 4].map((row) => (
+      {Array.from({ length: grid.length / 7 }, (_, row) => (
         <View key={row} style={styles.gridRow}>
           {grid.slice(row * 7, row * 7 + 7).map((day, idx) => {
             const ymd = toYMD(day);
