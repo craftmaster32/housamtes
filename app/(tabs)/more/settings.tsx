@@ -307,8 +307,7 @@ export default function SettingsScreen(): React.JSX.Element {
       if (result.ok) {
         Alert.alert(t('common.done'), t('settings.push_refresh_success'));
       } else {
-        const detail = result.message ? `\n\n${result.message}` : '';
-        Alert.alert(t('settings.push_refresh_failed_title'), `${result.reason}${detail}`);
+        Alert.alert(t('settings.push_refresh_failed_title'), result.reason ?? '');
       }
       return;
     }
