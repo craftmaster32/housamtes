@@ -164,8 +164,32 @@ if (fs.existsSync(rootVercel)) {
 }
 
 // 5. Deploy
-console.log('\n▶ Deploying to Vercel...');
+//    Production by default. Set VERCEL_PREVIEW=1 to publish a throwaway preview
+//    deployment on a *.vercel.app URL instead — used to try a branch before it
+//    merges, without touching the live housemates-five.vercel.app site.
+const isPreview = !!process.env.VERCEL_PREVIEW;
+console.log(`\n▶ Deploying to Vercel (${isPreview ? 'preview' : 'production'})...`);
 const tokenFlag = process.env.VERCEL_TOKEN ? `--token ${process.env.VERCEL_TOKEN}` : '';
-execSync(`vercel --prod --yes ${tokenFlag}`.trim(), { cwd: distDir, stdio: 'inherit' });
+const prodFlag = isPreview ? '' : '--prod';
 
-console.log('\n✓ Done! housemates-five.vercel.app is live');
+if (isPreview) {
+  // Capture stdout so we can surface the generated preview URL to CI.
+  const out = execSync(`vercel ${prodFlag} --yes ${tokenFlag}`.trim(), {
+    cwd: distDir,
+    encoding: 'utf8',
+  });
+  process.stdout.write(out);
+  const url = (out.match(/https:\/\/[^\s]+\.vercel\.app/g) || []).pop();
+  if (url) {
+    if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `preview_url=${url}\n`);
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### 🔍 Preview URL\n\n${url}\n`);
+    }
+    console.log(`\n✓ Preview deployed: ${url}`);
+  } else {
+    console.log('\n✓ Preview deployed (URL not detected in output above)');
+  }
+} else {
+  execSync(`vercel --prod --yes ${tokenFlag}`.trim(), { cwd: distDir, stdio: 'inherit' });
+  console.log('\n✓ Done! housemates-five.vercel.app is live');
+}
