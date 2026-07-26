@@ -185,7 +185,7 @@ function makeStyles(C: ColorTokens) {
     emojiCircle: {
       width: 120,
       height: 120,
-      borderRadius: 36,
+      borderRadius: 60,
       backgroundColor: C.primary + '15',
       justifyContent: 'center',
       alignItems: 'center',

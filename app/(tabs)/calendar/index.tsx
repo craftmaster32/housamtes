@@ -1476,7 +1476,7 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 9,
-      minHeight: 40,
+      minHeight: 44,
       borderRadius: 9,
     },
     segItemSelected: {

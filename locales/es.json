@@ -573,7 +573,17 @@
     "no_expenses_hint": "Toca Agregar gasto para registrar tu primer gasto compartido",
     "n_transfers": "{{count}} transferencia para saldar",
     "n_transfers_plural": "{{count}} transferencias para saldar",
-    "you_label": "Tú"
+    "you_label": "Tú",
+    "icon_tax": "Impuesto",
+    "icon_electric": "Electricidad",
+    "icon_water": "Agua",
+    "icon_gas": "Gas",
+    "icon_internet": "Internet",
+    "icon_building": "Edificio",
+    "icon_rent": "Alquiler",
+    "icon_other": "Otro",
+    "icon_heating": "Calefacción",
+    "icon_waste": "Basura"
   },
   "parking": {
     "title": "Estacionamiento",
@@ -836,6 +846,9 @@
   "chores": {
     "title": "Tareas",
     "reset_all": "Restablecer todo",
+    "reset_confirm_title": "¿Restablecer todas las tareas?",
+    "reset_confirm_body": "Esto borra las tareas completadas y asignadas de todos. No se puede deshacer.",
+    "reset_failed": "No se pudieron restablecer las tareas. Inténtalo de nuevo.",
     "done_label": "hechas",
     "new_chore": "Nueva tarea",
     "chore_placeholder": "ej. Pasar la aspiradora en la sala",

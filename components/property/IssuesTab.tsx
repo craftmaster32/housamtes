@@ -492,9 +492,11 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     chip: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 4,
       paddingHorizontal: sizes.sm,
       paddingVertical: 6,
+      minHeight: 44,
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,
       borderColor: C.border,

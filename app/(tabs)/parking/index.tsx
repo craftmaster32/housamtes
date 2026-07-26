@@ -1208,7 +1208,8 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
       gap: 4,
-      overflow: 'hidden',
+      // No overflow:'hidden' — it would cancel the iOS shadow, and the gradient
+      // already clips to borderRadius on its own.
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.4,
       shadowRadius: 14,

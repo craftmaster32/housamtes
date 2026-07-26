@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
+import { isRTL, getFirstDayOfWeek } from '@lib/i18n';
 
 const MONTH_KEYS = [
   'cal_month_jan',
@@ -36,14 +36,6 @@ function toYMD(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// First day of week per locale (0 = Sunday), mirroring DatePickerModal so both
-// calendars agree. Spain / Latin America start on Monday; en/he start on Sunday.
-const LOCALE_FIRST_DAY: Record<string, number> = { en: 0, he: 0, es: 1 };
-
-function getFirstDay(lang: string): number {
-  return LOCALE_FIRST_DAY[lang] ?? 0;
-}
-
 interface CalendarPickerProps {
   value: string; // YYYY-MM-DD
   onChange: (d: string) => void;
@@ -55,7 +47,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
   const styles = useMemo(() => makeStyles(c), [c]);
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
-  const firstDay = getFirstDay(language);
+  const firstDay = getFirstDayOfWeek(language);
   const today = new Date();
   const initDate = value ? new Date(value + 'T12:00:00') : today;
   const [viewYear, setViewYear] = useState(initDate.getFullYear());

@@ -365,7 +365,11 @@ export default function BillDetailScreen(): React.JSX.Element {
                       color={C.primary}
                     />
                   </View>
-                  <Text style={styles.metaValue}>{bill.category}</Text>
+                  <Text style={styles.metaValue}>
+                    {t(`bills.cat_${bill.category?.toLowerCase() ?? ''}`, {
+                      defaultValue: bill.category,
+                    })}
+                  </Text>
                 </View>
               </View>
               <View style={styles.metaRow}>

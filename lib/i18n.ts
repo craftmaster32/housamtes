@@ -66,6 +66,13 @@ export function isRTL(lang: AppLanguage): boolean {
   return RTL_LANGUAGES.includes(lang);
 }
 
+// First day of the week per locale (0 = Sunday). Spain / Latin America start on
+// Monday; en/he start on Sunday. Shared so every calendar surface agrees.
+const LOCALE_FIRST_DAY: Partial<Record<AppLanguage, number>> = { en: 0, he: 0, es: 1 };
+export function getFirstDayOfWeek(lang: string): number {
+  return LOCALE_FIRST_DAY[lang as AppLanguage] ?? 0;
+}
+
 /**
  * Initialises i18next.
  * Call this once, before rendering the app (pass the resolved initial language).

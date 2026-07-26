@@ -573,7 +573,17 @@
     "no_expenses_hint": "Tap Add Expense to record your first shared spend",
     "n_transfers": "{{count}} transfer to square up",
     "n_transfers_plural": "{{count}} transfers to square up",
-    "you_label": "You"
+    "you_label": "You",
+    "icon_tax": "Tax",
+    "icon_electric": "Electric",
+    "icon_water": "Water",
+    "icon_gas": "Gas",
+    "icon_internet": "Internet",
+    "icon_building": "Building",
+    "icon_rent": "Rent",
+    "icon_other": "Other",
+    "icon_heating": "Heating",
+    "icon_waste": "Waste"
   },
   "parking": {
     "title": "Parking",
@@ -836,6 +846,9 @@
   "chores": {
     "title": "Chores",
     "reset_all": "Reset all",
+    "reset_confirm_title": "Reset all chores?",
+    "reset_confirm_body": "This clears everyone's completions and claims for every chore. This can't be undone.",
+    "reset_failed": "Could not reset chores. Please try again.",
     "done_label": "done",
     "new_chore": "New chore",
     "chore_placeholder": "e.g. Vacuum living room",

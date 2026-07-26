@@ -573,7 +573,17 @@
     "no_expenses_hint": "לחץ על הוסף הוצאה כדי לתעד את ההוצאה המשותפת הראשונה",
     "n_transfers": "העברה אחת לסגירת חשבון",
     "n_transfers_plural": "{{count}} העברות לסגירת חשבון",
-    "you_label": "אתה"
+    "you_label": "אתה",
+    "icon_tax": "מס",
+    "icon_electric": "חשמל",
+    "icon_water": "מים",
+    "icon_gas": "גז",
+    "icon_internet": "אינטרנט",
+    "icon_building": "בניין",
+    "icon_rent": "שכר דירה",
+    "icon_other": "אחר",
+    "icon_heating": "חימום",
+    "icon_waste": "אשפה"
   },
   "parking": {
     "title": "חניה",
@@ -836,6 +846,9 @@
   "chores": {
     "title": "מטלות",
     "reset_all": "אפס הכל",
+    "reset_confirm_title": "לאפס את כל המטלות?",
+    "reset_confirm_body": "פעולה זו מנקה את ההשלמות והשיוכים של כולם לכל המטלות. לא ניתן לבטל.",
+    "reset_failed": "לא ניתן היה לאפס את המטלות. נסה שוב.",
     "done_label": "בוצעו",
     "new_chore": "מטלה חדשה",
     "chore_placeholder": "למשל: שואב אבק בסלון",

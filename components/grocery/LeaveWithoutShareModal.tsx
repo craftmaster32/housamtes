@@ -29,7 +29,7 @@ export function LeaveWithoutShareModal({
   const headingFont = useHeadingFont('bold');
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onLeave}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onStayAndShare}>
       <View style={styles.backdrop}>
         <View style={styles.box}>
           <View style={styles.iconWrap}>

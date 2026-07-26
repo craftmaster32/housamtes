@@ -18,6 +18,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { Alert } from '@lib/alert';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
@@ -249,6 +250,24 @@ export default function ChoresScreen(): React.JSX.Element {
     [deleteChore]
   );
 
+  // Destructive: wipes every chore's completion + claims. Confirm first, and
+  // surface a failed reset instead of leaving the rejected promise unhandled.
+  const handleResetAll = useCallback((): void => {
+    if (!houseId) return;
+    Alert.alert(t('chores.reset_confirm_title'), t('chores.reset_confirm_body'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('chores.reset_all'),
+        style: 'destructive',
+        onPress: (): void => {
+          resetAll(houseId).catch((err) => {
+            Alert.alert(t('common.error'), getErrorMessage(err, t('chores.reset_failed')));
+          });
+        },
+      },
+    ]);
+  }, [houseId, resetAll, t]);
+
   const renderChore = useCallback(
     ({ item, index }: { item: Chore; index: number }): React.JSX.Element => (
       <AnimatedListItem index={index}>
@@ -303,7 +322,7 @@ export default function ChoresScreen(): React.JSX.Element {
                       </View>
                       {done.length > 0 && canReset && (
                         <Pressable
-                          onPress={() => resetAll(houseId ?? '')}
+                          onPress={handleResetAll}
                           style={styles.progressHeroReset}
                           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                           accessible

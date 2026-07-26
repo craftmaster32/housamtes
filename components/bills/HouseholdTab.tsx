@@ -26,17 +26,18 @@ import { formatDateDDMMYYYY } from '@utils/dates';
 
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
 
-const BILL_ICON_LABELS: Record<string, string> = {
-  'business-outline': 'Tax',
-  'flash-outline': 'Electric',
-  'water-outline': 'Water',
-  'flame-outline': 'Gas',
-  'wifi-outline': 'Internet',
-  business: 'Building',
-  'home-outline': 'Rent',
-  'receipt-outline': 'Other',
-  'thermometer-outline': 'Heating',
-  'trash-outline': 'Waste',
+// icon name → i18n key, so the picker labels localize with the rest of the app.
+const BILL_ICON_LABEL_KEYS: Record<string, string> = {
+  'business-outline': 'bills.icon_tax',
+  'flash-outline': 'bills.icon_electric',
+  'water-outline': 'bills.icon_water',
+  'flame-outline': 'bills.icon_gas',
+  'wifi-outline': 'bills.icon_internet',
+  business: 'bills.icon_building',
+  'home-outline': 'bills.icon_rent',
+  'receipt-outline': 'bills.icon_other',
+  'thermometer-outline': 'bills.icon_heating',
+  'trash-outline': 'bills.icon_waste',
 };
 
 function dueBadge(
@@ -600,14 +601,14 @@ function AddBillForm({
             onPress={() => setIcon(ic)}
             accessible
             accessibilityRole="radio"
-            accessibilityLabel={BILL_ICON_LABELS[ic] ?? ic}
+            accessibilityLabel={BILL_ICON_LABEL_KEYS[ic] ? t(BILL_ICON_LABEL_KEYS[ic]) : ic}
             accessibilityState={{ selected: icon === ic }}
           >
             <Ionicons name={ic} size={20} color={icon === ic ? c.primary : c.textSecondary} />
             <Text
               style={[styles.iconChipLabel, { color: icon === ic ? c.primary : c.textSecondary }]}
             >
-              {BILL_ICON_LABELS[ic] ?? ''}
+              {BILL_ICON_LABEL_KEYS[ic] ? t(BILL_ICON_LABEL_KEYS[ic]) : ''}
             </Text>
           </Pressable>
         ))}

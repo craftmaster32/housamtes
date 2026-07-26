@@ -6,26 +6,15 @@ import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
-import { isRTL } from '@lib/i18n';
+import { isRTL, getFirstDayOfWeek } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 
 function getMonthName(year: number, month: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month));
 }
 
-// First day of week per locale: 0 = Sunday, 1 = Monday
-const LOCALE_FIRST_DAY: Record<string, number> = {
-  en: 0,
-  he: 0, // Israel starts on Sunday
-  es: 1, // Spain / Latin America start on Monday
-};
-
-function getFirstDay(locale: string): number {
-  return LOCALE_FIRST_DAY[locale] ?? 0;
-}
-
 function getDayLabels(locale: string): string[] {
-  const firstDay = getFirstDay(locale);
+  const firstDay = getFirstDayOfWeek(locale);
   // Jan 7 2024 is a Sunday (dow 0); offset by firstDay to start the row correctly
   return Array.from({ length: 7 }, (_, i) =>
     new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(
@@ -84,7 +73,7 @@ export function DatePickerModal({
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const locale = i18n.language;
-  const firstDay = getFirstDay(locale);
+  const firstDay = getFirstDayOfWeek(locale);
   // Shift the raw Sunday-based weekday so column 0 = locale's first day of week
   const firstDow = (new Date(viewYear, viewMonth, 1).getDay() - firstDay + 7) % 7;
 
