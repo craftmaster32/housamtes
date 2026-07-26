@@ -202,7 +202,7 @@ export default function ProfileScreen(): React.JSX.Element {
               <Text style={styles.avatarLargeText}>{initial}</Text>
             )}
           </View>
-          <Text style={[styles.profileName, headingFont]}>{profile?.name ?? 'You'}</Text>
+          <Text style={[styles.profileName, headingFont]}>{profile?.name ?? t('common.you')}</Text>
           {!!email && <Text style={styles.profileEmail}>{email}</Text>}
           {!!houseName && (
             <View style={styles.housePill}>

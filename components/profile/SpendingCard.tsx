@@ -55,14 +55,18 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
   if (isLoading) {
     return (
-      <View style={[styles.card, { shadowColor: c.spendShadow }]}>
-        <LinearGradient
-          colors={c.spendGradient}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.decoCircle} />
+      <View
+        style={[styles.card, { shadowColor: c.spendShadow, backgroundColor: c.spendGradient[0] }]}
+      >
+        <View pointerEvents="none" style={styles.clip}>
+          <LinearGradient
+            colors={c.spendGradient}
+            start={{ x: 0.1, y: 0 }}
+            end={{ x: 0.9, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.decoCircle} />
+        </View>
         <View style={styles.pad}>
           <Text style={styles.label}>
             {monthName
@@ -81,21 +85,23 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
   return (
     <Pressable
-      style={[styles.card, { shadowColor: c.spendShadow }]}
+      style={[styles.card, { shadowColor: c.spendShadow, backgroundColor: c.spendGradient[0] }]}
       onPress={handleOpen}
       accessible
       accessibilityRole="button"
       accessibilityLabel={t('spending.view_spending')}
     >
-      <LinearGradient
-        colors={c.spendGradient}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.decoCircle} />
-      <View style={styles.decoCircleSm} />
-      <View style={styles.highlight} />
+      <View pointerEvents="none" style={styles.clip}>
+        <LinearGradient
+          colors={c.spendGradient}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.decoCircle} />
+        <View style={styles.decoCircleSm} />
+        <View style={styles.highlight} />
+      </View>
 
       <View style={styles.pad}>
         {/* Header */}
@@ -160,11 +166,17 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   card: {
     borderRadius: sizes.borderRadiusXl,
-    overflow: 'hidden',
+    // No overflow:'hidden' here — it would clip the iOS shadow. The gradient +
+    // decorations are clipped by the inner `clip` layer instead.
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 1,
     shadowRadius: 20,
     elevation: 8,
+  },
+  clip: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: sizes.borderRadiusXl,
+    overflow: 'hidden',
   },
   decoCircle: {
     position: 'absolute',

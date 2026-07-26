@@ -1043,7 +1043,13 @@
     "dad_jokes": "Dad Jokes",
     "dad_joke_of_the_day": "Dad Joke of the Day",
     "answer_field": "Your answer",
-    "answer_field_hint": "Type the unscrambled word"
+    "answer_field_hint": "Type the unscrambled word",
+    "joke_cat_bills": "Bills",
+    "joke_cat_parking": "Parking",
+    "joke_cat_chores": "Chores",
+    "joke_cat_grocery": "Grocery",
+    "joke_cat_house": "House",
+    "joke_cat_general": "General"
   },
   "calendar": {
     "title": "Calendar",
@@ -1303,6 +1309,7 @@
     "take_photo": "Take photo",
     "choose_from_library": "Choose from library",
     "remove_photo": "Remove photo",
+    "photo_thumbnail": "Photo {{index}}",
     "remove_photo_failed": "Could not remove photo.",
     "cover_photo": "Cover photo",
     "choose_cover_photo": "Choose cover photo",

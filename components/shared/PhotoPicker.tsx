@@ -63,7 +63,12 @@ export function PhotoPicker({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailRow}>
           {photos.map((src, i) => (
             <View key={i} style={styles.thumbWrap}>
-              <Image source={{ uri: src }} style={styles.thumb as ImageStyle} />
+              <Image
+                source={{ uri: src }}
+                style={styles.thumb as ImageStyle}
+                accessible
+                accessibilityLabel={t('photos.photo_thumbnail', { index: i + 1 })}
+              />
               <Pressable
                 style={styles.removeBtn}
                 onPress={() => removePhoto(i)}

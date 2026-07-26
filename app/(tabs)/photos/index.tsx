@@ -87,9 +87,11 @@ const makeStyles = (C: ColorTokens) =>
     catChip: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 4,
       paddingVertical: 4,
       paddingHorizontal: sizes.sm,
+      minHeight: 44,
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,
       borderColor: C.border,
@@ -385,9 +387,16 @@ export default function PhotosScreen(): React.JSX.Element {
       } catch (err) {
         setError(getErrorMessage(err, t('photos.upload_failed')));
       } finally {
-        await load(houseId);
-        setIsUploading(false);
-        setUploadProgress({ current: 0, total: 0 });
+        // A failed refresh must not leave the blocking overlay stuck on screen,
+        // so reset the upload state even if load() rejects.
+        try {
+          await load(houseId);
+        } catch {
+          /* keep going — the overlay must always clear */
+        } finally {
+          setIsUploading(false);
+          setUploadProgress({ current: 0, total: 0 });
+        }
       }
     },
     [user, houseId, profile, photos.length, canAddPhotos, entitlementsLoading, upload, load, t]

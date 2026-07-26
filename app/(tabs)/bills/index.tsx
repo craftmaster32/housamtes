@@ -236,7 +236,13 @@ function SettleAvatar({
   return (
     <View style={[styles.settleAv, isYou && styles.settleAvYou]}>
       {uri ? (
-        <Image source={{ uri }} style={styles.settleAvImg} contentFit="cover" />
+        <Image
+          source={{ uri }}
+          style={styles.settleAvImg}
+          contentFit="cover"
+          accessible
+          accessibilityLabel={name}
+        />
       ) : (
         <Text style={styles.settleAvText}>{name[0]?.toUpperCase() ?? '?'}</Text>
       )}

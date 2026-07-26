@@ -1043,7 +1043,13 @@
     "dad_jokes": "Chistes de papá",
     "dad_joke_of_the_day": "Chiste del día",
     "answer_field": "Tu respuesta",
-    "answer_field_hint": "Escribe la palabra ordenada"
+    "answer_field_hint": "Escribe la palabra ordenada",
+    "joke_cat_bills": "Facturas",
+    "joke_cat_parking": "Estacionamiento",
+    "joke_cat_chores": "Tareas",
+    "joke_cat_grocery": "Compras",
+    "joke_cat_house": "Casa",
+    "joke_cat_general": "General"
   },
   "calendar": {
     "title": "Calendario",
@@ -1303,6 +1309,7 @@
     "take_photo": "Tomar foto",
     "choose_from_library": "Elegir de la galería",
     "remove_photo": "Eliminar foto",
+    "photo_thumbnail": "Foto {{index}}",
     "remove_photo_failed": "No se pudo eliminar la foto.",
     "cover_photo": "Foto de portada",
     "choose_cover_photo": "Elegir foto de portada",

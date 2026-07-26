@@ -1043,7 +1043,13 @@
     "dad_jokes": "בדיחות אבא",
     "dad_joke_of_the_day": "בדיחת אבא של היום",
     "answer_field": "התשובה שלך",
-    "answer_field_hint": "הקלד את המילה המפוענחת"
+    "answer_field_hint": "הקלד את המילה המפוענחת",
+    "joke_cat_bills": "חשבונות",
+    "joke_cat_parking": "חניה",
+    "joke_cat_chores": "מטלות",
+    "joke_cat_grocery": "קניות",
+    "joke_cat_house": "בית",
+    "joke_cat_general": "כללי"
   },
   "calendar": {
     "title": "לוח שנה",
@@ -1303,6 +1309,7 @@
     "take_photo": "צלם תמונה",
     "choose_from_library": "בחר מהספרייה",
     "remove_photo": "הסר תמונה",
+    "photo_thumbnail": "תמונה {{index}}",
     "remove_photo_failed": "לא ניתן להסיר תמונה.",
     "cover_photo": "תמונת רקע",
     "choose_cover_photo": "בחר תמונת רקע",

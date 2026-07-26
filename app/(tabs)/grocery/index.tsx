@@ -45,6 +45,7 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getErrorMessage } from '@utils/errors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import type { IoniconName } from '@/types/icons';
 
 // ── Accent constants ───────────────────────────────────────────────────────────
 const SHOP_BORDER = 'rgba(191,219,254,0.7)';
@@ -98,8 +99,6 @@ function localizeQuantityForDisplay(quantity: string, isHebrew: boolean): string
 }
 
 // ── Category detection ─────────────────────────────────────────────────────────
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
 interface Category {
   labelKey: string;
   icon: IoniconName;
@@ -1236,11 +1235,11 @@ export default function GroceryScreen(): React.JSX.Element {
 
                     {/* ── "Add to" chooser: Shared | Personal | Draft ──── */}
                     <Text style={styles.addToLabel}>{t('grocery.add_to')}</Text>
-                    <View style={styles.segWrap}>
+                    <View style={styles.segWrap} accessibilityRole="radiogroup">
                       <Pressable
                         style={[styles.segBtn, destShared && styles.segBtnShared]}
                         onPress={handleSelectShared}
-                        accessibilityRole="button"
+                        accessibilityRole="radio"
                         accessibilityState={{ selected: destShared }}
                         accessibilityLabel={t('grocery.shared_tab')}
                       >
@@ -1256,7 +1255,7 @@ export default function GroceryScreen(): React.JSX.Element {
                       <Pressable
                         style={[styles.segBtn, destPersonal && styles.segBtnPersonalOn]}
                         onPress={handleSetPrivate}
-                        accessibilityRole="button"
+                        accessibilityRole="radio"
                         accessibilityState={{ selected: destPersonal }}
                         accessibilityLabel={t('grocery.private_tab')}
                       >
@@ -1273,7 +1272,7 @@ export default function GroceryScreen(): React.JSX.Element {
                         <Pressable
                           style={[styles.segBtn, destDraft && styles.segBtnDraftOn]}
                           onPress={handleSelectDraft}
-                          accessibilityRole="button"
+                          accessibilityRole="radio"
                           accessibilityState={{ selected: destDraft }}
                           accessibilityLabel={t('grocery.draft_mode')}
                         >

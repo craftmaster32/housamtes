@@ -209,7 +209,7 @@ function CategoryForm({
         />
       </View>
       {showIconPicker && (
-        <View style={styles.iconPickerWrap}>
+        <View style={styles.iconPickerWrap} accessibilityRole="radiogroup">
           {PICKER_ICONS.map((iconName) => (
             <Pressable
               key={iconName}
@@ -221,6 +221,7 @@ function CategoryForm({
                 setForm((f) => ({ ...f, icon: iconName }));
                 setShowIconPicker(false);
               }}
+              accessible
               accessibilityRole="radio"
               accessibilityLabel={iconName}
               accessibilityState={{ selected: form.icon === iconName }}

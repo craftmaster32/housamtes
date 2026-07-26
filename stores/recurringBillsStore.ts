@@ -4,7 +4,7 @@ import { parseISO, addMonths, format } from 'date-fns';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
-import type { IoniconName } from '../types/icons';
+import type { IoniconName } from '@/types/icons';
 
 export type BillFrequency = 'monthly' | 'bimonthly' | 'quarterly';
 

@@ -3,8 +3,8 @@ import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
-import type { ExpenseCategoryRow } from '../types/database';
-import type { IoniconName } from '../types/icons';
+import type { ExpenseCategoryRow } from '@/types/database';
+import type { IoniconName } from '@/types/icons';
 
 export interface ExpenseCategory {
   id: string;

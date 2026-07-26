@@ -342,6 +342,7 @@ export default function AddBillScreen(): React.JSX.Element {
               keyboardType="decimal-pad"
               placeholder="0.00"
               placeholderTextColor={C.textTertiary}
+              underlineColorAndroid="transparent"
               style={[styles.amountHeroInput, headingFont]}
               accessibilityLabel={t('bills.amount')}
               accessibilityHint={t('bills.enter_valid_amount')}

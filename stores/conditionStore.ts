@@ -3,7 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
-import type { IoniconName } from '../types/icons';
+import type { IoniconName } from '@/types/icons';
 
 export type ConditionLevel = 'good' | 'fair' | 'poor';
 export type EntryType = 'move_in' | 'update' | 'damage';

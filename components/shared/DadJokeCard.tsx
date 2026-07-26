@@ -39,7 +39,9 @@ export function DadJokeCard(): React.JSX.Element {
           {t('games.dad_joke_of_the_day')}
         </Text>
         <View style={[styles.categoryPill, { backgroundColor: c.primaryTint }]}>
-          <Text style={[styles.categoryText, { color: c.primary }]}>{joke.category}</Text>
+          <Text style={[styles.categoryText, { color: c.primary }]}>
+            {t(`games.joke_cat_${joke.category}`, { defaultValue: joke.category })}
+          </Text>
         </View>
       </View>
 
@@ -117,8 +119,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     alignSelf: 'flex-start',
-    paddingLeft: sizes.md,
-    paddingRight: sizes.sm,
+    paddingStart: sizes.md,
+    paddingEnd: sizes.sm,
     paddingVertical: sizes.sm,
     minHeight: 44,
     borderRadius: sizes.borderRadius,

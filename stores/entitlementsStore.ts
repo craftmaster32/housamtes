@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { IoniconName } from '../types/icons';
+import type { IoniconName } from '@/types/icons';
 
 // Monetization groundwork — single source of truth for premium entitlements.
 // No payment SDK is wired up yet: everyone defaults to the free tier, and

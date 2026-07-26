@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '@stores/authStore';
 import { Alert } from '@lib/alert';
+import { captureError } from '@lib/errorTracking';
 import {
   useBillsStore,
   calculateAllNetBalances,
@@ -525,6 +526,15 @@ function GroceryList(): React.JSX.Element {
   const toggleItem = useGroceryStore((s) => s.toggleItem);
   const memberName = useMemberName();
 
+  // toggleItem returns a promise; a network failure here has no UI to surface
+  // into, so at least catch it so the rejection isn't left unhandled.
+  const handleToggleItem = useCallback(
+    (id: string): void => {
+      toggleItem(id).catch((err) => captureError(err, { context: 'dashboard-grocery-toggle' }));
+    },
+    [toggleItem]
+  );
+
   const shared = items.filter((i) => !i.isPersonal && !i.isDraft);
   const toBuy = shared.filter((i) => !i.isChecked).length;
   const preview = shared.slice(0, 3);
@@ -561,7 +571,7 @@ function GroceryList(): React.JSX.Element {
             <Pressable
               key={item.id}
               style={styles.groceryRow}
-              onPress={() => toggleItem(item.id)}
+              onPress={() => handleToggleItem(item.id)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: item.isChecked }}
               accessibilityLabel={item.name}
