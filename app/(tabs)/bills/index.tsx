@@ -525,8 +525,8 @@ export default function BillsScreen(): React.JSX.Element {
                 />
                 <Text style={styles.balanceSub}>
                   {sharedBalances.length === 1
-                    ? t('dashboard.balance_across', { count: sharedBalances.length })
-                    : t('dashboard.balance_across_plural', { count: sharedBalances.length })}
+                    ? t('bills.net_across', { count: sharedBalances.length })
+                    : t('bills.net_across_plural', { count: sharedBalances.length })}
                 </Text>
               </>
             )}
@@ -556,7 +556,7 @@ export default function BillsScreen(): React.JSX.Element {
             accessibilityState={{ expanded: showSettle }}
           >
             <View style={styles.settleStripIcon}>
-              <Ionicons name="swap-horizontal" size={16} color="#fff" />
+              <Ionicons name="checkmark" size={16} color="#fff" />
             </View>
             <View style={styles.flexShrink}>
               <Text style={styles.settleStripTitle}>{t('bills.settle_up')}</Text>
