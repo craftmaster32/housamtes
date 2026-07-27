@@ -224,17 +224,9 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
 }
 
 // ── Settle avatar (small, on-gradient) ──────────────────────────────────────────
-function SettleAvatar({
-  name,
-  uri,
-  isYou,
-}: {
-  name: string;
-  uri?: string;
-  isYou: boolean;
-}): React.JSX.Element {
+function SettleAvatar({ name, uri }: { name: string; uri?: string }): React.JSX.Element {
   return (
-    <View style={[styles.settleAv, isYou && styles.settleAvYou]}>
+    <View style={styles.settleAv}>
       {uri ? (
         <Image
           source={{ uri }}
@@ -575,30 +567,43 @@ export default function BillsScreen(): React.JSX.Element {
         {settlements.length > 0 && showSettle && (
           <View style={styles.settleList}>
             {settlements.map((s, idx) => {
+              const fromIsMe = s.from === myId;
+              const toIsMe = s.to === myId;
               const fromName = memberName(s.from).split(' ')[0];
               const toName = memberName(s.to).split(' ')[0];
-              const amtColor =
-                s.to === myId ? '#8FE0AC' : s.from === myId ? '#FF8478' : 'rgba(255,255,255,0.92)';
+              const amtColor = toIsMe ? '#8FE0AC' : fromIsMe ? '#FF8478' : 'rgba(255,255,255,0.92)';
               return (
                 <View key={idx} style={styles.settleXfer}>
-                  <SettleAvatar
-                    name={fromName}
-                    uri={avatarById.get(s.from)}
-                    isYou={s.from === myId}
-                  />
-                  <Text style={styles.settleXferName} numberOfLines={1}>
-                    {s.from === myId ? t('bills.you_label') : fromName}
-                  </Text>
+                  {fromIsMe ? (
+                    <View style={styles.youPill}>
+                      <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <SettleAvatar name={fromName} uri={avatarById.get(s.from)} />
+                      <Text style={styles.settleXferName} numberOfLines={1}>
+                        {fromName}
+                      </Text>
+                    </>
+                  )}
                   <Ionicons
                     name={billsRtl ? 'arrow-back' : 'arrow-forward'}
                     size={14}
                     color="rgba(255,255,255,0.55)"
                     style={styles.settleXferArrow}
                   />
-                  <SettleAvatar name={toName} uri={avatarById.get(s.to)} isYou={s.to === myId} />
-                  <Text style={styles.settleXferName} numberOfLines={1}>
-                    {s.to === myId ? t('bills.you_label') : toName}
-                  </Text>
+                  {toIsMe ? (
+                    <View style={styles.youPill}>
+                      <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <SettleAvatar name={toName} uri={avatarById.get(s.to)} />
+                      <Text style={styles.settleXferName} numberOfLines={1}>
+                        {toName}
+                      </Text>
+                    </>
+                  )}
                   <Text style={[styles.settleXferAmt, { color: amtColor }]}>
                     {formatFull(s.amount, currencyCode)}
                   </Text>
@@ -822,9 +827,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  settleAvYou: { backgroundColor: 'rgba(255,255,255,0.32)' },
   settleAvImg: { width: 26, height: 26 },
   settleAvText: { fontSize: 11, ...font.bold, color: '#fff' },
+  youPill: {
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  youPillText: { fontSize: 12.5, ...font.bold, color: '#fff' },
 
   // ── Filter tabs
   filterRow: {
