@@ -31,6 +31,7 @@ export function ProfilePopup(): React.JSX.Element {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const isOpen = useProfilePopupStore((s) => s.isOpen);
+  const anchor = useProfilePopupStore((s) => s.anchor);
   const close = useProfilePopupStore((s) => s.close);
   const pathname = usePathname();
   const language = useLanguageStore((s) => s.language);
@@ -123,6 +124,12 @@ export function ProfilePopup(): React.JSX.Element {
   const isDashboard = pathname.endsWith('/dashboard') || pathname.includes('/dashboard/index');
   const dropdownTop = insets.top + (isDashboard ? 83 : 62);
 
+  // Open on the same side as the avatar that triggered it. 'start' = leading
+  // edge (left in LTR, right in RTL); 'end' = trailing edge.
+  const onStart = anchor === 'start';
+  const pinLeft = isRTLMode ? !onStart : onStart;
+  const sideStyle = pinLeft ? styles.panelLeft : styles.panelRight;
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
       {isOpen && (
@@ -137,7 +144,7 @@ export function ProfilePopup(): React.JSX.Element {
       <Animated.View
         style={[
           styles.panel,
-          isRTLMode ? styles.panelRTL : styles.panelLTR,
+          sideStyle,
           {
             backgroundColor: c.surface,
             top: dropdownTop,
@@ -223,8 +230,8 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 24,
   },
-  panelLTR: { right: 16 },
-  panelRTL: { left: 16 },
+  panelRight: { right: 16 },
+  panelLeft: { left: 16 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

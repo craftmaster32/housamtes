@@ -91,6 +91,8 @@ function Header(): React.JSX.Element {
   const houseName = useHousematesStore((s) => s.houseName);
   const events = useEventsStore((s) => s.events);
   const openProfile = useProfilePopupStore((s) => s.open);
+  // The dashboard avatar sits on the leading edge, so anchor the menu there.
+  const handleOpenProfile = useCallback((): void => openProfile('start'), [openProfile]);
 
   const myName = profile?.name ?? 'there';
   const initials = myName.charAt(0).toUpperCase();
@@ -109,7 +111,7 @@ function Header(): React.JSX.Element {
           },
           pressed && styles.pressed,
         ]}
-        onPress={openProfile}
+        onPress={handleOpenProfile}
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         accessibilityRole="button"
         accessibilityLabel={t('dashboard.open_profile')}
