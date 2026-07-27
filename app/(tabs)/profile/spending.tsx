@@ -1,12 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  ActivityIndicator,
-  SectionList,
-  Animated,
-} from 'react-native';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Pressable, ActivityIndicator, SectionList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, Link } from 'expo-router';
@@ -527,10 +520,6 @@ export default function SpendingScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const userName = profile?.name ?? '';
 
@@ -760,7 +749,7 @@ export default function SpendingScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         {pageHeader}
         <SectionList<CategoryRowItem, SpendingSection>
           sections={sections}
@@ -787,7 +776,7 @@ export default function SpendingScreen(): React.JSX.Element {
             ) : null
           }
         />
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
