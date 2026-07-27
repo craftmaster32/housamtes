@@ -40,7 +40,7 @@ Status: ✅ matches mockup & verified · 🔨 in progress · ⬜ not started yet
 | Web icons                                         | —                                                                        | ✅     | deploy embeds all @expo/vector-icons fonts                                                                                                                               |
 | **Bills** (merged balance + tap-to-reveal settle) | `bills-flow-v2`, `bills-v2`, `addbill-v2`                                | ✅     | list/add/detail already match mockups; fixed setup.tsx (Housemates) web-blank (old opacity-0 Animated wrapper, same bug class as spending)                               |
 | Dashboard                                         | `nestiq-v2-dashboard`, `nestiq-v2-final`                                 | ✅     | matches `nestiq-v2-final` (the implemented target). `nestiq-v2-dashboard` is a SUPERSEDED early exploration — do not chase its quick-actions/spending-card/3-tile layout |
-| Grocery                                           | `grocery-final`, `grocery-modals-v2`, `grocery-options`, `grocery-count` | ⬜     |                                                                                                                                                                          |
+| Grocery                                           | `grocery-final`, `grocery-modals-v2`, `grocery-options`, `grocery-count` | 🔨     | web-blank fade wrapper removed; code already implements the v2 add-to chooser + list — visual reconciliation against mockups in progress                                 |
 | Parking                                           | `parking-grocery-v2`                                                     | ⬜     |                                                                                                                                                                          |
 | Calendar (event editor)                           | `calendar-event-v2`, `chores-calendar`                                   | ⬜     |                                                                                                                                                                          |
 | Photos (flow + viewer)                            | `photo-flow-v2`, `photo-modal-v2`                                        | ⬜     |                                                                                                                                                                          |
@@ -60,9 +60,9 @@ Status: ✅ matches mockup & verified · 🔨 in progress · ⬜ not started yet
   content in an old-API `Animated.View` whose `opacity` starts at 0 with
   `useNativeDriver: true` — the exact thing that blanked the spending screen and
   Housemates on web. When reconciling each ⬜ screen, if it uses this pattern
-  (`grocery`, `calendar`, `voting`, `property`, `maintenance`, `chat`, `profile`,
+  (`calendar`, `voting`, `property`, `maintenance`, `chat`, `profile`,
   `more/settings`, several `settings/*`, `condition`, onboarding, auth), swap the
-  wrapper for a plain `View` as we did for spending/Housemates.
+  wrapper for a plain `View` as we did for spending/Housemates/grocery.
 - `textSecondary` cream-contrast tweak — a locked palette token; needs owner sign-off.
 - Auth-layout AppState token refresh on the reset-password flow — needs device testing.
 - Any remaining CodeRabbit nits — handle in the single polish-phase review before merge.
