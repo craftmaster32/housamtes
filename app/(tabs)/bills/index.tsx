@@ -493,6 +493,8 @@ export default function BillsScreen(): React.JSX.Element {
         style={[styles.balanceCard, { shadowColor: isOwed ? c.owedShadow : c.dangerGradient[1] }]}
       >
         <View style={styles.balanceHighlight} />
+        <View style={styles.balanceDeco} pointerEvents="none" />
+        <View style={styles.balanceDecoSm} pointerEvents="none" />
 
         <View style={styles.balanceTop}>
           <View style={styles.flexShrink}>
@@ -540,76 +542,79 @@ export default function BillsScreen(): React.JSX.Element {
         </View>
 
         {settlements.length > 0 && (
-          <Pressable
-            style={({ pressed }) => [styles.settleStrip, pressed && { opacity: 0.85 }]}
-            onPress={() => setShowSettle((v) => !v)}
-            accessibilityRole="button"
-            accessibilityLabel={t('bills.toggle_settle')}
-            accessibilityState={{ expanded: showSettle }}
-          >
-            <View style={styles.settleStripIcon}>
-              <Ionicons name="checkmark" size={16} color="#fff" />
-            </View>
-            <View style={styles.flexShrink}>
-              <Text style={styles.settleStripTitle}>{t('bills.settle_up')}</Text>
-              <Text style={styles.settleStripSub}>
-                {showSettle
-                  ? t('bills.min_transfers')
-                  : settlements.length === 1
-                    ? t('bills.n_transfers', { count: settlements.length })
-                    : t('bills.n_transfers_plural', { count: settlements.length })}
-              </Text>
-            </View>
-            <Ionicons name={showSettle ? 'chevron-up' : 'chevron-down'} size={18} color="#fff" />
-          </Pressable>
-        )}
+          <View style={styles.settlePanel}>
+            <Pressable
+              style={({ pressed }) => [styles.settleStrip, pressed && { opacity: 0.85 }]}
+              onPress={() => setShowSettle((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={t('bills.toggle_settle')}
+              accessibilityState={{ expanded: showSettle }}
+            >
+              <View style={styles.settleStripIcon}>
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              </View>
+              <View style={styles.flexShrink}>
+                <Text style={styles.settleStripTitle}>{t('bills.settle_up')}</Text>
+                <Text style={styles.settleStripSub}>
+                  {showSettle
+                    ? t('bills.min_transfers')
+                    : settlements.length === 1
+                      ? t('bills.n_transfers', { count: settlements.length })
+                      : t('bills.n_transfers_plural', { count: settlements.length })}
+                </Text>
+              </View>
+              <Ionicons name={showSettle ? 'chevron-up' : 'chevron-down'} size={18} color="#fff" />
+            </Pressable>
 
-        {settlements.length > 0 && showSettle && (
-          <View style={styles.settleList}>
-            {settlements.map((s, idx) => {
-              const fromIsMe = s.from === myId;
-              const toIsMe = s.to === myId;
-              const fromName = memberName(s.from).split(' ')[0];
-              const toName = memberName(s.to).split(' ')[0];
-              const amtColor = toIsMe ? '#8FE0AC' : fromIsMe ? '#FF8478' : 'rgba(255,255,255,0.92)';
-              return (
-                <View key={idx} style={styles.settleXfer}>
-                  {fromIsMe ? (
-                    <View style={styles.youPill}>
-                      <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
-                    </View>
-                  ) : (
-                    <>
-                      <SettleAvatar name={fromName} uri={avatarById.get(s.from)} />
-                      <Text style={styles.settleXferName} numberOfLines={1}>
-                        {fromName}
-                      </Text>
-                    </>
-                  )}
-                  <Ionicons
-                    name={billsRtl ? 'arrow-back' : 'arrow-forward'}
-                    size={14}
-                    color="rgba(255,255,255,0.55)"
-                    style={styles.settleXferArrow}
-                  />
-                  {toIsMe ? (
-                    <View style={styles.youPill}>
-                      <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
-                    </View>
-                  ) : (
-                    <>
-                      <SettleAvatar name={toName} uri={avatarById.get(s.to)} />
-                      <Text style={styles.settleXferName} numberOfLines={1}>
-                        {toName}
-                      </Text>
-                    </>
-                  )}
-                  <Text style={[styles.settleXferAmt, { color: amtColor }]}>
-                    {formatFull(s.amount, currencyCode)}
-                  </Text>
-                </View>
-              );
-            })}
+            {showSettle &&
+              settlements.map((s, idx) => {
+                const fromIsMe = s.from === myId;
+                const toIsMe = s.to === myId;
+                const fromName = memberName(s.from).split(' ')[0];
+                const toName = memberName(s.to).split(' ')[0];
+                const amtColor = toIsMe
+                  ? '#8FE0AC'
+                  : fromIsMe
+                    ? '#FF8478'
+                    : 'rgba(255,255,255,0.92)';
+                return (
+                  <View key={idx} style={styles.settleXfer}>
+                    {fromIsMe ? (
+                      <View style={styles.youPill}>
+                        <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <SettleAvatar name={fromName} uri={avatarById.get(s.from)} />
+                        <Text style={styles.settleXferName} numberOfLines={1}>
+                          {fromName}
+                        </Text>
+                      </>
+                    )}
+                    <Ionicons
+                      name={billsRtl ? 'arrow-back' : 'arrow-forward'}
+                      size={14}
+                      color="rgba(255,255,255,0.55)"
+                      style={styles.settleXferArrow}
+                    />
+                    {toIsMe ? (
+                      <View style={styles.youPill}>
+                        <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <SettleAvatar name={toName} uri={avatarById.get(s.to)} />
+                        <Text style={styles.settleXferName} numberOfLines={1}>
+                          {toName}
+                        </Text>
+                      </>
+                    )}
+                    <Text style={[styles.settleXferAmt, { color: amtColor }]}>
+                      {formatFull(s.amount, currencyCode)}
+                    </Text>
+                  </View>
+                );
+              })}
           </View>
         )}
       </LinearGradient>
@@ -746,6 +751,25 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
+  // Soft decorative circles behind the amount (clipped by the card's overflow).
+  balanceDeco: {
+    position: 'absolute',
+    top: -34,
+    right: -26,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  balanceDecoSm: {
+    position: 'absolute',
+    top: 22,
+    right: 40,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
   balanceOnHero: { color: 'rgba(255,255,255,0.85)' },
   balanceTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   flexShrink: { flex: 1, minWidth: 0 },
@@ -772,19 +796,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Settle strip attached under the amount, on the gradient.
+  // Settle section — one smooth lighter panel flush to the card's bottom edge.
+  // The amount and the panel are separated by a colour change, not a hard line.
+  settlePanel: {
+    marginTop: 16,
+    marginHorizontal: -20,
+    marginBottom: -20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
   settleStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 11,
-    marginTop: 16,
-    marginHorizontal: -20,
-    marginBottom: -20,
     paddingHorizontal: 20,
     paddingVertical: 13,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.16)',
   },
   settleStripIcon: {
     width: 30,
@@ -796,19 +821,14 @@ const styles = StyleSheet.create({
   },
   settleStripTitle: { fontSize: 14, ...font.bold, color: '#fff' },
   settleStripSub: { fontSize: 11.5, ...font.medium, color: 'rgba(255,255,255,0.75)', marginTop: 1 },
-  settleList: {
-    marginHorizontal: -20,
-    marginBottom: -20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
   settleXfer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 11,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
   settleXferName: { fontSize: 13, ...font.bold, color: '#fff', maxWidth: 74 },
   settleXferArrow: { marginHorizontal: 1 },
