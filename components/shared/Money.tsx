@@ -54,8 +54,21 @@ export const Money: React.FC<MoneyProps> = ({
     opacity: mutedColor ? 1 : 0.72,
   };
 
+  // Give the line box explicit headroom for the largest glyph (the whole
+  // number). Without it, react-native-web computes the line height from a
+  // small inherited font size, so the big number overflows and gets its top
+  // clipped by any parent with `overflow: hidden` (e.g. the gradient balance
+  // card). `adjustsFontSizeToFit` is a native-only no-op on web, so it can't
+  // rescue this — the explicit lineHeight is what keeps the digits intact.
+  const rowStyle: TextStyle = { lineHeight: Math.ceil(size * 1.18) };
+
   return (
-    <Text style={[styles.row, style]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+    <Text
+      style={[styles.row, rowStyle, style]}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.7}
+    >
       <Text style={symbolStyle}>{symbol}</Text>
       <Text style={wholeStyle}>{whole}</Text>
       {fraction ? <Text style={fractionStyle}>{fraction}</Text> : null}
