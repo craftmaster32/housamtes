@@ -1,0 +1,99 @@
+<title>Settings/Parking/Profile pop-ups v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  @font-face{font-family:'Ion';src:url('Ionicons.ttf')}
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#0F172A;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:800px;margin:0 auto 22px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px;line-height:1.5}
+  .stage{display:flex;gap:30px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;align-items:center;gap:11px}
+  .cap{font-size:12px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#7a8494}
+  :root{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.08);--fg1:#0F172A;--fg2:#64748B;--fg3:#94A3B8;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.10);--neg:#B84540;--warn:#B68528}
+  .ion{font-family:'Ion';font-style:normal}
+  .card{width:320px;background:var(--surface);border-radius:24px;padding:22px;box-shadow:0 24px 50px rgba(15,23,42,.20)}
+  .center{text-align:center}
+  .badge{width:56px;height:56px;border-radius:28px;display:flex;align-items:center;justify-content:center;font-family:'Ion';font-size:26px;margin:0 auto 12px}
+  .ftitle{font-family:'Fraunces',serif;font-size:21px;font-weight:600;letter-spacing:-.3px}
+  .body{font-size:14px;color:var(--fg2);line-height:1.5;margin:6px 4px 0}
+  .stack{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+  .btn{text-align:center;padding:14px;border-radius:14px;font-weight:700;font-size:15px}
+  .danger{background:var(--neg);color:#fff;box-shadow:0 8px 18px rgba(184,69,64,.28)}
+  .prim{background:var(--primary);color:#fff;box-shadow:0 8px 18px rgba(59,111,191,.28)}
+  .ghost{border:1.5px solid var(--border);color:var(--fg1)}
+  .outline{border:1.5px solid var(--primary);color:var(--primary)}
+  /* sheet */
+  .handle{width:40px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 12px}
+  .lbl{font-size:12px;font-weight:700;color:var(--fg1);margin:13px 0 6px;display:block}
+  .in{background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;color:var(--fg3)}
+  .trig{display:flex;align-items:center;gap:9px;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px}
+  .trig .ion{color:var(--primary);font-size:16px}.trig .t{flex:1;font-size:15px;font-weight:500;color:var(--fg1)}
+  .two{display:flex;gap:10px}.two>div{flex:1}
+  .tzrow{display:flex;align-items:center;justify-content:space-between;padding:12px 2px}
+  .tzrow+.tzrow{border-top:1px solid var(--border)}
+  .tzname{font-size:15px;font-weight:600}.tzsub{font-size:12px;color:var(--fg2);margin-top:1px}
+  .ck{color:var(--primary);font-family:'Ion';font-size:18px}
+  .btns{display:flex;gap:10px;margin-top:16px}.btns>div{flex:1}
+  .search{display:flex;align-items:center;gap:9px;background:var(--surface2);border:1.5px solid var(--primary);border-radius:12px;padding:11px 13px}
+  .search .sic{color:var(--fg2);font-family:'Ion';font-size:16px}
+  .search .sq{font-size:15px;color:var(--fg1);font-weight:500}
+  .search .cur{width:2px;height:17px;background:var(--primary);margin-left:1px;animation:none}
+  .hint{font-size:11px;color:var(--fg3);font-weight:600;margin:9px 2px 2px;text-transform:uppercase;letter-spacing:.4px}
+</style>
+
+<div class="head">
+  <h1>Settings · Parking · Profile — pop-ups v2</h1>
+  <p>The custom dialogs get the shared treatment: Fraunces titles, tinted status badges, grabber on sheets, and buttons with depth. (The many system Alert dialogs stay OS-native — can't be restyled.)</p>
+</div>
+
+<div class="stage">
+
+  <div class="col">
+    <div class="cap">Leave house · confirm</div>
+    <div class="card center">
+      <div class="badge" style="background:rgba(184,69,64,.12);color:var(--neg)">&#xf2de;</div>
+      <div class="ftitle">Leave Flat 4B?</div>
+      <div class="body">You'll lose access to this house's bills, chores and chat. You can re-join later with an invite code.</div>
+      <div class="stack">
+        <div class="btn danger">Yes, leave house</div>
+        <div class="btn ghost">Cancel</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="cap">Timezone · searchable</div>
+    <div class="card">
+      <div class="handle"></div>
+      <div class="ftitle" style="text-align:center">House timezone</div>
+      <div class="body center" style="margin-bottom:12px">Used for reminders &amp; due dates.</div>
+      <div class="search"><span class="ion sic">&#xf3fb;</span><span class="sq">lon</span><span class="cur"></span></div>
+      <div class="hint">4 of 120 matches</div>
+      <div class="tzrow"><div><div class="tzname">London</div><div class="tzsub">United Kingdom · UTC+0/1</div></div></div>
+      <div class="tzrow"><div><div class="tzname">Londrina</div><div class="tzsub">Brazil · UTC−3</div></div></div>
+      <div class="tzrow"><div><div class="tzname">Long Beach</div><div class="tzsub">US Pacific · UTC−8</div></div></div>
+      <div class="tzrow"><div><div class="tzname">Longyearbyen</div><div class="tzsub">Svalbard · UTC+1/2</div></div></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="cap">Reserve parking · form</div>
+    <div class="card">
+      <div class="handle"></div>
+      <div class="ftitle">Reserve parking</div>
+      <span class="lbl">Date</span>
+      <div class="trig"><span class="ion">&#xf1d6;</span><span class="t">Fri, Jul 25</span></div>
+      <div class="two">
+        <div><span class="lbl">Start</span><div class="trig"><span class="ion">&#xf5de;</span><span class="t">18:00</span></div></div>
+        <div><span class="lbl">End</span><div class="trig"><span class="ion">&#xf5de;</span><span class="t">22:00</span></div></div>
+      </div>
+      <span class="lbl">Note <span style="color:var(--fg3);font-weight:500">(optional)</span></span>
+      <div class="in">Visitor's car</div>
+      <div class="btns"><div class="btn ghost">Cancel</div><div class="btn prim">Request</div></div>
+    </div>
+  </div>
+
+</div>

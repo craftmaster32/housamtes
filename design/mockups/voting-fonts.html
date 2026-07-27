@@ -1,0 +1,99 @@
+<title>Voting B — font directions</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:860px;margin:0 auto 24px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px}
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#5a6472;text-align:center;max-width:344px}
+  .cap small{display:block;font-weight:500;text-transform:none;letter-spacing:0;color:#9aa2ae;margin-top:3px;font-size:12px}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.07);--fg1:#0F172A;--fg2:#64748B;--fg3:#98A2B3;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.1);--pos:#2F8550;--pos-tint:rgba(47,133,80,.14);--neg:#B84540;--neg-tint:rgba(184,69,64,.12)}
+  .phone{width:344px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:56px 18px 22px}
+  .eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.4px;color:var(--primary);margin-bottom:5px}
+  .title{font-size:30px;font-weight:800;letter-spacing:-.8px;line-height:1}
+  .sub{font-size:13px;color:var(--fg2);font-weight:500;margin:6px 0 18px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:16px;margin-bottom:14px}
+  .cn{font-size:19px;font-weight:800;letter-spacing:-.3px;line-height:1.15;margin-bottom:3px}
+  .cm{font-size:12px;color:var(--fg2);font-weight:500;margin-bottom:14px}
+  .badge{font-size:10px;font-weight:800;padding:3px 9px;border-radius:9999px;text-transform:uppercase;letter-spacing:.4px;color:var(--primary);background:var(--primary-tint);float:right}
+  .poll{display:flex;flex-direction:column;gap:10px}
+  .pr{position:relative;height:48px;border-radius:12px;background:var(--surface2);overflow:hidden;display:flex;align-items:center}
+  .pr .fill{position:absolute;left:0;top:0;bottom:0;border-radius:12px}
+  .pr.y .fill{background:var(--pos-tint)}.pr.n .fill{background:var(--neg-tint)}
+  .pr .content{position:relative;display:flex;align-items:center;gap:8px;padding:0 13px;width:100%}
+  .pr .ico{width:24px;height:24px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+  .pr.y .ico{background:var(--pos);color:#fff}.pr.n .ico{background:var(--neg);color:#fff}
+  .pr .opt{font-size:15px;font-weight:800}
+  .pr.y .opt{color:var(--pos)}.pr.n .opt{color:var(--neg)}
+  .pr .faces2{display:flex;margin-left:8px}
+  .av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;border:2px solid var(--surface);margin-left:-7px}
+  .av:first-child{margin-left:0}
+  .pr .cnt{margin-left:auto;font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+  .pr.y .cnt{color:var(--pos)}.pr.n .cnt{color:var(--neg)}
+  .pr .chk{margin-left:6px;flex:none}
+  svg{display:block}
+
+  /* ── font direction overrides ── */
+  /* A: Inter refined (default) */
+  /* B: Fraunces serif display */
+  .fB .eyebrow,.fB .title,.fB .cn{font-family:'Fraunces',Georgia,serif}
+  .fB .title{font-weight:600;letter-spacing:-.5px}
+  .fB .cn{font-weight:600}
+  .fB .eyebrow{font-weight:700}
+  /* C: Space Grotesk geometric */
+  .fC .eyebrow,.fC .title,.fC .cn,.fC .opt,.fC .cnt{font-family:'Space Grotesk','SpaceGrotesk',sans-serif}
+  .fC .title{font-weight:700}
+  /* D: Nunito rounded friendly */
+  .fD .title,.fD .cn,.fD .opt,.fD .cnt,.fD .eyebrow{font-family:'Nunito',system-ui,sans-serif}
+  .fD .title{font-weight:800}
+</style>
+<div class="head"><h1>Voting B — playing with the fonts</h1><p>Same poll-bars layout, four heading treatments. Body text stays Inter for legibility; only the display type changes.</p></div>
+<div class="stage" id="stage"></div>
+<template id="tpl">
+  <div class="scr">
+    <span class="badge">Open</span>
+    <div class="eyebrow">House vote</div>
+    <div class="title">House votes</div>
+    <div class="sub">Tap a bar — faces show who's on each side.</div>
+    <div class="card">
+      <div class="cn">Buy a new vacuum</div>
+      <div class="cm">Alex · 2 days ago · ₪100 each</div>
+      <div class="poll">
+        <div class="pr y">
+          <div class="fill" style="width:66%"></div>
+          <div class="content">
+            <div class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></div>
+            <span class="opt">Yes</span>
+            <div class="faces2"><div class="av" style="background:#3B6FBF">A</div><div class="av" style="background:#8A5CD0">S</div></div>
+            <span class="cnt">2</span>
+            <svg class="chk" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--pos)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>
+          </div>
+        </div>
+        <div class="pr n">
+          <div class="fill" style="width:34%"></div>
+          <div class="content">
+            <div class="ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+            <span class="opt">No</span>
+            <div class="faces2"><div class="av" style="background:#C77">J</div></div>
+            <span class="cnt">1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+  const s=document.getElementById('stage');
+  function ph(cls,cap,sub){const col=document.createElement('div');col.className='col';const c=document.createElement('div');c.className='cap';c.innerHTML=cap+'<small>'+sub+'</small>';const p=document.createElement('div');p.className='phone hm '+cls;p.innerHTML='<div class="notch"></div>'+document.getElementById('tpl').innerHTML;col.appendChild(c);col.appendChild(p);s.appendChild(col);}
+  ph('fA','A · Inter','Current — clean, neutral');
+  ph('fB','B · Fraunces','Editorial serif headings');
+  ph('fC','C · Space Grotesk','Techy geometric');
+  ph('fD','D · Nunito','Soft & rounded');
+</script>

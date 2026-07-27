@@ -1,0 +1,91 @@
+<title>Photo upload v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  @font-face{font-family:'Ion';src:url('Ionicons.ttf')}
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#0F172A;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:720px;margin:0 auto 22px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px;line-height:1.5}
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;align-items:center;gap:11px}
+  .cap{font-size:12px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#7a8494}
+  :root{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.08);--fg1:#0F172A;--fg2:#64748B;--fg3:#94A3B8;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.10)}
+  .ion{font-family:'Ion';font-style:normal}
+  .phone{width:352px;height:640px;border-radius:46px;position:relative;background:var(--bg);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:20}
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:5}
+  .sheet{position:absolute;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top-left-radius:26px;border-top-right-radius:26px;padding:12px 20px 26px;box-shadow:0 -12px 40px rgba(15,23,42,.18)}
+  .handle{width:40px;height:4px;border-radius:2px;background:var(--border);margin:4px auto 12px}
+  .stitle{font-family:'Fraunces',serif;font-size:22px;font-weight:600;letter-spacing:-.3px}
+  .preview{height:150px;border-radius:16px;margin:14px 0;background:linear-gradient(135deg,#c9d4e6,#9fb2cd);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Ion';font-size:40px;opacity:.9}
+  .lbl{font-size:12px;font-weight:700;color:var(--fg1);margin:12px 0 7px;display:block}
+  .in{background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;font-size:15px;color:var(--fg3)}
+  .cats{display:flex;gap:8px;flex-wrap:wrap}
+  .cat{display:flex;align-items:center;gap:6px;padding:8px 13px;border-radius:100px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;color:var(--fg2)}
+  .cat.on{background:var(--primary);border-color:var(--primary);color:#fff}
+  .cat .ion{font-size:13px}
+  .save{background:var(--primary);color:#fff;border-radius:14px;padding:15px;text-align:center;font-weight:700;font-size:15px;margin-top:18px;box-shadow:0 8px 20px rgba(59,111,191,.3)}
+  .cancel{text-align:center;color:var(--fg2);font-weight:600;font-size:14px;padding:12px;margin-top:2px}
+
+  /* viewer */
+  .viewer{position:absolute;inset:0;background:#000;z-index:15}
+  .vimg{position:absolute;inset:0;top:70px;bottom:150px;background:linear-gradient(135deg,#5a6b86,#2f3b4f);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.5);font-family:'Ion';font-size:60px}
+  .vbar{position:absolute;top:56px;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:0 18px;z-index:5}
+  .vbtn{width:44px;height:44px;border-radius:22px;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Ion';font-size:22px}
+  .vcount{color:rgba(255,255,255,.7);font-size:14px;font-weight:600}
+  .vmeta{position:absolute;bottom:0;left:0;right:0;padding:0 24px 40px;text-align:center;color:#fff}
+  .vcap{font-size:15px;font-weight:600;margin-bottom:6px}
+  .vsub{font-size:13px;color:rgba(255,255,255,.55)}
+  .vdel{margin-top:10px;color:#E5645F;font-weight:600;font-size:14px}
+</style>
+
+<div class="head">
+  <h1>Photos — upload sheet + viewer, v2</h1>
+  <p>Upload sheet moves to the same bottom-sheet system as the other pop-ups (grabber, Fraunces title, category chips, primary button). The full-screen viewer keeps its dark chrome — already clean — just confirming it fits.</p>
+</div>
+
+<div class="stage">
+  <div class="col">
+    <div class="cap">Upload sheet</div>
+    <div class="phone"><div class="notch"></div>
+      <div class="scrim"></div>
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="stitle">Add photo</div>
+        <div class="preview">&#xf38f;</div>
+        <span class="lbl">Caption <span style="color:var(--fg3);font-weight:500">(optional)</span></span>
+        <div class="in">Add a caption…</div>
+        <span class="lbl">Category</span>
+        <div class="cats">
+          <div class="cat on"><span class="ion">&#xf50f;</span>Receipts</div>
+          <div class="cat"><span class="ion">&#xf629;</span>Damage</div>
+          <div class="cat"><span class="ion">&#xf58d;</span>Memories</div>
+        </div>
+        <div class="save">Upload</div>
+        <div class="cancel">Cancel</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="cap">Full-screen viewer (unchanged)</div>
+    <div class="phone"><div class="notch"></div>
+      <div class="viewer">
+        <div class="vimg">&#xf38f;</div>
+        <div class="vbar">
+          <div class="vbtn">&#xf24a;</div>
+          <div class="vcount">2 / 5</div>
+          <div class="vbtn">&#xf2ba;</div>
+        </div>
+        <div class="vmeta">
+          <div class="vcap">Broken tap in bathroom</div>
+          <div class="vsub">Maya · Jul 18, 2025</div>
+          <div class="vdel">Delete photo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

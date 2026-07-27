@@ -1,0 +1,86 @@
+<title>Add bill flow v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:24px}
+  .stage{display:flex;gap:36px;justify-content:center;flex-wrap:wrap}
+  .cap{text-align:center;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#7a8494;margin-bottom:10px}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.08);--fg1:#0F172A;--fg2:#64748B;--fg3:#94A3B8;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.1);--white:#fff}
+  .hm.dark{--bg:#0A0F1B;--surface:#151D2E;--surface2:#1F2940;--border:rgba(255,255,255,.08);--fg1:#EEF2F8;--fg2:#8A95AA;--fg3:#586279;--primary:#4E82D4;--primary-tint:rgba(78,130,212,.16);--white:#fff}
+  .phone{width:344px;min-height:720px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.22),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:58px 18px 24px}
+  .h{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .h .back{color:var(--primary);font-size:15px;font-weight:600}
+  .h .t{font-size:20px;font-weight:800;letter-spacing:-.5px;margin-left:4px}
+  .lbl{font-size:12px;font-weight:700;color:var(--fg2);text-transform:uppercase;letter-spacing:.3px;margin:14px 2px 8px}
+  .field{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;font-size:16px;font-weight:600;color:var(--fg1)}
+  .amt{font-size:26px;font-weight:800;letter-spacing:-.5px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:flex;align-items:center;gap:6px;padding:9px 13px;border-radius:11px;border:1px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;color:var(--fg1)}
+  .chip.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .chip.on svg{stroke:#fff}
+  .seg{display:flex;gap:8px}
+  .seg .s{flex:1;text-align:center;padding:11px;border-radius:11px;background:var(--surface2);font-size:13px;font-weight:700;color:var(--fg2)}
+  .seg .s.on{background:var(--primary);color:#fff}
+  .preview{background:var(--primary-tint);border-radius:14px;padding:12px;text-align:center;margin-top:12px;color:var(--primary);font-weight:700;font-size:16px}
+  .save{margin-top:20px;background:var(--primary);color:#fff;border-radius:14px;height:52px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+  svg{display:block}
+  /* date modal */
+  .ov{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:24px;z-index:20}
+  .cal{width:100%;background:var(--surface);border-radius:20px;padding:20px}
+  .caltop{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .caltop .m{font-size:16px;font-weight:800;color:var(--fg1)}
+  .navb{width:38px;height:38px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--fg1)}
+  .dow{display:flex}.dow span{flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--fg2);padding:4px 0}
+  .days{display:flex;flex-wrap:wrap}
+  .day{width:calc(100%/7);text-align:center;padding:7px 0;font-size:14px;font-weight:500;color:var(--fg1)}
+  .day.sel span{background:var(--primary);color:#fff;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center}
+  .day.today span{border:1.5px solid var(--primary);border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700}
+  .calact{display:flex;gap:8px;margin-top:12px}
+  .calact .b{flex:1;text-align:center;padding:12px;border-radius:12px;font-size:15px;font-weight:700}
+  .calact .cancel{background:var(--surface2);color:var(--fg1)}
+  .calact .ok{background:var(--primary);color:#fff}
+</style>
+<div class="stage">
+  <div><div class="cap">Add expense · Light</div><div class="phone hm"><div class="notch"></div><div class="scr" id="a"></div></div></div>
+  <div><div class="cap">Date popup · Light</div><div class="phone hm"><div class="notch"></div><div class="scr" id="b"></div><div class="ov" id="ov"></div></div></div>
+  <div><div class="cap">Add expense · Dark</div><div class="phone hm dark"><div class="notch"></div><div class="scr" id="c"></div></div></div>
+</div>
+<template id="form">
+  <div class="h"><span class="back">‹ Back</span><span class="t">Add expense</span></div>
+  <div class="lbl">Amount</div>
+  <div class="field amt">₪134.00</div>
+  <div class="lbl">What for?</div>
+  <div class="field">Groceries</div>
+  <div class="lbl">Category</div>
+  <div class="chips">
+    <div class="chip on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 4h2l2.5 12h11l2-8H6"/></svg>Groceries</div>
+    <div class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Rent</div>
+    <div class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>Utilities</div>
+  </div>
+  <div class="lbl">Split</div>
+  <div class="seg"><div class="s on">Equal</div><div class="s">Custom</div><div class="s">%</div></div>
+  <div class="preview">₪44.67 per person</div>
+  <div class="save">Add expense</div>
+</template>
+<template id="cal">
+  <div class="caltop"><div class="navb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></div><div class="m">July 2026</div><div class="navb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div></div>
+  <div class="dow"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+  <div class="days" id="days"></div>
+  <div class="calact"><div class="b cancel">Cancel</div><div class="b ok">Confirm</div></div>
+</template>
+<script>
+  document.getElementById('a').appendChild(document.getElementById('form').content.cloneNode(true));
+  document.getElementById('c').appendChild(document.getElementById('form').content.cloneNode(true));
+  // popup phone: dim form behind
+  document.getElementById('b').appendChild(document.getElementById('form').content.cloneNode(true));
+  const cal = document.getElementById('cal').content.cloneNode(true);
+  const days = cal.getElementById ? cal.getElementById('days') : cal.querySelector('#days');
+  let html='';
+  const empties=3; for(let i=0;i<empties;i++) html+='<div class="day"></div>';
+  for(let d=1; d<=31; d++){ const cls = d===20?'day sel':(d===24?'day today':'day'); html+=`<div class="${cls}"><span>${d}</span></div>`; }
+  cal.querySelector('#days').innerHTML = html;
+  const wrap=document.createElement('div'); wrap.className='cal'; wrap.appendChild(cal);
+  document.getElementById('ov').appendChild(wrap);
+</script>

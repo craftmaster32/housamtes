@@ -1,0 +1,214 @@
+<title>HouseMates — v2 home, both themes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;padding:34px 16px 60px}
+  @media (prefers-color-scheme: dark){body{background:#0c1119;color:#e9eef6}}
+  :root[data-theme="dark"] body{background:#0c1119;color:#e9eef6}
+  .head{text-align:center;max-width:760px;margin:0 auto 26px}
+  .head h1{font-size:24px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:15px;line-height:1.5}
+  .stage{display:flex;gap:40px;justify-content:center;align-items:flex-start;flex-wrap:wrap;max-width:900px;margin:0 auto}
+  .col{display:flex;flex-direction:column;align-items:center;gap:13px}
+  .cap{font-size:13px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#7a8494}
+  .cap b{color:inherit}
+
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,0.08);--fg1:#0F172A;--fg2:#64748B;--fg3:#94A3B8;--success:#2F8550;--success-tint:rgba(47,133,80,.12);--danger:#B84540;--danger-tint:rgba(184,69,64,.1);--warning:#B68528;--warning-tint:rgba(182,133,40,.14);
+    --brand:#3B6FBF;--brand-deep:#1F3D78;--brand-tint:rgba(59,111,191,0.10);--hero:linear-gradient(140deg,#4A84D0,#274F99);--hero-sh:rgba(41,82,160,.34);--sec:#E5EEFB;--sec-fg:#23426F}
+  .hm.dark{--bg:#0A0F1B;--surface:#151D2E;--surface2:#1F2940;--border:rgba(255,255,255,0.08);--fg1:#EEF2F8;--fg2:#8A95AA;--fg3:#586279;--success:#4FB071;--success-tint:rgba(79,176,113,.16);--danger:#E5645F;--danger-tint:rgba(229,100,95,.15);--warning:#E0B24D;--warning-tint:rgba(224,178,77,.16);
+    --brand:#4E82D4;--brand-deep:#1C356A;--brand-tint:rgba(78,130,212,0.16);--hero:linear-gradient(140deg,#264C8C,#182F5A);--hero-sh:rgba(20,44,90,.55);--sec:#1A2A48;--sec-fg:#8AABDE}
+
+  .phone{width:344px;min-height:912px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;
+    box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:50}
+  .status{position:absolute;top:0;left:0;right:0;height:52px;z-index:20;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 9px;font-size:14px;font-weight:600;color:var(--fg1)}
+  .scr{position:relative;padding:56px 18px 118px}
+  svg{display:block}
+
+  .hdr{display:flex;align-items:center;gap:11px;padding:8px 0 4px}
+  .ava{width:42px;height:42px;border-radius:21px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px}
+  .hdr .house{font-size:12px;color:var(--fg2);font-weight:500}
+  .hdr .greet{font-size:19px;font-weight:800;letter-spacing:-.5px}
+  .bell{width:40px;height:40px;border-radius:20px;border:1px solid var(--border);background:var(--surface);position:relative;display:flex;align-items:center;justify-content:center;color:var(--fg1)}
+  .bell .b{position:absolute;top:-2px;right:-2px;min-width:17px;height:17px;border-radius:9px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
+
+  .cal{width:100%;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--brand);border-radius:14px;padding:11px 13px;display:flex;align-items:center;gap:11px;margin-top:14px}
+  .cal .d{width:34px;height:34px;border-radius:11px;background:var(--brand-tint);color:var(--brand);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+  .cal .d .m{font-size:9px;font-weight:700;text-transform:uppercase}
+  .cal .d .n{font-size:15px;font-weight:800;margin-top:1px}
+  .cal .today{font-size:10px;font-weight:700;color:var(--brand);letter-spacing:.5px;text-transform:uppercase}
+  .cal .ev{font-size:14px;font-weight:600;margin-top:1px}
+
+  .pin{background:var(--sec);border-radius:18px;padding:14px 15px;display:flex;gap:11px;margin-top:14px}
+  .pin .ic{width:30px;height:30px;border-radius:10px;background:rgba(255,255,255,.5);color:var(--sec-fg);display:flex;align-items:center;justify-content:center;flex:none}
+  .hm.dark .pin .ic{background:rgba(255,255,255,.08)}
+  .pin .top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .pin .lab{font-size:10.5px;font-weight:700;color:var(--sec-fg);letter-spacing:.4px;text-transform:uppercase;flex:1}
+  .pin .ago{font-size:11px;color:var(--fg2)}
+  .pin .msg{font-size:13.5px;line-height:1.45;color:var(--fg1);font-weight:500}
+
+  .hero{margin-top:14px;border-radius:18px;padding:20px;background:var(--hero);box-shadow:0 14px 30px var(--hero-sh);position:relative;overflow:hidden}
+  .hero .c1{position:absolute;bottom:-40px;right:-20px;width:150px;height:150px;border-radius:75px;border:1px solid rgba(255,255,255,.13)}
+  .hero .row{position:relative;display:flex;align-items:center;gap:12px}
+  .hero .lab{font-size:12px;font-weight:500;color:rgba(255,255,255,.8)}
+  .hero .amt{display:flex;align-items:baseline;gap:2px;margin-top:4px}
+  .hero .amt .cur{font-size:22px;font-weight:500;color:rgba(255,255,255,.7)}
+  .hero .amt .big{font-size:44px;font-weight:800;color:#fff;letter-spacing:-1.6px;line-height:1.05}
+  .hero .sub{font-size:11px;color:rgba(255,255,255,.72);margin-top:4px}
+  .hero .an{width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.16);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .park{border-radius:18px;padding:15px;background:#23323E;color:#fff;min-height:118px;display:flex;flex-direction:column;justify-content:space-between}
+  .park .top{display:flex;align-items:center;justify-content:space-between}
+  .park .ic{width:32px;height:32px;border-radius:10px;background:rgba(255,97,85,.22);color:#FF8478;display:flex;align-items:center;justify-content:center}
+  .park .pill{font-size:10.5px;font-weight:700;color:#FF8478;background:rgba(255,97,85,.16);padding:3px 8px;border-radius:9999px}
+  .park .k{font-size:11px;color:rgba(255,255,255,.6);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+  .park .v{font-size:17px;font-weight:700;letter-spacing:-.3px;margin-top:2px}
+  .park .s{font-size:11.5px;color:rgba(255,255,255,.62)}
+
+  .chores{border-radius:18px;padding:15px;background:var(--surface);border:1px solid var(--border);min-height:118px;display:flex;flex-direction:column;justify-content:space-between}
+  .chores .top{display:flex;align-items:center;justify-content:space-between}
+  .chores .k{font-size:11px;color:var(--fg2);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+  .chores .n{font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .chores .n span{color:var(--fg3);font-size:15px}
+  .chores .s{font-size:11.5px;color:var(--fg2)}
+
+  .groc{border-radius:18px;padding:16px;background:var(--surface);border:1px solid var(--border);margin-top:14px}
+  .groc .top{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+  .groc .ic{width:30px;height:30px;border-radius:10px;background:var(--warning-tint);color:var(--warning);display:flex;align-items:center;justify-content:center}
+  .groc .t{font-size:14px;font-weight:700}
+  .groc .left{margin-left:auto;font-size:12px;font-weight:600;color:var(--fg2)}
+  .groc .items{display:flex;flex-direction:column;gap:11px}
+  .groc .it{display:flex;align-items:center;gap:10px}
+  .groc .box{width:18px;height:18px;border-radius:6px;border:1.5px solid var(--border);flex:none;display:flex;align-items:center;justify-content:center}
+  .groc .box.done{background:var(--success);border-color:var(--success)}
+  .groc .nm{flex:1;font-size:13.5px;font-weight:500}
+  .groc .nm.done{color:var(--fg3);text-decoration:line-through}
+  .groc .who{font-size:11px;color:var(--fg2)}
+
+  .joke{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:15px;margin-top:14px}
+  .joke .top{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+  .joke .e{font-size:19px}
+  .joke .t{font-size:14px;font-weight:700;flex:1}
+  .joke .cat{font-size:11px;font-weight:700;color:var(--brand);background:var(--brand-tint);padding:2px 9px;border-radius:9999px;text-transform:capitalize}
+  .joke .setup{font-size:14.5px;font-weight:500;line-height:1.5}
+  .joke .rev{margin-top:12px;background:var(--brand-tint);color:var(--brand);font-weight:700;font-size:13px;padding:8px 14px;border-radius:12px;display:inline-block}
+
+  .games{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:13px 15px;display:flex;align-items:center;gap:12px;margin-top:14px}
+  .games .e{width:38px;height:38px;border-radius:12px;background:#F6E7C4;display:flex;align-items:center;justify-content:center;font-size:19px}
+  .games .t{font-size:14.5px;font-weight:700}
+  .games .s{font-size:12px;color:var(--fg2);margin-top:1px}
+
+  .navwrap{position:absolute;bottom:0;left:0;right:0;padding:0 16px 18px;background:linear-gradient(to top,var(--bg) 68%,transparent)}
+  .fabrow{display:flex;justify-content:flex-end;padding-bottom:12px}
+  .fab{position:relative;width:52px;height:52px;border-radius:26px;background:var(--brand);color:#fff;box-shadow:0 8px 20px var(--hero-sh);display:flex;align-items:center;justify-content:center}
+  .fab .b{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
+  .nav{border-radius:22px;background:var(--surface);border:1px solid var(--border);box-shadow:0 4px 16px rgba(15,23,42,.10);display:flex;align-items:center;justify-content:space-between;padding:8px 6px}
+  .nav .i{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--fg2);font-size:10.5px;font-weight:500}
+  .nav .i.active{color:var(--brand);font-weight:700}
+  .nav .ndot{width:4px;height:4px;border-radius:2px;background:var(--brand)}
+  .nav .add{width:44px;height:44px;border-radius:14px;background:var(--fg1);color:var(--bg);display:flex;align-items:center;justify-content:center;margin:0 4px}
+</style>
+
+<div class="head">
+  <h1>HouseMates — v2 home, both themes</h1>
+  <p>Now implemented in the app and wired to your real data. Light (cream) and Dark (navy) follow the appearance toggle in Settings.</p>
+</div>
+
+<div class="stage" id="stage"></div>
+
+<template id="tpl">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="status"><div>9:41</div><div>📶 ⚡ 🔋</div></div>
+    <div class="scr">
+      <div class="hdr">
+        <div class="ava">A</div>
+        <div style="flex:1"><div class="house">Maple Street</div><div class="greet">Good morning, Alex</div></div>
+        <div class="bell"><span class="b">1</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0112 0c0 5 2 6 2 7H4c0-1 2-2 2-7z"/><path d="M10 19a2 2 0 004 0"/></svg></div>
+      </div>
+      <div class="cal">
+        <div class="d"><span class="m">Apr</span><span class="n">18</span></div>
+        <div style="flex:1"><div class="today">Today</div><div class="ev">House dinner · 19:30</div></div>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--fg3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+      <div class="pin">
+        <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 01-5.8-1.6"/></svg></div>
+        <div style="flex:1"><div class="top"><div class="lab">Pinned · Jordan</div><div class="ago">2h ago</div></div><div class="msg">Landlord's coming Thursday 3pm to fix the boiler — keep the kitchen tidy please.</div></div>
+      </div>
+      <div class="hero">
+        <div class="c1"></div>
+        <div class="row">
+          <div style="flex:1;min-width:0">
+            <div class="lab">You're owed</div>
+            <div class="amt"><span class="cur">₪</span><span class="big">746.46</span></div>
+            <div class="sub">across 3 housemates</div>
+          </div>
+          <div class="an"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l3.5-4 3 2.5L20 8"/></svg></div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="park">
+          <div class="top">
+            <div class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-5a2 2 0 012-1.5h7a2 2 0 012 1.5L19 13M5 13h14M5 13v5h2v-2h10v2h2v-5"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg></div>
+            <span class="pill">TAKEN</span>
+          </div>
+          <div><div class="k">Parking</div><div class="v">In use</div><div class="s">Sam</div></div>
+        </div>
+        <div class="chores">
+          <div class="top">
+            <div class="k">Chores</div>
+            <svg width="46" height="46" viewBox="0 0 46 46"><circle cx="23" cy="23" r="18" fill="none" stroke="var(--surface2)" stroke-width="5"/><circle cx="23" cy="23" r="18" fill="none" stroke="var(--success)" stroke-width="5" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="22.6" transform="rotate(-90 23 23)"/></svg>
+          </div>
+          <div><div class="n">12<span>/15</span></div><div class="s">Bins next</div></div>
+        </div>
+      </div>
+      <div class="groc">
+        <div class="top">
+          <div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 4h2l2.5 12h11l2-8H6"/></svg></div>
+          <div class="t">Grocery list</div>
+          <div class="left">5 to buy</div>
+        </div>
+        <div class="items">
+          <div class="it"><span class="box"></span><span class="nm">Milk</span><span class="who">Alex</span></div>
+          <div class="it"><span class="box"></span><span class="nm">Coffee</span><span class="who">Sam</span></div>
+          <div class="it"><span class="box done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></span><span class="nm done">Trash bags</span><span class="who">Jordan</span></div>
+        </div>
+      </div>
+      <div class="joke">
+        <div class="top"><span class="e">💸</span><div class="t">Dad joke of the day</div><span class="cat">bills</span></div>
+        <div class="setup">Why did the housemate bring a ladder to pay rent?</div>
+        <div class="rev">Tap to reveal</div>
+      </div>
+      <div class="games">
+        <div class="e">🎮</div>
+        <div style="flex:1"><div class="t">Games &amp; fun</div><div class="s">Word Scramble, Dad Jokes &amp; more</div></div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--fg3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+    <div class="navwrap">
+      <div class="fabrow"><div class="fab"><span class="b">3</span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg></div></div>
+      <div class="nav" style="padding:14px 4px">
+        <div class="i active"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a2 2 0 01-2 2h-4v-7h-6v7H5a2 2 0 01-2-2v-9z"/></svg><span class="ndot"></span></div>
+        <div class="i"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h13a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 12h4M3 9h17"/></svg></div>
+        <div class="add"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="i"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-5a2 2 0 012-1.5h7a2 2 0 012 1.5L19 13M5 13h14M5 13v5h2v-2h10v2h2v-5"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg></div>
+        <div class="i"><svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  const tpl = document.getElementById('tpl').content;
+  const stage = document.getElementById('stage');
+  [['Light · cream',''],['Dark · navy','dark']].forEach(([label, cls]) => {
+    const col = document.createElement('div'); col.className='col';
+    const cap = document.createElement('div'); cap.className='cap'; cap.innerHTML = '<b>'+label+'</b>';
+    const phone = tpl.cloneNode(true).querySelector('.phone');
+    phone.classList.add('hm'); if(cls) phone.classList.add(cls);
+    col.appendChild(cap); col.appendChild(phone); stage.appendChild(col);
+  });
+</script>

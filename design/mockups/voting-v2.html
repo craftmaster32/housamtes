@@ -1,0 +1,103 @@
+<title>Voting v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;font-family:'Inter',-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:760px;margin:0 auto 22px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px}
+  .stage{display:flex;gap:38px;justify-content:center;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#7a8494}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.07);--fg1:#0F172A;--fg2:#64748B;--fg3:#98A2B3;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.1);--pos:#2F8550;--pos-tint:rgba(47,133,80,.14);--neg:#B84540;--neg-tint:rgba(184,69,64,.12)}
+  .hm.dark{--bg:#0A0F1B;--surface:#141C2C;--surface2:#1E2840;--border:rgba(255,255,255,.07);--fg1:#EEF2F8;--fg2:#8A95AA;--fg3:#5A6479;--primary:#4E82D4;--primary-tint:rgba(78,130,212,.16);--pos:#4FB071;--pos-tint:rgba(79,176,113,.16);--neg:#E5645F;--neg-tint:rgba(229,100,95,.16)}
+  .phone{width:344px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:56px 18px 22px}
+  .title{font-size:24px;font-weight:800;letter-spacing:-.6px}
+  .sub{font-size:13px;color:var(--fg2);font-weight:500;margin:2px 0 16px}
+  .add{display:flex;align-items:center;justify-content:center;gap:7px;border:1.5px dashed color-mix(in srgb,var(--primary) 45%,transparent);border-radius:14px;padding:14px;color:var(--primary);font-weight:700;font-size:14px;margin-bottom:14px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:12px}
+  .ch{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+  .ct{flex:1}
+  .cn{font-size:15px;font-weight:800;letter-spacing:-.2px}
+  .cm{font-size:12px;color:var(--fg2);font-weight:500;margin-top:2px}
+  .badge{font-size:10px;font-weight:800;padding:3px 9px;border-radius:9999px;text-transform:uppercase;letter-spacing:.4px}
+  .badge.open{color:var(--primary);background:var(--primary-tint)}
+  .badge.pass{color:var(--pos);background:var(--pos-tint)}
+  .x{color:var(--fg3);margin-left:2px}
+  .desc{font-size:13px;color:var(--fg2);line-height:1.5;margin-bottom:12px}
+  .tally{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .tn{width:26px;text-align:center}
+  .tn .num{font-size:18px;font-weight:800;line-height:1}
+  .tn .lb{font-size:10px;font-weight:700;color:var(--fg2)}
+  .bar{flex:1;height:10px;border-radius:5px;overflow:hidden;display:flex;background:var(--border)}
+  .bar .y{background:var(--pos)}.bar .n{background:var(--neg)}
+  .meta{font-size:11.5px;color:var(--fg2);font-weight:500;margin-bottom:12px}
+  .voters{display:flex;flex-direction:column;gap:8px;margin-bottom:13px}
+  .vr{display:flex;align-items:center;justify-content:space-between}
+  .vname{font-size:13px;font-weight:600}
+  .vchip{font-size:10.5px;font-weight:800;padding:2px 9px;border-radius:9999px}
+  .vchip.y{color:var(--pos);background:var(--pos-tint)}
+  .vchip.n{color:var(--neg);background:var(--neg-tint)}
+  .vchip.w{color:var(--fg3);background:var(--surface2)}
+  .votebtns{display:flex;gap:9px}
+  .vb{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:11px;border-radius:9999px;border:1.6px solid;font-size:13px;font-weight:800}
+  .vb.yes{border-color:var(--pos);color:var(--pos)}
+  .vb.yes.on{background:var(--pos);color:#fff}
+  .vb.no{border-color:var(--neg);color:var(--neg)}
+  .past{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--fg2);font-size:13px;font-weight:600;padding:8px}
+  svg{display:block}
+</style>
+<div class="head"><h1>Voting — v2</h1><p>Line icons replace the ✕ / ▲▼ glyphs; tighter cards, clearer vote buttons.</p></div>
+<div class="stage" id="stage"></div>
+<template id="tpl">
+  <div class="scr">
+    <div class="title">House votes</div>
+    <div class="sub">Decide things together — majority rules.</div>
+    <div class="add"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New proposal</div>
+
+    <div class="card">
+      <div class="ch">
+        <div class="ct"><div class="cn">Buy a new vacuum</div><div class="cm">Alex · 2 days ago</div></div>
+        <span class="badge open">Open</span>
+        <svg class="x" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </div>
+      <div class="desc">The old one broke. Splitting ₪300 three ways = ₪100 each.</div>
+      <div class="tally">
+        <div class="tn"><div class="num" style="color:var(--pos)">2</div><div class="lb">Yes</div></div>
+        <div class="bar"><i class="y" style="flex:2"></i><i class="n" style="flex:1"></i></div>
+        <div class="tn"><div class="num" style="color:var(--neg)">1</div><div class="lb">No</div></div>
+      </div>
+      <div class="meta">3 of 3 housemates voted</div>
+      <div class="voters">
+        <div class="vr"><span class="vname">Alex</span><span class="vchip y">Yes</span></div>
+        <div class="vr"><span class="vname">Sam</span><span class="vchip y">Yes</span></div>
+        <div class="vr"><span class="vname">Jordan</span><span class="vchip n">No</span></div>
+      </div>
+      <div class="votebtns">
+        <div class="vb yes on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>Yes</div>
+        <div class="vb no"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>No</div>
+      </div>
+    </div>
+
+    <div class="card" style="opacity:.72">
+      <div class="ch">
+        <div class="ct"><div class="cn">Quiet hours after 11pm</div><div class="cm">Sam · last week</div></div>
+        <span class="badge pass">Passed</span>
+      </div>
+      <div class="tally">
+        <div class="tn"><div class="num" style="color:var(--pos)">3</div><div class="lb">Yes</div></div>
+        <div class="bar"><i class="y" style="flex:1"></i></div>
+        <div class="tn"><div class="num" style="color:var(--neg)">0</div><div class="lb">No</div></div>
+      </div>
+    </div>
+
+    <div class="past"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>Past votes (4)</div>
+  </div>
+</template>
+<script>
+  const s=document.getElementById('stage'),t=document.getElementById('tpl');
+  [['Light',''],['Dark','dark']].forEach(([l,c])=>{const col=document.createElement('div');col.className='col';const cap=document.createElement('div');cap.className='cap';cap.textContent=l;const p=document.createElement('div');p.className='phone hm'+(c?' '+c:'');p.innerHTML='<div class="notch"></div>'+t.innerHTML;col.appendChild(cap);col.appendChild(p);s.appendChild(col);});
+</script>

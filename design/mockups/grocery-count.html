@@ -1,0 +1,97 @@
+<title>Grocery — buy multiples flow</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:28px 20px}
+  .note{max-width:600px;margin:0 auto 20px;text-align:center;color:#5d6b7e;font-size:14px;line-height:1.55}
+  .note b{color:#1b2431}
+  .stage{display:flex;gap:40px;justify-content:center;flex-wrap:wrap}
+  .cap{text-align:center;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#7a8494;margin-bottom:10px}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.08);--fg1:#0F172A;--fg2:#64748B;--fg3:#94A3B8;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.12);--success:#2F8550;--success-tint:rgba(47,133,80,.14)}
+  .hm.dark{--bg:#0A0F1B;--surface:#151D2E;--surface2:#1F2940;--border:rgba(255,255,255,.08);--fg1:#EEF2F8;--fg2:#8A95AA;--fg3:#586279;--primary:#4E82D4;--primary-tint:rgba(78,130,212,.18);--success:#4FB071;--success-tint:rgba(79,176,113,.18)}
+  .phone{width:352px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.2),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:58px 18px 24px}
+  .title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:16px}
+
+  .item{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--border)}
+  .ck{width:26px;height:26px;border-radius:8px;border:1.8px solid var(--border);flex:none;display:flex;align-items:center;justify-content:center}
+  .ck.on{background:var(--success);border-color:var(--success)}
+  .body{flex:1;min-width:0}
+  .nm{font-size:15.5px;font-weight:600}.nm.done{color:var(--fg3);text-decoration:line-through}
+  .bar{height:5px;border-radius:3px;background:var(--surface2);margin-top:7px;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:3px;background:var(--success)}
+  .sub{font-size:11.5px;color:var(--fg2);margin-top:5px;font-weight:600}
+  .sub b{color:var(--success)}
+  .av{width:24px;height:24px;border-radius:12px;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  /* stepper */
+  .step{display:flex;align-items:center;gap:2px;background:var(--surface2);border-radius:11px;padding:3px}
+  .sb{width:34px;height:34px;border-radius:9px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--primary);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+  .sb.off{color:var(--fg3);background:transparent;box-shadow:none}
+  .sc{min-width:44px;text-align:center;font-size:14px;font-weight:800}
+  .sc small{color:var(--fg3);font-weight:700}
+  svg{display:block}
+</style>
+
+<div class="note"><b>Buy-multiples flow.</b> A multi item shows a clear <b>−/+ stepper</b>, a <b>progress bar</b> and “<b>2 of 6 bought</b>”. Tap <b>+</b> each time you grab one; at the last one it <b>ticks itself off</b> and moves to done. <b>−</b> to undo. Plain items keep the normal tick.</div>
+
+<div class="stage">
+  <div><div class="cap">Light</div>
+  <div class="phone hm"><div class="notch"></div><div class="scr">
+    <div class="title">Groceries</div>
+    <!-- in progress -->
+    <div class="item">
+      <div class="body">
+        <div class="nm">Water</div>
+        <div class="bar"><i style="width:33%"></i></div>
+        <div class="sub"><b>2</b> of 6 bought</div>
+      </div>
+      <div class="step"><div class="sb">−</div><div class="sc">2<small>/6</small></div><div class="sb">+</div></div>
+    </div>
+    <!-- not started -->
+    <div class="item">
+      <div class="body">
+        <div class="nm">Yogurt</div>
+        <div class="sub" style="color:var(--fg3)">0 of 4 bought</div>
+      </div>
+      <div class="step"><div class="sb off">−</div><div class="sc">0<small>/4</small></div><div class="sb">+</div></div>
+    </div>
+    <!-- complete -->
+    <div class="item">
+      <div class="ck on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></div>
+      <div class="body"><div class="nm done">Eggs</div><div class="sub" style="color:var(--fg3)">12 of 12 — done</div></div>
+      <span class="av" style="background:#3B6FBF">A</span>
+    </div>
+    <!-- plain single item -->
+    <div class="item">
+      <div class="ck"></div>
+      <div class="body"><div class="nm">Milk <span style="font-size:12px;color:var(--fg2);font-weight:600;background:var(--surface2);padding:1px 7px;border-radius:8px">2 L</span></div></div>
+      <span class="av" style="background:#E0B24D">S</span>
+    </div>
+  </div></div>
+  </div>
+
+  <div><div class="cap">Dark</div>
+  <div class="phone hm dark"><div class="notch"></div><div class="scr">
+    <div class="title">Groceries</div>
+    <div class="item">
+      <div class="body">
+        <div class="nm">Water</div>
+        <div class="bar"><i style="width:83%"></i></div>
+        <div class="sub"><b>5</b> of 6 bought</div>
+      </div>
+      <div class="step"><div class="sb">−</div><div class="sc">5<small>/6</small></div><div class="sb">+</div></div>
+    </div>
+    <div class="item">
+      <div class="ck on"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></div>
+      <div class="body"><div class="nm done">Eggs</div><div class="sub" style="color:var(--fg3)">12 of 12 — done</div></div>
+      <span class="av" style="background:#9B7BFF">A</span>
+    </div>
+    <div class="item">
+      <div class="ck"></div>
+      <div class="body"><div class="nm">Milk <span style="font-size:12px;color:var(--fg2);font-weight:600;background:var(--surface2);padding:1px 7px;border-radius:8px">2 L</span></div></div>
+      <span class="av" style="background:#E0B24D">S</span>
+    </div>
+  </div></div>
+  </div>
+</div>

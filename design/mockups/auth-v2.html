@@ -1,0 +1,105 @@
+<title>Auth v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:860px;margin:0 auto 22px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px}
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;max-width:1200px;margin:0 auto}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#7a8494}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.07);--fg1:#0F172A;--fg2:#64748B;--fg3:#98A2B3;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.1)}
+  .phone{width:344px;border-radius:46px;position:relative;overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06);background:var(--bg);color:var(--fg1)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .ser{font-family:'Fraunces',Georgia,serif}
+  /* welcome */
+  .wtop{background:var(--primary);height:430px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;color:#fff}
+  .moon{position:absolute;top:54px;right:44px;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.28)}
+  .chip{width:72px;height:72px;border-radius:20px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;color:var(--primary)}
+  .appname{font-size:36px;font-weight:600;letter-spacing:-.5px;margin-top:16px}
+  .tag{font-size:15px;color:rgba(255,255,255,.75);margin-top:6px}
+  .skyline{position:absolute;bottom:0;left:0;right:0;height:64px;display:flex;align-items:flex-end;justify-content:center;gap:4px;opacity:.5}
+  .skyline i{background:rgba(255,255,255,.4);width:26px;border-radius:4px 4px 0 0;display:block}
+  .wcard{margin-top:-28px;position:relative;background:var(--surface);border-radius:28px 28px 0 0;padding:26px 22px 34px}
+  .wh{font-size:26px;font-weight:600;letter-spacing:-.3px}
+  .wb{font-size:15px;color:var(--fg2);line-height:1.5;margin:8px 0 18px}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--primary);color:#fff;font-weight:700;font-size:16px;padding:15px;border-radius:14px}
+  .link{text-align:center;font-size:16px;font-weight:700;margin-top:14px}
+  .terms{text-align:center;font-size:11px;color:var(--fg3);margin-top:14px}
+  /* intro */
+  .scr{padding:56px 22px 22px;height:720px;display:flex;flex-direction:column}
+  .skip{align-self:flex-end;font-size:14px;font-weight:700;color:var(--fg2)}
+  .slide{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px}
+  .icirc{width:120px;height:120px;border-radius:36px;background:var(--primary-tint);color:var(--primary);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+  .stitle{font-size:28px;font-weight:600;letter-spacing:-.4px}
+  .ssub{font-size:16px;font-weight:700;color:var(--primary)}
+  .sbody{font-size:15px;color:var(--fg2);line-height:1.55;max-width:280px}
+  .dots{display:flex;justify-content:center;gap:7px;margin:18px 0}
+  .dot{width:8px;height:8px;border-radius:4px;background:var(--border)}
+  .dot.on{width:22px;background:var(--primary)}
+  /* login */
+  .lwrap{padding:70px 22px 22px}
+  .ltitle{font-size:30px;font-weight:600;letter-spacing:-.4px}
+  .lsub{font-size:15px;color:var(--fg2);margin:6px 0 24px}
+  .field{margin-bottom:14px}
+  .flabel{font-size:12px;font-weight:800;color:var(--fg2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+  .inp{display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:14px}
+  .inp .ph{flex:1;color:var(--fg3);font-size:15px}
+  .inp .eye{color:var(--fg3)}
+  .forgot{text-align:right;font-size:13px;font-weight:700;color:var(--primary);margin-top:2px}
+  svg{display:block}
+</style>
+<div class="head"><h1>Auth &amp; onboarding — v2</h1><p>Fraunces wordmark &amp; headings; onboarding emoji (🏠💰🚗) → line icons. Every field, toggle &amp; button kept.</p></div>
+<div class="stage" id="stage"></div>
+
+<template id="welcome">
+  <div class="wtop">
+    <div class="moon"></div>
+    <div class="chip"><svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-2v9h-5v-6h-4v6H5v-9H3z"/></svg></div>
+    <div class="appname ser">HouseMates</div>
+    <div class="tag">Life with housemates, sorted.</div>
+    <div class="skyline"><i style="height:34px"></i><i style="height:52px"></i><i style="height:26px"></i><i style="height:44px"></i><i style="height:36px"></i><i style="height:56px"></i><i style="height:30px"></i></div>
+  </div>
+  <div class="wcard">
+    <div class="wh ser">Share the load, not the drama.</div>
+    <div class="wb">Bills, parking, chores and groceries — all in one place your whole house can see.</div>
+    <div class="btn">Get started<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    <div class="link">Log in</div>
+    <div class="terms">By continuing you agree to our Terms &amp; Privacy Policy.</div>
+  </div>
+</template>
+
+<template id="intro">
+  <div class="scr">
+    <div class="skip">Skip</div>
+    <div class="slide">
+      <div class="icirc"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a2 2 0 01-2 2h-4v-7h-6v7H5a2 2 0 01-2-2v-9z"/></svg></div>
+      <div class="stitle ser">One home base</div>
+      <div class="ssub">Everything in one app</div>
+      <div class="sbody">No more scattered group chats and sticky notes — your house lives here.</div>
+    </div>
+    <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div>
+    <div class="btn">Next<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+  </div>
+</template>
+
+<template id="login">
+  <div class="lwrap">
+    <div class="ltitle ser">Welcome back</div>
+    <div class="lsub">Log in to your house.</div>
+    <div class="field"><div class="flabel">Email</div><div class="inp"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--fg3)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span class="ph">you@email.com</span></div></div>
+    <div class="field"><div class="flabel">Password</div><div class="inp"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--fg3)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><span class="ph">••••••••</span><svg class="eye" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="forgot">Forgot password?</div></div>
+    <div class="btn" style="margin-top:8px">Log in</div>
+  </div>
+</template>
+
+<script>
+  const s=document.getElementById('stage');
+  function ph(id,cap){const col=document.createElement('div');col.className='col';const c=document.createElement('div');c.className='cap';c.textContent=cap;const p=document.createElement('div');p.className='phone hm';p.innerHTML='<div class="notch"></div>'+document.getElementById(id).innerHTML;col.appendChild(c);col.appendChild(p);s.appendChild(col);}
+  ph('welcome','Welcome');
+  ph('intro','Onboarding slide');
+  ph('login','Log in');
+</script>
