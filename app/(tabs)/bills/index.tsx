@@ -566,55 +566,58 @@ export default function BillsScreen(): React.JSX.Element {
               <Ionicons name={showSettle ? 'chevron-up' : 'chevron-down'} size={18} color="#fff" />
             </Pressable>
 
-            {showSettle &&
-              settlements.map((s, idx) => {
-                const fromIsMe = s.from === myId;
-                const toIsMe = s.to === myId;
-                const fromName = memberName(s.from).split(' ')[0];
-                const toName = memberName(s.to).split(' ')[0];
-                const amtColor = toIsMe
-                  ? '#8FE0AC'
-                  : fromIsMe
-                    ? '#FF8478'
-                    : 'rgba(255,255,255,0.92)';
-                return (
-                  <View key={idx} style={styles.settleXfer}>
-                    {fromIsMe ? (
-                      <View style={styles.youPill}>
-                        <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
-                      </View>
-                    ) : (
-                      <>
-                        <SettleAvatar name={fromName} uri={avatarById.get(s.from)} />
-                        <Text style={styles.settleXferName} numberOfLines={1}>
-                          {fromName}
-                        </Text>
-                      </>
-                    )}
-                    <Ionicons
-                      name={billsRtl ? 'arrow-back' : 'arrow-forward'}
-                      size={14}
-                      color="rgba(255,255,255,0.55)"
-                      style={styles.settleXferArrow}
-                    />
-                    {toIsMe ? (
-                      <View style={styles.youPill}>
-                        <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
-                      </View>
-                    ) : (
-                      <>
-                        <SettleAvatar name={toName} uri={avatarById.get(s.to)} />
-                        <Text style={styles.settleXferName} numberOfLines={1}>
-                          {toName}
-                        </Text>
-                      </>
-                    )}
-                    <Text style={[styles.settleXferAmt, { color: amtColor }]}>
-                      {formatFull(s.amount, currencyCode)}
-                    </Text>
-                  </View>
-                );
-              })}
+            {showSettle && (
+              <View style={styles.settleRows}>
+                {settlements.map((s, idx) => {
+                  const fromIsMe = s.from === myId;
+                  const toIsMe = s.to === myId;
+                  const fromName = memberName(s.from).split(' ')[0];
+                  const toName = memberName(s.to).split(' ')[0];
+                  const amtColor = toIsMe
+                    ? '#8FE0AC'
+                    : fromIsMe
+                      ? '#FF8478'
+                      : 'rgba(255,255,255,0.92)';
+                  return (
+                    <View key={idx} style={styles.settleXfer}>
+                      {fromIsMe ? (
+                        <View style={styles.youPill}>
+                          <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
+                        </View>
+                      ) : (
+                        <>
+                          <SettleAvatar name={fromName} uri={avatarById.get(s.from)} />
+                          <Text style={styles.settleXferName} numberOfLines={1}>
+                            {fromName}
+                          </Text>
+                        </>
+                      )}
+                      <Ionicons
+                        name={billsRtl ? 'arrow-back' : 'arrow-forward'}
+                        size={14}
+                        color="rgba(255,255,255,0.55)"
+                        style={styles.settleXferArrow}
+                      />
+                      {toIsMe ? (
+                        <View style={styles.youPill}>
+                          <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
+                        </View>
+                      ) : (
+                        <>
+                          <SettleAvatar name={toName} uri={avatarById.get(s.to)} />
+                          <Text style={styles.settleXferName} numberOfLines={1}>
+                            {toName}
+                          </Text>
+                        </>
+                      )}
+                      <Text style={[styles.settleXferAmt, { color: amtColor }]}>
+                        {formatFull(s.amount, currencyCode)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
         )}
       </LinearGradient>
@@ -796,13 +799,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Settle section — one smooth lighter panel flush to the card's bottom edge.
-  // The amount and the panel are separated by a colour change, not a hard line.
+  // Settle section flush to the card's bottom edge. The "Settle up" header
+  // stays on the gradient (same colour as the amount above); only the expanded
+  // transfer rows sit on a lighter tint, so the data reads as its own panel.
   settlePanel: {
     marginTop: 16,
     marginHorizontal: -20,
     marginBottom: -20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   settleStrip: {
     flexDirection: 'row',
@@ -811,6 +814,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 13,
   },
+  settleRows: { backgroundColor: 'rgba(255,255,255,0.1)' },
   settleStripIcon: {
     width: 30,
     height: 30,
