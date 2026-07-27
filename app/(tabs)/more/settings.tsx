@@ -235,6 +235,10 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const currency = useSettingsStore((s) => s.currency);
   const setCurrency = useSettingsStore((s) => s.setCurrency);
+  const currentCurrencyLabel =
+    CURRENCIES.find((c) => c.symbol === currency)
+      ?.label.split('(')[0]
+      .trim() ?? currency;
 
   const calConnected = useCalendarSyncStore((s) => s.connected);
   const calAutoSync = useCalendarSyncStore((s) => s.autoSync);
@@ -246,6 +250,7 @@ export default function SettingsScreen(): React.JSX.Element {
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showDebtModal, setShowDebtModal] = useState(false);
   const [showTimezoneModal, setShowTimezoneModal] = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [savingTimezone, setSavingTimezone] = useState(false);
   const [tzQuery, setTzQuery] = useState('');
   const filteredTimezones = useMemo(() => {
@@ -454,33 +459,13 @@ export default function SettingsScreen(): React.JSX.Element {
 
           {/* Currency */}
           <SectionDivider label={t('settings.currency_section')} />
-          <View style={[styles.menuGroup, styles.currencyGroup]}>
-            {CURRENCIES.map((c) => (
-              <Pressable
-                key={c.symbol}
-                style={[styles.currencyChip, currency === c.symbol && styles.currencyChipActive]}
-                onPress={() => setCurrency(c.symbol)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: currency === c.symbol }}
-              >
-                <Text
-                  style={[
-                    styles.currencySymbol,
-                    currency === c.symbol && styles.currencySymbolActive,
-                  ]}
-                >
-                  {c.symbol}
-                </Text>
-                <Text
-                  style={[
-                    styles.currencyLabel,
-                    currency === c.symbol && styles.currencyLabelActive,
-                  ]}
-                >
-                  {c.label.split('(')[0].trim()}
-                </Text>
-              </Pressable>
-            ))}
+          <View style={styles.menuGroup}>
+            <MenuItem
+              icon="cash-outline"
+              label={t('settings.currency_section')}
+              rightText={`${currency}  ${currentCurrencyLabel}`}
+              onPress={() => setShowCurrencyModal(true)}
+            />
           </View>
 
           {/* House */}
@@ -743,6 +728,70 @@ export default function SettingsScreen(): React.JSX.Element {
                   accessibilityRole="button"
                 >
                   <Text style={styles.modalBtnCancelText}>{t('common.close')}</Text>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          </Modal>
+
+          {/* Currency picker sheet */}
+          <Modal
+            visible={showCurrencyModal}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowCurrencyModal(false)}
+          >
+            <Pressable style={styles.modalBackdrop} onPress={() => setShowCurrencyModal(false)}>
+              <Pressable style={styles.tzModalBox} onPress={() => {}}>
+                <View style={styles.tzHandle} />
+                <Text style={[styles.modalTitle, headingFont]}>{t('settings.currency_pick')}</Text>
+                <ScrollView style={styles.tzModalList} showsVerticalScrollIndicator={false}>
+                  {CURRENCIES.map((cur, idx) => {
+                    const selected = cur.symbol === currency;
+                    return (
+                      <View key={cur.symbol}>
+                        {idx > 0 && <View style={styles.rowDivider} />}
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.tzOption,
+                            pressed && styles.menuItemPressed,
+                          ]}
+                          onPress={() => {
+                            setCurrency(cur.symbol);
+                            setShowCurrencyModal(false);
+                          }}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: selected }}
+                        >
+                          <Text
+                            style={[
+                              styles.currencyGlyphLg,
+                              { color: selected ? C.primary : C.textSecondary },
+                            ]}
+                          >
+                            {cur.symbol}
+                          </Text>
+                          <View style={styles.menuText}>
+                            <Text
+                              style={[
+                                styles.menuLabel,
+                                selected && { color: C.primary, ...font.bold },
+                              ]}
+                            >
+                              {cur.label.split('(')[0].trim()}
+                            </Text>
+                          </View>
+                          {selected && <Ionicons name="checkmark" size={20} color={C.primary} />}
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+                <Pressable
+                  style={styles.modalBtnCancel}
+                  onPress={() => setShowCurrencyModal(false)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.modalBtnCancelText}>{t('common.done')}</Text>
                 </Pressable>
               </Pressable>
             </Pressable>
@@ -1144,31 +1193,12 @@ function makeStyles(C: ColorTokens) {
       color: C.textSecondary,
       marginStart: 4,
     },
-    currencyGroup: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      padding: sizes.md,
+    currencyGlyphLg: {
+      width: 30,
+      textAlign: 'center',
+      fontSize: 18,
+      ...font.bold,
     },
-    currencyChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 10,
-      borderWidth: 1.5,
-      borderColor: C.border,
-      backgroundColor: C.background,
-    },
-    currencyChipActive: {
-      borderColor: C.primary,
-      backgroundColor: C.primary + '12',
-    },
-    currencySymbol: { fontSize: 16, ...font.bold, color: C.textSecondary },
-    currencySymbolActive: { color: C.primary },
-    currencyLabel: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    currencyLabelActive: { color: C.primary },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.45)',
