@@ -1,14 +1,5 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Platform,
-  Animated,
-  Alert,
-  Modal,
-} from 'react-native';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Platform, Alert, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from 'react-native-paper';
@@ -320,10 +311,6 @@ export default function HousematesScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const handleCopy = useCallback(() => {
     if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
@@ -345,7 +332,7 @@ export default function HousematesScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={[styles.heading, headingFont]}>{t('housemates.title')}</Text>
           {!!houseName && <Text style={styles.houseName}>{houseName}</Text>}
@@ -549,7 +536,7 @@ export default function HousematesScreen(): React.JSX.Element {
             </Pressable>
           </Pressable>
         </Modal>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
