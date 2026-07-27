@@ -8,7 +8,6 @@ import {
   Platform,
   SectionList,
   ActivityIndicator,
-  Animated,
   BackHandler,
   type ViewStyle,
 } from 'react-native';
@@ -538,11 +537,6 @@ export default function GroceryScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   // Restore persisted add-mode preference. Depends on draftEnabled so it
   // re-applies correctly if the feature flag hydrates after mount.
@@ -1193,7 +1187,7 @@ export default function GroceryScreen(): React.JSX.Element {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <SafeAreaView style={styles.root} edges={['top']}>
-          <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+          <View style={styles.flex}>
             {checked.length > 0 && (
               <Pressable
                 style={styles.clearBar}
@@ -1510,7 +1504,7 @@ export default function GroceryScreen(): React.JSX.Element {
                 </View>
               }
             />
-          </Animated.View>
+          </View>
 
           <View style={styles.reminderPromptOverlay} pointerEvents="box-none">
             <ReminderPromptBanner
