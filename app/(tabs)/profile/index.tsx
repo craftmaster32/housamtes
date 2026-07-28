@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Platform,
   Modal,
-  Animated,
   type GestureResponderEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -678,10 +677,6 @@ export default function ProfileScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const [showDetailsForm, setShowDetailsForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -941,7 +936,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* ── Profile header ──────────────────────────────────────────── */}
           <View style={styles.profileHeader}>
@@ -1247,7 +1242,7 @@ export default function ProfileScreen(): React.JSX.Element {
             <Text style={styles.version}>{t('profile.footer')}</Text>
           </View>
         </ScrollView>
-      </Animated.View>
+      </View>
 
       {/* ── Crop editor modal (web only) ────────────────────────── */}
       <Modal visible={cropSource !== null} transparent animationType="fade">

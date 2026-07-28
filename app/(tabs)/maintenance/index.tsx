@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -73,10 +73,6 @@ export default function MaintenanceScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const open = requests.filter((r) => r.status !== 'resolved');
   const resolved = requests.filter((r) => r.status === 'resolved');
@@ -94,7 +90,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll}>
           {!!error && (
             <View style={styles.errorBanner}>
@@ -162,7 +158,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
             </>
           )}
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

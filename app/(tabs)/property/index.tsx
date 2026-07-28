@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -18,18 +18,13 @@ export default function PropertyScreen(): React.JSX.Element {
   const headingFont = useHeadingFont();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ActiveTab>('issues');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const switchToIssues = useCallback(() => setActiveTab('issues'), []);
   const switchToCondition = useCallback(() => setActiveTab('condition'), []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <View style={styles.header}>
           <Text style={[styles.heading, headingFont]}>{t('nav.property')}</Text>
           <View style={styles.segmented}>
@@ -65,7 +60,7 @@ export default function PropertyScreen(): React.JSX.Element {
         </View>
 
         {activeTab === 'issues' ? <IssuesTab /> : <ConditionTab />}
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

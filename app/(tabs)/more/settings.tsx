@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,7 +7,6 @@ import {
   Switch,
   Modal,
   Platform,
-  Animated,
   TextInput,
   type ViewStyle,
 } from 'react-native';
@@ -276,10 +275,6 @@ export default function SettingsScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const handleEnableWebPush = useCallback(async (): Promise<void> => {
     if (!user?.id || !houseId) return;
@@ -441,7 +436,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <Pressable
           style={styles.backBtn}
           onPress={() => (from === 'profile' ? router.push('/(tabs)/profile') : router.back())}
@@ -1081,7 +1076,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
           <Text style={styles.footer}>{t('settings.footer')}</Text>
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
