@@ -601,7 +601,7 @@
     "claim": "Claim it",
     "release": "Release spot",
     "reservations": "Reservations",
-    "reserve": "+ Reserve",
+    "reserve": "Reserve",
     "date_placeholder": "Date (YYYY-MM-DD)",
     "conflict_warning": "⚠️",
     "note_placeholder": "e.g. expecting a delivery",

@@ -89,15 +89,14 @@ function Header(): React.JSX.Element {
   const headingFont = useHeadingFont();
   const profile = useAuthStore((s) => s.profile);
   const houseName = useHousematesStore((s) => s.houseName);
-  const events = useEventsStore((s) => s.events);
+  const announcements = useAnnouncementsStore((s) => s.items);
   const openProfile = useProfilePopupStore((s) => s.open);
   // The dashboard avatar sits on the leading edge, so anchor the menu there.
   const handleOpenProfile = useCallback((): void => openProfile('start'), [openProfile]);
 
   const myName = profile?.name ?? 'there';
   const initials = myName.charAt(0).toUpperCase();
-  const today = todayYMD();
-  const todaysEvents = events.filter((e) => e.date === today).length;
+  const activityCount = announcements.length;
 
   return (
     <View style={styles.header}>
@@ -143,17 +142,17 @@ function Header(): React.JSX.Element {
           { backgroundColor: c.surface, borderColor: c.border },
           pressed && styles.pressed,
         ]}
-        onPress={() => router.push('/(tabs)/calendar')}
+        onPress={() => router.push('/(tabs)/notes')}
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         accessibilityRole="button"
-        accessibilityLabel={t('nav.calendar')}
+        accessibilityLabel={t('nav.notes')}
       >
         <Ionicons name="notifications-outline" size={20} color={c.textPrimary} />
-        {todaysEvents > 0 && (
+        {activityCount > 0 && (
           <View
             style={[styles.bellBadge, { backgroundColor: c.danger, borderColor: c.background }]}
           >
-            <Text style={styles.bellBadgeText}>{todaysEvents > 9 ? '9+' : todaysEvents}</Text>
+            <Text style={styles.bellBadgeText}>{activityCount > 9 ? '9+' : activityCount}</Text>
           </View>
         )}
       </Pressable>

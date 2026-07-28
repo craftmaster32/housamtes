@@ -601,7 +601,7 @@
     "claim": "Ocupar",
     "release": "Liberar plaza",
     "reservations": "Reservas",
-    "reserve": "+ Reservar",
+    "reserve": "Reservar",
     "date_placeholder": "Fecha (YYYY-MM-DD)",
     "conflict_warning": "⚠️",
     "note_placeholder": "ej. espero una entrega",
