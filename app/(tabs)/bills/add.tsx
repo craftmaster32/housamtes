@@ -463,8 +463,11 @@ export default function AddBillScreen(): React.JSX.Element {
                 accessibilityLabel={t('bills.custom_amounts')}
                 accessibilityState={{ selected: splitType === 'custom' }}
               >
-                <Text style={[styles.segText, splitType === 'custom' && styles.segTextOn]}>
-                  {t('bills.custom_amounts')}
+                <Text
+                  style={[styles.segText, splitType === 'custom' && styles.segTextOn]}
+                  numberOfLines={1}
+                >
+                  {t('bills.custom_short')}
                 </Text>
               </Pressable>
               <Pressable
@@ -827,15 +830,15 @@ const makeStyles = (C: ColorTokens) =>
       borderRadius: 9,
     },
     segItemOn: {
-      backgroundColor: C.surface,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 3,
-      elevation: 1,
+      backgroundColor: C.primary,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.28,
+      shadowRadius: 6,
+      elevation: 2,
     },
     segText: { fontSize: 13, ...font.semibold, color: C.textSecondary },
-    segTextOn: { color: C.primary },
+    segTextOn: { color: '#fff' },
 
     previewBox: {
       backgroundColor: C.primaryTint,
