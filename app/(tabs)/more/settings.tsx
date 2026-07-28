@@ -504,6 +504,24 @@ export default function SettingsScreen(): React.JSX.Element {
               sub={t('common.person', { count: housemates.length })}
               onPress={() => router.push('/(tabs)/bills/setup')}
             />
+            {(myRole === 'owner' || myRole === 'admin') && (
+              <>
+                <RowDivider />
+                <MenuItem
+                  icon="pricetag-outline"
+                  label={t('settings.expense_categories')}
+                  sub={t('settings.expense_categories_sub')}
+                  onPress={() => router.push('/(tabs)/settings/categories')}
+                />
+                <RowDivider />
+                <MenuItem
+                  icon="people-circle-outline"
+                  label={t('settings.member_permissions')}
+                  sub={t('settings.member_permissions_sub')}
+                  onPress={() => router.push('/(tabs)/settings/members')}
+                />
+              </>
+            )}
             <RowDivider />
             <Pressable
               style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}

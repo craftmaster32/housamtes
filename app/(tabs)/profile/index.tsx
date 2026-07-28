@@ -658,7 +658,6 @@ export default function ProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
-  const role = useAuthStore((s) => s.role);
   const signOut = useAuthStore((s) => s.signOut);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const houseId = useAuthStore((s) => s.houseId);
@@ -693,7 +692,6 @@ export default function ProfileScreen(): React.JSX.Element {
   }, [houseId, loadBills]);
 
   const initial = (profile?.name ?? '?')[0].toUpperCase();
-  const isOwnerOrAdmin = role === 'owner' || role === 'admin';
 
   // Top 4 expense categories from current month
   const topCategories = months[0]?.categories.slice(0, 4) ?? [];
@@ -1021,19 +1019,19 @@ export default function ProfileScreen(): React.JSX.Element {
             {/* ── Quick actions ──────────────────────────────────────────── */}
             <View style={styles.quickRow}>
               <QuickAction
+                icon="stats-chart-outline"
+                label="Spending"
+                onPress={() => router.push('/(tabs)/profile/spending')}
+              />
+              <QuickAction
                 icon="card-outline"
                 label="Payment"
                 onPress={() => router.push('/(tabs)/bills/setup')}
               />
               <QuickAction
-                icon="notifications-outline"
-                label="Alerts"
-                onPress={() => router.push('/(tabs)/settings/notifications')}
-              />
-              <QuickAction
-                icon="shield-outline"
-                label="Privacy"
-                onPress={() => router.push('/(tabs)/settings/privacy-policy')}
+                icon="person-outline"
+                label="Details"
+                onPress={() => setShowDetailsForm((v) => !v)}
               />
             </View>
 
@@ -1159,27 +1157,8 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             </View>
 
-            {/* ── Owner tools ────────────────────────────────────────────── */}
-            {isOwnerOrAdmin && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>House management</Text>
-                <View style={styles.card}>
-                  <ProfileRow
-                    iconName="pricetag-outline"
-                    title="Expense categories"
-                    sub="Add or edit spending categories"
-                    onPress={() => router.push('/(tabs)/settings/categories')}
-                  />
-                  <View style={styles.rowDivider} />
-                  <ProfileRow
-                    iconName="people-outline"
-                    title="Member permissions"
-                    sub="Control what each housemate can see"
-                    onPress={() => router.push('/(tabs)/settings/members')}
-                  />
-                </View>
-              </View>
-            )}
+            {/* House management (categories, member permissions) now lives in
+                Settings so Profile stays personal. */}
 
             {/* ── Recent activity ────────────────────────────────────────── */}
             {(todayBills.length > 0 || yesterdayBills.length > 0) && (
