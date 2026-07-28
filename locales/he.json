@@ -1,4 +1,13 @@
 {
+  "activity": {
+    "title": "פעילות",
+    "empty": "אין חדש עדיין",
+    "added_expense": "הוסיף/ה הוצאה",
+    "added_grocery": "הוסיף/ה לרשימת הקניות",
+    "posted_note": "פרסם/ה פתק",
+    "added_task": "הוסיף/ה משימה",
+    "started_vote": "פתח/ה הצבעה"
+  },
   "common": {
     "cancel": "ביטול",
     "save": "שמור",

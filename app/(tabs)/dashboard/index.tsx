@@ -46,6 +46,9 @@ import { isRTL } from '@lib/i18n';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useBadgeStore } from '@stores/badgeStore';
+import { useHouseActivity } from '@hooks/useHouseActivity';
+import { ActivityPopup } from '@components/dashboard/ActivityPopup';
 
 // The parking tile stays a deep slate in both themes — a deliberate anchor on
 // the home grid. A soft top-to-bottom gradient (rather than a flat fill) gives
@@ -89,74 +92,91 @@ function Header(): React.JSX.Element {
   const headingFont = useHeadingFont();
   const profile = useAuthStore((s) => s.profile);
   const houseName = useHousematesStore((s) => s.houseName);
-  const announcements = useAnnouncementsStore((s) => s.items);
   const openProfile = useProfilePopupStore((s) => s.open);
   // The dashboard avatar sits on the leading edge, so anchor the menu there.
   const handleOpenProfile = useCallback((): void => openProfile('start'), [openProfile]);
 
+  const activity = useHouseActivity();
+  const lastSeenActivity = useBadgeStore((s) => s.lastSeen.activity);
+  const markActivitySeen = useBadgeStore((s) => s.markSeen);
+  const [showActivity, setShowActivity] = useState(false);
   const myName = profile?.name ?? 'there';
+  const myId = profile?.id ?? '';
   const initials = myName.charAt(0).toUpperCase();
-  const activityCount = announcements.length;
+  const newActivity = activity.filter(
+    (e) => e.createdAt > lastSeenActivity && e.actorId !== myId
+  ).length;
+  const openActivity = useCallback((): void => {
+    setShowActivity(true);
+    markActivitySeen('activity').catch(() => {});
+  }, [markActivitySeen]);
 
   return (
-    <View style={styles.header}>
-      <Pressable
-        style={({ pressed }) => [
-          styles.avatar,
-          {
-            backgroundColor: profile?.avatarUrl
-              ? 'transparent'
-              : (profile?.avatarColor ?? c.primary),
-          },
-          pressed && styles.pressed,
-        ]}
-        onPress={handleOpenProfile}
-        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-        accessibilityRole="button"
-        accessibilityLabel={t('dashboard.open_profile')}
-      >
-        {profile?.avatarUrl ? (
-          <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
-        ) : (
-          <Text style={styles.avatarText}>{initials}</Text>
-        )}
-      </Pressable>
-
-      <View style={styles.headerText}>
-        {houseName ? (
-          <Text style={[styles.headerHouse, { color: c.textSecondary }]} numberOfLines={1}>
-            {houseName}
-          </Text>
-        ) : null}
-        <Text
-          style={[styles.headerGreeting, headingFont, { color: c.textPrimary }]}
-          numberOfLines={1}
+    <>
+      <View style={styles.header}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.avatar,
+            {
+              backgroundColor: profile?.avatarUrl
+                ? 'transparent'
+                : (profile?.avatarColor ?? c.primary),
+            },
+            pressed && styles.pressed,
+          ]}
+          onPress={handleOpenProfile}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('dashboard.open_profile')}
         >
-          {greetingText(myName, t)}
-        </Text>
-      </View>
+          {profile?.avatarUrl ? (
+            <Image
+              source={{ uri: profile.avatarUrl }}
+              style={styles.avatarImg}
+              contentFit="cover"
+            />
+          ) : (
+            <Text style={styles.avatarText}>{initials}</Text>
+          )}
+        </Pressable>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.bell,
-          { backgroundColor: c.surface, borderColor: c.border },
-          pressed && styles.pressed,
-        ]}
-        onPress={() => router.push('/(tabs)/notes')}
-        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-        accessibilityRole="button"
-        accessibilityLabel={t('nav.notes')}
-      >
-        <Ionicons name="notifications-outline" size={20} color={c.textPrimary} />
-        {activityCount > 0 && (
-          <View
-            style={[styles.bellBadge, { backgroundColor: c.danger, borderColor: c.background }]}
+        <View style={styles.headerText}>
+          {houseName ? (
+            <Text style={[styles.headerHouse, { color: c.textSecondary }]} numberOfLines={1}>
+              {houseName}
+            </Text>
+          ) : null}
+          <Text
+            style={[styles.headerGreeting, headingFont, { color: c.textPrimary }]}
+            numberOfLines={1}
           >
-            <Text style={styles.bellBadgeText}>{activityCount > 9 ? '9+' : activityCount}</Text>
-          </View>
-        )}
-      </Pressable>
-    </View>
+            {greetingText(myName, t)}
+          </Text>
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.bell,
+            { backgroundColor: c.surface, borderColor: c.border },
+            pressed && styles.pressed,
+          ]}
+          onPress={openActivity}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('activity.title')}
+        >
+          <Ionicons name="notifications-outline" size={20} color={c.textPrimary} />
+          {newActivity > 0 && (
+            <View
+              style={[styles.bellBadge, { backgroundColor: c.danger, borderColor: c.background }]}
+            >
+              <Text style={styles.bellBadgeText}>{newActivity > 9 ? '9+' : newActivity}</Text>
+            </View>
+          )}
+        </Pressable>
+      </View>
+      <ActivityPopup visible={showActivity} onClose={() => setShowActivity(false)} />
+    </>
   );
 }
 

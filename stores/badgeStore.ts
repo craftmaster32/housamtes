@@ -12,7 +12,8 @@ export type BadgeFeature =
   | 'bills'
   | 'voting'
   | 'maintenance'
-  | 'announcements';
+  | 'announcements'
+  | 'activity';
 
 interface BadgeStore {
   lastSeen: Record<BadgeFeature, string>; // ISO timestamp
@@ -31,6 +32,7 @@ const defaultLastSeen = (): Record<BadgeFeature, string> => ({
   voting: EPOCH,
   maintenance: EPOCH,
   announcements: EPOCH,
+  activity: EPOCH,
 });
 
 export const useBadgeStore = create<BadgeStore>()(

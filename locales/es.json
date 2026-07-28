@@ -1,4 +1,13 @@
 {
+  "activity": {
+    "title": "Actividad",
+    "empty": "Nada nuevo aún",
+    "added_expense": "añadió un gasto",
+    "added_grocery": "añadió a la lista",
+    "posted_note": "publicó una nota",
+    "added_task": "añadió una tarea",
+    "started_vote": "inició una votación"
+  },
   "common": {
     "cancel": "Cancelar",
     "save": "Guardar",

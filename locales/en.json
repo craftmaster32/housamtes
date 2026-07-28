@@ -1,4 +1,13 @@
 {
+  "activity": {
+    "title": "Activity",
+    "empty": "Nothing new yet",
+    "added_expense": "added an expense",
+    "added_grocery": "added to the shopping list",
+    "posted_note": "posted a note",
+    "added_task": "added a task",
+    "started_vote": "started a vote"
+  },
   "common": {
     "cancel": "Cancel",
     "save": "Save",
