@@ -8,7 +8,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -335,10 +334,6 @@ export default function ChatScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   // Lazy-load: chat is not loaded at startup, load it when this screen opens
   useEffect(() => {
@@ -396,7 +391,7 @@ export default function ChatScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <View style={styles.header}>
           <Pressable
             onPress={() => router.back()}
@@ -486,7 +481,7 @@ export default function ChatScreen(): React.JSX.Element {
             </Pressable>
           </View>
         </KeyboardAvoidingView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
