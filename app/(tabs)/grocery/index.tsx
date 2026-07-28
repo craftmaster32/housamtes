@@ -491,6 +491,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const updateSavedList = useGroceryStore((s) => s.updateSavedList);
   const deleteSavedList = useGroceryStore((s) => s.deleteSavedList);
   const loadListIntoDraft = useGroceryStore((s) => s.loadListIntoDraft);
+  const reminders = useGroceryStore((s) => s.reminders);
   const fetchReminders = useGroceryStore((s) => s.fetchReminders);
   const createReminder = useGroceryStore((s) => s.createReminder);
 
@@ -787,6 +788,13 @@ export default function GroceryScreen(): React.JSX.Element {
   );
 
   // ── Reminder handlers ───────────────────────────────────────────────────────
+  const handleOpenGeneralReminder = useCallback((): void => {
+    dismissAddedItemPrompt();
+    setReminderListTarget(null);
+    setReminderDefaultLabel('');
+    setShowReminderModal(true);
+  }, [dismissAddedItemPrompt]);
+
   const handleOpenListReminder = useCallback(
     (list: GroceryList): void => {
       dismissAddedItemPrompt();
@@ -1199,11 +1207,28 @@ export default function GroceryScreen(): React.JSX.Element {
                 <View>
                   {/* ── Hero card ─────────────────────────────────────────── */}
                   <View style={styles.headerCard}>
-                    <View style={styles.headerCopy}>
-                      <Text style={[styles.titleHero, headingFont]}>
-                        {t('grocery.shared_groceries')}
-                      </Text>
-                      <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
+                    <View style={styles.headerTop}>
+                      <View style={styles.headerCopy}>
+                        <Text style={[styles.titleHero, headingFont]}>
+                          {t('grocery.shared_groceries')}
+                        </Text>
+                        <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
+                      </View>
+                      <Pressable
+                        style={styles.headerBell}
+                        onPress={handleOpenGeneralReminder}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('grocery.remind_me')}
+                      >
+                        <Ionicons name="alarm-outline" size={20} color={C.primary} />
+                        {reminders.length > 0 && (
+                          <View style={styles.headerBellBadge}>
+                            <Text style={styles.headerBellBadgeText}>
+                              {reminders.length > 9 ? '9+' : reminders.length}
+                            </Text>
+                          </View>
+                        )}
+                      </Pressable>
                     </View>
 
                     {/* ── "Add to" chooser: Shared | Personal | Draft ──── */}
@@ -1556,7 +1581,34 @@ function makeStyles(C: ColorTokens) {
       shadowRadius: 8,
       elevation: 2,
     },
-    headerCopy: { gap: 6 },
+    headerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+    headerCopy: { flex: 1, gap: 6 },
+    headerBell: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    headerBellBadge: {
+      position: 'absolute',
+      top: -3,
+      right: -3,
+      minWidth: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: C.warning,
+      borderWidth: 1.5,
+      borderColor: C.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    headerBellBadgeText: { fontSize: 9, ...font.bold, color: '#fff' },
 
     titleHero: {
       fontSize: 26,
