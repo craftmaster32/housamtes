@@ -170,7 +170,7 @@ function OverviewCard({
               />
               <Text style={[styles.overviewBadgeText, { color: isUp ? C.danger : C.positive }]}>
                 {fmtShort(Math.abs(primaryDiff), currency)}
-                {primaryPct !== null ? `  ${Math.abs(primaryPct)}%` : ''}
+                {primaryPct !== null ? ` · ${Math.abs(primaryPct)}%` : ''}
               </Text>
             </View>
           )}
@@ -857,7 +857,13 @@ function makeStyles(C: ColorTokens) {
     overviewMonth: { fontSize: 13, ...font.semibold, color: C.textSecondary },
     overviewRow: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.md },
     overviewBlock: { flex: 1, gap: 4 },
-    overviewLbl: { fontSize: 12, ...font.regular, color: C.textSecondary },
+    overviewLbl: {
+      fontSize: 11,
+      ...font.semibold,
+      color: C.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
     overviewAmt: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.6 },
     overviewBadge: {
       flexDirection: 'row',
