@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Animated,
   Modal,
   KeyboardAvoidingView,
   Platform,
@@ -66,11 +65,6 @@ export default function HouseSetupScreen(): React.JSX.Element {
   const C = useThemedColors();
   const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_INTENT_KEY)
@@ -225,7 +219,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
   }, [pendingHouse, user, inviteCode, reloadMembership, setHouseId, t]);
 
   return (
-    <Animated.View style={[styles.root, { opacity: fadeAnim }]}>
+    <View style={styles.root}>
       {/* Blue inner header */}
       <SafeAreaView edges={['top']} style={styles.header}>
         <Pressable
@@ -465,7 +459,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
           </Pressable>
         </Pressable>
       </Modal>
-    </Animated.View>
+    </View>
   );
 }
 

@@ -1,13 +1,5 @@
-import { useCallback, useMemo, useRef, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Switch,
-  Pressable,
-  Animated,
-  type ViewStyle,
-} from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Switch, Pressable, type ViewStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -153,10 +145,6 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const save = useCallback(
     (changes: Parameters<typeof updatePrefs>[2]) => {
@@ -171,7 +159,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.header}>
             <Pressable
@@ -309,7 +297,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             Changes save instantly. Notifications only work on a real device build, not in Expo Go.
           </Text>
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

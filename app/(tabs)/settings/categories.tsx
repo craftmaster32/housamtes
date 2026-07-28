@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, Animated } from 'react-native';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -348,10 +348,6 @@ export default function CategoriesScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   useEffect(() => {
     if (houseId) load(houseId);
@@ -428,7 +424,7 @@ export default function CategoriesScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <FlatList
           data={categories}
           keyExtractor={(c) => c.id}
@@ -482,7 +478,7 @@ export default function CategoriesScreen(): React.JSX.Element {
             </Text>
           }
         />
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

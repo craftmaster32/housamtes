@@ -1,5 +1,5 @@
-import { useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { useMemo, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,11 +39,6 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const handleBack = useCallback((): void => {
     router.back();
@@ -51,7 +46,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <View style={styles.header}>
           <Pressable
             onPress={handleBack}
@@ -160,7 +155,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
             {`HouseMates\n\nPrivacy enquiries: privacy@housemates.app\nSafety / content reporting: safety@housemates.app\nCopyright / DMCA: legal@housemates.app\nGeneral support: support@housemates.app\n\nRegulatory contacts for complaints:\n• Australia — OAIC: oaic.gov.au/privacy/privacy-complaints\n• Israel — Privacy Protection Authority (PPA): gov.il/en/departments/the_privacy_protection_authority — phone *9170\n• UK — ICO: ico.org.uk\n• EU — your national data protection authority\n• US — your state Attorney General\n\nWe aim to respond to all privacy enquiries within 5 business days.`}
           </Section>
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

@@ -1,5 +1,5 @@
-import { useMemo, useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { useMemo, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,16 +48,12 @@ export default function TermsScreen(): React.JSX.Element {
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const handleBackPress = useCallback(() => router.back(), []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <View style={styles.header}>
           <Pressable
             onPress={handleBackPress}
@@ -178,7 +174,7 @@ export default function TermsScreen(): React.JSX.Element {
             {`HouseMates\n\nGeneral support: support@housemates.app\nPrivacy: privacy@housemates.app\nSafety & abuse: safety@housemates.app\nLegal / DMCA: legal@housemates.app\n\nRegulatory & consumer contacts:\n• Australia — ACCC: accc.gov.au\n• Australia — OAIC: oaic.gov.au/privacy/privacy-complaints\n• Israel — Consumer Protection Authority: gov.il/en/departments/consumer_protection_and_fair_trade_authority\n• Israel — Privacy Protection Authority (PPA): gov.il/en/departments/the_privacy_protection_authority — phone *9170\n• UK — ICO: ico.org.uk\n• UK — Consumer Rights: citizensadvice.org.uk\n• EU — European Consumer Centres Network: ec.europa.eu/consumers/ecc\n\nWe aim to respond to all enquiries within 5 business days.`}
           </Section>
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

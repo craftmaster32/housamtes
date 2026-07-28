@@ -1,13 +1,5 @@
-import { useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  Switch,
-  Animated,
-  Pressable,
-  type ViewStyle,
-} from 'react-native';
+import { useEffect, useCallback, useMemo } from 'react';
+import { View, StyleSheet, FlatList, Switch, Pressable, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -244,10 +236,6 @@ export default function MembersScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   useEffect(() => {
     if (houseId) load(houseId);
@@ -302,7 +290,7 @@ export default function MembersScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <FlatList
           data={housemates}
           keyExtractor={(h) => h.id}
@@ -326,7 +314,7 @@ export default function MembersScreen(): React.JSX.Element {
           ItemSeparatorComponent={() => <View style={{ height: sizes.md }} />}
           ListEmptyComponent={<Text style={styles.empty}>{t('members.no_members')}</Text>}
         />
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

@@ -1,13 +1,5 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  Dimensions,
-  Pressable,
-  ViewToken,
-  Animated,
-} from 'react-native';
+import { useState, useRef, useCallback, useMemo } from 'react';
+import { View, StyleSheet, FlatList, Dimensions, Pressable, ViewToken } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -74,10 +66,6 @@ export default function IntroScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -104,7 +92,7 @@ export default function IntroScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         {/* Skip button */}
         {!isLast && (
           <Pressable
@@ -160,7 +148,7 @@ export default function IntroScreen(): React.JSX.Element {
             {isLast ? t('onboarding.lets_go') : t('onboarding.next')}
           </Button>
         </View>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

@@ -1,5 +1,5 @@
-import { useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated, Switch } from 'react-native';
+import { useEffect, useMemo, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
 import { Text, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +26,6 @@ export default function PremiumScreen(): React.JSX.Element {
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const isPremium = useEntitlementsStore((s) => s.isPremium);
   const setPremium = useEntitlementsStore((s) => s.setPremium);
@@ -35,10 +34,6 @@ export default function PremiumScreen(): React.JSX.Element {
   // locked/upsell UI before isPremium is confirmed.
   const entitlementsLoading = useEntitlementsStore((s) => s.isLoading);
   const entitlementsError = useEntitlementsStore((s) => s.error);
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   // Route-level kill switch. Hiding the Settings row removes the only link in,
   // but the screen would still render if opened directly (deep link / back
@@ -68,7 +63,7 @@ export default function PremiumScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <View style={styles.header}>
           <Pressable
             onPress={handleBack}
@@ -190,7 +185,7 @@ export default function PremiumScreen(): React.JSX.Element {
             )}
           </ScrollView>
         )}
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

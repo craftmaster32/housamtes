@@ -1,5 +1,5 @@
-import { useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { useMemo } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -13,23 +13,16 @@ export default function NotFoundScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+      <View style={styles.content}>
         <View style={styles.iconWrap}>
           <Ionicons name="map-outline" size={48} color={C.textSecondary} />
         </View>
         <Text style={styles.code}>404</Text>
         <Text style={styles.title}>{t('not_found.title')}</Text>
-        <Text style={styles.message}>
-          {t('not_found.message')}
-        </Text>
+        <Text style={styles.message}>{t('not_found.message')}</Text>
         <Pressable
           style={({ pressed }) => [styles.btn, pressed && { opacity: 0.8 }]}
           onPress={() => router.replace('/(tabs)/dashboard')}
@@ -40,7 +33,7 @@ export default function NotFoundScreen(): React.JSX.Element {
           <Ionicons name="home-outline" size={18} color="#fff" />
           <Text style={styles.btnText}>{t('not_found.go_to_dashboard')}</Text>
         </Pressable>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

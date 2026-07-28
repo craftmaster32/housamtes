@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,7 +7,6 @@ import {
   Pressable,
   Modal,
   Platform,
-  Animated,
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -85,10 +84,6 @@ export default function SettingsScreen(): React.JSX.Element {
   const currentCurrency = CURRENCIES.find((cur) => cur.symbol === currency);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const handleCalendarToggle = useCallback(async (): Promise<void> => {
     setCalLoading(true);
@@ -162,7 +157,7 @@ export default function SettingsScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.intro}>{t('settings.features_intro')}</Text>
 
@@ -597,7 +592,7 @@ export default function SettingsScreen(): React.JSX.Element {
             </Link>
           </View>
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

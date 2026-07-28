@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -21,11 +21,6 @@ export default function AcceptTermsScreen(): React.JSX.Element {
   const C = useThemedColors();
   const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const handleAccept = useCallback(async (): Promise<void> => {
     if (!agreed) {
@@ -46,7 +41,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.iconWrap}>
             <View style={styles.iconCircle}>
@@ -181,7 +176,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
             <Text style={styles.signOutText}>{t('auth.sign_out_instead')}</Text>
           </Pressable>
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
