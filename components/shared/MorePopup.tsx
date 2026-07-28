@@ -40,13 +40,6 @@ const POPUP_NAV: NavItem[] = [
     featureKey: 'grocery',
   },
   {
-    icon: 'checkmark-done-outline',
-    iconActive: 'checkmark-done',
-    labelKey: 'nav.chores',
-    route: '/(tabs)/chores',
-    featureKey: 'chores',
-  },
-  {
     icon: 'calendar-outline',
     iconActive: 'calendar',
     labelKey: 'nav.calendar',

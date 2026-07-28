@@ -27,7 +27,7 @@ import {
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useGroceryStore } from '@stores/groceryStore';
-import { useChoresStore } from '@stores/choresStore';
+import { useTasksStore } from '@stores/tasksStore';
 import { useEventsStore } from '@stores/eventsStore';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -453,14 +453,14 @@ function ParkingTile(): React.JSX.Element {
   );
 }
 
-// ── Chores ring tile ──────────────────────────────────────────────────────────
-function ChoresRing(): React.JSX.Element {
+// ── Tasks ring tile ───────────────────────────────────────────────────────────
+function TasksRing(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
-  const chores = useChoresStore((s) => s.chores);
-  const total = chores.length;
-  const done = chores.filter((ch) => ch.isComplete).length;
-  const next = chores.find((ch) => !ch.isComplete);
+  const tasks = useTasksStore((s) => s.tasks);
+  const total = tasks.length;
+  const done = tasks.filter((tk) => tk.isComplete).length;
+  const next = tasks.find((tk) => !tk.isComplete);
 
   const R = 18;
   const CIRC = 2 * Math.PI * R;
@@ -474,13 +474,13 @@ function ChoresRing(): React.JSX.Element {
         { backgroundColor: c.surface, borderColor: c.border },
         pressed && styles.pressed,
       ]}
-      onPress={() => router.push('/(tabs)/chores')}
+      onPress={() => router.push('/(tabs)/tasks')}
       accessibilityRole="button"
       accessibilityLabel={t('dashboard.x_of_y_done', { done, total })}
     >
       <View style={styles.choreTop}>
         <Text style={[styles.choreLabel, { color: c.textSecondary }]}>
-          {t('dashboard.chores_label')}
+          {t('dashboard.tasks_label')}
         </Text>
         <View style={styles.choreRingWrap}>
           <Svg width={46} height={46} viewBox="0 0 46 46">
@@ -513,7 +513,7 @@ function ChoresRing(): React.JSX.Element {
           <Text style={[styles.choreDenom, { color: c.textTertiary }]}>/{total}</Text>
         </Text>
         <Text style={[styles.choreSub, { color: c.textSecondary }]} numberOfLines={1}>
-          {next ? t('dashboard.chore_next', { name: next.name }) : t('dashboard.chores_smashed')}
+          {next ? t('dashboard.chore_next', { name: next.title }) : t('dashboard.chores_smashed')}
         </Text>
       </View>
     </Pressable>
@@ -674,20 +674,16 @@ export default function DashboardScreen(): React.JSX.Element {
           <OwedHero />
         </Animated.View>
 
-        {(isEnabled('parking') || isEnabled('chores')) && (
-          <Animated.View entering={FadeInDown.delay(200).duration(450)} style={styles.gridRow}>
-            {isEnabled('parking') && (
-              <View style={styles.gridCol}>
-                <ParkingTile />
-              </View>
-            )}
-            {isEnabled('chores') && (
-              <View style={styles.gridCol}>
-                <ChoresRing />
-              </View>
-            )}
-          </Animated.View>
-        )}
+        <Animated.View entering={FadeInDown.delay(200).duration(450)} style={styles.gridRow}>
+          {isEnabled('parking') && (
+            <View style={styles.gridCol}>
+              <ParkingTile />
+            </View>
+          )}
+          <View style={styles.gridCol}>
+            <TasksRing />
+          </View>
+        </Animated.View>
 
         {isEnabled('grocery') && (
           <Animated.View entering={FadeInDown.delay(260).duration(450)} style={styles.block}>
