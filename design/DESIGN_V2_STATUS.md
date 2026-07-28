@@ -40,9 +40,9 @@ Status: ✅ matches mockup & verified · 🔨 in progress · ⬜ not started yet
 | Web icons                                         | —                                                                        | ✅     | deploy embeds all @expo/vector-icons fonts                                                                                                                               |
 | **Bills** (merged balance + tap-to-reveal settle) | `bills-flow-v2`, `bills-v2`, `addbill-v2`                                | ✅     | list/add/detail already match mockups; fixed setup.tsx (Housemates) web-blank (old opacity-0 Animated wrapper, same bug class as spending)                               |
 | Dashboard                                         | `nestiq-v2-dashboard`, `nestiq-v2-final`                                 | ✅     | matches `nestiq-v2-final` (the implemented target). `nestiq-v2-dashboard` is a SUPERSEDED early exploration — do not chase its quick-actions/spending-card/3-tile layout |
-| Grocery                                           | `grocery-final`, `grocery-modals-v2`, `grocery-options`, `grocery-count` | 🔨     | web-blank fade wrapper removed; code already implements the v2 add-to chooser + list — visual reconciliation against mockups in progress                                 |
-| Parking                                           | `parking-grocery-v2`                                                     | 🔨     | hero card + circular FREE/TAKEN gradient badge + reservations already match the mockup; no web-blank issue — owner to spot-check in preview                              |
-| Calendar (event editor)                           | `calendar-event-v2`, `chores-calendar`                                   | ⬜     |                                                                                                                                                                          |
+| Grocery                                           | `grocery-final`, `grocery-modals-v2`, `grocery-options`, `grocery-count` | ✅     | v2 add-to chooser + list already implemented; web-blank fade removed — owner spot-checked OK                                                                             |
+| Parking                                           | `parking-grocery-v2`                                                     | ✅     | hero card + circular FREE/TAKEN gradient badge + reservations match the mockup                                                                                           |
+| Calendar (event editor)                           | `calendar-event-v2`, `chores-calendar`                                   | ✅     | bottom-sheet editor matches: Fraunces title, blue-pill repeat segment, add-end-date, repeat-until; web-blank removed                                                     |
 | Photos (flow + viewer)                            | `photo-flow-v2`, `photo-modal-v2`                                        | ⬜     |                                                                                                                                                                          |
 | Tasks                                             | `tasks-v2`, `tasks-alt`, `tasks-style`                                   | ⬜     |                                                                                                                                                                          |
 | Voting                                            | `voting-v2`, `voting-alt`, `voting-fonts`                                | ⬜     |                                                                                                                                                                          |
@@ -53,6 +53,19 @@ Status: ✅ matches mockup & verified · 🔨 in progress · ⬜ not started yet
 | Profile / Settings (rest)                         | `profile-settings`, `settings-modals-v2`                                 | 🔨     | currency done; audit remaining rows                                                                                                                                      |
 
 ---
+
+## Global fixes applied this pass (affect every screen)
+
+- **Money glyph clipping** — `components/shared/Money.tsx` now sets an explicit
+  lineHeight so big amounts aren't top-clipped by `numberOfLines={1}` overflow
+  on web (was visible on Bills/Dashboard/detail heroes).
+- **Browser auto-translate blocked** — `app/+html.tsx` marks the web page
+  `notranslate`. Chrome was mistranslating labels ("Personal"→"Staff") and
+  breaking the icon font (empty boxes). The app keeps its own i18n.
+- **Segmented-control selected state** — the Add-Bill "How to split" pill used
+  `C.surface` (darker than the container in dark mode → looked recessed); now a
+  primary blue pill, matching calendar/grocery/bills-filter. NB: Property's
+  segment intentionally keeps the surface pill per `property-v2`.
 
 ## Known follow-ups (deferred, not lost)
 
