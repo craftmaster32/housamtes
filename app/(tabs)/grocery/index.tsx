@@ -454,6 +454,8 @@ interface SectionData {
   icon: IoniconName;
   data: GroceryItemWithMeta[];
   sectionType: 'draft' | 'private' | 'shared';
+  /** True on the single shared section that carries the "remind me" bell. */
+  withReminder?: boolean;
 }
 
 export default function GroceryScreen(): React.JSX.Element {
@@ -686,7 +688,11 @@ export default function GroceryScreen(): React.JSX.Element {
     const targetType = effectiveMode === 'private' ? 'private' : effectiveMode;
     const selected = result.filter((s) => s.sectionType === targetType);
     const rest = result.filter((s) => s.sectionType !== targetType);
-    return [...selected, ...rest];
+    const ordered = [...selected, ...rest];
+    // Put the single "remind me" bell on the first shared section header.
+    const firstShared = ordered.find((s) => s.sectionType === 'shared');
+    if (firstShared) firstShared.withReminder = true;
+    return ordered;
   }, [items, myId, t, effectiveMode]);
 
   const handleAdd = useCallback(
@@ -1091,10 +1097,28 @@ export default function GroceryScreen(): React.JSX.Element {
         <View style={styles.catTitle}>
           <Ionicons name={section.icon} size={15} color={C.textSecondary} />
           <Text style={styles.catTitleText}>{section.title}</Text>
+          {section.withReminder && (
+            <Pressable
+              style={styles.sectionBell}
+              onPress={handleOpenGeneralReminder}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('grocery.remind_me')}
+            >
+              <Ionicons name="alarm-outline" size={18} color={C.primary} />
+              {reminders.length > 0 && (
+                <View style={styles.sectionBellBadge}>
+                  <Text style={styles.sectionBellBadgeText}>
+                    {reminders.length > 9 ? '9+' : reminders.length}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          )}
         </View>
       );
     },
-    [handlePublishDraft, isPublishing, myId, styles, t, C]
+    [handlePublishDraft, isPublishing, myId, styles, t, C, handleOpenGeneralReminder, reminders]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
@@ -1207,28 +1231,11 @@ export default function GroceryScreen(): React.JSX.Element {
                 <View>
                   {/* ── Hero card ─────────────────────────────────────────── */}
                   <View style={styles.headerCard}>
-                    <View style={styles.headerTop}>
-                      <View style={styles.headerCopy}>
-                        <Text style={[styles.titleHero, headingFont]}>
-                          {t('grocery.shared_groceries')}
-                        </Text>
-                        <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
-                      </View>
-                      <Pressable
-                        style={styles.headerBell}
-                        onPress={handleOpenGeneralReminder}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('grocery.remind_me')}
-                      >
-                        <Ionicons name="alarm-outline" size={20} color={C.primary} />
-                        {reminders.length > 0 && (
-                          <View style={styles.headerBellBadge}>
-                            <Text style={styles.headerBellBadgeText}>
-                              {reminders.length > 9 ? '9+' : reminders.length}
-                            </Text>
-                          </View>
-                        )}
-                      </Pressable>
+                    <View style={styles.headerCopy}>
+                      <Text style={[styles.titleHero, headingFont]}>
+                        {t('grocery.shared_groceries')}
+                      </Text>
+                      <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
                     </View>
 
                     {/* ── "Add to" chooser: Shared | Personal | Draft ──── */}
@@ -1581,25 +1588,22 @@ function makeStyles(C: ColorTokens) {
       shadowRadius: 8,
       elevation: 2,
     },
-    headerTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-    headerCopy: { flex: 1, gap: 6 },
-    headerBell: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
+    headerCopy: { gap: 6 },
+    sectionBell: {
+      marginLeft: 'auto',
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: C.primaryTint,
       alignItems: 'center',
       justifyContent: 'center',
-      flexShrink: 0,
     },
-    headerBellBadge: {
+    sectionBellBadge: {
       position: 'absolute',
-      top: -3,
-      right: -3,
-      minWidth: 16,
-      height: 16,
+      top: -2,
+      right: -2,
+      minWidth: 15,
+      height: 15,
       borderRadius: 8,
       backgroundColor: C.warning,
       borderWidth: 1.5,
@@ -1608,7 +1612,7 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
       paddingHorizontal: 3,
     },
-    headerBellBadgeText: { fontSize: 9, ...font.bold, color: '#fff' },
+    sectionBellBadgeText: { fontSize: 8.5, ...font.bold, color: '#fff' },
 
     titleHero: {
       fontSize: 26,
