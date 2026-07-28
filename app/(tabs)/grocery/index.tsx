@@ -36,7 +36,6 @@ import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailMod
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareModal';
 import { SavedListsSection } from '@components/grocery/SavedListsSection';
-import { GroceryRemindersSection } from '@components/grocery/GroceryRemindersSection';
 import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
 import { ReminderPromptBanner } from '@components/grocery/ReminderPromptBanner';
 import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
@@ -492,12 +491,8 @@ export default function GroceryScreen(): React.JSX.Element {
   const updateSavedList = useGroceryStore((s) => s.updateSavedList);
   const deleteSavedList = useGroceryStore((s) => s.deleteSavedList);
   const loadListIntoDraft = useGroceryStore((s) => s.loadListIntoDraft);
-  const reminders = useGroceryStore((s) => s.reminders);
-  const isLoadingReminders = useGroceryStore((s) => s.isLoadingReminders);
-  const remindersError = useGroceryStore((s) => s.remindersError);
   const fetchReminders = useGroceryStore((s) => s.fetchReminders);
   const createReminder = useGroceryStore((s) => s.createReminder);
-  const deleteReminder = useGroceryStore((s) => s.deleteReminder);
 
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
@@ -792,13 +787,6 @@ export default function GroceryScreen(): React.JSX.Element {
   );
 
   // ── Reminder handlers ───────────────────────────────────────────────────────
-  const handleOpenGeneralReminder = useCallback((): void => {
-    dismissAddedItemPrompt();
-    setReminderListTarget(null);
-    setReminderDefaultLabel('');
-    setShowReminderModal(true);
-  }, [dismissAddedItemPrompt]);
-
   const handleOpenListReminder = useCallback(
     (list: GroceryList): void => {
       dismissAddedItemPrompt();
@@ -845,15 +833,6 @@ export default function GroceryScreen(): React.JSX.Element {
       }
     },
     [createReminder, houseId, myId, reminderListTarget]
-  );
-
-  const handleDeleteReminder = useCallback(
-    (id: string): void => {
-      deleteReminder(id).catch(() => {
-        setAddError(t('grocery.could_not_cancel_reminder'));
-      });
-    },
-    [deleteReminder, t]
   );
 
   // ── Save list modal handlers ───────────────────────────────────────────────
@@ -1450,14 +1429,8 @@ export default function GroceryScreen(): React.JSX.Element {
                     </View>
                   </View>
 
-                  {/* ── Reminders section ────────────────────────────────────── */}
-                  <GroceryRemindersSection
-                    reminders={reminders}
-                    isLoading={isLoadingReminders}
-                    error={remindersError}
-                    onAddReminder={handleOpenGeneralReminder}
-                    onDeleteReminder={handleDeleteReminder}
-                  />
+                  {/* Reminders now live as a per-list alarm icon in Saved Lists
+                      (below), so the standalone Reminders section was removed. */}
 
                   {/* ── Saved Lists section ──────────────────────────────────── */}
                   <SavedListsSection
@@ -1874,7 +1847,7 @@ function makeStyles(C: ColorTokens) {
     },
     duplicateBadgeText: { fontSize: 11, ...font.semibold, color: 'rgb(133,77,14)' },
     itemSep: { height: 8 },
-    sectionSep: { height: 8 },
+    sectionSep: { height: 18 },
 
     itemDetails: {
       flex: 1,

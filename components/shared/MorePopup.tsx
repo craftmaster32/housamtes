@@ -53,13 +53,8 @@ const POPUP_NAV: NavItem[] = [
     route: '/(tabs)/calendar',
   },
   { icon: 'images-outline', iconActive: 'images', labelKey: 'nav.photos', route: '/(tabs)/photos' },
-  // Housemates are managed inside the bills/setup flow by design — no dedicated route exists.
-  {
-    icon: 'people-outline',
-    iconActive: 'people',
-    labelKey: 'nav.housemates',
-    route: '/(tabs)/bills/setup',
-  },
+  // Housemates intentionally omitted here — they're managed under Settings, so
+  // surfacing them in this menu too was redundant.
   {
     icon: 'list-outline',
     iconActive: 'list',
