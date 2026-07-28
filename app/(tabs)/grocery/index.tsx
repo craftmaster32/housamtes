@@ -1847,7 +1847,7 @@ function makeStyles(C: ColorTokens) {
     },
     duplicateBadgeText: { fontSize: 11, ...font.semibold, color: 'rgb(133,77,14)' },
     itemSep: { height: 8 },
-    sectionSep: { height: 18 },
+    sectionSep: { height: 30 },
 
     itemDetails: {
       flex: 1,

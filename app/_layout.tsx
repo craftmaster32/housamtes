@@ -47,6 +47,23 @@ import { registerWebPush } from '@lib/webPush';
 
 initErrorTracking();
 
+// Web: opt out of browser auto-translation (Chrome/Safari). It mistranslates our
+// labels ("Personal" → "Staff") and shatters the icon font into empty boxes.
+// This runs at module load — earlier than any component render — because Expo's
+// single web output ignores app/+html.tsx, so the meta tag has to be set here.
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const html = document.documentElement;
+  html.setAttribute('translate', 'no');
+  html.classList.add('notranslate');
+  if (!html.lang) html.lang = 'en';
+  if (!document.querySelector('meta[name="google"][content="notranslate"]')) {
+    const meta = document.createElement('meta');
+    meta.name = 'google';
+    meta.content = 'notranslate';
+    document.head.appendChild(meta);
+  }
+}
+
 export default function RootLayout(): React.JSX.Element | null {
   const c = useColors();
   const [i18nReady, setI18nReady] = useState(false);
