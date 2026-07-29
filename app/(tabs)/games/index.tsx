@@ -315,11 +315,13 @@ export default function GamesScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('games.go_back')}
         >
-          <Ionicons
-            name={rtl ? 'chevron-forward' : 'chevron-back'}
-            size={24}
-            color={c.textPrimary}
-          />
+          <View style={[styles.backCircle, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <Ionicons
+              name={rtl ? 'chevron-forward' : 'chevron-back'}
+              size={22}
+              color={c.textPrimary}
+            />
+          </View>
         </Pressable>
         <Text style={[styles.headerTitle, headingFont, { color: c.textPrimary }]}>
           {t('games.title')}
@@ -372,7 +374,15 @@ const styles = StyleSheet.create({
     paddingVertical: sizes.sm,
   },
   backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 18, ...font.bold },
+  backCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: { fontSize: 20, ...font.bold },
 
   // Tabs
   tabRow: {
