@@ -1,5 +1,5 @@
-import { useMemo, useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Animated, Pressable } from 'react-native';
+import { useMemo, useCallback } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { router, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,33 +24,6 @@ export default function WelcomeScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont();
 
-  const fadeTop = useRef(new Animated.Value(0)).current;
-  const slideCard = useRef(new Animated.Value(40)).current;
-  const fadeCard = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeTop, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.spring(slideCard, {
-          toValue: 0,
-          tension: 60,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeCard, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [fadeTop, slideCard, fadeCard]);
-
   const handleGetStarted = useCallback(async (): Promise<void> => {
     try {
       await AsyncStorage.removeItem(ONBOARDING_INTENT_KEY);
@@ -62,7 +35,7 @@ export default function WelcomeScreen(): React.JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.top, { opacity: fadeTop }]}>
+      <View style={styles.top}>
         <View
           style={styles.moon}
           accessibilityElementsHidden
@@ -91,17 +64,9 @@ export default function WelcomeScreen(): React.JSX.Element {
         >
           <HouseSkyline />
         </View>
-      </Animated.View>
+      </View>
 
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            opacity: fadeCard,
-            transform: [{ translateY: slideCard }],
-          },
-        ]}
-      >
+      <View style={styles.card}>
         <Text style={[styles.cardHeading, headingFont]}>{t('welcome.card_heading')}</Text>
         <Text style={styles.cardBody}>{t('welcome.card_body')}</Text>
 
@@ -139,7 +104,7 @@ export default function WelcomeScreen(): React.JSX.Element {
         </Link>
 
         <Text style={styles.terms}>{t('auth.by_continuing')}</Text>
-      </Animated.View>
+      </View>
     </View>
   );
 }

@@ -49,7 +49,7 @@ Status: ✅ matches mockup & verified · 🔨 in progress · ⬜ not started yet
 | Notes                                             | `notes-v2`                                                               | ✅     | matches mockup (Fraunces title, compose card, accent + author face, localized "18 Apr · edited")                                                                                                                                                                                                                                                                    |
 | Property / Condition / Maintenance                | `property-v2`, `fair`                                                    | ✅     | live screen is `property/index` (Issues + Condition tabs): Fraunces title, tinted-square line icons, ✕ close, status badges + advance/reopen match; `fair` circle-family fix in place (`CONDITION_CONFIG.fair` = `remove-circle`); localized issue dates. NB `condition/index` & `maintenance/index` are `href:null` dead routes superseded by this combined screen |
 | Games                                             | `games-v2`                                                               | ✅     | Word Scramble + Dad Jokes match: Fraunces title, bordered-circle back button, Score/Round/Streak flame, emoji-free category pills, letter tiles, bulb hint, checkmark submit, shuffle, result card, joke card. Reanimated `entering=` proven web-safe (same as bills/tasks/notes/dashboard)                                                                         |
-| Auth / onboarding                                 | `auth-v2`                                                                | ⬜     |                                                                                                                                                                                                                                                                                                                                                                     |
+| Auth / onboarding                                 | `auth-v2`                                                                | ✅     | Fraunces wordmark + headings, `home` line-icon logo chip, skyline, fields/toggles/buttons match; onboarding uses line icons (home/wallet/car-outline, no emoji). Converted the legacy opacity-0 `Animated` fade wrappers (welcome/login/signup/forgot-password/verify-email) to plain Views — clears the last web-blank risk                                        |
 | Profile / Settings (rest)                         | `profile-settings`, `settings-modals-v2`                                 | 🔨     | currency done; audit remaining rows                                                                                                                                                                                                                                                                                                                                 |
 
 ---
@@ -74,10 +74,11 @@ Status: ✅ matches mockup & verified · 🔨 in progress · ⬜ not started yet
   from: spending, Housemates, grocery, calendar, voting, profile, more/settings,
   more/chat, maintenance, property, condition, settings/{index,premium,categories,
   members,notifications,terms,privacy-policy}, onboarding/{intro,house-setup},
-  +not-found and accept-terms. **Still to do:** the auth screens
-  (`login`, `signup`, `welcome`, `forgot-password`, `verify-email`) use a
-  _partial_ fade on the header/card sub-sections (not the whole screen) — lower
-  risk; convert them when reconciling `auth-v2`.
+  +not-found and accept-terms. **Auth screens now swept too:** `login`,
+  `signup`, `welcome`, `forgot-password`, `verify-email` had their opacity-0
+  `Animated` header/card fade wrappers (and verify-email's icon scale) replaced
+  with plain Views during the `auth-v2` pass. No remaining screens use the
+  opacity-0 legacy-`Animated` pattern.
 - `textSecondary` cream-contrast tweak — a locked palette token; needs owner sign-off.
 - Auth-layout AppState token refresh on the reset-password flow — needs device testing.
 - Any remaining CodeRabbit nits — handle in the single polish-phase review before merge.

@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, Button, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -27,34 +27,6 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   const C = useThemedColors();
   const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideIcon = useRef(new Animated.Value(20)).current;
-  const scaleIcon = useRef(new Animated.Value(0.8)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.spring(slideIcon, {
-          toValue: 0,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleIcon, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [fadeAnim, slideIcon, scaleIcon]);
 
   const steps = useMemo(
     () => [
@@ -114,27 +86,20 @@ export default function VerifyEmailScreen(): React.JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+      <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
           <StepProgress steps={steps} currentStep={1} />
         </SafeAreaView>
-      </Animated.View>
+      </View>
 
-      <Animated.View style={[styles.cardWrapper, { opacity: fadeAnim }]}>
+      <View style={styles.cardWrapper}>
         <View style={styles.card}>
-          <Animated.View
-            style={[
-              styles.envelopeWrap,
-              {
-                transform: [{ translateY: slideIcon }, { scale: scaleIcon }],
-              },
-            ]}
-          >
+          <View style={styles.envelopeWrap}>
             <Ionicons name="mail" size={44} color={C.primary} />
             <View style={styles.checkBadge}>
               <Ionicons name="checkmark-circle" size={20} color={C.success} />
             </View>
-          </Animated.View>
+          </View>
 
           <View style={styles.textBlock}>
             <Text style={[styles.heading, headingFont]}>{t('auth.check_inbox_title')}</Text>
@@ -214,7 +179,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             <Text style={styles.goBackText}>{t('auth.wrong_email_go_back')}</Text>
           </Pressable>
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 }

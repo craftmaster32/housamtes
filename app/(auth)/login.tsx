@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Animated, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -38,33 +38,6 @@ export default function LoginScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  const fadeHeader = useRef(new Animated.Value(0)).current;
-  const slideCard = useRef(new Animated.Value(30)).current;
-  const fadeCard = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeHeader, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.spring(slideCard, {
-          toValue: 0,
-          tension: 65,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeCard, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [fadeHeader, slideCard, fadeCard]);
 
   useEffect(() => {
     return (): void => {
@@ -112,7 +85,7 @@ export default function LoginScreen(): React.JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.header, { opacity: fadeHeader }]}>
+      <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
           <Pressable
             style={styles.backBtn}
@@ -137,17 +110,9 @@ export default function LoginScreen(): React.JSX.Element {
           </View>
           <Text style={styles.headerTagline}>{t('welcome.tagline')}</Text>
         </SafeAreaView>
-      </Animated.View>
+      </View>
 
-      <Animated.View
-        style={[
-          styles.cardWrapper,
-          {
-            opacity: fadeCard,
-            transform: [{ translateY: slideCard }],
-          },
-        ]}
-      >
+      <View style={styles.cardWrapper}>
         <ScrollView
           style={styles.card}
           contentContainerStyle={styles.cardContent}
@@ -252,7 +217,7 @@ export default function LoginScreen(): React.JSX.Element {
             <AuthIllustration />
           </View>
         </ScrollView>
-      </Animated.View>
+      </View>
     </View>
   );
 }
