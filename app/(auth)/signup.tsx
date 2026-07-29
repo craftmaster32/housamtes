@@ -13,7 +13,6 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
-import { AuthIllustration } from '@components/shared/AuthIllustration';
 import { getErrorMessage } from '@utils/errors';
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
@@ -264,10 +263,6 @@ export default function SignupScreen(): React.JSX.Element {
               {t('auth.has_account')} <Text style={styles.loginTextBold}>{t('auth.log_in')}</Text>
             </Text>
           </Pressable>
-
-          <View style={styles.illustrationSpacer}>
-            <AuthIllustration />
-          </View>
         </ScrollView>
       </View>
     </View>
@@ -302,12 +297,6 @@ function makeStyles(C: ColorTokens) {
       paddingTop: sizes.sm,
       paddingBottom: sizes.xl,
       gap: sizes.md,
-    },
-    illustrationSpacer: {
-      flex: 1,
-      minHeight: 100,
-      maxHeight: 220,
-      justifyContent: 'flex-end',
     },
     brandRow: {
       flexDirection: 'row',

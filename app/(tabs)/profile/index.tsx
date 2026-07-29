@@ -1023,16 +1023,6 @@ export default function ProfileScreen(): React.JSX.Element {
                 label="Spending"
                 onPress={() => router.push('/(tabs)/profile/spending')}
               />
-              <QuickAction
-                icon="card-outline"
-                label="Payment"
-                onPress={() => router.push('/(tabs)/bills/setup')}
-              />
-              <QuickAction
-                icon="person-outline"
-                label="Details"
-                onPress={() => setShowDetailsForm((v) => !v)}
-              />
             </View>
 
             {/* ── Spending card ──────────────────────────────────────────── */}

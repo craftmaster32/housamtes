@@ -14,7 +14,6 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
-import { AuthIllustration } from '@components/shared/AuthIllustration';
 import { getErrorMessage } from '@utils/errors';
 
 const MAX_ATTEMPTS = 5;
@@ -212,10 +211,6 @@ export default function LoginScreen(): React.JSX.Element {
               {t('auth.no_account')} <Text style={styles.signupTextBold}>{t('auth.sign_up')}</Text>
             </Text>
           </Pressable>
-
-          <View style={styles.illustrationSpacer}>
-            <AuthIllustration />
-          </View>
         </ScrollView>
       </View>
     </View>
@@ -293,12 +288,6 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       paddingTop: 32,
       paddingBottom: 24,
       gap: sizes.md,
-    },
-    illustrationSpacer: {
-      flex: 1,
-      minHeight: 140,
-      maxHeight: 260,
-      justifyContent: 'flex-end',
     },
     input: {
       backgroundColor: C.surface,
