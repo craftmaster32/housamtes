@@ -20,6 +20,7 @@ import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
+import { CountUpText } from '@components/shared/CountUpText';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -153,9 +154,11 @@ function OverviewCard({
           <Text style={styles.overviewLbl}>
             {isPersonal ? t('spending.my_spending') : t('spending.house_total')}
           </Text>
-          <Text style={styles.overviewAmt}>
-            {fmtFull(isPersonal ? current.total : current.houseTotal, currency)}
-          </Text>
+          <CountUpText
+            style={styles.overviewAmt}
+            value={isPersonal ? current.total : current.houseTotal}
+            format={(n) => fmtFull(n, currency)}
+          />
           {primaryDiff !== null && (
             <View
               style={[
@@ -180,9 +183,11 @@ function OverviewCard({
           <Text style={styles.overviewLbl}>
             {isPersonal ? t('spending.house_total') : t('spending.your_share')}
           </Text>
-          <Text style={styles.overviewAmt}>
-            {fmtFull(isPersonal ? current.houseTotal : current.total, currency)}
-          </Text>
+          <CountUpText
+            style={styles.overviewAmt}
+            value={isPersonal ? current.houseTotal : current.total}
+            format={(n) => fmtFull(n, currency)}
+          />
           {sharePct > 0 && (
             <View style={[styles.overviewBadge, { backgroundColor: C.primary + '12' }]}>
               <Text style={[styles.overviewBadgeText, { color: C.primary }]}>

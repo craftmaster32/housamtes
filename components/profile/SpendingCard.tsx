@@ -13,6 +13,7 @@ import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { monthNameFromKey } from '@utils/dates';
+import { CountUpText } from '@components/shared/CountUpText';
 
 interface Props {
   houseId: string;
@@ -114,12 +115,16 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
         {/* House total */}
         <View style={styles.totalsRow}>
           <View style={styles.totalBlock}>
-            <Text style={styles.totalAmt}>{fmt(houseTotal, currency)}</Text>
+            <CountUpText
+              style={styles.totalAmt}
+              value={houseTotal}
+              format={(n) => fmt(n, currency)}
+            />
             <Text style={styles.totalSub}>{t('spending.house_total')}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.totalBlock}>
-            <Text style={styles.totalAmt}>{fmt(myShare, currency)}</Text>
+            <CountUpText style={styles.totalAmt} value={myShare} format={(n) => fmt(n, currency)} />
             <Text style={styles.totalSub}>
               {sharePct > 0
                 ? t('spending.your_share_with_pct', { percent: sharePct })

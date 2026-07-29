@@ -11,6 +11,7 @@ import {
   BackHandler,
   type ViewStyle,
 } from 'react-native';
+import Animated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -1200,315 +1201,329 @@ export default function GroceryScreen(): React.JSX.Element {
         <SafeAreaView style={styles.root} edges={['top']}>
           <View style={styles.flex}>
             {checked.length > 0 && (
-              <Pressable
-                style={styles.clearBar}
-                onPress={handleClear}
-                accessibilityRole="button"
-                accessibilityLabel={t('grocery.clear_items_a11y', { count: checked.length })}
+              <Animated.View
+                entering={FadeInDown.duration(220)}
+                exiting={FadeOutUp.duration(180)}
+                layout={LinearTransition.springify().damping(20).stiffness(160)}
               >
-                <View style={styles.clearBarLeft}>
-                  <Ionicons name="checkmark-done-outline" size={16} color={C.positive} />
-                  <Text style={styles.clearBarCount}>
-                    {t('grocery.checked_count', { count: checked.length })}
-                  </Text>
-                </View>
-                <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
-              </Pressable>
+                <Pressable
+                  style={styles.clearBar}
+                  onPress={handleClear}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('grocery.clear_items_a11y', { count: checked.length })}
+                >
+                  <View style={styles.clearBarLeft}>
+                    <Ionicons name="checkmark-done-outline" size={16} color={C.positive} />
+                    <Text style={styles.clearBarCount}>
+                      {t('grocery.checked_count', { count: checked.length })}
+                    </Text>
+                  </View>
+                  <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
+                </Pressable>
+              </Animated.View>
             )}
 
-            <SectionList
-              sections={sections}
-              keyExtractor={(item) => item.id}
-              renderItem={renderItem}
-              renderSectionHeader={renderSectionHeader}
-              stickySectionHeadersEnabled={false}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.listContent}
-              ItemSeparatorComponent={ItemSeparator}
-              SectionSeparatorComponent={SectionSeparator}
-              ListHeaderComponent={
-                <View>
-                  {/* ── Hero card ─────────────────────────────────────────── */}
-                  <View style={styles.headerCard}>
-                    <View style={styles.headerCopy}>
-                      <Text style={[styles.titleHero, headingFont]}>
-                        {t('grocery.shared_groceries')}
-                      </Text>
-                      <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
-                    </View>
+            <Animated.View
+              style={styles.flex}
+              layout={LinearTransition.springify().damping(20).stiffness(160)}
+            >
+              <SectionList
+                sections={sections}
+                keyExtractor={(item) => item.id}
+                renderItem={renderItem}
+                renderSectionHeader={renderSectionHeader}
+                stickySectionHeadersEnabled={false}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.listContent}
+                ItemSeparatorComponent={ItemSeparator}
+                SectionSeparatorComponent={SectionSeparator}
+                ListHeaderComponent={
+                  <View>
+                    {/* ── Hero card ─────────────────────────────────────────── */}
+                    <View style={styles.headerCard}>
+                      <View style={styles.headerCopy}>
+                        <Text style={[styles.titleHero, headingFont]}>
+                          {t('grocery.shared_groceries')}
+                        </Text>
+                        <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
+                      </View>
 
-                    {/* ── "Add to" chooser: Shared | Personal | Draft ──── */}
-                    <Text style={styles.addToLabel}>{t('grocery.add_to')}</Text>
-                    <View style={styles.segWrap} accessibilityRole="radiogroup">
-                      <Pressable
-                        style={[styles.segBtn, destShared && styles.segBtnShared]}
-                        onPress={handleSelectShared}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: destShared }}
-                        accessibilityLabel={t('grocery.shared_tab')}
-                      >
-                        <Ionicons
-                          name="people-outline"
-                          size={15}
-                          color={destShared ? '#fff' : C.textSecondary}
-                        />
-                        <Text style={[styles.segText, destShared && styles.segTextOn]}>
-                          {t('grocery.shared_seg')}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[styles.segBtn, destPersonal && styles.segBtnPersonalOn]}
-                        onPress={handleSetPrivate}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: destPersonal }}
-                        accessibilityLabel={t('grocery.private_tab')}
-                      >
-                        <Ionicons
-                          name="person-outline"
-                          size={15}
-                          color={destPersonal ? '#fff' : C.textSecondary}
-                        />
-                        <Text style={[styles.segText, destPersonal && styles.segTextOn]}>
-                          {t('grocery.personal_seg')}
-                        </Text>
-                      </Pressable>
-                      {draftEnabled && (
+                      {/* ── "Add to" chooser: Shared | Personal | Draft ──── */}
+                      <Text style={styles.addToLabel}>{t('grocery.add_to')}</Text>
+                      <View style={styles.segWrap} accessibilityRole="radiogroup">
                         <Pressable
-                          style={[styles.segBtn, destDraft && styles.segBtnDraftOn]}
-                          onPress={handleSelectDraft}
+                          style={[styles.segBtn, destShared && styles.segBtnShared]}
+                          onPress={handleSelectShared}
                           accessibilityRole="radio"
-                          accessibilityState={{ selected: destDraft }}
-                          accessibilityLabel={t('grocery.draft_mode')}
+                          accessibilityState={{ selected: destShared }}
+                          accessibilityLabel={t('grocery.shared_tab')}
                         >
                           <Ionicons
-                            name="create-outline"
+                            name="people-outline"
                             size={15}
-                            color={destDraft ? '#fff' : C.textSecondary}
+                            color={destShared ? '#fff' : C.textSecondary}
                           />
-                          <Text style={[styles.segText, destDraft && styles.segTextOn]}>
-                            {t('grocery.draft_seg')}
+                          <Text style={[styles.segText, destShared && styles.segTextOn]}>
+                            {t('grocery.shared_seg')}
                           </Text>
                         </Pressable>
-                      )}
-                    </View>
-                    <Text style={styles.addToHint}>
-                      {destPersonal
-                        ? t('grocery.personal_hint')
-                        : destDraft
-                          ? t('grocery.draft_on_hint')
-                          : t('grocery.shared_hint')}
-                    </Text>
-
-                    {/* ── Error banner ──────────────────────────────────── */}
-                    {!!addError && (
-                      <View style={styles.errorBanner}>
-                        <Text style={styles.errorBannerText}>{addError}</Text>
-                      </View>
-                    )}
-
-                    {/* ── Inline add input ──────────────────────────────── */}
-                    <View
-                      style={[styles.addRow, effectiveMode === 'private' && styles.addRowPersonal]}
-                    >
-                      <TextInput
-                        ref={inputRef}
-                        value={itemName}
-                        onChangeText={handleItemNameChange}
-                        placeholder={t('grocery.item_placeholder')}
-                        placeholderTextColor={C.textSecondary}
-                        style={styles.addInput}
-                        returnKeyType="done"
-                        blurOnSubmit={false}
-                        onSubmitEditing={handleAddPress}
-                        accessible
-                        accessibilityRole="search"
-                        accessibilityLabel={t('grocery.add_item_a11y')}
-                        accessibilityHint={t('grocery.add_item_hint')}
-                      />
-                      <Pressable
-                        style={[
-                          styles.addBtn,
-                          (!itemName.trim() || isAdding) && styles.addBtnOff,
-                          effectiveMode === 'private' && styles.addBtnPersonal,
-                        ]}
-                        onPress={handleAddPress}
-                        disabled={!itemName.trim() || isAdding}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('grocery.add_item')}
-                      >
-                        <Text style={styles.addBtnText}>{isAdding ? '…' : '+'}</Text>
-                      </Pressable>
-                    </View>
-
-                    {/* ── Qty selector ─────────────────────────────────── */}
-                    <View style={styles.qtyRow}>
-                      <Text style={styles.qtyLabel}>{t('grocery.qty_label')}</Text>
-                      <View style={styles.qtyPresets}>
-                        {QTY_PRESETS.map((p) => {
-                          const active = !showCustomQty && qty === p;
-                          return (
-                            <Pressable
-                              key={p}
-                              style={[styles.qtyBtn, active && styles.qtyBtnOn]}
-                              onPress={() => handleQtyPresetSelect(p)}
-                              hitSlop={4}
-                              accessible
-                              accessibilityRole="button"
-                              accessibilityLabel={t('grocery.quantity_preset', { n: p })}
-                              accessibilityState={{ selected: active }}
-                            >
-                              <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
-                                {p}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
                         <Pressable
-                          style={[styles.qtyBtn, showCustomQty && styles.qtyBtnOn]}
-                          onPress={handleToggleCustomQty}
-                          hitSlop={4}
-                          accessible
-                          accessibilityRole="button"
-                          accessibilityLabel={t('grocery.custom_quantity')}
-                          accessibilityHint={t('grocery.custom_quantity_hint')}
-                          accessibilityState={{ selected: showCustomQty }}
+                          style={[styles.segBtn, destPersonal && styles.segBtnPersonalOn]}
+                          onPress={handleSetPrivate}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: destPersonal }}
+                          accessibilityLabel={t('grocery.private_tab')}
                         >
                           <Ionicons
-                            name="pencil"
-                            size={14}
-                            color={showCustomQty ? '#FFFFFF' : C.textPrimary}
+                            name="person-outline"
+                            size={15}
+                            color={destPersonal ? '#fff' : C.textSecondary}
                           />
+                          <Text style={[styles.segText, destPersonal && styles.segTextOn]}>
+                            {t('grocery.personal_seg')}
+                          </Text>
+                        </Pressable>
+                        {draftEnabled && (
+                          <Pressable
+                            style={[styles.segBtn, destDraft && styles.segBtnDraftOn]}
+                            onPress={handleSelectDraft}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: destDraft }}
+                            accessibilityLabel={t('grocery.draft_mode')}
+                          >
+                            <Ionicons
+                              name="create-outline"
+                              size={15}
+                              color={destDraft ? '#fff' : C.textSecondary}
+                            />
+                            <Text style={[styles.segText, destDraft && styles.segTextOn]}>
+                              {t('grocery.draft_seg')}
+                            </Text>
+                          </Pressable>
+                        )}
+                      </View>
+                      <Text style={styles.addToHint}>
+                        {destPersonal
+                          ? t('grocery.personal_hint')
+                          : destDraft
+                            ? t('grocery.draft_on_hint')
+                            : t('grocery.shared_hint')}
+                      </Text>
+
+                      {/* ── Error banner ──────────────────────────────────── */}
+                      {!!addError && (
+                        <View style={styles.errorBanner}>
+                          <Text style={styles.errorBannerText}>{addError}</Text>
+                        </View>
+                      )}
+
+                      {/* ── Inline add input ──────────────────────────────── */}
+                      <View
+                        style={[
+                          styles.addRow,
+                          effectiveMode === 'private' && styles.addRowPersonal,
+                        ]}
+                      >
+                        <TextInput
+                          ref={inputRef}
+                          value={itemName}
+                          onChangeText={handleItemNameChange}
+                          placeholder={t('grocery.item_placeholder')}
+                          placeholderTextColor={C.textSecondary}
+                          style={styles.addInput}
+                          returnKeyType="done"
+                          blurOnSubmit={false}
+                          onSubmitEditing={handleAddPress}
+                          accessible
+                          accessibilityRole="search"
+                          accessibilityLabel={t('grocery.add_item_a11y')}
+                          accessibilityHint={t('grocery.add_item_hint')}
+                        />
+                        <Pressable
+                          style={[
+                            styles.addBtn,
+                            (!itemName.trim() || isAdding) && styles.addBtnOff,
+                            effectiveMode === 'private' && styles.addBtnPersonal,
+                          ]}
+                          onPress={handleAddPress}
+                          disabled={!itemName.trim() || isAdding}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('grocery.add_item')}
+                        >
+                          <Text style={styles.addBtnText}>{isAdding ? '…' : '+'}</Text>
                         </Pressable>
                       </View>
-                      {showCustomQty && (
-                        <TextInput
-                          value={customQty}
-                          onChangeText={setCustomQty}
-                          placeholder={t('grocery.custom_qty_placeholder')}
-                          placeholderTextColor={C.textSecondary}
-                          keyboardType="number-pad"
-                          style={styles.formQty}
-                          autoFocus
-                          accessible
-                          accessibilityRole="text"
-                          accessibilityLabel={t('grocery.custom_quantity')}
-                          accessibilityHint={t('grocery.custom_qty_hint')}
-                        />
-                      )}
-                    </View>
 
-                    {/* ── Unit selector ────────────────────────────────── */}
-                    <View style={styles.qtyRow}>
-                      <Text style={styles.qtyLabel}>{t('grocery.unit_label')}</Text>
-                      <View style={styles.qtyPresets}>
-                        {UNIT_OPTS.map((u) => {
-                          const active = unit === u;
-                          const unitLabel = language === 'he' ? UNIT_LABELS_HE[u] : u;
-                          return (
-                            <Pressable
-                              key={u}
-                              style={[styles.qtyBtn, active && styles.qtyBtnOn]}
-                              onPress={() => handleUnitToggle(u)}
-                              hitSlop={4}
-                              accessibilityRole="button"
-                              accessibilityState={{ selected: active }}
-                              accessibilityLabel={t('grocery.unit_preset', { u: unitLabel })}
-                            >
-                              <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
-                                {unitLabel}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    </View>
-
-                    {/* ── Note (optional) ─────────────────────────────── */}
-                    <View style={styles.noteRow}>
-                      <Ionicons name="chatbubble-outline" size={15} color={C.textTertiary} />
-                      <TextInput
-                        value={note}
-                        onChangeText={setNote}
-                        placeholder={t('grocery.note_placeholder')}
-                        placeholderTextColor={C.textTertiary}
-                        style={styles.noteInput}
-                        returnKeyType="done"
-                        onSubmitEditing={handleAddPress}
-                        accessibilityLabel={t('grocery.note_label')}
-                        accessibilityHint={t('grocery.note_hint')}
-                      />
-                    </View>
-
-                    {/* ── Quick Add (to current mode) ───────────────────── */}
-                    <View>
-                      <Text style={[styles.eyebrow, styles.quickAddLabel]}>
-                        {t('grocery.quick_add')}
-                      </Text>
-                      <View style={styles.quickAdds}>
-                        {QUICK_ADD_KEYS.map((qa) => (
+                      {/* ── Qty selector ─────────────────────────────────── */}
+                      <View style={styles.qtyRow}>
+                        <Text style={styles.qtyLabel}>{t('grocery.qty_label')}</Text>
+                        <View style={styles.qtyPresets}>
+                          {QTY_PRESETS.map((p) => {
+                            const active = !showCustomQty && qty === p;
+                            return (
+                              <Pressable
+                                key={p}
+                                style={[styles.qtyBtn, active && styles.qtyBtnOn]}
+                                onPress={() => handleQtyPresetSelect(p)}
+                                hitSlop={4}
+                                accessible
+                                accessibilityRole="button"
+                                accessibilityLabel={t('grocery.quantity_preset', { n: p })}
+                                accessibilityState={{ selected: active }}
+                              >
+                                <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
+                                  {p}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
                           <Pressable
-                            key={qa.tKey}
-                            style={styles.quickAddBtn}
-                            onPress={() => handleQuickAdd(t(qa.tKey))}
+                            style={[styles.qtyBtn, showCustomQty && styles.qtyBtnOn]}
+                            onPress={handleToggleCustomQty}
+                            hitSlop={4}
+                            accessible
                             accessibilityRole="button"
-                            accessibilityLabel={t('grocery.add_quick', { name: t(qa.tKey) })}
+                            accessibilityLabel={t('grocery.custom_quantity')}
+                            accessibilityHint={t('grocery.custom_quantity_hint')}
+                            accessibilityState={{ selected: showCustomQty }}
                           >
-                            <Text style={styles.quickAddText}>+ {t(qa.tKey)}</Text>
+                            <Ionicons
+                              name="pencil"
+                              size={14}
+                              color={showCustomQty ? '#FFFFFF' : C.textPrimary}
+                            />
                           </Pressable>
-                        ))}
+                        </View>
+                        {showCustomQty && (
+                          <TextInput
+                            value={customQty}
+                            onChangeText={setCustomQty}
+                            placeholder={t('grocery.custom_qty_placeholder')}
+                            placeholderTextColor={C.textSecondary}
+                            keyboardType="number-pad"
+                            style={styles.formQty}
+                            autoFocus
+                            accessible
+                            accessibilityRole="text"
+                            accessibilityLabel={t('grocery.custom_quantity')}
+                            accessibilityHint={t('grocery.custom_qty_hint')}
+                          />
+                        )}
+                      </View>
+
+                      {/* ── Unit selector ────────────────────────────────── */}
+                      <View style={styles.qtyRow}>
+                        <Text style={styles.qtyLabel}>{t('grocery.unit_label')}</Text>
+                        <View style={styles.qtyPresets}>
+                          {UNIT_OPTS.map((u) => {
+                            const active = unit === u;
+                            const unitLabel = language === 'he' ? UNIT_LABELS_HE[u] : u;
+                            return (
+                              <Pressable
+                                key={u}
+                                style={[styles.qtyBtn, active && styles.qtyBtnOn]}
+                                onPress={() => handleUnitToggle(u)}
+                                hitSlop={4}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: active }}
+                                accessibilityLabel={t('grocery.unit_preset', { u: unitLabel })}
+                              >
+                                <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
+                                  {unitLabel}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+
+                      {/* ── Note (optional) ─────────────────────────────── */}
+                      <View style={styles.noteRow}>
+                        <Ionicons name="chatbubble-outline" size={15} color={C.textTertiary} />
+                        <TextInput
+                          value={note}
+                          onChangeText={setNote}
+                          placeholder={t('grocery.note_placeholder')}
+                          placeholderTextColor={C.textTertiary}
+                          style={styles.noteInput}
+                          returnKeyType="done"
+                          onSubmitEditing={handleAddPress}
+                          accessibilityLabel={t('grocery.note_label')}
+                          accessibilityHint={t('grocery.note_hint')}
+                        />
+                      </View>
+
+                      {/* ── Quick Add (to current mode) ───────────────────── */}
+                      <View>
+                        <Text style={[styles.eyebrow, styles.quickAddLabel]}>
+                          {t('grocery.quick_add')}
+                        </Text>
+                        <View style={styles.quickAdds}>
+                          {QUICK_ADD_KEYS.map((qa) => (
+                            <Pressable
+                              key={qa.tKey}
+                              style={styles.quickAddBtn}
+                              onPress={() => handleQuickAdd(t(qa.tKey))}
+                              accessibilityRole="button"
+                              accessibilityLabel={t('grocery.add_quick', { name: t(qa.tKey) })}
+                            >
+                              <Text style={styles.quickAddText}>+ {t(qa.tKey)}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
                       </View>
                     </View>
-                  </View>
 
-                  {/* Reminders now live as a per-list alarm icon in Saved Lists
+                    {/* Reminders now live as a per-list alarm icon in Saved Lists
                       (below), so the standalone Reminders section was removed. */}
 
-                  {/* ── Saved Lists section ──────────────────────────────────── */}
-                  <SavedListsSection
-                    lists={savedLists}
-                    isLoading={isLoadingLists}
-                    myId={myId}
-                    hasDraftItems={myDraftItems.length > 0}
-                    onLoadList={handleLoadList}
-                    onDeleteList={handleDeleteList}
-                    onSetListReminder={handleOpenListReminder}
-                  />
-
-                  {/* ── Load / error states ─────────────────────────────────── */}
-                  {isLoading && items.length === 0 && (
-                    <ActivityIndicator
-                      size="small"
-                      color="#4F78B6"
-                      style={styles.loadingIndicator}
+                    {/* ── Saved Lists section ──────────────────────────────────── */}
+                    <SavedListsSection
+                      lists={savedLists}
+                      isLoading={isLoadingLists}
+                      myId={myId}
+                      hasDraftItems={myDraftItems.length > 0}
+                      onLoadList={handleLoadList}
+                      onDeleteList={handleDeleteList}
+                      onSetListReminder={handleOpenListReminder}
                     />
-                  )}
-                  {!!error && (
-                    <View style={styles.errorBanner}>
-                      <Text style={styles.errorBannerText}>{error}</Text>
-                    </View>
-                  )}
-                </View>
-              }
-              ListEmptyComponent={
-                <View style={styles.emptyWrap}>
-                  <Ionicons
-                    name="cart-outline"
-                    size={44}
-                    color={C.textTertiary}
-                    style={styles.emptyIcon}
-                  />
-                  <Text style={styles.emptyTitle}>{t('grocery.empty')}</Text>
-                  <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
-                </View>
-              }
-              ListFooterComponent={
-                <View style={styles.footer}>
-                  <ShoppingRunCard />
-                  <View style={styles.bottomPad} />
-                </View>
-              }
-            />
+
+                    {/* ── Load / error states ─────────────────────────────────── */}
+                    {isLoading && items.length === 0 && (
+                      <ActivityIndicator
+                        size="small"
+                        color="#4F78B6"
+                        style={styles.loadingIndicator}
+                      />
+                    )}
+                    {!!error && (
+                      <View style={styles.errorBanner}>
+                        <Text style={styles.errorBannerText}>{error}</Text>
+                      </View>
+                    )}
+                  </View>
+                }
+                ListEmptyComponent={
+                  <View style={styles.emptyWrap}>
+                    <Ionicons
+                      name="cart-outline"
+                      size={44}
+                      color={C.textTertiary}
+                      style={styles.emptyIcon}
+                    />
+                    <Text style={styles.emptyTitle}>{t('grocery.empty')}</Text>
+                    <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
+                  </View>
+                }
+                ListFooterComponent={
+                  <View style={styles.footer}>
+                    <ShoppingRunCard />
+                    <View style={styles.bottomPad} />
+                  </View>
+                }
+              />
+            </Animated.View>
           </View>
 
           <View style={styles.reminderPromptOverlay} pointerEvents="box-none">

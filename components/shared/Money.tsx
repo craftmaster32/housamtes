@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, TextStyle } from 'react-native';
 import { splitMoney, type CurrencyCode } from '@constants/currencies';
+import { useCountUp } from '@hooks/useCountUp';
 
 interface MoneyProps {
   amount: number;
@@ -12,6 +13,8 @@ interface MoneyProps {
   mutedColor?: string;
   weight?: 'bold' | 'extrabold';
   style?: TextStyle;
+  /** When true, the figure counts up from 0 the first time it appears. */
+  animate?: boolean;
 }
 
 /**
@@ -27,10 +30,12 @@ export const Money: React.FC<MoneyProps> = ({
   mutedColor,
   weight = 'extrabold',
   style,
+  animate = false,
 }) => {
+  const displayAmount = useCountUp(amount, animate);
   const { symbol, whole, fraction } = useMemo(
-    () => splitMoney(amount, currencyCode),
-    [amount, currencyCode]
+    () => splitMoney(displayAmount, currencyCode),
+    [displayAmount, currencyCode]
   );
   const muted = mutedColor ?? color;
   const family = weight === 'extrabold' ? 'Inter_800ExtraBold' : 'Inter_700Bold';

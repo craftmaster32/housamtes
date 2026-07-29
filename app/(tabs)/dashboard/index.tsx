@@ -366,6 +366,7 @@ function OwedHero(): React.JSX.Element {
                 size={44}
                 color="#fff"
                 style={styles.heroAmtRow}
+                animate
               />
               <Text style={styles.heroSub}>
                 {peopleCount !== 1

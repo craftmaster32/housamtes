@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -108,17 +109,17 @@ export default function SignupScreen(): React.JSX.Element {
           contentContainerStyle={styles.cardContent}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.brandRow}>
+          <Animated.View style={styles.brandRow} entering={FadeInDown.duration(400)}>
             <View style={styles.logoChip}>
               <Ionicons name="home" size={18} color={C.primary} />
             </View>
             <Text style={styles.brandName}>HouseMates</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.headerBlock}>
+          <Animated.View style={styles.headerBlock} entering={FadeInDown.duration(400).delay(70)}>
             <Text style={[styles.title, headingFont]}>{t('auth.create_account')}</Text>
             <Text style={styles.subtitle}>{t('auth.free_to_use')}</Text>
-          </View>
+          </Animated.View>
 
           <TextInput
             label={t('auth.your_name')}
@@ -235,34 +236,36 @@ export default function SignupScreen(): React.JSX.Element {
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <Button
-            mode="contained"
-            onPress={handleSignup}
-            loading={isLoading}
-            disabled={isLoading}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
-            buttonColor={C.primary}
-            textColor="#fff"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.create_account')}
-          >
-            {t('auth.create_account')}
-          </Button>
+          <Animated.View style={styles.ctaGroup} entering={FadeInDown.duration(420).delay(140)}>
+            <Button
+              mode="contained"
+              onPress={handleSignup}
+              loading={isLoading}
+              disabled={isLoading}
+              style={styles.button}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
+              buttonColor={C.primary}
+              textColor="#fff"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.create_account')}
+            >
+              {t('auth.create_account')}
+            </Button>
 
-          <Pressable
-            style={styles.loginLink}
-            onPress={() => router.push('/(auth)/login')}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.has_account_login')}
-          >
-            <Text style={styles.loginText}>
-              {t('auth.has_account')} <Text style={styles.loginTextBold}>{t('auth.log_in')}</Text>
-            </Text>
-          </Pressable>
+            <Pressable
+              style={styles.loginLink}
+              onPress={() => router.push('/(auth)/login')}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.has_account_login')}
+            >
+              <Text style={styles.loginText}>
+                {t('auth.has_account')} <Text style={styles.loginTextBold}>{t('auth.log_in')}</Text>
+              </Text>
+            </Pressable>
+          </Animated.View>
         </ScrollView>
       </View>
     </View>
@@ -368,6 +371,7 @@ function makeStyles(C: ColorTokens) {
       color: C.danger,
       fontSize: sizes.fontSm,
     },
+    ctaGroup: { gap: sizes.md },
     button: {
       borderRadius: 14,
       marginTop: sizes.xs,
