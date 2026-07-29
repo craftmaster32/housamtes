@@ -27,16 +27,21 @@ interface NavItem {
   iconActive: IoniconName;
   labelKey: string;
   route: string;
+  color: string;
   featureKey?: string;
   badgeKey?: BadgeFeature;
 }
 
+// Each feature gets its own accent (like the dashboard tiles) instead of every
+// icon sharing the blue primary — makes the grid easier to scan. Fixed hues
+// that read well on both the cream and navy surfaces.
 const POPUP_NAV: NavItem[] = [
   {
     icon: 'cart-outline',
     iconActive: 'cart',
     labelKey: 'nav.grocery',
     route: '/(tabs)/grocery',
+    color: '#E8892B',
     featureKey: 'grocery',
   },
   {
@@ -44,8 +49,15 @@ const POPUP_NAV: NavItem[] = [
     iconActive: 'calendar',
     labelKey: 'nav.calendar',
     route: '/(tabs)/calendar',
+    color: '#3B6FBF',
   },
-  { icon: 'images-outline', iconActive: 'images', labelKey: 'nav.photos', route: '/(tabs)/photos' },
+  {
+    icon: 'images-outline',
+    iconActive: 'images',
+    labelKey: 'nav.photos',
+    route: '/(tabs)/photos',
+    color: '#AF52DE',
+  },
   // Housemates intentionally omitted here — they're managed under Settings, so
   // surfacing them in this menu too was redundant.
   {
@@ -53,18 +65,21 @@ const POPUP_NAV: NavItem[] = [
     iconActive: 'list',
     labelKey: 'nav.tasks',
     route: '/(tabs)/tasks',
+    color: '#2FA37A',
   },
   {
     icon: 'clipboard-outline',
     iconActive: 'clipboard',
     labelKey: 'nav.notes',
     route: '/(tabs)/notes',
+    color: '#D9A414',
   },
   {
     icon: 'hand-left-outline',
     iconActive: 'hand-left',
     labelKey: 'nav.votes',
     route: '/(tabs)/voting',
+    color: '#EC5A8D',
     featureKey: 'voting',
   },
   {
@@ -72,6 +87,7 @@ const POPUP_NAV: NavItem[] = [
     iconActive: 'construct',
     labelKey: 'nav.property',
     route: '/(tabs)/property',
+    color: '#12A594',
     featureKey: 'maintenance',
   },
 ];
@@ -238,8 +254,8 @@ export function MorePopup(): React.JSX.Element {
                     accessibilityLabel={t(item.labelKey)}
                     accessibilityState={{ disabled: false }}
                   >
-                    <View style={[styles.iconWrap, { backgroundColor: c.primary + '14' }]}>
-                      <Ionicons name={item.icon} size={22} color={c.primary} />
+                    <View style={[styles.iconWrap, { backgroundColor: item.color + '1F' }]}>
+                      <Ionicons name={item.icon} size={22} color={item.color} />
                       {count > 0 && (
                         <View style={[styles.badge, { backgroundColor: c.danger }]}>
                           <Text style={[styles.badgeText, { color: c.white }]}>

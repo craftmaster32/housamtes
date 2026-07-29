@@ -14,7 +14,6 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
   const { t, i18n } = useTranslation();
   const c = useThemedColors();
   const styles = useMemo(() => makeStyles(c), [c]);
-  const inputRef = React.useRef<{ showPicker?: () => void } | null>(null);
 
   if (Platform.OS === 'web') {
     const localeMap: Record<string, string> = { en: 'en-GB', es: 'es-ES', he: 'he-IL' };
@@ -26,10 +25,13 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
         })
       : t('common.pick_date');
 
+    // A transparent native date input is laid over the whole control so a click
+    // anywhere opens the browser's date picker directly. (Relying on the
+    // wrapper's onClick → showPicker() failed silently in several browsers,
+    // which is why the date couldn't be set.)
     return React.createElement(
       'div',
       {
-        onClick: () => inputRef.current?.showPicker?.(),
         style: {
           position: 'relative',
           display: 'inline-flex',
@@ -71,14 +73,12 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
         },
         displayText
       ),
-      // The actual date input — invisible, full-coverage, used only for the picker popup.
-      // pointerEvents: 'none' so the div handles all clicks.
+      // Invisible full-coverage date input on top — it receives the click and
+      // opens the native picker itself (no showPicker() needed).
       React.createElement('input', {
-        ref: (el: unknown) => {
-          inputRef.current = el as { showPicker?: () => void } | null;
-        },
         type: 'date',
         value: value || '',
+        'aria-label': t('common.pick_date'),
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value),
         style: {
           position: 'absolute',
@@ -87,7 +87,7 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
           width: '100%',
           height: '100%',
           opacity: 0,
-          pointerEvents: 'none',
+          cursor: 'pointer',
           border: 'none',
           padding: 0,
           margin: 0,
