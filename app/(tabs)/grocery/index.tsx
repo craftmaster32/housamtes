@@ -361,7 +361,7 @@ function ItemRow({
             <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>
               {item.name}
             </Text>
-            {!!item.quantity && (
+            {!!item.quantity && item.quantity !== '1' && (
               <View style={rowStyles.itemQty}>
                 <Text style={rowStyles.itemQtyText}>
                   {hasCount
@@ -724,18 +724,47 @@ export default function GroceryScreen(): React.JSX.Element {
       setIsAdding(true);
       setAddError(null);
       try {
-        await addItem(
-          n,
-          quick ? '' : resolvedQty,
-          myId,
-          houseId ?? '',
-          effectiveMode,
-          quick ? undefined : note.trim() || undefined
+        // Quick-add carries the count (no unit); typed add carries count + unit.
+        const addQty = quick ? qty : resolvedQty;
+        // Same-name unchecked item already on this list? Merge into it and bump
+        // the quantity instead of creating a separate duplicate row — so "add
+        // olive oil x3" becomes one item you can count down, not three rows.
+        const inBucket = (i: GroceryItem): boolean =>
+          effectiveMode === 'private'
+            ? i.isPersonal && !i.isDraft && i.addedBy === myId
+            : effectiveMode === 'draft'
+              ? i.isDraft && i.addedBy === myId
+              : !i.isPersonal;
+        const existing = items.find(
+          (i) => !i.isChecked && inBucket(i) && i.name.trim().toLowerCase() === n.toLowerCase()
         );
+        // Only merge when both quantities are plain counts (empty == 1); a
+        // measured amount like "2kg" can't be summed, so it adds a new row.
+        const asCount = (q: string): number | null => {
+          const s = q.trim();
+          if (s === '') return 1;
+          return /^\d+$/.test(s) ? parseInt(s, 10) : null;
+        };
+        const existingCount = existing ? asCount(existing.quantity) : null;
+        const addedCount = asCount(addQty);
+        if (existing && existingCount !== null && addedCount !== null) {
+          await updateItem(existing.id, existing.name, String(existingCount + addedCount));
+        } else {
+          await addItem(
+            n,
+            addQty,
+            myId,
+            houseId ?? '',
+            effectiveMode,
+            quick ? undefined : note.trim() || undefined
+          );
+        }
         setItemName('');
-        setQty('1');
-        setUnit('');
-        setNote('');
+        if (!quick) {
+          setQty('1');
+          setUnit('');
+          setNote('');
+        }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         showAddedItemPrompt(n);
         setTimeout(() => inputRef.current?.focus(), 50);
@@ -747,10 +776,13 @@ export default function GroceryScreen(): React.JSX.Element {
     },
     [
       itemName,
+      qty,
       resolvedQty,
       myId,
       houseId,
       addItem,
+      updateItem,
+      items,
       isAdding,
       effectiveMode,
       note,
