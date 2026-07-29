@@ -7,12 +7,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useMemberName } from '@hooks/useMemberName';
+import { useAuthStore } from '@stores/authStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
-import { useHouseActivity, type ActivityEntry, type ActivityTone } from '@hooks/useHouseActivity';
+import {
+  useHouseActivity,
+  useActionItems,
+  type ActivityEntry,
+  type ActivityTone,
+} from '@hooks/useHouseActivity';
 
 interface ActivityPopupProps {
   visible: boolean;
   onClose: () => void;
+  /**
+   * Snapshot of lastSeen taken when the bell was opened, so rows newer than it
+   * stay highlighted for this viewing even though opening marks activity seen.
+   */
+  seenBefore?: string;
 }
 
 function timeAgo(iso: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
@@ -35,12 +46,18 @@ function bucketOf(iso: string): Bucket {
   return days < 7 ? 'week' : 'earlier';
 }
 
-export function ActivityPopup({ visible, onClose }: ActivityPopupProps): React.JSX.Element {
+export function ActivityPopup({
+  visible,
+  onClose,
+  seenBefore = '',
+}: ActivityPopupProps): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
   const memberName = useMemberName();
+  const myId = useAuthStore((s) => s.profile?.id) ?? '';
   const insets = useSafeAreaInsets();
   const entries = useHouseActivity();
+  const actionItems = useActionItems();
 
   const toneColor: Record<ActivityTone, string> = {
     primary: c.primary,
@@ -49,10 +66,17 @@ export function ActivityPopup({ visible, onClose }: ActivityPopupProps): React.J
     purple: '#9B7BFF',
   };
 
+  // Action items already surface in the "Needs you" section — keep them out of
+  // the feed below so a vote you owe isn't shown twice.
+  const actionIds = useMemo(() => new Set(actionItems.map((a) => a.id)), [actionItems]);
+
   // Group the (already newest-first) feed into Today / This week / Earlier.
   const sections = useMemo(() => {
     const groups: Record<Bucket, ActivityEntry[]> = { today: [], week: [], earlier: [] };
-    for (const e of entries) groups[bucketOf(e.createdAt)].push(e);
+    for (const e of entries) {
+      if (actionIds.has(e.id)) continue;
+      groups[bucketOf(e.createdAt)].push(e);
+    }
     return (
       [
         { key: 'today' as const, title: t('common.today'), data: groups.today },
@@ -60,7 +84,7 @@ export function ActivityPopup({ visible, onClose }: ActivityPopupProps): React.J
         { key: 'earlier' as const, title: t('activity.earlier'), data: groups.earlier },
       ] as const
     ).filter((s) => s.data.length > 0);
-  }, [entries, t]);
+  }, [entries, actionIds, t]);
 
   const handlePress = useCallback(
     (route: Href): void => {
@@ -70,13 +94,19 @@ export function ActivityPopup({ visible, onClose }: ActivityPopupProps): React.J
     [onClose]
   );
 
-  const renderRow = (e: ActivityEntry): React.JSX.Element => {
+  const renderRow = (e: ActivityEntry, opts?: { needsYou?: boolean }): React.JSX.Element => {
     const color = toneColor[e.tone];
     const actor = memberName(e.actorId).split(' ')[0];
+    const needsYou = opts?.needsYou ?? false;
+    const unread = !needsYou && !!seenBefore && e.createdAt > seenBefore && e.actorId !== myId;
     return (
       <Pressable
         key={e.id}
-        style={({ pressed }) => [styles.row, pressed && { backgroundColor: c.surfaceSecondary }]}
+        style={({ pressed }) => [
+          styles.row,
+          unread && { backgroundColor: c.primary + '0F' },
+          pressed && { backgroundColor: c.surfaceSecondary },
+        ]}
         onPress={() => handlePress(e.route)}
         accessibilityRole="button"
       >
@@ -91,8 +121,15 @@ export function ActivityPopup({ visible, onClose }: ActivityPopupProps): React.J
             <Text style={font.bold}>{actor}</Text> {t(e.actionKey)}
             {!!e.detail && <Text style={font.semibold}> {e.detail}</Text>}
           </Text>
-          <Text style={[styles.time, { color: c.textTertiary }]}>{timeAgo(e.createdAt, t)}</Text>
+          {needsYou ? (
+            <View style={[styles.actionTag, { backgroundColor: color + '22' }]}>
+              <Text style={[styles.actionTagText, { color }]}>{t('activity.tap_to_act')}</Text>
+            </View>
+          ) : (
+            <Text style={[styles.time, { color: c.textTertiary }]}>{timeAgo(e.createdAt, t)}</Text>
+          )}
         </View>
+        {unread && <View style={[styles.unreadDot, { backgroundColor: c.primary }]} />}
       </Pressable>
     );
   };
@@ -115,7 +152,7 @@ export function ActivityPopup({ visible, onClose }: ActivityPopupProps): React.J
         >
           <Text style={[styles.title, { color: c.textPrimary }]}>{t('activity.title')}</Text>
 
-          {sections.length === 0 ? (
+          {sections.length === 0 && actionItems.length === 0 ? (
             <View style={styles.empty}>
               <Ionicons name="notifications-off-outline" size={26} color={c.textTertiary} />
               <Text style={[styles.emptyText, { color: c.textSecondary }]}>
@@ -124,10 +161,18 @@ export function ActivityPopup({ visible, onClose }: ActivityPopupProps): React.J
             </View>
           ) : (
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+              {actionItems.length > 0 && (
+                <View>
+                  <Text style={[styles.sectionHeader, { color: c.primary }]}>
+                    {t('activity.needs_you')}
+                  </Text>
+                  {actionItems.map((e) => renderRow(e, { needsYou: true }))}
+                </View>
+              )}
               {sections.map((s) => (
                 <View key={s.key}>
                   <Text style={[styles.sectionHeader, { color: c.textSecondary }]}>{s.title}</Text>
-                  {s.data.map(renderRow)}
+                  {s.data.map((e) => renderRow(e))}
                 </View>
               ))}
             </ScrollView>
@@ -192,6 +237,15 @@ const styles = StyleSheet.create({
   rowBody: { flex: 1, minWidth: 0 },
   rowText: { fontSize: 15, ...font.regular, lineHeight: 20 },
   time: { fontSize: 12.5, ...font.medium, marginTop: 3 },
+  actionTag: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 9999,
+  },
+  actionTagText: { fontSize: 11, ...font.bold, letterSpacing: 0.2 },
+  unreadDot: { width: 9, height: 9, borderRadius: 5, flexShrink: 0, marginStart: 4 },
   empty: { alignItems: 'center', gap: 10, paddingVertical: 40 },
   emptyText: { fontSize: 14, ...font.medium },
 });

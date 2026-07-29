@@ -47,7 +47,7 @@ import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useBadgeStore } from '@stores/badgeStore';
-import { useHouseActivity } from '@hooks/useHouseActivity';
+import { useHouseActivity, useActionItems } from '@hooks/useHouseActivity';
 import { ActivityPopup } from '@components/dashboard/ActivityPopup';
 
 // The parking tile stays a deep slate in both themes — a deliberate anchor on
@@ -97,19 +97,26 @@ function Header(): React.JSX.Element {
   const handleOpenProfile = useCallback((): void => openProfile('start'), [openProfile]);
 
   const activity = useHouseActivity();
+  const actionItems = useActionItems();
   const lastSeenActivity = useBadgeStore((s) => s.lastSeen.activity);
   const markActivitySeen = useBadgeStore((s) => s.markSeen);
   const [showActivity, setShowActivity] = useState(false);
+  const [seenBefore, setSeenBefore] = useState('');
   const myName = profile?.name ?? 'there';
   const myId = profile?.id ?? '';
   const initials = myName.charAt(0).toUpperCase();
-  const newActivity = activity.filter(
-    (e) => e.createdAt > lastSeenActivity && e.actorId !== myId
+  // Unread "news" clears when the bell is opened; action items (votes you owe,
+  // parking requests awaiting you) persist in the badge until you act on them.
+  const actionIds = useMemo(() => new Set(actionItems.map((a) => a.id)), [actionItems]);
+  const unreadNews = activity.filter(
+    (e) => e.createdAt > lastSeenActivity && e.actorId !== myId && !actionIds.has(e.id)
   ).length;
+  const newActivity = actionItems.length + unreadNews;
   const openActivity = useCallback((): void => {
+    setSeenBefore(lastSeenActivity);
     setShowActivity(true);
     markActivitySeen('activity').catch(() => {});
-  }, [markActivitySeen]);
+  }, [markActivitySeen, lastSeenActivity]);
 
   return (
     <>
@@ -175,7 +182,11 @@ function Header(): React.JSX.Element {
           )}
         </Pressable>
       </View>
-      <ActivityPopup visible={showActivity} onClose={() => setShowActivity(false)} />
+      <ActivityPopup
+        visible={showActivity}
+        seenBefore={seenBefore}
+        onClose={() => setShowActivity(false)}
+      />
     </>
   );
 }

@@ -8,7 +8,11 @@
     "added_grocery": "הוסיף/ה לרשימת הקניות",
     "posted_note": "פרסם/ה פתק",
     "added_task": "הוסיף/ה משימה",
-    "started_vote": "פתח/ה הצבעה"
+    "started_vote": "פתח/ה הצבעה",
+    "needs_you": "דורש ממך פעולה",
+    "needs_your_vote": "מבקש/ת את הצבעתך על",
+    "needs_parking_vote": "מבקש/ת את הצבעתך לחניה ל־",
+    "tap_to_act": "הקש/י לפעולה"
   },
   "common": {
     "cancel": "ביטול",

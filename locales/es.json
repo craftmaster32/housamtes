@@ -8,7 +8,11 @@
     "added_grocery": "añadió a la lista",
     "posted_note": "publicó una nota",
     "added_task": "añadió una tarea",
-    "started_vote": "inició una votación"
+    "started_vote": "inició una votación",
+    "needs_you": "Te necesita",
+    "needs_your_vote": "necesita tu voto sobre",
+    "needs_parking_vote": "quiere tu voto para aparcar el",
+    "tap_to_act": "Toca para actuar"
   },
   "common": {
     "cancel": "Cancelar",
