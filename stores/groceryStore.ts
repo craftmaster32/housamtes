@@ -138,6 +138,13 @@ let _channelHouseId: string | null = null;
 // sequence number against this before committing state or (re)subscribing, so a
 // stale load can neither overwrite newer data nor recreate a channel after cleanup.
 let _loadSeq = 0;
+// Latest bought_count we've optimistically written per item, keyed by item id.
+// Supabase realtime echoes our own writes back, and when the +/− buttons are
+// tapped quickly the echo of an EARLIER write can arrive after a LATER optimistic
+// bump — blindly applying it snaps the counter backwards (the "lag"). While an
+// item has a pending count, the UPDATE handler keeps the local count until the
+// echo of the latest write catches up. Cleared when that echo lands or on error.
+const _pendingCounts = new Map<string, number>();
 
 function mapItem(r: Record<string, unknown>): GroceryItem {
   return {
@@ -310,7 +317,21 @@ export const useGroceryStore = create<GroceryStore>()(
             },
             (payload: { new: Record<string, unknown> }) => {
               const updated = mapItem(payload.new);
-              set({ items: get().items.map((i) => (i.id === updated.id ? updated : i)) });
+              const pending = _pendingCounts.get(updated.id);
+              set({
+                items: get().items.map((i) => {
+                  if (i.id !== updated.id) return i;
+                  if (pending === undefined) return updated;
+                  // The echo of our latest count write caught up — stop guarding.
+                  if (updated.boughtCount === pending) {
+                    _pendingCounts.delete(updated.id);
+                    return updated;
+                  }
+                  // Stale self-echo of an earlier tap: take the row's other fields
+                  // but keep our fresher local count/checked so it can't revert.
+                  return { ...updated, boughtCount: i.boughtCount, isChecked: i.isChecked };
+                }),
+              });
             }
           )
           .on(
@@ -346,6 +367,7 @@ export const useGroceryStore = create<GroceryStore>()(
       unsubscribe: (): void => {
         // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
         _loadSeq++;
+        _pendingCounts.clear();
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
@@ -430,6 +452,7 @@ export const useGroceryStore = create<GroceryStore>()(
           : (item.boughtCount ?? 0) + 1;
         const isChecked = hasMax ? count >= max : item.isChecked;
         const prev = { boughtCount: item.boughtCount, isChecked: item.isChecked };
+        _pendingCounts.set(id, count);
         set({
           items: get().items.map((i) =>
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
@@ -440,6 +463,7 @@ export const useGroceryStore = create<GroceryStore>()(
           .update({ bought_count: count, is_checked: isChecked })
           .eq('id', id);
         if (error) {
+          if (_pendingCounts.get(id) === count) _pendingCounts.delete(id);
           set({ items: get().items.map((i) => (i.id === id ? { ...i, ...prev } : i)) });
           captureError(error, { context: 'increment-bought', id });
         }
@@ -453,6 +477,7 @@ export const useGroceryStore = create<GroceryStore>()(
         const hasMax = !isNaN(max) && max > 1;
         const isChecked = hasMax ? count >= max : item.isChecked;
         const prev = { boughtCount: item.boughtCount, isChecked: item.isChecked };
+        _pendingCounts.set(id, count);
         set({
           items: get().items.map((i) =>
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
@@ -463,6 +488,7 @@ export const useGroceryStore = create<GroceryStore>()(
           .update({ bought_count: count, is_checked: isChecked })
           .eq('id', id);
         if (error) {
+          if (_pendingCounts.get(id) === count) _pendingCounts.delete(id);
           set({ items: get().items.map((i) => (i.id === id ? { ...i, ...prev } : i)) });
           captureError(error, { context: 'decrement-bought', id });
         }

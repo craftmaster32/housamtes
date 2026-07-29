@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
 import {
   View,
   StyleSheet,
@@ -155,7 +155,7 @@ interface ItemRowProps {
   onLongPress: (item: GroceryItem) => void;
 }
 
-function ItemRow({
+const ItemRow = memo(function ItemRow({
   item,
   myId,
   isDuplicate = false,
@@ -416,7 +416,7 @@ function ItemRow({
       </View>
     </Pressable>
   );
-}
+});
 
 function ItemSeparator(): React.JSX.Element {
   const C = useThemedColors();

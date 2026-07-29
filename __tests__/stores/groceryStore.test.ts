@@ -417,6 +417,59 @@ describe('realtime UPDATE handler', () => {
     expect(items[0].name).toBe('Oat Milk');
     expect(items[1].name).toBe('Bread');
   });
+
+  // Regression: tapping +/− quickly used to "lag" because Supabase echoes our own
+  // writes back, and a stale echo of an earlier tap would snap the counter
+  // backwards before the latest echo caught up.
+  it('does not let a stale self-echo revert a fresher local count', async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', quantity: '5', boughtCount: 0 })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    // Two quick taps → optimistic count reaches 2 immediately.
+    await useGroceryStore.getState().incrementBought('item-1');
+    await useGroceryStore.getState().incrementBought('item-1');
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+
+    // Echo of the FIRST write (count 1) arrives late — must not revert to 1.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', quantity: '5', bought_count: 1 }) });
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+  });
+
+  it('applies the echo once it catches up to the latest write', async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', quantity: '5', boughtCount: 0 })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().incrementBought('item-1');
+    await useGroceryStore.getState().incrementBought('item-1');
+
+    // Echo of the latest write (count 2) lands — guard clears, row applied.
+    capturedHandlers.update!({
+      new: rawRow({ id: 'item-1', quantity: '5', bought_count: 2, name: 'Oat Milk' }),
+    });
+    const updated = useGroceryStore.getState().items[0];
+    expect(updated.boughtCount).toBe(2);
+    expect(updated.name).toBe('Oat Milk');
+
+    // A later remote change now flows through normally (guard was cleared).
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', quantity: '5', bought_count: 3 }) });
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(3);
+  });
+
+  it("still applies a stale echo's other fields while guarding the count", async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', quantity: '5', boughtCount: 0 })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().incrementBought('item-1');
+    await useGroceryStore.getState().incrementBought('item-1');
+
+    // Stale echo (count 1) also carries a name change from another user.
+    capturedHandlers.update!({
+      new: rawRow({ id: 'item-1', quantity: '5', bought_count: 1, name: 'Whole Milk' }),
+    });
+    const updated = useGroceryStore.getState().items[0];
+    expect(updated.boughtCount).toBe(2); // count preserved
+    expect(updated.name).toBe('Whole Milk'); // other fields merged
+  });
 });
 
 // ── Realtime: DELETE handler ──────────────────────────────────────────────────
