@@ -11,7 +11,7 @@ import {
   BackHandler,
   type ViewStyle,
 } from 'react-native';
-import Animated, { FadeInDown, FadeOutUp, LinearTransition } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -632,6 +632,19 @@ export default function GroceryScreen(): React.JSX.Element {
   const destDraft = addMode === 'shared' && isDraftOn && draftEnabled;
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
+  // Animate the "clear checked" bar's height so it slides the list down/up
+  // smoothly instead of popping in. Shared-value driven so it runs on web too.
+  const clearShown = checked.length > 0;
+  const [clearBarH, setClearBarH] = useState(56);
+  const clearProgress = useSharedValue(clearShown ? 1 : 0);
+  useEffect(() => {
+    clearProgress.value = withTiming(clearShown ? 1 : 0, { duration: 240 });
+  }, [clearShown, clearProgress]);
+  const clearBarAnimStyle = useAnimatedStyle(() => ({
+    height: clearProgress.value * clearBarH,
+    opacity: clearProgress.value,
+  }));
+
   const sections = useMemo((): SectionData[] => {
     const draftItems = items.filter((i) => i.isDraft && i.addedBy === myId);
     const privateItems = items.filter((i) => i.isPersonal && !i.isDraft && i.addedBy === myId);
@@ -1200,16 +1213,21 @@ export default function GroceryScreen(): React.JSX.Element {
       >
         <SafeAreaView style={styles.root} edges={['top']}>
           <View style={styles.flex}>
-            {checked.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.duration(220)}
-                exiting={FadeOutUp.duration(180)}
-                layout={LinearTransition.springify().damping(20).stiffness(160)}
+            <Animated.View
+              style={[styles.clearBarWrap, clearBarAnimStyle]}
+              pointerEvents={clearShown ? 'auto' : 'none'}
+            >
+              <View
+                onLayout={(e) => {
+                  const h = e.nativeEvent.layout.height;
+                  if (h > 0 && Math.abs(h - clearBarH) > 1) setClearBarH(h);
+                }}
               >
                 <Pressable
                   style={styles.clearBar}
                   onPress={handleClear}
                   accessibilityRole="button"
+                  accessibilityElementsHidden={!clearShown}
                   accessibilityLabel={t('grocery.clear_items_a11y', { count: checked.length })}
                 >
                   <View style={styles.clearBarLeft}>
@@ -1220,13 +1238,10 @@ export default function GroceryScreen(): React.JSX.Element {
                   </View>
                   <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
                 </Pressable>
-              </Animated.View>
-            )}
+              </View>
+            </Animated.View>
 
-            <Animated.View
-              style={styles.flex}
-              layout={LinearTransition.springify().damping(20).stiffness(160)}
-            >
+            <View style={styles.flex}>
               <SectionList
                 sections={sections}
                 keyExtractor={(item) => item.id}
@@ -1523,7 +1538,7 @@ export default function GroceryScreen(): React.JSX.Element {
                   </View>
                 }
               />
-            </Animated.View>
+            </View>
           </View>
 
           <View style={styles.reminderPromptOverlay} pointerEvents="box-none">
@@ -2034,6 +2049,7 @@ function makeStyles(C: ColorTokens) {
       borderWidth: 1,
       borderColor: 'rgba(34,197,94,0.25)',
     },
+    clearBarWrap: { overflow: 'hidden' },
     clearBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     clearBarCount: { fontSize: 14, ...font.semibold, color: C.positive },
     clearBarAction: { fontSize: 13, ...font.semibold, color: C.positive },

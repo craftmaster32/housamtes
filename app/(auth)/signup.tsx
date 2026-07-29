@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Entrance } from '@components/shared/Entrance';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -109,17 +109,17 @@ export default function SignupScreen(): React.JSX.Element {
           contentContainerStyle={styles.cardContent}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.View style={styles.brandRow} entering={FadeInDown.duration(400)}>
+          <Entrance style={styles.brandRow}>
             <View style={styles.logoChip}>
               <Ionicons name="home" size={18} color={C.primary} />
             </View>
             <Text style={styles.brandName}>HouseMates</Text>
-          </Animated.View>
+          </Entrance>
 
-          <Animated.View style={styles.headerBlock} entering={FadeInDown.duration(400).delay(70)}>
+          <Entrance style={styles.headerBlock} delay={70}>
             <Text style={[styles.title, headingFont]}>{t('auth.create_account')}</Text>
             <Text style={styles.subtitle}>{t('auth.free_to_use')}</Text>
-          </Animated.View>
+          </Entrance>
 
           <TextInput
             label={t('auth.your_name')}
@@ -236,7 +236,7 @@ export default function SignupScreen(): React.JSX.Element {
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <Animated.View style={styles.ctaGroup} entering={FadeInDown.duration(420).delay(140)}>
+          <Entrance style={styles.ctaGroup} delay={140}>
             <Button
               mode="contained"
               onPress={handleSignup}
@@ -265,7 +265,7 @@ export default function SignupScreen(): React.JSX.Element {
                 {t('auth.has_account')} <Text style={styles.loginTextBold}>{t('auth.log_in')}</Text>
               </Text>
             </Pressable>
-          </Animated.View>
+          </Entrance>
         </ScrollView>
       </View>
     </View>

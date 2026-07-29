@@ -14,6 +14,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { Entrance } from '@components/shared/Entrance';
 import { getErrorMessage } from '@utils/errors';
 
 const MAX_ATTEMPTS = 5;
@@ -117,100 +118,103 @@ export default function LoginScreen(): React.JSX.Element {
           contentContainerStyle={styles.cardContent}
           keyboardShouldPersistTaps="handled"
         >
-          <TextInput
-            label={t('auth.email')}
-            value={email}
-            onChangeText={(v) => {
-              setEmail(v);
-              setError('');
-            }}
-            mode="outlined"
-            style={styles.input}
-            autoFocus
-            keyboardType="email-address"
-            autoCapitalize="none"
-            returnKeyType="next"
-            onSubmitEditing={() => passwordRef.current?.focus()}
-            accessibilityLabel={t('auth.email')}
-            accessibilityHint={t('auth.email_hint')}
-            error={!!error}
-          />
+          <Entrance style={styles.cardInner}>
+            <TextInput
+              label={t('auth.email')}
+              value={email}
+              onChangeText={(v) => {
+                setEmail(v);
+                setError('');
+              }}
+              mode="outlined"
+              style={styles.input}
+              autoFocus
+              keyboardType="email-address"
+              autoCapitalize="none"
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              accessibilityLabel={t('auth.email')}
+              accessibilityHint={t('auth.email_hint')}
+              error={!!error}
+            />
 
-          <TextInput
-            ref={passwordRef}
-            label={t('auth.password')}
-            value={password}
-            onChangeText={(v) => {
-              setPassword(v);
-              setError('');
-            }}
-            mode="outlined"
-            style={styles.input}
-            secureTextEntry={!showPassword}
-            returnKeyType="go"
-            onSubmitEditing={handleLogin}
-            accessibilityLabel={t('auth.password')}
-            accessibilityHint={t('auth.password_hint')}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? 'eye-off' : 'eye'}
-                onPress={() => setShowPassword((v) => !v)}
-                accessibilityLabel={
-                  showPassword ? t('auth.hide_password') : t('auth.show_password')
-                }
-              />
-            }
-            error={!!error}
-          />
+            <TextInput
+              ref={passwordRef}
+              label={t('auth.password')}
+              value={password}
+              onChangeText={(v) => {
+                setPassword(v);
+                setError('');
+              }}
+              mode="outlined"
+              style={styles.input}
+              secureTextEntry={!showPassword}
+              returnKeyType="go"
+              onSubmitEditing={handleLogin}
+              accessibilityLabel={t('auth.password')}
+              accessibilityHint={t('auth.password_hint')}
+              right={
+                <TextInput.Icon
+                  icon={showPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowPassword((v) => !v)}
+                  accessibilityLabel={
+                    showPassword ? t('auth.hide_password') : t('auth.show_password')
+                  }
+                />
+              }
+              error={!!error}
+            />
 
-          <Pressable
-            style={styles.forgotBtn}
-            onPress={() => router.push('/(auth)/forgot-password')}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.forgot_password')}
-          >
-            <Text style={styles.forgotText}>{t('auth.forgot_password')}</Text>
-          </Pressable>
+            <Pressable
+              style={styles.forgotBtn}
+              onPress={() => router.push('/(auth)/forgot-password')}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.forgot_password')}
+            >
+              <Text style={styles.forgotText}>{t('auth.forgot_password')}</Text>
+            </Pressable>
 
-          {!!error && <Text style={styles.error}>{error}</Text>}
+            {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <Button
-            mode="contained"
-            onPress={handleLogin}
-            loading={isLoading}
-            disabled={isLoading || lockoutRemaining > 0}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
-            buttonColor={C.primary}
-            textColor="#fff"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={
-              lockoutRemaining > 0
-                ? t('auth.locked_out', { n: lockoutRemaining })
-                : t('auth.sign_in')
-            }
-          >
-            {lockoutRemaining > 0
-              ? t('auth.try_again_in', { n: lockoutRemaining })
-              : isLoading
-                ? t('auth.signing_in')
-                : t('auth.sign_in')}
-          </Button>
+            <Button
+              mode="contained"
+              onPress={handleLogin}
+              loading={isLoading}
+              disabled={isLoading || lockoutRemaining > 0}
+              style={styles.button}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
+              buttonColor={C.primary}
+              textColor="#fff"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={
+                lockoutRemaining > 0
+                  ? t('auth.locked_out', { n: lockoutRemaining })
+                  : t('auth.sign_in')
+              }
+            >
+              {lockoutRemaining > 0
+                ? t('auth.try_again_in', { n: lockoutRemaining })
+                : isLoading
+                  ? t('auth.signing_in')
+                  : t('auth.sign_in')}
+            </Button>
 
-          <Pressable
-            style={styles.signupLink}
-            onPress={() => router.push('/(auth)/signup')}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.no_account_signup')}
-          >
-            <Text style={styles.signupText}>
-              {t('auth.no_account')} <Text style={styles.signupTextBold}>{t('auth.sign_up')}</Text>
-            </Text>
-          </Pressable>
+            <Pressable
+              style={styles.signupLink}
+              onPress={() => router.push('/(auth)/signup')}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.no_account_signup')}
+            >
+              <Text style={styles.signupText}>
+                {t('auth.no_account')}{' '}
+                <Text style={styles.signupTextBold}>{t('auth.sign_up')}</Text>
+              </Text>
+            </Pressable>
+          </Entrance>
         </ScrollView>
       </View>
     </View>
@@ -287,8 +291,8 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       paddingHorizontal: sizes.lg,
       paddingTop: 32,
       paddingBottom: 24,
-      gap: sizes.md,
     },
+    cardInner: { gap: sizes.md },
     input: {
       backgroundColor: C.surface,
     },
