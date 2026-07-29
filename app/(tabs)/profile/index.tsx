@@ -10,6 +10,7 @@ import {
   Modal,
   type GestureResponderEvent,
 } from 'react-native';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -55,30 +56,6 @@ function billDayLabel(dateStr: string): 'today' | 'yesterday' | 'older' {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
-function QuickAction({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  label: string;
-  onPress: () => void;
-}): React.JSX.Element {
-  const C = useThemedColors();
-  const s = useMemo(() => makeStyles(C), [C]);
-  return (
-    <Pressable
-      style={({ pressed }) => [s.quickCard, pressed && s.quickCardPressed]}
-      onPress={onPress}
-      accessible
-      accessibilityRole="button"
-    >
-      <Ionicons name={icon} size={22} color={C.primary} />
-      <Text style={s.quickLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
 function ProfileRow({
   iconName,
   title,
@@ -1016,15 +993,6 @@ export default function ProfileScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.content}>
-            {/* ── Quick actions ──────────────────────────────────────────── */}
-            <View style={styles.quickRow}>
-              <QuickAction
-                icon="stats-chart-outline"
-                label="Spending"
-                onPress={() => router.push('/(tabs)/profile/spending')}
-              />
-            </View>
-
             {/* ── Spending card ──────────────────────────────────────────── */}
             {houseId && profile?.name && <SpendingCard houseId={houseId} userName={profile.name} />}
 
@@ -1096,14 +1064,17 @@ export default function ProfileScreen(): React.JSX.Element {
                   onPress={() => setShowDetailsForm((v) => !v)}
                 />
                 {showDetailsForm && (
-                  <>
+                  <Animated.View
+                    entering={FadeInDown.duration(220)}
+                    exiting={FadeOutUp.duration(160)}
+                  >
                     <View style={styles.rowDivider} />
                     <PersonalDetailsForm
                       currentName={profile?.name ?? ''}
                       currentEmail={user?.email ?? ''}
                       onDone={() => setShowDetailsForm(false)}
                     />
-                  </>
+                  </Animated.View>
                 )}
                 <View style={styles.rowDivider} />
                 <ProfileRow
@@ -1116,10 +1087,13 @@ export default function ProfileScreen(): React.JSX.Element {
                   }}
                 />
                 {showPasswordForm && (
-                  <>
+                  <Animated.View
+                    entering={FadeInDown.duration(220)}
+                    exiting={FadeOutUp.duration(160)}
+                  >
                     <View style={styles.rowDivider} />
                     <ChangePasswordForm onDone={() => setShowPasswordForm(false)} />
-                  </>
+                  </Animated.View>
                 )}
                 <View style={styles.rowDivider} />
                 <ProfileRow
@@ -1348,21 +1322,6 @@ function makeStyles(C: ColorTokens) {
     },
     profileEmail: { fontSize: 13, ...font.regular, color: C.textSecondary },
     profileSub: { fontSize: 15, ...font.regular, color: C.textSecondary },
-
-    // Quick actions
-    quickRow: { flexDirection: 'row', gap: sizes.sm },
-    quickCard: {
-      flex: 1,
-      backgroundColor: C.surface,
-      borderRadius: sizes.borderRadius,
-      borderWidth: 1,
-      borderColor: C.border,
-      paddingVertical: sizes.md + 3,
-      alignItems: 'center',
-      gap: sizes.sm,
-    },
-    quickCardPressed: { opacity: 0.75 },
-    quickLabel: { fontSize: 12, ...font.bold, color: C.textPrimary, textAlign: 'center' },
 
     // Section
     section: { gap: sizes.sm },
