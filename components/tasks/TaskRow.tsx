@@ -18,6 +18,17 @@ interface TaskRowProps {
   onDelete: (id: string) => void;
 }
 
+function localeFor(lang: string): string {
+  return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
+}
+
+function formatDueDate(iso: string, lang: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.toLocaleDateString(localeFor(lang), { day: 'numeric', month: 'short' });
+}
+
 function isOverdue(task: HouseTask): boolean {
   if (!task.dueDate || task.isComplete) return false;
   const today = new Date();
@@ -34,7 +45,7 @@ export function TaskRow({
   onToggle,
   onDelete,
 }: TaskRowProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -122,7 +133,9 @@ export function TaskRow({
                   color={overdue ? C.danger : C.textSecondary}
                 />
                 <Text style={[styles.dueText, overdue && styles.dueTextOverdue]}>
-                  {overdue ? t('tasks.overdue', { date: task.dueDate }) : task.dueDate}
+                  {overdue
+                    ? t('tasks.overdue', { date: formatDueDate(task.dueDate, i18n.language) })
+                    : formatDueDate(task.dueDate, i18n.language)}
                 </Text>
               </View>
             )}
