@@ -1,12 +1,5 @@
-import { useEffect } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withDelay,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import { useEffect, useRef, useState } from 'react';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 
 interface EntranceProps {
   children: React.ReactNode;
@@ -18,9 +11,11 @@ interface EntranceProps {
 }
 
 /**
- * Fades + slides its children in when mounted. Uses shared-value animations
- * (not reanimated's `entering=` layout animations, which don't run on
- * react-native-web) so the motion plays on web and native alike.
+ * Fades + slides its children in on mount. Driven by requestAnimationFrame +
+ * React state on a plain View — NOT reanimated. Reanimated's animations
+ * (both `entering=` and shared-value `useAnimatedStyle`) don't run on this
+ * react-native-web build, and a stuck opacity:0 blanks the screen. rAF always
+ * reaches opacity 1, so the content can never get stuck invisible.
  */
 export function Entrance({
   children,
@@ -29,19 +24,31 @@ export function Entrance({
   offset = 16,
   style,
 }: EntranceProps): React.JSX.Element {
-  const progress = useSharedValue(0);
+  const [p, setP] = useState(0);
+  const raf = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
 
   useEffect(() => {
-    progress.value = withDelay(
-      delay,
-      withTiming(1, { duration, easing: Easing.out(Easing.cubic) })
-    );
-  }, [progress, delay, duration]);
+    const begin = Date.now() + delay;
+    const loop = (): void => {
+      const now = Date.now();
+      if (now < begin) {
+        raf.current = requestAnimationFrame(loop);
+        return;
+      }
+      const t = Math.min(1, (now - begin) / duration);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      setP(eased);
+      if (t < 1) raf.current = requestAnimationFrame(loop);
+    };
+    raf.current = requestAnimationFrame(loop);
+    return (): void => {
+      if (raf.current != null) cancelAnimationFrame(raf.current);
+    };
+  }, [delay, duration]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ translateY: (1 - progress.value) * offset }],
-  }));
-
-  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
+  return (
+    <View style={[style, { opacity: p, transform: [{ translateY: (1 - p) * offset }] }]}>
+      {children}
+    </View>
+  );
 }

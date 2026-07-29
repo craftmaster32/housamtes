@@ -11,7 +11,6 @@ import {
   BackHandler,
   type ViewStyle,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,6 +39,7 @@ import { SavedListsSection } from '@components/grocery/SavedListsSection';
 import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
 import { ReminderPromptBanner } from '@components/grocery/ReminderPromptBanner';
 import { useAddedItemPrompt } from '@hooks/useAddedItemPrompt';
+import { useTween } from '@hooks/useTween';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getErrorMessage } from '@utils/errors';
@@ -633,17 +633,10 @@ export default function GroceryScreen(): React.JSX.Element {
   const checked = useMemo(() => items.filter((i) => i.isChecked), [items]);
 
   // Animate the "clear checked" bar's height so it slides the list down/up
-  // smoothly instead of popping in. Shared-value driven so it runs on web too.
+  // smoothly instead of popping in. rAF-driven (useTween) so it runs on web.
   const clearShown = checked.length > 0;
   const [clearBarH, setClearBarH] = useState(56);
-  const clearProgress = useSharedValue(clearShown ? 1 : 0);
-  useEffect(() => {
-    clearProgress.value = withTiming(clearShown ? 1 : 0, { duration: 240 });
-  }, [clearShown, clearProgress]);
-  const clearBarAnimStyle = useAnimatedStyle(() => ({
-    height: clearProgress.value * clearBarH,
-    opacity: clearProgress.value,
-  }));
+  const clearP = useTween(clearShown ? 1 : 0);
 
   const sections = useMemo((): SectionData[] => {
     const draftItems = items.filter((i) => i.isDraft && i.addedBy === myId);
@@ -1213,8 +1206,8 @@ export default function GroceryScreen(): React.JSX.Element {
       >
         <SafeAreaView style={styles.root} edges={['top']}>
           <View style={styles.flex}>
-            <Animated.View
-              style={[styles.clearBarWrap, clearBarAnimStyle]}
+            <View
+              style={[styles.clearBarWrap, { height: clearP * clearBarH, opacity: clearP }]}
               pointerEvents={clearShown ? 'auto' : 'none'}
             >
               <View
@@ -1239,7 +1232,7 @@ export default function GroceryScreen(): React.JSX.Element {
                   <Text style={styles.clearBarAction}>{t('grocery.clear_checked')}</Text>
                 </Pressable>
               </View>
-            </Animated.View>
+            </View>
 
             <View style={styles.flex}>
               <SectionList
