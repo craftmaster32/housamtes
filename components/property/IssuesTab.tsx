@@ -22,6 +22,10 @@ import { getErrorMessage } from '@utils/errors';
 
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
 
+function localeFor(lang: string): string {
+  return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
+}
+
 // Categories carry an emoji in the store; render a line icon here so the page
 // speaks one visual language (no emoji beside icons).
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
@@ -36,17 +40,17 @@ function categoryIcon(label: string): React.ComponentProps<typeof Ionicons>['nam
   return CATEGORY_ICONS[label] ?? 'document-text-outline';
 }
 
-function timeAgo(iso: string, t: TFunction): string {
+function timeAgo(iso: string, t: TFunction, lang: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86400000);
   if (days === 0) return t('common.today');
   if (days === 1) return t('common.yesterday');
   if (days < 7) return t('common.days_ago', { count: days });
-  return new Intl.DateTimeFormat(undefined, {
-    day: '2-digit',
-    month: '2-digit',
+  return new Date(iso).toLocaleDateString(localeFor(lang), {
+    day: 'numeric',
+    month: 'short',
     year: 'numeric',
-  }).format(new Date(iso));
+  });
 }
 
 function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Element {
@@ -73,7 +77,7 @@ interface RequestCardProps {
 function RequestCard({ request, myId }: RequestCardProps): React.JSX.Element {
   const c = useThemedColors();
   const styles = useMemo(() => makeStyles(c), [c]);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
   const updateStatus = useMaintenanceStore((s) => s.updateStatus);
   const remove = useMaintenanceStore((s) => s.remove);
@@ -113,7 +117,7 @@ function RequestCard({ request, myId }: RequestCardProps): React.JSX.Element {
           <Text style={styles.cardMeta}>
             {request.category} ·{' '}
             {t('maintenance.reported_by', { name: resolveName(request.reportedBy, housemates) })} ·{' '}
-            {timeAgo(request.createdAt, t)}
+            {timeAgo(request.createdAt, t, i18n.language)}
           </Text>
         </View>
         {request.reportedBy === myId && (
