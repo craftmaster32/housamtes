@@ -4,7 +4,15 @@ import { Tabs } from 'expo-router';
 // All screens are registered here so Expo Router can resolve their routes.
 export default function TabsLayout(): React.JSX.Element {
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { display: 'none' },
+        // Every screen change crossfades instead of hard-cutting, so moving
+        // back and forth between screens feels animated like a native app.
+        animation: 'fade',
+      }}
+    >
       <Tabs.Screen name="dashboard/index" />
       <Tabs.Screen name="bills/index" />
       <Tabs.Screen name="bills/add" options={{ href: null }} />

@@ -10,6 +10,8 @@ import {
   TextInput,
   type ViewStyle,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -19,7 +21,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useBillsStore, calculateBalances } from '@stores/billsStore';
 import { useVotingStore } from '@stores/votingStore';
-import { useSettingsStore, CURRENCIES } from '@stores/settingsStore';
+import { useSettingsStore, CURRENCIES, type ThemeMode } from '@stores/settingsStore';
 import { useNotificationStore, BillDueDays } from '@stores/notificationStore';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useLanguageStore } from '@stores/languageStore';
@@ -234,6 +236,8 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const currency = useSettingsStore((s) => s.currency);
   const setCurrency = useSettingsStore((s) => s.setCurrency);
+  const themeMode = useSettingsStore((s) => s.themeMode);
+  const setThemeMode = useSettingsStore((s) => s.setThemeMode);
   const currentCurrencyLabel =
     CURRENCIES.find((c) => c.symbol === currency)
       ?.label.split('(')[0]
@@ -451,6 +455,55 @@ export default function SettingsScreen(): React.JSX.Element {
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <Text style={[styles.heading, headingFont]}>{t('settings.title')}</Text>
+
+          {/* Appearance */}
+          <SectionDivider label={t('settings.appearance_section')} />
+          <View style={styles.themeRow}>
+            {(
+              [
+                {
+                  mode: 'system',
+                  icon: 'phone-portrait-outline',
+                  labelKey: 'settings.theme_system',
+                },
+                { mode: 'light', icon: 'sunny-outline', labelKey: 'settings.theme_light' },
+                { mode: 'dark', icon: 'moon-outline', labelKey: 'settings.theme_dark' },
+              ] as { mode: ThemeMode; icon: IconName; labelKey: string }[]
+            ).map((opt) => {
+              const selected = themeMode === opt.mode;
+              return (
+                <Pressable
+                  key={opt.mode}
+                  style={[styles.themeTile, selected && styles.themeTileOn]}
+                  onPress={() => {
+                    setThemeMode(opt.mode);
+                    Haptics.selectionAsync().catch(() => {});
+                  }}
+                  accessible
+                  accessibilityRole="radio"
+                  accessibilityLabel={t(opt.labelKey)}
+                  accessibilityState={{ selected }}
+                >
+                  {selected && (
+                    <Animated.View
+                      entering={ZoomIn.springify().damping(14)}
+                      style={styles.themeCheck}
+                    >
+                      <Ionicons name="checkmark-circle" size={18} color={C.primary} />
+                    </Animated.View>
+                  )}
+                  <Ionicons
+                    name={opt.icon}
+                    size={22}
+                    color={selected ? C.primary : C.textSecondary}
+                  />
+                  <Text style={[styles.themeTileText, selected && styles.themeTileTextOn]}>
+                    {t(opt.labelKey)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {/* Currency */}
           <SectionDivider label={t('settings.currency_section')} />
@@ -1135,6 +1188,23 @@ function makeStyles(C: ColorTokens) {
       marginBottom: sizes.lg,
       overflow: 'hidden',
     },
+    themeRow: { flexDirection: 'row', gap: sizes.sm, marginBottom: sizes.lg },
+    themeTile: {
+      flex: 1,
+      minHeight: 76,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingVertical: sizes.md,
+    },
+    themeTileOn: { borderColor: C.primary, borderWidth: 2, backgroundColor: C.primary + '14' },
+    themeTileText: { fontSize: 13, ...font.bold, color: C.textSecondary },
+    themeTileTextOn: { color: C.primary },
+    themeCheck: { position: 'absolute', top: 6, insetInlineEnd: 6 },
     menuItem: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
     menuItemPressed: { backgroundColor: C.background },
     menuIcon: {

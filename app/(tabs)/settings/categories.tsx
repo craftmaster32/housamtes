@@ -1,6 +1,12 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
-import Animated, { FadeIn, FadeOut, FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  FadeInDown,
+  FadeOutUp,
+  LinearTransition,
+} from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -135,6 +141,8 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.surface,
       padding: sizes.md,
       gap: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: C.border,
     },
     catIconWrap: {
       width: 36,
@@ -149,12 +157,8 @@ const makeStyles = (C: ColorTokens) =>
     colorSwatch: { width: 12, height: 12, borderRadius: 6 },
     rowBtn: { paddingHorizontal: 6 },
     rowBtnEdit: { fontSize: 13, ...font.semibold, color: C.primary },
+    rowBtnDelete: { fontSize: 13, ...font.semibold, color: C.negative },
 
-    sep: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: C.border,
-      marginStart: sizes.md + 36 + 10,
-    },
     empty: { textAlign: 'center', color: C.textSecondary, fontSize: 14, paddingVertical: 24 },
   });
 
@@ -289,15 +293,22 @@ function CategoryForm({
 function CategoryRow({
   cat,
   onEdit,
+  onDelete,
 }: {
   cat: ExpenseCategory;
   onEdit: (cat: ExpenseCategory) => void;
+  onDelete: (cat: ExpenseCategory) => void;
 }): React.JSX.Element {
   const C = useThemedColors();
   const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(C), [C]);
   return (
-    <Animated.View style={styles.catRow} entering={FadeIn.duration(240)}>
+    <Animated.View
+      style={styles.catRow}
+      entering={FadeIn.duration(240)}
+      exiting={FadeOutUp.duration(200)}
+      layout={LinearTransition.springify().damping(20).stiffness(140)}
+    >
       <View style={[styles.catIconWrap, { backgroundColor: cat.color + '20' }]}>
         <Ionicons name={resolveCategoryIcon(cat.icon)} size={18} color={cat.color} />
       </View>
@@ -306,18 +317,27 @@ function CategoryRow({
         {cat.isDefault && <Text style={styles.catDefault}>{t('categories.default')}</Text>}
       </View>
       <View style={[styles.colorSwatch, { backgroundColor: cat.color }]} />
-      {/* Categories can be added and edited but not removed — deleting one would
-          orphan the bills already filed under it. */}
       {!cat.isDefault && (
-        <Pressable
-          onPress={() => onEdit(cat)}
-          style={styles.rowBtn}
-          hitSlop={8}
-          accessible
-          accessibilityRole="button"
-        >
-          <Text style={styles.rowBtnEdit}>{t('categories.edit')}</Text>
-        </Pressable>
+        <>
+          <Pressable
+            onPress={() => onEdit(cat)}
+            style={styles.rowBtn}
+            hitSlop={8}
+            accessible
+            accessibilityRole="button"
+          >
+            <Text style={styles.rowBtnEdit}>{t('categories.edit')}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onDelete(cat)}
+            style={styles.rowBtn}
+            hitSlop={8}
+            accessible
+            accessibilityRole="button"
+          >
+            <Text style={styles.rowBtnDelete}>{t('categories.delete')}</Text>
+          </Pressable>
+        </>
       )}
     </Animated.View>
   );
@@ -333,6 +353,7 @@ export default function CategoriesScreen(): React.JSX.Element {
   const load = useExpenseCategoriesStore((s) => s.load);
   const add = useExpenseCategoriesStore((s) => s.add);
   const update = useExpenseCategoriesStore((s) => s.update);
+  const remove = useExpenseCategoriesStore((s) => s.remove);
 
   const [showAdd, setShowAdd] = useState(false);
   const [editCat, setEditCat] = useState<ExpenseCategory | null>(null);
@@ -389,73 +410,92 @@ export default function CategoriesScreen(): React.JSX.Element {
     [houseId, userId, editCat, update, t]
   );
 
+  const handleDelete = useCallback(
+    (cat: ExpenseCategory) => {
+      Alert.alert(
+        t('categories.delete_title'),
+        t('categories.delete_confirm', { name: cat.name }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: async (): Promise<void> => {
+              try {
+                await remove(cat.id);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+              } catch (err) {
+                Sentry.captureException(err, { extra: { houseId, userId, categoryId: cat.id } });
+                Alert.alert(t('common.error'), t('categories.could_not_delete'));
+              }
+            },
+          },
+        ]
+      );
+    },
+    [houseId, userId, remove, t]
+  );
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.flex}>
-        <FlatList
-          data={categories}
-          keyExtractor={(c) => c.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={
-            <View>
-              <Text style={[styles.screenTitle, headingFont]}>{t('categories.title')}</Text>
-              <Text style={styles.screenSub}>{t('categories.subtitle')}</Text>
+      <ScrollView
+        style={styles.flex}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+      >
+        <Text style={[styles.screenTitle, headingFont]}>{t('categories.title')}</Text>
+        <Text style={styles.screenSub}>{t('categories.subtitle')}</Text>
 
-              {showAdd && (
-                <Animated.View
-                  entering={FadeInDown.duration(240)}
-                  exiting={FadeOutUp.duration(180)}
-                >
-                  <CategoryForm
-                    initial={{ name: '', icon: DEFAULT_CATEGORY_ICON, color: PRESET_COLORS[0] }}
-                    onSave={handleAdd}
-                    onCancel={() => setShowAdd(false)}
-                    saving={saving}
-                  />
-                </Animated.View>
-              )}
+        {showAdd && (
+          <Animated.View entering={FadeInDown.duration(240)} exiting={FadeOutUp.duration(180)}>
+            <CategoryForm
+              initial={{ name: '', icon: DEFAULT_CATEGORY_ICON, color: PRESET_COLORS[0] }}
+              onSave={handleAdd}
+              onCancel={() => setShowAdd(false)}
+              saving={saving}
+            />
+          </Animated.View>
+        )}
 
-              {editCat && (
-                <Animated.View
-                  entering={FadeInDown.duration(240)}
-                  exiting={FadeOutUp.duration(180)}
-                >
-                  <CategoryForm
-                    key={editCat.id}
-                    initial={{ name: editCat.name, icon: editCat.icon, color: editCat.color }}
-                    onSave={handleUpdate}
-                    onCancel={() => setEditCat(null)}
-                    saving={saving}
-                  />
-                </Animated.View>
-              )}
+        {editCat && (
+          <Animated.View entering={FadeInDown.duration(240)} exiting={FadeOutUp.duration(180)}>
+            <CategoryForm
+              key={editCat.id}
+              initial={{ name: editCat.name, icon: editCat.icon, color: editCat.color }}
+              onSave={handleUpdate}
+              onCancel={() => setEditCat(null)}
+              saving={saving}
+            />
+          </Animated.View>
+        )}
 
-              {!showAdd && !editCat && (
-                <Animated.View entering={FadeIn.duration(200)}>
-                  <Pressable
-                    style={styles.addBtn}
-                    onPress={() => setShowAdd(true)}
-                    accessible
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.addBtnText}>{t('categories.add_category')}</Text>
-                  </Pressable>
-                </Animated.View>
-              )}
+        {!showAdd && !editCat && (
+          <Animated.View entering={FadeIn.duration(200)} layout={LinearTransition}>
+            <Pressable
+              style={styles.addBtn}
+              onPress={() => setShowAdd(true)}
+              accessible
+              accessibilityRole="button"
+            >
+              <Text style={styles.addBtnText}>{t('categories.add_category')}</Text>
+            </Pressable>
+          </Animated.View>
+        )}
 
-              <Text style={styles.listHeader}>{t('categories.all_categories')}</Text>
-            </View>
-          }
-          renderItem={({ item }) => <CategoryRow cat={item} onEdit={setEditCat} />}
-          ItemSeparatorComponent={() => <View style={styles.sep} />}
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              {isLoading ? t('common.loading') : t('categories.no_categories')}
-            </Text>
-          }
-        />
-      </View>
+        <Animated.Text style={styles.listHeader} layout={LinearTransition}>
+          {t('categories.all_categories')}
+        </Animated.Text>
+
+        {categories.length === 0 ? (
+          <Text style={styles.empty}>
+            {isLoading ? t('common.loading') : t('categories.no_categories')}
+          </Text>
+        ) : (
+          categories.map((item) => (
+            <CategoryRow key={item.id} cat={item} onEdit={setEditCat} onDelete={handleDelete} />
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
