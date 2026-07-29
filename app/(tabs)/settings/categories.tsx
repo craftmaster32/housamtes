@@ -1,12 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
-import Animated, {
-  FadeIn,
-  FadeOut,
-  FadeInDown,
-  FadeOutUp,
-  LinearTransition,
-} from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +19,7 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { Entrance } from '@components/shared/Entrance';
 import { sizes } from '@constants/sizes';
 
 const makeStyles = (C: ColorTokens) =>
@@ -213,36 +207,33 @@ function CategoryForm({
         />
       </View>
       {showIconPicker && (
-        <Animated.View
-          style={styles.iconPickerWrap}
-          accessibilityRole="radiogroup"
-          entering={FadeIn.duration(180)}
-          exiting={FadeOut.duration(140)}
-        >
-          {PICKER_ICONS.map((iconName) => (
-            <Pressable
-              key={iconName}
-              style={[
-                styles.iconPickerItem,
-                form.icon === iconName && styles.iconPickerItemSelected,
-              ]}
-              onPress={() => {
-                setForm((f) => ({ ...f, icon: iconName }));
-                setShowIconPicker(false);
-              }}
-              accessible
-              accessibilityRole="radio"
-              accessibilityLabel={iconName}
-              accessibilityState={{ selected: form.icon === iconName }}
-            >
-              <Ionicons
-                name={iconName}
-                size={20}
-                color={form.icon === iconName ? C.primary : C.textSecondary}
-              />
-            </Pressable>
-          ))}
-        </Animated.View>
+        <Entrance offset={8}>
+          <View style={styles.iconPickerWrap} accessibilityRole="radiogroup">
+            {PICKER_ICONS.map((iconName) => (
+              <Pressable
+                key={iconName}
+                style={[
+                  styles.iconPickerItem,
+                  form.icon === iconName && styles.iconPickerItemSelected,
+                ]}
+                onPress={() => {
+                  setForm((f) => ({ ...f, icon: iconName }));
+                  setShowIconPicker(false);
+                }}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={iconName}
+                accessibilityState={{ selected: form.icon === iconName }}
+              >
+                <Ionicons
+                  name={iconName}
+                  size={20}
+                  color={form.icon === iconName ? C.primary : C.textSecondary}
+                />
+              </Pressable>
+            ))}
+          </View>
+        </Entrance>
       )}
       <View style={styles.colorRow}>
         {PRESET_COLORS.map((c) => (
@@ -303,12 +294,7 @@ function CategoryRow({
   const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(C), [C]);
   return (
-    <Animated.View
-      style={styles.catRow}
-      entering={FadeIn.duration(240)}
-      exiting={FadeOutUp.duration(200)}
-      layout={LinearTransition.springify().damping(20).stiffness(140)}
-    >
+    <Entrance style={styles.catRow} offset={10}>
       <View style={[styles.catIconWrap, { backgroundColor: cat.color + '20' }]}>
         <Ionicons name={resolveCategoryIcon(cat.icon)} size={18} color={cat.color} />
       </View>
@@ -339,7 +325,7 @@ function CategoryRow({
           </Pressable>
         </>
       )}
-    </Animated.View>
+    </Entrance>
   );
 }
 
@@ -447,18 +433,18 @@ export default function CategoriesScreen(): React.JSX.Element {
         <Text style={styles.screenSub}>{t('categories.subtitle')}</Text>
 
         {showAdd && (
-          <Animated.View entering={FadeInDown.duration(240)} exiting={FadeOutUp.duration(180)}>
+          <Entrance>
             <CategoryForm
               initial={{ name: '', icon: DEFAULT_CATEGORY_ICON, color: PRESET_COLORS[0] }}
               onSave={handleAdd}
               onCancel={() => setShowAdd(false)}
               saving={saving}
             />
-          </Animated.View>
+          </Entrance>
         )}
 
         {editCat && (
-          <Animated.View entering={FadeInDown.duration(240)} exiting={FadeOutUp.duration(180)}>
+          <Entrance>
             <CategoryForm
               key={editCat.id}
               initial={{ name: editCat.name, icon: editCat.icon, color: editCat.color }}
@@ -466,25 +452,21 @@ export default function CategoriesScreen(): React.JSX.Element {
               onCancel={() => setEditCat(null)}
               saving={saving}
             />
-          </Animated.View>
+          </Entrance>
         )}
 
         {!showAdd && !editCat && (
-          <Animated.View entering={FadeIn.duration(200)} layout={LinearTransition}>
-            <Pressable
-              style={styles.addBtn}
-              onPress={() => setShowAdd(true)}
-              accessible
-              accessibilityRole="button"
-            >
-              <Text style={styles.addBtnText}>{t('categories.add_category')}</Text>
-            </Pressable>
-          </Animated.View>
+          <Pressable
+            style={styles.addBtn}
+            onPress={() => setShowAdd(true)}
+            accessible
+            accessibilityRole="button"
+          >
+            <Text style={styles.addBtnText}>{t('categories.add_category')}</Text>
+          </Pressable>
         )}
 
-        <Animated.Text style={styles.listHeader} layout={LinearTransition}>
-          {t('categories.all_categories')}
-        </Animated.Text>
+        <Text style={styles.listHeader}>{t('categories.all_categories')}</Text>
 
         {categories.length === 0 ? (
           <Text style={styles.empty}>

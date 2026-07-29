@@ -11,7 +11,6 @@ import {
   type ViewStyle,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, { ZoomIn } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -33,6 +32,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { Entrance } from '@components/shared/Entrance';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -485,12 +485,9 @@ export default function SettingsScreen(): React.JSX.Element {
                   accessibilityState={{ selected }}
                 >
                   {selected && (
-                    <Animated.View
-                      entering={ZoomIn.springify().damping(14)}
-                      style={styles.themeCheck}
-                    >
+                    <Entrance offset={0} duration={200} style={styles.themeCheck}>
                       <Ionicons name="checkmark-circle" size={18} color={C.primary} />
-                    </Animated.View>
+                    </Entrance>
                   )}
                   <Ionicons
                     name={opt.icon}

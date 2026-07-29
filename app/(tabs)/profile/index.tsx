@@ -10,7 +10,7 @@ import {
   Modal,
   type GestureResponderEvent,
 } from 'react-native';
-import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import { Entrance } from '@components/shared/Entrance';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -1064,17 +1064,14 @@ export default function ProfileScreen(): React.JSX.Element {
                   onPress={() => setShowDetailsForm((v) => !v)}
                 />
                 {showDetailsForm && (
-                  <Animated.View
-                    entering={FadeInDown.duration(220)}
-                    exiting={FadeOutUp.duration(160)}
-                  >
+                  <Entrance offset={10}>
                     <View style={styles.rowDivider} />
                     <PersonalDetailsForm
                       currentName={profile?.name ?? ''}
                       currentEmail={user?.email ?? ''}
                       onDone={() => setShowDetailsForm(false)}
                     />
-                  </Animated.View>
+                  </Entrance>
                 )}
                 <View style={styles.rowDivider} />
                 <ProfileRow
@@ -1087,13 +1084,10 @@ export default function ProfileScreen(): React.JSX.Element {
                   }}
                 />
                 {showPasswordForm && (
-                  <Animated.View
-                    entering={FadeInDown.duration(220)}
-                    exiting={FadeOutUp.duration(160)}
-                  >
+                  <Entrance offset={10}>
                     <View style={styles.rowDivider} />
                     <ChangePasswordForm onDone={() => setShowPasswordForm(false)} />
-                  </Animated.View>
+                  </Entrance>
                 )}
                 <View style={styles.rowDivider} />
                 <ProfileRow
