@@ -139,6 +139,12 @@ let _channelHouseId: string | null = null;
 // state instantly and only the final value is written once, so realtime echoes
 // don't bounce the number around (which read as lag).
 const _boughtTimers = new Map<string, ReturnType<typeof setTimeout>>();
+// Latest bought_count we've optimistically shown per item. The debounce collapses
+// rapid taps into one write, but a residual window remains: if you tap again after
+// the debounced write fires but before its echo returns, that stale echo can still
+// snap the number backwards. While an item has a pending count, the UPDATE handler
+// keeps the local count until the echo of the latest write catches up.
+const _pendingCounts = new Map<string, number>();
 
 function scheduleBoughtWrite(id: string, get: () => { items: GroceryItem[] }): void {
   const existing = _boughtTimers.get(id);
@@ -148,13 +154,21 @@ function scheduleBoughtWrite(id: string, get: () => { items: GroceryItem[] }): v
     setTimeout(() => {
       _boughtTimers.delete(id);
       const latest = get().items.find((i) => i.id === id);
-      if (!latest) return;
+      if (!latest) {
+        _pendingCounts.delete(id);
+        return;
+      }
       void supabase
         .from('grocery_items')
         .update({ bought_count: latest.boughtCount, is_checked: latest.isChecked })
         .eq('id', id)
         .then(({ error }) => {
-          if (error) captureError(error, { context: 'bought-write', id });
+          if (error) {
+            // No echo will arrive to clear the guard — drop it so later remote
+            // updates to this item aren't held back.
+            _pendingCounts.delete(id);
+            captureError(error, { context: 'bought-write', id });
+          }
         });
     }, 400)
   );
@@ -335,7 +349,21 @@ export const useGroceryStore = create<GroceryStore>()(
             },
             (payload: { new: Record<string, unknown> }) => {
               const updated = mapItem(payload.new);
-              set({ items: get().items.map((i) => (i.id === updated.id ? updated : i)) });
+              const pending = _pendingCounts.get(updated.id);
+              set({
+                items: get().items.map((i) => {
+                  if (i.id !== updated.id) return i;
+                  if (pending === undefined) return updated;
+                  // The echo of our latest count write caught up — stop guarding.
+                  if (updated.boughtCount === pending) {
+                    _pendingCounts.delete(updated.id);
+                    return updated;
+                  }
+                  // Stale self-echo of an earlier tap: take the row's other fields
+                  // but keep our fresher local count/checked so it can't revert.
+                  return { ...updated, boughtCount: i.boughtCount, isChecked: i.isChecked };
+                }),
+              });
             }
           )
           .on(
@@ -371,6 +399,9 @@ export const useGroceryStore = create<GroceryStore>()(
       unsubscribe: (): void => {
         // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
         _loadSeq++;
+        _boughtTimers.forEach((t) => clearTimeout(t));
+        _boughtTimers.clear();
+        _pendingCounts.clear();
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
@@ -463,6 +494,7 @@ export const useGroceryStore = create<GroceryStore>()(
           ? Math.min((item.boughtCount ?? 0) + 1, max)
           : (item.boughtCount ?? 0) + 1;
         const isChecked = hasMax ? count >= max : item.isChecked;
+        _pendingCounts.set(id, count);
         set({
           items: get().items.map((i) =>
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
@@ -478,6 +510,7 @@ export const useGroceryStore = create<GroceryStore>()(
         const max = parseInt(item.quantity, 10);
         const hasMax = !isNaN(max) && max > 1;
         const isChecked = hasMax ? count >= max : item.isChecked;
+        _pendingCounts.set(id, count);
         set({
           items: get().items.map((i) =>
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
