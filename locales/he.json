@@ -1,5 +1,7 @@
 {
   "activity": {
+    "this_week": "השבוע",
+    "earlier": "מוקדם יותר",
     "title": "פעילות",
     "empty": "אין חדש עדיין",
     "added_expense": "הוסיף/ה הוצאה",
@@ -30,6 +32,7 @@
     "just_now": "הרגע",
     "minutes_ago": "לפני {{n}} דק׳",
     "hours_ago": "לפני {{n}} ש׳",
+    "days_ago": "לפני {{n}} ימים",
     "days_ago_one": "לפני יום",
     "days_ago_other": "לפני {{count}} ימים",
     "failed_try_again": "משהו השתבש. נסה שוב.",

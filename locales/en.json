@@ -1,5 +1,7 @@
 {
   "activity": {
+    "this_week": "This week",
+    "earlier": "Earlier",
     "title": "Activity",
     "empty": "Nothing new yet",
     "added_expense": "added an expense",
@@ -31,6 +33,7 @@
     "just_now": "Just now",
     "minutes_ago": "{{n}}m ago",
     "hours_ago": "{{n}}h ago",
+    "days_ago": "{{n}}d ago",
     "days_ago_one": "1 day ago",
     "days_ago_other": "{{count}} days ago",
     "failed_try_again": "That went sideways. Try again?",

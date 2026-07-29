@@ -1,5 +1,7 @@
 {
   "activity": {
+    "this_week": "Esta semana",
+    "earlier": "Anteriores",
     "title": "Actividad",
     "empty": "Nada nuevo aún",
     "added_expense": "añadió un gasto",
@@ -31,6 +33,7 @@
     "just_now": "Ahora mismo",
     "minutes_ago": "hace {{n}} min",
     "hours_ago": "hace {{n}} h",
+    "days_ago": "hace {{n}} d",
     "days_ago_one": "hace 1 día",
     "days_ago_other": "hace {{count}} días",
     "failed_try_again": "Algo salió mal. Intenta de nuevo.",
