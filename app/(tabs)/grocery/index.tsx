@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
@@ -64,7 +65,6 @@ const QUICK_ADD_KEYS = [
   { name: 'Butter', tKey: 'grocery.quick_add_butter' },
   { name: 'Olive Oil', tKey: 'grocery.quick_add_olive_oil' },
 ] as const;
-const QTY_PRESETS = ['1', '2', '3'];
 const UNIT_OPTS = ['ml', 'L', 'g', 'kg'] as const;
 const UNIT_LABELS_HE: Record<(typeof UNIT_OPTS)[number], string> = {
   ml: 'מ"ל',
@@ -305,7 +305,7 @@ function ItemRow({
     );
   }
 
-  return (
+  const row = (
     <Pressable
       style={[
         rowStyles.groceryItem,
@@ -382,7 +382,9 @@ function ItemRow({
                 />
               </View>
               <Text style={rowStyles.progressLabel}>
-                {t('grocery.n_of_m_bought', { bought, total: qtyNum })}
+                {bought >= qtyNum
+                  ? t('grocery.all_bought')
+                  : t('grocery.n_left', { count: qtyNum - bought })}
               </Text>
             </View>
           )}
@@ -419,19 +421,33 @@ function ItemRow({
               <Ionicons name="pencil-outline" size={15} color={C.textSecondary} />
             </Pressable>
           )}
-          {canEdit && (
-            <Pressable
-              onPress={handleDelete}
-              style={rowStyles.deleteBtn}
-              accessibilityRole="button"
-              accessibilityLabel={t('grocery.delete_item_name', { name: item.name })}
-            >
-              <Ionicons name="trash-outline" size={17} color={C.textSecondary} />
-            </Pressable>
-          )}
         </View>
       </View>
     </Pressable>
+  );
+
+  // Swipe left-to-reveal a red Delete, like a native list. Only items you can
+  // edit are deletable; others just render the plain row.
+  if (!canEdit) return row;
+  return (
+    <Swipeable
+      renderRightActions={() => (
+        <Pressable
+          style={rowStyles.swipeDelete}
+          onPress={handleDelete}
+          accessibilityRole="button"
+          accessibilityLabel={t('grocery.delete_item_name', { name: item.name })}
+        >
+          <Ionicons name="trash" size={20} color="#fff" />
+          <Text style={rowStyles.swipeDeleteText}>{t('common.delete')}</Text>
+        </Pressable>
+      )}
+      overshootRight={false}
+      rightThreshold={40}
+      friction={2}
+    >
+      {row}
+    </Swipeable>
   );
 }
 
@@ -506,8 +522,6 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const [itemName, setItemName] = useState('');
   const [qty, setQty] = useState('1');
-  const [showCustomQty, setShowCustomQty] = useState(false);
-  const [customQty, setCustomQty] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [addMode, setAddMode] = useState<AddMode>('shared');
   const [isDraftOn, setIsDraftOn] = useState(false);
@@ -623,7 +637,8 @@ export default function GroceryScreen(): React.JSX.Element {
 
   // Always store the canonical (non-localized) unit so `quantity` stays
   // language-neutral for every housemate; see localizeQuantityForDisplay.
-  const resolvedQty = (showCustomQty ? customQty : qty) + unit;
+  const qtyNumVal = Math.max(1, parseInt(qty, 10) || 1);
+  const resolvedQty = qty + unit;
   const effectiveMode: AddMode =
     addMode === 'private' ? 'private' : draftEnabled && isDraftOn ? 'draft' : 'shared';
   // Which "Add to" destination is currently selected (drives the top chooser).
@@ -719,8 +734,6 @@ export default function GroceryScreen(): React.JSX.Element {
         );
         setItemName('');
         setQty('1');
-        setCustomQty('');
-        setShowCustomQty(false);
         setUnit('');
         setNote('');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -1027,13 +1040,12 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleAddPress = useCallback((): void => {
     handleAdd();
   }, [handleAdd]);
-  const handleQtyPresetSelect = useCallback((p: string): void => {
-    setShowCustomQty(false);
-    setQty(p);
-  }, []);
-  const handleToggleCustomQty = useCallback((): void => {
-    setShowCustomQty(true);
-    setQty('');
+  const changeQty = useCallback((delta: number): void => {
+    Haptics.selectionAsync().catch(() => {});
+    setQty((prev) => {
+      const next = (parseInt(prev, 10) || 1) + delta;
+      return String(Math.max(1, Math.min(99, next)));
+    });
   }, []);
   const handleUnitToggle = useCallback((u: string): void => {
     setUnit((prev) => (prev === u ? '' : u));
@@ -1363,61 +1375,34 @@ export default function GroceryScreen(): React.JSX.Element {
                         </Pressable>
                       </View>
 
-                      {/* ── Qty selector ─────────────────────────────────── */}
+                      {/* ── Qty stepper: choose how many to buy ──────────── */}
                       <View style={styles.qtyRow}>
                         <Text style={styles.qtyLabel}>{t('grocery.qty_label')}</Text>
-                        <View style={styles.qtyPresets}>
-                          {QTY_PRESETS.map((p) => {
-                            const active = !showCustomQty && qty === p;
-                            return (
-                              <Pressable
-                                key={p}
-                                style={[styles.qtyBtn, active && styles.qtyBtnOn]}
-                                onPress={() => handleQtyPresetSelect(p)}
-                                hitSlop={4}
-                                accessible
-                                accessibilityRole="button"
-                                accessibilityLabel={t('grocery.quantity_preset', { n: p })}
-                                accessibilityState={{ selected: active }}
-                              >
-                                <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
-                                  {p}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
+                        <View style={styles.qtyStepper}>
                           <Pressable
-                            style={[styles.qtyBtn, showCustomQty && styles.qtyBtnOn]}
-                            onPress={handleToggleCustomQty}
-                            hitSlop={4}
+                            style={[styles.qtyStepBtn, qtyNumVal <= 1 && styles.qtyStepBtnOff]}
+                            onPress={() => changeQty(-1)}
+                            disabled={qtyNumVal <= 1}
+                            hitSlop={6}
                             accessible
                             accessibilityRole="button"
-                            accessibilityLabel={t('grocery.custom_quantity')}
-                            accessibilityHint={t('grocery.custom_quantity_hint')}
-                            accessibilityState={{ selected: showCustomQty }}
+                            accessibilityLabel={t('grocery.qty_decrease')}
+                            accessibilityState={{ disabled: qtyNumVal <= 1 }}
                           >
-                            <Ionicons
-                              name="pencil"
-                              size={14}
-                              color={showCustomQty ? '#FFFFFF' : C.textPrimary}
-                            />
+                            <Text style={styles.qtyStepSign}>−</Text>
+                          </Pressable>
+                          <Text style={styles.qtyStepValue}>{qtyNumVal}</Text>
+                          <Pressable
+                            style={styles.qtyStepBtn}
+                            onPress={() => changeQty(1)}
+                            hitSlop={6}
+                            accessible
+                            accessibilityRole="button"
+                            accessibilityLabel={t('grocery.qty_increase')}
+                          >
+                            <Text style={styles.qtyStepSign}>+</Text>
                           </Pressable>
                         </View>
-                        {showCustomQty && (
-                          <TextInput
-                            value={customQty}
-                            onChangeText={setCustomQty}
-                            placeholder={t('grocery.custom_qty_placeholder')}
-                            placeholderTextColor={C.textSecondary}
-                            keyboardType="number-pad"
-                            style={styles.formQty}
-                            autoFocus
-                            accessible
-                            accessibilityRole="text"
-                            accessibilityLabel={t('grocery.custom_quantity')}
-                            accessibilityHint={t('grocery.custom_qty_hint')}
-                          />
-                        )}
                       </View>
 
                       {/* ── Unit selector ────────────────────────────────── */}
@@ -1834,18 +1819,32 @@ function makeStyles(C: ColorTokens) {
     qtyBtnOn: { backgroundColor: C.primary, borderColor: C.primary },
     qtyBtnText: { fontSize: 14, ...font.semibold, color: C.textPrimary },
     qtyBtnTextOn: { color: '#FFFFFF' },
-    formQty: {
-      flex: 1,
-      height: 36,
+    qtyStepper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
       backgroundColor: C.surfaceSecondary,
-      borderRadius: 10,
+      borderRadius: 9999,
       borderWidth: 1,
       borderColor: C.border,
-      paddingHorizontal: 10,
-      fontSize: 15,
-      ...font.regular,
-      color: C.textPrimary,
+      padding: 3,
+    },
+    qtyStepBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 9999,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: C.surface,
+    },
+    qtyStepBtnOff: { opacity: 0.4 },
+    qtyStepSign: { fontSize: 20, ...font.bold, color: C.primary, lineHeight: 24 },
+    qtyStepValue: {
+      minWidth: 28,
       textAlign: 'center',
+      fontSize: 16,
+      ...font.extrabold,
+      color: C.textPrimary,
     },
 
     quickAddLabel: { marginBottom: 8 },
@@ -1959,7 +1958,16 @@ function makeStyles(C: ColorTokens) {
     itemQtyText: { fontSize: 12, ...font.bold, color: C.textSecondary },
     itemActions: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
     editBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-    deleteBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    swipeDelete: {
+      backgroundColor: C.danger,
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: 84,
+      gap: 3,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
+    swipeDeleteText: { fontSize: 12, ...font.bold, color: '#fff' },
 
     editNameInput: {
       flex: 1,
