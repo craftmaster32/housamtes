@@ -25,6 +25,10 @@ import type { Photo } from '@stores/photoStore';
 
 const { width: SW } = Dimensions.get('window');
 
+function localeFor(lang: string): string {
+  return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-US';
+}
+
 export interface PhotoViewerProps {
   photos: Photo[];
   initialIndex: number;
@@ -103,7 +107,7 @@ export function PhotoViewer({
   onClose,
   onDelete,
 }: PhotoViewerProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -241,7 +245,12 @@ export function PhotoViewer({
           <View style={styles.meta}>
             {!!photo.caption && <Text style={styles.caption}>{photo.caption}</Text>}
             <Text style={styles.info}>
-              {photo.uploadedBy} · {new Date(photo.createdAt).toLocaleDateString()}
+              {photo.uploadedBy} ·{' '}
+              {new Date(photo.createdAt).toLocaleDateString(localeFor(i18n.language), {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
             </Text>
             {photo.userId === currentUserId ? (
               <Pressable
