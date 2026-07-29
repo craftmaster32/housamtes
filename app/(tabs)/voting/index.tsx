@@ -15,12 +15,12 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  return `${days} days ago`;
+  if (days === 0) return t('common.today');
+  if (days === 1) return t('common.yesterday');
+  return t('common.days_ago', { n: days });
 }
 
 const makeStyles = (C: ColorTokens) =>
@@ -295,7 +295,7 @@ function ProposalCard({
           <Text style={styles.cardTitle}>{proposal.title}</Text>
           <Text style={styles.cardMeta}>
             {t('voting.proposed_by', { name: resolveName(proposal.createdBy, housemates) })} ·{' '}
-            {timeAgo(proposal.createdAt)}
+            {timeAgo(proposal.createdAt, t)}
           </Text>
         </View>
         {proposal.isOpen ? (
