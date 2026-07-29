@@ -62,6 +62,8 @@ export function UserAvatar({ userId, size = 24 }: UserAvatarProps): React.JSX.El
 }
 
 const styles = StyleSheet.create({
-  container: { justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  // overflow:hidden clips the photo to the circular borderRadius — without it
+  // the <Image> child overflows the rounded corners and renders as a square.
+  container: { justifyContent: 'center', alignItems: 'center', flexShrink: 0, overflow: 'hidden' },
   initialText: { color: '#fff', ...font.bold },
 });
