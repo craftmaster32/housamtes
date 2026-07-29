@@ -135,6 +135,30 @@ interface GroceryStore {
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
 let _channelHouseId: string | null = null;
+// Per-item debounce timers for bought-count writes. Rapid +/- taps update local
+// state instantly and only the final value is written once, so realtime echoes
+// don't bounce the number around (which read as lag).
+const _boughtTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleBoughtWrite(id: string, get: () => { items: GroceryItem[] }): void {
+  const existing = _boughtTimers.get(id);
+  if (existing) clearTimeout(existing);
+  _boughtTimers.set(
+    id,
+    setTimeout(() => {
+      _boughtTimers.delete(id);
+      const latest = get().items.find((i) => i.id === id);
+      if (!latest) return;
+      void supabase
+        .from('grocery_items')
+        .update({ bought_count: latest.boughtCount, is_checked: latest.isChecked })
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) captureError(error, { context: 'bought-write', id });
+        });
+    }, 400)
+  );
+}
 // Bumped on every load() and unsubscribe(). An in-flight load compares its own
 // sequence number against this before committing state or (re)subscribing, so a
 // stale load can neither overwrite newer data nor recreate a channel after cleanup.
@@ -439,20 +463,12 @@ export const useGroceryStore = create<GroceryStore>()(
           ? Math.min((item.boughtCount ?? 0) + 1, max)
           : (item.boughtCount ?? 0) + 1;
         const isChecked = hasMax ? count >= max : item.isChecked;
-        const prev = { boughtCount: item.boughtCount, isChecked: item.isChecked };
         set({
           items: get().items.map((i) =>
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
           ),
         });
-        const { error } = await supabase
-          .from('grocery_items')
-          .update({ bought_count: count, is_checked: isChecked })
-          .eq('id', id);
-        if (error) {
-          set({ items: get().items.map((i) => (i.id === id ? { ...i, ...prev } : i)) });
-          captureError(error, { context: 'increment-bought', id });
-        }
+        scheduleBoughtWrite(id, get);
       },
 
       decrementBought: async (id): Promise<void> => {
@@ -462,20 +478,12 @@ export const useGroceryStore = create<GroceryStore>()(
         const max = parseInt(item.quantity, 10);
         const hasMax = !isNaN(max) && max > 1;
         const isChecked = hasMax ? count >= max : item.isChecked;
-        const prev = { boughtCount: item.boughtCount, isChecked: item.isChecked };
         set({
           items: get().items.map((i) =>
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
           ),
         });
-        const { error } = await supabase
-          .from('grocery_items')
-          .update({ bought_count: count, is_checked: isChecked })
-          .eq('id', id);
-        if (error) {
-          set({ items: get().items.map((i) => (i.id === id ? { ...i, ...prev } : i)) });
-          captureError(error, { context: 'decrement-bought', id });
-        }
+        scheduleBoughtWrite(id, get);
       },
 
       deleteItem: async (id): Promise<void> => {

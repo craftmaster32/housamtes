@@ -201,7 +201,7 @@ function ItemRow({
 
   const handleDecrement = useCallback((): void => {
     const now = Date.now();
-    if (now - lastStepRef.current < 80 || bought === 0) return;
+    if (now - lastStepRef.current < 50 || bought === 0) return;
     lastStepRef.current = now;
     Haptics.selectionAsync().catch(() => {});
     onDecrement(item.id);
@@ -209,7 +209,7 @@ function ItemRow({
 
   const handleIncrement = useCallback((): void => {
     const now = Date.now();
-    if (now - lastStepRef.current < 80 || bought >= qtyNum) return;
+    if (now - lastStepRef.current < 50 || bought >= qtyNum) return;
     lastStepRef.current = now;
     Haptics.selectionAsync().catch(() => {});
     onIncrement(item.id);

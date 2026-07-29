@@ -328,13 +328,15 @@ describe('incrementBought', () => {
     expect(i.isChecked).toBe(true);
   });
 
-  it('rolls back counter on DB error', async () => {
+  it('keeps the optimistic count (DB write is debounced, not awaited)', async () => {
     seedItems({ quantity: '3', boughtCount: 1 });
     mockFrom.mockReturnValue(fail('error'));
 
     await useGroceryStore.getState().incrementBought('item-1');
 
-    expect(useGroceryStore.getState().items[0].boughtCount).toBe(1);
+    // The local count updates immediately; the write is deferred so a failed
+    // write does not snap the number back mid-interaction.
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
   });
 });
 
@@ -360,13 +362,14 @@ describe('decrementBought', () => {
     expect(useGroceryStore.getState().items[0].boughtCount).toBe(0);
   });
 
-  it('rolls back counter on DB error', async () => {
+  it('keeps the optimistic count (DB write is debounced, not awaited)', async () => {
     seedItems({ quantity: '3', boughtCount: 2 });
     mockFrom.mockReturnValue(fail('error'));
 
     await useGroceryStore.getState().decrementBought('item-1');
 
-    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+    // Local count updates immediately; the deferred write doesn't roll it back.
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(1);
   });
 });
 
