@@ -195,14 +195,22 @@ function ItemRow({
     onDelete(item.id);
   }, [item.id, onDelete]);
 
+  // Web fires a press as two events sometimes; this ref swallows the echo so
+  // one tap on +/- counts once. 80ms is well under any real double-tap.
+  const lastStepRef = useRef(0);
+
   const handleDecrement = useCallback((): void => {
-    if (bought === 0) return;
+    const now = Date.now();
+    if (now - lastStepRef.current < 80 || bought === 0) return;
+    lastStepRef.current = now;
     Haptics.selectionAsync().catch(() => {});
     onDecrement(item.id);
   }, [bought, item.id, onDecrement]);
 
   const handleIncrement = useCallback((): void => {
-    if (bought >= qtyNum) return;
+    const now = Date.now();
+    if (now - lastStepRef.current < 80 || bought >= qtyNum) return;
+    lastStepRef.current = now;
     Haptics.selectionAsync().catch(() => {});
     onIncrement(item.id);
   }, [bought, qtyNum, item.id, onIncrement]);
@@ -312,7 +320,9 @@ function ItemRow({
         item.isChecked && rowStyles.groceryItemDone,
         item.isPersonal && !item.isDraft && rowStyles.groceryItemPersonal,
       ]}
-      onPress={handleTap}
+      // Counted items are driven only by their +/- control, so the row itself
+      // isn't a toggle — that also stops a +/- tap from bubbling into a toggle.
+      onPress={hasCount ? undefined : handleTap}
       onLongPress={handleLongPress}
       delayLongPress={400}
       accessibilityRole="checkbox"
@@ -547,6 +557,7 @@ export default function GroceryScreen(): React.JSX.Element {
   } = useAddedItemPrompt(REMINDER_PROMPT_DURATION_MS);
 
   const inputRef = useRef<TextInput>(null);
+  const addBusyRef = useRef(false);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont();
@@ -720,7 +731,10 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleAdd = useCallback(
     async (quick?: string): Promise<void> => {
       const n = quick ?? itemName.trim();
-      if (!n || isAdding) return;
+      // addBusyRef is a synchronous lock: a double-fired press (common on web)
+      // or a fast second tap is dropped instead of racing into a duplicate row.
+      if (!n || addBusyRef.current) return;
+      addBusyRef.current = true;
       setIsAdding(true);
       setAddError(null);
       try {
@@ -729,13 +743,16 @@ export default function GroceryScreen(): React.JSX.Element {
         // Same-name unchecked item already on this list? Merge into it and bump
         // the quantity instead of creating a separate duplicate row — so "add
         // olive oil x3" becomes one item you can count down, not three rows.
+        // Read the freshest list (not the render-time closure) so a just-added
+        // item is seen and merged rather than duplicated.
+        const currentItems = useGroceryStore.getState().items;
         const inBucket = (i: GroceryItem): boolean =>
           effectiveMode === 'private'
             ? i.isPersonal && !i.isDraft && i.addedBy === myId
             : effectiveMode === 'draft'
               ? i.isDraft && i.addedBy === myId
               : !i.isPersonal;
-        const existing = items.find(
+        const existing = currentItems.find(
           (i) => !i.isChecked && inBucket(i) && i.name.trim().toLowerCase() === n.toLowerCase()
         );
         // Only merge when both quantities are plain counts (empty == 1); a
@@ -771,6 +788,7 @@ export default function GroceryScreen(): React.JSX.Element {
       } catch {
         setAddError(t('grocery.could_not_add'));
       } finally {
+        addBusyRef.current = false;
         setIsAdding(false);
       }
     },
@@ -782,8 +800,6 @@ export default function GroceryScreen(): React.JSX.Element {
       houseId,
       addItem,
       updateItem,
-      items,
-      isAdding,
       effectiveMode,
       note,
       t,
