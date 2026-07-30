@@ -38,8 +38,10 @@ import { getErrorMessage } from '@utils/errors';
 
 const { width: SW } = Dimensions.get('window');
 const GRID_COLS = 3;
-const GRID_GAP = sizes.xs;
-const GRID_ITEM = (SW - sizes.lg * 2 - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
+// Edge-to-edge gallery grid: thin hairline gaps, no page margins — the photos
+// tile the full width like a native Photos app.
+const GRID_GAP = 2;
+const GRID_ITEM = (SW - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
 
 const DATE_FNS_LOCALES = { en: enUS, es: dateFnsEs, he: dateFnsHe } as const;
 
@@ -107,24 +109,27 @@ const makeStyles = (C: ColorTokens) =>
       paddingHorizontal: sizes.lg,
       marginBottom: sizes.xs,
     },
-    listContent: { paddingHorizontal: sizes.lg, paddingBottom: 100 },
+    listContent: { paddingBottom: 100 },
     upsellWrap: { paddingHorizontal: sizes.lg, marginBottom: sizes.sm },
-    sectionHeader: { paddingTop: sizes.sm, paddingBottom: sizes.xs },
+    sectionHeader: {
+      paddingHorizontal: sizes.lg,
+      paddingTop: sizes.md,
+      paddingBottom: sizes.sm,
+      backgroundColor: C.background,
+    },
     sectionTitle: {
-      fontSize: 12,
-      ...font.semibold,
-      color: C.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.6,
+      fontSize: 17,
+      ...font.bold,
+      color: C.textPrimary,
+      letterSpacing: -0.3,
     },
     gridRow: { flexDirection: 'row', gap: GRID_GAP, marginBottom: GRID_GAP },
     gridItem: {
       width: GRID_ITEM,
       height: GRID_ITEM,
-      borderRadius: 10,
       overflow: 'hidden',
-      borderCurve: 'continuous',
-    } as never,
+      backgroundColor: C.surfaceSecondary,
+    },
     gridImg: { width: '100%', height: '100%' },
     selectedOverlay: {
       ...StyleSheet.absoluteFillObject,
