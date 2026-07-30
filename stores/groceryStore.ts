@@ -145,6 +145,10 @@ const _boughtTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // snap the number backwards. While an item has a pending count, the UPDATE handler
 // keeps the local count until the echo of the latest write catches up.
 const _pendingCounts = new Map<string, number>();
+// Same idea for regular (checkbox) items: the latest checked state we've shown
+// locally while a toggle write is in flight, so a stale self-echo can't flip the
+// checkbox back (which reads as a laggy, unresponsive tap).
+const _pendingChecked = new Map<string, boolean>();
 
 function scheduleBoughtWrite(id: string, get: () => { items: GroceryItem[] }): void {
   const existing = _boughtTimers.get(id);
@@ -349,19 +353,30 @@ export const useGroceryStore = create<GroceryStore>()(
             },
             (payload: { new: Record<string, unknown> }) => {
               const updated = mapItem(payload.new);
-              const pending = _pendingCounts.get(updated.id);
+              const pendingCount = _pendingCounts.get(updated.id);
+              const pendingChecked = _pendingChecked.get(updated.id);
               set({
                 items: get().items.map((i) => {
                   if (i.id !== updated.id) return i;
-                  if (pending === undefined) return updated;
-                  // The echo of our latest count write caught up — stop guarding.
-                  if (updated.boughtCount === pending) {
-                    _pendingCounts.delete(updated.id);
-                    return updated;
+                  let next = updated;
+                  // Guard an in-flight +/- write from its own stale echoes: keep the
+                  // fresher local count/checked until the latest write's echo lands.
+                  if (pendingCount !== undefined) {
+                    if (updated.boughtCount === pendingCount) {
+                      _pendingCounts.delete(updated.id);
+                    } else {
+                      next = { ...next, boughtCount: i.boughtCount, isChecked: i.isChecked };
+                    }
                   }
-                  // Stale self-echo of an earlier tap: take the row's other fields
-                  // but keep our fresher local count/checked so it can't revert.
-                  return { ...updated, boughtCount: i.boughtCount, isChecked: i.isChecked };
+                  // Guard an in-flight check/uncheck from its own stale echoes.
+                  if (pendingChecked !== undefined) {
+                    if (updated.isChecked === pendingChecked) {
+                      _pendingChecked.delete(updated.id);
+                    } else {
+                      next = { ...next, isChecked: i.isChecked };
+                    }
+                  }
+                  return next;
                 }),
               });
             }
@@ -402,6 +417,7 @@ export const useGroceryStore = create<GroceryStore>()(
         _boughtTimers.forEach((t) => clearTimeout(t));
         _boughtTimers.clear();
         _pendingCounts.clear();
+        _pendingChecked.clear();
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
@@ -472,12 +488,16 @@ export const useGroceryStore = create<GroceryStore>()(
         const item = get().items.find((i) => i.id === id);
         if (!item) return;
         const newChecked = !item.isChecked;
+        _pendingChecked.set(id, newChecked);
         set({ items: get().items.map((i) => (i.id === id ? { ...i, isChecked: newChecked } : i)) });
         const { error } = await supabase
           .from('grocery_items')
           .update({ is_checked: newChecked })
           .eq('id', id);
         if (error) {
+          // No echo will arrive to clear the guard — drop it so later remote
+          // updates to this item aren't held back, then roll the checkbox back.
+          if (_pendingChecked.get(id) === newChecked) _pendingChecked.delete(id);
           set({
             items: get().items.map((i) => (i.id === id ? { ...i, isChecked: !newChecked } : i)),
           });

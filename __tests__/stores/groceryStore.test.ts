@@ -472,6 +472,38 @@ describe('realtime UPDATE handler', () => {
     expect(updated.boughtCount).toBe(2); // count preserved
     expect(updated.name).toBe('Whole Milk'); // other fields merged
   });
+
+  // Regression: regular (checkbox) items had the same self-echo problem — a stale
+  // echo could flip the checkbox back, so a tap read as laggy/unresponsive.
+  it('does not let a stale self-echo revert a freshly toggled checkbox', async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', isChecked: false })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    // Check it, then uncheck it — local state ends unchecked.
+    await useGroceryStore.getState().toggleItem('item-1');
+    await useGroceryStore.getState().toggleItem('item-1');
+    expect(useGroceryStore.getState().items[0].isChecked).toBe(false);
+
+    // Echo of the FIRST write (checked) arrives late — must not re-check it.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: true }) });
+    expect(useGroceryStore.getState().items[0].isChecked).toBe(false);
+  });
+
+  it('applies the checkbox echo once it catches up, then resumes remote updates', async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', isChecked: false })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().toggleItem('item-1'); // -> checked
+
+    // Echo of that write lands — guard clears, other fields merge.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: true, name: 'Oat Milk' }) });
+    expect(useGroceryStore.getState().items[0].isChecked).toBe(true);
+    expect(useGroceryStore.getState().items[0].name).toBe('Oat Milk');
+
+    // A later remote uncheck (e.g. a housemate) now flows through normally.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: false }) });
+    expect(useGroceryStore.getState().items[0].isChecked).toBe(false);
+  });
 });
 
 // ── Realtime: DELETE handler ──────────────────────────────────────────────────
