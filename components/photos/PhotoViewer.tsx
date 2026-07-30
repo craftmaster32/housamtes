@@ -16,7 +16,6 @@ import {
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { captureError } from '@lib/errorTracking';
 import { Alert } from '@lib/alert';
@@ -24,6 +23,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
+import { ZoomableImage } from '@components/photos/ZoomableImage';
 import type { Photo } from '@stores/photoStore';
 
 const { width: SW, height: SH } = Dimensions.get('window');
@@ -55,7 +55,6 @@ const makeStyles = (C: ColorTokens) =>
     overlay: { flex: 1, backgroundColor: '#000' },
     list: { flex: 1 },
     slide: { width: SW, justifyContent: 'center', alignItems: 'center' },
-    image: { width: SW },
 
     scrim: { position: 'absolute', left: 0, right: 0 },
     topScrim: { top: 0 },
@@ -116,6 +115,7 @@ export function PhotoViewer({
   const [isDownloading, setIsDownloading] = useState(false);
   const [imageH, setImageH] = useState(FALLBACK_IMAGE_H);
   const [chromeVisible, setChromeVisible] = useState(true);
+  const [isZoomed, setIsZoomed] = useState(false);
   const chromeAnim = useRef(new Animated.Value(1)).current;
   const listRef = useRef<FlatList<Photo>>(null);
 
@@ -141,14 +141,17 @@ export function PhotoViewer({
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Photo>) => (
-      <Pressable style={[styles.slide, { height: imageH }]} onPress={toggleChrome}>
-        <Image
-          source={{ uri: item.url, cacheKey: item.id }}
-          style={[styles.image, { height: imageH }]}
-          contentFit="contain"
+      <View style={[styles.slide, { height: imageH }]}>
+        <ZoomableImage
+          uri={item.url}
+          cacheKey={item.id}
+          width={SW}
+          height={imageH}
           accessibilityLabel={item.caption ?? t('photos.photo_by', { name: item.uploadedBy })}
+          onSingleTap={toggleChrome}
+          onZoomChange={setIsZoomed}
         />
-      </Pressable>
+      </View>
     ),
     [styles, t, imageH, toggleChrome]
   );
@@ -165,6 +168,7 @@ export function PhotoViewer({
   const onMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>): void => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SW);
     setCurrentIndex(idx);
+    setIsZoomed(false);
   }, []);
 
   const handleDownload = useCallback(async (): Promise<void> => {
@@ -225,6 +229,7 @@ export function PhotoViewer({
           keyExtractor={(p) => p.id}
           horizontal
           pagingEnabled
+          scrollEnabled={!isZoomed}
           showsHorizontalScrollIndicator={false}
           initialScrollIndex={initialIndex}
           getItemLayout={getItemLayout}
