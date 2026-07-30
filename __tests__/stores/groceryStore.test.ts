@@ -552,6 +552,53 @@ describe('clearChecked + realtime race condition', () => {
     const ids = useGroceryStore.getState().items.map((i) => i.id);
     expect(ids).toEqual(['item-2']);
   });
+
+  // Regression: a cleared item flashed back at the top and stayed. A late INSERT
+  // echo (in flight when the item was added) re-added the just-deleted row, then a
+  // late UPDATE echo re-checked it. The delete tombstone must block both.
+  it('a late INSERT echo does not resurrect a just-cleared item', async () => {
+    mockFrom.mockReturnValue(ok([]));
+    await useGroceryStore.getState().load('house-1');
+    useGroceryStore.setState({ items: [item({ id: 'item-1', isChecked: true })] });
+
+    mockFrom.mockReturnValue(ok(null));
+    await useGroceryStore.getState().clearChecked(HOUSE_UUID);
+    expect(useGroceryStore.getState().items).toHaveLength(0);
+
+    // Late INSERT echo for the same row arrives — must be ignored, not prepended.
+    capturedHandlers.insert!({ new: rawRow({ id: 'item-1', is_checked: false }) });
+    expect(useGroceryStore.getState().items).toHaveLength(0);
+
+    // And a late UPDATE echo for it can't revive/re-check it either.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: true }) });
+    expect(useGroceryStore.getState().items).toHaveLength(0);
+  });
+
+  it('a late INSERT echo does not resurrect a deleted item', async () => {
+    mockFrom.mockReturnValue(ok([]));
+    await useGroceryStore.getState().load('house-1');
+    useGroceryStore.setState({ items: [item({ id: 'item-1' })] });
+
+    mockFrom.mockReturnValue(ok(null));
+    await useGroceryStore.getState().deleteItem('item-1');
+
+    capturedHandlers.insert!({ new: rawRow({ id: 'item-1' }) });
+    expect(useGroceryStore.getState().items).toHaveLength(0);
+  });
+
+  it('a genuinely new item (different id) is still added after a clear', async () => {
+    mockFrom.mockReturnValue(ok([]));
+    await useGroceryStore.getState().load('house-1');
+    useGroceryStore.setState({ items: [item({ id: 'item-1', isChecked: true })] });
+
+    mockFrom.mockReturnValue(ok(null));
+    await useGroceryStore.getState().clearChecked(HOUSE_UUID);
+
+    // A fresh add uses a new id — the tombstone must not block it.
+    capturedHandlers.insert!({ new: rawRow({ id: 'item-2', name: 'Eggs' }) });
+    const ids = useGroceryStore.getState().items.map((i) => i.id);
+    expect(ids).toEqual(['item-2']);
+  });
 });
 
 // ── Reminders ───────────────────────────────────────────────────────────────

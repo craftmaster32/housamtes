@@ -149,6 +149,36 @@ const _pendingCounts = new Map<string, number>();
 // locally while a toggle write is in flight, so a stale self-echo can't flip the
 // checkbox back (which reads as a laggy, unresponsive tap).
 const _pendingChecked = new Map<string, boolean>();
+// Ids deleted locally within the last few seconds. A realtime INSERT/UPDATE echo
+// that was already in flight when we deleted the row would otherwise re-add it —
+// the item flashes back at the top of the list and sticks. Echoes for a tombstoned
+// id are ignored until the window passes. Fresh re-adds use a new id, so they are
+// never affected.
+const _recentlyDeleted = new Map<string, number>();
+const DELETE_TOMBSTONE_MS = 5000;
+
+function tombstone(id: string): void {
+  _recentlyDeleted.set(id, Date.now());
+  // A deleted row has no pending count/toggle to guard, and its debounced write
+  // must not fire against a now-missing row.
+  _pendingCounts.delete(id);
+  _pendingChecked.delete(id);
+  const timer = _boughtTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    _boughtTimers.delete(id);
+  }
+}
+
+function isTombstoned(id: string): boolean {
+  const at = _recentlyDeleted.get(id);
+  if (at === undefined) return false;
+  if (Date.now() - at > DELETE_TOMBSTONE_MS) {
+    _recentlyDeleted.delete(id);
+    return false;
+  }
+  return true;
+}
 
 function scheduleBoughtWrite(id: string, get: () => { items: GroceryItem[] }): void {
   const existing = _boughtTimers.get(id);
@@ -337,6 +367,8 @@ export const useGroceryStore = create<GroceryStore>()(
             },
             (payload: { new: Record<string, unknown> }) => {
               const incoming = mapItem(payload.new);
+              // A late echo for a row we just cleared/deleted — don't resurrect it.
+              if (isTombstoned(incoming.id)) return;
               const current = get().items;
               if (!current.find((i) => i.id === incoming.id)) {
                 set({ items: [incoming, ...current] });
@@ -353,6 +385,9 @@ export const useGroceryStore = create<GroceryStore>()(
             },
             (payload: { new: Record<string, unknown> }) => {
               const updated = mapItem(payload.new);
+              // A late echo for a row we just cleared/deleted — ignore it so it
+              // can't re-check or otherwise revive a removed item.
+              if (isTombstoned(updated.id)) return;
               const pendingCount = _pendingCounts.get(updated.id);
               const pendingChecked = _pendingChecked.get(updated.id);
               set({
@@ -392,6 +427,8 @@ export const useGroceryStore = create<GroceryStore>()(
             (payload: { old: Record<string, unknown> }) => {
               const deletedId = payload.old.id as string;
               if (deletedId) {
+                // Tombstone so an out-of-order INSERT/UPDATE echo can't re-add it.
+                tombstone(deletedId);
                 set({ items: get().items.filter((i) => i.id !== deletedId) });
               }
             }
@@ -418,6 +455,7 @@ export const useGroceryStore = create<GroceryStore>()(
         _boughtTimers.clear();
         _pendingCounts.clear();
         _pendingChecked.clear();
+        _recentlyDeleted.clear();
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
@@ -541,9 +579,13 @@ export const useGroceryStore = create<GroceryStore>()(
 
       deleteItem: async (id): Promise<void> => {
         const prevItems = get().items;
+        // Tombstone so an in-flight realtime echo can't re-add the row we remove.
+        tombstone(id);
         set({ items: prevItems.filter((i) => i.id !== id) });
         const { error } = await supabase.from('grocery_items').delete().eq('id', id);
         if (error) {
+          // The row still exists — lift the tombstone and restore it.
+          _recentlyDeleted.delete(id);
           set({ items: prevItems });
           captureError(error, { context: 'delete-grocery-item', id });
           throw new Error('Could not delete the item. Please try again.');
@@ -557,6 +599,9 @@ export const useGroceryStore = create<GroceryStore>()(
         const removedItems = prevItems.filter((i) => i.isChecked);
         if (removedItems.length === 0) return;
         const removedIds = removedItems.map((i) => i.id);
+        // Tombstone up front so a realtime echo already in flight for one of these
+        // rows can't re-add it at the top of the list while the delete lands.
+        removedIds.forEach(tombstone);
         try {
           set({ items: prevItems.filter((i) => !i.isChecked) });
           // Delete by specific IDs, not by is_checked flag — avoids a race where
@@ -577,6 +622,8 @@ export const useGroceryStore = create<GroceryStore>()(
           const currentItems = get().items;
           const currentIds = new Set(currentItems.map((i) => i.id));
           const toRestore = removedItems.filter((i) => !currentIds.has(i.id));
+          // The delete failed — these rows still exist, so lift their tombstones.
+          removedIds.forEach((id) => _recentlyDeleted.delete(id));
           set({ items: [...currentItems, ...toRestore] });
           captureError(err, { context: 'clear-checked-grocery', houseId: parsedHouseId.data });
           throw new Error('Could not clear checked items. Please try again.');
