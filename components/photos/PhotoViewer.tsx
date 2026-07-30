@@ -41,16 +41,15 @@ export interface PhotoViewerProps {
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.97)' },
+    // A real header band above the photo — the controls sit here, not on top of
+    // the image.
     topBar: {
-      position: 'absolute',
-      top: 60,
-      left: 0,
-      right: 0,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: sizes.lg,
-      zIndex: 10,
+      paddingTop: 60,
+      paddingBottom: sizes.md,
     },
     topBarSide: {
       width: 44,
@@ -79,10 +78,13 @@ const makeStyles = (C: ColorTokens) =>
     counter: { color: 'rgba(255,255,255,0.65)', fontSize: 14, ...font.medium },
     list: { flex: 1 },
     slide: { width: SW, flex: 1, justifyContent: 'center' },
-    image: { width: SW, height: SW * 1.25 },
+    // Fill the space between the header and the caption instead of a fixed height
+    // that leaves a large empty gap below the photo.
+    image: { width: SW, height: '100%' },
     meta: {
       paddingHorizontal: sizes.lg,
-      paddingBottom: sizes.xxl,
+      paddingTop: sizes.md,
+      paddingBottom: sizes.xl,
       alignItems: 'center',
       gap: sizes.xs,
     },
