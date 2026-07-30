@@ -10,6 +10,7 @@ import {
   type ListRenderItemInfo,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +24,10 @@ import { font } from '@constants/typography';
 import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
 import type { Photo } from '@stores/photoStore';
 
-const { width: SW } = Dimensions.get('window');
+const { width: SW, height: SH } = Dimensions.get('window');
+// Sensible first-frame height so the photo shows immediately; corrected to the
+// list's real height on layout.
+const FALLBACK_IMAGE_H = Math.max(SH - 220, 240);
 
 function localeFor(lang: string): string {
   return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-US';
@@ -78,9 +82,10 @@ const makeStyles = (C: ColorTokens) =>
     counter: { color: 'rgba(255,255,255,0.65)', fontSize: 14, ...font.medium },
     list: { flex: 1 },
     slide: { width: SW, flex: 1, justifyContent: 'center' },
-    // Fill the space between the header and the caption instead of a fixed height
-    // that leaves a large empty gap below the photo.
-    image: { width: SW, height: '100%' },
+    // Height is applied at render time from the measured list height (a percentage
+    // height doesn't resolve inside the horizontal list and renders as a black,
+    // zero-height page). Fills the space between the header and the caption.
+    image: { width: SW },
     meta: {
       paddingHorizontal: sizes.lg,
       paddingTop: sizes.md,
@@ -114,22 +119,28 @@ export function PhotoViewer({
   const styles = useMemo(() => makeStyles(C), [C]);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [imageH, setImageH] = useState(FALLBACK_IMAGE_H);
   const listRef = useRef<FlatList<Photo>>(null);
 
   const photo = photos[currentIndex];
+
+  const onListLayout = useCallback((e: LayoutChangeEvent): void => {
+    const h = e.nativeEvent.layout.height;
+    if (h > 0) setImageH(h);
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<Photo>) => (
       <View style={styles.slide}>
         <Image
           source={{ uri: item.url, cacheKey: item.id }}
-          style={styles.image}
+          style={[styles.image, { height: imageH }]}
           contentFit="contain"
           accessibilityLabel={item.caption ?? t('photos.photo_by', { name: item.uploadedBy })}
         />
       </View>
     ),
-    [styles, t]
+    [styles, t, imageH]
   );
 
   const getItemLayout = useCallback(
@@ -240,6 +251,7 @@ export function PhotoViewer({
           initialScrollIndex={initialIndex}
           getItemLayout={getItemLayout}
           onMomentumScrollEnd={onMomentumScrollEnd}
+          onLayout={onListLayout}
           style={styles.list}
         />
 
