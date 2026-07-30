@@ -9,6 +9,7 @@ import {
   SectionList,
   ActivityIndicator,
   BackHandler,
+  Animated,
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -84,6 +85,9 @@ function formatUnitSuffix(unit: string, isHebrew: boolean): string {
 // so it stays consistent for every housemate regardless of who added it.
 // Only re-localize the unit suffix here, at render time, for the viewer's language.
 const SORTED_UNIT_OPTS = [...UNIT_OPTS].sort((a, b) => b.length - a.length);
+// Width of the swipe-to-delete panel. Kept in sync between the reveal animation
+// and its style so the red panel slides in flush with the row edge.
+const SWIPE_DELETE_WIDTH = 84;
 function localizeQuantityForDisplay(quantity: string, isHebrew: boolean): string {
   if (!isHebrew) return quantity;
   for (const u of SORTED_UNIT_OPTS) {
@@ -441,17 +445,28 @@ const ItemRow = memo(function ItemRow({
   if (!canEdit) return row;
   return (
     <Swipeable
-      renderRightActions={() => (
-        <Pressable
-          style={rowStyles.swipeDelete}
-          onPress={handleDelete}
-          accessibilityRole="button"
-          accessibilityLabel={t('grocery.delete_item_name', { name: item.name })}
-        >
-          <Ionicons name="trash" size={20} color="#fff" />
-          <Text style={rowStyles.swipeDeleteText}>{t('common.delete')}</Text>
-        </Pressable>
-      )}
+      renderRightActions={(_progress, dragX) => {
+        // Slide the panel in 1:1 with the drag so it stays glued to the row's
+        // right edge instead of sitting revealed underneath as a floating box.
+        const translateX = dragX.interpolate({
+          inputRange: [-SWIPE_DELETE_WIDTH, 0],
+          outputRange: [0, SWIPE_DELETE_WIDTH],
+          extrapolate: 'clamp',
+        });
+        return (
+          <Animated.View style={[rowStyles.swipeDeleteLane, { transform: [{ translateX }] }]}>
+            <Pressable
+              style={rowStyles.swipeDelete}
+              onPress={handleDelete}
+              accessibilityRole="button"
+              accessibilityLabel={t('grocery.delete_item_name', { name: item.name })}
+            >
+              <Ionicons name="trash" size={20} color="#fff" />
+              <Text style={rowStyles.swipeDeleteText}>{t('common.delete')}</Text>
+            </Pressable>
+          </Animated.View>
+        );
+      }}
       overshootRight={false}
       rightThreshold={40}
       friction={2}
@@ -2006,14 +2021,17 @@ function makeStyles(C: ColorTokens) {
     itemQtyText: { fontSize: 12, ...font.bold, color: C.textSecondary },
     itemActions: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
     editBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    // Full-height lane flush to the row's right edge; the panel inside fills it so
+    // there's no misaligned floating box peeking out during a slow swipe-back.
+    swipeDeleteLane: { width: SWIPE_DELETE_WIDTH },
     swipeDelete: {
+      flex: 1,
       backgroundColor: C.danger,
       justifyContent: 'center',
       alignItems: 'center',
-      width: 84,
       gap: 3,
-      borderRadius: 12,
-      marginBottom: 8,
+      borderTopRightRadius: 14,
+      borderBottomRightRadius: 14,
     },
     swipeDeleteText: { fontSize: 12, ...font.bold, color: '#fff' },
 
