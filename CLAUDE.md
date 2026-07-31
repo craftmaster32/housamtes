@@ -355,7 +355,7 @@ describe('BillCard', () => {
 
 **Phase 2 — Review (CodeRabbit)** 6. Push only after owner says yes: `git push origin branch-name` 7. Claude opens a GitHub PR with a plain-English title + description 8. Wait ~2 minutes for CodeRabbit to auto-review the PR 9. Claude reads CodeRabbit's comments and either fixes the issues or explains why they can be ignored 10. Tell owner: _"CodeRabbit is happy / here's what it flagged — safe to merge"_
 
-**Phase 3 — Merge & verify** 11. Owner clicks **Merge pull request** on GitHub (always use "Create a merge commit" — not squash or rebase) 12. Claude pulls main locally and runs the post-merge check: - `npx tsc --noEmit` — type check - `npm run lint` — code quality - `npm test` — tests 13. **If all pass:** Claude tells owner what terminal commands to run (deploy + optionally db push) 14. **If something fails:** Claude runs `git revert` to safely undo the merge, then investigates on the old branch and reports what went wrong in plain English
+**Phase 3 — Merge & verify** 11. Owner clicks **Merge pull request** on GitHub (always use "Create a merge commit" — not squash or rebase) 12. Claude pulls main locally and runs the post-merge check: - `npx tsc --noEmit` — type check - `npm run lint` — code quality - `npm test` — tests 13. **If all pass:** Claude runs deploy (and db push if the task had migrations) automatically — no need to ask the owner to run terminal commands 14. **If something fails:** Claude runs `git revert` to safely undo the merge, then investigates on the old branch and reports what went wrong in plain English
 
 ### Post-merge rollback (if needed)
 
@@ -387,30 +387,20 @@ Optional one-liner explaining WHY, not what.
 
 ---
 
-## WHEN TO RUN TERMINAL COMMANDS
+## POST-MERGE: DEPLOY & DB PUSH (AUTOMATED)
 
-These are the only two commands the owner ever needs to run in the terminal.
-Claude will always say explicitly: _"Now run X in your terminal."_
+Claude runs these automatically after the post-merge check passes — the owner does not need to be near a terminal.
 
 ### `npx supabase db push`
 
-Run this when a task includes **database changes** (new `.sql` files in `supabase/migrations/`).
-Claude will always flag this: _"This task has a migration — run `npx supabase db push` after merging."_
+- Claude runs this automatically when the task includes **database changes** (new `.sql` files in `supabase/migrations/`)
+- Only on main, AFTER the post-merge check passes
+- Always before `npm run deploy`
 
-- Run it AFTER merging to main, AFTER the post-merge check passes
-- Do NOT run it on a feature branch — only on main
+### `npm run deploy`
 
-### Deploy (web app)
-
-```bash
-npm run deploy
-```
-
-Run this after every merge to keep the live web app (housemates-five.vercel.app) up to date.
-
-- Run it AFTER the post-merge check passes
-- If the task had a migration, run `npx supabase db push` first, then `npm run deploy`
-- Claude will always remind you at the end of every session
+- Claude runs this automatically after every merge to keep the live web app (housemates-five.vercel.app) up to date
+- Only AFTER the post-merge check passes (and after db push if there were migrations)
 - **Never** use the old long command (`npx expo export...vercel --prod`) — `npm run deploy` does all of that automatically
 
 ---
