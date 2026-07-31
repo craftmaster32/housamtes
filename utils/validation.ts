@@ -210,3 +210,7 @@ export const maintenanceRequestSchema = z.object({
   reportedBy: z.string().min(1),
   houseId: z.string().min(1),
 });
+
+export const inviteCodeSchema = z.object({
+  code: z.string().length(6, 'Invite code must be 6 characters').toUpperCase(),
+});
