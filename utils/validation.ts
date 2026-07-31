@@ -210,3 +210,11 @@ export const maintenanceRequestSchema = z.object({
   reportedBy: z.string().min(1),
   houseId: z.string().min(1),
 });
+
+export const inviteSchema = z.object({
+  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
+});
+
+export function isValidHouseName(name: string): boolean {
+  return name.trim().length >= 1 && name.trim().length <= 60;
+}
