@@ -19,11 +19,13 @@
 
 import {
   isDateConflict,
+  isReservationInHistory,
   isReservationPastDue,
   isVoteChangeLocked,
   tallyParkingReservationVotes,
   useParkingStore,
   type ParkingReservation,
+  type ParkingSession,
 } from '../../stores/parkingStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
@@ -297,6 +299,175 @@ describe('isVoteChangeLocked', () => {
     // begins at 23:40 on 2026-04-19.
     const now = new Date('2026-04-19T23:40:00');
     expect(isVoteChangeLocked('2026-04-20', '00:10', now)).toBe(true);
+  });
+});
+
+describe('isReservationInHistory', () => {
+  const now = new Date('2026-04-20T14:00:00');
+  const requester = 'uuid-alice';
+  const activeSession = (occupant: string): ParkingSession => ({
+    id: 'ps1',
+    occupant,
+    startTime: '2026-04-20T10:00:00Z',
+  });
+
+  it('past-dated reservation of any status → history', () => {
+    expect(
+      isReservationInHistory(
+        reservation({ date: '2026-04-19', status: 'pending', requestedBy: requester }),
+        now
+      )
+    ).toBe(true);
+    expect(
+      isReservationInHistory(
+        reservation({ date: '2026-04-19', status: 'approved', requestedBy: requester }),
+        now
+      )
+    ).toBe(true);
+  });
+
+  it('rejected → history immediately, even for a future date', () => {
+    expect(
+      isReservationInHistory(
+        reservation({ date: '2026-04-25', status: 'rejected', requestedBy: requester }),
+        now
+      )
+    ).toBe(true);
+    expect(
+      isReservationInHistory(
+        reservation({ date: '2026-04-20', status: 'rejected', requestedBy: requester }),
+        now
+      )
+    ).toBe(true);
+  });
+
+  it('approved today with end time in the future → upcoming', () => {
+    expect(
+      isReservationInHistory(
+        reservation({
+          date: '2026-04-20',
+          status: 'approved',
+          startTime: '10:00',
+          endTime: '16:00',
+          requestedBy: requester,
+        }),
+        now,
+        activeSession(requester)
+      )
+    ).toBe(false);
+  });
+
+  it('approved today with end time already passed → history', () => {
+    expect(
+      isReservationInHistory(
+        reservation({
+          date: '2026-04-20',
+          status: 'approved',
+          startTime: '10:00',
+          endTime: '13:00',
+          requestedBy: requester,
+        }),
+        now
+      )
+    ).toBe(true);
+  });
+
+  it('approved today, start time passed, spot released (no current session) → history', () => {
+    // Requester's slot has started but nobody currently holds the spot →
+    // treated as done.
+    expect(
+      isReservationInHistory(
+        reservation({
+          date: '2026-04-20',
+          status: 'approved',
+          startTime: '10:00',
+          endTime: '16:00',
+          requestedBy: requester,
+        }),
+        now,
+        null
+      )
+    ).toBe(true);
+  });
+
+  it('approved today, start time passed, someone else took the spot → history', () => {
+    expect(
+      isReservationInHistory(
+        reservation({
+          date: '2026-04-20',
+          status: 'approved',
+          startTime: '10:00',
+          endTime: '16:00',
+          requestedBy: requester,
+        }),
+        now,
+        activeSession('uuid-bob')
+      )
+    ).toBe(true);
+  });
+
+  it('approved today before start time → upcoming (session state does not matter)', () => {
+    const earlyNow = new Date('2026-04-20T08:00:00');
+    const res = reservation({
+      date: '2026-04-20',
+      status: 'approved',
+      startTime: '10:00',
+      endTime: '16:00',
+      requestedBy: requester,
+    });
+    expect(isReservationInHistory(res, earlyNow, null)).toBe(false);
+    expect(isReservationInHistory(res, earlyNow, activeSession('uuid-bob'))).toBe(false);
+    expect(isReservationInHistory(res, earlyNow, activeSession(requester))).toBe(false);
+  });
+
+  it('approved future reservation → upcoming', () => {
+    expect(
+      isReservationInHistory(
+        reservation({ date: '2026-04-25', status: 'approved', requestedBy: requester }),
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('approved all-day today (no start/end time) → upcoming until midnight', () => {
+    expect(
+      isReservationInHistory(
+        reservation({
+          date: '2026-04-20',
+          status: 'approved',
+          startTime: undefined,
+          endTime: undefined,
+          requestedBy: requester,
+        }),
+        now,
+        null
+      )
+    ).toBe(false);
+  });
+
+  it('pending future reservation → upcoming', () => {
+    expect(
+      isReservationInHistory(
+        reservation({ date: '2026-04-25', status: 'pending', requestedBy: requester }),
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('pending today reservation → upcoming (auto-apply handles resolution)', () => {
+    expect(
+      isReservationInHistory(
+        reservation({
+          date: '2026-04-20',
+          status: 'pending',
+          startTime: '10:00',
+          endTime: '16:00',
+          requestedBy: requester,
+        }),
+        now,
+        null
+      )
+    ).toBe(false);
   });
 });
 
