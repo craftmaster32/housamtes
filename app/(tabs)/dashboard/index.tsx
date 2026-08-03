@@ -293,28 +293,6 @@ function PinnedNote(): React.JSX.Element {
 }
 
 // ── "You're owed" hero ────────────────────────────────────────────────────────
-function HeroPill({
-  icon,
-  value,
-  label,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  value: string;
-  label: string;
-}): React.JSX.Element {
-  return (
-    <View style={styles.heroPill}>
-      <Ionicons name={icon} size={13} color="rgba(255,255,255,0.85)" />
-      <Text style={styles.heroPillValue} numberOfLines={1}>
-        {value}
-      </Text>
-      <Text style={styles.heroPillLabel} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 function OwedHero(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
@@ -377,47 +355,33 @@ function OwedHero(): React.JSX.Element {
             </View>
           </View>
         ) : (
-          <View>
-            <View style={styles.heroRow}>
-              <View style={styles.flex1}>
-                <Text style={styles.heroLabel}>
-                  {isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')}
-                </Text>
-                <Money
-                  amount={Math.abs(netAmount)}
-                  currencyCode={currencyCode}
-                  size={44}
-                  color="#fff"
-                  style={styles.heroAmtRow}
-                  animate
-                />
-              </View>
-              <Pressable
-                style={({ pressed }) => [styles.heroAnalysisBtn, pressed && styles.pressed]}
-                onPress={() => router.push('/(tabs)/profile/spending')}
-                accessibilityRole="button"
-                accessibilityLabel={t('spending.view_spending')}
-              >
-                <Ionicons name="stats-chart-outline" size={20} color="#fff" />
-              </Pressable>
+          <View style={styles.heroRow}>
+            <View style={styles.flex1}>
+              <Text style={styles.heroLabel}>
+                {isOwed ? t('dashboard.balance_owed') : t('dashboard.balance_you_owe')}
+              </Text>
+              <Money
+                amount={Math.abs(netAmount)}
+                currencyCode={currencyCode}
+                size={44}
+                color="#fff"
+                style={styles.heroAmtRow}
+                animate
+              />
+              <Text style={styles.heroSub}>
+                {peopleCount !== 1
+                  ? t('dashboard.balance_across_plural', { count: peopleCount })
+                  : t('dashboard.balance_across', { count: peopleCount })}
+              </Text>
             </View>
-            <View style={styles.heroPills}>
-              <HeroPill
-                icon="arrow-down-outline"
-                value={formatFull(totalOwed, currencyCode)}
-                label={t('dashboard.stat_owed')}
-              />
-              <HeroPill
-                icon="arrow-up-outline"
-                value={formatFull(totalOwe, currencyCode)}
-                label={t('dashboard.stat_owe')}
-              />
-              <HeroPill
-                icon="people-outline"
-                value={String(peopleCount)}
-                label={t('dashboard.stat_people')}
-              />
-            </View>
+            <Pressable
+              style={({ pressed }) => [styles.heroAnalysisBtn, pressed && styles.pressed]}
+              onPress={() => router.push('/(tabs)/profile/spending')}
+              accessibilityRole="button"
+              accessibilityLabel={t('spending.view_spending')}
+            >
+              <Ionicons name="stats-chart-outline" size={20} color="#fff" />
+            </Pressable>
           </View>
         )}
       </LinearGradient>
@@ -932,21 +896,6 @@ const styles = StyleSheet.create({
   heroLabel: { fontSize: 12.5, ...font.semibold, color: 'rgba(255,255,255,0.82)' },
   heroAmtRow: { marginTop: 6 },
   heroSub: { fontSize: 11.5, ...font.medium, color: 'rgba(255,255,255,0.74)', marginTop: 6 },
-  // Fintech-style stat pills below the amount (owed / owe / people).
-  heroPills: { flexDirection: 'row', gap: 8, marginTop: 18 },
-  heroPill: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-  heroPillValue: { fontSize: 15, ...font.bold, color: '#fff' },
-  heroPillLabel: { fontSize: 10.5, ...font.medium, color: 'rgba(255,255,255,0.7)' },
 
   // ── Grid row (parking + chores)
   gridRow: { flexDirection: 'row', gap: 12, marginTop: 14 },
