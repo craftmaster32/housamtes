@@ -413,7 +413,10 @@
     "release_parking_spot": "Liberar plaza de parking",
     "view_parking": "Ver parking",
     "has_note": "Tiene una nota",
-    "load_error": "Algunas cosas no se cargaron. Revisa tu conexión y reintenta."
+    "load_error": "Algunas cosas no se cargaron. Revisa tu conexión y reintenta.",
+    "stat_owed": "A tu favor",
+    "stat_owe": "Debes",
+    "stat_people": "Personas"
   },
   "bills": {
     "title": "Gastos",

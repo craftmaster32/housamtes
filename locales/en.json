@@ -413,7 +413,10 @@
     "release_parking_spot": "Release parking spot",
     "view_parking": "View parking",
     "has_note": "Has a note",
-    "load_error": "Some things didn't load. Check your connection and retry."
+    "load_error": "Some things didn't load. Check your connection and retry.",
+    "stat_owed": "Owed to you",
+    "stat_owe": "You owe",
+    "stat_people": "People"
   },
   "bills": {
     "title": "Bills",
