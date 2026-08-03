@@ -109,6 +109,15 @@ export function ZoomableImage({
   );
 
   const handleTap = useCallback((): void => {
+    // Already zoomed → any tap zooms back out. (On web the Pressable still
+    // receives the tap even while the pan responder is active, so this is the
+    // reliable place to handle it.)
+    if (zoomedRef.current) {
+      if (singleTapTimer.current) clearTimeout(singleTapTimer.current);
+      lastTapRef.current = 0;
+      animateZoom(false);
+      return;
+    }
     const now = Date.now();
     if (now - lastTapRef.current < DOUBLE_TAP_MS) {
       lastTapRef.current = 0;

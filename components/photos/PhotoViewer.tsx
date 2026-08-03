@@ -8,10 +8,12 @@ import {
   Modal,
   ActivityIndicator,
   Animated,
+  PanResponder,
   type ListRenderItemInfo,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
   type LayoutChangeEvent,
+  type PanResponderInstance,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -117,6 +119,8 @@ export function PhotoViewer({
   const [chromeVisible, setChromeVisible] = useState(true);
   const [isZoomed, setIsZoomed] = useState(false);
   const chromeAnim = useRef(new Animated.Value(1)).current;
+  const dismissY = useRef(new Animated.Value(0)).current;
+  const isZoomedRef = useRef(false);
   const listRef = useRef<FlatList<Photo>>(null);
 
   const photo = photos[currentIndex];
@@ -125,6 +129,45 @@ export function PhotoViewer({
     const h = e.nativeEvent.layout.height;
     if (h > 0) setImageH(h);
   }, []);
+
+  const handleZoomChange = useCallback((zoomed: boolean): void => {
+    isZoomedRef.current = zoomed;
+    setIsZoomed(zoomed);
+  }, []);
+
+  // Swipe the photo up or down to dismiss (only while unzoomed and only for a
+  // clearly-vertical drag, so horizontal paging and pinch-pan are untouched).
+  const dismissResponder = useMemo<PanResponderInstance>(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_e, g) =>
+          !isZoomedRef.current && Math.abs(g.dy) > 14 && Math.abs(g.dy) > Math.abs(g.dx) * 1.25,
+        onPanResponderMove: (_e, g) => {
+          dismissY.setValue(g.dy);
+        },
+        onPanResponderRelease: (_e, g) => {
+          if (Math.abs(g.dy) > 130 || Math.abs(g.vy) > 0.75) {
+            onClose();
+            return;
+          }
+          Animated.spring(dismissY, {
+            toValue: 0,
+            useNativeDriver: false,
+            bounciness: 4,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(dismissY, { toValue: 0, useNativeDriver: false }).start();
+        },
+      }),
+    [dismissY, onClose]
+  );
+
+  const overlayOpacity = dismissY.interpolate({
+    inputRange: [-280, 0, 280],
+    outputRange: [0.35, 1, 0.35],
+    extrapolate: 'clamp',
+  });
 
   // Tap the photo to toggle the controls in/out for an immersive full-photo view.
   const toggleChrome = useCallback((): void => {
@@ -149,11 +192,11 @@ export function PhotoViewer({
           height={imageH}
           accessibilityLabel={item.caption ?? t('photos.photo_by', { name: item.uploadedBy })}
           onSingleTap={toggleChrome}
-          onZoomChange={setIsZoomed}
+          onZoomChange={handleZoomChange}
         />
       </View>
     ),
-    [styles, t, imageH, toggleChrome]
+    [styles, t, imageH, toggleChrome, handleZoomChange]
   );
 
   const getItemLayout = useCallback(
@@ -221,22 +264,27 @@ export function PhotoViewer({
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <FlatList
-          ref={listRef}
-          data={photos}
-          renderItem={renderItem}
-          keyExtractor={(p) => p.id}
-          horizontal
-          pagingEnabled
-          scrollEnabled={!isZoomed}
-          showsHorizontalScrollIndicator={false}
-          initialScrollIndex={initialIndex}
-          getItemLayout={getItemLayout}
-          onMomentumScrollEnd={onMomentumScrollEnd}
-          onLayout={onListLayout}
-          style={styles.list}
-        />
+      <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+        <Animated.View
+          style={[styles.list, { transform: [{ translateY: dismissY }] }]}
+          {...dismissResponder.panHandlers}
+        >
+          <FlatList
+            ref={listRef}
+            data={photos}
+            renderItem={renderItem}
+            keyExtractor={(p) => p.id}
+            horizontal
+            pagingEnabled
+            scrollEnabled={!isZoomed}
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={initialIndex}
+            getItemLayout={getItemLayout}
+            onMomentumScrollEnd={onMomentumScrollEnd}
+            onLayout={onListLayout}
+            style={styles.list}
+          />
+        </Animated.View>
 
         {/* Top scrim — close · counter · download, over a fading dark gradient. */}
         <Animated.View
@@ -330,7 +378,7 @@ export function PhotoViewer({
             </View>
           </Animated.View>
         )}
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
