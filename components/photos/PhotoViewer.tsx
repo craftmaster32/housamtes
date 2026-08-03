@@ -211,6 +211,7 @@ export function PhotoViewer({
   const onMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>): void => {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SW);
     setCurrentIndex(idx);
+    isZoomedRef.current = false;
     setIsZoomed(false);
   }, []);
 
