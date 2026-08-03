@@ -1482,7 +1482,10 @@
     "nfc_title": "NFC parking tag",
     "nfc_desc": "Toggle your spot by tapping a tag in your car",
     "calendar_desc_web": "Open any event in the Calendar tab to export to Google Calendar or download an .ics file",
-    "currency_pick": "Choose currency"
+    "currency_pick": "Choose currency",
+    "fun_section": "Fun",
+    "notify_daily_joke": "Daily dad joke",
+    "notify_daily_joke_sub": "One groan-worthy joke a day. You've been warned."
   },
   "members": {
     "title": "Member Permissions",

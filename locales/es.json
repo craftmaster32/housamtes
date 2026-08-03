@@ -1507,7 +1507,10 @@
     "currency_pick": "Elegir moneda",
     "timezone_search": "Busca una ciudad o país…",
     "timezone_matches": "{{count}} de {{total}} coincidencias",
-    "timezone_none": "Ninguna zona horaria coincide."
+    "timezone_none": "Ninguna zona horaria coincide.",
+    "fun_section": "Diversión",
+    "notify_daily_joke": "Chiste malo del día",
+    "notify_daily_joke_sub": "Un chiste para poner los ojos en blanco, cada día. Avisado quedas."
   },
   "members": {
     "title": "Permisos de miembros",

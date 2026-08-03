@@ -38,6 +38,7 @@ const DEFAULT_PREFS = {
   notifyChatMessage: true,
   notifyGroceryShared: true,
   notifyTaskAssigned: true,
+  notifyDailyJoke: true,
 };
 
 beforeEach(() => {
@@ -154,6 +155,15 @@ describe('notificationStore — update', () => {
     expect(prefs.billDueDaysBefore).toBe(7);
     expect(prefs.notifyBillAdded).toBe(true); // unchanged
     expect(prefs.notifyChatMessage).toBe(true); // unchanged
+  });
+
+  it('toggles the daily dad-joke preference optimistically', async () => {
+    mockFrom.mockReturnValue(ok());
+
+    await useNotificationStore.getState().update('user-1', 'house-1', { notifyDailyJoke: false });
+
+    expect(useNotificationStore.getState().prefs.notifyDailyJoke).toBe(false);
+    expect(useNotificationStore.getState().prefs.notifyBillAdded).toBe(true); // unchanged
   });
 
   it('⚠️ BUG: rapid successive updates race — last optimistic wins in UI but DB order may differ', async () => {

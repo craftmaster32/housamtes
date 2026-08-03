@@ -1482,7 +1482,10 @@
     "currency_pick": "בחר מטבע",
     "timezone_search": "חפשו עיר או מדינה…",
     "timezone_matches": "{{count}} מתוך {{total}} תוצאות",
-    "timezone_none": "אין אזורי זמן שתואמים לחיפוש."
+    "timezone_none": "אין אזורי זמן שתואמים לחיפוש.",
+    "fun_section": "כיף",
+    "notify_daily_joke": "בדיחת אבא יומית",
+    "notify_daily_joke_sub": "בדיחה אחת מביכה כל יום. אמרנו לכם."
   },
   "members": {
     "title": "הרשאות חברים",

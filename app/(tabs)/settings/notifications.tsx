@@ -293,6 +293,20 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             />
           </View>
 
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="happy-outline" size={15} color={C.textSecondary} />
+            <Text style={styles.sectionTitle}>{t('settings.fun_section')}</Text>
+          </View>
+          <View style={styles.card}>
+            <ToggleRow
+              label={t('settings.notify_daily_joke')}
+              description={t('settings.notify_daily_joke_sub')}
+              value={prefs.notifyDailyJoke}
+              onToggle={(v) => save({ notifyDailyJoke: v })}
+              isLast
+            />
+          </View>
+
           <Text style={styles.footer}>
             Changes save instantly. Notifications only work on a real device build, not in Expo Go.
           </Text>
