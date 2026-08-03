@@ -283,7 +283,7 @@
     "maintenance_in_progress": "In progress",
     "maintenance_attention": "Needs attention",
     "votes_waiting": "Waiting for votes",
-    "votes_none": "No proposals yet",
+    "votes_none": "All decided",
     "votes_closed_one": "{{count}} closed",
     "votes_closed_other": "{{count}} closed",
     "condition_no_records": "No records",
@@ -413,7 +413,16 @@
     "release_parking_spot": "Release parking spot",
     "view_parking": "View parking",
     "has_note": "Has a note",
-    "load_error": "Some things didn't load. Check your connection and retry."
+    "load_error": "Some things didn't load. Check your connection and retry.",
+    "votes_label": "Votes",
+    "votes_open": "{{count}} open",
+    "bills_label": "Bills",
+    "bills_unsettled": "{{count}} to settle",
+    "bills_settled": "All settled",
+    "edit_cards": "Edit",
+    "manage_cards": "Dashboard cards",
+    "manage_cards_sub": "Pick what shows here",
+    "add_cards_prompt": "Add cards to your dashboard"
   },
   "bills": {
     "title": "Bills",

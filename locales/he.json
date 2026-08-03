@@ -283,7 +283,7 @@
     "maintenance_in_progress": "בטיפול",
     "maintenance_attention": "דורש תשומת לב",
     "votes_waiting": "ממתין להצבעות",
-    "votes_none": "אין הצעות עדיין",
+    "votes_none": "הכול הוכרע",
     "votes_closed_one": "{{count}} סגורה",
     "votes_closed_other": "{{count}} סגורות",
     "condition_no_records": "אין רשומות",
@@ -413,7 +413,16 @@
     "release_parking_spot": "שחרר חניה",
     "view_parking": "צפה בחניה",
     "has_note": "יש הערה",
-    "load_error": "חלק מהנתונים לא נטענו. בדקו את החיבור ונסו שוב."
+    "load_error": "חלק מהנתונים לא נטענו. בדקו את החיבור ונסו שוב.",
+    "votes_label": "הצבעות",
+    "votes_open": "{{count}} פתוחות",
+    "bills_label": "חשבונות",
+    "bills_unsettled": "{{count}} לסגירה",
+    "bills_settled": "הכול סגור",
+    "edit_cards": "עריכה",
+    "manage_cards": "כרטיסי לוח",
+    "manage_cards_sub": "בחרו מה יופיע כאן",
+    "add_cards_prompt": "הוסיפו כרטיסים ללוח"
   },
   "bills": {
     "title": "חשבונות",

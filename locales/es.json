@@ -283,7 +283,7 @@
     "maintenance_in_progress": "En progreso",
     "maintenance_attention": "Requiere atención",
     "votes_waiting": "Esperando votos",
-    "votes_none": "Sin propuestas aún",
+    "votes_none": "Todo decidido",
     "votes_closed_one": "{{count}} cerrada",
     "votes_closed_other": "{{count}} cerradas",
     "condition_no_records": "Sin registros",
@@ -413,7 +413,16 @@
     "release_parking_spot": "Liberar plaza de parking",
     "view_parking": "Ver parking",
     "has_note": "Tiene una nota",
-    "load_error": "Algunas cosas no se cargaron. Revisa tu conexión y reintenta."
+    "load_error": "Algunas cosas no se cargaron. Revisa tu conexión y reintenta.",
+    "votes_label": "Votaciones",
+    "votes_open": "{{count}} abiertas",
+    "bills_label": "Gastos",
+    "bills_unsettled": "{{count}} por saldar",
+    "bills_settled": "Todo saldado",
+    "edit_cards": "Editar",
+    "manage_cards": "Tarjetas del panel",
+    "manage_cards_sub": "Elige qué se muestra aquí",
+    "add_cards_prompt": "Añade tarjetas a tu panel"
   },
   "bills": {
     "title": "Gastos",

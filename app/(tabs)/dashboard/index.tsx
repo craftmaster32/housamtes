@@ -1,37 +1,22 @@
 import { useState, useCallback, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  ActivityIndicator,
-  useWindowDimensions,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle } from 'react-native-svg';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '@stores/authStore';
-import { Alert } from '@lib/alert';
-import { captureError } from '@lib/errorTracking';
 import {
   useBillsStore,
   calculateAllNetBalances,
   calculateSimplifiedBalancesForUser,
 } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
-import { useParkingStore } from '@stores/parkingStore';
-import { useGroceryStore } from '@stores/groceryStore';
-import { useTasksStore } from '@stores/tasksStore';
 import { useEventsStore } from '@stores/eventsStore';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useHousematesStore } from '@stores/housematesStore';
-import { resolveName } from '@utils/housemates';
 import { useMemberName } from '@hooks/useMemberName';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
@@ -45,15 +30,11 @@ import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
+import { DashboardCarousel } from '@components/dashboard/DashboardCarousel';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useHouseActivity, useActionItems } from '@hooks/useHouseActivity';
 import { ActivityPopup } from '@components/dashboard/ActivityPopup';
-
-// The parking tile stays a deep slate in both themes — a deliberate anchor on
-// the home grid. A soft top-to-bottom gradient (rather than a flat fill) gives
-// it the same "lit surface" depth as the owed hero.
-const PARK_GRADIENT = ['#2C3E4C', '#1A2732'] as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string, t: (key: string) => string): string {
@@ -389,257 +370,6 @@ function OwedHero(): React.JSX.Element {
   );
 }
 
-// ── Parking tile (dark) ───────────────────────────────────────────────────────
-function ParkingTile(): React.JSX.Element {
-  const { t } = useTranslation();
-  const current = useParkingStore((s) => s.current);
-  const claim = useParkingStore((s) => s.claim);
-  const release = useParkingStore((s) => s.release);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const profile = useAuthStore((s) => s.profile);
-  const houseId = useAuthStore((s) => s.houseId);
-  const myId = profile?.id ?? '';
-  const myName = profile?.name ?? '';
-  const isFree = !current;
-  const isMine = current?.occupant === myId;
-  const [busy, setBusy] = useState(false);
-
-  const handlePress = useCallback(async (): Promise<void> => {
-    // Ignore taps while a claim/release is in flight — don't navigate away mid-spinner.
-    if (busy) return;
-    if (!myId || !houseId) {
-      router.push('/(tabs)/parking');
-      return;
-    }
-    if (!isFree && !isMine) {
-      router.push('/(tabs)/parking');
-      return;
-    }
-    setBusy(true);
-    try {
-      if (isFree) {
-        await claim(myId, myName, houseId ?? '');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      } else {
-        await release(houseId ?? '', myName);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      }
-    } catch {
-      Alert.alert(t('dashboard.parking_error'), t('common.failed_try_again'));
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, isFree, isMine, claim, release, myId, myName, houseId, t]);
-
-  const accent = isFree ? '#8FE0AC' : '#FF8478';
-  const chipBg = isFree ? 'rgba(79,176,113,0.22)' : 'rgba(255,97,85,0.22)';
-  const pillBg = isFree ? 'rgba(79,176,113,0.16)' : 'rgba(255,97,85,0.16)';
-  const occupantName = resolveName(current?.occupant ?? '', housemates, '');
-  const sub = isFree
-    ? t('dashboard.parking_first_come')
-    : isMine
-      ? t('dashboard.parking_free_it_up')
-      : occupantName
-        ? occupantName.split(' ')[0]
-        : t('common.unknown');
-
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.parkTile, pressed && styles.pressed]}
-      onPress={handlePress}
-      accessibilityRole="button"
-      accessibilityLabel={isFree ? t('dashboard.claim_parking_spot') : t('dashboard.view_parking')}
-    >
-      <LinearGradient
-        colors={PARK_GRADIENT}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.parkHighlight} />
-      <View style={styles.parkTop}>
-        <View style={[styles.parkChip, { backgroundColor: chipBg }]}>
-          {busy ? (
-            <ActivityIndicator size="small" color={accent} />
-          ) : (
-            <Ionicons name={isFree ? 'car-outline' : 'car'} size={17} color={accent} />
-          )}
-        </View>
-        <View style={[styles.parkPill, { backgroundColor: pillBg }]}>
-          <Text style={[styles.parkPillText, { color: accent }]}>
-            {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
-          </Text>
-        </View>
-      </View>
-      <View>
-        <Text style={styles.parkLabel}>{t('dashboard.parking_label')}</Text>
-        <Text style={styles.parkStatus}>
-          {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
-        </Text>
-        <Text style={styles.parkSub} numberOfLines={1}>
-          {sub}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
-// ── Tasks ring tile ───────────────────────────────────────────────────────────
-function TasksRing(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const tasks = useTasksStore((s) => s.tasks);
-  const total = tasks.length;
-  const done = tasks.filter((tk) => tk.isComplete).length;
-  const next = tasks.find((tk) => !tk.isComplete);
-
-  const R = 18;
-  const CIRC = 2 * Math.PI * R;
-  const pct = total > 0 ? done / total : 0;
-  const offset = CIRC * (1 - pct);
-
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.choreTile,
-        { backgroundColor: c.surface, borderColor: c.border },
-        pressed && styles.pressed,
-      ]}
-      onPress={() => router.push('/(tabs)/tasks')}
-      accessibilityRole="button"
-      accessibilityLabel={t('dashboard.x_of_y_done', { done, total })}
-    >
-      <View style={styles.choreTop}>
-        <Text style={[styles.choreLabel, { color: c.textSecondary }]}>
-          {t('dashboard.tasks_label')}
-        </Text>
-        <View style={styles.choreRingWrap}>
-          <Svg width={46} height={46} viewBox="0 0 46 46">
-            <Circle cx={23} cy={23} r={R} fill="none" stroke={c.surfaceSecondary} strokeWidth={5} />
-            <Circle
-              cx={23}
-              cy={23}
-              r={R}
-              fill="none"
-              stroke={c.success}
-              strokeWidth={5}
-              strokeLinecap="round"
-              strokeDasharray={CIRC}
-              strokeDashoffset={offset}
-              transform="rotate(-90 23 23)"
-            />
-          </Svg>
-          {total > 0 && (
-            <View style={styles.choreRingLabel} pointerEvents="none">
-              <Text style={[styles.choreRingPct, { color: c.success }]}>
-                {Math.round(pct * 100)}%
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-      <View>
-        <Text style={[styles.choreNum, { color: c.textPrimary }]}>
-          {done}
-          <Text style={[styles.choreDenom, { color: c.textTertiary }]}>/{total}</Text>
-        </Text>
-        <Text style={[styles.choreSub, { color: c.textSecondary }]} numberOfLines={1}>
-          {next ? t('dashboard.chore_next', { name: next.title }) : t('dashboard.chores_smashed')}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
-// ── Grocery list ──────────────────────────────────────────────────────────────
-function GroceryList(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const items = useGroceryStore((s) => s.items);
-  const toggleItem = useGroceryStore((s) => s.toggleItem);
-  const memberName = useMemberName();
-
-  // toggleItem returns a promise; a network failure here has no UI to surface
-  // into, so at least catch it so the rejection isn't left unhandled.
-  const handleToggleItem = useCallback(
-    (id: string): void => {
-      toggleItem(id).catch((err) => captureError(err, { context: 'dashboard-grocery-toggle' }));
-    },
-    [toggleItem]
-  );
-
-  const shared = items.filter((i) => !i.isPersonal && !i.isDraft);
-  const toBuy = shared.filter((i) => !i.isChecked).length;
-  const preview = shared.slice(0, 3);
-
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: c.surface, borderColor: c.border },
-        pressed && styles.pressed,
-      ]}
-      onPress={() => router.push('/(tabs)/grocery')}
-      accessibilityRole="button"
-      accessibilityLabel={t('dashboard.shared_groceries')}
-    >
-      <View style={styles.cardHeader}>
-        <View style={[styles.cardIcon, { backgroundColor: c.warningTint }]}>
-          <Ionicons name="cart-outline" size={16} color={c.warning} />
-        </View>
-        <Text style={[styles.cardTitle, { color: c.textPrimary }]}>
-          {t('dashboard.grocery_list')}
-        </Text>
-        <Text style={[styles.cardMetaRight, { color: c.textSecondary }]}>
-          {t('dashboard.n_to_buy', { count: toBuy })}
-        </Text>
-      </View>
-      {preview.length === 0 ? (
-        <Text style={[styles.emptyText, { color: c.textSecondary }]}>
-          {t('dashboard.grocery_empty')}
-        </Text>
-      ) : (
-        <View style={styles.groceryItems}>
-          {preview.map((item) => (
-            <Pressable
-              key={item.id}
-              style={styles.groceryRow}
-              onPress={() => handleToggleItem(item.id)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: item.isChecked }}
-              accessibilityLabel={item.name}
-            >
-              <View
-                style={[
-                  styles.groceryBox,
-                  item.isChecked
-                    ? { backgroundColor: c.success, borderColor: c.success }
-                    : { borderColor: c.border },
-                ]}
-              >
-                {item.isChecked && <Ionicons name="checkmark" size={12} color="#fff" />}
-              </View>
-              <Text
-                style={[
-                  styles.groceryName,
-                  { color: item.isChecked ? c.textTertiary : c.textPrimary },
-                  item.isChecked && styles.groceryDone,
-                ]}
-                numberOfLines={1}
-              >
-                {item.name}
-              </Text>
-              <Text style={[styles.groceryWho, { color: c.textSecondary }]}>
-                {memberName(item.addedBy).split(' ')[0]}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </Pressable>
-  );
-}
-
 // ── Games button ──────────────────────────────────────────────────────────────
 function GamesButton(): React.JSX.Element {
   const { t } = useTranslation();
@@ -676,7 +406,6 @@ function GamesButton(): React.JSX.Element {
 // ── Dashboard screen ────────────────────────────────────────────────────────────
 export default function DashboardScreen(): React.JSX.Element {
   const c = useThemedColors();
-  const isEnabled = useSettingsStore((s) => s.isEnabled);
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
 
@@ -705,22 +434,9 @@ export default function DashboardScreen(): React.JSX.Element {
           <OwedHero />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(200).duration(450)} style={styles.gridRow}>
-          {isEnabled('parking') && (
-            <View style={styles.gridCol}>
-              <ParkingTile />
-            </View>
-          )}
-          <View style={styles.gridCol}>
-            <TasksRing />
-          </View>
+        <Animated.View entering={FadeInDown.delay(200).duration(450)} style={styles.block}>
+          <DashboardCarousel />
         </Animated.View>
-
-        {isEnabled('grocery') && (
-          <Animated.View entering={FadeInDown.delay(260).duration(450)} style={styles.block}>
-            <GroceryList />
-          </Animated.View>
-        )}
 
         <Animated.View entering={FadeInDown.delay(320).duration(450)} style={styles.block}>
           <DadJokeCard />
