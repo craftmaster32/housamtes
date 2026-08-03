@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { I18nManager } from 'react-native';
 import i18n, { type AppLanguage, isRTL, persistLanguage } from '@lib/i18n';
+import { updatePushTokenLanguage } from '@lib/notifications';
 
 interface LanguageStore {
   language: AppLanguage;
@@ -22,6 +23,9 @@ export const useLanguageStore = create<LanguageStore>()(
         await persistLanguage(lang);
         await i18n.changeLanguage(lang);
         set({ language: lang });
+
+        // Keep reminder push notifications in sync with the chosen language.
+        updatePushTokenLanguage(lang).catch(() => {});
 
         // Best-effort: update native RTL flag for native text inputs etc.
         // Layout direction is handled reactively via the 'direction' style prop
