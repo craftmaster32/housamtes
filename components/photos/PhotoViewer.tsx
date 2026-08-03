@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Animated,
   PanResponder,
+  Easing,
   type ListRenderItemInfo,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
@@ -33,6 +34,8 @@ const { width: SW, height: SH } = Dimensions.get('window');
 // height on layout. A percentage height doesn't resolve inside the horizontal
 // pager and renders as a black, zero-height page — so it's always a pixel value.
 const FALLBACK_IMAGE_H = SH;
+// Drag distance at which the dismiss gesture has fully shrunk + faded the photo.
+const FADE_DISTANCE = SH * 0.5;
 
 const TOP_SCRIM = ['rgba(0,0,0,0.6)', 'transparent'] as const;
 const BOTTOM_SCRIM = ['transparent', 'rgba(0,0,0,0.8)'] as const;
@@ -136,7 +139,9 @@ export function PhotoViewer({
   }, []);
 
   // Swipe the photo up or down to dismiss (only while unzoomed and only for a
-  // clearly-vertical drag, so horizontal paging and pinch-pan are untouched).
+  // clearly-vertical drag, so horizontal paging and pinch-pan are untouched). The
+  // photo shrinks and the backdrop fades as you drag, then animates the rest of
+  // the way out on release.
   const dismissResponder = useMemo<PanResponderInstance>(
     () =>
       PanResponder.create({
@@ -146,26 +151,43 @@ export function PhotoViewer({
           dismissY.setValue(g.dy);
         },
         onPanResponderRelease: (_e, g) => {
-          if (Math.abs(g.dy) > 130 || Math.abs(g.vy) > 0.75) {
-            onClose();
+          if (Math.abs(g.dy) > 120 || Math.abs(g.vy) > 0.6) {
+            // Carry the motion off-screen (shrinking + fading) before closing.
+            Animated.timing(dismissY, {
+              toValue: g.dy >= 0 ? FADE_DISTANCE : -FADE_DISTANCE,
+              duration: 200,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            }).start(onClose);
             return;
           }
           Animated.spring(dismissY, {
             toValue: 0,
-            useNativeDriver: false,
-            bounciness: 4,
+            useNativeDriver: true,
+            bounciness: 0,
+            speed: 16,
           }).start();
         },
         onPanResponderTerminate: () => {
-          Animated.spring(dismissY, { toValue: 0, useNativeDriver: false }).start();
+          Animated.spring(dismissY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 0,
+            speed: 16,
+          }).start();
         },
       }),
     [dismissY, onClose]
   );
 
   const overlayOpacity = dismissY.interpolate({
-    inputRange: [-280, 0, 280],
-    outputRange: [0.35, 1, 0.35],
+    inputRange: [-FADE_DISTANCE, 0, FADE_DISTANCE],
+    outputRange: [0, 1, 0],
+    extrapolate: 'clamp',
+  });
+  const dismissScale = dismissY.interpolate({
+    inputRange: [-FADE_DISTANCE, 0, FADE_DISTANCE],
+    outputRange: [0.6, 1, 0.6],
     extrapolate: 'clamp',
   });
 
@@ -267,7 +289,7 @@ export function PhotoViewer({
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
         <Animated.View
-          style={[styles.list, { transform: [{ translateY: dismissY }] }]}
+          style={[styles.list, { transform: [{ translateY: dismissY }, { scale: dismissScale }] }]}
           {...dismissResponder.panHandlers}
         >
           <FlatList

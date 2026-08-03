@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
+  Easing,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -95,14 +96,16 @@ export function ZoomableImage({
   const animateZoom = useCallback(
     (on: boolean): void => {
       applyZoomState(on);
+      const easing = Easing.out(Easing.cubic);
       Animated.parallel([
         Animated.timing(scale, {
           toValue: on ? DOUBLE_TAP_ZOOM : 1,
-          duration: 180,
+          duration: 220,
+          easing,
           useNativeDriver: false,
         }),
-        Animated.timing(pan.x, { toValue: 0, duration: 180, useNativeDriver: false }),
-        Animated.timing(pan.y, { toValue: 0, duration: 180, useNativeDriver: false }),
+        Animated.timing(pan.x, { toValue: 0, duration: 220, easing, useNativeDriver: false }),
+        Animated.timing(pan.y, { toValue: 0, duration: 220, easing, useNativeDriver: false }),
       ]).start();
     },
     [applyZoomState, pan, scale]
