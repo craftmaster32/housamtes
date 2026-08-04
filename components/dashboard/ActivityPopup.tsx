@@ -1,5 +1,13 @@
 import { useCallback, useMemo } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -56,8 +64,14 @@ export function ActivityPopup({
   const memberName = useMemberName();
   const myId = useAuthStore((s) => s.profile?.id) ?? '';
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const entries = useHouseActivity();
   const actionItems = useActionItems();
+
+  // Cap the panel to the space between its top offset and the bottom inset so it
+  // never runs off the bottom of the screen; the list scrolls inside that cap.
+  const topOffset = insets.top + 50;
+  const panelMaxHeight = Math.max(240, windowHeight - topOffset - insets.bottom - 24);
 
   const toneColor: Record<ActivityTone, string> = {
     primary: c.primary,
@@ -145,7 +159,12 @@ export function ActivityPopup({
         <Pressable
           style={[
             styles.panel,
-            { top: insets.top + 50, backgroundColor: c.surface, borderColor: c.border },
+            {
+              top: topOffset,
+              maxHeight: panelMaxHeight,
+              backgroundColor: c.surface,
+              borderColor: c.border,
+            },
           ]}
           onPress={() => {}}
           accessible={false}
@@ -192,8 +211,8 @@ const styles = StyleSheet.create({
     maxWidth: 460,
     alignSelf: 'center',
     width: '100%',
-    maxHeight: '84%',
     borderRadius: 22,
+    overflow: 'hidden',
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingTop: 18,
@@ -205,7 +224,7 @@ const styles = StyleSheet.create({
     elevation: 14,
   },
   title: { fontSize: 22, ...font.extrabold, marginBottom: 6, letterSpacing: -0.5 },
-  list: { flexGrow: 0 },
+  list: { flexGrow: 0, flexShrink: 1 },
   sectionHeader: {
     fontSize: 12,
     ...font.bold,
