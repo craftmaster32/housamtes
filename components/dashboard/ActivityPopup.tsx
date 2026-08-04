@@ -224,7 +224,9 @@ const styles = StyleSheet.create({
     elevation: 14,
   },
   title: { fontSize: 22, ...font.extrabold, marginBottom: 6, letterSpacing: -0.5 },
-  list: { flexGrow: 0, flexShrink: 1 },
+  // minHeight:0 is essential on web — without it a flex child keeps its full
+  // content height (min-height:auto) and the panel clips instead of scrolling.
+  list: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
   sectionHeader: {
     fontSize: 12,
     ...font.bold,
