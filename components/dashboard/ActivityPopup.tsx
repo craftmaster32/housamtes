@@ -1,13 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-} from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -64,18 +56,17 @@ export function ActivityPopup({
   const memberName = useMemberName();
   const myId = useAuthStore((s) => s.profile?.id) ?? '';
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
   const entries = useHouseActivity();
   const actionItems = useActionItems();
 
-  // Cap the panel to the space between its top offset and the bottom inset so it
-  // never runs off the bottom of the screen; the list scrolls inside that cap.
-  const topOffset = insets.top + 50;
-  const available = Math.max(240, windowHeight - topOffset - insets.bottom - 24);
-  // Bound the scroll view itself (not just the panel) so it reliably scrolls on
-  // web too; the panel then sizes to its content and can't overflow the screen.
-  // ~72px accounts for the title + panel padding above the list.
-  const listMaxHeight = Math.max(160, available - 72);
+  // Reserve the space above (header/bell) and below (home indicator) the popup
+  // with padding on the full-screen backdrop. The panel is then a flex child
+  // that can shrink into whatever height is left, so its inner list scrolls
+  // instead of the panel running off the bottom. This is driven purely by
+  // flexbox against the modal's own height — no viewport-height math, which is
+  // unreliable on mobile web.
+  const topPad = insets.top + 50;
+  const bottomPad = insets.bottom + 16;
 
   const toneColor: Record<ActivityTone, string> = {
     primary: c.primary,
@@ -155,16 +146,13 @@ export function ActivityPopup({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
-        style={styles.backdrop}
+        style={[styles.backdrop, { paddingTop: topPad, paddingBottom: bottomPad }]}
         onPress={onClose}
         accessibilityRole="button"
         accessibilityLabel={t('common.close')}
       >
         <Pressable
-          style={[
-            styles.panel,
-            { top: topOffset, backgroundColor: c.surface, borderColor: c.border },
-          ]}
+          style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}
           onPress={() => {}}
           accessible={false}
         >
@@ -178,10 +166,7 @@ export function ActivityPopup({
               </Text>
             </View>
           ) : (
-            <ScrollView
-              style={[styles.list, { maxHeight: listMaxHeight }]}
-              showsVerticalScrollIndicator={false}
-            >
+            <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {actionItems.length > 0 && (
                 <View>
                   <Text style={[styles.sectionHeader, { color: c.primary }]}>
@@ -205,14 +190,19 @@ export function ActivityPopup({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
   panel: {
-    position: 'absolute',
-    right: 12,
-    left: 12,
-    maxWidth: 460,
-    alignSelf: 'center',
     width: '100%',
+    maxWidth: 460,
+    // Allow the panel to shrink into the space the backdrop padding leaves, so
+    // the inner list scrolls rather than the panel overflowing the screen.
+    flexShrink: 1,
+    minHeight: 0,
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
@@ -226,7 +216,9 @@ const styles = StyleSheet.create({
     elevation: 14,
   },
   title: { fontSize: 22, ...font.extrabold, marginBottom: 6, letterSpacing: -0.5 },
-  list: { flexGrow: 0 },
+  // flexShrink lets the list give up height so the panel fits; minHeight:0 is
+  // required for that shrink to work on web (default min-height:auto blocks it).
+  list: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
   sectionHeader: {
     fontSize: 12,
     ...font.bold,
