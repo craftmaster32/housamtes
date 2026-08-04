@@ -99,8 +99,14 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    cardTitle: { fontSize: 15, ...font.bold, color: c.textPrimary },
-    cardMeta: { marginLeft: 'auto', fontSize: 12, ...font.semibold, color: c.textSecondary },
+    cardTitle: { flexShrink: 1, fontSize: 15, ...font.bold, color: c.textPrimary },
+    cardMeta: {
+      marginLeft: 'auto',
+      flexShrink: 0,
+      fontSize: 12,
+      ...font.semibold,
+      color: c.textSecondary,
+    },
 
     bigStat: { fontSize: 30, ...font.extrabold, color: c.textPrimary },
     bigDenom: { fontSize: 18, ...font.bold, color: c.textTertiary },
@@ -278,13 +284,21 @@ function IconChip({
 }
 
 // ── Individual cards ──────────────────────────────────────────────────────────
-function GroceriesCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX.Element {
+function GroceriesCard({
+  styles,
+  c,
+  compact,
+}: {
+  styles: Styles;
+  c: ColorTokens;
+  compact: boolean;
+}): React.JSX.Element {
   const { t } = useTranslation();
   const items = useGroceryStore((s) => s.items);
   const toggleItem = useGroceryStore((s) => s.toggleItem);
   const shared = items.filter((i) => !i.isPersonal && !i.isDraft);
   const toBuy = shared.filter((i) => !i.isChecked).length;
-  const preview = shared.slice(0, 3);
+  const preview = shared.slice(0, compact ? 2 : 3);
   const onToggle = useCallback(
     (id: string): void => {
       toggleItem(id).catch(() => {});
@@ -302,8 +316,12 @@ function GroceriesCard({ styles, c }: { styles: Styles; c: ColorTokens }): React
         accessibilityLabel={t('dashboard.grocery_list')}
       >
         <IconChip styles={styles} icon="cart-outline" tint={c.warningTint} color={c.warning} />
-        <Text style={styles.cardTitle}>{t('dashboard.grocery_list')}</Text>
-        <Text style={styles.cardMeta}>{t('dashboard.n_to_buy', { count: toBuy })}</Text>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {t('dashboard.grocery_list')}
+        </Text>
+        {!compact && (
+          <Text style={styles.cardMeta}>{t('dashboard.n_to_buy', { count: toBuy })}</Text>
+        )}
       </Pressable>
       <View>
         {preview.length === 0 ? (
@@ -401,7 +419,15 @@ function ChoresCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JS
   );
 }
 
-function VotesCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX.Element {
+function VotesCard({
+  styles,
+  c,
+  compact,
+}: {
+  styles: Styles;
+  c: ColorTokens;
+  compact: boolean;
+}): React.JSX.Element {
   const { t } = useTranslation();
   const proposals = useVotingStore((s) => s.proposals);
   const open = proposals.filter((p) => p.isOpen);
@@ -414,8 +440,12 @@ function VotesCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX
     >
       <View style={styles.cardTop}>
         <IconChip styles={styles} icon="people-outline" tint={c.primaryTint} color={c.primary} />
-        <Text style={styles.cardTitle}>{t('dashboard.votes_label')}</Text>
-        <Text style={styles.cardMeta}>{t('dashboard.votes_open', { count: open.length })}</Text>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {t('dashboard.votes_label')}
+        </Text>
+        {!compact && (
+          <Text style={styles.cardMeta}>{t('dashboard.votes_open', { count: open.length })}</Text>
+        )}
       </View>
       <View>
         <Text style={styles.bigStat}>{open.length}</Text>
@@ -492,14 +522,19 @@ function BillsCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX
   );
 }
 
-function renderCard(key: DashboardCardKey, styles: Styles, c: ColorTokens): React.JSX.Element {
+function renderCard(
+  key: DashboardCardKey,
+  styles: Styles,
+  c: ColorTokens,
+  compact: boolean
+): React.JSX.Element {
   switch (key) {
     case 'groceries':
-      return <GroceriesCard styles={styles} c={c} />;
+      return <GroceriesCard styles={styles} c={c} compact={compact} />;
     case 'chores':
       return <ChoresCard styles={styles} c={c} />;
     case 'votes':
-      return <VotesCard styles={styles} c={c} />;
+      return <VotesCard styles={styles} c={c} compact={compact} />;
     case 'parking':
       return <ParkingCard styles={styles} />;
     case 'bills':
@@ -535,8 +570,10 @@ export function DashboardCarousel(): React.JSX.Element {
   // peeks the next card when there's more than one.
   const pinnedW = pinnedKey && width > 0 ? Math.round((width - GAP) / 2) : 0;
   const railOuter = pinnedKey ? width - pinnedW - GAP : width;
-  const peek = pinnedKey ? 16 : 40;
-  const cardW = railOuter > 0 ? (railKeys.length > 1 ? railOuter - peek : railOuter) : 0;
+  // Full-width rail peeks the next card; the narrow pinned rail fills its column
+  // (a thin sliver there just reads as a glitch), relying on the dots instead.
+  const peek = pinnedKey ? 0 : 40;
+  const cardW = railOuter > 0 ? (railKeys.length > 1 && peek ? railOuter - peek : railOuter) : 0;
   const stride = cardW + GAP;
 
   const onLayout = useCallback((e: LayoutChangeEvent): void => {
@@ -591,7 +628,7 @@ export function DashboardCarousel(): React.JSX.Element {
             key={key}
             style={{ width: cardW, marginRight: i === railKeys.length - 1 ? 0 : GAP }}
           >
-            {renderCard(key, styles, c)}
+            {renderCard(key, styles, c, pinnedKey !== null)}
           </View>
         ))}
       </ScrollView>
@@ -622,7 +659,7 @@ export function DashboardCarousel(): React.JSX.Element {
           <>
             {pinnedKey ? (
               <View style={styles.splitRow}>
-                <View style={{ width: pinnedW }}>{renderCard(pinnedKey, styles, c)}</View>
+                <View style={{ width: pinnedW }}>{renderCard(pinnedKey, styles, c, false)}</View>
                 <View style={styles.flex1}>{rail}</View>
               </View>
             ) : (
