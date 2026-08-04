@@ -9,12 +9,12 @@ export type DashboardCardKey = 'groceries' | 'chores' | 'votes' | 'parking' | 'b
 export const ALL_DASHBOARD_CARDS: DashboardCardKey[] = [
   'groceries',
   'chores',
-  'votes',
   'parking',
+  'votes',
   'bills',
 ];
 
-const DEFAULT_ENABLED: DashboardCardKey[] = ['groceries', 'chores', 'votes'];
+const DEFAULT_ENABLED: DashboardCardKey[] = ['groceries', 'chores', 'parking', 'votes'];
 const STORAGE_KEY = 'dashboard_cards_v1';
 
 interface DashboardCardsStore {

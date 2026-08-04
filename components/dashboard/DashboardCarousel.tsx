@@ -105,7 +105,17 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     bigStat: { fontSize: 30, ...font.extrabold, color: c.textPrimary },
     bigDenom: { fontSize: 18, ...font.bold, color: c.textTertiary },
     cardSub: { fontSize: 12.5, ...font.medium, color: c.textSecondary, marginTop: 2 },
-    itemLine: { fontSize: 13.5, ...font.medium, color: c.textPrimary, marginTop: 5 },
+    groceryRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 5 },
+    groceryBox: {
+      width: 18,
+      height: 18,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    groceryName: { flex: 1, fontSize: 13.5, ...font.medium },
+    groceryDone: { textDecorationLine: 'line-through' },
 
     ringWrap: {
       marginLeft: 'auto',
@@ -234,32 +244,68 @@ function IconChip({
 function GroceriesCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX.Element {
   const { t } = useTranslation();
   const items = useGroceryStore((s) => s.items);
+  const toggleItem = useGroceryStore((s) => s.toggleItem);
   const shared = items.filter((i) => !i.isPersonal && !i.isDraft);
   const toBuy = shared.filter((i) => !i.isChecked).length;
-  const preview = shared.filter((i) => !i.isChecked).slice(0, 2);
+  const preview = shared.slice(0, 3);
+  const onToggle = useCallback(
+    (id: string): void => {
+      toggleItem(id).catch(() => {});
+    },
+    [toggleItem]
+  );
+  // Header navigates; the item rows are tappable to tick off in place, so this
+  // card is a working mini-list rather than a static Pressable.
   return (
-    <CardShell
-      styles={styles}
-      onPress={() => router.push('/(tabs)/grocery')}
-      accessibilityLabel={t('dashboard.grocery_list')}
-    >
-      <View style={styles.cardTop}>
+    <View style={styles.shell}>
+      <Pressable
+        style={styles.cardTop}
+        onPress={() => router.push('/(tabs)/grocery')}
+        accessibilityRole="button"
+        accessibilityLabel={t('dashboard.grocery_list')}
+      >
         <IconChip styles={styles} icon="cart-outline" tint={c.warningTint} color={c.warning} />
         <Text style={styles.cardTitle}>{t('dashboard.grocery_list')}</Text>
         <Text style={styles.cardMeta}>{t('dashboard.n_to_buy', { count: toBuy })}</Text>
-      </View>
+      </Pressable>
       <View>
         {preview.length === 0 ? (
           <Text style={styles.cardSub}>{t('dashboard.grocery_empty')}</Text>
         ) : (
-          preview.map((i) => (
-            <Text key={i.id} style={styles.itemLine} numberOfLines={1}>
-              • {i.name}
-            </Text>
+          preview.map((item) => (
+            <Pressable
+              key={item.id}
+              style={styles.groceryRow}
+              onPress={() => onToggle(item.id)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: item.isChecked }}
+              accessibilityLabel={item.name}
+            >
+              <View
+                style={[
+                  styles.groceryBox,
+                  item.isChecked
+                    ? { backgroundColor: c.success, borderColor: c.success }
+                    : { borderColor: c.border },
+                ]}
+              >
+                {item.isChecked && <Ionicons name="checkmark" size={11} color="#fff" />}
+              </View>
+              <Text
+                style={[
+                  styles.groceryName,
+                  { color: item.isChecked ? c.textTertiary : c.textPrimary },
+                  item.isChecked && styles.groceryDone,
+                ]}
+                numberOfLines={1}
+              >
+                {item.name}
+              </Text>
+            </Pressable>
           ))
         )}
       </View>
-    </CardShell>
+    </View>
   );
 }
 
@@ -449,11 +495,16 @@ export function DashboardCarousel(): React.JSX.Element {
     setWidth(e.nativeEvent.layout.width);
   }, []);
 
-  const onScrollEnd = useCallback(
+  // Drive the dots from live scroll position — onMomentumScrollEnd doesn't fire
+  // reliably on web, so the dots wouldn't track the swipe there.
+  const syncIndex = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>): void => {
       if (stride <= 0) return;
-      const i = Math.round(e.nativeEvent.contentOffset.x / stride);
-      setIndex(Math.max(0, Math.min(i, enabled.length - 1)));
+      const i = Math.max(
+        0,
+        Math.min(Math.round(e.nativeEvent.contentOffset.x / stride), enabled.length - 1)
+      );
+      setIndex((prev) => (prev === i ? prev : i));
     },
     [stride, enabled.length]
   );
@@ -496,8 +547,9 @@ export function DashboardCarousel(): React.JSX.Element {
               decelerationRate="fast"
               snapToInterval={stride}
               snapToAlignment="start"
-              disableIntervalMomentum
-              onMomentumScrollEnd={onScrollEnd}
+              onScroll={syncIndex}
+              scrollEventThrottle={16}
+              onMomentumScrollEnd={syncIndex}
               contentContainerStyle={{ paddingRight: width - cardW }}
             >
               {enabled.map((key, i) => (
