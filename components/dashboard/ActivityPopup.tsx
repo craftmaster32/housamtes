@@ -71,7 +71,11 @@ export function ActivityPopup({
   // Cap the panel to the space between its top offset and the bottom inset so it
   // never runs off the bottom of the screen; the list scrolls inside that cap.
   const topOffset = insets.top + 50;
-  const panelMaxHeight = Math.max(240, windowHeight - topOffset - insets.bottom - 24);
+  const available = Math.max(240, windowHeight - topOffset - insets.bottom - 24);
+  // Bound the scroll view itself (not just the panel) so it reliably scrolls on
+  // web too; the panel then sizes to its content and can't overflow the screen.
+  // ~72px accounts for the title + panel padding above the list.
+  const listMaxHeight = Math.max(160, available - 72);
 
   const toneColor: Record<ActivityTone, string> = {
     primary: c.primary,
@@ -159,12 +163,7 @@ export function ActivityPopup({
         <Pressable
           style={[
             styles.panel,
-            {
-              top: topOffset,
-              maxHeight: panelMaxHeight,
-              backgroundColor: c.surface,
-              borderColor: c.border,
-            },
+            { top: topOffset, backgroundColor: c.surface, borderColor: c.border },
           ]}
           onPress={() => {}}
           accessible={false}
@@ -179,7 +178,10 @@ export function ActivityPopup({
               </Text>
             </View>
           ) : (
-            <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={[styles.list, { maxHeight: listMaxHeight }]}
+              showsVerticalScrollIndicator={false}
+            >
               {actionItems.length > 0 && (
                 <View>
                   <Text style={[styles.sectionHeader, { color: c.primary }]}>
@@ -224,9 +226,7 @@ const styles = StyleSheet.create({
     elevation: 14,
   },
   title: { fontSize: 22, ...font.extrabold, marginBottom: 6, letterSpacing: -0.5 },
-  // minHeight:0 is essential on web — without it a flex child keeps its full
-  // content height (min-height:auto) and the panel clips instead of scrolling.
-  list: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
+  list: { flexGrow: 0 },
   sectionHeader: {
     fontSize: 12,
     ...font.bold,
