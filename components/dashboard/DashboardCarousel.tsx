@@ -5,7 +5,7 @@ import {
   ScrollView,
   Pressable,
   Modal,
-  Switch,
+  Animated,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
@@ -145,10 +145,17 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     parkStatus: { fontSize: 20, ...font.extrabold, color: '#fff', marginTop: 1 },
     parkSub: { fontSize: 12.5, ...font.medium, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
 
-    dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 12 },
-    dotHit: { padding: 4 },
-    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.border },
-    dotActive: { width: 18, backgroundColor: c.primary },
+    dots: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 12,
+    },
+    dotHit: { paddingVertical: 6, paddingHorizontal: 3 },
+    dot: { height: 7, borderRadius: 4 },
+    splitRow: { flexDirection: 'row', gap: 12 },
+    flex1: { flex: 1 },
 
     // empty state
     emptyCard: {
@@ -174,17 +181,48 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       paddingBottom: sizes.xxl,
       gap: 4,
     },
-    sheetTitle: { fontSize: 18, ...font.bold, color: c.textPrimary },
-    sheetSub: { fontSize: 13, ...font.regular, color: c.textSecondary, marginBottom: 8 },
-    manageRow: {
+    sheetHandle: {
+      width: 38,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.border,
+      alignSelf: 'center',
+      marginBottom: 12,
+    },
+    sheetTitle: { fontSize: 19, ...font.bold, color: c.textPrimary },
+    sheetSub: { fontSize: 13, ...font.regular, color: c.textSecondary, marginBottom: 12 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
+    tile: {
+      width: '48%',
+      minHeight: 96,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      padding: 12,
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    tileOn: { borderColor: c.primary, backgroundColor: c.primary + '12' },
+    tileOff: { borderColor: c.border, backgroundColor: c.surface, borderStyle: 'dashed' },
+    tileHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    tileChip: {
+      width: 34,
+      height: 34,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tileLabel: { fontSize: 14.5, ...font.semibold, color: c.textPrimary },
+    pinBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: c.border,
+      gap: 4,
+      alignSelf: 'flex-start',
+      paddingVertical: 4,
+      paddingHorizontal: 9,
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1,
     },
-    manageLabel: { flex: 1, fontSize: 15, ...font.medium, color: c.textPrimary },
+    pinText: { fontSize: 11, ...font.semibold },
     doneBtn: {
       marginTop: sizes.md,
       backgroundColor: c.primary,
@@ -193,7 +231,6 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       alignItems: 'center',
     },
     doneText: { fontSize: 15, ...font.bold, color: '#fff' },
-    switchLtr: { writingDirection: 'ltr' },
   });
 
 type Styles = ReturnType<typeof makeStyles>;
@@ -476,37 +513,56 @@ export function DashboardCarousel(): React.JSX.Element {
   const c = useThemedColors();
   const styles = useMemo(() => makeStyles(c), [c]);
   const enabled = useDashboardCardsStore((s) => s.enabled);
+  const pinned = useDashboardCardsStore((s) => s.pinned);
   const setEnabled = useDashboardCardsStore((s) => s.setEnabled);
+  const setPinned = useDashboardCardsStore((s) => s.setPinned);
   const hydrate = useDashboardCardsStore((s) => s.hydrate);
 
   const [width, setWidth] = useState(0);
   const [index, setIndex] = useState(0);
   const [manageOpen, setManageOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     hydrate().catch(() => {});
   }, [hydrate]);
 
-  const cardW = width > 0 ? width - 40 : 0;
+  const pinnedKey = pinned && enabled.includes(pinned) ? pinned : null;
+  const railKeys = pinnedKey ? enabled.filter((k) => k !== pinnedKey) : enabled;
+
+  // Widths: a pinned card takes the left half; the carousel fills the rest and
+  // peeks the next card when there's more than one.
+  const pinnedW = pinnedKey && width > 0 ? Math.round((width - GAP) / 2) : 0;
+  const railOuter = pinnedKey ? width - pinnedW - GAP : width;
+  const peek = pinnedKey ? 16 : 40;
+  const cardW = railOuter > 0 ? (railKeys.length > 1 ? railOuter - peek : railOuter) : 0;
   const stride = cardW + GAP;
 
   const onLayout = useCallback((e: LayoutChangeEvent): void => {
     setWidth(e.nativeEvent.layout.width);
   }, []);
 
-  // Drive the dots from live scroll position — onMomentumScrollEnd doesn't fire
-  // reliably on web, so the dots wouldn't track the swipe there.
   const syncIndex = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>): void => {
       if (stride <= 0) return;
       const i = Math.max(
         0,
-        Math.min(Math.round(e.nativeEvent.contentOffset.x / stride), enabled.length - 1)
+        Math.min(Math.round(e.nativeEvent.contentOffset.x / stride), railKeys.length - 1)
       );
       setIndex((prev) => (prev === i ? prev : i));
     },
-    [stride, enabled.length]
+    [stride, railKeys.length]
+  );
+
+  // Live scroll position drives the smooth dot morph (and web dot tracking).
+  const onScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+        useNativeDriver: false,
+        listener: syncIndex as (e: NativeSyntheticEvent<NativeScrollEvent>) => void,
+      }),
+    [scrollX, syncIndex]
   );
 
   const goTo = useCallback(
@@ -516,6 +572,30 @@ export function DashboardCarousel(): React.JSX.Element {
     },
     [stride]
   );
+
+  const rail =
+    cardW > 0 ? (
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        decelerationRate="fast"
+        snapToInterval={stride}
+        snapToAlignment="start"
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingRight: railOuter - cardW }}
+      >
+        {railKeys.map((key, i) => (
+          <View
+            key={key}
+            style={{ width: cardW, marginRight: i === railKeys.length - 1 ? 0 : GAP }}
+          >
+            {renderCard(key, styles, c)}
+          </View>
+        ))}
+      </ScrollView>
+    ) : null;
 
   return (
     <View onLayout={onLayout}>
@@ -538,44 +618,46 @@ export function DashboardCarousel(): React.JSX.Element {
           <Text style={styles.emptyText}>{t('dashboard.add_cards_prompt')}</Text>
         </Pressable>
       ) : (
-        cardW > 0 && (
+        width > 0 && (
           <>
-            <ScrollView
-              ref={scrollRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
-              snapToInterval={stride}
-              snapToAlignment="start"
-              onScroll={syncIndex}
-              scrollEventThrottle={16}
-              onMomentumScrollEnd={syncIndex}
-              contentContainerStyle={{ paddingRight: width - cardW }}
-            >
-              {enabled.map((key, i) => (
-                <View
-                  key={key}
-                  style={{ width: cardW, marginRight: i === enabled.length - 1 ? 0 : GAP }}
-                >
-                  {renderCard(key, styles, c)}
-                </View>
-              ))}
-            </ScrollView>
+            {pinnedKey ? (
+              <View style={styles.splitRow}>
+                <View style={{ width: pinnedW }}>{renderCard(pinnedKey, styles, c)}</View>
+                <View style={styles.flex1}>{rail}</View>
+              </View>
+            ) : (
+              rail
+            )}
 
-            {enabled.length > 1 && (
+            {railKeys.length > 1 && (
               <View style={styles.dots}>
-                {enabled.map((key, i) => (
-                  <Pressable
-                    key={key}
-                    style={styles.dotHit}
-                    onPress={() => goTo(i)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t(CARD_LABEL_KEY[key])}
-                    accessibilityState={{ selected: i === index }}
-                  >
-                    <View style={[styles.dot, i === index && styles.dotActive]} />
-                  </Pressable>
-                ))}
+                {railKeys.map((key, i) => {
+                  const inputRange = [(i - 1) * stride, i * stride, (i + 1) * stride];
+                  const dotWidth = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [7, 22, 7],
+                    extrapolate: 'clamp',
+                  });
+                  const dotColor = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [c.border, c.primary, c.border],
+                    extrapolate: 'clamp',
+                  });
+                  return (
+                    <Pressable
+                      key={key}
+                      style={styles.dotHit}
+                      onPress={() => goTo(i)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(CARD_LABEL_KEY[key])}
+                      accessibilityState={{ selected: i === index }}
+                    >
+                      <Animated.View
+                        style={[styles.dot, { width: dotWidth, backgroundColor: dotColor }]}
+                      />
+                    </Pressable>
+                  );
+                })}
               </View>
             )}
           </>
@@ -590,25 +672,72 @@ export function DashboardCarousel(): React.JSX.Element {
       >
         <Pressable style={styles.backdrop} onPress={() => setManageOpen(false)}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>{t('dashboard.manage_cards')}</Text>
             <Text style={styles.sheetSub}>{t('dashboard.manage_cards_sub')}</Text>
-            {ALL_DASHBOARD_CARDS.map((key) => {
-              const on = enabled.includes(key);
-              return (
-                <View style={styles.manageRow} key={key}>
-                  <Ionicons name={CARD_ICON[key]} size={18} color={c.textSecondary} />
-                  <Text style={styles.manageLabel}>{t(CARD_LABEL_KEY[key])}</Text>
-                  <Switch
-                    value={on}
-                    onValueChange={(v) => setEnabled(key, v)}
-                    trackColor={{ false: c.border, true: c.primary + '80' }}
-                    thumbColor={on ? c.primary : c.surface}
-                    style={styles.switchLtr}
+            <View style={styles.grid}>
+              {ALL_DASHBOARD_CARDS.map((key) => {
+                const on = enabled.includes(key);
+                const isPinned = pinned === key;
+                return (
+                  <Pressable
+                    key={key}
+                    style={[styles.tile, on ? styles.tileOn : styles.tileOff]}
+                    onPress={() => setEnabled(key, !on)}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: on }}
                     accessibilityLabel={t(CARD_LABEL_KEY[key])}
-                  />
-                </View>
-              );
-            })}
+                  >
+                    <View style={styles.tileHead}>
+                      <View
+                        style={[
+                          styles.tileChip,
+                          { backgroundColor: on ? c.primaryTint : c.surfaceSecondary },
+                        ]}
+                      >
+                        <Ionicons
+                          name={CARD_ICON[key]}
+                          size={17}
+                          color={on ? c.primary : c.textTertiary}
+                        />
+                      </View>
+                      <Ionicons
+                        name={on ? 'checkmark-circle' : 'add-circle-outline'}
+                        size={22}
+                        color={on ? c.primary : c.textTertiary}
+                      />
+                    </View>
+                    <Text style={styles.tileLabel}>{t(CARD_LABEL_KEY[key])}</Text>
+                    {on && (
+                      <Pressable
+                        style={[
+                          styles.pinBtn,
+                          {
+                            borderColor: isPinned ? c.primary : c.border,
+                            backgroundColor: isPinned ? c.primary : 'transparent',
+                          },
+                        ]}
+                        onPress={() => setPinned(isPinned ? null : key)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('dashboard.pin_left')}
+                        accessibilityState={{ selected: isPinned }}
+                      >
+                        <Ionicons
+                          name={isPinned ? 'pin' : 'pin-outline'}
+                          size={12}
+                          color={isPinned ? '#fff' : c.textSecondary}
+                        />
+                        <Text
+                          style={[styles.pinText, { color: isPinned ? '#fff' : c.textSecondary }]}
+                        >
+                          {isPinned ? t('dashboard.pinned') : t('dashboard.pin_left')}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
             <Pressable style={styles.doneBtn} onPress={() => setManageOpen(false)}>
               <Text style={styles.doneText}>{t('common.done')}</Text>
             </Pressable>

@@ -422,7 +422,11 @@
     "edit_cards": "Edit",
     "manage_cards": "Dashboard cards",
     "manage_cards_sub": "Pick what shows here",
-    "add_cards_prompt": "Add cards to your dashboard"
+    "add_cards_prompt": "Add cards to your dashboard",
+    "pin_left": "Pin left",
+    "pinned": "Pinned",
+    "card_on": "On dashboard",
+    "card_off": "Hidden"
   },
   "bills": {
     "title": "Bills",

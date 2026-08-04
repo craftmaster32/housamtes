@@ -422,7 +422,11 @@
     "edit_cards": "עריכה",
     "manage_cards": "כרטיסי לוח",
     "manage_cards_sub": "בחרו מה יופיע כאן",
-    "add_cards_prompt": "הוסיפו כרטיסים ללוח"
+    "add_cards_prompt": "הוסיפו כרטיסים ללוח",
+    "pin_left": "הצמד",
+    "pinned": "מוצמד",
+    "card_on": "בלוח",
+    "card_off": "מוסתר"
   },
   "bills": {
     "title": "חשבונות",

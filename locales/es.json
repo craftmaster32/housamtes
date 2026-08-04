@@ -422,7 +422,11 @@
     "edit_cards": "Editar",
     "manage_cards": "Tarjetas del panel",
     "manage_cards_sub": "Elige qué se muestra aquí",
-    "add_cards_prompt": "Añade tarjetas a tu panel"
+    "add_cards_prompt": "Añade tarjetas a tu panel",
+    "pin_left": "Fijar",
+    "pinned": "Fijada",
+    "card_on": "En el panel",
+    "card_off": "Oculta"
   },
   "bills": {
     "title": "Gastos",
