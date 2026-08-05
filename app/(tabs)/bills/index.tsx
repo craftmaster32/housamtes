@@ -391,8 +391,8 @@ export default function BillsScreen(): React.JSX.Element {
       style={[styles.topBar, isWide && styles.topBarWide]}
     >
       <View style={styles.pageHeader}>
-        <View>
-          <Text style={[styles.pageTitle, headingFont, { color: c.textPrimary }]}>
+        <View style={styles.pageHeaderText}>
+          <Text style={[styles.pageTitle, headingFont, { color: c.textPrimary }]} numberOfLines={1}>
             {t('bills.title')}
           </Text>
           <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>
@@ -719,12 +719,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: ms(12),
   },
+  pageHeaderText: { flexShrink: 1, minWidth: 0 },
   pageTitle: { fontSize: mf(28), ...font.extrabold, letterSpacing: -0.8 },
   pageSubtitle: { fontSize: mf(13), ...font.regular, marginTop: ms(2) },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
     gap: ms(6),
     paddingVertical: ms(11),
     paddingHorizontal: ms(16),
