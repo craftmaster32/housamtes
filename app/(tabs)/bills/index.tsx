@@ -272,6 +272,13 @@ export default function BillsScreen(): React.JSX.Element {
     if (openRecurring === '1') setFilter('recurring');
   }, [openRecurring]);
   const [showSettle, setShowSettle] = useState(false);
+  // The balance card slides in once on first load. Toggling the one-off/recurring
+  // filter swaps the whole list tree, which would otherwise remount the card and
+  // replay that animation — read as a "jump". Gate it so it only plays once.
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    setEntered(true);
+  }, []);
 
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
@@ -483,7 +490,7 @@ export default function BillsScreen(): React.JSX.Element {
 
   const ListHeader = (
     <Animated.View
-      entering={FadeInDown.duration(400)}
+      entering={entered ? undefined : FadeInDown.duration(400)}
       style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}
     >
       {/* ── Balance + settle (one merged card) ───────────────────── */}
