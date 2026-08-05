@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
+import { ms } from '@utils/responsive';
 interface DateInputProps {
   value: string; // YYYY-MM-DD or empty string
   onChange: (val: string) => void;
@@ -50,8 +51,8 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
       React.createElement(
         'svg',
         {
-          width: 15,
-          height: 15,
+          width: ms(15),
+          height: ms(15),
           viewBox: '0 0 24 24',
           fill: 'none',
           stroke: c.textSecondary,
@@ -59,7 +60,7 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
           strokeLinecap: 'round',
           strokeLinejoin: 'round',
         },
-        React.createElement('rect', { x: 3, y: 4.5, width: 18, height: 17, rx: 2.5 }),
+        React.createElement('rect', { x: 3, y: 4.5, width: ms(18), height: ms(17), rx: 2.5 }),
         React.createElement('path', { d: 'M3 9h18M8 2.5v4M16 2.5v4' })
       ),
       React.createElement(

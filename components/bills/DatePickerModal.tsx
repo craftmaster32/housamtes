@@ -9,6 +9,7 @@ import { sizes } from '@constants/sizes';
 import { isRTL, getFirstDayOfWeek } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 
+import { mf, ms } from '@utils/responsive';
 function getMonthName(year: number, month: number, locale: string): string {
   return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(year, month));
 }
@@ -186,7 +187,7 @@ export function DatePickerModal({
                     ]}
                     onPress={() => pickDay(day)}
                     // hitSlop extends the effective tap area to 44×44 without affecting layout
-                    hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                    hitSlop={{ top: ms(5), bottom: ms(5), left: ms(5), right: ms(5) }}
                     accessibilityRole="button"
                     accessibilityLabel={`${day} ${monthLabel} ${viewYear}`}
                     accessibilityState={{ selected: isSelected(day) }}
@@ -235,7 +236,7 @@ export function DatePickerModal({
   );
 }
 
-const CELL = 40;
+const CELL = ms(40);
 
 const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
@@ -244,17 +245,17 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       backgroundColor: 'rgba(0,0,0,0.45)',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 24,
+      padding: ms(24),
     },
     card: {
       width: '100%',
-      maxWidth: 340,
+      maxWidth: ms(340),
       backgroundColor: C.surface,
-      borderRadius: 24,
+      borderRadius: ms(24),
       padding: sizes.lg,
       gap: sizes.sm,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 12 },
+      shadowOffset: { width: 0, height: ms(12) },
       shadowOpacity: 0.18,
       shadowRadius: 28,
       elevation: 10,
@@ -263,64 +264,64 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
     navBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 10,
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(10),
       backgroundColor: C.surfaceSecondary,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    monthLabel: { fontSize: 16, ...font.bold, color: C.textPrimary },
+    monthLabel: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
     dowRow: { flexDirection: 'row' },
     dowLabel: {
       width: CELL,
       textAlign: 'center',
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.semibold,
       color: C.textSecondary,
-      paddingVertical: 4,
+      paddingVertical: ms(4),
     },
     grid: { flexDirection: 'row', flexWrap: 'wrap' },
     cell: { width: CELL, height: CELL, justifyContent: 'center', alignItems: 'center' },
     dayBtn: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
+      width: ms(34),
+      height: ms(34),
+      borderRadius: ms(17),
       justifyContent: 'center',
       alignItems: 'center',
     },
     dayBtnSelected: { backgroundColor: C.primary },
     dayBtnToday: { borderWidth: 1.5, borderColor: C.primary },
-    dayText: { fontSize: 14, ...font.medium, color: C.textPrimary },
+    dayText: { fontSize: mf(14), ...font.medium, color: C.textPrimary },
     dayTextSelected: { color: C.white, ...font.bold },
     dayTextToday: { color: C.primary, ...font.bold },
-    actions: { flexDirection: 'row', gap: sizes.sm, marginTop: 4 },
+    actions: { flexDirection: 'row', gap: sizes.sm, marginTop: ms(4) },
     cancelBtn: {
       flex: 1,
-      paddingVertical: 12,
-      minHeight: 44,
-      borderRadius: 12,
+      paddingVertical: ms(12),
+      minHeight: ms(44),
+      borderRadius: ms(12),
       backgroundColor: C.surfaceSecondary,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    cancelText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    cancelText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
     confirmBtn: {
       flex: 1,
-      paddingVertical: 12,
-      minHeight: 44,
-      borderRadius: 12,
+      paddingVertical: ms(12),
+      minHeight: ms(44),
+      borderRadius: ms(12),
       backgroundColor: C.primary,
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 6 },
+      shadowOffset: { width: 0, height: ms(6) },
       shadowOpacity: 0.28,
       shadowRadius: 12,
       elevation: 4,
     },
-    confirmText: { fontSize: 15, ...font.semibold, color: C.white },
+    confirmText: { fontSize: mf(15), ...font.semibold, color: C.white },
   });

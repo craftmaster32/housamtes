@@ -24,6 +24,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface TabItem {
@@ -280,42 +281,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 10,
+    paddingTop: ms(10),
     minHeight: sizes.bottomTabBarHeight,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    gap: 6,
-    minHeight: 44,
+    gap: ms(6),
+    minHeight: ms(44),
     justifyContent: 'center',
   },
   tabIconWrap: { position: 'relative', alignItems: 'center' },
   badge: {
     position: 'absolute',
-    top: -4,
-    end: -8,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: ms(-4),
+    end: ms(-8),
+    minWidth: ms(16),
+    height: ms(16),
+    borderRadius: ms(8),
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: ms(3),
     borderWidth: 1.5,
   },
-  badgeText: { fontSize: 9, fontWeight: '800' },
-  activeDot: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
+  badgeText: { fontSize: mf(9), fontWeight: '800' },
+  activeDot: { width: ms(4), height: ms(4), borderRadius: ms(2), marginTop: ms(2) },
 
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   addBtn: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: ms(54),
+    height: ms(54),
+    borderRadius: ms(27),
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: ms(8),
     shadowColor: '#4F78B6',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: ms(4) },
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 8,

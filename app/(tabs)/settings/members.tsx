@@ -19,6 +19,7 @@ import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const PERMISSION_KEYS: Array<{ key: keyof MemberPermissions; tKey: string; icon: IoniconName }> = [
@@ -37,22 +38,22 @@ const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    list: { padding: sizes.lg, paddingBottom: 60, gap: 0 },
+    list: { padding: sizes.lg, paddingBottom: ms(60), gap: 0 },
     // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
     switchLtr: { writingDirection: 'ltr' } as ViewStyle,
 
     screenTitle: {
-      fontSize: 24,
+      fontSize: mf(24),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.5,
-      marginBottom: 6,
+      marginBottom: ms(6),
     },
     screenSub: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 20,
+      lineHeight: mf(20),
       marginBottom: sizes.lg,
     },
 
@@ -65,22 +66,22 @@ const makeStyles = (C: ColorTokens) =>
     },
     memberHeader: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
     memberAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(22),
       justifyContent: 'center',
       alignItems: 'center',
       overflow: 'hidden',
     },
-    memberAvatarImg: { width: 44, height: 44 },
-    memberAvatarText: { color: '#FFF', fontSize: 18, ...font.bold },
+    memberAvatarImg: { width: ms(44), height: ms(44) },
+    memberAvatarText: { color: '#FFF', fontSize: mf(18), ...font.bold },
     memberMeta: { flex: 1 },
-    memberName: { fontSize: 16, ...font.semibold, color: C.textPrimary },
-    memberRoleRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
-    memberRole: { fontSize: 13, ...font.regular, color: C.textSecondary },
-    memberJoined: { fontSize: 12, ...font.regular, color: C.textSecondary, marginTop: 2 },
-    changeRoleBtn: { paddingHorizontal: 8, paddingVertical: 4 },
-    changeRoleBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
+    memberName: { fontSize: mf(16), ...font.semibold, color: C.textPrimary },
+    memberRoleRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4), marginTop: ms(1) },
+    memberRole: { fontSize: mf(13), ...font.regular, color: C.textSecondary },
+    memberJoined: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
+    changeRoleBtn: { paddingHorizontal: ms(8), paddingVertical: ms(4) },
+    changeRoleBtnText: { fontSize: mf(13), ...font.semibold, color: C.primary },
 
     permWrap: {
       borderTopWidth: StyleSheet.hairlineWidth,
@@ -88,21 +89,21 @@ const makeStyles = (C: ColorTokens) =>
       paddingHorizontal: sizes.md,
       paddingBottom: sizes.md,
       paddingTop: sizes.sm,
-      gap: 2,
+      gap: ms(2),
     },
     permTitle: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.bold,
       color: C.textSecondary,
       letterSpacing: 0.8,
       textTransform: 'uppercase',
       marginBottom: sizes.sm,
     },
-    permRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-    permIcon: { width: 28 },
-    permLabel: { flex: 1, fontSize: 14, ...font.regular, color: C.textPrimary },
+    permRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: ms(8) },
+    permIcon: { width: ms(28) },
+    permLabel: { flex: 1, fontSize: mf(14), ...font.regular, color: C.textPrimary },
     permNote: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textSecondary,
       padding: sizes.md,
@@ -110,7 +111,12 @@ const makeStyles = (C: ColorTokens) =>
       fontStyle: 'italic',
     },
 
-    empty: { textAlign: 'center', color: C.textSecondary, fontSize: 14, paddingVertical: 24 },
+    empty: {
+      textAlign: 'center',
+      color: C.textSecondary,
+      fontSize: mf(14),
+      paddingVertical: ms(24),
+    },
   });
 
 // ── Member card ───────────────────────────────────────────────────────────────
@@ -183,7 +189,7 @@ function MemberCard({
             onPress={() => onChangeRole(member)}
             accessible
             accessibilityRole="button"
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
           >
             <Text style={styles.changeRoleBtnText}>{t('members.change_role')}</Text>
           </Pressable>

@@ -13,21 +13,27 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+    scroll: { padding: sizes.lg, paddingBottom: ms(60), gap: sizes.sm },
 
     pageHeader: { marginBottom: sizes.xs },
-    heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    headingSub: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, marginTop: 2 },
+    heading: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    headingSub: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      marginTop: ms(2),
+    },
 
     addBtn: {
       borderWidth: 2,
       borderColor: C.primary + '40',
       borderStyle: 'dashed',
-      borderRadius: 14,
+      borderRadius: ms(14),
       paddingVertical: sizes.md,
       alignItems: 'center',
     },
@@ -38,7 +44,7 @@ const makeStyles = (C: ColorTokens) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: ms(4),
     },
     resolvedToggleText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.medium },
 
@@ -50,10 +56,10 @@ const makeStyles = (C: ColorTokens) =>
       color: C.textSecondary,
       textAlign: 'center',
     },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ms(20) },
     errorBanner: {
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
+      borderRadius: ms(10),
       padding: sizes.sm,
       borderWidth: 1,
       borderColor: C.danger + '40',

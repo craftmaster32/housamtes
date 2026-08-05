@@ -15,8 +15,9 @@ import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 
+import { mf, ms } from '@utils/responsive';
 // ─── constants ───────────────────────────────────────────────────────────────
-const ITEM_H = 48;
+const ITEM_H = ms(48);
 const VISIBLE = 5;
 const WHEEL_H = ITEM_H * VISIBLE; // 240
 const PAD = ITEM_H * Math.floor(VISIBLE / 2); // 96
@@ -194,10 +195,10 @@ function WheelColumn({
 const makeColStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     item: { height: ITEM_H, justifyContent: 'center', alignItems: 'center' },
-    label: { fontSize: 22, ...font.semibold, color: C.textPrimary },
-    labelSelected: { fontSize: 28, ...font.bold, color: C.textPrimary },
-    labelNear: { fontSize: 20, ...font.medium, color: C.textSecondary, opacity: 0.55 },
-    labelFar: { fontSize: 17, ...font.regular, color: C.textSecondary, opacity: 0.22 },
+    label: { fontSize: mf(22), ...font.semibold, color: C.textPrimary },
+    labelSelected: { fontSize: mf(28), ...font.bold, color: C.textPrimary },
+    labelNear: { fontSize: mf(20), ...font.medium, color: C.textSecondary, opacity: 0.55 },
+    labelFar: { fontSize: mf(17), ...font.regular, color: C.textSecondary, opacity: 0.22 },
   });
 
 // ─── TimePicker ──────────────────────────────────────────────────────────────
@@ -356,43 +357,43 @@ const makePickerStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> 
     addBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       alignSelf: 'flex-start',
-      minHeight: 44,
-      paddingVertical: 8,
-      paddingHorizontal: 14,
-      borderRadius: 20,
+      minHeight: ms(44),
+      paddingVertical: ms(8),
+      paddingHorizontal: ms(14),
+      borderRadius: ms(20),
       borderWidth: 1,
       borderColor: C.primary,
       backgroundColor: C.secondary,
     },
-    addBtnText: { fontSize: 14, ...font.medium, color: C.primary },
+    addBtnText: { fontSize: mf(14), ...font.medium, color: C.primary },
 
-    editRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    editRow: { flexDirection: 'row', alignItems: 'center', gap: ms(10) },
     textInput: {
       flex: 1,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 14,
+      paddingHorizontal: ms(20),
+      paddingVertical: ms(12),
+      borderRadius: ms(14),
       backgroundColor: C.surface,
       borderWidth: 1.5,
       borderColor: C.primary,
-      fontSize: 26,
+      fontSize: mf(26),
       ...font.semibold,
       color: C.textPrimary,
       letterSpacing: 3,
       textAlign: 'center',
     },
     cancelBtn: {
-      minHeight: 44,
+      minHeight: ms(44),
       justifyContent: 'center' as const,
-      paddingVertical: 8,
-      paddingHorizontal: 4,
+      paddingVertical: ms(8),
+      paddingHorizontal: ms(4),
     },
-    cancelText: { fontSize: 14, ...font.medium, color: C.textSecondary },
+    cancelText: { fontSize: mf(14), ...font.medium, color: C.textSecondary },
 
-    wrap: { gap: 8 },
-    pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    wrap: { gap: ms(8) },
+    pickerRow: { flexDirection: 'row', alignItems: 'center', gap: ms(10) },
     wheelsWrap: { position: 'relative' },
     highlight: {
       position: 'absolute',
@@ -401,23 +402,23 @@ const makePickerStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> 
       top: PAD,
       height: ITEM_H,
       backgroundColor: C.textPrimary,
-      borderRadius: 14,
+      borderRadius: ms(14),
       opacity: 0.07,
     },
     columnsRow: { flexDirection: 'row', alignItems: 'center' },
     colon: {
-      fontSize: 30,
+      fontSize: mf(30),
       ...font.bold,
       color: C.textPrimary,
-      marginHorizontal: 4,
+      marginHorizontal: ms(4),
     },
     editBtn: {
-      minWidth: 44,
-      minHeight: 44,
+      minWidth: ms(44),
+      minHeight: ms(44),
       justifyContent: 'center' as const,
       alignItems: 'center' as const,
-      padding: 10,
-      borderRadius: 20,
+      padding: ms(10),
+      borderRadius: ms(20),
       backgroundColor: C.surfaceSecondary,
       borderWidth: 1,
       borderColor: C.border,
@@ -425,11 +426,11 @@ const makePickerStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> 
 
     clearBtn: {
       alignSelf: 'flex-start' as const,
-      minHeight: 44,
+      minHeight: ms(44),
       justifyContent: 'center' as const,
     },
     clearText: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.regular,
       color: C.textSecondary,
       textDecorationLine: 'underline',

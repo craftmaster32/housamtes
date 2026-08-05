@@ -11,6 +11,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type SlideIcon = React.ComponentProps<typeof Ionicons>['name'];
@@ -162,7 +163,7 @@ function makeStyles(C: ColorTokens) {
       paddingHorizontal: sizes.lg,
       paddingVertical: sizes.md,
     },
-    skipText: { color: C.textSecondary, fontSize: 15, ...font.medium },
+    skipText: { color: C.textSecondary, fontSize: mf(15), ...font.medium },
     slide: {
       width: SCREEN_WIDTH,
       paddingHorizontal: sizes.xl,
@@ -171,58 +172,58 @@ function makeStyles(C: ColorTokens) {
       gap: sizes.md,
     },
     emojiCircle: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
+      width: ms(120),
+      height: ms(120),
+      borderRadius: ms(60),
       backgroundColor: C.primary + '15',
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: sizes.md,
     },
     title: {
-      fontSize: 28,
+      fontSize: mf(28),
       ...font.extrabold,
       color: C.textPrimary,
       textAlign: 'center',
       letterSpacing: -0.5,
     },
     subtitle: {
-      fontSize: 17,
+      fontSize: mf(17),
       ...font.semibold,
       color: C.primary,
       textAlign: 'center',
       marginTop: -sizes.sm,
     },
     body: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 24,
+      lineHeight: mf(24),
       paddingHorizontal: sizes.sm,
     },
     dotsRow: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 8,
+      gap: ms(8),
       paddingVertical: sizes.lg,
     },
     dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: ms(8),
+      height: ms(8),
+      borderRadius: ms(4),
       backgroundColor: C.border,
     },
     dotActive: {
       backgroundColor: C.primary,
-      width: 24,
+      width: ms(24),
     },
     footer: {
       paddingHorizontal: sizes.xl,
       paddingBottom: sizes.xl,
     },
-    cta: { borderRadius: 14 },
-    ctaContent: { height: 56 },
-    ctaLabel: { fontSize: 16, ...font.semibold },
+    cta: { borderRadius: ms(14) },
+    ctaContent: { height: ms(56) },
+    ctaLabel: { fontSize: mf(16), ...font.semibold },
   });
 }

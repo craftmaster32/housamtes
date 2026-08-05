@@ -10,6 +10,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 type ActiveTab = 'issues' | 'condition';
 
 export default function PropertyScreen(): React.JSX.Element {
@@ -76,24 +77,24 @@ function makeStyles(C: ColorTokens) {
       gap: sizes.sm,
       backgroundColor: C.background,
     },
-    heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    heading: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
     segmented: {
       flexDirection: 'row',
       backgroundColor: C.surfaceSecondary,
-      borderRadius: 10,
-      padding: 3,
-      gap: 2,
+      borderRadius: ms(10),
+      padding: ms(3),
+      gap: ms(2),
     },
     segment: {
       flex: 1,
       paddingVertical: sizes.sm,
       alignItems: 'center',
-      borderRadius: 8,
+      borderRadius: ms(8),
     },
     segmentActive: {
       backgroundColor: C.surface,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
+      shadowOffset: { width: 0, height: ms(1) },
       shadowOpacity: 0.1,
       shadowRadius: 3,
       elevation: 1,

@@ -25,6 +25,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 function MenuItem({
   icon,
   label,
@@ -385,7 +386,7 @@ function PasswordInput({
 const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-    scroll: { padding: sizes.lg, paddingBottom: 60 },
+    scroll: { padding: sizes.lg, paddingBottom: ms(60) },
 
     // Profile header
     profileHeader: {
@@ -395,41 +396,41 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       marginBottom: sizes.lg,
     },
     avatarLarge: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
+      width: ms(96),
+      height: ms(96),
+      borderRadius: ms(48),
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: sizes.sm,
       overflow: 'hidden',
       boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
     } as never,
-    avatarLargeImg: { width: 96, height: 96 },
-    avatarLargeText: { color: '#fff', fontSize: 40, ...font.bold },
-    profileName: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    profileEmail: { fontSize: 14, ...font.regular, color: C.textSecondary },
+    avatarLargeImg: { width: ms(96), height: ms(96) },
+    avatarLargeText: { color: '#fff', fontSize: mf(40), ...font.bold },
+    profileName: { fontSize: mf(24), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    profileEmail: { fontSize: mf(14), ...font.regular, color: C.textSecondary },
     housePill: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
+      gap: ms(5),
       backgroundColor: C.primary + '15',
       paddingHorizontal: sizes.md,
-      paddingVertical: 4,
+      paddingVertical: ms(4),
       borderRadius: sizes.borderRadiusFull,
       marginTop: sizes.xs,
     },
     housePillIcon: {},
-    housePillText: { fontSize: 13, ...font.semibold, color: C.primary },
+    housePillText: { fontSize: mf(13), ...font.semibold, color: C.primary },
 
     // Section labels
     sectionLabel: {
       color: C.textSecondary,
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.bold,
       letterSpacing: 1.2,
       marginBottom: sizes.sm,
       marginTop: sizes.xs,
-      marginStart: 4,
+      marginStart: ms(4),
     },
 
     // Menu
@@ -442,22 +443,22 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     menuItem: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
     menuItemPressed: { backgroundColor: C.background },
     menuIcon: {
-      width: 36,
-      height: 36,
+      width: ms(36),
+      height: ms(36),
       borderRadius: sizes.borderRadiusSm,
       backgroundColor: C.background,
       justifyContent: 'center',
       alignItems: 'center',
     },
     menuIconDanger: { backgroundColor: C.negative + '15' },
-    menuIconText: { fontSize: 18 },
+    menuIconText: { fontSize: mf(18) },
     menuText: { flex: 1 },
-    menuLabel: { color: C.textPrimary, ...font.semibold, fontSize: 15 },
+    menuLabel: { color: C.textPrimary, ...font.semibold, fontSize: mf(15) },
     menuLabelDanger: { color: C.negative },
-    menuSub: { color: C.textSecondary, fontSize: 13, ...font.regular, marginTop: 1 },
-    menuChevron: { color: C.textDisabled, fontSize: 22 },
-    menuRightText: { color: C.primary, ...font.bold, fontSize: 15 },
-    rowDivider: { height: 1, backgroundColor: C.border, marginStart: sizes.md + 36 + sizes.sm },
+    menuSub: { color: C.textSecondary, fontSize: mf(13), ...font.regular, marginTop: ms(1) },
+    menuChevron: { color: C.textDisabled, fontSize: mf(22) },
+    menuRightText: { color: C.primary, ...font.bold, fontSize: mf(15) },
+    rowDivider: { height: ms(1), backgroundColor: C.border, marginStart: sizes.md + 36 + sizes.sm },
 
     // Password form
     passwordForm: {
@@ -467,20 +468,20 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       borderTopWidth: 1,
       borderTopColor: C.border,
     },
-    passwordField: { gap: 4 },
-    fieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginStart: 2 },
+    passwordField: { gap: ms(4) },
+    fieldLabel: { fontSize: mf(12), ...font.semibold, color: C.textSecondary, marginStart: ms(2) },
     textInput: {
       backgroundColor: C.background,
-      borderRadius: 10,
+      borderRadius: ms(10),
       paddingHorizontal: sizes.md,
-      paddingVertical: 12,
-      fontSize: 15,
+      paddingVertical: ms(12),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
       borderWidth: 1,
       borderColor: C.border,
     },
-    fieldError: { color: C.danger, fontSize: 13, ...font.regular },
+    fieldError: { color: C.danger, fontSize: mf(13), ...font.regular },
     passwordButtons: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -489,17 +490,17 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     },
     saveBtn: {
       backgroundColor: C.primary,
-      paddingVertical: 10,
+      paddingVertical: ms(10),
       paddingHorizontal: sizes.lg,
-      borderRadius: 10,
+      borderRadius: ms(10),
     },
     saveBtnDisabled: { opacity: 0.6 },
-    saveBtnText: { color: '#fff', ...font.semibold, fontSize: 14 },
-    cancelText: { color: C.textSecondary, fontSize: 14, ...font.regular },
+    saveBtnText: { color: '#fff', ...font.semibold, fontSize: mf(14) },
+    cancelText: { color: C.textSecondary, fontSize: mf(14), ...font.regular },
 
     version: {
       color: C.textDisabled,
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       textAlign: 'center',
       marginTop: sizes.md,

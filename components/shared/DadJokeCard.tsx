@@ -10,6 +10,7 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getDailyJoke, getRandomJoke, type DadJoke } from '@constants/dadJokes';
 
+import { mf, ms } from '@utils/responsive';
 export function DadJokeCard(): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
@@ -98,41 +99,46 @@ const styles = StyleSheet.create({
     gap: sizes.sm,
   },
   iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: ms(32),
+    height: ms(32),
+    borderRadius: ms(10),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 15, ...font.bold, flex: 1 },
+  title: { fontSize: mf(15), ...font.bold, flex: 1 },
   categoryPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: ms(10),
+    paddingVertical: ms(3),
     borderRadius: sizes.borderRadiusFull,
   },
-  categoryText: { fontSize: 10.5, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.3 },
-  setup: { fontSize: 15, ...font.medium, lineHeight: 22, marginTop: sizes.xs },
-  punchline: { fontSize: 16, ...font.bold, lineHeight: 24, marginTop: sizes.sm },
+  categoryText: {
+    fontSize: mf(10.5),
+    ...font.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  setup: { fontSize: mf(15), ...font.medium, lineHeight: mf(22), marginTop: sizes.xs },
+  punchline: { fontSize: mf(16), ...font.bold, lineHeight: mf(24), marginTop: sizes.sm },
   revealBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: ms(4),
     alignSelf: 'flex-start',
     paddingStart: sizes.md,
     paddingEnd: sizes.sm,
     paddingVertical: sizes.sm,
-    minHeight: 44,
+    minHeight: ms(44),
     borderRadius: sizes.borderRadius,
     marginTop: sizes.sm,
   },
-  revealText: { fontSize: 13, ...font.bold, color: '#fff' },
+  revealText: { fontSize: mf(13), ...font.bold, color: '#fff' },
   nextBtn: {
     alignSelf: 'flex-start',
     paddingHorizontal: sizes.md,
-    paddingVertical: 6,
+    paddingVertical: ms(6),
     borderRadius: sizes.borderRadius,
     marginTop: sizes.xs,
   },
-  nextText: { fontSize: 13, ...font.medium },
+  nextText: { fontSize: mf(13), ...font.medium },
 });

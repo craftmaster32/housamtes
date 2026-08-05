@@ -19,6 +19,7 @@ import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+import { mf, ms } from '@utils/responsive';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 const webFixedOverlay = { position: 'fixed' } as unknown as ViewStyle;
 
@@ -297,13 +298,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.md,
     paddingTop: sizes.xs,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: ms(-4) },
     shadowOpacity: 0.18,
     shadowRadius: 16,
     elevation: 24,
   },
   handleWrap: { alignItems: 'center', paddingVertical: sizes.sm },
-  handle: { width: 36, height: 4, borderRadius: 2 },
+  handle: { width: ms(36), height: ms(4), borderRadius: ms(2) },
   sectionLabel: {
     fontSize: sizes.fontXxs,
     ...font.semibold,
@@ -321,8 +322,8 @@ const styles = StyleSheet.create({
   },
   gridItemPressed: { opacity: 0.65 },
   iconWrap: {
-    width: 52,
-    height: 52,
+    width: ms(52),
+    height: ms(52),
     borderRadius: sizes.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
@@ -330,15 +331,15 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: -4,
-    end: -4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: ms(-4),
+    end: ms(-4),
+    minWidth: ms(16),
+    height: ms(16),
+    borderRadius: ms(8),
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: ms(3),
   },
-  badgeText: { fontSize: 9, ...font.bold },
+  badgeText: { fontSize: mf(9), ...font.bold },
   gridLabel: { fontSize: sizes.fontXs, ...font.semibold, textAlign: 'center' },
 });

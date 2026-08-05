@@ -15,6 +15,7 @@ import { isRTL } from '@lib/i18n';
 import { getDailyJoke, getRandomJoke, type DadJoke } from '@constants/dadJokes';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 // ── Dad Joke Browser ─────────────────────────────────────────────────────────
 function JokeBrowser(): React.JSX.Element {
   const { t } = useTranslation();
@@ -130,16 +131,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.md,
     paddingVertical: sizes.sm,
   },
-  backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  backBtn: { width: ms(44), height: ms(44), justifyContent: 'center', alignItems: 'center' },
   backCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: ms(38),
+    height: ms(38),
+    borderRadius: ms(19),
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: { fontSize: 20, ...font.bold },
+  headerTitle: { fontSize: mf(20), ...font.bold },
 
   // ── Joke Browser ───────────────────────────────────────────────────────────
   jokeContent: {
@@ -159,41 +160,41 @@ const styles = StyleSheet.create({
     gap: sizes.sm,
   },
   jokeIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
+    width: ms(34),
+    height: ms(34),
+    borderRadius: ms(11),
     alignItems: 'center',
     justifyContent: 'center',
   },
   jokeCatPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: ms(10),
+    paddingVertical: ms(3),
     borderRadius: sizes.borderRadiusFull,
   },
-  jokeCatText: { fontSize: 11, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.3 },
-  jokeSetup: { fontSize: 18, ...font.semibold, lineHeight: 26 },
-  jokePunchline: { fontSize: 20, ...font.bold, lineHeight: 28 },
+  jokeCatText: { fontSize: mf(11), ...font.bold, textTransform: 'uppercase', letterSpacing: 0.3 },
+  jokeSetup: { fontSize: mf(18), ...font.semibold, lineHeight: mf(26) },
+  jokePunchline: { fontSize: mf(20), ...font.bold, lineHeight: mf(28) },
   jokeRevealBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    gap: ms(5),
     alignSelf: 'flex-start',
     paddingStart: sizes.lg,
     paddingEnd: sizes.md,
     paddingVertical: sizes.sm + 2,
-    minHeight: 44,
+    minHeight: ms(44),
     borderRadius: sizes.borderRadius,
   },
-  jokeRevealText: { fontSize: 14, ...font.bold, color: '#fff' },
+  jokeRevealText: { fontSize: mf(14), ...font.bold, color: '#fff' },
   jokeNextBtn: {
     flexDirection: 'row',
     alignSelf: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: ms(8),
     paddingHorizontal: sizes.lg,
-    paddingVertical: 10,
+    paddingVertical: ms(10),
     borderRadius: sizes.borderRadius,
   },
-  jokeNextText: { fontSize: 14, ...font.semibold },
+  jokeNextText: { fontSize: mf(14), ...font.semibold },
 });

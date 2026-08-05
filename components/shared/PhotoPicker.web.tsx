@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { mf, ms } from '@utils/responsive';
 interface PhotoPickerProps {
   photos: string[]; // full data URLs
   onChange: (photos: string[]) => void;
@@ -82,15 +83,15 @@ export function PhotoPicker({
       {photos.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {photos.map((src, i) => (
-            <div key={i} style={{ position: 'relative', width: 80, height: 80 }}>
+            <div key={i} style={{ position: 'relative', width: ms(80), height: ms(80) }}>
               <img
                 src={src}
                 onClick={() => openFull(src)}
                 style={{
-                  width: 80,
-                  height: 80,
+                  width: ms(80),
+                  height: ms(80),
                   objectFit: 'cover',
-                  borderRadius: 8,
+                  borderRadius: ms(8),
                   border: '1px solid #e5e7eb',
                   cursor: 'pointer',
                   display: 'block',
@@ -101,23 +102,23 @@ export function PhotoPicker({
                 aria-label={t('common.remove')}
                 style={{
                   position: 'absolute',
-                  top: -6,
+                  top: ms(-6),
                   insetInlineEnd: -6,
-                  width: 22,
-                  height: 22,
-                  padding: 11,
+                  width: ms(22),
+                  height: ms(22),
+                  padding: ms(11),
                   boxSizing: 'content-box',
-                  borderRadius: 22,
+                  borderRadius: ms(22),
                   backgroundColor: '#ef4444',
                   border: 'none',
                   color: 'white',
-                  fontSize: 12,
+                  fontSize: mf(12),
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 'bold',
-                  lineHeight: 1,
+                  lineHeight: mf(1),
                 }}
               >
                 <svg
@@ -150,11 +151,11 @@ export function PhotoPicker({
             padding: '8px 14px',
             minHeight: '44px',
             border: '2px dashed #e5e7eb',
-            borderRadius: 10,
+            borderRadius: ms(10),
             cursor: loading ? 'default' : 'pointer',
             color: loading ? '#9ca3af' : '#6366f1',
             fontWeight: '600',
-            fontSize: 14,
+            fontSize: mf(14),
             backgroundColor: 'white',
             userSelect: 'none',
             width: 'fit-content',

@@ -6,6 +6,7 @@ import { captureError } from '@lib/errorTracking';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 interface ErrorBoundaryState {
   hasError: boolean;
   errorMessage: string;
@@ -75,20 +76,20 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       backgroundColor: C.background,
       gap: sizes.md,
     },
-    icon: { fontSize: 52 },
-    title: { fontSize: 22, fontWeight: 'bold', color: C.textPrimary, textAlign: 'center' },
+    icon: { fontSize: mf(52) },
+    title: { fontSize: mf(22), fontWeight: 'bold', color: C.textPrimary, textAlign: 'center' },
     message: {
-      fontSize: 15,
+      fontSize: mf(15),
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
     retryBtn: {
       marginTop: sizes.sm,
       backgroundColor: C.primary,
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xl,
-      borderRadius: 14,
+      borderRadius: ms(14),
     },
-    retryText: { color: C.white, fontSize: 16, fontWeight: '600' },
+    retryText: { color: C.white, fontSize: mf(16), fontWeight: '600' },
   });

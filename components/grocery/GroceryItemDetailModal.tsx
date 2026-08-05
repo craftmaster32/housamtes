@@ -21,6 +21,7 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import { type GroceryItem } from '@stores/groceryStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
 
+import { mf, ms } from '@utils/responsive';
 export interface GroceryItemDetailModalProps {
   item: GroceryItem | null;
   visible: boolean;
@@ -107,7 +108,7 @@ export function GroceryItemDetailModal({
                 <Pressable
                   onPress={onClose}
                   style={s.closeBtn}
-                  hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
+                  hitSlop={{ top: ms(7), bottom: ms(7), left: ms(7), right: ms(7) }}
                   accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('grocery.close_details')}
@@ -200,41 +201,47 @@ function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
     overlay: { flex: 1, justifyContent: 'flex-end' },
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
     sheet: {
-      borderTopLeftRadius: 26,
-      borderTopRightRadius: 26,
-      padding: 22,
-      paddingBottom: 40,
-      gap: 14,
+      borderTopLeftRadius: ms(26),
+      borderTopRightRadius: ms(26),
+      padding: ms(22),
+      paddingBottom: ms(40),
+      gap: ms(14),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: -4 },
+      shadowOffset: { width: 0, height: ms(-4) },
       shadowOpacity: 0.12,
       shadowRadius: 16,
       elevation: 10,
     },
-    handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 2 },
+    handle: {
+      width: ms(40),
+      height: ms(4),
+      borderRadius: ms(2),
+      alignSelf: 'center',
+      marginBottom: ms(2),
+    },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    title: { fontSize: 21, letterSpacing: -0.3 },
+    title: { fontSize: mf(21), letterSpacing: -0.3 },
     closeBtn: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
+      width: ms(30),
+      height: ms(30),
+      borderRadius: ms(15),
       justifyContent: 'center',
       alignItems: 'center',
     },
-    itemName: { fontSize: 22, ...font.bold, lineHeight: 30 },
+    itemName: { fontSize: mf(22), ...font.bold, lineHeight: mf(30) },
     itemNameDone: { textDecorationLine: 'line-through', opacity: 0.5 },
-    meta: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-    qtyBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-    qtyText: { fontSize: 13, ...font.bold },
-    metaText: { fontSize: 13, ...font.regular },
-    commentBox: { borderRadius: 12, borderWidth: 1, padding: 12 },
-    commentInput: { fontSize: 15, ...font.regular, minHeight: 72 },
-    saveError: { fontSize: 12, color: '#D94F4F' },
-    actions: { flexDirection: 'row', gap: 10, marginTop: 2 },
+    meta: { flexDirection: 'row', alignItems: 'center', gap: ms(8), flexWrap: 'wrap' },
+    qtyBadge: { paddingHorizontal: ms(8), paddingVertical: ms(3), borderRadius: ms(6) },
+    qtyText: { fontSize: mf(13), ...font.bold },
+    metaText: { fontSize: mf(13), ...font.regular },
+    commentBox: { borderRadius: ms(12), borderWidth: 1, padding: ms(12) },
+    commentInput: { fontSize: mf(15), ...font.regular, minHeight: ms(72) },
+    saveError: { fontSize: mf(12), color: '#D94F4F' },
+    actions: { flexDirection: 'row', gap: ms(10), marginTop: ms(2) },
     btn: {
       flex: 1,
-      height: 50,
-      borderRadius: 14,
+      height: ms(50),
+      borderRadius: ms(14),
       justifyContent: 'center',
       alignItems: 'center',
       borderWidth: 1.5,
@@ -242,13 +249,13 @@ function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
     btnPrimary: {
       borderWidth: 0,
       shadowColor: '#3B6FBF',
-      shadowOffset: { width: 0, height: 8 },
+      shadowOffset: { width: 0, height: ms(8) },
       shadowOpacity: 0.28,
       shadowRadius: 16,
       elevation: 6,
     },
     btnOff: { opacity: 0.5 },
-    btnText: { fontSize: 15, ...font.bold },
+    btnText: { fontSize: mf(15), ...font.bold },
     btnPrimaryText: { color: '#FFFFFF' },
   });
 }

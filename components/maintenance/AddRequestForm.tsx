@@ -10,6 +10,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 interface AddRequestFormProps {
   onClose: () => void;
   reportedBy: string;
@@ -20,18 +21,18 @@ const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     form: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       padding: sizes.md,
       gap: sizes.sm,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
+    formTitle: { fontSize: mf(17), ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
     fieldLabel: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.semibold,
       color: C.textSecondary,
       textTransform: 'uppercase',
@@ -48,7 +49,7 @@ const makeStyles = (C: ColorTokens) =>
       color: C.textPrimary,
       ...font.regular,
     },
-    inputMultiline: { height: 80, textAlignVertical: 'top' },
+    inputMultiline: { height: ms(80), textAlignVertical: 'top' },
     formActions: {
       flexDirection: 'row',
       gap: sizes.sm,
@@ -58,7 +59,7 @@ const makeStyles = (C: ColorTokens) =>
     cancelBtn: {
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
-      borderRadius: 12,
+      borderRadius: ms(12),
       borderWidth: 1,
       borderColor: C.border,
     },
@@ -67,11 +68,11 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.primary,
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
-      borderRadius: 12,
+      borderRadius: ms(12),
     },
     saveBtnDisabled: { backgroundColor: C.textDisabled },
     saveBtnText: { color: '#fff', ...font.semibold },
-    saveError: { color: C.danger, fontSize: 13, ...font.regular },
+    saveError: { color: C.danger, fontSize: mf(13), ...font.regular },
   });
 
 export const AddRequestForm: React.FC<AddRequestFormProps> = ({ onClose, reportedBy, houseId }) => {

@@ -19,6 +19,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 export interface PhotoUploadModalProps {
   visible: boolean;
   assets: ImagePickerAsset[];
@@ -37,23 +38,23 @@ const makeStyles = (C: ColorTokens) =>
     },
     card: {
       backgroundColor: C.surface,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
+      borderTopLeftRadius: ms(20),
+      borderTopRightRadius: ms(20),
       padding: sizes.lg,
       gap: sizes.md,
       paddingBottom: sizes.xxl,
     },
-    title: { fontSize: 18, ...font.bold, color: C.textPrimary },
-    singlePreview: { width: '100%', height: 180, borderRadius: 12 },
+    title: { fontSize: mf(18), ...font.bold, color: C.textPrimary },
+    singlePreview: { width: '100%', height: ms(180), borderRadius: ms(12) },
     thumbStrip: { gap: sizes.xs },
     thumb: {
-      width: 76,
-      height: 76,
-      borderRadius: 10,
+      width: ms(76),
+      height: ms(76),
+      borderRadius: ms(10),
       overflow: 'hidden',
       borderCurve: 'continuous',
     } as never,
-    thumbImg: { width: 76, height: 76 },
+    thumbImg: { width: ms(76), height: ms(76) },
     input: { backgroundColor: C.surface },
     label: {
       color: C.textPrimary,
@@ -65,8 +66,8 @@ const makeStyles = (C: ColorTokens) =>
     catChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      paddingVertical: 4,
+      gap: ms(4),
+      paddingVertical: ms(4),
       paddingHorizontal: sizes.sm,
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,
@@ -74,16 +75,16 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.surface,
     },
     catChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    catChipText: { fontSize: 13, ...font.medium, color: C.textPrimary },
+    catChipText: { fontSize: mf(13), ...font.medium, color: C.textPrimary },
     catChipTextActive: { color: '#fff' },
     progressText: {
       color: C.textSecondary,
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       textAlign: 'center',
     },
     actions: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center' },
-    uploadBtn: { borderRadius: 14, flex: 1 },
+    uploadBtn: { borderRadius: ms(14), flex: 1 },
   });
 
 const uploadCategories = PHOTO_CATEGORIES.filter((c) => c.key !== 'general');

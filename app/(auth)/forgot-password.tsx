@@ -15,6 +15,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 type Step = 'email' | 'code';
 
 export default function ForgotPasswordScreen(): React.JSX.Element {
@@ -313,39 +314,39 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     header: {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
-      paddingBottom: 28,
-      gap: 8,
+      paddingBottom: ms(28),
+      gap: ms(8),
     },
     headerInner: {
-      gap: 8,
+      gap: ms(8),
     },
     backBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
+      gap: ms(2),
       alignSelf: 'flex-start',
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xs,
       minHeight: sizes.touchTarget,
       marginTop: sizes.xs,
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
     backText: {
-      fontSize: 15.5,
+      fontSize: mf(15.5),
       ...font.medium,
       color: 'rgba(255,255,255,0.85)',
     },
     headerTitle: {
-      fontSize: 22,
+      fontSize: mf(22),
       ...font.extrabold,
       color: '#fff',
       letterSpacing: -0.5,
     },
     headerSubtitle: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: 'rgba(255,255,255,0.65)',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
     cardWrapper: {
       flex: 1,
@@ -354,11 +355,11 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     card: {
       flex: 1,
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: ms(28),
+      borderTopRightRadius: ms(28),
       paddingHorizontal: sizes.lg,
-      paddingTop: 32,
-      paddingBottom: 40,
+      paddingTop: ms(32),
+      paddingBottom: ms(40),
       gap: sizes.md,
     },
     input: {
@@ -370,19 +371,19 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       fontSize: sizes.fontSm,
     },
     button: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       marginTop: sizes.sm,
     },
     buttonContent: {
-      height: 52,
+      height: ms(52),
     },
     buttonLabel: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
       letterSpacing: 0.2,
     },
     resendLabel: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.medium,
     },
     successContainer: {
@@ -397,17 +398,17 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       marginBottom: sizes.sm,
     },
     successTitle: {
-      fontSize: 24,
+      fontSize: mf(24),
       ...font.extrabold,
       color: C.textPrimary,
       textAlign: 'center',
     },
     successBody: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
   });
 }

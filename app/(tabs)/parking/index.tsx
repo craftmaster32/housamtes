@@ -43,6 +43,7 @@ import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 function formatTime(iso: string, locale: string): string {
   return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
@@ -342,7 +343,7 @@ function ReservationCard({
         <Pressable
           style={[styles.dateBadge, { borderColor: statusColor + '50' }]}
           onPress={handleDatePress}
-          hitSlop={{ top: 4, bottom: 0, left: 4, right: 4 }}
+          hitSlop={{ top: ms(4), bottom: 0, left: ms(4), right: ms(4) }}
           accessibilityRole="button"
           accessibilityLabel={t('parking.tap_see_day_schedule', {
             weekday: weekdayFull,
@@ -404,7 +405,7 @@ function ReservationCard({
           <Pressable
             onPress={handleCancel}
             style={styles.iconBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
             accessibilityRole="button"
             accessibilityLabel={t('parking.cancel_reservation')}
           >
@@ -416,7 +417,7 @@ function ReservationCard({
           <Pressable
             onPress={handleCancel}
             style={styles.iconBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
             accessibilityRole="button"
             accessibilityLabel={t('parking.admin_cancel_reservation')}
           >
@@ -428,7 +429,7 @@ function ReservationCard({
           <Pressable
             onPress={handleClear}
             style={styles.iconBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
             accessibilityRole="button"
             accessibilityLabel={t('parking.clear_from_history')}
           >
@@ -441,7 +442,7 @@ function ReservationCard({
             <Pressable
               onPress={handleApprove}
               style={[styles.voteBtn, myVote?.vote === 'approve' && styles.voteBtnApproveActive]}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              hitSlop={{ top: ms(6), bottom: ms(6), left: ms(6), right: ms(6) }}
               accessible
               accessibilityRole="button"
               accessibilityLabel={t('parking.approve_request')}
@@ -456,7 +457,7 @@ function ReservationCard({
             <Pressable
               onPress={handleReject}
               style={[styles.voteBtn, myVote?.vote === 'reject' && styles.voteBtnRejectActive]}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              hitSlop={{ top: ms(6), bottom: ms(6), left: ms(6), right: ms(6) }}
               accessible
               accessibilityRole="button"
               accessibilityLabel={t('parking.reject_request')}
@@ -512,7 +513,7 @@ function WeekStrip({ onDayPress }: WeekStripProps): React.JSX.Element {
           key={dateStr}
           style={styles.weekDay}
           onPress={() => onDayPress(dateStr)}
-          hitSlop={{ left: 4, right: 4 }}
+          hitSlop={{ left: ms(4), right: ms(4) }}
           accessibilityRole="button"
           accessibilityLabel={`${dayAbbr} ${dayNum}`}
         >
@@ -696,13 +697,17 @@ function ReserveModal({
               </View>
             )}
 
-            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>{t('parking.start_time')}</Text>
+            <Text style={[styles.fieldLabel, { marginTop: ms(14) }]}>
+              {t('parking.start_time')}
+            </Text>
             <TimePicker value={startTime} onChange={setStartTime} />
 
-            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>{t('parking.end_time')}</Text>
+            <Text style={[styles.fieldLabel, { marginTop: ms(14) }]}>{t('parking.end_time')}</Text>
             <TimePicker value={endTime} onChange={setEndTime} />
 
-            <Text style={[styles.fieldLabel, { marginTop: 14 }]}>{t('parking.note_label')}</Text>
+            <Text style={[styles.fieldLabel, { marginTop: ms(14) }]}>
+              {t('parking.note_label')}
+            </Text>
             <TextInput
               value={note}
               onChangeText={setNote}
@@ -973,7 +978,7 @@ export default function ParkingScreen(): React.JSX.Element {
             <Pressable
               onPress={handleClearAll}
               style={styles.clearAllBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
               accessibilityRole="button"
               accessibilityLabel={t('parking.clear_all_history')}
             >
@@ -1125,7 +1130,7 @@ export default function ParkingScreen(): React.JSX.Element {
               <Pressable
                 onPress={() => setShowReserve(true)}
                 style={styles.addBtn}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
                 accessibilityRole="button"
               >
                 <Ionicons name="add" size={14} color={C.primary} />
@@ -1179,55 +1184,55 @@ export default function ParkingScreen(): React.JSX.Element {
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
-    list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
-    sep: { height: 8 },
+    list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
+    sep: { height: ms(8) },
 
     heroCard: {
       backgroundColor: C.surface,
-      borderRadius: 20,
+      borderRadius: ms(20),
       borderWidth: 1,
       borderColor: C.border,
-      padding: 20,
-      gap: 16,
-      marginBottom: 24,
+      padding: ms(20),
+      gap: ms(16),
+      marginBottom: ms(24),
       shadowColor: '#2C333D',
-      shadowOffset: { width: 0, height: 8 },
+      shadowOffset: { width: 0, height: ms(8) },
       shadowOpacity: 0.05,
       shadowRadius: 24,
       elevation: 3,
     },
-    heroCopy: { gap: 6 },
-    titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-    textBase: { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
+    heroCopy: { gap: ms(6) },
+    titleHero: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
+    textBase: { fontSize: mf(15), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
 
     statusCircle: {
       alignSelf: 'center',
-      width: 96,
-      height: 96,
-      borderRadius: 48,
+      width: ms(96),
+      height: ms(96),
+      borderRadius: ms(48),
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 4,
+      gap: ms(4),
       // No overflow:'hidden' — it would cancel the iOS shadow, and the gradient
       // already clips to borderRadius on its own.
-      shadowOffset: { width: 0, height: 8 },
+      shadowOffset: { width: 0, height: ms(8) },
       shadowOpacity: 0.4,
       shadowRadius: 14,
       elevation: 6,
     },
-    statusLabel: { fontSize: 12, ...font.bold, letterSpacing: 0.6 },
+    statusLabel: { fontSize: mf(12), ...font.bold, letterSpacing: 0.6 },
     statusLabelOnGradient: { color: '#fff' },
 
     btnPrimary: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 48,
-      paddingHorizontal: 18,
-      borderRadius: 10,
+      minHeight: ms(48),
+      paddingHorizontal: ms(18),
+      borderRadius: ms(10),
       backgroundColor: C.primary,
       shadowColor: '#4F78B6',
-      shadowOffset: { width: 0, height: 8 },
+      shadowOffset: { width: 0, height: ms(8) },
       shadowOpacity: 0.18,
       shadowRadius: 16,
       elevation: 6,
@@ -1236,9 +1241,9 @@ const makeStyles = (C: ColorTokens) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 48,
-      paddingHorizontal: 18,
-      borderRadius: 10,
+      minHeight: ms(48),
+      paddingHorizontal: ms(18),
+      borderRadius: ms(10),
       backgroundColor: C.danger + '15',
       borderWidth: 1,
       borderColor: C.danger + '30',
@@ -1247,142 +1252,142 @@ const makeStyles = (C: ColorTokens) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 44,
-      paddingHorizontal: 16,
-      borderRadius: 10,
+      minHeight: ms(44),
+      paddingHorizontal: ms(16),
+      borderRadius: ms(10),
       backgroundColor: C.warning + '15',
       borderWidth: 1,
       borderColor: C.warning + '40',
     },
-    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    btnDangerText: { fontSize: 15, ...font.semibold, color: C.danger },
-    btnAdminReleaseText: { fontSize: 14, ...font.semibold, color: C.warning },
-    btnIcon: { marginEnd: 6 },
+    btnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
+    btnDangerText: { fontSize: mf(15), ...font.semibold, color: C.danger },
+    btnAdminReleaseText: { fontSize: mf(14), ...font.semibold, color: C.warning },
+    btnIcon: { marginEnd: ms(6) },
 
     addBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: ms(4),
       backgroundColor: C.primary + '15',
-      paddingVertical: 6,
-      paddingHorizontal: 10,
+      paddingVertical: ms(6),
+      paddingHorizontal: ms(10),
       borderRadius: 9999,
     },
-    addBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
+    addBtnText: { fontSize: mf(13), ...font.semibold, color: C.primary },
 
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 4,
-      marginBottom: 12,
+      paddingHorizontal: ms(4),
+      marginBottom: ms(12),
     },
     subHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 4,
-      marginBottom: 12,
+      gap: ms(8),
+      paddingHorizontal: ms(4),
+      marginBottom: ms(12),
     },
     eyebrow: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.bold,
       color: C.textSecondary,
       letterSpacing: 0.72,
       textTransform: 'uppercase',
     },
     countPill: {
-      minHeight: 22,
-      paddingHorizontal: 8,
+      minHeight: ms(22),
+      paddingHorizontal: ms(8),
       borderRadius: 9999,
       backgroundColor: C.secondary,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    countPillText: { fontSize: 11, ...font.bold, color: C.secondaryForeground },
+    countPillText: { fontSize: mf(11), ...font.bold, color: C.secondaryForeground },
 
     historyHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 4,
-      paddingTop: 16,
-      paddingBottom: 8,
+      gap: ms(8),
+      paddingHorizontal: ms(4),
+      paddingTop: ms(16),
+      paddingBottom: ms(8),
     },
 
     resCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 14,
-      borderRadius: 14,
+      gap: ms(12),
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(14),
+      borderRadius: ms(14),
       backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
       shadowColor: '#2C333D',
-      shadowOffset: { width: 0, height: 4 },
+      shadowOffset: { width: 0, height: ms(4) },
       shadowOpacity: 0.02,
       shadowRadius: 16,
       elevation: 1,
     },
     resCardDim: { opacity: 0.72 },
-    dateBadgeCol: { alignItems: 'center', alignSelf: 'flex-start', gap: 4 },
+    dateBadgeCol: { alignItems: 'center', alignSelf: 'flex-start', gap: ms(4) },
     dateBadge: {
-      width: 52,
-      borderRadius: 10,
+      width: ms(52),
+      borderRadius: ms(10),
       overflow: 'hidden',
       borderWidth: 1,
       flexShrink: 0,
     },
-    dateBadgeTop: { paddingVertical: 4, alignItems: 'center' },
-    dateBadgeMonth: { fontSize: 9, ...font.bold, color: '#fff', letterSpacing: 0.6 },
+    dateBadgeTop: { paddingVertical: ms(4), alignItems: 'center' },
+    dateBadgeMonth: { fontSize: mf(9), ...font.bold, color: '#fff', letterSpacing: 0.6 },
     dateBadgeBottom: {
       backgroundColor: C.surfaceSecondary,
       alignItems: 'center',
-      paddingTop: 5,
-      paddingBottom: 7,
+      paddingTop: ms(5),
+      paddingBottom: ms(7),
     },
-    dateBadgeDay: { fontSize: 22, ...font.extrabold, lineHeight: 26, letterSpacing: -0.5 },
-    dateBadgeWeekLabel: { fontSize: 10, ...font.medium, textAlign: 'center' },
-    dayDots: { flexDirection: 'row', gap: 3, justifyContent: 'center', marginTop: 4 },
-    dayDot: { width: 5, height: 5, borderRadius: 3 },
-    resInfo: { flex: 1, gap: 4 },
-    resDate: { fontSize: 13, ...font.semibold, color: C.textSecondary },
-    resBy: { fontSize: 13, ...font.regular, color: C.textSecondary },
+    dateBadgeDay: { fontSize: mf(22), ...font.extrabold, lineHeight: mf(26), letterSpacing: -0.5 },
+    dateBadgeWeekLabel: { fontSize: mf(10), ...font.medium, textAlign: 'center' },
+    dayDots: { flexDirection: 'row', gap: ms(3), justifyContent: 'center', marginTop: ms(4) },
+    dayDot: { width: ms(5), height: ms(5), borderRadius: ms(3) },
+    resInfo: { flex: 1, gap: ms(4) },
+    resDate: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
+    resBy: { fontSize: mf(13), ...font.regular, color: C.textSecondary },
 
     badge: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 8,
-      paddingVertical: 2,
+      paddingHorizontal: ms(8),
+      paddingVertical: ms(2),
       borderRadius: 9999,
-      marginTop: 2,
+      marginTop: ms(2),
     },
-    badgeText: { fontSize: 11, ...font.semibold },
+    badgeText: { fontSize: mf(11), ...font.semibold },
 
-    resActions: { gap: 6, alignItems: 'center', paddingTop: 2 },
-    iconBtn: { padding: 4 },
+    resActions: { gap: ms(6), alignItems: 'center', paddingTop: ms(2) },
+    iconBtn: { padding: ms(4) },
 
-    voteRowWrapper: { marginTop: 2, gap: 3 },
-    voteRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    voteAbstainNote: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    voteAbstainText: { fontSize: 10, ...font.regular, color: C.textSecondary, flex: 1 },
-    voteAvatarWrap: { position: 'relative', width: 28, height: 28 },
+    voteRowWrapper: { marginTop: ms(2), gap: ms(3) },
+    voteRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
+    voteAbstainNote: { flexDirection: 'row', alignItems: 'center', gap: ms(3) },
+    voteAbstainText: { fontSize: mf(10), ...font.regular, color: C.textSecondary, flex: 1 },
+    voteAvatarWrap: { position: 'relative', width: ms(28), height: ms(28) },
     voteAvatarCircle: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      width: ms(28),
+      height: ms(28),
+      borderRadius: ms(14),
       justifyContent: 'center',
       alignItems: 'center',
     },
-    voteAvatarInitial: { fontSize: 11, ...font.bold },
+    voteAvatarInitial: { fontSize: mf(11), ...font.bold },
     voteDot: {
       position: 'absolute',
-      bottom: -1,
-      end: -1,
-      width: 13,
-      height: 13,
-      borderRadius: 7,
+      bottom: ms(-1),
+      end: ms(-1),
+      width: ms(13),
+      height: ms(13),
+      borderRadius: ms(7),
       justifyContent: 'center',
       alignItems: 'center',
       borderWidth: 1.5,
@@ -1392,10 +1397,10 @@ const makeStyles = (C: ColorTokens) =>
     dotReject: { backgroundColor: C.danger },
     dotPending: { backgroundColor: C.textSecondary + '80' },
 
-    voteBtns: { flexDirection: 'row', gap: 6 },
+    voteBtns: { flexDirection: 'row', gap: ms(6) },
     voteBtn: {
-      width: 32,
-      height: 32,
+      width: ms(32),
+      height: ms(32),
       borderRadius: 9999,
       justifyContent: 'center',
       alignItems: 'center',
@@ -1409,174 +1414,179 @@ const makeStyles = (C: ColorTokens) =>
     errorBox: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
-      padding: 12,
-      marginBottom: 16,
+      borderRadius: ms(10),
+      padding: ms(12),
+      marginBottom: ms(16),
     },
-    errorText: { fontSize: 13, ...font.regular, color: C.danger, flex: 1 },
+    errorText: { fontSize: mf(13), ...font.regular, color: C.danger, flex: 1 },
 
     modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     modalSheet: {
       backgroundColor: C.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      padding: 24,
-      paddingBottom: 40,
-      gap: 12,
+      borderTopLeftRadius: ms(24),
+      borderTopRightRadius: ms(24),
+      padding: ms(24),
+      paddingBottom: ms(40),
+      gap: ms(12),
       maxHeight: '90%',
     },
     modalScroll: { flexGrow: 0 },
     modalHandle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
+      width: ms(40),
+      height: ms(4),
+      borderRadius: ms(2),
       backgroundColor: C.border,
       alignSelf: 'center',
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
-    modalTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    fieldLabel: { fontSize: 13, ...font.semibold, color: C.textPrimary, marginBottom: 6 },
+    modalTitle: { fontSize: mf(20), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    fieldLabel: { fontSize: mf(13), ...font.semibold, color: C.textPrimary, marginBottom: ms(6) },
     fieldInput: {
       borderWidth: 1.5,
       borderColor: C.border,
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      fontSize: 15,
+      borderRadius: ms(12),
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(12),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
       backgroundColor: C.surfaceSecondary,
     },
-    fieldError: { fontSize: 13, ...font.regular, color: C.negative },
-    conflictBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-    conflictText: { fontSize: 13, ...font.medium, color: C.warning, flex: 1 },
+    fieldError: { fontSize: mf(13), ...font.regular, color: C.negative },
+    conflictBox: { flexDirection: 'row', alignItems: 'center', gap: ms(6), marginTop: ms(6) },
+    conflictText: { fontSize: mf(13), ...font.medium, color: C.warning, flex: 1 },
     conflictWarningBox: {
       borderWidth: 1,
-      borderRadius: 8,
-      padding: 8,
+      borderRadius: ms(8),
+      padding: ms(8),
       borderColor: C.warning + '40',
       backgroundColor: C.warning + '10',
     },
     conflictWarningText: { color: C.warning },
-    modalBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
+    modalBtns: { flexDirection: 'row', gap: ms(10), marginTop: ms(8) },
     modalBtnOutline: {
       flex: 1,
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: ms(14),
+      borderRadius: ms(12),
       borderWidth: 1.5,
       borderColor: C.border,
       alignItems: 'center',
     },
-    modalBtnOutlineText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    modalBtnOutlineText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
     modalBtnPrimary: {
       flex: 1,
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: ms(14),
+      borderRadius: ms(12),
       backgroundColor: C.primary,
       alignItems: 'center',
     },
-    modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+    modalBtnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
 
     daySheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     daySheetPanel: {
       backgroundColor: C.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      padding: 24,
-      paddingBottom: 40,
-      gap: 16,
+      borderTopLeftRadius: ms(24),
+      borderTopRightRadius: ms(24),
+      padding: ms(24),
+      paddingBottom: ms(40),
+      gap: ms(16),
     },
-    daySheetTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    daySheetTitle: {
+      fontSize: mf(20),
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.5,
+    },
     daySheetEmpty: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      paddingVertical: 16,
+      paddingVertical: ms(16),
     },
-    daySheetList: { gap: 10 },
+    daySheetList: { gap: ms(10) },
     daySheetRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: 12,
+      gap: ms(10),
+      paddingVertical: ms(10),
+      paddingHorizontal: ms(12),
+      borderRadius: ms(12),
       backgroundColor: C.surfaceSecondary,
     },
-    daySheetDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-    daySheetRowInfo: { flex: 1, gap: 2 },
-    daySheetTime: { fontSize: 13, ...font.semibold, color: C.textPrimary },
-    daySheetName: { fontSize: 12, ...font.regular, color: C.textSecondary },
+    daySheetDot: { width: ms(8), height: ms(8), borderRadius: ms(4), flexShrink: 0 },
+    daySheetRowInfo: { flex: 1, gap: ms(2) },
+    daySheetTime: { fontSize: mf(13), ...font.semibold, color: C.textPrimary },
+    daySheetName: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
     daySheetStatusBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
+      paddingHorizontal: ms(8),
+      paddingVertical: ms(2),
       borderRadius: 9999,
       flexShrink: 0,
     },
-    daySheetStatusText: { fontSize: 11, ...font.semibold },
+    daySheetStatusText: { fontSize: mf(11), ...font.semibold },
     daySheetCloseBtn: {
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: ms(14),
+      borderRadius: ms(12),
       borderWidth: 1.5,
       borderColor: C.border,
       alignItems: 'center',
     },
-    daySheetCloseBtnText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    daySheetCloseBtnText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
 
     weekStrip: {
       flexDirection: 'row',
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       borderWidth: 1,
       borderColor: C.border,
-      paddingVertical: 12,
-      paddingHorizontal: 4,
-      marginBottom: 16,
+      paddingVertical: ms(12),
+      paddingHorizontal: ms(4),
+      marginBottom: ms(16),
     },
     weekDay: {
       flex: 1,
       alignItems: 'center',
-      gap: 5,
-      paddingVertical: 2,
+      gap: ms(5),
+      paddingVertical: ms(2),
     },
     weekDayAbbr: {
-      fontSize: 9,
+      fontSize: mf(9),
       ...font.bold,
       color: C.textSecondary,
       letterSpacing: 0.4,
     },
     weekDayAbbrToday: { color: C.primary },
     weekDayNumWrap: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
+      width: ms(30),
+      height: ms(30),
+      borderRadius: ms(15),
       justifyContent: 'center',
       alignItems: 'center',
     },
     weekDayNumWrapToday: { backgroundColor: C.primary },
-    weekDayNum: { fontSize: 14, ...font.bold, color: C.textPrimary },
+    weekDayNum: { fontSize: mf(14), ...font.bold, color: C.textPrimary },
     weekDayNumToday: { color: '#fff' },
     weekDayDots: {
       flexDirection: 'row',
-      gap: 2,
-      height: 6,
+      gap: ms(2),
+      height: ms(6),
       alignItems: 'center',
       justifyContent: 'center',
     },
-    weekDot: { width: 5, height: 5, borderRadius: 3 },
+    weekDot: { width: ms(5), height: ms(5), borderRadius: ms(3) },
 
     historyHeaderSpacer: { flex: 1 },
     clearAllBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      minHeight: 44,
-      paddingHorizontal: 10,
+      gap: ms(4),
+      minHeight: ms(44),
+      paddingHorizontal: ms(10),
       borderRadius: 9999,
       backgroundColor: C.danger + '12',
     },
-    clearAllBtnText: { fontSize: 11, ...font.semibold, color: C.danger },
+    clearAllBtnText: { fontSize: mf(11), ...font.semibold, color: C.danger },
   });

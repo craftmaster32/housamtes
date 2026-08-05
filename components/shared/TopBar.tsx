@@ -15,6 +15,7 @@ import { isRTL } from '@lib/i18n';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 // The redesign gave almost every screen its own header + back button, so the
 // shared TopBar is now only needed on the handful of legacy screens that still
 // lack one. Showing it anywhere else produced a duplicate ("two back buttons").
@@ -136,12 +137,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: sizes.sm,
     paddingHorizontal: sizes.md,
-    paddingBottom: 14,
+    paddingBottom: ms(14),
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   appName: {
     flex: 1,
-    fontSize: 20,
+    fontSize: mf(20),
     ...font.extrabold,
     letterSpacing: -0.8,
     textAlign: 'center',
@@ -153,13 +154,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: ms(34),
+    height: ms(34),
+    borderRadius: ms(17),
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  avatarImg: { width: 34, height: 34 },
-  avatarText: { color: '#fff', fontSize: 14, ...font.bold },
+  avatarImg: { width: ms(34), height: ms(34) },
+  avatarText: { color: '#fff', fontSize: mf(14), ...font.bold },
 });

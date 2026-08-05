@@ -10,6 +10,7 @@ import { getDateFnsLocale } from '@utils/dates';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { TimePicker } from '@components/shared/TimePicker';
 
+import { mf, ms } from '@utils/responsive';
 export interface ReminderDateTimeFieldProps {
   /** Resets to the next rounded default (now + 30 min) whenever this flips to true. */
   visible: boolean;
@@ -125,18 +126,23 @@ export function ReminderDateTimeField({
 
 function makeStyles(): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
-    field: { gap: 8 },
-    fieldLabel: { fontSize: 12, ...font.semibold, textTransform: 'uppercase', letterSpacing: 0.4 },
+    field: { gap: ms(8) },
+    fieldLabel: {
+      fontSize: mf(12),
+      ...font.semibold,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
     dateTrigger: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      borderRadius: 12,
+      gap: ms(8),
+      borderRadius: ms(12),
       borderWidth: 1,
-      paddingHorizontal: 14,
-      minHeight: 48,
+      paddingHorizontal: ms(14),
+      minHeight: ms(48),
     },
-    dateTriggerText: { flex: 1, fontSize: 15, ...font.medium },
-    errorText: { fontSize: 12 },
+    dateTriggerText: { flex: 1, fontSize: mf(15), ...font.medium },
+    errorText: { fontSize: mf(12) },
   });
 }

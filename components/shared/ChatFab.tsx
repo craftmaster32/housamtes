@@ -11,6 +11,7 @@ import { useChatStore } from '@stores/chatStore';
 import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 /**
  * Floating chat button — sits above the bottom tab bar on every main screen and
  * opens the house chat. Hidden while already on the chat screen. Carries an
@@ -69,14 +70,14 @@ export function ChatFab(): React.JSX.Element | null {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', right: 16, zIndex: 30 },
+  wrap: { position: 'absolute', right: ms(16), zIndex: 30 },
   fab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: ms(52),
+    height: ms(52),
+    borderRadius: ms(26),
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: ms(8) },
     shadowOpacity: 1,
     shadowRadius: 16,
     elevation: 10,
@@ -84,15 +85,15 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.9, transform: [{ scale: 0.94 }] },
   badge: {
     position: 'absolute',
-    top: -3,
-    right: -3,
-    minWidth: 19,
-    height: 19,
-    borderRadius: 10,
+    top: ms(-3),
+    right: ms(-3),
+    minWidth: ms(19),
+    height: ms(19),
+    borderRadius: ms(10),
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: ms(5),
   },
-  badgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+  badgeText: { fontSize: mf(11), fontWeight: '800', color: '#fff' },
 });

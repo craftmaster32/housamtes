@@ -27,6 +27,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const DELETE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
 // ── Time helpers ─────────────────────────────────────────────────────────────
@@ -86,17 +87,17 @@ const makeStyles = (C: ColorTokens) =>
       paddingVertical: sizes.sm,
       backgroundColor: C.surface,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     backBtn: {
-      width: 60,
-      minHeight: 44,
+      width: ms(60),
+      minHeight: ms(44),
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
+      gap: ms(2),
     },
     backText: { color: C.primary, fontSize: sizes.fontMd, ...font.medium },
     headerTitle: { color: C.textPrimary, ...font.bold, fontSize: sizes.fontLg },
@@ -112,55 +113,55 @@ const makeStyles = (C: ColorTokens) =>
     separatorLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: C.border },
     separatorLabel: {
       color: C.textSecondary,
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.semibold,
-      paddingHorizontal: 4,
+      paddingHorizontal: ms(4),
     },
 
     row: { flexDirection: 'row', alignItems: 'flex-end', gap: sizes.sm },
     rowMine: { flexDirection: 'row-reverse' },
     avatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: ms(32),
+      height: ms(32),
+      borderRadius: ms(16),
       backgroundColor: C.primary,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 2,
+      marginBottom: ms(2),
       overflow: 'hidden',
     },
-    avatarImg: { width: 32, height: 32 },
+    avatarImg: { width: ms(32), height: ms(32) },
     avatarText: { color: '#fff', ...font.bold, fontSize: sizes.fontSm },
 
     bubble: {
       backgroundColor: C.surface,
-      borderRadius: 18,
-      borderBottomStartRadius: 4,
-      padding: 10,
-      paddingHorizontal: 13,
+      borderRadius: ms(18),
+      borderBottomStartRadius: ms(4),
+      padding: ms(10),
+      paddingHorizontal: ms(13),
       maxWidth: '72%',
-      gap: 3,
+      gap: ms(3),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     bubbleMine: {
       backgroundColor: C.primary,
-      borderBottomStartRadius: 18,
-      borderBottomEndRadius: 4,
+      borderBottomStartRadius: ms(18),
+      borderBottomEndRadius: ms(4),
     },
 
-    author: { color: C.primary, fontSize: 11, ...font.bold, marginBottom: 1 },
-    msgText: { color: C.textPrimary, fontSize: 15, ...font.regular },
+    author: { color: C.primary, fontSize: mf(11), ...font.bold, marginBottom: ms(1) },
+    msgText: { color: C.textPrimary, fontSize: mf(15), ...font.regular },
     msgTextMine: { color: '#fff' },
 
-    meta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 },
-    time: { color: C.textSecondary, fontSize: 11, ...font.regular },
+    meta: { flexDirection: 'row', alignItems: 'center', gap: ms(6), marginTop: ms(1) },
+    time: { color: C.textSecondary, fontSize: mf(11), ...font.regular },
     timeMine: { color: 'rgba(255,255,255,0.7)' },
-    deleteHint: { color: 'rgba(255,255,255,0.55)', fontSize: 10, ...font.regular },
-    reportHint: { color: C.textDisabled, fontSize: 10, ...font.regular },
+    deleteHint: { color: 'rgba(255,255,255,0.55)', fontSize: mf(10), ...font.regular },
+    reportHint: { color: C.textDisabled, fontSize: mf(10), ...font.regular },
 
     empty: { alignItems: 'center', paddingTop: sizes.xxl },
     emptyText: { color: C.textDisabled, ...font.regular, fontSize: sizes.fontMd },
@@ -186,7 +187,7 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.surface,
       alignItems: 'flex-end',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
@@ -194,9 +195,9 @@ const makeStyles = (C: ColorTokens) =>
     input: {
       flex: 1,
       backgroundColor: C.background,
-      borderRadius: 22,
+      borderRadius: ms(22),
       paddingHorizontal: sizes.md,
-      paddingVertical: 10,
+      paddingVertical: ms(10),
       fontSize: sizes.fontMd,
       color: C.textPrimary,
       borderWidth: 1,
@@ -204,10 +205,10 @@ const makeStyles = (C: ColorTokens) =>
       ...font.regular,
     },
     sendBtn: {
-      width: 44,
-      height: 44,
+      width: ms(44),
+      height: ms(44),
       backgroundColor: C.primary,
-      borderRadius: 22,
+      borderRadius: ms(22),
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -396,7 +397,7 @@ export default function ChatScreen(): React.JSX.Element {
           <Pressable
             onPress={() => router.back()}
             style={styles.backBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}

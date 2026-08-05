@@ -1,36 +1,41 @@
-// Spacing and sizing — used everywhere for consistency
+// Spacing and sizing — used everywhere for consistency.
+// Values are scaled to the device via `ms` so spacing that was tuned on an
+// iPhone 17 also fits smaller phones. Touch targets stay fixed at the Apple
+// minimum (44pt) and the "fully round" radius is left alone.
+import { ms, mf } from '@utils/responsive';
+
 export const sizes = {
   // Spacing
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
+  xs: ms(4),
+  sm: ms(8),
+  md: ms(16),
+  lg: ms(24),
+  xl: ms(32),
+  xxl: ms(48),
 
-  // Touch targets — Apple requires minimum 44x44pt
+  // Touch targets — Apple requires minimum 44x44pt; never scale below this.
   touchTarget: 44,
 
   // Bottom navigation
-  bottomTabBarHeight: 104,
-  bottomTabContentPadding: 40,
+  bottomTabBarHeight: ms(104),
+  bottomTabContentPadding: ms(40),
 
   // Border radius
-  borderRadius: 12,
-  borderRadiusSm: 8,
-  borderRadiusLg: 16,
+  borderRadius: ms(12),
+  borderRadiusSm: ms(8),
+  borderRadiusLg: ms(16),
   borderRadiusFull: 9999,
 
   // Font sizes
-  fontXxs: 10,
-  fontXs: 12,
-  fontSm: 14,
-  fontMd: 16,
-  fontLg: 18,
-  fontXl: 20,
-  fontXxl: 24,
-  fontTitle: 28,
+  fontXxs: mf(10),
+  fontXs: mf(12),
+  fontSm: mf(14),
+  fontMd: mf(16),
+  fontLg: mf(18),
+  fontXl: mf(20),
+  fontXxl: mf(24),
+  fontTitle: mf(28),
 
   // New
-  borderRadiusXl: 20,
+  borderRadiusXl: ms(20),
 } as const;

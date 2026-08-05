@@ -29,6 +29,7 @@ import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
 import { ZoomableImage } from '@components/photos/ZoomableImage';
 import type { Photo } from '@stores/photoStore';
 
+import { mf, ms } from '@utils/responsive';
 const { width: SW, height: SH } = Dimensions.get('window');
 // First-frame height so the photo shows immediately; corrected to the list's real
 // height on layout. A percentage height doesn't resolve inside the horizontal
@@ -66,7 +67,7 @@ const makeStyles = (C: ColorTokens) =>
     bottomScrim: { bottom: 0 },
     // Fixed paddings clear the status bar / home indicator reliably; SafeAreaView
     // insets are unreliable inside a Modal.
-    topGradient: { paddingHorizontal: sizes.md, paddingTop: 52, paddingBottom: sizes.xl },
+    topGradient: { paddingHorizontal: sizes.md, paddingTop: ms(52), paddingBottom: sizes.xl },
     bottomGradient: {
       paddingHorizontal: sizes.lg,
       paddingTop: sizes.xxl,
@@ -79,18 +80,18 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
     },
     iconBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: ms(40),
+      height: ms(40),
+      borderRadius: ms(20),
       backgroundColor: 'rgba(0,0,0,0.45)',
       justifyContent: 'center',
       alignItems: 'center',
     },
-    counter: { color: '#fff', fontSize: 15, ...font.semibold },
+    counter: { color: '#fff', fontSize: mf(15), ...font.semibold },
 
     meta: { gap: sizes.xs, paddingBottom: sizes.md },
-    caption: { color: '#fff', fontSize: 16, ...font.medium },
-    info: { color: 'rgba(255,255,255,0.6)', fontSize: 13, ...font.regular },
+    caption: { color: '#fff', fontSize: mf(16), ...font.medium },
+    info: { color: 'rgba(255,255,255,0.6)', fontSize: mf(13), ...font.regular },
     actionRow: { flexDirection: 'row', marginTop: sizes.sm },
     actionBtn: {
       flexDirection: 'row',
@@ -101,8 +102,8 @@ const makeStyles = (C: ColorTokens) =>
       borderRadius: sizes.borderRadiusFull,
       backgroundColor: 'rgba(255,255,255,0.12)',
     },
-    deleteTxt: { color: C.danger, fontSize: 13, ...font.semibold },
-    reportTxt: { color: 'rgba(255,255,255,0.75)', fontSize: 13, ...font.medium },
+    deleteTxt: { color: C.danger, fontSize: mf(13), ...font.semibold },
+    reportTxt: { color: 'rgba(255,255,255,0.75)', fontSize: mf(13), ...font.medium },
   });
 
 export function PhotoViewer({

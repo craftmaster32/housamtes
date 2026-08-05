@@ -15,6 +15,7 @@ import { isRTL } from '@lib/i18n';
 import { monthNameFromKey } from '@utils/dates';
 import { CountUpText } from '@components/shared/CountUpText';
 
+import { mf, ms } from '@utils/responsive';
 interface Props {
   houseId: string;
   userName: string;
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
     borderRadius: sizes.borderRadiusXl,
     // No overflow:'hidden' here — it would clip the iOS shadow. The gradient +
     // decorations are clipped by the inner `clip` layer instead.
-    shadowOffset: { width: 0, height: 12 },
+    shadowOffset: { width: 0, height: ms(12) },
     shadowOpacity: 1,
     shadowRadius: 20,
     elevation: 8,
@@ -185,20 +186,20 @@ const styles = StyleSheet.create({
   },
   decoCircle: {
     position: 'absolute',
-    top: -36,
-    end: -18,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    top: ms(-36),
+    end: ms(-18),
+    width: ms(140),
+    height: ms(140),
+    borderRadius: ms(70),
     backgroundColor: 'rgba(255,255,255,0.10)',
   },
   decoCircleSm: {
     position: 'absolute',
-    bottom: -40,
-    end: 22,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    bottom: ms(-40),
+    end: ms(22),
+    width: ms(100),
+    height: ms(100),
+    borderRadius: ms(50),
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
   highlight: {
@@ -206,14 +207,14 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 1,
+    height: ms(1),
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
-  pad: { padding: 22, gap: 16 },
-  loadingIndicator: { marginTop: 8 },
+  pad: { padding: ms(22), gap: ms(16) },
+  loadingIndicator: { marginTop: ms(8) },
 
   label: {
-    fontSize: 11,
+    fontSize: mf(11),
     ...font.extrabold,
     color: '#fff',
     letterSpacing: 1.1,
@@ -221,31 +222,31 @@ const styles = StyleSheet.create({
   },
 
   totalsRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.md },
-  totalBlock: { flex: 1, gap: 2 },
-  totalAmt: { fontSize: 28, ...font.extrabold, color: '#fff', letterSpacing: -0.8 },
-  totalSub: { fontSize: 12, ...font.regular, color: 'rgba(255,255,255,0.72)' },
-  divider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.20)' },
+  totalBlock: { flex: 1, gap: ms(2) },
+  totalAmt: { fontSize: mf(28), ...font.extrabold, color: '#fff', letterSpacing: -0.8 },
+  totalSub: { fontSize: mf(12), ...font.regular, color: 'rgba(255,255,255,0.72)' },
+  divider: { width: ms(1), height: ms(36), backgroundColor: 'rgba(255,255,255,0.20)' },
 
   insightRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 6,
-    minHeight: 34,
+    gap: ms(6),
+    minHeight: ms(34),
   },
-  insightIcon: { fontSize: 14, marginTop: 1 },
+  insightIcon: { fontSize: mf(14), marginTop: ms(1) },
   insightText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: mf(13),
     ...font.regular,
     color: 'rgba(255,255,255,0.88)',
-    lineHeight: 18,
+    lineHeight: mf(18),
   },
 
   ctaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: ms(4),
     alignSelf: 'flex-end',
   },
-  ctaText: { fontSize: 13, ...font.semibold, color: 'rgba(255,255,255,0.80)' },
+  ctaText: { fontSize: mf(13), ...font.semibold, color: 'rgba(255,255,255,0.80)' },
 });

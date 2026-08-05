@@ -8,6 +8,7 @@ import { type } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { Button } from './Button';
 
+import { ms } from '@utils/responsive';
 interface Props {
   icon?: keyof typeof Ionicons.glyphMap;
   title: string;
@@ -20,7 +21,12 @@ interface Props {
 }
 
 export function EmptyState({
-  icon, title, message, actionLabel, onAction, mode = 'empty',
+  icon,
+  title,
+  message,
+  actionLabel,
+  onAction,
+  mode = 'empty',
 }: Props): React.JSX.Element {
   const C = useThemedColors();
   const tint = mode === 'error' ? C.danger : C.textTertiary;
@@ -36,13 +42,9 @@ export function EmptyState({
           </View>
         )
       )}
-      <Text style={[type.subtitle, styles.title, { color: C.textPrimary }]}>
-        {title}
-      </Text>
+      <Text style={[type.subtitle, styles.title, { color: C.textPrimary }]}>{title}</Text>
       {message && (
-        <Text style={[type.bodyMd, styles.message, { color: C.textSecondary }]}>
-          {message}
-        </Text>
+        <Text style={[type.bodyMd, styles.message, { color: C.textSecondary }]}>{message}</Text>
       )}
       {actionLabel && onAction && (
         <View style={styles.actionWrap}>
@@ -61,14 +63,14 @@ const styles = StyleSheet.create({
     gap: sizes.sm,
   },
   iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: ms(56),
+    height: ms(56),
+    borderRadius: ms(28),
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: ms(4),
   },
-  title:      { textAlign: 'center' },
-  message:    { textAlign: 'center', maxWidth: 280 },
+  title: { textAlign: 'center' },
+  message: { textAlign: 'center', maxWidth: ms(280) },
   actionWrap: { marginTop: sizes.sm },
 });

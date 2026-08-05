@@ -16,6 +16,7 @@ import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
 
 type PasswordStrength = 'weak' | 'fair' | 'strong';
@@ -304,33 +305,33 @@ function makeStyles(C: ColorTokens) {
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: ms(8),
     },
     logoChip: {
-      width: 30,
-      height: 30,
-      borderRadius: 8,
+      width: ms(30),
+      height: ms(30),
+      borderRadius: ms(8),
       backgroundColor: C.secondary,
       alignItems: 'center',
       justifyContent: 'center',
     },
     brandName: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.bold,
       color: C.textPrimary,
       letterSpacing: -0.2,
     },
     headerBlock: {
-      gap: 4,
+      gap: ms(4),
     },
     title: {
-      fontSize: 28,
+      fontSize: mf(28),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.5,
     },
     subtitle: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
     },
@@ -338,32 +339,32 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surface,
     },
     passwordBlock: {
-      gap: 6,
+      gap: ms(6),
     },
     fieldError: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.regular,
       color: C.danger,
-      marginStart: 4,
+      marginStart: ms(4),
     },
     strengthRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: ms(8),
     },
     strengthBarBg: {
       flex: 1,
-      height: 4,
-      borderRadius: 2,
+      height: ms(4),
+      borderRadius: ms(2),
       backgroundColor: C.border,
       overflow: 'hidden',
     },
     strengthBarFill: {
-      height: 4,
-      borderRadius: 2,
+      height: ms(4),
+      borderRadius: ms(2),
     },
     strengthLabel: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.semibold,
     },
     error: {
@@ -373,14 +374,14 @@ function makeStyles(C: ColorTokens) {
     },
     ctaGroup: { gap: sizes.md },
     button: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       marginTop: sizes.xs,
     },
     buttonContent: {
-      height: 52,
+      height: ms(52),
     },
     buttonLabel: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
       letterSpacing: 0.2,
     },
@@ -391,7 +392,7 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
     },
     loginText: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',

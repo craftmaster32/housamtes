@@ -24,6 +24,7 @@ import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 import { formatDateDDMMYYYY } from '@utils/dates';
 
+import { mf, ms } from '@utils/responsive';
 type FilterType = 'all' | EntryType;
 
 // Areas carry an emoji in the store; render a line icon here instead so the
@@ -468,27 +469,27 @@ export function ConditionTab(): React.JSX.Element {
 
 const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
-    scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+    scroll: { padding: sizes.lg, paddingBottom: ms(60), gap: sizes.sm },
 
     statsStrip: {
       flexDirection: 'row',
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       borderWidth: 1,
       borderColor: C.border,
       padding: sizes.md,
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     } as never,
-    statItem: { flex: 1, alignItems: 'center', gap: 2 },
+    statItem: { flex: 1, alignItems: 'center', gap: ms(2) },
     statNum: { fontSize: sizes.fontLg, ...font.extrabold, color: C.textPrimary },
     statLbl: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
-    statDivider: { width: 1, backgroundColor: C.border, marginHorizontal: sizes.xs },
+    statDivider: { width: ms(1), backgroundColor: C.border, marginHorizontal: sizes.xs },
 
     addBtn: {
       borderWidth: 2,
       borderColor: C.primary + '40',
       borderStyle: 'dashed',
-      borderRadius: 14,
+      borderRadius: ms(14),
       paddingVertical: sizes.md,
       alignItems: 'center',
     },
@@ -497,7 +498,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     filterBar: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
     filterChip: {
       paddingHorizontal: sizes.md,
-      paddingVertical: 6,
+      paddingVertical: ms(6),
       borderRadius: sizes.borderRadiusFull,
       backgroundColor: C.surface,
       borderWidth: 1,
@@ -507,27 +508,27 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     filterChipText: { fontSize: sizes.fontSm, ...font.semibold, color: C.textSecondary },
     filterChipTextActive: { color: '#fff' },
 
-    areaGroup: { gap: 6 },
+    areaGroup: { gap: ms(6) },
     areaGroupHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: sizes.xs,
-      paddingVertical: 4,
+      paddingVertical: ms(4),
     },
     areaGroupIcon: {
-      width: 28,
-      height: 28,
-      borderRadius: 9,
+      width: ms(28),
+      height: ms(28),
+      borderRadius: ms(9),
       backgroundColor: C.primary + '15',
       alignItems: 'center',
       justifyContent: 'center',
     },
     areaGroupName: { fontSize: sizes.fontSm, ...font.bold, color: C.textPrimary, flex: 1 },
-    condDot: { width: 10, height: 10, borderRadius: 5 },
+    condDot: { width: ms(10), height: ms(10), borderRadius: ms(5) },
 
     entryCard: {
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: ms(12),
       borderWidth: 1,
       borderColor: C.border,
       padding: sizes.sm,
@@ -536,43 +537,43 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
     } as never,
     entryHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-    entryMeta: { flex: 1, gap: 3 },
+    entryMeta: { flex: 1, gap: ms(3) },
     entryBadgeRow: { flexDirection: 'row', gap: sizes.xs, flexWrap: 'wrap' },
     typeBadge: {
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.xs,
-      paddingVertical: 2,
+      paddingVertical: ms(2),
     },
-    typeBadgeText: { fontSize: 11, ...font.bold },
+    typeBadgeText: { fontSize: mf(11), ...font.bold },
     condBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
+      gap: ms(5),
       borderRadius: sizes.borderRadiusFull,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+      paddingHorizontal: ms(8),
+      paddingVertical: ms(3),
     },
-    condBadgeDot: { width: 6, height: 6, borderRadius: 3 },
-    condBadgeText: { fontSize: 11, ...font.bold },
+    condBadgeDot: { width: ms(6), height: ms(6), borderRadius: ms(3) },
+    condBadgeText: { fontSize: mf(11), ...font.bold },
     entryDate: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
     entryDescription: {
       fontSize: sizes.fontSm,
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 18,
+      lineHeight: mf(18),
       marginStart: sizes.lg + sizes.sm,
     },
-    photoRow: { marginStart: sizes.lg + sizes.sm, marginTop: 2 },
+    photoRow: { marginStart: sizes.lg + sizes.sm, marginTop: ms(2) },
     photoThumb: {
-      width: 80,
-      height: 80,
+      width: ms(80),
+      height: ms(80),
       borderRadius: sizes.borderRadiusSm,
       marginEnd: sizes.xs,
       borderWidth: 1,
       borderColor: C.border,
     },
     removeBtn: {
-      padding: 8,
+      padding: ms(8),
       minWidth: sizes.touchTarget,
       minHeight: sizes.touchTarget,
       justifyContent: 'center',
@@ -581,14 +582,14 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
 
     form: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       padding: sizes.md,
       gap: sizes.sm,
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     } as never,
-    formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
+    formTitle: { fontSize: mf(17), ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
     fieldLabel: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.semibold,
       color: C.textSecondary,
       textTransform: 'uppercase',
@@ -597,7 +598,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
     chip: {
       paddingHorizontal: sizes.sm,
-      paddingVertical: 6,
+      paddingVertical: ms(6),
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,
       borderColor: C.border,
@@ -610,9 +611,9 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     areaChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: ms(4),
       paddingHorizontal: sizes.sm,
-      paddingVertical: 6,
+      paddingVertical: ms(6),
       borderRadius: sizes.borderRadiusSm,
       borderWidth: 1,
       borderColor: C.border,
@@ -623,7 +624,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     areaChipTextActive: { color: C.primary, ...font.bold },
     condChip: {
       paddingHorizontal: sizes.sm,
-      paddingVertical: 6,
+      paddingVertical: ms(6),
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 2,
       backgroundColor: C.surface,
@@ -641,7 +642,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       color: C.textPrimary,
       ...font.regular,
     },
-    inputMultiline: { height: 80, textAlignVertical: 'top' },
+    inputMultiline: { height: ms(80), textAlignVertical: 'top' },
     saveError: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
     formActions: {
       flexDirection: 'row',
@@ -652,7 +653,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     cancelBtn: {
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
-      borderRadius: 12,
+      borderRadius: ms(12),
       borderWidth: 1,
       borderColor: C.border,
     },
@@ -661,7 +662,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       backgroundColor: C.primary,
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
-      borderRadius: 12,
+      borderRadius: ms(12),
     },
     saveBtnDisabled: { backgroundColor: C.textDisabled },
     saveBtnText: { color: '#fff', ...font.semibold },
@@ -673,12 +674,12 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ms(20) },
     errorBanner: {
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
+      borderRadius: ms(10),
       padding: sizes.sm,
       borderWidth: 1,
       borderColor: C.danger + '40',

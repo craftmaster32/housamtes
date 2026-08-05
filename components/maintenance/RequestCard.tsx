@@ -19,6 +19,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 interface RequestCardProps {
   request: MaintenanceRequest;
   myId: string;
@@ -38,19 +39,19 @@ const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     card: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       padding: sizes.md,
       gap: sizes.sm,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     cardResolved: { opacity: 0.65 },
     cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-    cardIcon: { width: 28, alignItems: 'center', paddingTop: 1 },
-    cardInfo: { flex: 1, gap: 2 },
+    cardIcon: { width: ms(28), alignItems: 'center', paddingTop: ms(1) },
+    cardInfo: { flex: 1, gap: ms(2) },
     cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
     cardTitleResolved: { textDecorationLine: 'line-through', color: C.textSecondary },
     cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
@@ -64,20 +65,20 @@ const makeStyles = (C: ColorTokens) =>
       fontSize: sizes.fontSm,
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
     cardFooter: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
     statusBadge: {
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.sm,
-      paddingVertical: 4,
+      paddingVertical: ms(4),
     },
     statusText: { fontSize: sizes.fontXs, ...font.bold },
     advanceBtn: {
       backgroundColor: C.primary + '15',
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.md,
-      paddingVertical: 5,
+      paddingVertical: ms(5),
       minHeight: sizes.touchTarget,
       justifyContent: 'center',
     },
@@ -87,7 +88,7 @@ const makeStyles = (C: ColorTokens) =>
       borderColor: C.border,
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.md,
-      paddingVertical: 4,
+      paddingVertical: ms(4),
       minHeight: sizes.touchTarget,
       justifyContent: 'center',
     },

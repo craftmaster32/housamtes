@@ -13,6 +13,7 @@ import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 export default function VerifyEmailScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const pendingEmail = useAuthStore((s) => s.pendingEmail);
@@ -206,15 +207,15 @@ function makeStyles(C: ColorTokens) {
       flex: 1,
       backgroundColor: C.surface,
       paddingHorizontal: sizes.lg,
-      paddingTop: 24,
-      paddingBottom: 40,
+      paddingTop: ms(24),
+      paddingBottom: ms(40),
       alignItems: 'center',
-      gap: 20,
+      gap: ms(20),
     },
     envelopeWrap: {
-      width: 88,
-      height: 88,
-      borderRadius: 26,
+      width: ms(88),
+      height: ms(88),
+      borderRadius: ms(26),
       backgroundColor: C.secondary,
       justifyContent: 'center',
       alignItems: 'center',
@@ -222,36 +223,36 @@ function makeStyles(C: ColorTokens) {
     },
     checkBadge: {
       position: 'absolute',
-      bottom: -4,
-      end: -4,
+      bottom: ms(-4),
+      end: ms(-4),
       backgroundColor: C.surface,
-      borderRadius: 12,
-      padding: 2,
+      borderRadius: ms(12),
+      padding: ms(2),
     },
     textBlock: {
       alignItems: 'center',
-      gap: 8,
+      gap: ms(8),
     },
     heading: {
-      fontSize: 24,
+      fontSize: mf(24),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.3,
       textAlign: 'center',
     },
     bodyText: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
     hintText: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textTertiary,
       textAlign: 'center',
-      marginTop: 4,
+      marginTop: ms(4),
     },
     errorText: {
       fontSize: sizes.fontXs,
@@ -266,12 +267,12 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: 'rgba(79,176,113,0.1)',
       paddingVertical: sizes.xs,
       paddingHorizontal: sizes.md,
-      borderRadius: 10,
+      borderRadius: ms(10),
     },
     resentText: {
       color: C.success,
       ...font.semibold,
-      fontSize: 14,
+      fontSize: mf(14),
     },
     codeInput: {
       width: '100%',
@@ -279,16 +280,16 @@ function makeStyles(C: ColorTokens) {
       letterSpacing: 4,
     },
     verifyButton: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       width: '100%',
     },
     ghostButton: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       width: '100%',
       borderColor: C.border,
       borderWidth: 1.5,
     },
-    buttonContent: { height: 52 },
+    buttonContent: { height: ms(52) },
     buttonLabel: {
       fontSize: sizes.fontMd,
       ...font.semibold,

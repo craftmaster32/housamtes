@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemedColors } from '@constants/colors';
 import { type } from '@constants/typography';
 
+import { ms } from '@utils/responsive';
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
@@ -29,18 +30,26 @@ interface Props {
 }
 
 export function Button({
-  children, onPress, variant = 'primary', size = 'md',
-  icon, iconPosition = 'left', loading = false, disabled = false,
-  fullWidth = false, style, accessibilityLabel,
+  children,
+  onPress,
+  variant = 'primary',
+  size = 'md',
+  icon,
+  iconPosition = 'left',
+  loading = false,
+  disabled = false,
+  fullWidth = false,
+  style,
+  accessibilityLabel,
 }: Props): React.JSX.Element {
   const C = useThemedColors();
   const isDisabled = disabled || loading;
 
   const palette = {
-    primary:   { bg: C.primary,             fg: C.white,        bd: 'transparent' },
-    secondary: { bg: C.surface,             fg: C.textPrimary,  bd: C.border },
-    ghost:     { bg: 'transparent',         fg: C.primary,      bd: 'transparent' },
-    danger:    { bg: C.danger,              fg: C.white,        bd: 'transparent' },
+    primary: { bg: C.primary, fg: C.white, bd: 'transparent' },
+    secondary: { bg: C.surface, fg: C.textPrimary, bd: C.border },
+    ghost: { bg: 'transparent', fg: C.primary, bd: 'transparent' },
+    danger: { bg: C.danger, fg: C.white, bd: 'transparent' },
   }[variant];
 
   const iconNode = icon ? (
@@ -57,16 +66,16 @@ export function Button({
       style={({ pressed }) => [
         {
           height: HEIGHTS[size],
-          minWidth: 44,
+          minWidth: ms(44),
           paddingHorizontal: PADDING_X[size],
-          borderRadius: 999,
+          borderRadius: ms(999),
           backgroundColor: palette.bg,
           borderWidth: variant === 'secondary' ? 1 : 0,
           borderColor: palette.bd,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 8,
+          gap: ms(8),
           opacity: isDisabled ? 0.5 : pressed ? 0.85 : 1,
           alignSelf: fullWidth ? 'stretch' : 'flex-start',
         } as ViewStyle,

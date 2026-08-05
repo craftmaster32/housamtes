@@ -12,40 +12,41 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
 
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    scroll: { padding: sizes.lg, gap: sizes.md, paddingBottom: 60 },
+    scroll: { padding: sizes.lg, gap: sizes.md, paddingBottom: ms(60) },
     // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
     switchLtr: { writingDirection: 'ltr' } as ViewStyle,
 
-    header: { gap: 4, marginBottom: sizes.xs },
+    header: { gap: ms(4), marginBottom: sizes.xs },
     backBtn: { alignSelf: 'flex-start', marginBottom: sizes.sm },
-    backText: { color: C.primary, fontSize: 15, ...font.semibold },
-    heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    subheading: { fontSize: 14, ...font.regular, color: C.textSecondary, marginTop: 2 },
+    backText: { color: C.primary, fontSize: mf(15), ...font.semibold },
+    heading: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    subheading: { fontSize: mf(14), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
 
     sectionTitleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       marginTop: sizes.xs,
     },
     sectionTitle: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.semibold,
       color: C.textSecondary,
       letterSpacing: 0.5,
     },
     card: {
       backgroundColor: C.surface,
-      borderRadius: 14,
+      borderRadius: ms(14),
       overflow: 'hidden',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
@@ -55,13 +56,13 @@ const makeStyles = (C: ColorTokens) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: sizes.md,
-      paddingVertical: 14,
+      paddingVertical: ms(14),
       gap: sizes.md,
     },
     rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
     rowText: { flex: 1 },
-    rowLabel: { fontSize: 15, ...font.medium, color: C.textPrimary },
-    rowDesc: { fontSize: 12, ...font.regular, color: C.textSecondary, marginTop: 2 },
+    rowLabel: { fontSize: mf(15), ...font.medium, color: C.textPrimary },
+    rowDesc: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
 
     daysRow: {
       paddingHorizontal: sizes.md,
@@ -71,10 +72,10 @@ const makeStyles = (C: ColorTokens) =>
       borderTopColor: C.border,
       paddingTop: sizes.sm,
     },
-    daysLabel: { fontSize: 13, ...font.medium, color: C.textSecondary },
+    daysLabel: { fontSize: mf(13), ...font.medium, color: C.textSecondary },
     daysOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
     dayChip: {
-      paddingVertical: 7,
+      paddingVertical: ms(7),
       paddingHorizontal: sizes.sm,
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1.5,
@@ -82,16 +83,16 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.surface,
     },
     dayChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    dayChipText: { fontSize: 13, ...font.medium, color: C.textPrimary },
+    dayChipText: { fontSize: mf(13), ...font.medium, color: C.textPrimary },
     dayChipTextActive: { color: '#fff' },
 
     footer: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
       marginTop: sizes.sm,
-      lineHeight: 18,
+      lineHeight: mf(18),
     },
   });
 

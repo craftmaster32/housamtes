@@ -8,6 +8,7 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 interface PhotoPickerProps {
   photos: string[]; // full data URLs
   onChange: (photos: string[]) => void;
@@ -72,7 +73,7 @@ export function PhotoPicker({
               <Pressable
                 style={styles.removeBtn}
                 onPress={() => removePhoto(i)}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel={t('photos.remove_photo')}
@@ -105,24 +106,24 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     thumbnailRow: { flexDirection: 'row' },
     thumbWrap: { position: 'relative', marginEnd: sizes.sm },
     thumb: {
-      width: 80,
-      height: 80,
+      width: ms(80),
+      height: ms(80),
       borderRadius: sizes.borderRadiusSm,
       borderWidth: 1,
       borderColor: C.border,
     },
     removeBtn: {
       position: 'absolute',
-      top: -6,
-      end: -6,
-      width: 20,
-      height: 20,
-      borderRadius: 10,
+      top: ms(-6),
+      end: ms(-6),
+      width: ms(20),
+      height: ms(20),
+      borderRadius: ms(10),
       backgroundColor: C.danger,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    removeBtnText: { color: C.white, fontSize: 10, fontWeight: '700' },
+    removeBtnText: { color: C.white, fontSize: mf(10), fontWeight: '700' },
     addBtn: {
       flexDirection: 'row',
       alignItems: 'center',

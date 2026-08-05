@@ -20,6 +20,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
 
 function localeFor(lang: string): string {
@@ -403,14 +404,14 @@ export function IssuesTab(): React.JSX.Element {
 
 const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
-    scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+    scroll: { padding: sizes.lg, paddingBottom: ms(60), gap: sizes.sm },
     listHeader: { gap: sizes.sm },
 
     addBtn: {
       borderWidth: 2,
       borderColor: C.primary + '40',
       borderStyle: 'dashed',
-      borderRadius: 14,
+      borderRadius: ms(14),
       paddingVertical: sizes.md,
       alignItems: 'center',
     },
@@ -418,7 +419,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
 
     card: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       borderWidth: 1,
       borderColor: C.border,
       padding: sizes.md,
@@ -426,23 +427,23 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     } as never,
     cardResolved: { opacity: 0.65 },
-    cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
+    cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: ms(11) },
     cardIcon: {
-      width: 38,
-      height: 38,
-      borderRadius: 11,
+      width: ms(38),
+      height: ms(38),
+      borderRadius: ms(11),
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
-    cardInfo: { flex: 1, gap: 2 },
+    cardInfo: { flex: 1, gap: ms(2) },
     cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
     cardTitleResolved: { textDecorationLine: 'line-through', color: C.textSecondary },
     cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
     removeBtn: {
-      padding: 4,
-      minWidth: 30,
-      minHeight: 30,
+      padding: ms(4),
+      minWidth: ms(30),
+      minHeight: ms(30),
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -450,20 +451,20 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       fontSize: sizes.fontSm,
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
     cardFooter: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
     statusBadge: {
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.sm,
-      paddingVertical: 4,
+      paddingVertical: ms(4),
     },
     statusText: { fontSize: sizes.fontXs, ...font.bold },
     advanceBtn: {
       backgroundColor: C.primary + '15',
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.md,
-      paddingVertical: 5,
+      paddingVertical: ms(5),
     },
     advanceBtnText: { color: C.primary, fontSize: sizes.fontSm, ...font.semibold },
     reopenBtn: {
@@ -471,22 +472,22 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       borderColor: C.border,
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.md,
-      paddingVertical: 4,
+      paddingVertical: ms(4),
     },
     reopenBtnText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.regular },
 
     form: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       borderWidth: 1,
       borderColor: C.border,
       padding: sizes.md,
       gap: sizes.sm,
       boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     } as never,
-    formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
+    formTitle: { fontSize: mf(17), ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
     fieldLabel: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.semibold,
       color: C.textSecondary,
       textTransform: 'uppercase',
@@ -497,10 +498,10 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: ms(4),
       paddingHorizontal: sizes.sm,
-      paddingVertical: 6,
-      minHeight: 44,
+      paddingVertical: ms(6),
+      minHeight: ms(44),
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,
       borderColor: C.border,
@@ -520,7 +521,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       color: C.textPrimary,
       ...font.regular,
     },
-    inputMultiline: { height: 80, textAlignVertical: 'top' },
+    inputMultiline: { height: ms(80), textAlignVertical: 'top' },
     formActions: {
       flexDirection: 'row',
       gap: sizes.sm,
@@ -530,7 +531,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     cancelBtn: {
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
-      borderRadius: 12,
+      borderRadius: ms(12),
       borderWidth: 1,
       borderColor: C.border,
     },
@@ -539,15 +540,15 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       backgroundColor: C.primary,
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
-      borderRadius: 12,
+      borderRadius: ms(12),
     },
     saveBtnDisabled: { backgroundColor: C.textDisabled },
     saveBtnText: { color: '#fff', ...font.semibold },
-    saveError: { color: C.danger, fontSize: 13, ...font.regular },
+    saveError: { color: C.danger, fontSize: mf(13), ...font.regular },
 
     resolvedToggle: {
       flexDirection: 'row',
-      gap: 6,
+      gap: ms(6),
       paddingVertical: sizes.sm,
       alignItems: 'center',
       justifyContent: 'center',
@@ -562,10 +563,10 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       color: C.textSecondary,
       textAlign: 'center',
     },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ms(20) },
     errorBanner: {
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
+      borderRadius: ms(10),
       padding: sizes.sm,
       borderWidth: 1,
       borderColor: C.danger + '40',

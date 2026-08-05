@@ -16,6 +16,7 @@ import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+import { mf, ms } from '@utils/responsive';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface MenuItem {
@@ -221,17 +222,17 @@ export function ProfilePopup(): React.JSX.Element {
 const styles = StyleSheet.create({
   panel: {
     position: 'absolute',
-    width: 220,
+    width: ms(220),
     borderRadius: sizes.borderRadiusLg,
     paddingVertical: sizes.xs,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: ms(8) },
     shadowOpacity: 0.28,
     shadowRadius: 20,
     elevation: 24,
   },
-  panelRight: { right: 16 },
-  panelLeft: { left: 16 },
+  panelRight: { right: ms(16) },
+  panelLeft: { left: ms(16) },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,18 +244,18 @@ const styles = StyleSheet.create({
     marginBottom: sizes.xs,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: ms(36),
+    height: ms(36),
+    borderRadius: ms(18),
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  avatarImg: { width: 36, height: 36 },
-  avatarInitial: { fontSize: 15, ...font.bold },
+  avatarImg: { width: ms(36), height: ms(36) },
+  avatarInitial: { fontSize: mf(15), ...font.bold },
   headerText: { flex: 1 },
   headerName: { fontSize: sizes.fontSm, ...font.semibold },
-  headerEmail: { fontSize: sizes.fontXs, ...font.regular, marginTop: 1 },
+  headerEmail: { fontSize: sizes.fontXs, ...font.regular, marginTop: ms(1) },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -264,6 +265,6 @@ const styles = StyleSheet.create({
     minHeight: sizes.touchTarget,
   },
   rowPressed: { opacity: 0.6 },
-  rowIcon: { width: 20, textAlign: 'center' },
+  rowIcon: { width: ms(20), textAlign: 'center' },
   rowLabel: { flex: 1, fontSize: sizes.fontSm, ...font.medium },
 });

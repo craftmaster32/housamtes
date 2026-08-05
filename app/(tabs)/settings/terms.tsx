@@ -12,20 +12,21 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 
+import { mf, ms } from '@utils/responsive';
 const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    header: { padding: sizes.lg, gap: 4 },
+    header: { padding: sizes.lg, gap: ms(4) },
     backBtn: { marginBottom: sizes.sm },
     backRow: { flexDirection: 'row', alignItems: 'center' },
-    backText: { color: C.primary, fontSize: 15, ...font.medium },
-    heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
-    updated: { color: C.textSecondary, fontSize: 13, ...font.regular },
+    backText: { color: C.primary, fontSize: mf(15), ...font.medium },
+    heading: { fontSize: mf(24), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
+    updated: { color: C.textSecondary, fontSize: mf(13), ...font.regular },
     content: { paddingHorizontal: sizes.lg, paddingBottom: sizes.xxl, gap: sizes.lg },
     section: { gap: sizes.xs },
-    sectionTitle: { fontSize: 15, ...font.bold, color: C.textPrimary },
-    body: { fontSize: 14, ...font.regular, color: C.textSecondary, lineHeight: 22 },
+    sectionTitle: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
+    body: { fontSize: mf(14), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
   });
 
 function Section({ title, children }: { title: string; children: string }): React.JSX.Element {
@@ -58,7 +59,7 @@ export default function TermsScreen(): React.JSX.Element {
           <Pressable
             onPress={handleBackPress}
             style={styles.backBtn}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('legal.go_back')}

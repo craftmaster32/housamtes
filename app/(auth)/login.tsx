@@ -17,6 +17,7 @@ import { isRTL } from '@lib/i18n';
 import { Entrance } from '@components/shared/Entrance';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
 
@@ -230,51 +231,51 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     header: {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
-      paddingBottom: 28,
+      paddingBottom: ms(28),
     },
     headerInner: {
-      gap: 6,
+      gap: ms(6),
     },
     backBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
+      gap: ms(2),
       alignSelf: 'flex-start',
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xs,
       minHeight: sizes.touchTarget,
       marginTop: sizes.xs,
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
     backText: {
-      fontSize: 15.5,
+      fontSize: mf(15.5),
       ...font.medium,
       color: 'rgba(255,255,255,0.85)',
     },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: ms(10),
     },
     logoChip: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+      width: ms(36),
+      height: ms(36),
+      borderRadius: ms(10),
       backgroundColor: 'rgba(255,255,255,0.92)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     brandName: {
-      fontSize: 20,
+      fontSize: mf(20),
       ...font.bold,
       color: '#fff',
       letterSpacing: -0.3,
     },
     headerTagline: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: 'rgba(255,255,255,0.65)',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
     cardWrapper: {
       flex: 1,
@@ -283,14 +284,14 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     card: {
       flex: 1,
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: ms(28),
+      borderTopRightRadius: ms(28),
     },
     cardContent: {
       flexGrow: 1,
       paddingHorizontal: sizes.lg,
-      paddingTop: 32,
-      paddingBottom: 24,
+      paddingTop: ms(32),
+      paddingBottom: ms(24),
     },
     cardInner: { gap: sizes.md },
     input: {
@@ -303,7 +304,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       justifyContent: 'center',
     },
     forgotText: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.medium,
       color: C.primary,
     },
@@ -313,14 +314,14 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       fontSize: sizes.fontSm,
     },
     button: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       marginTop: sizes.xs,
     },
     buttonContent: {
-      height: 52,
+      height: ms(52),
     },
     buttonLabel: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
       letterSpacing: 0.2,
     },
@@ -331,7 +332,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       justifyContent: 'center',
     },
     signupText: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',

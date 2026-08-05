@@ -7,6 +7,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+import { ms } from '@utils/responsive';
 interface CategoryPickerProps {
   value: string;
   onChange: (category: string) => void;
@@ -19,9 +20,9 @@ const makeStyles = (C: ColorTokens) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: ms(4),
       paddingHorizontal: sizes.sm,
-      paddingVertical: 6,
+      paddingVertical: ms(6),
       minHeight: sizes.touchTarget,
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,

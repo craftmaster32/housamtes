@@ -15,6 +15,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 function timeAgo(iso: string, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86400000);
@@ -27,17 +28,22 @@ const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+    scroll: { padding: sizes.lg, paddingBottom: ms(60), gap: sizes.sm },
 
     pageHeader: { marginBottom: sizes.xs },
-    heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    headingSub: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, marginTop: 2 },
+    heading: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    headingSub: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      marginTop: ms(2),
+    },
 
     addBtn: {
       borderWidth: 2,
       borderColor: C.primary + '40',
       borderStyle: 'dashed',
-      borderRadius: 14,
+      borderRadius: ms(14),
       paddingVertical: sizes.md,
       alignItems: 'center',
     },
@@ -45,80 +51,85 @@ const makeStyles = (C: ColorTokens) =>
 
     card: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       padding: sizes.md,
       gap: sizes.sm,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     cardClosed: { opacity: 0.75 },
     cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-    cardInfo: { flex: 1, gap: 2 },
+    cardInfo: { flex: 1, gap: ms(2) },
     cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
     cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
     cardDescription: {
       fontSize: sizes.fontSm,
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
     openBadge: {
       backgroundColor: C.primary + '15',
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.sm,
-      paddingVertical: 3,
+      paddingVertical: ms(3),
     },
     openBadgeText: { fontSize: sizes.fontXs, color: C.primary, ...font.bold },
     resultBadge: {
       borderRadius: sizes.borderRadiusFull,
       paddingHorizontal: sizes.sm,
-      paddingVertical: 3,
+      paddingVertical: ms(3),
     },
     resultBadgeText: { fontSize: sizes.fontXs, ...font.bold },
-    removeBtn: { padding: 4 },
+    removeBtn: { padding: ms(4) },
 
     tallyMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
 
     // Poll bars (Yes / No) — tap to vote; the fill shows each side's share and
     // the voters' faces sit on it. Replaces the old tally + voter list + buttons.
-    poll: { gap: 10 },
+    poll: { gap: ms(10) },
     pollRow: {
       position: 'relative',
-      height: 48,
-      borderRadius: 12,
+      height: ms(48),
+      borderRadius: ms(12),
       backgroundColor: C.surfaceSecondary,
       overflow: 'hidden',
       justifyContent: 'center',
     },
-    pollFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 12 },
-    pollContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 13 },
+    pollFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: ms(12) },
+    pollContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(8),
+      paddingHorizontal: ms(13),
+    },
     pollIco: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
+      width: ms(24),
+      height: ms(24),
+      borderRadius: ms(12),
       alignItems: 'center',
       justifyContent: 'center',
     },
-    pollOpt: { fontSize: 15, ...font.extrabold },
-    pollFaces: { flexDirection: 'row', marginStart: 6 },
+    pollOpt: { fontSize: mf(15), ...font.extrabold },
+    pollFaces: { flexDirection: 'row', marginStart: ms(6) },
     pollFace: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
+      width: ms(22),
+      height: ms(22),
+      borderRadius: ms(11),
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      marginStart: -7,
+      marginStart: ms(-7),
       borderWidth: 2,
       borderColor: C.surface,
     },
-    pollFaceImg: { width: 22, height: 22 },
-    pollFaceText: { fontSize: 9, ...font.extrabold, color: '#fff' },
-    pollCount: { marginStart: 'auto' as never, fontSize: 16, ...font.extrabold },
-    pollMine: { marginStart: 6 },
+    pollFaceImg: { width: ms(22), height: ms(22) },
+    pollFaceText: { fontSize: mf(9), ...font.extrabold, color: '#fff' },
+    pollCount: { marginStart: 'auto' as never, fontSize: mf(16), ...font.extrabold },
+    pollMine: { marginStart: ms(6) },
 
     closeBtn: {
       paddingHorizontal: sizes.md,
@@ -129,7 +140,7 @@ const makeStyles = (C: ColorTokens) =>
     },
     closeBtnText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.regular },
     closeResultBtn: {
-      borderRadius: 12,
+      borderRadius: ms(12),
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.md,
       alignItems: 'center',
@@ -140,18 +151,18 @@ const makeStyles = (C: ColorTokens) =>
 
     form: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       padding: sizes.md,
       gap: sizes.sm,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    formTitle: { fontSize: 17, ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
+    formTitle: { fontSize: mf(17), ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
     fieldLabel: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.semibold,
       color: C.textSecondary,
       textTransform: 'uppercase',
@@ -168,7 +179,7 @@ const makeStyles = (C: ColorTokens) =>
       color: C.textPrimary,
       ...font.regular,
     },
-    inputMultiline: { height: 80, textAlignVertical: 'top' },
+    inputMultiline: { height: ms(80), textAlignVertical: 'top' },
     formActions: {
       flexDirection: 'row',
       gap: sizes.sm,
@@ -178,7 +189,7 @@ const makeStyles = (C: ColorTokens) =>
     cancelBtn: {
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
-      borderRadius: 12,
+      borderRadius: ms(12),
       borderWidth: 1,
       borderColor: C.border,
     },
@@ -187,15 +198,15 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.primary,
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
-      borderRadius: 12,
+      borderRadius: ms(12),
     },
     saveBtnDisabled: { backgroundColor: C.textDisabled },
     saveBtnText: { color: '#fff', ...font.semibold },
-    saveError: { color: C.danger, fontSize: 13, ...font.regular },
+    saveError: { color: C.danger, fontSize: mf(13), ...font.regular },
 
     closedToggle: {
       flexDirection: 'row',
-      gap: 6,
+      gap: ms(6),
       paddingVertical: sizes.sm,
       alignItems: 'center',
       justifyContent: 'center',
@@ -210,10 +221,10 @@ const makeStyles = (C: ColorTokens) =>
       color: C.textSecondary,
       textAlign: 'center',
     },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ms(20) },
     errorBanner: {
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
+      borderRadius: ms(10),
       padding: sizes.sm,
       borderWidth: 1,
       borderColor: C.danger + '40',

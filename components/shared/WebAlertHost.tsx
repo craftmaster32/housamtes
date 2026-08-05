@@ -3,6 +3,7 @@ import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
+import { mf, ms } from '@utils/responsive';
 import {
   subscribeWebAlert,
   getWebAlertSnapshot,
@@ -75,22 +76,22 @@ export function WebAlertHost(): React.JSX.Element | null {
 function makeStyles(): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-    centerer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+    centerer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: ms(24) },
     sheet: {
       width: '100%',
-      maxWidth: 400,
-      borderRadius: 16,
-      padding: 20,
-      gap: 4,
+      maxWidth: ms(400),
+      borderRadius: ms(16),
+      padding: ms(20),
+      gap: ms(4),
     },
-    title: { fontSize: 17, ...font.bold, marginBottom: 4 },
-    message: { fontSize: 14, ...font.regular, marginBottom: 12 },
+    title: { fontSize: mf(17), ...font.bold, marginBottom: ms(4) },
+    message: { fontSize: mf(14), ...font.regular, marginBottom: ms(12) },
     btn: {
-      minHeight: 48,
+      minHeight: ms(48),
       justifyContent: 'center',
-      paddingHorizontal: 4,
+      paddingHorizontal: ms(4),
       borderTopWidth: StyleSheet.hairlineWidth,
     },
-    btnText: { fontSize: 15, ...font.medium },
+    btnText: { fontSize: mf(15), ...font.medium },
   });
 }

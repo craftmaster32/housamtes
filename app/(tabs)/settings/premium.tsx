@@ -15,6 +15,7 @@ import { isRTL } from '@lib/i18n';
 import { useEntitlementsStore, PREMIUM_FEATURES } from '@stores/entitlementsStore';
 import { PREMIUM_ENABLED } from '@constants/featureFlags';
 
+import { mf, ms } from '@utils/responsive';
 // Paywall / upgrade screen. Purely structural for now: no payment SDK is
 // wired up, so the upgrade button explains that purchases aren't live yet.
 // MONETIZATION: connect the buttons to the real IAP flow (RevenueCat /
@@ -68,7 +69,7 @@ export default function PremiumScreen(): React.JSX.Element {
           <Pressable
             onPress={handleBack}
             style={styles.backBtn}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
@@ -196,32 +197,32 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     flex: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: { paddingHorizontal: sizes.lg, paddingTop: sizes.sm },
-    backBtn: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
-    backRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-    backText: { fontSize: 15, ...font.semibold, color: C.primary },
+    backBtn: { alignSelf: 'flex-start', minHeight: ms(44), justifyContent: 'center' },
+    backRow: { flexDirection: 'row', alignItems: 'center', gap: ms(2) },
+    backText: { fontSize: mf(15), ...font.semibold, color: C.primary },
     content: { padding: sizes.lg, gap: sizes.sm, paddingBottom: sizes.xl },
 
     hero: { alignItems: 'center', gap: sizes.xs, marginBottom: sizes.sm },
     heroIconWrap: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
+      width: ms(64),
+      height: ms(64),
+      borderRadius: ms(32),
       backgroundColor: C.primary + '18',
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: sizes.xs,
     },
-    heroTitle: { fontSize: 24, ...font.extrabold, color: C.textPrimary, textAlign: 'center' },
+    heroTitle: { fontSize: mf(24), ...font.extrabold, color: C.textPrimary, textAlign: 'center' },
     heroSubtitle: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
 
     sectionLabel: {
-      fontSize: 12,
+      fontSize: mf(12),
       color: C.textSecondary,
       ...font.semibold,
       textTransform: 'uppercase',
@@ -231,10 +232,10 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     },
     card: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       overflow: 'hidden',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
@@ -247,40 +248,40 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       gap: sizes.md,
     },
     rowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
-    icon: { fontSize: 24, width: 32, textAlign: 'center' },
+    icon: { fontSize: mf(24), width: ms(32), textAlign: 'center' },
     featIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
+      width: ms(40),
+      height: ms(40),
+      borderRadius: ms(12),
       backgroundColor: C.primary + '15',
       alignItems: 'center',
       justifyContent: 'center',
     },
     info: { flex: 1 },
-    label: { fontSize: 16, color: C.textPrimary, ...font.semibold },
-    description: { fontSize: 13, color: C.textSecondary, ...font.regular, marginTop: 2 },
+    label: { fontSize: mf(16), color: C.textPrimary, ...font.semibold },
+    description: { fontSize: mf(13), color: C.textSecondary, ...font.regular, marginTop: ms(2) },
 
     upgradeBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8,
+      gap: ms(8),
       backgroundColor: C.primary,
-      borderRadius: 14,
-      minHeight: 52,
+      borderRadius: ms(14),
+      minHeight: ms(52),
       marginTop: sizes.md,
     },
     upgradeBtnPressed: { opacity: 0.85 },
-    upgradeBtnText: { fontSize: 16, ...font.bold, color: '#fff' },
+    upgradeBtnText: { fontSize: mf(16), ...font.bold, color: '#fff' },
     priceNote: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
       marginTop: sizes.xs,
     },
-    restoreBtn: { alignSelf: 'center', minHeight: 44, justifyContent: 'center' },
-    restoreBtnText: { fontSize: 14, ...font.semibold, color: C.primary },
+    restoreBtn: { alignSelf: 'center', minHeight: ms(44), justifyContent: 'center' },
+    restoreBtnText: { fontSize: mf(14), ...font.semibold, color: C.primary },
 
     devCard: { marginTop: sizes.lg, borderWidth: 1, borderColor: C.border, borderStyle: 'dashed' },
   });

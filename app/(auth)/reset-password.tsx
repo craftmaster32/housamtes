@@ -15,6 +15,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 export default function ResetPasswordScreen(): React.JSX.Element {
   const c = useThemedColors();
   const headingFont = useHeadingFont();
@@ -167,20 +168,20 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       marginBottom: sizes.xs,
     },
     header: {
-      gap: 4,
+      gap: ms(4),
       marginBottom: sizes.xs,
     },
     title: {
-      fontSize: 28,
+      fontSize: mf(28),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.5,
     },
     subtitle: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.medium,
       color: C.textSecondary,
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
     input: {
       backgroundColor: C.surface,
@@ -191,14 +192,14 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       fontSize: sizes.fontSm,
     },
     button: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       marginTop: sizes.sm,
     },
     buttonContent: {
-      height: 52,
+      height: ms(52),
     },
     buttonLabel: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
       letterSpacing: 0.2,
     },

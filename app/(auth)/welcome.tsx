@@ -14,8 +14,9 @@ import { font } from '@constants/typography';
 import { HouseSkyline } from '@components/shared/HouseSkyline';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
-const SKYLINE_HEIGHT = 90;
+const SKYLINE_HEIGHT = ms(90);
 
 export default function WelcomeScreen(): React.JSX.Element {
   const { t } = useTranslation();
@@ -129,21 +130,21 @@ function makeStyles(C: ColorTokens) {
     },
     moon: {
       position: 'absolute',
-      top: 54,
-      right: 40,
-      width: 26,
-      height: 26,
-      borderRadius: 13,
+      top: ms(54),
+      right: ms(40),
+      width: ms(26),
+      height: ms(26),
+      borderRadius: ms(13),
       backgroundColor: 'rgba(255,255,255,0.28)',
       overflow: 'hidden',
     },
     moonShadow: {
       position: 'absolute',
-      top: -6,
-      left: -10,
-      width: 26,
-      height: 26,
-      borderRadius: 13,
+      top: ms(-6),
+      left: ms(-10),
+      width: ms(26),
+      height: ms(26),
+      borderRadius: ms(13),
       backgroundColor: C.primary,
     },
     skylineWrap: {
@@ -155,15 +156,15 @@ function makeStyles(C: ColorTokens) {
       paddingHorizontal: sizes.md,
     },
     iconChip: {
-      width: 72,
-      height: 72,
-      borderRadius: 20,
+      width: ms(72),
+      height: ms(72),
+      borderRadius: ms(20),
       backgroundColor: 'rgba(255,255,255,0.92)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     appName: {
-      fontSize: 34,
+      fontSize: mf(34),
       ...font.extrabold,
       color: '#fff',
       letterSpacing: -1,
@@ -171,7 +172,7 @@ function makeStyles(C: ColorTokens) {
       textAlign: 'center',
     },
     tagline: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.regular,
       color: 'rgba(255,255,255,0.72)',
       textAlign: 'center',
@@ -179,39 +180,39 @@ function makeStyles(C: ColorTokens) {
     },
     card: {
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: ms(28),
+      borderTopRightRadius: ms(28),
       padding: sizes.xl,
-      paddingBottom: 40,
-      gap: 16,
+      paddingBottom: ms(40),
+      gap: ms(16),
     },
     cardHeading: {
-      fontSize: 26,
+      fontSize: mf(26),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.5,
     },
     cardBody: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 22,
+      lineHeight: mf(22),
       marginBottom: sizes.sm,
     },
     primaryButton: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 4 },
+      shadowOffset: { width: 0, height: ms(4) },
       shadowOpacity: 0.28,
       shadowRadius: 12,
       elevation: 4,
     },
     primaryButtonContent: {
-      height: 52,
+      height: ms(52),
       flexDirection: 'row-reverse',
     },
     primaryButtonLabel: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
     },
     loginLink: {
@@ -223,13 +224,13 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
     },
     loginLinkText: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
       color: C.textPrimary,
       textAlign: 'center',
     },
     terms: {
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.regular,
       color: C.textTertiary,
       textAlign: 'center',

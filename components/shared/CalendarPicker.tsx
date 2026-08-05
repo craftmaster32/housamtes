@@ -8,6 +8,7 @@ import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL, getFirstDayOfWeek } from '@lib/i18n';
 
+import { mf, ms } from '@utils/responsive';
 const MONTH_KEYS = [
   'cal_month_jan',
   'cal_month_feb',
@@ -139,7 +140,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps): React.
                 style={styles.dayCell}
                 onPress={() => onChange(ymd)}
                 // hitSlop lifts the effective tap target to ~44pt without changing the tight grid layout
-                hitSlop={{ top: 6, bottom: 6 }}
+                hitSlop={{ top: ms(6), bottom: ms(6) }}
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel={dayLabel}
@@ -176,47 +177,47 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     picker: {
       backgroundColor: C.surfaceSecondary,
-      borderRadius: 14,
+      borderRadius: ms(14),
       borderWidth: 1,
       borderColor: C.border,
-      padding: 10,
+      padding: ms(10),
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 6,
+      marginBottom: ms(6),
     },
     navBtn: {
-      width: 44,
-      height: 44,
+      width: ms(44),
+      height: ms(44),
       justifyContent: 'center',
       alignItems: 'center',
-      borderRadius: 22,
+      borderRadius: ms(22),
       backgroundColor: C.surface,
     },
-    monthLabel: { fontSize: 14, ...font.bold, color: C.textPrimary },
-    weekRow: { flexDirection: 'row', marginBottom: 2 },
+    monthLabel: { fontSize: mf(14), ...font.bold, color: C.textPrimary },
+    weekRow: { flexDirection: 'row', marginBottom: ms(2) },
     weekDay: {
       flex: 1,
       textAlign: 'center',
-      fontSize: 10,
+      fontSize: mf(10),
       ...font.bold,
       color: C.textSecondary,
-      paddingVertical: 2,
+      paddingVertical: ms(2),
     },
     gridRow: { flexDirection: 'row' },
-    dayCell: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+    dayCell: { flex: 1, alignItems: 'center', paddingVertical: ms(2) },
     dayInner: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: ms(32),
+      height: ms(32),
+      borderRadius: ms(16),
       justifyContent: 'center',
       alignItems: 'center',
     },
     daySelected: { backgroundColor: C.primary },
     dayToday: { backgroundColor: C.primary + '20' },
-    dayNum: { fontSize: 13, ...font.medium, color: C.textPrimary },
+    dayNum: { fontSize: mf(13), ...font.medium, color: C.textPrimary },
     dayFaint: { color: C.textDisabled },
     dayNumSelected: { color: '#fff', ...font.bold },
     dayNumToday: { color: C.primary, ...font.bold },
