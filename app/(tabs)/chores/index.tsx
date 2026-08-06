@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -460,7 +461,7 @@ export default function ChoresScreen(): React.JSX.Element {
               </View>
 
               {isLoading && chores.length === 0 && (
-                <ActivityIndicator size="small" color="#4F78B6" style={styles.loadingIndicator} />
+                <LoadingSpinner size={28} style={styles.loadingIndicator} />
               )}
               {!!storeError && (
                 <View style={styles.storeErrorBox}>

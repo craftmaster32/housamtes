@@ -33,6 +33,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
 import { getErrorMessage } from '@utils/errors';
 
@@ -579,7 +580,7 @@ export default function PhotosScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={styles.root}>
         <View style={styles.centered}>
-          <ActivityIndicator color={C.primary} />
+          <LoadingSpinner size={56} />
         </View>
       </SafeAreaView>
     );
@@ -682,7 +683,7 @@ export default function PhotosScreen(): React.JSX.Element {
         {isUploading && (
           <View style={styles.uploadOverlay} pointerEvents="auto">
             <View style={styles.uploadCard}>
-              <ActivityIndicator color={C.primary} />
+              <LoadingSpinner />
               <Text style={styles.uploadText}>
                 {uploadProgress.total > 1
                   ? t('photos.uploading_progress', {

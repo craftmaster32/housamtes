@@ -21,6 +21,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
 import { CountUpText } from '@components/shared/CountUpText';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 
 import { mf, ms } from '@utils/responsive';
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -668,7 +669,7 @@ export default function SpendingScreen(): React.JSX.Element {
       <SafeAreaView style={styles.container}>
         {pageHeader}
         <View style={styles.centered}>
-          <ActivityIndicator color={C.primary} />
+          <LoadingSpinner size={56} />
         </View>
       </SafeAreaView>
     );

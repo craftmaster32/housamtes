@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
-import { Text, ActivityIndicator } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -87,7 +88,7 @@ export default function PremiumScreen(): React.JSX.Element {
 
         {entitlementsLoading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color={C.primary} />
+            <LoadingSpinner size={56} />
           </View>
         ) : entitlementsError ? (
           <View style={styles.centered}>

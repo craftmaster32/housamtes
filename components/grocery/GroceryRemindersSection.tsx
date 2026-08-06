@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -89,7 +90,7 @@ export function GroceryRemindersSection({
 
       {expanded && (
         <View style={styles.body}>
-          {isLoading && <ActivityIndicator size="small" color={C.primary} style={styles.loader} />}
+          {isLoading && <LoadingSpinner size={28} style={styles.loader} />}
 
           {!isLoading && !!error && <Text style={styles.errorText}>{error}</Text>}
 

@@ -1,8 +1,9 @@
 // components/ui/EmptyState.tsx
 // Consistent empty + loading + error states. One component, three modes.
 
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { useThemedColors } from '@constants/colors';
 import { type } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -34,7 +35,7 @@ export function EmptyState({
   return (
     <View style={styles.container}>
       {mode === 'loading' ? (
-        <ActivityIndicator color={C.primary} />
+        <LoadingSpinner />
       ) : (
         icon && (
           <View style={[styles.iconWrap, { backgroundColor: tint + '14' }]}>

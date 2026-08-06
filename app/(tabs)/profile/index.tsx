@@ -11,6 +11,7 @@ import {
   type GestureResponderEvent,
 } from 'react-native';
 import { Entrance } from '@components/shared/Entrance';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -1196,7 +1197,7 @@ export default function ProfileScreen(): React.JSX.Element {
             )}
             {uploading && (
               <View style={styles.cropUploading}>
-                <ActivityIndicator color={C.primary} />
+                <LoadingSpinner />
                 <Text style={styles.cropUploadingText}>Uploading…</Text>
               </View>
             )}

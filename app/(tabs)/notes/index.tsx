@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -161,7 +162,7 @@ export default function NotesScreen(): React.JSX.Element {
               </View>
 
               {isLoading && notes.length === 0 && (
-                <ActivityIndicator size="small" color={C.primary} style={styles.loadingIndicator} />
+                <LoadingSpinner size={28} style={styles.loadingIndicator} />
               )}
               {!!storeError && (
                 <View style={styles.storeErrorBox}>

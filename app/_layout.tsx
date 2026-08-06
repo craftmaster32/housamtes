@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
-  ActivityIndicator,
   StyleSheet,
   PanResponder,
   AppState,
@@ -35,6 +34,7 @@ import { MorePopup } from '@components/shared/MorePopup';
 import { ProfilePopup } from '@components/shared/ProfilePopup';
 import { WebAlertHost } from '@components/shared/WebAlertHost';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { ChatFab } from '@components/shared/ChatFab';
 import { AdBanner } from '@components/premium/AdBanner';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
@@ -479,7 +479,11 @@ export default function RootLayout(): React.JSX.Element | null {
             <WebAlertHost />
             {(isLoading || !fontsLoaded) && (
               <View style={styles.splash}>
-                <ActivityIndicator size="large" color={darkColors.primary} />
+                <LoadingSpinner
+                  size={56}
+                  color={darkColors.primary}
+                  trackColor="rgba(255,255,255,0.15)"
+                />
               </View>
             )}
           </View>

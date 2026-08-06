@@ -34,6 +34,7 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, darkColors, type ColorTokens } from '@constants/colors';
 import { useLanguageStore } from '@stores/languageStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareModal';
@@ -1548,11 +1549,7 @@ export default function GroceryScreen(): React.JSX.Element {
 
                     {/* ── Load / error states ─────────────────────────────────── */}
                     {isLoading && items.length === 0 && (
-                      <ActivityIndicator
-                        size="small"
-                        color="#4F78B6"
-                        style={styles.loadingIndicator}
-                      />
+                      <LoadingSpinner size={28} style={styles.loadingIndicator} />
                     )}
                     {!!error && (
                       <View style={styles.errorBanner}>

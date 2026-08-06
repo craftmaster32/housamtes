@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Share } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Share } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -130,7 +131,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
         <View style={styles.card}>
           {isLoading ? (
             <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={C.primary} />
+              <LoadingSpinner size={28} />
             </View>
           ) : token ? (
             <>
