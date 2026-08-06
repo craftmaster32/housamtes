@@ -533,6 +533,8 @@ export default function PhotosScreen(): React.JSX.Element {
                 source={{ uri: photo.url, cacheKey: photo.id }}
                 style={styles.gridImg}
                 contentFit="cover"
+                recyclingKey={photo.id}
+                transition={100}
                 accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
               />
               {isSelectMode && isSelected && (
@@ -660,6 +662,10 @@ export default function PhotosScreen(): React.JSX.Element {
           stickySectionHeadersEnabled={false}
           ListEmptyComponent={EmptyComponent}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={5}
+          maxToRenderPerBatch={6}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
         />
 
         {viewIndex >= 0 && (

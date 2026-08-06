@@ -65,6 +65,23 @@ interface PhotoStore {
 
 const BUCKET = 'house-photos';
 
+// Signed URLs are valid for 7 days. Cache them per object path so re-opening
+// the gallery, a realtime change, or a foreground refresh doesn't re-sign every
+// photo on every load — only new (or soon-to-expire) paths hit the network.
+// This is the main cost of load(): without it, the whole grid waits on a
+// createSignedUrls round-trip each time even though nothing changed.
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+// Re-sign once a cached URL is within a day of expiry so we never hand out one
+// that's about to die mid-view.
+const SIGN_REFRESH_BEFORE_MS = 60 * 60 * 24 * 1000; // 1 day
+const _signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+// Exposed for tests so the module-level signed-URL cache can be reset between
+// cases. Not used by the app.
+export function __resetSignedUrlCache(): void {
+  _signedUrlCache.clear();
+}
+
 let _channel: ReturnType<typeof supabase.channel> | null = null;
 let _channelHouseId: string | null = null;
 // Bumped on every load() and unsubscribe(). An in-flight load compares its own
@@ -95,20 +112,38 @@ export const usePhotoStore = create<PhotoStore>()(
           if (error) throw error;
           const rows = data ?? [];
 
-          // Sign all photo URLs in one batch — the bucket is private, so the
-          // stored URL is only usable as a path reference, not for display.
+          // Sign photo URLs — the bucket is private, so the stored URL is only
+          // usable as a path reference, not for display. Reuse still-valid
+          // signed URLs from the cache and only sign the paths we don't already
+          // hold (new uploads, or ones nearing expiry) in one batch.
           const paths = rows.map((r) => storagePathFromUrl(r.url));
           const validPaths = paths.filter((p): p is string => p !== null);
           const signedByPath = new Map<string, string>();
-          if (validPaths.length > 0) {
+          const now = Date.now();
+          const pathsToSign: string[] = [];
+          for (const p of validPaths) {
+            const cached = _signedUrlCache.get(p);
+            if (cached && cached.expiresAt - SIGN_REFRESH_BEFORE_MS > now) {
+              signedByPath.set(p, cached.url);
+            } else if (!pathsToSign.includes(p)) {
+              pathsToSign.push(p);
+            }
+          }
+          if (pathsToSign.length > 0) {
             const { data: signed, error: signError } = await supabase.storage
               .from(BUCKET)
-              .createSignedUrls(validPaths, 60 * 60 * 24 * 7);
+              .createSignedUrls(pathsToSign, SIGNED_URL_TTL_SECONDS);
             if (signError) {
               captureError(signError, { store: 'photos', context: 'sign-urls', houseId });
             }
             for (const s of signed ?? []) {
-              if (s.path && s.signedUrl) signedByPath.set(s.path, s.signedUrl);
+              if (s.path && s.signedUrl) {
+                signedByPath.set(s.path, s.signedUrl);
+                _signedUrlCache.set(s.path, {
+                  url: s.signedUrl,
+                  expiresAt: now + SIGNED_URL_TTL_SECONDS * 1000,
+                });
+              }
             }
           }
 

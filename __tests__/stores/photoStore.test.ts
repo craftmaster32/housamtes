@@ -6,7 +6,7 @@
  * raw object path (storagePath) so deletes target the right file.
  */
 
-import { usePhotoStore, storagePathFromUrl } from '../../stores/photoStore';
+import { usePhotoStore, storagePathFromUrl, __resetSignedUrlCache } from '../../stores/photoStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
@@ -52,6 +52,7 @@ const row = (id: string, path: string): Record<string, unknown> => ({
 
 beforeEach(() => {
   usePhotoStore.setState({ photos: [], isLoading: true });
+  __resetSignedUrlCache();
   jest.clearAllMocks();
 });
 
@@ -117,6 +118,53 @@ describe('photoStore — load', () => {
     expect(photos[0].url).toBe(`${BASE}/house-1/111_a.jpg`);
     expect(photos[0].storagePath).toBe('house-1/111_a.jpg');
     expect(usePhotoStore.getState().isLoading).toBe(false);
+  });
+
+  it('reuses cached signed URLs on a second load instead of re-signing', async () => {
+    mockFrom.mockReturnValue(ok([row('p1', 'house-1/111_a.jpg'), row('p2', 'house-1/222_b.jpg')]));
+    mockCreateSignedUrls.mockResolvedValue({
+      data: [
+        { path: 'house-1/111_a.jpg', signedUrl: 'https://signed/a', error: null },
+        { path: 'house-1/222_b.jpg', signedUrl: 'https://signed/b', error: null },
+      ],
+      error: null,
+    });
+
+    await usePhotoStore.getState().load('house-1');
+    expect(mockCreateSignedUrls).toHaveBeenCalledTimes(1);
+
+    // Same photos come back on the next load — nothing new to sign.
+    await usePhotoStore.getState().load('house-1');
+    expect(mockCreateSignedUrls).toHaveBeenCalledTimes(1);
+    expect(usePhotoStore.getState().photos[0].url).toBe('https://signed/a');
+    expect(usePhotoStore.getState().photos[1].url).toBe('https://signed/b');
+  });
+
+  it('signs only the newly added path when the rest are cached', async () => {
+    mockFrom.mockReturnValueOnce(ok([row('p1', 'house-1/111_a.jpg')]));
+    mockCreateSignedUrls.mockResolvedValueOnce({
+      data: [{ path: 'house-1/111_a.jpg', signedUrl: 'https://signed/a', error: null }],
+      error: null,
+    });
+    await usePhotoStore.getState().load('house-1');
+
+    // A new photo is added; only its path should be signed on the next load.
+    mockFrom.mockReturnValueOnce(
+      ok([row('p2', 'house-1/222_b.jpg'), row('p1', 'house-1/111_a.jpg')])
+    );
+    mockCreateSignedUrls.mockResolvedValueOnce({
+      data: [{ path: 'house-1/222_b.jpg', signedUrl: 'https://signed/b', error: null }],
+      error: null,
+    });
+    await usePhotoStore.getState().load('house-1');
+
+    expect(mockCreateSignedUrls).toHaveBeenLastCalledWith(
+      ['house-1/222_b.jpg'],
+      expect.any(Number)
+    );
+    const photos = usePhotoStore.getState().photos;
+    expect(photos.find((p) => p.id === 'p1')?.url).toBe('https://signed/a');
+    expect(photos.find((p) => p.id === 'p2')?.url).toBe('https://signed/b');
   });
 
   it('keeps loading state consistent on DB error', async () => {
