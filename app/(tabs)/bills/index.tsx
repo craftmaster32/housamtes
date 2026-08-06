@@ -406,22 +406,6 @@ export default function BillsScreen(): React.JSX.Element {
             {t('bills.page_subtitle')}
           </Text>
         </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.addBtn,
-            {
-              backgroundColor: c.primary,
-              transform: [{ scale: pressed ? 0.96 : 1 }],
-              opacity: pressed ? 0.88 : 1,
-            },
-          ]}
-          onPress={() => router.push('/(tabs)/bills/add')}
-          accessibilityRole="button"
-          accessibilityLabel={t('bills.add_new_expense')}
-        >
-          <Ionicons name="add" size={18} color="#fff" />
-          <Text style={styles.addBtnText}>{t('bills.add_expense')}</Text>
-        </Pressable>
       </View>
 
       <View
@@ -731,21 +715,6 @@ const styles = StyleSheet.create({
   pageHeaderText: { flexShrink: 1, minWidth: 0 },
   pageTitle: { fontSize: mf(28), ...font.extrabold, letterSpacing: -0.8 },
   pageSubtitle: { fontSize: mf(13), ...font.regular, marginTop: ms(2) },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 0,
-    gap: ms(6),
-    paddingVertical: ms(11),
-    paddingHorizontal: ms(16),
-    borderRadius: ms(12),
-    shadowColor: '#4F78B6',
-    shadowOffset: { width: 0, height: ms(4) },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  addBtnText: { fontSize: mf(14), ...font.semibold, color: '#fff' },
 
   // ── Balance + settle (merged card)
   balanceCard: {
