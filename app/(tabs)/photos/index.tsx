@@ -420,7 +420,11 @@ export default function PhotosScreen(): React.JSX.Element {
   const limit = photoLimit();
   // The upsell card only appears once premium is live (constants/featureFlags.ts).
   const atPhotoLimit =
-    PREMIUM_ENABLED && !entitlementsLoading && !isPremium && limit !== null && photos.length >= limit;
+    PREMIUM_ENABLED &&
+    !entitlementsLoading &&
+    !isPremium &&
+    limit !== null &&
+    photos.length >= limit;
 
   const handleDelete = useCallback(
     (photo: Photo): void => {
@@ -502,6 +506,8 @@ export default function PhotosScreen(): React.JSX.Element {
                 source={{ uri: photo.url, cacheKey: photo.id }}
                 style={styles.gridImg}
                 contentFit="cover"
+                recyclingKey={photo.id}
+                transition={100}
                 accessibilityLabel={photo.caption ?? `Photo by ${photo.uploadedBy}`}
               />
               {isSelectMode && isSelected && (
@@ -624,6 +630,10 @@ export default function PhotosScreen(): React.JSX.Element {
           stickySectionHeadersEnabled={false}
           ListEmptyComponent={EmptyComponent}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={5}
+          maxToRenderPerBatch={6}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
         />
 
         {viewIndex >= 0 && (
