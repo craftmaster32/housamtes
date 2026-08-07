@@ -15,6 +15,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { useMemberName } from '@hooks/useMemberName';
+import { localizeCategoryName } from '@utils/categoryName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { Money } from '@components/shared/Money';
@@ -366,13 +367,7 @@ export default function BillDetailScreen(): React.JSX.Element {
                       color={C.primary}
                     />
                   </View>
-                  <Text style={styles.metaValue}>
-                    {bill.category
-                      ? t(`bills.cat_${bill.category.toLowerCase()}`, {
-                          defaultValue: bill.category,
-                        })
-                      : t('bills.cat_other')}
-                  </Text>
+                  <Text style={styles.metaValue}>{localizeCategoryName(bill.category, t)}</Text>
                 </View>
               </View>
               <View style={styles.metaRow}>

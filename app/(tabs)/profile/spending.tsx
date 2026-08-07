@@ -22,6 +22,7 @@ import { isRTL } from '@lib/i18n';
 import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
 import { CountUpText } from '@components/shared/CountUpText';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { localizeCategoryName } from '@utils/categoryName';
 
 import { mf, ms } from '@utils/responsive';
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -371,6 +372,7 @@ function CategoryRow({
   const isUp = pct !== null && pct > 0;
   const barPct = sectionTotal > 0 ? Math.round((cat.amount / sectionTotal) * 100) : 0;
   const canExpand = drillDownItems.length > 0;
+  const displayName = localizeCategoryName(cat.name, t);
 
   const handlePress = useCallback(() => {
     if (canExpand) onToggle(cat.name);
@@ -382,7 +384,7 @@ function CategoryRow({
       onPress={canExpand ? handlePress : undefined}
       accessible
       accessibilityRole={canExpand ? 'button' : 'none'}
-      accessibilityLabel={`${cat.name}, ${fmtFull(cat.amount, currency)}${canExpand ? `, ${t('spending.tap_details')}` : ''}`}
+      accessibilityLabel={`${displayName}, ${fmtFull(cat.amount, currency)}${canExpand ? `, ${t('spending.tap_details')}` : ''}`}
       accessibilityState={canExpand ? { expanded: isExpanded } : undefined}
     >
       <View style={[styles.catIcon, { backgroundColor: cat.color + '18' }]}>
@@ -390,7 +392,7 @@ function CategoryRow({
       </View>
       <View style={styles.catInfo}>
         <View style={styles.catTopRow}>
-          <Text style={styles.catName}>{cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}</Text>
+          <Text style={styles.catName}>{displayName}</Text>
           <View style={styles.catAmtGroup}>
             <Text style={styles.catAmt}>{fmtFull(cat.amount, currency)}</Text>
             {pct !== null && (
