@@ -479,11 +479,7 @@ export default function RootLayout(): React.JSX.Element | null {
             <WebAlertHost />
             {(isLoading || !fontsLoaded) && (
               <View style={styles.splash}>
-                <LoadingSpinner
-                  size={56}
-                  color={darkColors.primary}
-                  trackColor="rgba(255,255,255,0.15)"
-                />
+                <LoadingSpinner size={140} color={darkColors.primary} />
               </View>
             )}
           </View>

@@ -580,7 +580,7 @@ export default function PhotosScreen(): React.JSX.Element {
     return (
       <SafeAreaView style={styles.root}>
         <View style={styles.centered}>
-          <LoadingSpinner size={56} />
+          <LoadingSpinner size={140} />
         </View>
       </SafeAreaView>
     );

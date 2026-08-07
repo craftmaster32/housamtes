@@ -461,7 +461,7 @@ export default function ChoresScreen(): React.JSX.Element {
               </View>
 
               {isLoading && chores.length === 0 && (
-                <LoadingSpinner size={28} style={styles.loadingIndicator} />
+                <LoadingSpinner size={64} style={styles.loadingIndicator} />
               )}
               {!!storeError && (
                 <View style={styles.storeErrorBox}>

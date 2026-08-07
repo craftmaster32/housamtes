@@ -120,7 +120,7 @@ export function SavedListsSection({
 
       {expanded && (
         <View style={styles.body}>
-          {isLoading && <LoadingSpinner size={28} style={styles.loader} />}
+          {isLoading && <LoadingSpinner size={64} style={styles.loader} />}
 
           {!isLoading && lists.length === 0 && (
             <View style={styles.emptyWrap}>

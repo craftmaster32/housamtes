@@ -6,7 +6,7 @@ export default function Index(): React.JSX.Element {
   const c = useThemedColors();
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <LoadingSpinner size={56} />
+      <LoadingSpinner size={140} />
     </View>
   );
 }

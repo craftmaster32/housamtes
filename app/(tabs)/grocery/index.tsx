@@ -1549,7 +1549,7 @@ export default function GroceryScreen(): React.JSX.Element {
 
                     {/* ── Load / error states ─────────────────────────────────── */}
                     {isLoading && items.length === 0 && (
-                      <LoadingSpinner size={28} style={styles.loadingIndicator} />
+                      <LoadingSpinner size={64} style={styles.loadingIndicator} />
                     )}
                     {!!error && (
                       <View style={styles.errorBanner}>

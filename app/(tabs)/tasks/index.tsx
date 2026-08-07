@@ -116,7 +116,7 @@ export default function TasksScreen(): React.JSX.Element {
               </View>
 
               {isLoading && tasks.length === 0 && (
-                <LoadingSpinner size={28} style={styles.loadingIndicator} />
+                <LoadingSpinner size={64} style={styles.loadingIndicator} />
               )}
               {!!storeError && (
                 <View style={styles.storeErrorBox}>

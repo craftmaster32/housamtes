@@ -131,7 +131,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
         <View style={styles.card}>
           {isLoading ? (
             <View style={styles.loadingRow}>
-              <LoadingSpinner size={28} />
+              <LoadingSpinner size={64} />
             </View>
           ) : token ? (
             <>

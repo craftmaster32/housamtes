@@ -162,7 +162,7 @@ export default function NotesScreen(): React.JSX.Element {
               </View>
 
               {isLoading && notes.length === 0 && (
-                <LoadingSpinner size={28} style={styles.loadingIndicator} />
+                <LoadingSpinner size={64} style={styles.loadingIndicator} />
               )}
               {!!storeError && (
                 <View style={styles.storeErrorBox}>

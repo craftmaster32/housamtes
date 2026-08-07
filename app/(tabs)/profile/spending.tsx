@@ -669,7 +669,7 @@ export default function SpendingScreen(): React.JSX.Element {
       <SafeAreaView style={styles.container}>
         {pageHeader}
         <View style={styles.centered}>
-          <LoadingSpinner size={56} />
+          <LoadingSpinner size={140} />
         </View>
       </SafeAreaView>
     );

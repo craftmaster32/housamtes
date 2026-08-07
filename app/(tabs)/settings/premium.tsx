@@ -88,7 +88,7 @@ export default function PremiumScreen(): React.JSX.Element {
 
         {entitlementsLoading ? (
           <View style={styles.centered}>
-            <LoadingSpinner size={56} />
+            <LoadingSpinner size={140} />
           </View>
         ) : entitlementsError ? (
           <View style={styles.centered}>
