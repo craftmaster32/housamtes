@@ -693,7 +693,7 @@ export default function ProfileScreen(): React.JSX.Element {
         if (cropSz > 0 && src.imgW > 0 && src.imgH > 0) {
           ops.push({ crop: { originX, originY, width: cropSz, height: cropSz } });
         }
-        ops.push({ resize: { width: ms(512), height: ms(512) } });
+        ops.push({ resize: { width: 512, height: 512 } });
         const result = await ImageManipulator.manipulateAsync(src.uri, ops, {
           compress: 0.85,
           format: ImageManipulator.SaveFormat.JPEG,
