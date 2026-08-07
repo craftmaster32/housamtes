@@ -1,22 +1,29 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, StyleSheet, Modal, FlatList, Dimensions, Pressable, ViewToken } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, Animated } from 'react-native';
 import { Text, Button } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { TourScreen, type TourScreenId } from './TourScreens';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(SCREEN_WIDTH - sizes.lg * 2, 360);
-
-interface TourSlide {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  tint: string;
-  title: string;
-  body: string;
+interface Step {
+  id: 'welcome' | TourScreenId;
+  screen?: TourScreenId;
+  anchor?: 'top' | 'bottom';
 }
+
+const STEPS: Step[] = [
+  { id: 'welcome' },
+  { id: 'bills', screen: 'bills', anchor: 'top' },
+  { id: 'spending', screen: 'spending', anchor: 'bottom' },
+  { id: 'grocery', screen: 'grocery', anchor: 'bottom' },
+  { id: 'calendar', screen: 'calendar', anchor: 'bottom' },
+];
 
 interface WelcomeTourProps {
   visible: boolean;
@@ -26,196 +33,213 @@ interface WelcomeTourProps {
 export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => {
   const { t } = useTranslation();
   const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const rtl = isRTL(useLanguageStore((s) => s.language));
+  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
 
-  const slides: TourSlide[] = useMemo(
-    () => [
-      {
-        id: 'welcome',
-        icon: 'happy-outline',
-        tint: C.primary,
-        title: t('tour.welcome_title'),
-        body: t('tour.welcome_body'),
-      },
-      {
-        id: 'bills',
-        icon: 'receipt-outline',
-        tint: C.success,
-        title: t('tour.bills_title'),
-        body: t('tour.bills_body'),
-      },
-      {
-        id: 'house',
-        icon: 'checkmark-done-outline',
-        tint: '#E0912F',
-        title: t('tour.house_title'),
-        body: t('tour.house_body'),
-      },
-      {
-        id: 'sync',
-        icon: 'chatbubbles-outline',
-        tint: '#8B5CF6',
-        title: t('tour.sync_title'),
-        body: t('tour.sync_body'),
-      },
-    ],
-    [t, C.primary, C.success]
-  );
+  const [index, setIndex] = useState(0);
+  const step = STEPS[index];
+  const isLast = index === STEPS.length - 1;
 
-  const [activeIndex, setActiveIndex] = useState(0);
-  const listRef = useRef<FlatList<TourSlide>>(null);
-  const isLast = activeIndex === slides.length - 1;
-
-  // Reset to the first card whenever the tour is (re)opened.
+  const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (visible) setActiveIndex(0);
+    if (visible) setIndex(0);
   }, [visible]);
+  useEffect(() => {
+    fade.setValue(0);
+    Animated.timing(fade, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+  }, [index, fade]);
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    if (viewableItems[0]?.index != null) {
-      setActiveIndex(viewableItems[0].index);
-    }
-  }).current;
+  const next = useCallback(() => {
+    if (isLast) onDone();
+    else setIndex((i) => i + 1);
+  }, [isLast, onDone]);
 
-  const handleNext = useCallback(() => {
-    if (isLast) {
-      onDone();
-    } else {
-      listRef.current?.scrollToIndex({ index: activeIndex + 1, animated: true });
-    }
-  }, [isLast, activeIndex, onDone]);
+  const translateY = fade.interpolate({ inputRange: [0, 1], outputRange: [14, 0] });
+
+  const footer = (
+    <View style={styles.footer}>
+      <View style={styles.dots}>
+        {STEPS.map((s, i) => (
+          <View key={s.id} style={[styles.dot, i === index && styles.dotActive]} />
+        ))}
+      </View>
+      <Button
+        mode="contained"
+        onPress={next}
+        style={styles.cta}
+        contentStyle={styles.ctaContent}
+        labelStyle={styles.ctaLabel}
+        buttonColor={C.primary}
+        textColor="#fff"
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={isLast ? t('tour.start') : t('tour.next')}
+      >
+        {isLast ? t('tour.start') : t('tour.next')}
+      </Button>
+    </View>
+  );
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+      <View style={styles.root}>
+        <Pressable
+          style={styles.tapLayer}
+          onPress={next}
+          accessibilityRole="button"
+          accessibilityLabel={t('tour.next')}
+        >
+          {step.id === 'welcome' ? (
+            <View style={styles.welcomeWrap}>
+              <Animated.View
+                style={[styles.welcomeCard, { opacity: fade, transform: [{ translateY }] }]}
+              >
+                <View style={styles.welcomeIcon}>
+                  <Ionicons name="happy-outline" size={40} color={C.primary} />
+                </View>
+                <Text style={styles.welcomeTitle}>{t('tour.welcome_title')}</Text>
+                <Text style={styles.welcomeBody}>{t('tour.welcome_body')}</Text>
+                {footer}
+              </Animated.View>
+            </View>
+          ) : (
+            <>
+              {step.screen && <TourScreen id={step.screen} C={C} t={t} />}
+              <Animated.View
+                style={[
+                  styles.sheet,
+                  step.anchor === 'top' ? styles.sheetTop : styles.sheetBottom,
+                  { opacity: fade, transform: [{ translateY }] },
+                ]}
+              >
+                <Text style={styles.eyebrow}>{t(`tour.${step.id}_title`)}</Text>
+                <Text style={styles.body}>{t(`tour.${step.id}_body`)}</Text>
+                {footer}
+              </Animated.View>
+            </>
+          )}
+        </Pressable>
+
+        <SafeAreaView edges={['top']} style={styles.skipWrap} pointerEvents="box-none">
           <Pressable
             onPress={onDone}
             style={styles.skipBtn}
+            hitSlop={8}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('tour.skip')}
           >
             <Text style={styles.skipText}>{t('tour.skip')}</Text>
           </Pressable>
-
-          <FlatList
-            ref={listRef}
-            data={slides}
-            keyExtractor={(item) => item.id}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onViewableItemsChanged={onViewableItemsChanged}
-            viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-            renderItem={({ item }) => (
-              <View style={styles.slide}>
-                <View style={[styles.iconCircle, { backgroundColor: item.tint + '18' }]}>
-                  <Ionicons name={item.icon} size={40} color={item.tint} />
-                </View>
-                <Text style={styles.title}>{item.title}</Text>
-                <Text style={styles.body}>{item.body}</Text>
-              </View>
-            )}
-          />
-
-          <View style={styles.dotsRow}>
-            {slides.map((s, i) => (
-              <View key={s.id} style={[styles.dot, i === activeIndex && styles.dotActive]} />
-            ))}
-          </View>
-
-          <Button
-            mode="contained"
-            onPress={handleNext}
-            style={styles.cta}
-            contentStyle={styles.ctaContent}
-            labelStyle={styles.ctaLabel}
-            buttonColor={C.primary}
-            textColor="#fff"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={isLast ? t('tour.start') : t('tour.next')}
-          >
-            {isLast ? t('tour.start') : t('tour.next')}
-          </Button>
-        </View>
+        </SafeAreaView>
       </View>
     </Modal>
   );
 };
 
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens, rtl: boolean) {
+  const textAlign = rtl ? 'right' : 'left';
   return StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(12,20,35,0.55)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: sizes.lg,
-    },
-    card: {
-      width: CARD_WIDTH,
+    root: { flex: 1, backgroundColor: C.background },
+    tapLayer: { flex: 1 },
+    // Welcome
+    welcomeWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: sizes.lg },
+    welcomeCard: {
+      width: '100%',
+      maxWidth: 360,
       backgroundColor: C.surface,
-      borderRadius: 28,
-      paddingTop: sizes.sm,
-      paddingBottom: sizes.lg,
-      paddingHorizontal: sizes.lg,
-    },
-    skipBtn: {
-      alignSelf: 'flex-end',
-      paddingVertical: sizes.sm,
-      paddingHorizontal: sizes.xs,
-      minHeight: sizes.touchTarget,
-      justifyContent: 'center',
-    },
-    skipText: { color: C.textSecondary, fontSize: 14, ...font.medium },
-    slide: {
-      width: CARD_WIDTH - sizes.lg * 2,
+      borderRadius: 26,
+      padding: sizes.lg,
       alignItems: 'center',
-      gap: sizes.sm,
-      paddingTop: sizes.sm,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.18,
+      shadowRadius: 28,
+      elevation: 8,
     },
-    iconCircle: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
+    welcomeIcon: {
+      width: 82,
+      height: 82,
+      borderRadius: 41,
+      backgroundColor: C.primary + '22',
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: sizes.sm,
+      marginBottom: sizes.md,
     },
-    title: {
+    welcomeTitle: {
       fontSize: 22,
       ...font.extrabold,
       color: C.textPrimary,
       textAlign: 'center',
       letterSpacing: -0.4,
     },
-    body: {
-      fontSize: 15,
+    welcomeBody: {
+      fontSize: 14,
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
+      lineHeight: 21,
+      marginTop: sizes.sm,
+      paddingHorizontal: sizes.sm,
     },
-    dotsRow: {
+    // Caption sheet
+    sheet: {
+      position: 'absolute',
+      left: sizes.md,
+      right: sizes.md,
+      backgroundColor: C.surface,
+      borderRadius: 22,
+      padding: sizes.md + 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.22,
+      shadowRadius: 24,
+      elevation: 8,
+    },
+    sheetBottom: { bottom: sizes.xl },
+    sheetTop: { top: 72 },
+    eyebrow: {
+      fontSize: 18,
+      ...font.extrabold,
+      color: C.textPrimary,
+      letterSpacing: -0.3,
+      textAlign,
+      writingDirection: rtl ? 'rtl' : 'ltr',
+    },
+    body: {
+      fontSize: 13.5,
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: 20,
+      marginTop: 6,
+      textAlign,
+      writingDirection: rtl ? 'rtl' : 'ltr',
+    },
+    // Footer (dots + CTA)
+    footer: {
       flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: sizes.md,
+      gap: sizes.sm,
+    },
+    dots: { flexDirection: 'row', gap: 7 },
+    dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.border },
+    dotActive: { width: 20, backgroundColor: C.primary },
+    cta: { borderRadius: 12 },
+    ctaContent: { height: 42, paddingHorizontal: sizes.xs },
+    ctaLabel: { fontSize: 14.5, ...font.semibold },
+    // Skip
+    skipWrap: { position: 'absolute', top: 0, right: 0, left: 0, alignItems: 'flex-end' },
+    skipBtn: {
+      margin: sizes.md,
+      paddingVertical: 7,
+      paddingHorizontal: 14,
+      borderRadius: 999,
+      backgroundColor: C.textPrimary + '14',
+      minHeight: sizes.touchTarget - 8,
       justifyContent: 'center',
-      gap: 8,
-      paddingVertical: sizes.lg,
     },
-    dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: C.border,
-    },
-    dotActive: {
-      backgroundColor: C.primary,
-      width: 22,
-    },
-    cta: { borderRadius: 14 },
-    ctaContent: { height: 52 },
-    ctaLabel: { fontSize: 16, ...font.semibold },
+    skipText: { color: C.textPrimary, fontSize: 13, ...font.semibold },
   });
 }

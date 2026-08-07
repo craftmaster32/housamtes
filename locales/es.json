@@ -212,17 +212,19 @@
     "lets_go": "¡Empecemos!"
   },
   "tour": {
-    "welcome_title": "¡Todo listo!",
-    "welcome_body": "Bienvenido a HouseMates. Aquí tienes un vistazo rápido a lo que puedes hacer con tus compañeros de casa.",
-    "bills_title": "Gastos, repartidos con justicia",
-    "bills_body": "Añade un gasto compartido y todos verán quién debe qué — se acabaron las hojas de cálculo.",
-    "house_title": "Mantén la casa en marcha",
-    "house_body": "Reserva la plaza de parking, marca las tareas y comparte la lista de la compra — todo en tiempo real.",
-    "sync_title": "Mantente al día",
-    "sync_body": "Chatea con tus compañeros, vota decisiones y no te pierdas nada.",
-    "skip": "Omitir",
+    "welcome_title": "¡Ya estás dentro! 🎉",
+    "welcome_body": "Bienvenido a la casa. Aquí tienes un repaso de 30 segundos por lo mejor.",
+    "bills_title": "Divide sin dramas",
+    "bills_body": "¿Ves el ＋ en el centro de la barra? Tócalo para añadir un gasto: hacemos las cuentas y mostramos quién debe a quién.",
+    "spending_title": "Sigue el dinero",
+    "spending_body": "Echa un vistazo al gráfico mensual para ver a dónde va todo: tu parte y la de toda la casa, sin hojas de cálculo.",
+    "grocery_title": "No te quedes sin leche otra vez",
+    "grocery_body": "Apunta lo que se te acaba y pulsa ＋. Todos ven la lista: ve marcando mientras compras.",
+    "calendar_title": "Todos en la misma página",
+    "calendar_body": "Gastos, parking y planes: todo en un calendario compartido. Toca Añadir evento para empezar.",
+    "skip": "Saltar",
     "next": "Siguiente",
-    "start": "Empezar a explorar"
+    "start": "¡Vamos! 🚀"
   },
   "house_setup": {
     "title": "Configura tu hogar",
