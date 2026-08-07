@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,6 +35,8 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useHouseActivity, useActionItems } from '@hooks/useHouseActivity';
 import { ActivityPopup } from '@components/dashboard/ActivityPopup';
+import { WelcomeTour } from '@components/dashboard/WelcomeTour';
+import { shouldShowTour, markTourSeen } from '@utils/tour';
 
 import { mf, ms } from '@utils/responsive';
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -410,6 +412,22 @@ export default function DashboardScreen(): React.JSX.Element {
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
 
+  // One-time welcome tour for users who just signed up.
+  const [showTour, setShowTour] = useState(false);
+  useEffect(() => {
+    let active = true;
+    shouldShowTour().then((show) => {
+      if (active && show) setShowTour(true);
+    });
+    return (): void => {
+      active = false;
+    };
+  }, []);
+  const handleTourDone = useCallback((): void => {
+    setShowTour(false);
+    markTourSeen();
+  }, []);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <ScrollView
@@ -447,6 +465,7 @@ export default function DashboardScreen(): React.JSX.Element {
           <GamesButton />
         </Animated.View>
       </ScrollView>
+      <WelcomeTour visible={showTour} onDone={handleTourDone} />
     </SafeAreaView>
   );
 }

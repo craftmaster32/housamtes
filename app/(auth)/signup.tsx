@@ -15,6 +15,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
 import { getErrorMessage } from '@utils/errors';
+import { markTourPending } from '@utils/tour';
 
 import { mf, ms } from '@utils/responsive';
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
@@ -88,6 +89,8 @@ export default function SignupScreen(): React.JSX.Element {
         result.data.name,
         selectedColor
       );
+      // Brand-new account — queue the one-time welcome tour for the dashboard.
+      await markTourPending();
       if (needsVerification) {
         router.replace('/(auth)/verify-email');
       }

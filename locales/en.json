@@ -232,6 +232,21 @@
     "next": "Next",
     "lets_go": "Let's get started"
   },
+  "tour": {
+    "welcome_title": "You're in! 🎉",
+    "welcome_body": "Welcome to the house. Here's a 30-second spin around the good stuff.",
+    "bills_title": "Split without the drama",
+    "bills_body": "See that ＋ in the middle of the bar? Tap it to add an expense — we do the maths and show who owes who.",
+    "spending_title": "Follow the money",
+    "spending_body": "Peek at the monthly chart to see where it all goes — your share and the whole house, no spreadsheets.",
+    "grocery_title": "Never run out of milk again",
+    "grocery_body": "Jot down what you're out of and hit ＋. Everyone sees the list — tick things off as you shop.",
+    "calendar_title": "Everyone on the same page",
+    "calendar_body": "Bills, parking and plans all land on one shared calendar. Tap Add Event to pop something on it.",
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Let's go 🚀"
+  },
   "house_setup": {
     "title": "Set up your home",
     "subtitle": "Create a new house or join one your housemate already set up.",
