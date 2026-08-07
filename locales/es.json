@@ -245,7 +245,10 @@
     "calendar_body": "Gastos, parking y planes: todo en un calendario compartido. Toca Añadir evento para empezar.",
     "skip": "Saltar",
     "next": "Siguiente",
-    "start": "¡Vamos! 🚀"
+    "start": "¡Vamos! 🚀",
+    "demo_electricity": "Electricidad",
+    "demo_internet": "Internet",
+    "demo_water": "Agua"
   },
   "house_setup": {
     "title": "Configura tu hogar",

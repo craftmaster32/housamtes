@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { useLanguageStore } from '@stores/languageStore';
+import { useSettingsStore } from '@stores/settingsStore';
 import { isRTL } from '@lib/i18n';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -36,6 +37,7 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
   const { t } = useTranslation();
   const C = useThemedColors();
   const rtl = isRTL(useLanguageStore((s) => s.language));
+  const currency = useSettingsStore((s) => s.currency);
   const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
 
   const [index, setIndex] = useState(0);
@@ -97,7 +99,7 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
             {step.id === 'welcome' ? (
               <WelcomeBg C={C} />
             ) : step.screen ? (
-              <TourScreen id={step.screen} C={C} t={t} />
+              <TourScreen id={step.screen} C={C} t={t} currency={currency} />
             ) : null}
           </Animated.View>
 

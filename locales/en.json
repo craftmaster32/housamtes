@@ -245,7 +245,10 @@
     "calendar_body": "Bills, parking and plans all land on one shared calendar. Tap Add Event to pop something on it.",
     "skip": "Skip",
     "next": "Next",
-    "start": "Let's go 🚀"
+    "start": "Let's go 🚀",
+    "demo_electricity": "Electricity",
+    "demo_internet": "Internet",
+    "demo_water": "Water"
   },
   "house_setup": {
     "title": "Set up your home",

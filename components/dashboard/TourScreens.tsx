@@ -9,9 +9,12 @@ import { font } from '@constants/typography';
 
 export type TourScreenId = 'bills' | 'spending' | 'grocery' | 'calendar';
 
-const DIM = 0.32;
+// Background app content is shown at this opacity so the screen reads as the
+// real app, while the spotlighted control (full opacity + ring) stands out.
+const DIM = 0.5;
 
 // ── Pulsing spotlight ring drawn around the highlighted control ──────────────
+// Opacity-only pulse (no scale) so it hugs targets of any width correctly.
 interface HighlightProps {
   C: ColorTokens;
   radius: number;
@@ -25,54 +28,38 @@ export const Highlight: React.FC<HighlightProps> = ({ C, radius, children }) => 
       Animated.sequence([
         Animated.timing(pulse, {
           toValue: 1,
-          duration: 1100,
-          easing: Easing.out(Easing.ease),
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.timing(pulse, { toValue: 0, duration: 0, useNativeDriver: true }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 1200,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
       ])
     );
     loop.start();
     return (): void => loop.stop();
   }, [pulse]);
 
-  const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] });
-  const opacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] });
+  const glow = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.6] });
 
   return (
-    <View>
+    <View style={styles.highlightWrap}>
       <Animated.View
         pointerEvents="none"
-        style={[
-          styles.ring,
-          { borderColor: C.primary, borderRadius: radius + 6, opacity, transform: [{ scale }] },
-        ]}
+        style={[styles.ring, { borderColor: C.primary, borderRadius: radius + 7, opacity: glow }]}
       />
-      <View style={[styles.ringStatic, { borderColor: C.primary, borderRadius: radius + 6 }]}>
+      <View style={[styles.ringStatic, { borderColor: C.primary, borderRadius: radius + 3 }]}>
         {children}
       </View>
     </View>
   );
 };
 
-// ── Small building blocks ────────────────────────────────────────────────────
-function Skeleton({ C, w, h }: { C: ColorTokens; w: number; h: number }): React.JSX.Element {
-  return (
-    <View
-      style={{
-        width: w,
-        height: h,
-        borderRadius: 7,
-        backgroundColor: C.surfaceSecondary,
-        opacity: DIM,
-      }}
-    />
-  );
-}
-
-// The real bottom nav bar — persistent across the whole tour so the frame
-// stays put and the "More" tab is always visible. On the Bills step the
-// centre + is spotlighted; otherwise the whole bar is dimmed context.
+// ── The persistent bottom nav bar ────────────────────────────────────────────
 export function TourBottomBar({
   C,
   highlightAdd,
@@ -114,36 +101,49 @@ export function TourBottomBar({
   );
 }
 
-// ── The four screen illustrations ────────────────────────────────────────────
 interface ScreenProps {
   C: ColorTokens;
   t: TFunction;
+  currency: string;
 }
 
-function BillsScreen({ C, t }: ScreenProps): React.JSX.Element {
-  // The spotlight for this step is the centre + in the persistent bottom bar
-  // (rendered by the tour controller), so here we only draw the page behind it.
+// ── Bills — sample expense rows; the spotlight is the bar's + (controller) ────
+function BillsScreen({ C, t, currency }: ScreenProps): React.JSX.Element {
+  const rows: Array<{
+    icon: keyof typeof Ionicons.glyphMap;
+    tint: string;
+    title: string;
+    amount: string;
+    who: string;
+  }> = [
+    { icon: 'flash', tint: '#E0912F', title: t('tour.demo_electricity'), amount: '84', who: 'S' },
+    { icon: 'wifi', tint: C.primary, title: t('tour.demo_internet'), amount: '39', who: 'D' },
+    { icon: 'water', tint: '#3FA0C9', title: t('tour.demo_water'), amount: '22', who: 'A' },
+  ];
   return (
-    <View style={styles.body}>
-      <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>{t('bills.title')}</Text>
-      <Text style={[styles.sub, { color: C.textSecondary, opacity: DIM }]}>
-        {t('bills.page_subtitle')}
-      </Text>
+    <View style={[styles.body, { opacity: DIM }]}>
+      <Text style={[styles.title, { color: C.textPrimary }]}>{t('bills.title')}</Text>
+      <Text style={[styles.sub, { color: C.textSecondary }]}>{t('bills.page_subtitle')}</Text>
       <View style={styles.rows}>
-        {[0, 1, 2].map((i) => (
+        {rows.map((r) => (
           <View
-            key={i}
-            style={[
-              styles.card,
-              { backgroundColor: C.surface, borderColor: C.border, opacity: DIM },
-            ]}
+            key={r.title}
+            style={[styles.card, { backgroundColor: C.surface, borderColor: C.border }]}
           >
-            <View style={[styles.chip, { backgroundColor: C.surfaceSecondary }]} />
-            <View style={styles.cardMeta}>
-              <Skeleton C={C} w={120} h={11} />
-              <Skeleton C={C} w={72} h={9} />
+            <View style={[styles.chip, { backgroundColor: r.tint + '22' }]}>
+              <Ionicons name={r.icon} size={18} color={r.tint} />
             </View>
-            <Skeleton C={C} w={44} h={13} />
+            <View style={styles.cardMeta}>
+              <Text style={[styles.rowTitle, { color: C.textPrimary }]}>{r.title}</Text>
+              <Text style={[styles.rowSub, { color: C.textSecondary }]}>{t('bills.paid_by')}</Text>
+            </View>
+            <Text style={[styles.amount, { color: C.textPrimary }]}>
+              {currency}
+              {r.amount}
+            </Text>
+            <View style={[styles.avatar, { backgroundColor: C.primary }]}>
+              <Text style={styles.avatarText}>{r.who}</Text>
+            </View>
           </View>
         ))}
       </View>
@@ -151,45 +151,33 @@ function BillsScreen({ C, t }: ScreenProps): React.JSX.Element {
   );
 }
 
-// Dimmed dashboard-ish backdrop shown behind the welcome card, so even the
-// intro step reads as "inside the app".
-export function WelcomeBg({ C }: { C: ColorTokens }): React.JSX.Element {
-  return (
-    <View style={styles.body}>
-      <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>HouseMates</Text>
-      <View style={styles.welcomeBgCards}>
-        <View style={[styles.wCard, { backgroundColor: C.surface, borderColor: C.border }]} />
-        <View
-          style={[
-            styles.wCard,
-            styles.wCardTall,
-            { backgroundColor: C.surface, borderColor: C.border },
-          ]}
-        />
-      </View>
-    </View>
-  );
-}
-
-function SpendingScreen({ C, t }: ScreenProps): React.JSX.Element {
+// ── Spending — summary + monthly bar chart (the chart is the spotlight) ───────
+function SpendingScreen({ C, t, currency }: ScreenProps): React.JSX.Element {
   const bars = [40, 56, 44, 72, 50, 92];
   const peak = Math.max(...bars);
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, i) =>
+    new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
+      .toLocaleDateString(undefined, { month: 'short' })
+      .slice(0, 3)
+  );
+  const summary = [
+    { label: t('spending.house_total'), value: `${currency}1,240` },
+    { label: t('spending.your_share'), value: `${currency}413` },
+  ];
   return (
     <View style={styles.body}>
       <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>
         {t('spending.spending_analysis')}
       </Text>
-      <View style={styles.sumRow}>
-        {[t('spending.house_total'), t('spending.your_share')].map((l) => (
+      <View style={[styles.sumRow, { opacity: DIM }]}>
+        {summary.map((s) => (
           <View
-            key={l}
-            style={[
-              styles.sumCard,
-              { backgroundColor: C.surface, borderColor: C.border, opacity: DIM },
-            ]}
+            key={s.label}
+            style={[styles.sumCard, { backgroundColor: C.surface, borderColor: C.border }]}
           >
-            <Text style={[styles.sumLabel, { color: C.textSecondary }]}>{l}</Text>
-            <Skeleton C={C} w={64} h={16} />
+            <Text style={[styles.sumLabel, { color: C.textSecondary }]}>{s.label}</Text>
+            <Text style={[styles.sumValue, { color: C.textPrimary }]}>{s.value}</Text>
           </View>
         ))}
       </View>
@@ -208,16 +196,14 @@ function SpendingScreen({ C, t }: ScreenProps): React.JSX.Element {
           </Text>
           <View style={styles.bars}>
             {bars.map((h, i) => (
-              <View key={i} style={styles.barCol}>
+              <View key={months[i]} style={styles.barCol}>
                 <View
                   style={[
                     styles.barFill,
-                    {
-                      height: `${h}%`,
-                      backgroundColor: h === peak ? C.primary : C.primary + '66',
-                    },
+                    { height: `${h}%`, backgroundColor: h === peak ? C.primary : C.primary + '66' },
                   ]}
                 />
+                <Text style={[styles.barLabel, { color: C.textSecondary }]}>{months[i]}</Text>
               </View>
             ))}
           </View>
@@ -227,7 +213,13 @@ function SpendingScreen({ C, t }: ScreenProps): React.JSX.Element {
   );
 }
 
+// ── Groceries — the add row is the spotlight, with a real-looking list below ──
 function GroceryScreen({ C, t }: ScreenProps): React.JSX.Element {
+  const items: Array<{ name: string; qty: string; done: boolean }> = [
+    { name: t('grocery.quick_add_milk'), qty: '×2', done: false },
+    { name: t('grocery.quick_add_bread'), qty: '', done: false },
+    { name: t('grocery.quick_add_coffee'), qty: '', done: true },
+  ];
   return (
     <View style={styles.body}>
       <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>
@@ -236,17 +228,6 @@ function GroceryScreen({ C, t }: ScreenProps): React.JSX.Element {
       <Text style={[styles.sub, { color: C.textSecondary, opacity: DIM }]}>
         {t('grocery.add_things_hint')}
       </Text>
-      <View style={[styles.modeRow, { opacity: DIM }]}>
-        <View
-          style={[styles.modePill, { backgroundColor: C.primary + '22', borderColor: C.primary }]}
-        />
-        <View
-          style={[
-            styles.modePill,
-            { backgroundColor: C.surfaceSecondary, borderColor: 'transparent' },
-          ]}
-        />
-      </View>
       <Highlight C={C} radius={14}>
         <View style={styles.addRow}>
           <View style={[styles.addInput, { backgroundColor: C.surface, borderColor: C.border }]}>
@@ -259,30 +240,53 @@ function GroceryScreen({ C, t }: ScreenProps): React.JSX.Element {
           </View>
         </View>
       </Highlight>
-      <View style={[styles.chips, { opacity: DIM }]}>
-        {[68, 84, 56, 74].map((w, i) => (
+      <View style={[styles.groceryList, { opacity: DIM }]}>
+        {items.map((it) => (
           <View
-            key={i}
-            style={[
-              styles.chipPill,
-              { backgroundColor: C.surface, borderColor: C.border, width: w },
-            ]}
-          />
+            key={it.name}
+            style={[styles.gRow, { backgroundColor: C.surface, borderColor: C.border }]}
+          >
+            <Ionicons
+              name={it.done ? 'checkmark-circle' : 'ellipse-outline'}
+              size={22}
+              color={it.done ? C.positive : C.textTertiary}
+            />
+            <Text
+              style={[
+                styles.gName,
+                { color: it.done ? C.textSecondary : C.textPrimary },
+                it.done && styles.gDone,
+              ]}
+            >
+              {it.name}
+            </Text>
+            {!!it.qty && <Text style={[styles.gQty, { color: C.textSecondary }]}>{it.qty}</Text>}
+          </View>
         ))}
       </View>
     </View>
   );
 }
 
+// ── Calendar — real month grid with day numbers + a few event dots ───────────
 function CalendarScreen({ C, t }: ScreenProps): React.JSX.Element {
+  const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const events: Record<number, string[]> = {
+    8: [C.primary],
+    14: [C.positive, '#E0912F'],
+    22: ['#8B5CF6'],
+  };
+  const today = 12;
+  const cells = Array.from({ length: 35 }, (_, i) => {
+    const day = i - 3;
+    return day >= 1 && day <= 30 ? day : null;
+  });
   return (
     <View style={styles.body}>
       <View style={styles.calHead}>
-        <View>
-          <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>
-            {t('calendar.title')}
-          </Text>
-          <Text style={[styles.sub, { color: C.textSecondary, opacity: DIM }]}>
+        <View style={{ opacity: DIM }}>
+          <Text style={[styles.title, { color: C.textPrimary }]}>{t('calendar.title')}</Text>
+          <Text style={[styles.sub, { color: C.textSecondary }]}>
             {t('calendar.house_schedule')}
           </Text>
         </View>
@@ -293,16 +297,63 @@ function CalendarScreen({ C, t }: ScreenProps): React.JSX.Element {
           </View>
         </Highlight>
       </View>
-      <View style={[styles.grid, { opacity: DIM }]}>
-        {Array.from({ length: 28 }).map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.calCell,
-              { backgroundColor: i === 6 ? C.primary : C.surface, borderColor: C.border },
-            ]}
-          />
+      <View style={[styles.weekRow, { opacity: DIM }]}>
+        {weekdays.map((w, i) => (
+          <Text key={i} style={[styles.weekday, { color: C.textSecondary }]}>
+            {w}
+          </Text>
         ))}
+      </View>
+      <View style={[styles.grid, { opacity: DIM }]}>
+        {cells.map((day, i) => {
+          const isToday = day === today;
+          return (
+            <View
+              key={i}
+              style={[
+                styles.calCell,
+                { backgroundColor: isToday ? C.primary : C.surface, borderColor: C.border },
+              ]}
+            >
+              {day != null && (
+                <>
+                  <Text style={[styles.calDay, { color: isToday ? '#fff' : C.textPrimary }]}>
+                    {day}
+                  </Text>
+                  {!!events[day] && (
+                    <View style={styles.calDots}>
+                      {events[day].map((col, k) => (
+                        <View
+                          key={k}
+                          style={[styles.calDot, { backgroundColor: isToday ? '#fff' : col }]}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// ── Welcome backdrop — a faint populated dashboard ───────────────────────────
+export function WelcomeBg({ C }: { C: ColorTokens }): React.JSX.Element {
+  return (
+    <View style={[styles.body, { opacity: DIM }]}>
+      <Text style={[styles.title, { color: C.textPrimary }]}>HouseMates</Text>
+      <View style={styles.welcomeBgCards}>
+        <View style={[styles.wCard, { backgroundColor: C.surface, borderColor: C.border }]} />
+        <View
+          style={[
+            styles.wCard,
+            styles.wCardTall,
+            { backgroundColor: C.surface, borderColor: C.border },
+          ]}
+        />
       </View>
     </View>
   );
@@ -312,32 +363,36 @@ export function TourScreen({
   id,
   C,
   t,
+  currency,
 }: {
   id: TourScreenId;
   C: ColorTokens;
   t: TFunction;
+  currency: string;
 }): React.JSX.Element {
   switch (id) {
     case 'bills':
-      return <BillsScreen C={C} t={t} />;
+      return <BillsScreen C={C} t={t} currency={currency} />;
     case 'spending':
-      return <SpendingScreen C={C} t={t} />;
+      return <SpendingScreen C={C} t={t} currency={currency} />;
     case 'grocery':
-      return <GroceryScreen C={C} t={t} />;
+      return <GroceryScreen C={C} t={t} currency={currency} />;
     case 'calendar':
-      return <CalendarScreen C={C} t={t} />;
+      return <CalendarScreen C={C} t={t} currency={currency} />;
   }
 }
 
 const styles = StyleSheet.create({
-  ring: { position: 'absolute', top: -6, left: -6, right: -6, bottom: -6, borderWidth: 2 },
+  highlightWrap: { alignSelf: 'stretch' },
+  ring: { position: 'absolute', top: -7, left: -7, right: -7, bottom: -7, borderWidth: 2 },
   ringStatic: { borderWidth: 2 },
   body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.xl + sizes.lg, gap: sizes.sm },
-  welcomeBgCards: { marginTop: sizes.sm, gap: 10 },
-  wCard: { height: 66, borderRadius: 18, borderWidth: 1, opacity: DIM },
-  wCardTall: { height: 96 },
   title: { fontSize: 26, ...font.extrabold, letterSpacing: -0.7 },
   sub: { fontSize: 13, ...font.regular },
+  welcomeBgCards: { marginTop: sizes.sm, gap: 10 },
+  wCard: { height: 66, borderRadius: 18, borderWidth: 1 },
+  wCardTall: { height: 96 },
+  // Bills rows
   rows: { marginTop: sizes.sm, gap: 10 },
   card: {
     flexDirection: 'row',
@@ -347,9 +402,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
   },
-  chip: { width: 38, height: 38, borderRadius: 11 },
-  cardMeta: { flex: 1, gap: 6 },
-  // Bottom tab bar — pinned to the bottom of the tour, persistent across steps
+  chip: { width: 38, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  cardMeta: { flex: 1, gap: 2 },
+  rowTitle: { fontSize: 14.5, ...font.bold },
+  rowSub: { fontSize: 11.5, ...font.regular },
+  amount: { fontSize: 15, ...font.extrabold, fontVariant: ['tabular-nums'] },
+  avatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: { fontSize: 11, ...font.bold, color: '#fff' },
+  // Bottom bar
   bar: {
     position: 'absolute',
     left: 0,
@@ -380,8 +446,9 @@ const styles = StyleSheet.create({
   },
   // Spending
   sumRow: { flexDirection: 'row', gap: 10, marginTop: sizes.sm },
-  sumCard: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, gap: 6 },
+  sumCard: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, gap: 4 },
   sumLabel: { fontSize: 11, ...font.semibold },
+  sumValue: { fontSize: 20, ...font.extrabold, fontVariant: ['tabular-nums'] },
   chartCard: { borderWidth: 1, borderRadius: 20, padding: 16, marginTop: sizes.xs },
   seg: {
     flexDirection: 'row',
@@ -399,14 +466,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    height: 88,
+    height: 96,
     gap: 9,
   },
-  barCol: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  barCol: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center', gap: 5 },
   barFill: { width: '100%', maxWidth: 22, borderRadius: 6 },
+  barLabel: { fontSize: 9, ...font.medium },
   // Grocery
-  modeRow: { flexDirection: 'row', gap: 8, marginTop: sizes.sm },
-  modePill: { flex: 1, height: 38, borderRadius: 12, borderWidth: 1 },
   addRow: { flexDirection: 'row', gap: 9, marginTop: sizes.sm },
   addInput: {
     flex: 1,
@@ -418,8 +484,19 @@ const styles = StyleSheet.create({
   },
   addInputText: { fontSize: 14, ...font.regular },
   addSquare: { width: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: sizes.md },
-  chipPill: { height: 32, borderRadius: 999, borderWidth: 1 },
+  groceryList: { marginTop: sizes.md, gap: 8 },
+  gRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 13,
+  },
+  gName: { flex: 1, fontSize: 14.5, ...font.semibold },
+  gDone: { textDecorationLine: 'line-through' },
+  gQty: { fontSize: 13, ...font.bold, fontVariant: ['tabular-nums'] },
   // Calendar
   calHead: {
     flexDirection: 'row',
@@ -436,6 +513,19 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   addPillText: { fontSize: 13, ...font.semibold, color: '#fff' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: sizes.md },
-  calCell: { width: '12%', aspectRatio: 1, borderRadius: 9, borderWidth: 1 },
+  weekRow: { flexDirection: 'row', marginTop: sizes.md },
+  weekday: { flex: 1, textAlign: 'center', fontSize: 10, ...font.bold },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
+  calCell: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 2,
+  },
+  calDay: { fontSize: 11, ...font.semibold },
+  calDots: { flexDirection: 'row', gap: 2 },
+  calDot: { width: 4, height: 4, borderRadius: 2 },
 });
