@@ -9,20 +9,22 @@ import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
-import { TourScreen, type TourScreenId } from './TourScreens';
+import { TourScreen, TourBottomBar, WelcomeBg, type TourScreenId } from './TourScreens';
+
+// Height reserved for the persistent bottom bar so the caption sits just above it.
+const BAR_HEIGHT = 96;
 
 interface Step {
   id: 'welcome' | TourScreenId;
   screen?: TourScreenId;
-  anchor?: 'top' | 'bottom';
 }
 
 const STEPS: Step[] = [
   { id: 'welcome' },
-  { id: 'bills', screen: 'bills', anchor: 'top' },
-  { id: 'spending', screen: 'spending', anchor: 'bottom' },
-  { id: 'grocery', screen: 'grocery', anchor: 'bottom' },
-  { id: 'calendar', screen: 'calendar', anchor: 'bottom' },
+  { id: 'bills', screen: 'bills' },
+  { id: 'spending', screen: 'spending' },
+  { id: 'grocery', screen: 'grocery' },
+  { id: 'calendar', screen: 'calendar' },
 ];
 
 interface WelcomeTourProps {
@@ -46,7 +48,7 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
   }, [visible]);
   useEffect(() => {
     fade.setValue(0);
-    Animated.timing(fade, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+    Animated.timing(fade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
   }, [index, fade]);
 
   const next = useCallback(() => {
@@ -54,7 +56,8 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
     else setIndex((i) => i + 1);
   }, [isLast, onDone]);
 
-  const translateY = fade.interpolate({ inputRange: [0, 1], outputRange: [14, 0] });
+  const translateY = fade.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
+  const anim = { opacity: fade, transform: [{ translateY }] };
 
   const footer = (
     <View style={styles.footer}>
@@ -89,11 +92,25 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
           accessibilityRole="button"
           accessibilityLabel={t('tour.next')}
         >
+          {/* The screen behind — crossfades in on every step */}
+          <Animated.View style={[styles.fill, { opacity: fade }]}>
+            {step.id === 'welcome' ? (
+              <WelcomeBg C={C} />
+            ) : step.screen ? (
+              <TourScreen id={step.screen} C={C} t={t} />
+            ) : null}
+          </Animated.View>
+
+          {/* Persistent bottom bar — stays put across steps; spotlights + on Bills */}
+          <TourBottomBar
+            C={C}
+            highlightAdd={step.id === 'bills'}
+            addLabel={t('bills.add_expense')}
+          />
+
           {step.id === 'welcome' ? (
             <View style={styles.welcomeWrap}>
-              <Animated.View
-                style={[styles.welcomeCard, { opacity: fade, transform: [{ translateY }] }]}
-              >
+              <Animated.View style={[styles.welcomeCard, anim]}>
                 <View style={styles.welcomeIcon}>
                   <Ionicons name="happy-outline" size={40} color={C.primary} />
                 </View>
@@ -103,20 +120,11 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
               </Animated.View>
             </View>
           ) : (
-            <>
-              {step.screen && <TourScreen id={step.screen} C={C} t={t} />}
-              <Animated.View
-                style={[
-                  styles.sheet,
-                  step.anchor === 'top' ? styles.sheetTop : styles.sheetBottom,
-                  { opacity: fade, transform: [{ translateY }] },
-                ]}
-              >
-                <Text style={styles.eyebrow}>{t(`tour.${step.id}_title`)}</Text>
-                <Text style={styles.body}>{t(`tour.${step.id}_body`)}</Text>
-                {footer}
-              </Animated.View>
-            </>
+            <Animated.View style={[styles.sheet, anim]}>
+              <Text style={styles.eyebrow}>{t(`tour.${step.id}_title`)}</Text>
+              <Text style={styles.body}>{t(`tour.${step.id}_body`)}</Text>
+              {footer}
+            </Animated.View>
           )}
         </Pressable>
 
@@ -142,8 +150,15 @@ function makeStyles(C: ColorTokens, rtl: boolean) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     tapLayer: { flex: 1 },
+    fill: { ...StyleSheet.absoluteFillObject },
     // Welcome
-    welcomeWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: sizes.lg },
+    welcomeWrap: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: sizes.lg,
+      paddingBottom: BAR_HEIGHT,
+    },
     welcomeCard: {
       width: '100%',
       maxWidth: 360,
@@ -182,11 +197,12 @@ function makeStyles(C: ColorTokens, rtl: boolean) {
       marginTop: sizes.sm,
       paddingHorizontal: sizes.sm,
     },
-    // Caption sheet
+    // Caption sheet — same spot every step, just above the bottom bar
     sheet: {
       position: 'absolute',
       left: sizes.md,
       right: sizes.md,
+      bottom: BAR_HEIGHT + sizes.md,
       backgroundColor: C.surface,
       borderRadius: 22,
       padding: sizes.md + 2,
@@ -196,8 +212,6 @@ function makeStyles(C: ColorTokens, rtl: boolean) {
       shadowRadius: 24,
       elevation: 8,
     },
-    sheetBottom: { bottom: sizes.xl },
-    sheetTop: { top: 72 },
     eyebrow: {
       fontSize: 18,
       ...font.extrabold,

@@ -70,10 +70,29 @@ function Skeleton({ C, w, h }: { C: ColorTokens; w: number; h: number }): React.
   );
 }
 
-function BottomBar({ C, addLabel }: { C: ColorTokens; addLabel: string }): React.JSX.Element {
+// The real bottom nav bar — persistent across the whole tour so the frame
+// stays put and the "More" tab is always visible. On the Bills step the
+// centre + is spotlighted; otherwise the whole bar is dimmed context.
+export function TourBottomBar({
+  C,
+  highlightAdd,
+  addLabel,
+}: {
+  C: ColorTokens;
+  highlightAdd: boolean;
+  addLabel: string;
+}): React.JSX.Element {
   const tab = (name: keyof typeof Ionicons.glyphMap): React.JSX.Element => (
     <View style={styles.barTab}>
       <Ionicons name={name} size={24} color={C.textSecondary} style={{ opacity: DIM }} />
+    </View>
+  );
+  const addBtn = (
+    <View
+      style={[styles.addBtn, { backgroundColor: C.surface, borderColor: C.border }]}
+      accessibilityLabel={addLabel}
+    >
+      <Ionicons name="add" size={28} color={C.primary} />
     </View>
   );
   return (
@@ -81,14 +100,13 @@ function BottomBar({ C, addLabel }: { C: ColorTokens; addLabel: string }): React
       {tab('home-outline')}
       {tab('card-outline')}
       <View style={styles.barCenter}>
-        <Highlight C={C} radius={26}>
-          <View
-            style={[styles.addBtn, { backgroundColor: C.surface, borderColor: C.border }]}
-            accessibilityLabel={addLabel}
-          >
-            <Ionicons name="add" size={28} color={C.primary} />
-          </View>
-        </Highlight>
+        {highlightAdd ? (
+          <Highlight C={C} radius={26}>
+            {addBtn}
+          </Highlight>
+        ) : (
+          <View style={styles.barAddDim}>{addBtn}</View>
+        )}
       </View>
       {tab('car-outline')}
       {tab('ellipsis-horizontal')}
@@ -103,35 +121,52 @@ interface ScreenProps {
 }
 
 function BillsScreen({ C, t }: ScreenProps): React.JSX.Element {
+  // The spotlight for this step is the centre + in the persistent bottom bar
+  // (rendered by the tour controller), so here we only draw the page behind it.
   return (
-    <View style={styles.flex}>
-      <View style={styles.body}>
-        <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>
-          {t('bills.title')}
-        </Text>
-        <Text style={[styles.sub, { color: C.textSecondary, opacity: DIM }]}>
-          {t('bills.page_subtitle')}
-        </Text>
-        <View style={styles.rows}>
-          {[0, 1, 2].map((i) => (
-            <View
-              key={i}
-              style={[
-                styles.card,
-                { backgroundColor: C.surface, borderColor: C.border, opacity: DIM },
-              ]}
-            >
-              <View style={[styles.chip, { backgroundColor: C.surfaceSecondary }]} />
-              <View style={styles.cardMeta}>
-                <Skeleton C={C} w={120} h={11} />
-                <Skeleton C={C} w={72} h={9} />
-              </View>
-              <Skeleton C={C} w={44} h={13} />
+    <View style={styles.body}>
+      <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>{t('bills.title')}</Text>
+      <Text style={[styles.sub, { color: C.textSecondary, opacity: DIM }]}>
+        {t('bills.page_subtitle')}
+      </Text>
+      <View style={styles.rows}>
+        {[0, 1, 2].map((i) => (
+          <View
+            key={i}
+            style={[
+              styles.card,
+              { backgroundColor: C.surface, borderColor: C.border, opacity: DIM },
+            ]}
+          >
+            <View style={[styles.chip, { backgroundColor: C.surfaceSecondary }]} />
+            <View style={styles.cardMeta}>
+              <Skeleton C={C} w={120} h={11} />
+              <Skeleton C={C} w={72} h={9} />
             </View>
-          ))}
-        </View>
+            <Skeleton C={C} w={44} h={13} />
+          </View>
+        ))}
       </View>
-      <BottomBar C={C} addLabel={t('bills.add_expense')} />
+    </View>
+  );
+}
+
+// Dimmed dashboard-ish backdrop shown behind the welcome card, so even the
+// intro step reads as "inside the app".
+export function WelcomeBg({ C }: { C: ColorTokens }): React.JSX.Element {
+  return (
+    <View style={styles.body}>
+      <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>HouseMates</Text>
+      <View style={styles.welcomeBgCards}>
+        <View style={[styles.wCard, { backgroundColor: C.surface, borderColor: C.border }]} />
+        <View
+          style={[
+            styles.wCard,
+            styles.wCardTall,
+            { backgroundColor: C.surface, borderColor: C.border },
+          ]}
+        />
+      </View>
     </View>
   );
 }
@@ -295,10 +330,12 @@ export function TourScreen({
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
   ring: { position: 'absolute', top: -6, left: -6, right: -6, bottom: -6, borderWidth: 2 },
   ringStatic: { borderWidth: 2 },
   body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.xl + sizes.lg, gap: sizes.sm },
+  welcomeBgCards: { marginTop: sizes.sm, gap: 10 },
+  wCard: { height: 66, borderRadius: 18, borderWidth: 1, opacity: DIM },
+  wCardTall: { height: 96 },
   title: { fontSize: 26, ...font.extrabold, letterSpacing: -0.7 },
   sub: { fontSize: 13, ...font.regular },
   rows: { marginTop: sizes.sm, gap: 10 },
@@ -312,17 +349,21 @@ const styles = StyleSheet.create({
   },
   chip: { width: 38, height: 38, borderRadius: 11 },
   cardMeta: { flex: 1, gap: 6 },
-  // Bottom tab bar
+  // Bottom tab bar — pinned to the bottom of the tour, persistent across steps
   bar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 10,
     paddingBottom: 18,
-    marginTop: 'auto',
   },
   barTab: { flex: 1, alignItems: 'center' },
   barCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  barAddDim: { opacity: DIM },
   addBtn: {
     width: 54,
     height: 54,
