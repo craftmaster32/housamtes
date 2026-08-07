@@ -47,6 +47,12 @@ import { registerWebPush } from '@lib/webPush';
 
 initErrorTracking();
 
+// On returning to the foreground, only re-fetch every store if the app was
+// backgrounded at least this long — long enough that iOS may have dropped the
+// realtime socket. Shorter absences keep their live connection, so a reload is
+// wasted work.
+const FOREGROUND_REFRESH_MS = 20_000;
+
 // Web: opt out of browser auto-translation (Chrome/Safari). It mistranslates our
 // labels ("Personal" → "Staff") and shatters the icon font into empty boxes.
 // This runs at module load — earlier than any component render — because Expo's
@@ -387,8 +393,13 @@ export default function RootLayout(): React.JSX.Element | null {
     loadNotificationPrefs,
   ]);
 
-  // Re-fetch all data when app comes back to foreground — iOS drops the
-  // WebSocket connection when backgrounded, so realtime misses updates.
+  // Re-fetch all data when the app comes back to foreground — iOS drops the
+  // WebSocket connection when backgrounded, so realtime misses updates. But a
+  // quick app-switch (or a transient 'inactive' from the notification shade)
+  // doesn't drop the socket, so re-fetching all ~13 stores every time is wasted
+  // work that makes returning to the app feel slow. Only do the full refresh
+  // once the app has actually been away longer than FOREGROUND_REFRESH_MS.
+  const backgroundedAt = useRef<number | null>(null);
   const foregroundDeferred = useRef<ReturnType<
     typeof InteractionManager.runAfterInteractions
   > | null>(null);
@@ -396,6 +407,12 @@ export default function RootLayout(): React.JSX.Element | null {
     if (!houseId) return;
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        // Skip the refresh for short absences — realtime stayed connected and
+        // already has the latest data.
+        const away = backgroundedAt.current;
+        backgroundedAt.current = null;
+        if (away !== null && Date.now() - away < FOREGROUND_REFRESH_MS) return;
+
         loadHousemates(houseId);
         loadBills(houseId);
         loadRecurringBills(houseId);
@@ -411,6 +428,9 @@ export default function RootLayout(): React.JSX.Element | null {
           loadCondition(houseId);
           loadTasks(houseId);
         });
+      } else if (backgroundedAt.current === null) {
+        // Left the foreground ('background' or 'inactive') — stamp when.
+        backgroundedAt.current = Date.now();
       }
     });
     return (): void => {
