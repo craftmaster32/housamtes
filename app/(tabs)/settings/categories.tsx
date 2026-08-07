@@ -12,6 +12,7 @@ import {
   type ExpenseCategory,
 } from '@stores/expenseCategoriesStore';
 import { Alert } from '@lib/alert';
+import { localizeCategoryName } from '@utils/categoryName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -340,32 +341,28 @@ function CategoryRow({
         <Text style={styles.catIcon}>{cat.icon}</Text>
       </View>
       <View style={styles.catInfo}>
-        <Text style={styles.catName}>{cat.name}</Text>
+        <Text style={styles.catName}>{localizeCategoryName(cat.name, t)}</Text>
         {cat.isDefault && <Text style={styles.catDefault}>{t('categories.default')}</Text>}
       </View>
       <View style={[styles.colorSwatch, { backgroundColor: cat.color }]} />
-      {!cat.isDefault && (
-        <>
-          <Pressable
-            onPress={() => onEdit(cat)}
-            style={styles.rowBtn}
-            hitSlop={8}
-            accessible
-            accessibilityRole="button"
-          >
-            <Text style={styles.rowBtnEdit}>{t('categories.edit')}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => onDelete(cat)}
-            style={styles.rowBtn}
-            hitSlop={8}
-            accessible
-            accessibilityRole="button"
-          >
-            <Text style={styles.rowBtnDelete}>{t('categories.delete')}</Text>
-          </Pressable>
-        </>
-      )}
+      <Pressable
+        onPress={() => onEdit(cat)}
+        style={styles.rowBtn}
+        hitSlop={8}
+        accessible
+        accessibilityRole="button"
+      >
+        <Text style={styles.rowBtnEdit}>{t('categories.edit')}</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => onDelete(cat)}
+        style={styles.rowBtn}
+        hitSlop={8}
+        accessible
+        accessibilityRole="button"
+      >
+        <Text style={styles.rowBtnDelete}>{t('categories.delete')}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -441,7 +438,7 @@ export default function CategoriesScreen(): React.JSX.Element {
     (cat: ExpenseCategory) => {
       Alert.alert(
         t('categories.delete_title'),
-        t('categories.delete_confirm', { name: cat.name }),
+        t('categories.delete_confirm', { name: localizeCategoryName(cat.name, t) }),
         [
           { text: t('common.cancel'), style: 'cancel' },
           {

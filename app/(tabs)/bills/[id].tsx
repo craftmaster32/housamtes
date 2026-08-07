@@ -13,6 +13,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { useMemberName } from '@hooks/useMemberName';
+import { localizeCategoryName } from '@utils/categoryName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { Button, EmptyState, Pill } from '@components/ui';
@@ -332,7 +333,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             <Text style={styles.billAmount}>{formatFull(bill.amount, currencyCode)}</Text>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.category')}</Text>
-              <Text style={styles.metaValue}>{bill.category}</Text>
+              <Text style={styles.metaValue}>{localizeCategoryName(bill.category, t)}</Text>
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>{t('bills.date')}</Text>
