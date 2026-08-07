@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -49,6 +49,8 @@ import { UserAvatar } from '@components/shared/UserAvatar';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
+import { WelcomeTour } from '@components/dashboard/WelcomeTour';
+import { shouldShowTour, markTourSeen } from '@utils/tour';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string, t: (key: string) => string): string {
@@ -1697,6 +1699,22 @@ export default function DashboardScreen(): React.JSX.Element {
   const myName = profile?.name ?? 'there';
   const initials = myName.charAt(0).toUpperCase();
 
+  // One-time welcome tour for users who just signed up.
+  const [showTour, setShowTour] = useState(false);
+  useEffect(() => {
+    let active = true;
+    shouldShowTour().then((show) => {
+      if (active && show) setShowTour(true);
+    });
+    return (): void => {
+      active = false;
+    };
+  }, []);
+  const handleTourDone = useCallback((): void => {
+    setShowTour(false);
+    markTourSeen();
+  }, []);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <View style={styles.flex}>
@@ -1899,6 +1917,7 @@ export default function DashboardScreen(): React.JSX.Element {
           </Animated.View>
         </ScrollView>
       </View>
+      <WelcomeTour visible={showTour} onDone={handleTourDone} />
     </SafeAreaView>
   );
 }

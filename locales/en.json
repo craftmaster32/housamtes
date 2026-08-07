@@ -211,6 +211,19 @@
     "next": "Next",
     "lets_go": "Let's get started"
   },
+  "tour": {
+    "welcome_title": "You're all set!",
+    "welcome_body": "Welcome to HouseMates. Here's a quick peek at what you and your housemates can do together.",
+    "bills_title": "Bills, split fairly",
+    "bills_body": "Add a shared expense and everyone sees who owes what — no more spreadsheets.",
+    "house_title": "Keep the house running",
+    "house_body": "Claim the parking spot, tick off chores, and share the grocery list — all in real time.",
+    "sync_title": "Stay in sync",
+    "sync_body": "Chat with your housemates, vote on decisions, and never miss a thing.",
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Start exploring"
+  },
   "house_setup": {
     "title": "Set up your home",
     "subtitle": "Create a new house or join one your housemate already set up.",

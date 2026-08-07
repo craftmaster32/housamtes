@@ -211,6 +211,19 @@
     "next": "Siguiente",
     "lets_go": "¡Empecemos!"
   },
+  "tour": {
+    "welcome_title": "¡Todo listo!",
+    "welcome_body": "Bienvenido a HouseMates. Aquí tienes un vistazo rápido a lo que puedes hacer con tus compañeros de casa.",
+    "bills_title": "Gastos, repartidos con justicia",
+    "bills_body": "Añade un gasto compartido y todos verán quién debe qué — se acabaron las hojas de cálculo.",
+    "house_title": "Mantén la casa en marcha",
+    "house_body": "Reserva la plaza de parking, marca las tareas y comparte la lista de la compra — todo en tiempo real.",
+    "sync_title": "Mantente al día",
+    "sync_body": "Chatea con tus compañeros, vota decisiones y no te pierdas nada.",
+    "skip": "Omitir",
+    "next": "Siguiente",
+    "start": "Empezar a explorar"
+  },
   "house_setup": {
     "title": "Configura tu hogar",
     "subtitle": "Crea una nueva casa o únete a la que tu compañero ya configuró.",
