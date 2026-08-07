@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { View, StyleSheet, Modal, Pressable, Animated } from 'react-native';
 import { Text, Button } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -11,9 +11,6 @@ import { isRTL } from '@lib/i18n';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { TourScreen, TourBottomBar, WelcomeBg, type TourScreenId } from './TourScreens';
-
-// Height reserved for the persistent bottom bar so the caption sits just above it.
-const BAR_HEIGHT = 96;
 
 interface Step {
   id: 'welcome' | TourScreenId;
@@ -38,7 +35,11 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
   const C = useThemedColors();
   const rtl = isRTL(useLanguageStore((s) => s.language));
   const currency = useSettingsStore((s) => s.currency);
-  const styles = useMemo(() => makeStyles(C, rtl), [C, rtl]);
+  const insets = useSafeAreaInsets();
+  // Push content clear of the status bar AND the floating Skip button
+  // (its ring can extend upward, so leave generous room).
+  const topPad = insets.top + 60;
+  const styles = useMemo(() => makeStyles(C, rtl, topPad), [C, rtl, topPad]);
 
   const [index, setIndex] = useState(0);
   const step = STEPS[index];
@@ -87,47 +88,51 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
-      <View style={styles.root}>
+      <View style={styles.modalRoot}>
         <Pressable
-          style={styles.tapLayer}
+          style={styles.stack}
           onPress={next}
           accessibilityRole="button"
           accessibilityLabel={t('tour.next')}
         >
-          {/* The screen behind — crossfades in on every step */}
-          <Animated.View style={[styles.fill, { opacity: fade }]}>
-            {step.id === 'welcome' ? (
-              <WelcomeBg C={C} />
-            ) : step.screen ? (
-              <TourScreen id={step.screen} C={C} t={t} currency={currency} />
-            ) : null}
-          </Animated.View>
+          {/* Content zone — fills the space above the caption + bar */}
+          <View style={styles.contentZone}>
+            <Animated.View style={[styles.fill, { opacity: fade }]}>
+              {step.id === 'welcome' ? (
+                <WelcomeBg C={C} />
+              ) : step.screen ? (
+                <TourScreen id={step.screen} C={C} t={t} currency={currency} />
+              ) : null}
+            </Animated.View>
+            {step.id === 'welcome' && (
+              <View style={styles.welcomeCenter}>
+                <Animated.View style={[styles.welcomeCard, anim]}>
+                  <View style={styles.welcomeIcon}>
+                    <Ionicons name="happy-outline" size={40} color={C.primary} />
+                  </View>
+                  <Text style={styles.welcomeTitle}>{t('tour.welcome_title')}</Text>
+                  <Text style={styles.welcomeBody}>{t('tour.welcome_body')}</Text>
+                  {footer}
+                </Animated.View>
+              </View>
+            )}
+          </View>
 
-          {/* Persistent bottom bar — stays put across steps; spotlights + on Bills */}
-          <TourBottomBar
-            C={C}
-            highlightAdd={step.id === 'bills'}
-            addLabel={t('bills.add_expense')}
-          />
-
-          {step.id === 'welcome' ? (
-            <View style={styles.welcomeWrap}>
-              <Animated.View style={[styles.welcomeCard, anim]}>
-                <View style={styles.welcomeIcon}>
-                  <Ionicons name="happy-outline" size={40} color={C.primary} />
-                </View>
-                <Text style={styles.welcomeTitle}>{t('tour.welcome_title')}</Text>
-                <Text style={styles.welcomeBody}>{t('tour.welcome_body')}</Text>
-                {footer}
-              </Animated.View>
-            </View>
-          ) : (
+          {/* Caption — stacked below the content, never overlapping it */}
+          {step.id !== 'welcome' && (
             <Animated.View style={[styles.sheet, anim]}>
               <Text style={styles.eyebrow}>{t(`tour.${step.id}_title`)}</Text>
               <Text style={styles.body}>{t(`tour.${step.id}_body`)}</Text>
               {footer}
             </Animated.View>
           )}
+
+          {/* Persistent bottom bar */}
+          <TourBottomBar
+            C={C}
+            highlightAdd={step.id === 'bills'}
+            addLabel={t('bills.add_expense')}
+          />
         </Pressable>
 
         <SafeAreaView edges={['top']} style={styles.skipWrap} pointerEvents="box-none">
@@ -147,19 +152,19 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
   );
 };
 
-function makeStyles(C: ColorTokens, rtl: boolean) {
+function makeStyles(C: ColorTokens, rtl: boolean, topPad: number) {
   const textAlign = rtl ? 'right' : 'left';
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: C.background },
-    tapLayer: { flex: 1 },
-    fill: { ...StyleSheet.absoluteFillObject },
+    modalRoot: { flex: 1, backgroundColor: C.background },
+    stack: { flex: 1 },
+    contentZone: { flex: 1, paddingTop: topPad, overflow: 'hidden' },
+    fill: { flex: 1 },
     // Welcome
-    welcomeWrap: {
+    welcomeCenter: {
       ...StyleSheet.absoluteFillObject,
       justifyContent: 'center',
       alignItems: 'center',
       padding: sizes.lg,
-      paddingBottom: BAR_HEIGHT,
     },
     welcomeCard: {
       width: '100%',
@@ -199,12 +204,10 @@ function makeStyles(C: ColorTokens, rtl: boolean) {
       marginTop: sizes.sm,
       paddingHorizontal: sizes.sm,
     },
-    // Caption sheet — same spot every step, just above the bottom bar
+    // Caption
     sheet: {
-      position: 'absolute',
-      left: sizes.md,
-      right: sizes.md,
-      bottom: BAR_HEIGHT + sizes.md,
+      marginHorizontal: sizes.md,
+      marginBottom: sizes.sm,
       backgroundColor: C.surface,
       borderRadius: 22,
       padding: sizes.md + 2,

@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   highlightWrap: { alignSelf: 'stretch' },
   ring: { position: 'absolute', top: -7, left: -7, right: -7, bottom: -7, borderWidth: 2 },
   ringStatic: { borderWidth: 2 },
-  body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.xl + sizes.lg, gap: sizes.sm },
+  body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.sm, gap: sizes.sm },
   title: { fontSize: 26, ...font.extrabold, letterSpacing: -0.7 },
   sub: { fontSize: 13, ...font.regular },
   welcomeBgCards: { marginTop: sizes.sm, gap: 10 },
@@ -415,12 +415,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: { fontSize: 11, ...font.bold, color: '#fff' },
-  // Bottom bar
+  // Bottom bar — rendered in flow at the base of the tour's stacked layout
   bar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -466,7 +462,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    height: 96,
+    height: 74,
     gap: 9,
   },
   barCol: { flex: 1, height: '100%', justifyContent: 'flex-end', alignItems: 'center', gap: 5 },
