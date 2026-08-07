@@ -8,9 +8,11 @@ export default function TabsLayout(): React.JSX.Element {
       screenOptions={{
         headerShown: false,
         tabBarStyle: { display: 'none' },
-        // Every screen change crossfades instead of hard-cutting, so moving
-        // back and forth between screens feels animated like a native app.
-        animation: 'fade',
+        // NOTE: do not set `animation` here. With the native tab bar hidden and
+        // navigation driven programmatically (BottomTabBar → router.navigate),
+        // bottom-tabs `animation: 'fade'` plays the crossfade but leaves the
+        // previous screen mounted — tapping a tab looks like it switches yet
+        // stays on the current screen (most visible on web). Hard-cut is correct.
       }}
     >
       <Tabs.Screen name="dashboard/index" />
