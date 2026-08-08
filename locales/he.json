@@ -249,7 +249,9 @@
     "demo_electricity": "חשמל",
     "demo_internet": "אינטרנט",
     "demo_water": "מים",
-    "back": "חזרה"
+    "back": "חזרה",
+    "explore_title": "ויש עוד הרבה",
+    "explore_body": "חניה, מטלות, צ'אט והצבעות נמצאים תחת עוד. הקישו כדי לגלות."
   },
   "house_setup": {
     "title": "הגדר את הבית",

@@ -1,5 +1,14 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, StyleSheet, Modal, Pressable, Animated, PanResponder } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Modal,
+  Pressable,
+  Animated,
+  PanResponder,
+  useWindowDimensions,
+  type GestureResponderEvent,
+} from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,10 +19,16 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { isRTL } from '@lib/i18n';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
-import { TourScreen, TourBottomBar, WelcomeBg, type TourScreenId } from './TourScreens';
+import {
+  TourScreen,
+  TourBottomBar,
+  WelcomeBg,
+  type TourScreenId,
+  type BarHighlight,
+} from './TourScreens';
 
 interface Step {
-  id: 'welcome' | TourScreenId;
+  id: 'welcome' | 'explore' | TourScreenId;
   screen?: TourScreenId;
 }
 
@@ -23,6 +38,7 @@ const STEPS: Step[] = [
   { id: 'spending', screen: 'spending' },
   { id: 'grocery', screen: 'grocery' },
   { id: 'calendar', screen: 'calendar' },
+  { id: 'explore' },
 ];
 
 interface WelcomeTourProps {
@@ -36,9 +52,10 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
   const rtl = isRTL(useLanguageStore((s) => s.language));
   const currency = useSettingsStore((s) => s.currency);
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   // Push content clear of the status bar AND the floating Skip button
   // (its ring can extend upward, so leave generous room).
-  const topPad = insets.top + 60;
+  const topPad = insets.top + 72;
   const styles = useMemo(() => makeStyles(C, rtl, topPad), [C, rtl, topPad]);
 
   const [index, setIndex] = useState(0);
@@ -59,6 +76,18 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
     else setIndex((i) => i + 1);
   }, [isLast, onDone]);
   const back = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+  // Tap the left ~28% of the screen to go back; tap anywhere else to advance.
+  const onTap = useCallback(
+    (e: GestureResponderEvent) => {
+      const x = e.nativeEvent.locationX;
+      const leftZone = rtl ? x > width * 0.72 : x < width * 0.28;
+      if (leftZone) back();
+      else next();
+    },
+    [width, rtl, back, next]
+  );
+  const barHighlight: BarHighlight =
+    step.id === 'bills' ? 'add' : step.id === 'explore' ? 'more' : null;
 
   // Horizontal swipe: back one step, or forward. Only claims the gesture on a
   // clear horizontal drag, so taps and the buttons keep working.
@@ -127,18 +156,18 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
       <View style={styles.modalRoot} {...pan.panHandlers}>
         <Pressable
           style={styles.stack}
-          onPress={next}
+          onPress={onTap}
           accessibilityRole="button"
           accessibilityLabel={t('tour.next')}
         >
           {/* Content zone — fills the space above the caption + bar */}
           <View style={styles.contentZone}>
             <Animated.View style={[styles.fill, { opacity: fade }]}>
-              {step.id === 'welcome' ? (
-                <WelcomeBg C={C} />
-              ) : step.screen ? (
+              {step.screen ? (
                 <TourScreen id={step.screen} C={C} t={t} currency={currency} />
-              ) : null}
+              ) : (
+                <WelcomeBg C={C} />
+              )}
             </Animated.View>
             {step.id === 'welcome' && (
               <View style={styles.welcomeCenter}>
@@ -166,8 +195,9 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
           {/* Persistent bottom bar */}
           <TourBottomBar
             C={C}
-            highlightAdd={step.id === 'bills'}
+            highlight={barHighlight}
             addLabel={t('bills.add_expense')}
+            moreLabel={t('nav.more')}
           />
         </Pressable>
 

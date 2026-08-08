@@ -249,7 +249,9 @@
     "demo_electricity": "Electricidad",
     "demo_internet": "Internet",
     "demo_water": "Agua",
-    "back": "Atrás"
+    "back": "Atrás",
+    "explore_title": "Y hay mucho más",
+    "explore_body": "Parking, tareas, chat y votaciones están en Más. Tócalo cuando quieras para explorar."
   },
   "house_setup": {
     "title": "Configura tu hogar",

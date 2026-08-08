@@ -8,13 +8,15 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
 export type TourScreenId = 'bills' | 'spending' | 'grocery' | 'calendar';
+export type BarHighlight = 'add' | 'more' | null;
 
 // Background app content is shown at this opacity so the screen reads as the
 // real app, while the spotlighted control (full opacity + ring) stands out.
 const DIM = 0.5;
 
 // ── Pulsing spotlight ring drawn around the highlighted control ──────────────
-// Opacity-only pulse (no scale) so it hugs targets of any width correctly.
+// Opacity-only pulse (no scale) so it hugs targets of any width correctly, and
+// a small, tight outset so it never sits on neighbouring content.
 interface HighlightProps {
   C: ColorTokens;
   radius: number;
@@ -44,15 +46,15 @@ export const Highlight: React.FC<HighlightProps> = ({ C, radius, children }) => 
     return (): void => loop.stop();
   }, [pulse]);
 
-  const glow = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.6] });
+  const glow = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.55] });
 
   return (
     <View style={styles.highlightWrap}>
       <Animated.View
         pointerEvents="none"
-        style={[styles.ring, { borderColor: C.primary, borderRadius: radius + 7, opacity: glow }]}
+        style={[styles.ring, { borderColor: C.primary, borderRadius: radius + 4, opacity: glow }]}
       />
-      <View style={[styles.ringStatic, { borderColor: C.primary, borderRadius: radius + 3 }]}>
+      <View style={[styles.ringStatic, { borderColor: C.primary, borderRadius: radius + 2 }]}>
         {children}
       </View>
     </View>
@@ -62,12 +64,14 @@ export const Highlight: React.FC<HighlightProps> = ({ C, radius, children }) => 
 // ── The persistent bottom nav bar ────────────────────────────────────────────
 export function TourBottomBar({
   C,
-  highlightAdd,
+  highlight,
   addLabel,
+  moreLabel,
 }: {
   C: ColorTokens;
-  highlightAdd: boolean;
+  highlight: BarHighlight;
   addLabel: string;
+  moreLabel: string;
 }): React.JSX.Element {
   const tab = (name: keyof typeof Ionicons.glyphMap): React.JSX.Element => (
     <View style={styles.barTab}>
@@ -87,7 +91,7 @@ export function TourBottomBar({
       {tab('home-outline')}
       {tab('card-outline')}
       <View style={styles.barCenter}>
-        {highlightAdd ? (
+        {highlight === 'add' ? (
           <Highlight C={C} radius={26}>
             {addBtn}
           </Highlight>
@@ -96,7 +100,17 @@ export function TourBottomBar({
         )}
       </View>
       {tab('car-outline')}
-      {tab('ellipsis-horizontal')}
+      {highlight === 'more' ? (
+        <View style={styles.barTab}>
+          <Highlight C={C} radius={11}>
+            <View style={styles.moreHi} accessibilityLabel={moreLabel}>
+              <Ionicons name="ellipsis-horizontal" size={24} color={C.primary} />
+            </View>
+          </Highlight>
+        </View>
+      ) : (
+        tab('ellipsis-horizontal')
+      )}
     </View>
   );
 }
@@ -121,10 +135,12 @@ function BillsScreen({ C, t, currency }: ScreenProps): React.JSX.Element {
     { icon: 'water', tint: '#3FA0C9', title: t('tour.demo_water'), amount: '22', who: 'A' },
   ];
   return (
-    <View style={[styles.body, { opacity: DIM }]}>
-      <Text style={[styles.title, { color: C.textPrimary }]}>{t('bills.title')}</Text>
-      <Text style={[styles.sub, { color: C.textSecondary }]}>{t('bills.page_subtitle')}</Text>
-      <View style={styles.rows}>
+    <View style={styles.body}>
+      <View style={[styles.header, { opacity: DIM }]}>
+        <Text style={[styles.title, { color: C.textPrimary }]}>{t('bills.title')}</Text>
+        <Text style={[styles.sub, { color: C.textSecondary }]}>{t('bills.page_subtitle')}</Text>
+      </View>
+      <View style={[styles.rows, { opacity: DIM }]}>
         {rows.map((r) => (
           <View
             key={r.title}
@@ -222,12 +238,12 @@ function GroceryScreen({ C, t }: ScreenProps): React.JSX.Element {
   ];
   return (
     <View style={styles.body}>
-      <Text style={[styles.title, { color: C.textPrimary, opacity: DIM }]}>
-        {t('grocery.shared_groceries')}
-      </Text>
-      <Text style={[styles.sub, { color: C.textSecondary, opacity: DIM }]}>
-        {t('grocery.add_things_hint')}
-      </Text>
+      <View style={[styles.header, { opacity: DIM }]}>
+        <Text style={[styles.title, { color: C.textPrimary }]}>
+          {t('grocery.shared_groceries')}
+        </Text>
+        <Text style={[styles.sub, { color: C.textSecondary }]}>{t('grocery.add_things_hint')}</Text>
+      </View>
       <Highlight C={C} radius={14}>
         <View style={styles.addRow}>
           <View style={[styles.addInput, { backgroundColor: C.surface, borderColor: C.border }]}>
@@ -276,7 +292,7 @@ function CalendarScreen({ C, t }: ScreenProps): React.JSX.Element {
     14: [C.positive, '#E0912F'],
     22: ['#8B5CF6'],
   };
-  const today = 12;
+  const todayDay = 12;
   const cells = Array.from({ length: 35 }, (_, i) => {
     const day = i - 3;
     return day >= 1 && day <= 30 ? day : null;
@@ -306,7 +322,7 @@ function CalendarScreen({ C, t }: ScreenProps): React.JSX.Element {
       </View>
       <View style={[styles.grid, { opacity: DIM }]}>
         {cells.map((day, i) => {
-          const isToday = day === today;
+          const isToday = day === todayDay;
           return (
             <View
               key={i}
@@ -340,7 +356,7 @@ function CalendarScreen({ C, t }: ScreenProps): React.JSX.Element {
   );
 }
 
-// ── Welcome backdrop — a faint populated dashboard ───────────────────────────
+// ── Welcome / Explore backdrop — a faint populated dashboard ─────────────────
 export function WelcomeBg({ C }: { C: ColorTokens }): React.JSX.Element {
   return (
     <View style={[styles.body, { opacity: DIM }]}>
@@ -384,16 +400,17 @@ export function TourScreen({
 
 const styles = StyleSheet.create({
   highlightWrap: { alignSelf: 'stretch' },
-  ring: { position: 'absolute', top: -7, left: -7, right: -7, bottom: -7, borderWidth: 2 },
+  ring: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderWidth: 2 },
   ringStatic: { borderWidth: 2 },
-  body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.sm, gap: sizes.sm },
+  body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.sm, gap: sizes.lg },
+  header: { gap: 3 },
   title: { fontSize: 26, ...font.extrabold, letterSpacing: -0.7 },
   sub: { fontSize: 13, ...font.regular },
-  welcomeBgCards: { marginTop: sizes.sm, gap: 10 },
+  welcomeBgCards: { gap: 10 },
   wCard: { height: 66, borderRadius: 18, borderWidth: 1 },
   wCardTall: { height: 96 },
   // Bills rows
-  rows: { marginTop: sizes.sm, gap: 10 },
+  rows: { gap: 10 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -415,7 +432,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: { fontSize: 11, ...font.bold, color: '#fff' },
-  // Bottom bar — rendered in flow at the base of the tour's stacked layout
+  // Bottom bar
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -426,6 +443,7 @@ const styles = StyleSheet.create({
   barTab: { flex: 1, alignItems: 'center' },
   barCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   barAddDim: { opacity: DIM },
+  moreHi: { padding: 5, borderRadius: 8 },
   addBtn: {
     width: 54,
     height: 54,
@@ -433,7 +451,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
@@ -441,11 +459,11 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   // Spending
-  sumRow: { flexDirection: 'row', gap: 10, marginTop: sizes.sm },
+  sumRow: { flexDirection: 'row', gap: 10 },
   sumCard: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 12, gap: 4 },
   sumLabel: { fontSize: 11, ...font.semibold },
   sumValue: { fontSize: 20, ...font.extrabold, fontVariant: ['tabular-nums'] },
-  chartCard: { borderWidth: 1, borderRadius: 20, padding: 16, marginTop: sizes.xs },
+  chartCard: { borderWidth: 1, borderRadius: 20, padding: 16 },
   seg: {
     flexDirection: 'row',
     alignSelf: 'flex-start',
@@ -469,7 +487,7 @@ const styles = StyleSheet.create({
   barFill: { width: '100%', maxWidth: 22, borderRadius: 6 },
   barLabel: { fontSize: 9, ...font.medium },
   // Grocery
-  addRow: { flexDirection: 'row', gap: 9, marginTop: sizes.sm },
+  addRow: { flexDirection: 'row', gap: 9 },
   addInput: {
     flex: 1,
     borderWidth: 1,
@@ -480,7 +498,7 @@ const styles = StyleSheet.create({
   },
   addInputText: { fontSize: 14, ...font.regular },
   addSquare: { width: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  groceryList: { marginTop: sizes.md, gap: 8 },
+  groceryList: { gap: 8 },
   gRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -509,9 +527,9 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   addPillText: { fontSize: 13, ...font.semibold, color: '#fff' },
-  weekRow: { flexDirection: 'row', marginTop: sizes.md },
+  weekRow: { flexDirection: 'row' },
   weekday: { flex: 1, textAlign: 'center', fontSize: 10, ...font.bold },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
   calCell: {
     width: `${100 / 7}%`,
     aspectRatio: 1,

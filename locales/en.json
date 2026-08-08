@@ -249,7 +249,9 @@
     "demo_electricity": "Electricity",
     "demo_internet": "Internet",
     "demo_water": "Water",
-    "back": "Back"
+    "back": "Back",
+    "explore_title": "There's even more",
+    "explore_body": "Parking, chores, chat and voting all live under More — give it a tap to explore."
   },
   "house_setup": {
     "title": "Set up your home",
