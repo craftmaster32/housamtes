@@ -21,9 +21,10 @@ interface HighlightProps {
   C: ColorTokens;
   radius: number;
   children: React.ReactNode;
+  circle?: boolean;
 }
 
-export const Highlight: React.FC<HighlightProps> = ({ C, radius, children }) => {
+export const Highlight: React.FC<HighlightProps> = ({ C, radius, children, circle }) => {
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -47,14 +48,16 @@ export const Highlight: React.FC<HighlightProps> = ({ C, radius, children }) => 
   }, [pulse]);
 
   const glow = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.55] });
+  const rGlow = circle ? 999 : radius + 4;
+  const rStatic = circle ? 999 : radius + 2;
 
   return (
-    <View style={styles.highlightWrap}>
+    <View style={[styles.highlightWrap, circle && styles.highlightCircle]}>
       <Animated.View
         pointerEvents="none"
-        style={[styles.ring, { borderColor: C.primary, borderRadius: radius + 4, opacity: glow }]}
+        style={[styles.ring, { borderColor: C.primary, borderRadius: rGlow, opacity: glow }]}
       />
-      <View style={[styles.ringStatic, { borderColor: C.primary, borderRadius: radius + 2 }]}>
+      <View style={[styles.ringStatic, { borderColor: C.primary, borderRadius: rStatic }]}>
         {children}
       </View>
     </View>
@@ -92,7 +95,7 @@ export function TourBottomBar({
       {tab('card-outline')}
       <View style={styles.barCenter}>
         {highlight === 'add' ? (
-          <Highlight C={C} radius={26}>
+          <Highlight C={C} radius={27} circle>
             {addBtn}
           </Highlight>
         ) : (
@@ -356,20 +359,55 @@ function CalendarScreen({ C, t }: ScreenProps): React.JSX.Element {
   );
 }
 
-// ── Welcome / Explore backdrop — a faint populated dashboard ─────────────────
-export function WelcomeBg({ C }: { C: ColorTokens }): React.JSX.Element {
+// ── Welcome backdrop — a faint but populated dashboard ───────────────────────
+export function WelcomeBg({ C, t, currency }: ScreenProps): React.JSX.Element {
   return (
     <View style={[styles.body, { opacity: DIM }]}>
       <Text style={[styles.title, { color: C.textPrimary }]}>HouseMates</Text>
-      <View style={styles.welcomeBgCards}>
-        <View style={[styles.wCard, { backgroundColor: C.surface, borderColor: C.border }]} />
-        <View
-          style={[
-            styles.wCard,
-            styles.wCardTall,
-            { backgroundColor: C.surface, borderColor: C.border },
-          ]}
-        />
+      <View style={[styles.owedCard, { backgroundColor: C.surface, borderColor: C.border }]}>
+        <Text style={[styles.owedLbl, { color: C.textSecondary }]}>
+          {t('dashboard.balance_owed')}
+        </Text>
+        <Text style={[styles.owedVal, { color: C.textPrimary }]}>{currency}126</Text>
+      </View>
+      <View style={styles.miniRow}>
+        <View style={[styles.miniTile, { backgroundColor: C.surface, borderColor: C.border }]} />
+        <View style={[styles.miniTile, { backgroundColor: C.surface, borderColor: C.border }]} />
+      </View>
+    </View>
+  );
+}
+
+// ── Explore — the More menu opened, so people can see what's inside ──────────
+export function MoreMenuScreen({ C, t }: ScreenProps): React.JSX.Element {
+  const tiles: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string; color: string }> = [
+    { icon: 'cart-outline', label: t('nav.grocery'), color: '#E8892B' },
+    { icon: 'calendar-outline', label: t('nav.calendar'), color: '#3B6FBF' },
+    { icon: 'images-outline', label: t('nav.photos'), color: '#AF52DE' },
+    { icon: 'list-outline', label: t('nav.tasks'), color: '#2FA37A' },
+    { icon: 'clipboard-outline', label: t('nav.notes'), color: '#D9A414' },
+    { icon: 'hand-left-outline', label: t('nav.votes'), color: '#EC5A8D' },
+    { icon: 'construct-outline', label: t('nav.property'), color: '#12A594' },
+  ];
+  return (
+    <View style={styles.body}>
+      <View style={[styles.menuCard, { backgroundColor: C.surface, borderColor: C.border }]}>
+        <Text style={[styles.menuTitle, { color: C.textSecondary }]}>{t('nav.more')}</Text>
+        <View style={styles.menuGrid}>
+          {tiles.map((tile) => (
+            <View
+              key={tile.label}
+              style={[styles.menuTile, { backgroundColor: C.surfaceSecondary }]}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: tile.color + '22' }]}>
+                <Ionicons name={tile.icon} size={20} color={tile.color} />
+              </View>
+              <Text style={[styles.menuLbl, { color: C.textPrimary }]} numberOfLines={1}>
+                {tile.label}
+              </Text>
+            </View>
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -400,15 +438,37 @@ export function TourScreen({
 
 const styles = StyleSheet.create({
   highlightWrap: { alignSelf: 'stretch' },
+  highlightCircle: { alignSelf: 'center' },
   ring: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderWidth: 2 },
   ringStatic: { borderWidth: 2 },
   body: { flex: 1, paddingHorizontal: sizes.lg, paddingTop: sizes.sm, gap: sizes.lg },
   header: { gap: 3 },
   title: { fontSize: 26, ...font.extrabold, letterSpacing: -0.7 },
   sub: { fontSize: 13, ...font.regular },
-  welcomeBgCards: { gap: 10 },
-  wCard: { height: 66, borderRadius: 18, borderWidth: 1 },
-  wCardTall: { height: 96 },
+  owedCard: { borderWidth: 1, borderRadius: 20, padding: 18 },
+  owedLbl: { fontSize: 12, ...font.semibold },
+  owedVal: { fontSize: 30, ...font.extrabold, marginTop: 4, fontVariant: ['tabular-nums'] },
+  miniRow: { flexDirection: 'row', gap: 10 },
+  miniTile: { flex: 1, height: 64, borderRadius: 16, borderWidth: 1 },
+  // More menu (explore)
+  menuCard: { borderWidth: 1, borderRadius: 22, padding: 16 },
+  menuTitle: {
+    fontSize: 12,
+    ...font.extrabold,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  menuTile: { width: '31%', alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 14 },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuLbl: { fontSize: 11, ...font.semibold },
   // Bills rows
   rows: { gap: 10 },
   card: {
@@ -451,7 +511,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,

@@ -23,6 +23,7 @@ import {
   TourScreen,
   TourBottomBar,
   WelcomeBg,
+  MoreMenuScreen,
   type TourScreenId,
   type BarHighlight,
 } from './TourScreens';
@@ -79,7 +80,7 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
   // Tap the left ~28% of the screen to go back; tap anywhere else to advance.
   const onTap = useCallback(
     (e: GestureResponderEvent) => {
-      const x = e.nativeEvent.locationX;
+      const x = e.nativeEvent.pageX;
       const leftZone = rtl ? x > width * 0.72 : x < width * 0.28;
       if (leftZone) back();
       else next();
@@ -165,8 +166,10 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
             <Animated.View style={[styles.fill, { opacity: fade }]}>
               {step.screen ? (
                 <TourScreen id={step.screen} C={C} t={t} currency={currency} />
+              ) : step.id === 'explore' ? (
+                <MoreMenuScreen C={C} t={t} currency={currency} />
               ) : (
-                <WelcomeBg C={C} />
+                <WelcomeBg C={C} t={t} currency={currency} />
               )}
             </Animated.View>
             {step.id === 'welcome' && (
