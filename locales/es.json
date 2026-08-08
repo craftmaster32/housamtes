@@ -248,7 +248,8 @@
     "start": "¡Vamos! 🚀",
     "demo_electricity": "Electricidad",
     "demo_internet": "Internet",
-    "demo_water": "Agua"
+    "demo_water": "Agua",
+    "back": "Atrás"
   },
   "house_setup": {
     "title": "Configura tu hogar",

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, StyleSheet, Modal, Pressable, Animated } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, Animated, PanResponder } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,12 +58,48 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
     if (isLast) onDone();
     else setIndex((i) => i + 1);
   }, [isLast, onDone]);
+  const back = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+
+  // Horizontal swipe: back one step, or forward. Only claims the gesture on a
+  // clear horizontal drag, so taps and the buttons keep working.
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) =>
+          Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        onPanResponderRelease: (_, g) => {
+          const isBack = rtl ? g.dx < -45 : g.dx > 45;
+          const isFwd = rtl ? g.dx > 45 : g.dx < -45;
+          if (isBack) back();
+          else if (isFwd) next();
+        },
+      }),
+    [rtl, back, next]
+  );
 
   const translateY = fade.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
   const anim = { opacity: fade, transform: [{ translateY }] };
 
   const footer = (
     <View style={styles.footer}>
+      {index > 0 ? (
+        <Pressable
+          onPress={back}
+          style={styles.backBtn}
+          hitSlop={8}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('tour.back')}
+        >
+          <Ionicons
+            name={rtl ? 'chevron-forward' : 'chevron-back'}
+            size={20}
+            color={C.textSecondary}
+          />
+        </Pressable>
+      ) : (
+        <View style={styles.backBtn} />
+      )}
       <View style={styles.dots}>
         {STEPS.map((s, i) => (
           <View key={s.id} style={[styles.dot, i === index && styles.dotActive]} />
@@ -88,7 +124,7 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
-      <View style={styles.modalRoot}>
+      <View style={styles.modalRoot} {...pan.panHandlers}>
         <Pressable
           style={styles.stack}
           onPress={next}
@@ -242,7 +278,8 @@ function makeStyles(C: ColorTokens, rtl: boolean, topPad: number) {
       marginTop: sizes.md,
       gap: sizes.sm,
     },
-    dots: { flexDirection: 'row', gap: 7 },
+    backBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'flex-start' },
+    dots: { flexDirection: 'row', gap: 7, flex: 1, justifyContent: 'center' },
     dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.border },
     dotActive: { width: 20, backgroundColor: C.primary },
     cta: { borderRadius: 12 },
