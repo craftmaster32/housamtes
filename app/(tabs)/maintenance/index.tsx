@@ -40,6 +40,7 @@ const makeStyles = (C: ColorTokens) =>
     addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
 
     resolvedToggle: {
+      minHeight: ms(44),
       paddingVertical: sizes.sm,
       flexDirection: 'row',
       alignItems: 'center',

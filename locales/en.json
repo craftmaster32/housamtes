@@ -1601,7 +1601,8 @@
     "could_not_save": "Could not save the category. Please try again.",
     "could_not_update": "Could not update the category. Please try again.",
     "could_not_delete": "Could not delete the category. Please try again.",
-    "no_categories": "No categories yet. Tap \"+ Add Category\" to create one."
+    "no_categories": "No categories yet. Tap \"+ Add Category\" to create one.",
+    "icon_option": "{{name}} icon"
   },
   "spending": {
     "spending_label": "SPENDING",

@@ -13,6 +13,7 @@ import {
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import type { IoniconName } from '@/types/icons';
 import { useTranslation } from 'react-i18next';
 import { useEventsStore, HouseEvent, EventRecurrence, EventUpdates } from '@stores/eventsStore';
 import { useParkingStore } from '@stores/parkingStore';
@@ -53,8 +54,6 @@ interface CalendarEvent {
   recurrence?: EventRecurrence;
   person?: string;
 }
-
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const TYPE_META: Record<CalendarEvent['type'], { icon: IoniconName; color: string }> = {
   event: { icon: 'calendar-outline', color: '#6366f1' },

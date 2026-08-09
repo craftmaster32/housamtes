@@ -280,7 +280,13 @@ function ProposalCard({
         return (
           <View key={id} style={[styles.pollFace, { backgroundColor: hm?.color ?? C.primary }]}>
             {hm?.avatarUrl ? (
-              <Image source={{ uri: hm.avatarUrl }} style={styles.pollFaceImg} contentFit="cover" />
+              <Image
+                source={{ uri: hm.avatarUrl }}
+                style={styles.pollFaceImg}
+                contentFit="cover"
+                accessible
+                accessibilityLabel={hm.name}
+              />
             ) : (
               <Text style={styles.pollFaceText}>{(hm?.name ?? '?')[0]?.toUpperCase()}</Text>
             )}

@@ -48,6 +48,10 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps): React.JSX.Element {
     });
   }, []);
 
+  const handleSelectPriority = useCallback((p: TaskPriority): void => {
+    setPriority(p);
+  }, []);
+
   const handleAdd = useCallback(async (): Promise<void> => {
     if (!title.trim() || isAdding) return;
     setIsAdding(true);
@@ -102,7 +106,7 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps): React.JSX.Element {
           <Pressable
             key={p}
             style={[styles.chip, styles.chipWithDot, priority === p && styles.chipActive]}
-            onPress={() => setPriority(p)}
+            onPress={() => handleSelectPriority(p)}
             accessible
             accessibilityRole="radio"
             accessibilityLabel={t(`tasks.priority_${p}`)}

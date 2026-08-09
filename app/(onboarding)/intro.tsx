@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import type { IoniconName } from '@/types/icons';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -13,8 +14,6 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 
 import { mf, ms } from '@utils/responsive';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-type SlideIcon = React.ComponentProps<typeof Ionicons>['name'];
 
 const ONBOARDING_KEY = 'housemates_onboarding_seen';
 
@@ -32,7 +31,7 @@ export default function IntroScreen(): React.JSX.Element {
 
   const SLIDES: {
     id: string;
-    icon: SlideIcon;
+    icon: IoniconName;
     title: string;
     subtitle: string;
     body: string;

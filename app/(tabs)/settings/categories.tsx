@@ -229,7 +229,9 @@ function CategoryForm({
                 }}
                 accessible
                 accessibilityRole="radio"
-                accessibilityLabel={iconName}
+                accessibilityLabel={t('categories.icon_option', {
+                  name: iconName.replace(/-outline$/, '').replace(/-/g, ' '),
+                })}
                 accessibilityState={{ selected: form.icon === iconName }}
               >
                 <Ionicons
