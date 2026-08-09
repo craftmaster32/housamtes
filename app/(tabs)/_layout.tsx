@@ -27,6 +27,9 @@ export default function TabsLayout(): React.JSX.Element {
       <Tabs.Screen name="more/settings" options={{ href: null }} />
       <Tabs.Screen name="photos/index" />
       <Tabs.Screen name="settings/notifications" options={{ href: null }} />
+      <Tabs.Screen name="settings/appearance" options={{ href: null }} />
+      <Tabs.Screen name="settings/language" options={{ href: null }} />
+      <Tabs.Screen name="settings/calendar" options={{ href: null }} />
       <Tabs.Screen name="settings/privacy-policy" options={{ href: null }} />
       <Tabs.Screen name="settings/terms" options={{ href: null }} />
       <Tabs.Screen name="settings/categories" options={{ href: null }} />

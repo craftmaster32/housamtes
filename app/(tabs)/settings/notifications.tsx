@@ -1,5 +1,13 @@
-import { useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Switch, Pressable, type ViewStyle } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Switch,
+  Pressable,
+  Platform,
+  type ViewStyle,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +15,10 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useNotificationStore, type BillDueDays } from '@stores/notificationStore';
 import { useAuthStore } from '@stores/authStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
+import { Alert } from '@lib/alert';
+import { enableWebPush, getWebPushStatus, refreshWebPush, type WebPushStatus } from '@lib/webPush';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -60,9 +72,26 @@ const makeStyles = (C: ColorTokens) =>
       gap: sizes.md,
     },
     rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
+    rowPressed: { backgroundColor: C.background },
     rowText: { flex: 1 },
     rowLabel: { fontSize: mf(15), ...font.medium, color: C.textPrimary },
     rowDesc: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
+    pushRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: sizes.md,
+      paddingVertical: ms(14),
+      gap: sizes.md,
+    },
+    pushIcon: {
+      width: ms(36),
+      height: ms(36),
+      borderRadius: sizes.borderRadiusSm,
+      backgroundColor: C.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    pushOn: { color: C.positive, ...font.semibold, fontSize: mf(13) },
 
     daysRow: {
       paddingHorizontal: sizes.md,
@@ -142,10 +171,16 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
   const updatePrefs = useNotificationStore((s) => s.update);
   const user = useAuthStore((s) => s.user);
   const houseId = useAuthStore((s) => s.houseId);
+  const currentLanguage = useLanguageStore((s) => s.language);
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
+
+  const [webPushStatus, setWebPushStatus] = useState<WebPushStatus>('unavailable');
+  useEffect(() => {
+    if (Platform.OS === 'web') setWebPushStatus(getWebPushStatus());
+  }, []);
 
   const save = useCallback(
     (changes: Parameters<typeof updatePrefs>[2]) => {
@@ -154,6 +189,41 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
     },
     [user, houseId, updatePrefs]
   );
+
+  const handleEnableWebPush = useCallback(async (): Promise<void> => {
+    if (!user?.id || !houseId) return;
+    try {
+      const result = await enableWebPush(user.id, houseId);
+      if (result === 'unavailable') {
+        Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
+      } else {
+        setWebPushStatus(result);
+        if (result === 'denied') {
+          Alert.alert(
+            t('settings.notifications_blocked_title'),
+            t('settings.notifications_blocked_body')
+          );
+        }
+      }
+    } catch {
+      Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
+    }
+  }, [user?.id, houseId, t]);
+
+  const handleRefreshOrEnableWebPush = useCallback(async (): Promise<void> => {
+    if (!user?.id || !houseId) return;
+    if (webPushStatus === 'granted') {
+      const result = await refreshWebPush(user.id, houseId);
+      setWebPushStatus(getWebPushStatus());
+      if (result.ok) {
+        Alert.alert(t('common.done'), t('settings.push_refresh_success'));
+      } else {
+        Alert.alert(t('settings.push_refresh_failed_title'), result.reason ?? '');
+      }
+      return;
+    }
+    await handleEnableWebPush();
+  }, [user?.id, houseId, webPushStatus, handleEnableWebPush, t]);
 
   const handleBack = useCallback(() => router.back(), []);
   const handleSelectDay = useCallback((d: BillDueDays) => save({ billDueDaysBefore: d }), [save]);
@@ -176,6 +246,45 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
             <Text style={[styles.heading, headingFont]}>{t('nav.settings')}</Text>
             <Text style={styles.subheading}>{t('settings.notifications_section')}</Text>
           </View>
+
+          {webPushStatus !== 'unavailable' && (
+            <View style={styles.card}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.pushRow,
+                  webPushStatus !== 'denied' && pressed && styles.rowPressed,
+                ]}
+                onPress={webPushStatus === 'denied' ? undefined : handleRefreshOrEnableWebPush}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('settings.browser_notifications')}
+              >
+                <View style={styles.pushIcon}>
+                  <Ionicons name="notifications-outline" size={18} color={C.primary} />
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowLabel}>{t('settings.browser_notifications')}</Text>
+                  <Text style={styles.rowDesc}>
+                    {webPushStatus === 'granted'
+                      ? t('settings.notifications_enabled')
+                      : webPushStatus === 'denied'
+                        ? t('settings.notifications_blocked')
+                        : t('settings.notifications_tap_enable')}
+                  </Text>
+                </View>
+                {webPushStatus === 'granted' && (
+                  <Text style={styles.pushOn}>{t('settings.notifications_on')}</Text>
+                )}
+                {webPushStatus !== 'denied' && (
+                  <Ionicons
+                    name={isRTL(currentLanguage) ? 'chevron-back' : 'chevron-forward'}
+                    size={18}
+                    color={C.textTertiary}
+                  />
+                )}
+              </Pressable>
+            </View>
+          )}
 
           <View style={styles.sectionTitleRow}>
             <Ionicons name="cash-outline" size={15} color={C.textSecondary} />
