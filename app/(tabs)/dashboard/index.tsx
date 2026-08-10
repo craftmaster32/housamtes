@@ -15,6 +15,7 @@ import {
 } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useEventsStore } from '@stores/eventsStore';
+import { isEventImminent } from '@utils/events';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useMemberName } from '@hooks/useMemberName';
@@ -197,13 +198,46 @@ function TodayRow(): React.JSX.Element {
 
   if (!next) return <></>;
 
+  const isToday = next.date === today;
+
+  // Events happening today or within the next 24h get promoted to a prominent
+  // pinned-style banner (matching the house announcement), so they can't be
+  // missed. Everything further out stays as the compact date row.
+  if (isEventImminent(next)) {
+    const when = isToday ? t('common.today') : t('common.tomorrow');
+    const eyebrow = (next.startTime ? `${when} · ${next.startTime}` : when).toUpperCase();
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.eventBanner,
+          { backgroundColor: c.secondary, borderLeftColor: c.primary },
+          pressed && styles.pressed,
+        ]}
+        onPress={() => router.push('/(tabs)/calendar')}
+        accessibilityRole="button"
+        accessibilityLabel={`${eyebrow} — ${next.title}`}
+      >
+        <View style={[styles.pinnedIcon, { backgroundColor: c.primaryTint }]}>
+          <Ionicons name="calendar" size={16} color={c.primary} />
+        </View>
+        <View style={styles.flex1}>
+          <View style={styles.pinnedTop}>
+            <Text style={[styles.pinnedLabel, { color: c.primary }]} numberOfLines={1}>
+              {eyebrow}
+            </Text>
+          </View>
+          <Text style={[styles.pinnedText, { color: c.textPrimary }]} numberOfLines={2}>
+            {next.title}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  }
+
   const d = new Date(`${next.date}T12:00:00`);
   const month = d.toLocaleDateString(localeFor(language), { month: 'short' });
   const day = d.getDate();
-  const isToday = next.date === today;
-  const dateLabel = isToday
-    ? t('common.today').toUpperCase()
-    : d.toLocaleDateString(localeFor(language), { weekday: 'short' }).toUpperCase();
+  const dateLabel = d.toLocaleDateString(localeFor(language), { weekday: 'short' }).toUpperCase();
   const title = next.startTime ? `${next.title} · ${next.startTime}` : next.title;
 
   return (
@@ -542,6 +576,16 @@ const styles = StyleSheet.create({
   todayDateN: { fontSize: mf(15), ...font.extrabold, lineHeight: mf(17) },
   todayEyebrow: { fontSize: mf(10), ...font.bold, letterSpacing: 0.5, textTransform: 'uppercase' },
   todayTitle: { fontSize: mf(14), ...font.semibold, marginTop: ms(1) },
+
+  // ── Upcoming event banner (today / within 24h)
+  eventBanner: {
+    marginTop: ms(14),
+    flexDirection: 'row',
+    gap: ms(11),
+    borderRadius: ms(18),
+    borderLeftWidth: 3,
+    padding: ms(14),
+  },
 
   // ── Pinned note
   pinned: {
