@@ -5,7 +5,7 @@ import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signUpSchema, mapZodError } from '@utils/validation';
@@ -45,7 +45,8 @@ export default function SignupScreen(): React.JSX.Element {
   const [selectedColor] = useState(AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]);
   const [error, setError] = useState('');
   const [passwordTouched, setPasswordTouched] = useState(false);
-  const [is18, setIs18] = useState(false);
+  // Single clickwrap gate: confirms 18+ AND agreement to Terms + Privacy.
+  const [agreed, setAgreed] = useState(false);
   const signUp = useAuthStore((s) => s.signUp);
   const isLoading = useAuthStore((s) => s.isLoading);
   const emailRef = useRef<RNTextInput>(null);
@@ -73,8 +74,8 @@ export default function SignupScreen(): React.JSX.Element {
 
   const handleSignup = useCallback(async (): Promise<void> => {
     if (isLoading) return;
-    if (!is18) {
-      setError(t('auth.age_required'));
+    if (!agreed) {
+      setError(t('auth.signup_agree_required'));
       return;
     }
     if (password !== confirmPw) {
@@ -102,7 +103,7 @@ export default function SignupScreen(): React.JSX.Element {
     } catch (err) {
       setError(getErrorMessage(err, t('auth.something_went_wrong')));
     }
-  }, [name, email, password, confirmPw, selectedColor, is18, isLoading, signUp, t]);
+  }, [name, email, password, confirmPw, selectedColor, agreed, isLoading, signUp, t]);
 
   return (
     <View style={styles.root}>
@@ -243,23 +244,48 @@ export default function SignupScreen(): React.JSX.Element {
             error={!!error && error === t('auth.passwords_no_match')}
           />
 
-          <Pressable
-            style={styles.ageRow}
-            onPress={() => {
-              setIs18((v) => !v);
-              setError('');
-            }}
-            hitSlop={11}
-            accessible
-            accessibilityRole="checkbox"
-            accessibilityLabel={t('auth.age_confirm_18')}
-            accessibilityState={{ checked: is18 }}
-          >
-            <View style={[styles.checkbox, is18 && styles.checkboxChecked]}>
-              {is18 && <Ionicons name="checkmark" size={14} color={'#fff'} />}
-            </View>
-            <Text style={styles.ageText}>{t('auth.age_confirm_18')}</Text>
-          </Pressable>
+          <View style={styles.agreeRow}>
+            <Pressable
+              onPress={() => {
+                setAgreed((v) => !v);
+                setError('');
+              }}
+              hitSlop={11}
+              accessible
+              accessibilityRole="checkbox"
+              accessibilityLabel={t('auth.signup_agree_label')}
+              accessibilityState={{ checked: agreed }}
+            >
+              <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                {agreed && <Ionicons name="checkmark" size={14} color={'#fff'} />}
+              </View>
+            </Pressable>
+            <Text style={styles.agreeText}>
+              <Trans
+                i18nKey="auth.signup_agree_full"
+                components={{
+                  tos: (
+                    <Text
+                      style={styles.agreeLink}
+                      onPress={() => router.push('/(auth)/terms')}
+                      accessibilityRole="link"
+                    >
+                      {''}
+                    </Text>
+                  ),
+                  privacy: (
+                    <Text
+                      style={styles.agreeLink}
+                      onPress={() => router.push('/(auth)/privacy-policy')}
+                      accessibilityRole="link"
+                    >
+                      {''}
+                    </Text>
+                  ),
+                }}
+              />
+            </Text>
+          </View>
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
@@ -269,7 +295,7 @@ export default function SignupScreen(): React.JSX.Element {
               mode="contained"
               onPress={handleSignup}
               loading={isLoading}
-              disabled={isLoading || !is18}
+              disabled={isLoading || !agreed}
               style={styles.button}
               contentStyle={styles.buttonContent}
               labelStyle={styles.buttonLabel}
@@ -399,11 +425,10 @@ function makeStyles(C: ColorTokens) {
       color: C.danger,
       fontSize: sizes.fontSm,
     },
-    ageRow: {
+    agreeRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: sizes.sm,
-      minHeight: ms(44),
       marginTop: sizes.xs,
     },
     checkbox: {
@@ -416,17 +441,23 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
       alignItems: 'center',
       flexShrink: 0,
+      marginTop: ms(1),
     },
     checkboxChecked: {
       backgroundColor: C.primary,
       borderColor: C.primary,
     },
-    ageText: {
+    agreeText: {
       flex: 1,
       fontSize: mf(14),
       ...font.medium,
       color: C.textSecondary,
       lineHeight: mf(20),
+    },
+    agreeLink: {
+      ...font.semibold,
+      color: C.primary,
+      textDecorationLine: 'underline',
     },
     ctaGroup: { gap: sizes.md },
     button: {

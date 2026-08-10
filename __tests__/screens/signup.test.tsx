@@ -1,11 +1,12 @@
 /**
- * QA — Signup age gate (18+)
+ * QA — Signup consent gate (18+ and Terms/Privacy)
  *
- * Our privacy policy states registration is blocked for anyone who indicates
- * they are under 18. That promise is only true if signup actually enforces it,
- * so these tests lock the gate in:
- *   • the create-account button stays disabled until the 18+ box is ticked
- *   • submitting without ticking never calls signUp and surfaces the age error
+ * A single clickwrap checkbox on the signup form confirms the user is 18 or
+ * older AND agrees to the Terms of Service and Privacy Policy. Our privacy
+ * policy promises registration is blocked for anyone under 18, so the gate has
+ * to be enforced on the form itself:
+ *   • the create-account button stays disabled until the box is ticked
+ *   • submitting without ticking never calls signUp
  *   • ticking the box enables submission
  */
 
