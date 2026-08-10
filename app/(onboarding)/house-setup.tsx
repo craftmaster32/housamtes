@@ -79,6 +79,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
   }, []);
 
   const handleCreate = useCallback(async () => {
+    if (isLoading) return; // guard against a double-tap creating two houses
     if (!houseName.trim()) {
       setError(t('house_setup.enter_house_name'));
       return;
@@ -107,7 +108,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setError(getErrorMessage(err, t('house_setup.failed_create')));
       setIsLoading(false);
     }
-  }, [houseName, user, setHouseId, t]);
+  }, [houseName, user, setHouseId, t, isLoading]);
 
   const handleFindHouse = useCallback(async () => {
     if (joinLockedUntilRef.current && new Date() < joinLockedUntilRef.current) {
@@ -158,6 +159,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
   }, [inviteCode, user, t]);
 
   const handleConfirmJoin = useCallback(async () => {
+    if (isLoading) return; // guard against a double-tap joining twice
     if (!pendingHouse || !user) return;
     setIsLoading(true);
     setError('');
@@ -217,7 +219,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setShowConfirm(false);
       setIsLoading(false);
     }
-  }, [pendingHouse, user, inviteCode, reloadMembership, setHouseId, t]);
+  }, [pendingHouse, user, inviteCode, reloadMembership, setHouseId, t, isLoading]);
 
   return (
     <View style={styles.root}>

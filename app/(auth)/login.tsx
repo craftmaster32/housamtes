@@ -1,5 +1,12 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -113,7 +120,10 @@ export default function LoginScreen(): React.JSX.Element {
         </SafeAreaView>
       </View>
 
-      <View style={styles.cardWrapper}>
+      <KeyboardAvoidingView
+        style={styles.cardWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           style={styles.card}
           contentContainerStyle={styles.cardContent}
@@ -217,7 +227,7 @@ export default function LoginScreen(): React.JSX.Element {
             </Pressable>
           </Entrance>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

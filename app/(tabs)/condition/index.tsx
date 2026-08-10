@@ -357,6 +357,7 @@ function AddEntryForm({
   const finalArea = useCustom ? customArea.trim() : area;
 
   const handleSave = useCallback(async () => {
+    if (isSaving) return; // guard against a double-tap saving twice
     if (!finalArea) return;
     setIsSaving(true);
     setSaveError('');
@@ -378,7 +379,20 @@ function AddEntryForm({
       setSaveError(getErrorMessage(err, t('condition.failed_save')));
       setIsSaving(false);
     }
-  }, [finalArea, condition, type, description, recordedBy, date, photos, add, onClose, houseId, t]);
+  }, [
+    finalArea,
+    condition,
+    type,
+    description,
+    recordedBy,
+    date,
+    photos,
+    add,
+    onClose,
+    houseId,
+    t,
+    isSaving,
+  ]);
 
   return (
     <View style={styles.form}>

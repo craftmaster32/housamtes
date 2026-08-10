@@ -1,5 +1,12 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { Entrance } from '@components/shared/Entrance';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
@@ -113,7 +120,10 @@ export default function SignupScreen(): React.JSX.Element {
         </SafeAreaView>
       </View>
 
-      <View style={styles.cardWrapper}>
+      <KeyboardAvoidingView
+        style={styles.cardWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
           style={styles.card}
           contentContainerStyle={styles.cardContent}
@@ -321,7 +331,7 @@ export default function SignupScreen(): React.JSX.Element {
             </Pressable>
           </Entrance>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

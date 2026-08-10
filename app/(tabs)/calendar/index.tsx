@@ -213,6 +213,7 @@ function EventFormModal({
   }, [onClose]);
 
   const handleSave = useCallback(async (): Promise<void> => {
+    if (saving) return; // guard against a double-tap creating two events
     if (!title.trim()) {
       setError(t('calendar.enter_event_name'));
       return;
@@ -289,6 +290,7 @@ function EventFormModal({
     syncHouseEvent,
     handleClose,
     t,
+    saving,
   ]);
 
   const handleModalShow = useCallback((): void => {

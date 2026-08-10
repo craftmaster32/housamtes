@@ -605,6 +605,7 @@ function ReserveModal({
   }, [reset, onClose]);
 
   const handleSave = useCallback(async (): Promise<void> => {
+    if (saving) return; // guard against a double-tap creating two reservations
     if (dateConflict) {
       setError(dateConflict);
       return;
@@ -657,6 +658,7 @@ function ReserveModal({
     handleClose,
     syncParkingPending,
     t,
+    saving,
   ]);
 
   return (
@@ -854,12 +856,17 @@ export default function ParkingScreen(): React.JSX.Element {
     [upcoming, history]
   );
 
+  const claimingRef = useRef(false);
   const handleClaim = useCallback(async (): Promise<void> => {
+    if (claimingRef.current) return; // guard against a double-tap claiming twice
+    claimingRef.current = true;
     setError('');
     try {
       await claim(myId, myName, houseId ?? '');
     } catch (err) {
       setError(getErrorMessage(err, t('parking.failed_claim')));
+    } finally {
+      claimingRef.current = false;
     }
   }, [claim, myId, myName, houseId, t]);
 
