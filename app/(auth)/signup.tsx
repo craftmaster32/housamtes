@@ -45,6 +45,7 @@ export default function SignupScreen(): React.JSX.Element {
   const [selectedColor] = useState(AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]);
   const [error, setError] = useState('');
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [is18, setIs18] = useState(false);
   const signUp = useAuthStore((s) => s.signUp);
   const isLoading = useAuthStore((s) => s.isLoading);
   const emailRef = useRef<RNTextInput>(null);
@@ -72,6 +73,10 @@ export default function SignupScreen(): React.JSX.Element {
 
   const handleSignup = useCallback(async (): Promise<void> => {
     if (isLoading) return;
+    if (!is18) {
+      setError(t('auth.age_required'));
+      return;
+    }
     if (password !== confirmPw) {
       setError(t('auth.passwords_no_match'));
       return;
@@ -97,7 +102,7 @@ export default function SignupScreen(): React.JSX.Element {
     } catch (err) {
       setError(getErrorMessage(err, t('auth.something_went_wrong')));
     }
-  }, [name, email, password, confirmPw, selectedColor, isLoading, signUp, t]);
+  }, [name, email, password, confirmPw, selectedColor, is18, isLoading, signUp, t]);
 
   return (
     <View style={styles.root}>
@@ -238,14 +243,33 @@ export default function SignupScreen(): React.JSX.Element {
             error={!!error && error === t('auth.passwords_no_match')}
           />
 
+          <Pressable
+            style={styles.ageRow}
+            onPress={() => {
+              setIs18((v) => !v);
+              setError('');
+            }}
+            hitSlop={11}
+            accessible
+            accessibilityRole="checkbox"
+            accessibilityLabel={t('auth.age_confirm_18')}
+            accessibilityState={{ checked: is18 }}
+          >
+            <View style={[styles.checkbox, is18 && styles.checkboxChecked]}>
+              {is18 && <Ionicons name="checkmark" size={14} color={'#fff'} />}
+            </View>
+            <Text style={styles.ageText}>{t('auth.age_confirm_18')}</Text>
+          </Pressable>
+
           {!!error && <Text style={styles.error}>{error}</Text>}
 
           <Entrance style={styles.ctaGroup} delay={140}>
             <Button
+              testID="signup-submit"
               mode="contained"
               onPress={handleSignup}
               loading={isLoading}
-              disabled={isLoading}
+              disabled={isLoading || !is18}
               style={styles.button}
               contentStyle={styles.buttonContent}
               labelStyle={styles.buttonLabel}
@@ -374,6 +398,35 @@ function makeStyles(C: ColorTokens) {
       ...font.regular,
       color: C.danger,
       fontSize: sizes.fontSm,
+    },
+    ageRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      minHeight: ms(44),
+      marginTop: sizes.xs,
+    },
+    checkbox: {
+      width: ms(22),
+      height: ms(22),
+      borderRadius: ms(6),
+      borderWidth: 1.5,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexShrink: 0,
+    },
+    checkboxChecked: {
+      backgroundColor: C.primary,
+      borderColor: C.primary,
+    },
+    ageText: {
+      flex: 1,
+      fontSize: mf(14),
+      ...font.medium,
+      color: C.textSecondary,
+      lineHeight: mf(20),
     },
     ctaGroup: { gap: sizes.md },
     button: {

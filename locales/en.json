@@ -208,7 +208,9 @@
     "accept_terms_tos": "Terms of Service",
     "accept_terms_privacy": "Privacy Policy",
     "accept_and_continue": "Accept and Continue",
-    "sign_out_instead": "Sign out instead"
+    "sign_out_instead": "Sign out instead",
+    "age_confirm_18": "I confirm I am 18 years of age or older",
+    "age_required": "You must be 18 or older to create an account."
   },
   "welcome": {
     "tagline": "Your house, together.",

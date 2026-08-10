@@ -208,7 +208,9 @@
     "accept_terms_tos": "Términos de Servicio",
     "accept_terms_privacy": "Política de Privacidad",
     "accept_and_continue": "Aceptar y continuar",
-    "sign_out_instead": "Cerrar sesión"
+    "sign_out_instead": "Cerrar sesión",
+    "age_confirm_18": "Confirmo que tengo 18 años o más",
+    "age_required": "Debes tener 18 años o más para crear una cuenta."
   },
   "welcome": {
     "tagline": "Tu casa, juntos.",
