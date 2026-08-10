@@ -5,6 +5,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { groceryReminderTitle, normalizeLang, type Lang } from '../_shared/notificationCopy.ts';
+import { assertCronAuthorized } from '../_shared/cronAuth.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const PUSH_TIMEOUT_MS = 5000;
@@ -34,7 +35,9 @@ async function sendPushWithRetry(messages: unknown[]): Promise<boolean> {
   return false;
 }
 
-Deno.serve(async (_req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
+  const denied = assertCronAuthorized(req);
+  if (denied) return denied;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
 

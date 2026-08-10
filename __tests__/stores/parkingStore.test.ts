@@ -26,6 +26,7 @@ import {
   type ParkingReservation,
 } from '../../stores/parkingStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
+import { useAuthStore } from '../../stores/authStore';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -946,5 +947,155 @@ describe('parkingStore — cancelReservation', () => {
     );
 
     expect(useParkingStore.getState().reservations).toHaveLength(1); // unchanged
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// load — fetch + map, house-mismatch guard, error path
+// ─────────────────────────────────────────────────────────────────────────────
+describe('parkingStore — load', () => {
+  it('aborts and clears loading when the houseId does not match the signed-in house', async () => {
+    useAuthStore.setState({ houseId: 'house-1' });
+    useParkingStore.setState({ isLoading: true });
+
+    await useParkingStore.getState().load('someone-elses-house');
+
+    expect(useParkingStore.getState().isLoading).toBe(false);
+    expect(mockFrom).not.toHaveBeenCalled(); // never queried another house's data
+  });
+
+  it('maps the active session and reservations into state on success', async () => {
+    useAuthStore.setState({ houseId: 'house-1' });
+    mockFrom.mockReturnValue(ok([])); // fallback for any extra calls
+    mockFrom
+      .mockReturnValueOnce(
+        ok([{ id: 'ps1', occupant: 'Alice', start_time: '09:00', is_active: true }])
+      )
+      .mockReturnValueOnce(
+        ok([
+          {
+            id: 'r1',
+            requested_by: 'Bob',
+            date: futureDateStr(5),
+            start_time: null,
+            end_time: null,
+            note: 'visitor',
+            status: 'pending',
+            created_at: '2026-08-01T10:00:00Z',
+            parking_reservation_votes: [{ user_id: 'u2', vote: 'approve' }],
+          },
+        ])
+      );
+
+    await useParkingStore.getState().load('house-1');
+
+    const s = useParkingStore.getState();
+    expect(s.current).toEqual({ id: 'ps1', occupant: 'Alice', startTime: '09:00' });
+    expect(s.reservations).toHaveLength(1);
+    expect(s.reservations[0]).toMatchObject({
+      id: 'r1',
+      requestedBy: 'Bob',
+      note: 'visitor',
+      status: 'pending',
+      votes: [{ userId: 'u2', vote: 'approve' }],
+    });
+    expect(s.isLoading).toBe(false);
+    expect(s.error).toBeNull();
+  });
+
+  it('sets a friendly error when a query fails', async () => {
+    useAuthStore.setState({ houseId: 'house-1' });
+    mockFrom.mockReturnValueOnce(ok([])).mockReturnValueOnce(fail('db down'));
+
+    await useParkingStore.getState().load('house-1');
+
+    const s = useParkingStore.getState();
+    expect(s.error).toBe('Could not load parking data. Please try again.');
+    expect(s.isLoading).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// clearHistoryItem — past-only guard, not-found, success, DB error
+// ─────────────────────────────────────────────────────────────────────────────
+describe('parkingStore — clearHistoryItem', () => {
+  it('refuses to clear a future or current reservation', async () => {
+    useParkingStore.setState({ reservations: [reservation({ id: 'r1', date: futureDateStr(3) })] });
+
+    await expect(useParkingStore.getState().clearHistoryItem('r1')).rejects.toThrow(
+      'Cannot clear a future or current reservation'
+    );
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('throws when the reservation is not in state', async () => {
+    await expect(useParkingStore.getState().clearHistoryItem('missing')).rejects.toThrow(
+      'Reservation not found'
+    );
+  });
+
+  it('removes a past reservation from state on success', async () => {
+    useParkingStore.setState({
+      reservations: [
+        reservation({ id: 'r1', date: futureDateStr(-5) }),
+        reservation({ id: 'r2', date: futureDateStr(-6) }),
+      ],
+    });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useParkingStore.getState().clearHistoryItem('r1');
+
+    expect(useParkingStore.getState().reservations.map((r) => r.id)).toEqual(['r2']);
+  });
+
+  it('throws a friendly error and keeps state when the delete fails', async () => {
+    useParkingStore.setState({
+      reservations: [reservation({ id: 'r1', date: futureDateStr(-5) })],
+    });
+    mockFrom.mockReturnValue(fail('db error'));
+
+    await expect(useParkingStore.getState().clearHistoryItem('r1')).rejects.toThrow(
+      'Could not clear this item. Please try again.'
+    );
+    expect(useParkingStore.getState().reservations).toHaveLength(1);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// clearAllHistory — no-op when nothing past, success, DB error
+// ─────────────────────────────────────────────────────────────────────────────
+describe('parkingStore — clearAllHistory', () => {
+  it('is a no-op when there is no past history', async () => {
+    useParkingStore.setState({ reservations: [reservation({ id: 'r1', date: futureDateStr(4) })] });
+
+    await useParkingStore.getState().clearAllHistory('house-1');
+
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(useParkingStore.getState().reservations).toHaveLength(1);
+  });
+
+  it('deletes only past reservations, keeping current/future ones', async () => {
+    useParkingStore.setState({
+      reservations: [
+        reservation({ id: 'past', date: futureDateStr(-5) }),
+        reservation({ id: 'future', date: futureDateStr(5) }),
+      ],
+    });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useParkingStore.getState().clearAllHistory('house-1');
+
+    expect(useParkingStore.getState().reservations.map((r) => r.id)).toEqual(['future']);
+  });
+
+  it('throws a friendly error when the delete fails', async () => {
+    useParkingStore.setState({
+      reservations: [reservation({ id: 'past', date: futureDateStr(-5) })],
+    });
+    mockFrom.mockReturnValue(fail('db error'));
+
+    await expect(useParkingStore.getState().clearAllHistory('house-1')).rejects.toThrow(
+      'Could not clear history. Please try again.'
+    );
   });
 });

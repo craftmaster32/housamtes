@@ -6,10 +6,13 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { billDueCopy, normalizeLang } from '../_shared/notificationCopy.ts';
+import { assertCronAuthorized } from '../_shared/cronAuth.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
+  const denied = assertCronAuthorized(req);
+  if (denied) return denied;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 
