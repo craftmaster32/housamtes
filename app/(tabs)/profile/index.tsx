@@ -48,7 +48,10 @@ function isSameDay(d: Date, ref: Date): boolean {
   );
 }
 function billDayLabel(dateStr: string): 'today' | 'yesterday' | 'older' {
-  const d = new Date(dateStr);
+  // Parse the YMD bill date at LOCAL midnight. A bare `new Date('2026-08-10')`
+  // parses as UTC, so west-of-UTC users would see a bill dated today labelled
+  // "yesterday". Appending the time (matching the rest of the app) fixes that.
+  const d = new Date(`${dateStr}T00:00:00`);
   const now = new Date();
   if (isSameDay(d, now)) return 'today';
   const yesterday = new Date(now);
