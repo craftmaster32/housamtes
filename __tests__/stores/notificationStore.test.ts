@@ -38,6 +38,9 @@ const DEFAULT_PREFS = {
   notifyChatMessage: true,
   notifyGroceryShared: true,
   notifyTaskAssigned: true,
+  notifyEventAdded: true,
+  notifyEventReminder: true,
+  eventReminderDaysBefore: 1 as 0 | 1 | 2 | 3 | 7,
   notifyDailyJoke: true,
 };
 
@@ -164,6 +167,33 @@ describe('notificationStore — update', () => {
 
     expect(useNotificationStore.getState().prefs.notifyDailyJoke).toBe(false);
     expect(useNotificationStore.getState().prefs.notifyBillAdded).toBe(true); // unchanged
+  });
+
+  it('maps calendar event preferences from a DB row on load', async () => {
+    const row = {
+      notify_event_added: false,
+      notify_event_reminder: true,
+      event_reminder_days_before: 3,
+    };
+    mockFrom.mockReturnValue(ok(row));
+
+    await useNotificationStore.getState().load('user-1', 'house-1');
+
+    const { prefs } = useNotificationStore.getState();
+    expect(prefs.notifyEventAdded).toBe(false);
+    expect(prefs.notifyEventReminder).toBe(true);
+    expect(prefs.eventReminderDaysBefore).toBe(3);
+  });
+
+  it('updates the event reminder lead time optimistically', async () => {
+    mockFrom.mockReturnValue(ok());
+
+    await useNotificationStore
+      .getState()
+      .update('user-1', 'house-1', { eventReminderDaysBefore: 0 });
+
+    expect(useNotificationStore.getState().prefs.eventReminderDaysBefore).toBe(0);
+    expect(useNotificationStore.getState().prefs.notifyEventAdded).toBe(true); // unchanged
   });
 
   it('⚠️ BUG: rapid successive updates race — last optimistic wins in UI but DB order may differ', async () => {

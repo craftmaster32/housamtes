@@ -13,7 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useNotificationStore, type BillDueDays } from '@stores/notificationStore';
+import {
+  useNotificationStore,
+  type BillDueDays,
+  type EventReminderDays,
+} from '@stores/notificationStore';
 import { useAuthStore } from '@stores/authStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
@@ -26,6 +30,7 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 
 import { mf, ms } from '@utils/responsive';
 const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
+const EVENT_DAYS_OPTIONS: EventReminderDays[] = [0, 1, 2, 3, 7];
 
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
@@ -227,6 +232,17 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
 
   const handleBack = useCallback(() => router.back(), []);
   const handleSelectDay = useCallback((d: BillDueDays) => save({ billDueDaysBefore: d }), [save]);
+  const handleSelectEventDay = useCallback(
+    (d: EventReminderDays) => save({ eventReminderDaysBefore: d }),
+    [save]
+  );
+  const eventDayLabel = useCallback(
+    (d: EventReminderDays): string =>
+      d === 0
+        ? t('settings.event_on_day')
+        : `${t('common.day', { count: d })} ${t('settings.before_event')}`,
+    [t]
+  );
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -373,6 +389,55 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
               onToggle={(v) => save({ notifyChoreOverdue: v })}
               isLast
             />
+          </View>
+
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="calendar-outline" size={15} color={C.textSecondary} />
+            <Text style={styles.sectionTitle}>{t('nav.calendar')}</Text>
+          </View>
+          <View style={styles.card}>
+            <ToggleRow
+              label={t('settings.notify_event_added')}
+              description={t('settings.notify_event_added_sub')}
+              value={prefs.notifyEventAdded}
+              onToggle={(v) => save({ notifyEventAdded: v })}
+            />
+            <ToggleRow
+              label={t('settings.notify_event_reminder')}
+              description={t('settings.notify_event_reminder_sub')}
+              value={prefs.notifyEventReminder}
+              onToggle={(v) => save({ notifyEventReminder: v })}
+              isLast={!prefs.notifyEventReminder}
+            />
+            {prefs.notifyEventReminder && (
+              <View style={styles.daysRow}>
+                <Text style={styles.daysLabel}>{t('settings.remind_me')}</Text>
+                <View style={styles.daysOptions}>
+                  {EVENT_DAYS_OPTIONS.map((d) => (
+                    <Pressable
+                      key={d}
+                      style={[
+                        styles.dayChip,
+                        prefs.eventReminderDaysBefore === d && styles.dayChipActive,
+                      ]}
+                      onPress={() => handleSelectEventDay(d)}
+                      accessible
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: prefs.eventReminderDaysBefore === d }}
+                    >
+                      <Text
+                        style={[
+                          styles.dayChipText,
+                          prefs.eventReminderDaysBefore === d && styles.dayChipTextActive,
+                        ]}
+                      >
+                        {eventDayLabel(d)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
 
           <View style={styles.sectionTitleRow}>

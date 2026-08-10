@@ -69,3 +69,44 @@ export function groceryReminderTitle(lang: Lang): string {
   if (lang === 'he') return '🛒 אל תשכחו את הקניות';
   return "🛒 Don't forget the goods";
 }
+
+/** "when" phrase for an event reminder: today / tomorrow / in N days. */
+function eventWhen(lang: Lang, daysUntil: number): string {
+  if (daysUntil <= 0) {
+    if (lang === 'es') return 'hoy';
+    if (lang === 'he') return 'היום';
+    return 'today';
+  }
+  if (daysUntil === 1) {
+    if (lang === 'es') return 'mañana';
+    if (lang === 'he') return 'מחר';
+    return 'tomorrow';
+  }
+  if (lang === 'es') return `en ${days(lang, daysUntil)}`;
+  if (lang === 'he') return `בעוד ${days(lang, daysUntil)}`;
+  return `in ${days(lang, daysUntil)}`;
+}
+
+export function eventReminderCopy(
+  lang: Lang,
+  p: { title: string; startTime?: string; daysUntil: number }
+): PushCopy {
+  const when = eventWhen(lang, p.daysUntil);
+  const at = p.startTime ? ` · ${p.startTime}` : '';
+  if (lang === 'es') {
+    return {
+      title: '📅 Un evento se acerca',
+      body: `"${p.title}" es ${when}${at}. Que no te pille por sorpresa.`,
+    };
+  }
+  if (lang === 'he') {
+    return {
+      title: '📅 אירוע מתקרב',
+      body: `"${p.title}" ${when}${at}. שלא יפתיע אתכם.`,
+    };
+  }
+  return {
+    title: '📅 An event is coming up',
+    body: `"${p.title}" is ${when}${at}. Don't let it sneak up on you.`,
+  };
+}
