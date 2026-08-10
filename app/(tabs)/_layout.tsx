@@ -5,6 +5,12 @@ import { Tabs } from 'expo-router';
 export default function TabsLayout(): React.JSX.Element {
   return (
     <Tabs
+      // Navigation is driven programmatically across many hidden "tabs", so the
+      // default backBehavior ('firstRoute') sent every back action to the first
+      // screen (dashboard) instead of the previous one. 'history' makes back
+      // return to the last-visited screen — e.g. Settings → Language → back now
+      // lands on Settings, not the home page.
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarStyle: { display: 'none' },

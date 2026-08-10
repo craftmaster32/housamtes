@@ -231,6 +231,7 @@ export default function AddBillScreen(): React.JSX.Element {
   }, [selectedPeople, percentAmounts, percentRemaining, setError]);
 
   const handleSave = useCallback(async (): Promise<void> => {
+    if (isLoading) return; // guard against a fast double-tap creating a duplicate bill
     let payload: AddBillPayload;
     try {
       payload = parseAndValidateAddBill({
@@ -290,6 +291,7 @@ export default function AddBillScreen(): React.JSX.Element {
     allIds,
     myId,
     t,
+    isLoading,
   ]);
 
   if (housematesLoading) {
