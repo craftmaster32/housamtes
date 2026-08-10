@@ -194,7 +194,7 @@
     "reset_code_sent_to": "Código de recuperación enviado a {{email}}",
     "reset_failed": "No se pudo restablecer la contraseña. Intenta de nuevo.",
     "terms_updated_title": "Términos actualizados",
-    "terms_updated_body": "Actualizamos nuestros Términos de Servicio y Política de Privacidad el 10 de mayo de 2026. Revisa los cambios y acepta para seguir usando HouseMates.",
+    "terms_updated_body": "Actualizamos nuestros Términos de Servicio y Política de Privacidad el 10 de agosto de 2026. Revisa los cambios y acepta para seguir usando HouseMates.",
     "terms_what_changed": "Qué cambió",
     "terms_change_australia": "Cobertura legal completa para usuarios en Australia — Ley de Privacidad 1988 y los 13 Principios de Privacidad australianos",
     "terms_change_israel": "Cobertura legal completa para usuarios en Israel — Ley de Protección de la Privacidad y Ley de Protección al Consumidor",
@@ -1699,7 +1699,7 @@
     "privacy_title": "Política de privacidad",
     "terms_title": "Términos de servicio",
     "last_updated": "Última actualización: {{date}}",
-    "legal_date": "10 de mayo de 2026"
+    "legal_date": "10 de agosto de 2026"
   },
   "premium": {
     "title": "HouseMates Premium",
