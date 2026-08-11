@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy_all_functions:
+        description: 'Deploy ALL edge functions, not just the ones changed in the last merge'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -58,7 +63,8 @@ jobs:
       - name: Detect function changes
         id: functions
         run: |
-          if git diff --name-only HEAD^ HEAD | grep -q '^supabase/functions/'; then
+          if [ "${{ github.event.inputs.deploy_all_functions }}" = "true" ] \
+            || git diff --name-only HEAD^ HEAD | grep -q '^supabase/functions/'; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -85,9 +91,9 @@ jobs:
       # verify_jwt setting that matches how it is called (getting this wrong
       # breaks the function):
       #   OFF — cron-triggered (bill-due-reminder, chore-due-reminder,
-      #         grocery-reminder-check, parking-check, event-reminder) and the
-      #         NFC parking shortcut (parking-toggle), none of which send a
-      #         Supabase user token.
+      #         grocery-reminder-check, parking-check, event-reminder,
+      #         daily-joke) and the NFC parking shortcut (parking-toggle),
+      #         none of which send a Supabase user token.
       #   ON  — app-facing functions (delete-account, send-push,
       #         spending-analysis); each also re-verifies the JWT in code.
       # Deploying only what changed keeps the sensitive cron/NFC functions
@@ -97,8 +103,22 @@ jobs:
         run: |
           set -euo pipefail
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          changed=$(git diff --name-only HEAD^ HEAD | grep '^supabase/functions/' | cut -d/ -f3 | sort -u)
+          if [ "${{ github.event.inputs.deploy_all_functions }}" = "true" ]; then
+            # Manual full deploy: every function directory on disk.
+            changed=$(find supabase/functions -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -u)
+          else
+            changed=$(git diff --name-only HEAD^ HEAD | grep '^supabase/functions/' | cut -d/ -f3 | sort -u)
+          fi
           for fn in $changed; do
+            # Folders starting with "_" (e.g. _shared) hold code imported by the
+            # functions, not deployable functions themselves — Supabase rejects
+            # such names. Skip them so a shared-code change never fails the deploy.
+            case "$fn" in
+              _*)
+                echo "Skipping $fn (shared code, not a function)"
+                continue
+                ;;
+            esac
             # A deleted function still appears in the diff — skip it so we never
             # try to deploy a directory that no longer exists (which would fail
             # the run before Vercel deploys).
@@ -107,7 +127,7 @@ jobs:
               continue
             fi
             case "$fn" in
-              bill-due-reminder|chore-due-reminder|grocery-reminder-check|parking-check|event-reminder|parking-toggle)
+              bill-due-reminder|chore-due-reminder|grocery-reminder-check|parking-check|event-reminder|daily-joke|parking-toggle)
                 echo "Deploying $fn (verify_jwt OFF)"
                 supabase functions deploy "$fn" --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
                 ;;
