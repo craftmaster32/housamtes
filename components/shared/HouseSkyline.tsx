@@ -1,5 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 
+import { ms } from '@utils/responsive';
 interface HouseSpec {
   width: number;
   wallHeight: number;
@@ -9,42 +10,54 @@ interface HouseSpec {
 }
 
 const HOUSES: HouseSpec[] = [
-  { width: 46, wallHeight: 58, roofHeight: 22, hasChimney: false, windows: [{ top: 14, left: 8 }] },
   {
-    width: 62,
+    width: ms(46),
+    wallHeight: 58,
+    roofHeight: 22,
+    hasChimney: false,
+    windows: [{ top: ms(14), left: ms(8) }],
+  },
+  {
+    width: ms(62),
     wallHeight: 62,
     roofHeight: 22,
     hasChimney: true,
     windows: [
-      { top: 12, left: 10 },
-      { top: 12, left: 36 },
-      { top: 42, left: 10 },
-      { top: 42, left: 36 },
+      { top: ms(12), left: ms(10) },
+      { top: ms(12), left: ms(36) },
+      { top: ms(42), left: ms(10) },
+      { top: ms(42), left: ms(36) },
     ],
   },
   {
-    width: 50,
+    width: ms(50),
     wallHeight: 64,
     roofHeight: 24,
     hasChimney: false,
     windows: [
-      { top: 14, left: 9 },
-      { top: 14, left: 29 },
+      { top: ms(14), left: ms(9) },
+      { top: ms(14), left: ms(29) },
     ],
   },
   {
-    width: 66,
+    width: ms(66),
     wallHeight: 64,
     roofHeight: 24,
     hasChimney: true,
     windows: [
-      { top: 14, left: 12 },
-      { top: 14, left: 40 },
-      { top: 46, left: 12 },
-      { top: 46, left: 40 },
+      { top: ms(14), left: ms(12) },
+      { top: ms(14), left: ms(40) },
+      { top: ms(46), left: ms(12) },
+      { top: ms(46), left: ms(40) },
     ],
   },
-  { width: 48, wallHeight: 60, roofHeight: 22, hasChimney: false, windows: [{ top: 13, left: 8 }] },
+  {
+    width: ms(48),
+    wallHeight: 60,
+    roofHeight: 22,
+    hasChimney: false,
+    windows: [{ top: ms(13), left: ms(8) }],
+  },
 ];
 
 /** Decorative row of pitched-roof house silhouettes for the auth hero background. */
@@ -105,16 +118,16 @@ const styles = StyleSheet.create({
   },
   window: {
     position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 2,
+    width: ms(10),
+    height: ms(10),
+    borderRadius: ms(2),
     backgroundColor: WINDOW_COLOR,
   },
   chimney: {
     position: 'absolute',
-    top: -10,
-    width: 8,
-    height: 16,
+    top: ms(-10),
+    width: ms(8),
+    height: ms(16),
     backgroundColor: WALL_COLOR,
   },
 });

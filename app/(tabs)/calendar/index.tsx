@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,11 +9,11 @@ import {
   Modal,
   Platform,
   Keyboard,
-  Animated,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import type { IoniconName } from '@/types/icons';
 import { useTranslation } from 'react-i18next';
 import { useEventsStore, HouseEvent, EventRecurrence, EventUpdates } from '@stores/eventsStore';
 import { useParkingStore } from '@stores/parkingStore';
@@ -34,8 +34,10 @@ import { TimePicker } from '@components/shared/TimePicker';
 import { addWeeks, addMonths, addYears } from 'date-fns';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface CalendarEvent {
   id: string;
@@ -53,13 +55,13 @@ interface CalendarEvent {
   person?: string;
 }
 
-const TYPE_META: Record<CalendarEvent['type'], { icon: string; color: string }> = {
-  event: { icon: '📅', color: '#6366f1' },
-  parking: { icon: '🚗', color: '#f59e0b' },
-  'parking-pending': { icon: '🅿️', color: '#94a3b8' },
-  bill: { icon: '💰', color: '#ef4444' },
-  chore: { icon: '🧹', color: '#22c55e' },
-  personal: { icon: '👤', color: '#8b5cf6' },
+const TYPE_META: Record<CalendarEvent['type'], { icon: IoniconName; color: string }> = {
+  event: { icon: 'calendar-outline', color: '#6366f1' },
+  parking: { icon: 'car-outline', color: '#f59e0b' },
+  'parking-pending': { icon: 'car-outline', color: '#94a3b8' },
+  bill: { icon: 'cash-outline', color: '#ef4444' },
+  chore: { icon: 'sparkles-outline', color: '#22c55e' },
+  personal: { icon: 'person-outline', color: '#8b5cf6' },
 };
 
 const WEEKDAY_KEYS = [
@@ -155,6 +157,7 @@ function EventFormModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const formStyles = useMemo(() => makeFormStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const RECURRENCE_OPTIONS = useRecurrenceOptions();
 
   const addEvent = useEventsStore((s) => s.addEvent);
@@ -210,6 +213,7 @@ function EventFormModal({
   }, [onClose]);
 
   const handleSave = useCallback(async (): Promise<void> => {
+    if (saving) return; // guard against a double-tap creating two events
     if (!title.trim()) {
       setError(t('calendar.enter_event_name'));
       return;
@@ -286,6 +290,7 @@ function EventFormModal({
     syncHouseEvent,
     handleClose,
     t,
+    saving,
   ]);
 
   const handleModalShow = useCallback((): void => {
@@ -305,8 +310,11 @@ function EventFormModal({
       <Pressable style={formStyles.backdrop} onPress={handleClose}>
         <Pressable style={formStyles.sheet} onPress={() => {}}>
           <View style={formStyles.handle} />
-          <Text style={formStyles.title}>
+          <Text style={[formStyles.title, headingFont]}>
             {isEditing ? t('calendar.edit_event') : t('calendar.add_event')}
+          </Text>
+          <Text style={formStyles.subtitle}>
+            {isEditing ? t('calendar.edit_event_sub') : t('calendar.add_event_sub')}
           </Text>
 
           <ScrollView
@@ -406,20 +414,18 @@ function EventFormModal({
             />
 
             <Text style={[formStyles.label, formStyles.labelGap]}>{t('calendar.repeat')}</Text>
-            <View style={formStyles.chips}>
+            <View style={formStyles.segment} accessibilityRole="radiogroup">
               {RECURRENCE_OPTIONS.map(({ label, value }) => (
                 <Pressable
                   key={value || 'none'}
-                  style={[formStyles.chip, recurrence === value && formStyles.chipSelected]}
+                  style={[formStyles.segItem, recurrence === value && formStyles.segItemSelected]}
                   onPress={() => setRecurrence(value)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: recurrence === value }}
                 >
                   <Text
-                    style={[
-                      formStyles.chipText,
-                      recurrence === value && formStyles.chipTextSelected,
-                    ]}
+                    style={[formStyles.segText, recurrence === value && formStyles.segTextSelected]}
+                    numberOfLines={1}
                   >
                     {label}
                   </Text>
@@ -464,7 +470,7 @@ function EventFormModal({
             )}
 
             {!!error && <Text style={[formStyles.errorText, formStyles.labelGap]}>{error}</Text>}
-            <View style={{ height: 16 }} />
+            <View style={{ height: ms(16) }} />
           </ScrollView>
 
           <View style={formStyles.btns}>
@@ -567,10 +573,6 @@ export default function CalendarScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -690,7 +692,7 @@ export default function CalendarScreen(): React.JSX.Element {
             sourceId: `bl-${bill.id}`,
             id: `bl-${bill.id}`,
             date: nextDue,
-            title: `${bill.icon} ${bill.name}`,
+            title: bill.name,
             type: 'bill',
             detail: `Due · ${currency}${bill.typicalAmount.toFixed(2)}`,
           });
@@ -850,7 +852,7 @@ export default function CalendarScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
@@ -871,7 +873,7 @@ export default function CalendarScreen(): React.JSX.Element {
               </Text>
             </View>
             <Pressable
-              style={[styles.addBtn, { minHeight: 44 }]}
+              style={[styles.addBtn, { minHeight: ms(44) }]}
               onPress={handleOpenAdd}
               accessible
               accessibilityRole="button"
@@ -949,13 +951,13 @@ export default function CalendarScreen(): React.JSX.Element {
             {(
               Object.entries(TYPE_META) as [
                 CalendarEvent['type'],
-                { icon: string; color: string },
+                { icon: IoniconName; color: string },
               ][]
             ).map(([type, meta]) => (
               <View key={type} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: meta.color }]} />
                 <Text style={styles.legendLabel}>
-                  {meta.icon} {t(`calendar.legend_${type.replace('-', '_')}`)}
+                  {t(`calendar.legend_${type.replace('-', '_')}`)}
                 </Text>
               </View>
             ))}
@@ -974,7 +976,7 @@ export default function CalendarScreen(): React.JSX.Element {
                     })}
               </Text>
               <Pressable
-                style={[styles.addDayBtn, { minHeight: 44 }]}
+                style={[styles.addDayBtn, { minHeight: ms(44) }]}
                 onPress={handleOpenAdd}
                 accessible
                 accessibilityRole="button"
@@ -1038,7 +1040,11 @@ export default function CalendarScreen(): React.JSX.Element {
                           { backgroundColor: TYPE_META[item.type].color + '20' },
                         ]}
                       >
-                        <Text style={styles.eventIcon}>{TYPE_META[item.type].icon}</Text>
+                        <Ionicons
+                          name={TYPE_META[item.type].icon}
+                          size={16}
+                          color={TYPE_META[item.type].color}
+                        />
                       </View>
                       <View style={styles.eventInfo}>
                         <View style={styles.eventTitleRow}>
@@ -1047,7 +1053,8 @@ export default function CalendarScreen(): React.JSX.Element {
                           </Text>
                           {item.recurrence && (
                             <View style={styles.recurrenceBadge}>
-                              <Text style={styles.recurrenceBadgeText}>↻ {item.recurrence}</Text>
+                              <Ionicons name="repeat" size={11} color="#6366f1" />
+                              <Text style={styles.recurrenceBadgeText}>{item.recurrence}</Text>
                             </View>
                           )}
                         </View>
@@ -1069,7 +1076,7 @@ export default function CalendarScreen(): React.JSX.Element {
                               <>
                                 <Pressable
                                   style={styles.iconBtn}
-                                  hitSlop={{ left: 7, right: 7 }}
+                                  hitSlop={{ left: ms(7), right: ms(7) }}
                                   onPress={() =>
                                     openGoogleCalendar({
                                       title: item.title,
@@ -1085,7 +1092,7 @@ export default function CalendarScreen(): React.JSX.Element {
                                 </Pressable>
                                 <Pressable
                                   style={styles.iconBtn}
-                                  hitSlop={{ left: 7, right: 7 }}
+                                  hitSlop={{ left: ms(7), right: ms(7) }}
                                   onPress={() =>
                                     downloadIcs({
                                       title: item.title,
@@ -1107,7 +1114,7 @@ export default function CalendarScreen(): React.JSX.Element {
                             ) : showSyncBtn && !hideSyncBtn ? (
                               <Pressable
                                 style={styles.iconBtn}
-                                hitSlop={{ left: 7, right: 7 }}
+                                hitSlop={{ left: ms(7), right: ms(7) }}
                                 onPress={async () => {
                                   try {
                                     await handleManualSync(item);
@@ -1136,7 +1143,7 @@ export default function CalendarScreen(): React.JSX.Element {
                               <>
                                 <Pressable
                                   style={styles.iconBtn}
-                                  hitSlop={{ left: 7, right: 7 }}
+                                  hitSlop={{ left: ms(7), right: ms(7) }}
                                   onPress={() => handleEditEvent(item.sourceId)}
                                   accessibilityRole="button"
                                   accessibilityLabel={t('calendar.edit_event_btn')}
@@ -1145,7 +1152,7 @@ export default function CalendarScreen(): React.JSX.Element {
                                 </Pressable>
                                 <Pressable
                                   style={styles.iconBtn}
-                                  hitSlop={{ left: 7, right: 7 }}
+                                  hitSlop={{ left: ms(7), right: ms(7) }}
                                   onPress={async () => {
                                     try {
                                       await removeEvent(item.sourceId);
@@ -1188,12 +1195,12 @@ export default function CalendarScreen(): React.JSX.Element {
                     </Pressable>
                   );
                 }}
-                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                ItemSeparatorComponent={() => <View style={{ height: ms(8) }} />}
               />
             )}
           </View>
         </ScrollView>
-      </Animated.View>
+      </View>
 
       <EventFormModal
         visible={showForm}
@@ -1210,31 +1217,31 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     flex: { flex: 1 },
     container: { flex: 1, backgroundColor: C.background },
-    scroll: { padding: sizes.md, paddingBottom: 60, gap: sizes.md },
+    scroll: { padding: sizes.md, paddingBottom: ms(60), gap: sizes.md },
 
     pageHeader: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
-      paddingTop: 4,
+      paddingTop: ms(4),
     },
-    pageTitle: { fontSize: 28, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.8 },
-    pageSubtitle: { fontSize: 13, ...font.regular, color: C.textSecondary, marginTop: 2 },
+    pageTitle: { fontSize: mf(28), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.8 },
+    pageSubtitle: { fontSize: mf(13), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
     addBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       backgroundColor: C.primary,
-      paddingVertical: 11,
-      paddingHorizontal: 16,
-      borderRadius: 12,
+      paddingVertical: ms(11),
+      paddingHorizontal: ms(16),
+      borderRadius: ms(12),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    addBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
+    addBtnText: { fontSize: mf(14), ...font.semibold, color: '#fff' },
 
     monthHeader: {
       flexDirection: 'row',
@@ -1242,13 +1249,13 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'space-between',
       paddingHorizontal: sizes.xs,
     },
-    monthTitle: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    monthTitle: { fontSize: mf(20), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
     navBtn: {
-      width: 44,
-      height: 44,
+      width: ms(44),
+      height: ms(44),
       justifyContent: 'center',
       alignItems: 'center',
-      borderRadius: 22,
+      borderRadius: ms(22),
       backgroundColor: C.surfaceSecondary,
     },
 
@@ -1260,58 +1267,68 @@ function makeStyles(C: ColorTokens) {
       padding: sizes.sm,
       overflow: 'hidden',
     },
-    weekRow: { flexDirection: 'row', marginBottom: 4 },
+    weekRow: { flexDirection: 'row', marginBottom: ms(4) },
     weekDay: {
       flex: 1,
       textAlign: 'center',
-      fontSize: 10,
+      fontSize: mf(10),
       ...font.bold,
       color: C.textSecondary,
       letterSpacing: 0.5,
-      paddingVertical: 4,
+      paddingVertical: ms(4),
     },
     gridRow: { flexDirection: 'row' },
 
     dayCell: {
       flex: 1,
       alignItems: 'stretch',
-      paddingVertical: 2,
-      paddingHorizontal: 1,
-      minHeight: 52,
+      paddingVertical: ms(2),
+      paddingHorizontal: ms(1),
+      minHeight: ms(52),
     },
     dayInner: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
+      width: ms(26),
+      height: ms(26),
+      borderRadius: ms(13),
       justifyContent: 'center',
       alignItems: 'center',
       alignSelf: 'center',
-      marginBottom: 2,
+      marginBottom: ms(2),
     },
     daySelected: { backgroundColor: C.primary },
     dayToday: { backgroundColor: C.primary + '20' },
-    dayNum: { fontSize: 12, ...font.medium, color: C.textPrimary },
+    dayNum: { fontSize: mf(12), ...font.medium, color: C.textPrimary },
     dayNumFaint: { color: C.textDisabled },
     dayNumSelected: { color: '#fff', ...font.bold },
     dayNumToday: { color: C.primary, ...font.bold },
 
-    eventChip: { borderRadius: 3, paddingHorizontal: 3, paddingVertical: 1, marginBottom: 1 },
-    eventChipText: { fontSize: 8, ...font.semibold, color: '#fff', lineHeight: 11 },
-    moreChip: { fontSize: 8, ...font.regular, color: C.textSecondary, paddingHorizontal: 3 },
+    eventChip: {
+      borderRadius: ms(3),
+      paddingHorizontal: ms(3),
+      paddingVertical: ms(1),
+      marginBottom: ms(1),
+    },
+    eventChipText: { fontSize: mf(8), ...font.semibold, color: '#fff', lineHeight: mf(11) },
+    moreChip: {
+      fontSize: mf(8),
+      ...font.regular,
+      color: C.textSecondary,
+      paddingHorizontal: ms(3),
+    },
 
     legend: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 12,
+      gap: ms(12),
       backgroundColor: C.surface,
       borderRadius: sizes.borderRadiusLg,
       borderWidth: 1,
       borderColor: C.border,
       padding: sizes.md,
     },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    legendDot: { width: 8, height: 8, borderRadius: 4 },
-    legendLabel: { fontSize: 12, ...font.medium, color: C.textSecondary },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
+    legendDot: { width: ms(8), height: ms(8), borderRadius: ms(4) },
+    legendLabel: { fontSize: mf(12), ...font.medium, color: C.textSecondary },
 
     eventsSection: {
       backgroundColor: C.surface,
@@ -1325,61 +1342,68 @@ function makeStyles(C: ColorTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
-    eventsSectionTitle: { fontSize: 15, ...font.bold, color: C.textPrimary },
-    addDayBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    addDayBtnText: { fontSize: 14, ...font.semibold, color: C.primary },
+    eventsSectionTitle: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
+    addDayBtn: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
+    addDayBtnText: { fontSize: mf(14), ...font.semibold, color: C.primary },
     emptyDay: { paddingVertical: sizes.lg, alignItems: 'center' },
-    emptyDayText: { color: C.textSecondary, fontSize: 14, ...font.regular, textAlign: 'center' },
+    emptyDayText: {
+      color: C.textSecondary,
+      fontSize: mf(14),
+      ...font.regular,
+      textAlign: 'center',
+    },
 
     eventRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 10,
+      gap: ms(10),
       backgroundColor: C.background,
-      borderRadius: 10,
+      borderRadius: ms(10),
       padding: sizes.sm,
     },
     eventRowPersonal: { opacity: 0.75 },
     eventIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+      width: ms(36),
+      height: ms(36),
+      borderRadius: ms(10),
       justifyContent: 'center',
       alignItems: 'center',
-      marginTop: 2,
+      marginTop: ms(2),
     },
-    eventIcon: { fontSize: 18 },
-    eventInfo: { flex: 1, gap: 2, minWidth: 0 },
-    eventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-    eventTitle: { fontSize: 14, ...font.semibold, color: C.textPrimary, flex: 1 },
+    eventInfo: { flex: 1, gap: ms(2), minWidth: 0 },
+    eventTitleRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6), flexWrap: 'wrap' },
+    eventTitle: { fontSize: mf(14), ...font.semibold, color: C.textPrimary, flex: 1 },
     recurrenceBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(3),
       backgroundColor: '#6366f120',
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
+      paddingHorizontal: ms(6),
+      paddingVertical: ms(2),
+      borderRadius: ms(6),
     },
-    recurrenceBadgeText: { fontSize: 10, ...font.semibold, color: '#6366f1' },
-    eventTime: { fontSize: 12, ...font.semibold, color: C.primary },
-    eventDetail: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    eventNotes: { fontSize: 12, ...font.regular, color: C.textSecondary, fontStyle: 'italic' },
+    recurrenceBadgeText: { fontSize: mf(10), ...font.semibold, color: '#6366f1' },
+    eventTime: { fontSize: mf(12), ...font.semibold, color: C.primary },
+    eventDetail: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
+    eventNotes: { fontSize: mf(12), ...font.regular, color: C.textSecondary, fontStyle: 'italic' },
     eventRight: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingTop: 2,
+      gap: ms(6),
+      paddingTop: ms(2),
       flexShrink: 0,
     },
-    eventActions: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-    typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-    typeBadgeText: { fontSize: 11, ...font.semibold, textTransform: 'capitalize' },
-    iconBtn: { width: 30, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+    eventActions: { flexDirection: 'row', alignItems: 'center', gap: ms(4), marginTop: ms(6) },
+    typeBadge: { paddingHorizontal: ms(8), paddingVertical: ms(3), borderRadius: ms(8) },
+    typeBadgeText: { fontSize: mf(11), ...font.semibold, textTransform: 'capitalize' },
+    iconBtn: { width: ms(30), minHeight: ms(44), justifyContent: 'center', alignItems: 'center' },
 
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ms(20) },
     errorBanner: {
       backgroundColor: C.negative + '15',
-      borderRadius: 10,
+      borderRadius: ms(10),
       padding: sizes.sm,
       borderWidth: 1,
       borderColor: C.negative + '40',
@@ -1393,89 +1417,114 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
     sheet: {
       backgroundColor: C.surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      padding: 24,
-      paddingBottom: 40,
-      gap: 12,
+      borderTopLeftRadius: ms(24),
+      borderTopRightRadius: ms(24),
+      padding: ms(24),
+      paddingBottom: ms(40),
+      gap: ms(12),
       maxHeight: '94%',
     },
     scroll: { flexGrow: 0 },
     handle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
+      width: ms(40),
+      height: ms(4),
+      borderRadius: ms(2),
       backgroundColor: C.border,
       alignSelf: 'center',
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
-    title: { fontSize: 20, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    label: { fontSize: 13, ...font.semibold, color: C.textPrimary, marginBottom: 6 },
-    labelGap: { marginTop: 14 },
+    title: { fontSize: mf(24), color: C.textPrimary, letterSpacing: -0.3 },
+    subtitle: {
+      fontSize: mf(12.5),
+      ...font.medium,
+      color: C.textSecondary,
+      marginTop: ms(2),
+      marginBottom: ms(2),
+    },
+    label: { fontSize: mf(13), ...font.semibold, color: C.textPrimary, marginBottom: ms(6) },
+    labelGap: { marginTop: ms(14) },
     optional: { ...font.regular, color: C.textSecondary },
     input: {
       borderWidth: 1.5,
       borderColor: C.border,
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      fontSize: 15,
+      borderRadius: ms(12),
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(12),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
       backgroundColor: C.surfaceSecondary,
     },
-    notesInput: { minHeight: 80, paddingTop: 12 },
+    notesInput: { minHeight: ms(80), paddingTop: ms(12) },
     addToggle: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       alignSelf: 'flex-start',
-      paddingVertical: 8,
-      paddingHorizontal: 14,
-      borderRadius: 20,
+      paddingVertical: ms(8),
+      paddingHorizontal: ms(14),
+      borderRadius: ms(20),
       borderWidth: 1,
       borderColor: C.primary,
       backgroundColor: C.secondary,
     },
-    addToggleText: { fontSize: 14, ...font.medium, color: C.primary },
-    clearLink: { alignSelf: 'flex-start', marginTop: 6 },
+    addToggleText: { fontSize: mf(14), ...font.medium, color: C.primary },
+    clearLink: { alignSelf: 'flex-start', marginTop: ms(6) },
     clearLinkText: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.regular,
       color: C.textSecondary,
       textDecorationLine: 'underline',
     },
-    chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-    chip: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-      borderWidth: 1.5,
-      borderColor: C.border,
+    segment: {
+      flexDirection: 'row',
       backgroundColor: C.surfaceSecondary,
+      borderRadius: ms(12),
+      padding: ms(4),
+      gap: ms(3),
     },
-    chipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-    chipText: { fontSize: 14, ...font.semibold, color: C.textSecondary },
-    chipTextSelected: { color: '#fff' },
-    errorText: { fontSize: 13, ...font.regular, color: C.negative },
-    btns: { flexDirection: 'row', gap: 10, marginTop: 4 },
+    segItem: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: ms(9),
+      minHeight: ms(44),
+      borderRadius: ms(9),
+    },
+    segItemSelected: {
+      backgroundColor: C.primary,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: ms(2) },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    segText: { fontSize: mf(12.5), ...font.semibold, color: C.textSecondary },
+    segTextSelected: { color: '#fff' },
+    errorText: { fontSize: mf(13), ...font.regular, color: C.negative },
+    btns: { flexDirection: 'row', gap: ms(10), marginTop: ms(4) },
     btnOutline: {
       flex: 1,
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: ms(15),
+      borderRadius: ms(14),
       borderWidth: 1.5,
       borderColor: C.border,
       alignItems: 'center',
     },
-    btnOutlineText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    btnOutlineText: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
     btnPrimary: {
       flex: 1,
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: ms(15),
+      borderRadius: ms(14),
       backgroundColor: C.primary,
       alignItems: 'center',
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: ms(8) },
+      shadowOpacity: 0.3,
+      shadowRadius: 16,
+      elevation: 6,
     },
-    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+    btnPrimaryText: { fontSize: mf(15), ...font.bold, color: '#fff' },
     btnDisabled: { opacity: 0.6 },
   });
 }

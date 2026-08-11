@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  Animated,
   Modal,
   KeyboardAvoidingView,
   Platform,
@@ -19,12 +18,14 @@ import { COLORS } from '@stores/housematesStore';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
 
 function getDeviceTimezone(): string {
@@ -63,12 +64,8 @@ export default function HouseSetupScreen(): React.JSX.Element {
   const signOut = useAuthStore((s) => s.signOut);
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_INTENT_KEY)
@@ -82,6 +79,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
   }, []);
 
   const handleCreate = useCallback(async () => {
+    if (isLoading) return; // guard against a double-tap creating two houses
     if (!houseName.trim()) {
       setError(t('house_setup.enter_house_name'));
       return;
@@ -110,7 +108,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setError(getErrorMessage(err, t('house_setup.failed_create')));
       setIsLoading(false);
     }
-  }, [houseName, user, setHouseId, t]);
+  }, [houseName, user, setHouseId, t, isLoading]);
 
   const handleFindHouse = useCallback(async () => {
     if (joinLockedUntilRef.current && new Date() < joinLockedUntilRef.current) {
@@ -161,6 +159,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
   }, [inviteCode, user, t]);
 
   const handleConfirmJoin = useCallback(async () => {
+    if (isLoading) return; // guard against a double-tap joining twice
     if (!pendingHouse || !user) return;
     setIsLoading(true);
     setError('');
@@ -220,10 +219,10 @@ export default function HouseSetupScreen(): React.JSX.Element {
       setShowConfirm(false);
       setIsLoading(false);
     }
-  }, [pendingHouse, user, inviteCode, reloadMembership, setHouseId, t]);
+  }, [pendingHouse, user, inviteCode, reloadMembership, setHouseId, t, isLoading]);
 
   return (
-    <Animated.View style={[styles.root, { opacity: fadeAnim }]}>
+    <View style={styles.root}>
       {/* Blue inner header */}
       <SafeAreaView edges={['top']} style={styles.header}>
         <Pressable
@@ -240,7 +239,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
           />
           <Text style={styles.backText}>{t('house_setup.back_to_login')}</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>{t('house_setup.title')}</Text>
+        <Text style={[styles.headerTitle, headingFont]}>{t('house_setup.title')}</Text>
         <Text style={styles.headerSubtitle}>{t('house_setup.subtitle')}</Text>
       </SafeAreaView>
 
@@ -463,7 +462,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
           </Pressable>
         </Pressable>
       </Modal>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -483,36 +482,36 @@ function makeStyles(C: ColorTokens) {
     header: {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
-      paddingBottom: 28,
-      gap: 8,
+      paddingBottom: ms(28),
+      gap: ms(8),
     },
     backBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
+      gap: ms(2),
       alignSelf: 'flex-start',
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xs,
       minHeight: sizes.touchTarget,
       marginTop: sizes.xs,
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
     backText: {
-      fontSize: 15.5,
+      fontSize: mf(15.5),
       ...font.medium,
       color: 'rgba(255,255,255,0.85)',
     },
     headerTitle: {
-      fontSize: 22,
+      fontSize: mf(22),
       ...font.extrabold,
       color: '#fff',
       letterSpacing: -0.5,
     },
     headerSubtitle: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: 'rgba(255,255,255,0.65)',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
     cardWrapper: {
       flex: 1,
@@ -524,35 +523,35 @@ function makeStyles(C: ColorTokens) {
     card: {
       flex: 1,
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: ms(28),
+      borderTopRightRadius: ms(28),
       paddingHorizontal: sizes.lg,
-      paddingTop: 28,
-      paddingBottom: 48,
-      gap: 24,
-      minHeight: 480,
+      paddingTop: ms(28),
+      paddingBottom: ms(48),
+      gap: ms(24),
+      minHeight: ms(480),
     },
     optionGrid: {
       flexDirection: 'row',
-      gap: 14,
+      gap: ms(14),
     },
     optionCard: {
       flex: 1,
       borderWidth: 1.5,
       borderColor: C.border,
-      borderRadius: 16,
+      borderRadius: ms(16),
       padding: sizes.md,
       alignItems: 'center',
-      gap: 8,
+      gap: ms(8),
     },
     optionCardActive: {
       borderColor: C.primary,
       backgroundColor: C.primary + '14',
     },
     optionChip: {
-      width: 52,
-      height: 52,
-      borderRadius: 14,
+      width: ms(52),
+      height: ms(52),
+      borderRadius: ms(14),
       backgroundColor: C.surfaceSecondary,
       justifyContent: 'center',
       alignItems: 'center',
@@ -570,17 +569,17 @@ function makeStyles(C: ColorTokens) {
       color: C.textPrimary,
     },
     optionSub: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 16,
+      lineHeight: mf(16),
     },
     form: {
-      gap: 16,
+      gap: ms(16),
     },
     fieldGroup: {
-      gap: 6,
+      gap: ms(6),
     },
     label: {
       fontSize: sizes.fontSm,
@@ -589,10 +588,10 @@ function makeStyles(C: ColorTokens) {
     },
     input: {
       backgroundColor: C.surface,
-      height: 52,
+      height: ms(52),
     },
     inputOutline: {
-      borderRadius: 12,
+      borderRadius: ms(12),
       borderColor: C.border,
     },
     codeInput: {
@@ -600,7 +599,7 @@ function makeStyles(C: ColorTokens) {
       fontSize: sizes.fontXl,
     },
     codeHint: {
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.regular,
       color: C.textTertiary,
     },
@@ -614,26 +613,26 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       gap: sizes.sm,
       backgroundColor: C.primary + '12',
-      borderRadius: 10,
+      borderRadius: ms(10),
       padding: sizes.sm,
     },
     colorNoticeDot: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
+      width: ms(18),
+      height: ms(18),
+      borderRadius: ms(9),
       flexShrink: 0,
     },
     colorNoticeText: {
       flex: 1,
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 18,
+      lineHeight: mf(18),
     },
     button: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 4 },
+      shadowOffset: { width: 0, height: ms(4) },
       shadowOpacity: 0.28,
       shadowRadius: 12,
       elevation: 4,
@@ -642,7 +641,7 @@ function makeStyles(C: ColorTokens) {
       shadowColor: '#4FB071',
       width: '100%',
     },
-    buttonContent: { height: 52 },
+    buttonContent: { height: ms(52) },
     buttonLabel: {
       fontSize: sizes.fontMd,
       ...font.semibold,
@@ -656,23 +655,23 @@ function makeStyles(C: ColorTokens) {
     },
     sheet: {
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: ms(28),
+      borderTopRightRadius: ms(28),
       paddingHorizontal: sizes.lg,
       paddingTop: sizes.md,
-      paddingBottom: 48,
-      gap: 16,
+      paddingBottom: ms(48),
+      gap: ms(16),
       alignItems: 'center',
     },
     sheetHandle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
+      width: ms(40),
+      height: ms(4),
+      borderRadius: ms(2),
       backgroundColor: C.border,
       marginBottom: sizes.sm,
     },
     sheetTitle: {
-      fontSize: 20,
+      fontSize: mf(20),
       ...font.bold,
       color: C.textPrimary,
       textAlign: 'center',
@@ -686,36 +685,36 @@ function makeStyles(C: ColorTokens) {
     houseCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
+      gap: ms(14),
       backgroundColor: C.primary + '0D',
-      borderRadius: 16,
+      borderRadius: ms(16),
       padding: sizes.md,
       width: '100%',
     },
     houseChip: {
-      width: 48,
-      height: 48,
-      borderRadius: 14,
+      width: ms(48),
+      height: ms(48),
+      borderRadius: ms(14),
       backgroundColor: C.primary + '26',
       justifyContent: 'center',
       alignItems: 'center',
       flexShrink: 0,
     },
     houseInfo: {
-      gap: 4,
+      gap: ms(4),
     },
     houseName: {
-      fontSize: 17,
+      fontSize: mf(17),
       ...font.bold,
       color: C.textPrimary,
     },
     memberRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: ms(4),
     },
     memberCount: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textSecondary,
     },
@@ -725,7 +724,7 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
     },
     cancelText: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textSecondary,
       textDecorationLine: 'underline',

@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, Animated } from 'react-native';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as Sentry from '@sentry/react-native';
@@ -9,51 +10,58 @@ import { useAuthStore } from '@stores/authStore';
 import {
   useExpenseCategoriesStore,
   PRESET_COLORS,
+  CATEGORY_PICKER_ICONS,
+  DEFAULT_CATEGORY_ICON,
+  resolveCategoryIcon,
   type ExpenseCategory,
 } from '@stores/expenseCategoriesStore';
 import { Alert } from '@lib/alert';
+import { localizeCategoryName } from '@utils/categoryName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { Entrance } from '@components/shared/Entrance';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    list: { padding: sizes.lg, paddingBottom: 60, gap: 0 },
+    list: { padding: sizes.lg, paddingBottom: ms(60), gap: 0 },
 
     screenTitle: {
-      fontSize: 24,
+      fontSize: mf(24),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.5,
-      marginBottom: 6,
+      marginBottom: ms(6),
     },
     screenSub: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 20,
+      lineHeight: mf(20),
       marginBottom: sizes.lg,
     },
 
     addBtn: {
       backgroundColor: C.primary,
-      borderRadius: 10,
-      minHeight: 44,
+      borderRadius: ms(10),
+      minHeight: ms(44),
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: sizes.lg,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    addBtnText: { color: '#FFF', ...font.semibold, fontSize: 15 },
+    addBtnText: { color: '#FFF', ...font.semibold, fontSize: mf(15) },
 
     listHeader: {
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.bold,
       color: C.textSecondary,
       letterSpacing: 1.2,
@@ -69,11 +77,11 @@ const makeStyles = (C: ColorTokens) =>
       borderWidth: 1,
       borderColor: C.primary + '40',
     },
-    formRow: { flexDirection: 'row', gap: 8 },
+    formRow: { flexDirection: 'row', gap: ms(8) },
     iconPreviewBtn: {
-      width: 52,
-      height: 46,
-      borderRadius: 10,
+      width: ms(52),
+      height: ms(46),
+      borderRadius: ms(10),
       borderWidth: 1,
       borderColor: C.border,
       backgroundColor: C.surfaceSecondary,
@@ -81,12 +89,11 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
     },
     iconPreviewBtnActive: { borderColor: C.primary, borderWidth: 2 },
-    iconPreviewText: { fontSize: 22 },
-    iconPickerWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    iconPickerWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(6) },
     iconPickerItem: {
-      width: 44,
-      height: 44,
-      borderRadius: 8,
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(8),
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: C.surfaceSecondary,
@@ -96,118 +103,67 @@ const makeStyles = (C: ColorTokens) =>
       borderWidth: 2,
       borderColor: C.primary,
     },
-    iconPickerEmoji: { fontSize: 20 },
     nameInput: {
       flex: 1,
-      height: 46,
-      borderRadius: 10,
+      height: ms(46),
+      borderRadius: ms(10),
       borderWidth: 1,
       borderColor: C.border,
       backgroundColor: C.surfaceSecondary,
-      paddingHorizontal: 12,
-      fontSize: 15,
+      paddingHorizontal: ms(12),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
     },
-    colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    colorDot: { width: 28, height: 28, borderRadius: 14 },
+    colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(8) },
+    colorDot: { width: ms(28), height: ms(28), borderRadius: ms(14) },
     colorDotSelected: { borderWidth: 3, borderColor: C.textPrimary },
-    formBtns: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+    formBtns: { flexDirection: 'row', gap: ms(10), alignItems: 'center' },
     btnSave: {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
-      minHeight: 44,
+      minHeight: ms(44),
       justifyContent: 'center' as const,
-      borderRadius: 10,
+      borderRadius: ms(10),
     },
     btnSaveOff: { opacity: 0.5 },
-    btnSaveText: { color: '#FFF', ...font.semibold, fontSize: 14 },
-    btnCancel: { paddingHorizontal: 8, minHeight: 44, justifyContent: 'center' as const },
-    btnCancelText: { color: C.textSecondary, fontSize: 14, ...font.regular },
+    btnSaveText: { color: '#FFF', ...font.semibold, fontSize: mf(14) },
+    btnCancel: { paddingHorizontal: ms(8), minHeight: ms(44), justifyContent: 'center' as const },
+    btnCancelText: { color: C.textSecondary, fontSize: mf(14), ...font.regular },
 
     catRow: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: C.surface,
       padding: sizes.md,
-      gap: 10,
+      gap: ms(10),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: C.border,
     },
     catIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+      width: ms(36),
+      height: ms(36),
+      borderRadius: ms(10),
       justifyContent: 'center',
       alignItems: 'center',
     },
-    catIcon: { fontSize: 18 },
     catInfo: { flex: 1 },
-    catName: { fontSize: 15, ...font.semibold, color: C.textPrimary },
-    catDefault: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    colorSwatch: { width: 12, height: 12, borderRadius: 6 },
-    rowBtn: { paddingHorizontal: 6 },
-    rowBtnEdit: { fontSize: 13, ...font.semibold, color: C.primary },
-    rowBtnDelete: { fontSize: 13, ...font.semibold, color: C.negative },
+    catName: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
+    catDefault: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
+    colorSwatch: { width: ms(12), height: ms(12), borderRadius: ms(6) },
+    rowBtn: { paddingHorizontal: ms(6) },
+    rowBtnEdit: { fontSize: mf(13), ...font.semibold, color: C.primary },
+    rowBtnDelete: { fontSize: mf(13), ...font.semibold, color: C.negative },
 
-    sep: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: C.border,
-      marginStart: sizes.md + 36 + 10,
+    empty: {
+      textAlign: 'center',
+      color: C.textSecondary,
+      fontSize: mf(14),
+      paddingVertical: ms(24),
     },
-    empty: { textAlign: 'center', color: C.textSecondary, fontSize: 14, paddingVertical: 24 },
   });
 
-const PICKER_ICONS = [
-  '🏠',
-  '🛋️',
-  '🔑',
-  '🏗️',
-  '⚡',
-  '💧',
-  '🔥',
-  '📶',
-  '📺',
-  '🌡️',
-  '🛒',
-  '🍕',
-  '🍔',
-  '🥗',
-  '☕',
-  '🍺',
-  '🍜',
-  '🥡',
-  '🍣',
-  '🧃',
-  '🚗',
-  '🚌',
-  '✈️',
-  '🚂',
-  '🛵',
-  '⛽',
-  '🎉',
-  '🎬',
-  '🎮',
-  '🎵',
-  '🏥',
-  '💊',
-  '🦷',
-  '🧘',
-  '🛍️',
-  '💰',
-  '💳',
-  '📦',
-  '🧹',
-  '🧺',
-  '🐾',
-  '📚',
-  '🎓',
-  '💼',
-  '🔧',
-  '🌿',
-  '📱',
-  '🏋️',
-  '🎁',
-  '🌐',
-];
+const PICKER_ICONS = CATEGORY_PICKER_ICONS;
 
 // ── Add / Edit form ────────────────────────────────────────────────────────────
 interface FormState {
@@ -243,7 +199,7 @@ function CategoryForm({
           accessibilityRole="button"
           accessibilityLabel={t('categories.choose_icon')}
         >
-          <Text style={styles.iconPreviewText}>{form.icon || '📦'}</Text>
+          <Ionicons name={resolveCategoryIcon(form.icon)} size={22} color={C.primary} />
         </Pressable>
         <TextInput
           value={form.name}
@@ -258,23 +214,35 @@ function CategoryForm({
         />
       </View>
       {showIconPicker && (
-        <View style={styles.iconPickerWrap}>
-          {PICKER_ICONS.map((emoji) => (
-            <Pressable
-              key={emoji}
-              style={[styles.iconPickerItem, form.icon === emoji && styles.iconPickerItemSelected]}
-              onPress={() => {
-                setForm((f) => ({ ...f, icon: emoji }));
-                setShowIconPicker(false);
-              }}
-              accessibilityRole="radio"
-              accessibilityLabel={emoji}
-              accessibilityState={{ selected: form.icon === emoji }}
-            >
-              <Text style={styles.iconPickerEmoji}>{emoji}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Entrance offset={8}>
+          <View style={styles.iconPickerWrap} accessibilityRole="radiogroup">
+            {PICKER_ICONS.map((iconName) => (
+              <Pressable
+                key={iconName}
+                style={[
+                  styles.iconPickerItem,
+                  form.icon === iconName && styles.iconPickerItemSelected,
+                ]}
+                onPress={() => {
+                  setForm((f) => ({ ...f, icon: iconName }));
+                  setShowIconPicker(false);
+                }}
+                accessible
+                accessibilityRole="radio"
+                accessibilityLabel={t('categories.icon_option', {
+                  name: iconName.replace(/-outline$/, '').replace(/-/g, ' '),
+                })}
+                accessibilityState={{ selected: form.icon === iconName }}
+              >
+                <Ionicons
+                  name={iconName}
+                  size={20}
+                  color={form.icon === iconName ? C.primary : C.textSecondary}
+                />
+              </Pressable>
+            ))}
+          </View>
+        </Entrance>
       )}
       <View style={styles.colorRow}>
         {PRESET_COLORS.map((c) => (
@@ -335,38 +303,34 @@ function CategoryRow({
   const { t } = useTranslation();
   const styles = useMemo(() => makeStyles(C), [C]);
   return (
-    <View style={styles.catRow}>
+    <Entrance style={styles.catRow} offset={10}>
       <View style={[styles.catIconWrap, { backgroundColor: cat.color + '20' }]}>
-        <Text style={styles.catIcon}>{cat.icon}</Text>
+        <Ionicons name={resolveCategoryIcon(cat.icon)} size={18} color={cat.color} />
       </View>
       <View style={styles.catInfo}>
-        <Text style={styles.catName}>{cat.name}</Text>
+        <Text style={styles.catName}>{localizeCategoryName(cat.name, t)}</Text>
         {cat.isDefault && <Text style={styles.catDefault}>{t('categories.default')}</Text>}
       </View>
       <View style={[styles.colorSwatch, { backgroundColor: cat.color }]} />
-      {!cat.isDefault && (
-        <>
-          <Pressable
-            onPress={() => onEdit(cat)}
-            style={styles.rowBtn}
-            hitSlop={8}
-            accessible
-            accessibilityRole="button"
-          >
-            <Text style={styles.rowBtnEdit}>{t('categories.edit')}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => onDelete(cat)}
-            style={styles.rowBtn}
-            hitSlop={8}
-            accessible
-            accessibilityRole="button"
-          >
-            <Text style={styles.rowBtnDelete}>{t('categories.delete')}</Text>
-          </Pressable>
-        </>
-      )}
-    </View>
+      <Pressable
+        onPress={() => onEdit(cat)}
+        style={styles.rowBtn}
+        hitSlop={8}
+        accessible
+        accessibilityRole="button"
+      >
+        <Text style={styles.rowBtnEdit}>{t('categories.edit')}</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => onDelete(cat)}
+        style={styles.rowBtn}
+        hitSlop={8}
+        accessible
+        accessibilityRole="button"
+      >
+        <Text style={styles.rowBtnDelete}>{t('categories.delete')}</Text>
+      </Pressable>
+    </Entrance>
   );
 }
 
@@ -388,10 +352,7 @@ export default function CategoriesScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const headingFont = useHeadingFont('bold');
 
   useEffect(() => {
     if (houseId) load(houseId);
@@ -402,7 +363,10 @@ export default function CategoriesScreen(): React.JSX.Element {
       if (!houseId) return;
       setSaving(true);
       try {
-        await add({ name: form.name.trim(), icon: form.icon || '📦', color: form.color }, houseId);
+        await add(
+          { name: form.name.trim(), icon: form.icon || DEFAULT_CATEGORY_ICON, color: form.color },
+          houseId
+        );
         setShowAdd(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
@@ -441,7 +405,7 @@ export default function CategoriesScreen(): React.JSX.Element {
     (cat: ExpenseCategory) => {
       Alert.alert(
         t('categories.delete_title'),
-        t('categories.delete_confirm', { name: cat.name }),
+        t('categories.delete_confirm', { name: localizeCategoryName(cat.name, t) }),
         [
           { text: t('common.cancel'), style: 'cancel' },
           {
@@ -465,61 +429,60 @@ export default function CategoriesScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-        <FlatList
-          data={categories}
-          keyExtractor={(c) => c.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={
-            <View>
-              <Text style={styles.screenTitle}>{t('categories.title')}</Text>
-              <Text style={styles.screenSub}>{t('categories.subtitle')}</Text>
+      <ScrollView
+        style={styles.flex}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+      >
+        <Text style={[styles.screenTitle, headingFont]}>{t('categories.title')}</Text>
+        <Text style={styles.screenSub}>{t('categories.subtitle')}</Text>
 
-              {showAdd && (
-                <CategoryForm
-                  initial={{ name: '', icon: '📦', color: PRESET_COLORS[0] }}
-                  onSave={handleAdd}
-                  onCancel={() => setShowAdd(false)}
-                  saving={saving}
-                />
-              )}
+        {showAdd && (
+          <Entrance>
+            <CategoryForm
+              initial={{ name: '', icon: DEFAULT_CATEGORY_ICON, color: PRESET_COLORS[0] }}
+              onSave={handleAdd}
+              onCancel={() => setShowAdd(false)}
+              saving={saving}
+            />
+          </Entrance>
+        )}
 
-              {editCat && (
-                <CategoryForm
-                  key={editCat.id}
-                  initial={{ name: editCat.name, icon: editCat.icon, color: editCat.color }}
-                  onSave={handleUpdate}
-                  onCancel={() => setEditCat(null)}
-                  saving={saving}
-                />
-              )}
+        {editCat && (
+          <Entrance>
+            <CategoryForm
+              key={editCat.id}
+              initial={{ name: editCat.name, icon: editCat.icon, color: editCat.color }}
+              onSave={handleUpdate}
+              onCancel={() => setEditCat(null)}
+              saving={saving}
+            />
+          </Entrance>
+        )}
 
-              {!showAdd && !editCat && (
-                <Pressable
-                  style={styles.addBtn}
-                  onPress={() => setShowAdd(true)}
-                  accessible
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.addBtnText}>{t('categories.add_category')}</Text>
-                </Pressable>
-              )}
+        {!showAdd && !editCat && (
+          <Pressable
+            style={styles.addBtn}
+            onPress={() => setShowAdd(true)}
+            accessible
+            accessibilityRole="button"
+          >
+            <Text style={styles.addBtnText}>{t('categories.add_category')}</Text>
+          </Pressable>
+        )}
 
-              <Text style={styles.listHeader}>{t('categories.all_categories')}</Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <CategoryRow cat={item} onEdit={setEditCat} onDelete={handleDelete} />
-          )}
-          ItemSeparatorComponent={() => <View style={styles.sep} />}
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              {isLoading ? t('common.loading') : t('categories.no_categories')}
-            </Text>
-          }
-        />
-      </Animated.View>
+        <Text style={styles.listHeader}>{t('categories.all_categories')}</Text>
+
+        {categories.length === 0 ? (
+          <Text style={styles.empty}>
+            {isLoading ? t('common.loading') : t('categories.no_categories')}
+          </Text>
+        ) : (
+          categories.map((item) => (
+            <CategoryRow key={item.id} cat={item} onEdit={setEditCat} onDelete={handleDelete} />
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

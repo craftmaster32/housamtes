@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -8,28 +8,26 @@ import { ConditionTab } from '@components/property/ConditionTab';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 type ActiveTab = 'issues' | 'condition';
 
 export default function PropertyScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<ActiveTab>('issues');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const switchToIssues = useCallback(() => setActiveTab('issues'), []);
   const switchToCondition = useCallback(() => setActiveTab('condition'), []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <View style={styles.header}>
-          <Text style={styles.heading}>{t('nav.property')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('nav.property')}</Text>
           <View style={styles.segmented}>
             <Pressable
               style={[styles.segment, activeTab === 'issues' && styles.segmentActive]}
@@ -39,7 +37,9 @@ export default function PropertyScreen(): React.JSX.Element {
               accessibilityState={{ selected: activeTab === 'issues' }}
               accessibilityLabel={t('property.tab_issues')}
             >
-              <Text style={[styles.segmentText, activeTab === 'issues' && styles.segmentTextActive]}>
+              <Text
+                style={[styles.segmentText, activeTab === 'issues' && styles.segmentTextActive]}
+              >
                 {t('property.tab_issues')}
               </Text>
             </Pressable>
@@ -51,7 +51,9 @@ export default function PropertyScreen(): React.JSX.Element {
               accessibilityState={{ selected: activeTab === 'condition' }}
               accessibilityLabel={t('property.tab_condition')}
             >
-              <Text style={[styles.segmentText, activeTab === 'condition' && styles.segmentTextActive]}>
+              <Text
+                style={[styles.segmentText, activeTab === 'condition' && styles.segmentTextActive]}
+              >
                 {t('property.tab_condition')}
               </Text>
             </Pressable>
@@ -59,7 +61,7 @@ export default function PropertyScreen(): React.JSX.Element {
         </View>
 
         {activeTab === 'issues' ? <IssuesTab /> : <ConditionTab />}
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -75,25 +77,25 @@ function makeStyles(C: ColorTokens) {
       gap: sizes.sm,
       backgroundColor: C.background,
     },
-    heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    heading: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
     segmented: {
       flexDirection: 'row',
       backgroundColor: C.surfaceSecondary,
-      borderRadius: 10,
-      padding: 3,
-      gap: 2,
+      borderRadius: ms(10),
+      padding: ms(3),
+      gap: ms(2),
     },
     segment: {
       flex: 1,
       paddingVertical: sizes.sm,
       alignItems: 'center',
-      borderRadius: 8,
+      borderRadius: ms(8),
     },
     segmentActive: {
       backgroundColor: C.surface,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.10,
+      shadowOffset: { width: 0, height: ms(1) },
+      shadowOpacity: 0.1,
       shadowRadius: 3,
       elevation: 1,
     },

@@ -1,18 +1,21 @@
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useSpendingStore } from '@stores/spendingStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { colors } from '@constants/colors';
+import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { monthNameFromKey } from '@utils/dates';
+import { CountUpText } from '@components/shared/CountUpText';
 
+import { mf, ms } from '@utils/responsive';
 interface Props {
   houseId: string;
   userName: string;
@@ -25,6 +28,7 @@ function fmt(n: number, sym: string): string {
 
 export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const c = useThemedColors();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const months = useSpendingStore((s) => s.months);
@@ -53,15 +57,25 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
   if (isLoading) {
     return (
-      <View style={styles.card}>
-        <View style={styles.decoCircle} />
+      <View
+        style={[styles.card, { shadowColor: c.spendShadow, backgroundColor: c.spendGradient[0] }]}
+      >
+        <View pointerEvents="none" style={styles.clip}>
+          <LinearGradient
+            colors={c.spendGradient}
+            start={{ x: 0.1, y: 0 }}
+            end={{ x: 0.9, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.decoCircle} />
+        </View>
         <View style={styles.pad}>
           <Text style={styles.label}>
             {monthName
               ? t('spending.month_spending_header', { month: monthName })
               : t('spending.spending_label')}
           </Text>
-          <ActivityIndicator color={colors.white} size="small" style={styles.loadingIndicator} />
+          <ActivityIndicator color="#fff" size="small" style={styles.loadingIndicator} />
         </View>
       </View>
     );
@@ -73,14 +87,23 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
   return (
     <Pressable
-      style={styles.card}
+      style={[styles.card, { shadowColor: c.spendShadow, backgroundColor: c.spendGradient[0] }]}
       onPress={handleOpen}
       accessible
       accessibilityRole="button"
       accessibilityLabel={t('spending.view_spending')}
     >
-      <View style={styles.decoCircle} />
-      <View style={styles.decoCircleSm} />
+      <View pointerEvents="none" style={styles.clip}>
+        <LinearGradient
+          colors={c.spendGradient}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={styles.decoCircle} />
+        <View style={styles.decoCircleSm} />
+        <View style={styles.highlight} />
+      </View>
 
       <View style={styles.pad}>
         {/* Header */}
@@ -93,12 +116,16 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
         {/* House total */}
         <View style={styles.totalsRow}>
           <View style={styles.totalBlock}>
-            <Text style={styles.totalAmt}>{fmt(houseTotal, currency)}</Text>
+            <CountUpText
+              style={styles.totalAmt}
+              value={houseTotal}
+              format={(n) => fmt(n, currency)}
+            />
             <Text style={styles.totalSub}>{t('spending.house_total')}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.totalBlock}>
-            <Text style={styles.totalAmt}>{fmt(myShare, currency)}</Text>
+            <CountUpText style={styles.totalAmt} value={myShare} format={(n) => fmt(n, currency)} />
             <Text style={styles.totalSub}>
               {sharePct > 0
                 ? t('spending.your_share_with_pct', { percent: sharePct })
@@ -113,7 +140,7 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
             <ActivityIndicator color="rgba(255,255,255,0.7)" size="small" />
           ) : insight ? (
             <>
-              <Text style={styles.insightIcon}>✨</Text>
+              <Ionicons name="sparkles" size={14} color="#fff" style={styles.insightIcon} />
               <Text style={styles.insightText} numberOfLines={2}>
                 {insight}
               </Text>
@@ -144,65 +171,82 @@ export function SpendingCard({ houseId, userName }: Props): React.JSX.Element {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.primary,
-    borderRadius: sizes.borderRadiusLg,
+    borderRadius: sizes.borderRadiusXl,
+    // No overflow:'hidden' here — it would clip the iOS shadow. The gradient +
+    // decorations are clipped by the inner `clip` layer instead.
+    shadowOffset: { width: 0, height: ms(12) },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  clip: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: sizes.borderRadiusXl,
     overflow: 'hidden',
   },
   decoCircle: {
     position: 'absolute',
-    top: -36,
-    end: -18,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    top: ms(-36),
+    end: ms(-18),
+    width: ms(140),
+    height: ms(140),
+    borderRadius: ms(70),
     backgroundColor: 'rgba(255,255,255,0.10)',
   },
   decoCircleSm: {
     position: 'absolute',
-    bottom: -40,
-    end: 22,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    bottom: ms(-40),
+    end: ms(22),
+    width: ms(100),
+    height: ms(100),
+    borderRadius: ms(50),
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  pad: { padding: 22, gap: 16 },
-  loadingIndicator: { marginTop: 8 },
+  highlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: ms(1),
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  pad: { padding: ms(22), gap: ms(16) },
+  loadingIndicator: { marginTop: ms(8) },
 
   label: {
-    fontSize: 11,
+    fontSize: mf(11),
     ...font.extrabold,
-    color: colors.white,
+    color: '#fff',
     letterSpacing: 1.1,
     opacity: 0.88,
   },
 
   totalsRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.md },
-  totalBlock: { flex: 1, gap: 2 },
-  totalAmt: { fontSize: 28, ...font.extrabold, color: colors.white, letterSpacing: -0.8 },
-  totalSub: { fontSize: 12, ...font.regular, color: 'rgba(255,255,255,0.72)' },
-  divider: { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.20)' },
+  totalBlock: { flex: 1, gap: ms(2) },
+  totalAmt: { fontSize: mf(28), ...font.extrabold, color: '#fff', letterSpacing: -0.8 },
+  totalSub: { fontSize: mf(12), ...font.regular, color: 'rgba(255,255,255,0.72)' },
+  divider: { width: ms(1), height: ms(36), backgroundColor: 'rgba(255,255,255,0.20)' },
 
   insightRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 6,
-    minHeight: 34,
+    gap: ms(6),
+    minHeight: ms(34),
   },
-  insightIcon: { fontSize: 14, marginTop: 1 },
+  insightIcon: { fontSize: mf(14), marginTop: ms(1) },
   insightText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: mf(13),
     ...font.regular,
     color: 'rgba(255,255,255,0.88)',
-    lineHeight: 18,
+    lineHeight: mf(18),
   },
 
   ctaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: ms(4),
     alignSelf: 'flex-end',
   },
-  ctaText: { fontSize: 13, ...font.semibold, color: 'rgba(255,255,255,0.80)' },
+  ctaText: { fontSize: mf(13), ...font.semibold, color: 'rgba(255,255,255,0.80)' },
 });

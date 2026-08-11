@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Share } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Share } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -12,9 +13,11 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 
+import { mf, ms } from '@utils/responsive';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/parking-toggle`;
 
@@ -25,6 +28,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
   const isRTLMode = isRTL(language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
 
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,14 +113,14 @@ export default function NfcParkingScreen(): React.JSX.Element {
             color={C.primary}
           />
         </Pressable>
-        <Text style={styles.title}>{t('nfc_parking.title')}</Text>
+        <Text style={[styles.title, headingFont]}>{t('nfc_parking.title')}</Text>
         <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <View style={styles.iconRow}>
-            <Text style={styles.nfcIcon}>📡</Text>
+            <Ionicons name="radio-outline" size={26} color={C.primary} />
             <Text style={styles.cardTitle}>{t('nfc_parking.how_it_works')}</Text>
           </View>
           <Text style={styles.cardBody}>{t('nfc_parking.how_it_works_body')}</Text>
@@ -127,7 +131,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
         <View style={styles.card}>
           {isLoading ? (
             <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={C.primary} />
+              <LoadingSpinner size={64} />
             </View>
           ) : token ? (
             <>
@@ -208,7 +212,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
         <Text style={styles.sectionLabel}>{t('nfc_parking.nfc_tag_title')}</Text>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.icon}>🏷️</Text>
+            <Ionicons name="pricetag-outline" size={20} color={C.primary} style={styles.icon} />
             <Text style={styles.cardBody}>{t('nfc_parking.nfc_tag_body')}</Text>
           </View>
         </View>
@@ -229,11 +233,11 @@ function makeStyles(C: ColorTokens) {
       borderBottomWidth: 1,
       borderBottomColor: C.border,
     },
-    backBtn: { width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center' },
-    title: { fontSize: 17, ...font.bold, color: C.textPrimary },
-    content: { padding: sizes.lg, gap: sizes.sm, paddingBottom: 40 },
+    backBtn: { width: ms(44), height: ms(44), alignItems: 'flex-start', justifyContent: 'center' },
+    title: { fontSize: mf(17), ...font.bold, color: C.textPrimary },
+    content: { padding: sizes.lg, gap: sizes.sm, paddingBottom: ms(40) },
     sectionLabel: {
-      fontSize: 12,
+      fontSize: mf(12),
       color: C.textSecondary,
       ...font.semibold,
       textTransform: 'uppercase',
@@ -241,59 +245,58 @@ function makeStyles(C: ColorTokens) {
       marginTop: sizes.sm,
       marginBottom: sizes.xs,
     },
-    hint: { fontSize: 13, color: C.textSecondary, ...font.regular, marginBottom: 4 },
+    hint: { fontSize: mf(13), color: C.textSecondary, ...font.regular, marginBottom: ms(4) },
     card: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       overflow: 'hidden',
       padding: sizes.md,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
       gap: sizes.sm,
     },
     iconRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-    nfcIcon: { fontSize: 28 },
-    cardTitle: { fontSize: 16, ...font.bold, color: C.textPrimary },
-    cardBody: { fontSize: 14, color: C.textSecondary, ...font.regular, lineHeight: 21 },
+    cardTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
+    cardBody: { fontSize: mf(14), color: C.textSecondary, ...font.regular, lineHeight: mf(21) },
     loadingRow: { alignItems: 'center', paddingVertical: sizes.md },
     tokenText: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textPrimary,
       fontFamily: 'monospace',
       backgroundColor: C.background,
-      borderRadius: 8,
+      borderRadius: ms(8),
       padding: sizes.sm,
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
     tokenActions: { flexDirection: 'row', gap: sizes.sm },
     copyBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      minHeight: 44,
-      borderRadius: 8,
+      gap: ms(6),
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(8),
+      minHeight: ms(44),
+      borderRadius: ms(8),
       borderWidth: 1.5,
       borderColor: C.primary,
       backgroundColor: 'transparent',
     },
-    copyBtnText: { fontSize: 14, ...font.semibold, color: C.primary },
+    copyBtnText: { fontSize: mf(14), ...font.semibold, color: C.primary },
     resetBtn: {
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      minHeight: 44,
-      borderRadius: 8,
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(8),
+      minHeight: ms(44),
+      borderRadius: ms(8),
       borderWidth: 1,
       borderColor: C.border,
       justifyContent: 'center',
     },
-    resetBtnText: { fontSize: 14, ...font.semibold, color: C.textSecondary },
-    errorText: { fontSize: 14, color: C.negative, ...font.regular, textAlign: 'center' },
+    resetBtnText: { fontSize: mf(14), ...font.semibold, color: C.textSecondary },
+    errorText: { fontSize: mf(14), color: C.negative, ...font.regular, textAlign: 'center' },
     stepRow: {
       flexDirection: 'row',
       gap: sizes.sm,
@@ -302,18 +305,24 @@ function makeStyles(C: ColorTokens) {
     },
     stepBorder: { borderTopWidth: 1, borderTopColor: C.border },
     stepNum: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
+      width: ms(24),
+      height: ms(24),
+      borderRadius: ms(12),
       backgroundColor: C.primary + '20',
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
-      marginTop: 1,
+      marginTop: ms(1),
     },
-    stepNumText: { fontSize: 12, ...font.bold, color: C.primary },
-    stepText: { flex: 1, fontSize: 14, color: C.textSecondary, ...font.regular, lineHeight: 21 },
+    stepNumText: { fontSize: mf(12), ...font.bold, color: C.primary },
+    stepText: {
+      flex: 1,
+      fontSize: mf(14),
+      color: C.textSecondary,
+      ...font.regular,
+      lineHeight: mf(21),
+    },
     row: { flexDirection: 'row', gap: sizes.sm, alignItems: 'flex-start' },
-    icon: { fontSize: 22, marginTop: 2 },
+    icon: { fontSize: mf(22), marginTop: ms(2) },
   });
 }

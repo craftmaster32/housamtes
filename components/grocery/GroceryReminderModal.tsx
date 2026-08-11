@@ -14,8 +14,10 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { ReminderDateTimeField } from '@components/grocery/ReminderDateTimeField';
 
+import { mf, ms } from '@utils/responsive';
 export interface GroceryReminderModalProps {
   visible: boolean;
   defaultLabel?: string;
@@ -32,6 +34,7 @@ export function GroceryReminderModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(), []);
+  const headingFont = useHeadingFont('bold');
 
   const [label, setLabel] = useState('');
   const [remindAtIso, setRemindAtIso] = useState<string | null>(null);
@@ -77,16 +80,25 @@ export function GroceryReminderModal({
       >
         <Pressable style={s.backdrop} onPress={onClose} accessible={false} />
         <View style={[s.sheet, { backgroundColor: C.surface }]}>
+          <View style={[s.handle, { backgroundColor: C.border }]} />
           <View style={s.header}>
-            <Text style={[s.title, { color: C.textPrimary }]}>{t('grocery.set_reminder')}</Text>
+            <View style={s.headerText}>
+              <Text style={[s.title, headingFont, { color: C.textPrimary }]}>
+                {t('grocery.set_reminder')}
+              </Text>
+              <Text style={[s.subtitle, { color: C.textSecondary }]}>
+                {t('grocery.reminder_sub')}
+              </Text>
+            </View>
             <Pressable
               onPress={onClose}
-              style={s.closeBtn}
+              style={[s.closeBtn, { backgroundColor: C.surfaceSecondary }]}
+              hitSlop={{ top: ms(7), bottom: ms(7), left: ms(7), right: ms(7) }}
               accessible
               accessibilityRole="button"
               accessibilityLabel={t('common.cancel')}
             >
-              <Ionicons name="close" size={22} color={C.textSecondary} />
+              <Ionicons name="close" size={18} color={C.textSecondary} />
             </Pressable>
           </View>
 
@@ -145,35 +157,57 @@ function makeStyles(): ReturnType<typeof StyleSheet.create> {
     overlay: { flex: 1, justifyContent: 'flex-end' },
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
     sheet: {
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      padding: 24,
-      paddingBottom: 44,
-      gap: 16,
+      borderTopLeftRadius: ms(26),
+      borderTopRightRadius: ms(26),
+      padding: ms(22),
+      paddingBottom: ms(40),
+      gap: ms(14),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: -4 },
+      shadowOffset: { width: 0, height: ms(-4) },
       shadowOpacity: 0.12,
       shadowRadius: 16,
       elevation: 10,
     },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    title: { fontSize: 18, ...font.bold },
-    closeBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-    inputBox: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14 },
-    input: { fontSize: 15, ...font.regular, minHeight: 48 },
-    saveError: { fontSize: 12 },
-    actions: { flexDirection: 'row', gap: 10 },
-    btn: {
-      flex: 1,
-      height: 48,
-      borderRadius: 12,
+    handle: {
+      width: ms(40),
+      height: ms(4),
+      borderRadius: ms(2),
+      alignSelf: 'center',
+      marginBottom: ms(2),
+    },
+    header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+    headerText: { flex: 1 },
+    title: { fontSize: mf(21), letterSpacing: -0.3 },
+    subtitle: { fontSize: mf(12.5), ...font.medium, marginTop: ms(2) },
+    closeBtn: {
+      width: ms(30),
+      height: ms(30),
+      borderRadius: ms(15),
       justifyContent: 'center',
       alignItems: 'center',
-      borderWidth: 1,
     },
-    btnPrimary: { borderWidth: 0 },
+    inputBox: { borderRadius: ms(12), borderWidth: 1, paddingHorizontal: ms(14) },
+    input: { fontSize: mf(15), ...font.regular, minHeight: ms(48) },
+    saveError: { fontSize: mf(12) },
+    actions: { flexDirection: 'row', gap: ms(10), marginTop: ms(2) },
+    btn: {
+      flex: 1,
+      height: ms(50),
+      borderRadius: ms(14),
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1.5,
+    },
+    btnPrimary: {
+      borderWidth: 0,
+      shadowColor: '#3B6FBF',
+      shadowOffset: { width: 0, height: ms(8) },
+      shadowOpacity: 0.28,
+      shadowRadius: 16,
+      elevation: 6,
+    },
     btnOff: { opacity: 0.5 },
-    btnText: { fontSize: 15, ...font.semibold },
+    btnText: { fontSize: mf(15), ...font.bold },
     btnPrimaryText: { color: '#FFFFFF' },
   });
 }

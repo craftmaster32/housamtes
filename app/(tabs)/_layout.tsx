@@ -4,7 +4,23 @@ import { Tabs } from 'expo-router';
 // All screens are registered here so Expo Router can resolve their routes.
 export default function TabsLayout(): React.JSX.Element {
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
+    <Tabs
+      // Navigation is driven programmatically across many hidden "tabs", so the
+      // default backBehavior ('firstRoute') sent every back action to the first
+      // screen (dashboard) instead of the previous one. 'history' makes back
+      // return to the last-visited screen — e.g. Settings → Language → back now
+      // lands on Settings, not the home page.
+      backBehavior="history"
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { display: 'none' },
+        // NOTE: do not set `animation` here. With the native tab bar hidden and
+        // navigation driven programmatically (BottomTabBar → router.navigate),
+        // bottom-tabs `animation: 'fade'` plays the crossfade but leaves the
+        // previous screen mounted — tapping a tab looks like it switches yet
+        // stays on the current screen (most visible on web). Hard-cut is correct.
+      }}
+    >
       <Tabs.Screen name="dashboard/index" />
       <Tabs.Screen name="bills/index" />
       <Tabs.Screen name="bills/add" options={{ href: null }} />
@@ -17,6 +33,9 @@ export default function TabsLayout(): React.JSX.Element {
       <Tabs.Screen name="more/settings" options={{ href: null }} />
       <Tabs.Screen name="photos/index" />
       <Tabs.Screen name="settings/notifications" options={{ href: null }} />
+      <Tabs.Screen name="settings/appearance" options={{ href: null }} />
+      <Tabs.Screen name="settings/language" options={{ href: null }} />
+      <Tabs.Screen name="settings/calendar" options={{ href: null }} />
       <Tabs.Screen name="settings/privacy-policy" options={{ href: null }} />
       <Tabs.Screen name="settings/terms" options={{ href: null }} />
       <Tabs.Screen name="settings/categories" options={{ href: null }} />

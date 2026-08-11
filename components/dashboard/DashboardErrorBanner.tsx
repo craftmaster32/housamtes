@@ -12,6 +12,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+import { ms } from '@utils/responsive';
 // Surfaces load failures from the stores the dashboard widgets read; the
 // widgets themselves only render data and have nowhere to show an error.
 export const DashboardErrorBanner: React.FC = () => {
@@ -67,7 +68,7 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.danger + '15',
       borderWidth: 1,
       borderColor: C.danger + '40',
-      borderRadius: 12,
+      borderRadius: ms(12),
       paddingHorizontal: sizes.md,
       paddingVertical: sizes.sm,
       marginBottom: sizes.sm,
@@ -75,7 +76,7 @@ function makeStyles(C: ColorTokens) {
     text: { flex: 1, fontSize: sizes.fontSm, ...font.regular, color: C.danger },
     retryBtn: {
       paddingHorizontal: sizes.sm,
-      paddingVertical: 6,
+      paddingVertical: ms(6),
       borderRadius: sizes.borderRadiusFull,
       backgroundColor: C.danger + '20',
     },

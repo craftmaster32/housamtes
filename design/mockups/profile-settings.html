@@ -1,0 +1,96 @@
+<title>Profile + Settings v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:26px 20px}
+  .h1{text-align:center;max-width:640px;margin:0 auto 20px;color:#5d6b7e;font-size:14px;line-height:1.5}
+  .h1 b{color:#1b2431;font-size:18px}
+  .stage{display:flex;gap:40px;justify-content:center;flex-wrap:wrap}
+  .cap{text-align:center;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#7a8494;margin-bottom:10px}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.08);--fg1:#0F172A;--fg2:#64748B;--fg3:#94A3B8;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.12);--danger:#B84540;--danger-tint:rgba(184,69,64,.1);--owed1:#4A84D0;--owed2:#274F99}
+  .hm.dark{--bg:#0A0F1B;--surface:#151D2E;--surface2:#1F2940;--border:rgba(255,255,255,.08);--fg1:#EEF2F8;--fg2:#8A95AA;--fg3:#586279;--primary:#4E82D4;--primary-tint:rgba(78,130,212,.18);--danger:#E5645F;--danger-tint:rgba(229,100,95,.15);--owed1:#264C8C;--owed2:#182F5A}
+  .phone{width:352px;min-height:720px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.2),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:52px 18px 22px}
+  .title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:6px 2px 14px}
+  /* profile header */
+  .phdr{border-radius:20px;padding:22px 18px;background:linear-gradient(150deg,var(--owed1),var(--owed2));box-shadow:0 14px 30px rgba(41,82,160,.34);display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:18px}
+  .pav{width:74px;height:74px;border-radius:37px;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px;font-weight:800;margin-bottom:6px}
+  .pname{font-size:20px;font-weight:800;color:#fff}
+  .pmail{font-size:13px;color:rgba(255,255,255,.75)}
+  .ppill{margin-top:8px;background:rgba(255,255,255,.18);color:#fff;font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:9999px}
+  .sec{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--fg3);margin:6px 2px 8px}
+  .group{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:16px}
+  .row{display:flex;align-items:center;gap:12px;padding:14px}
+  .row+.row{border-top:1px solid var(--border)}
+  .ric{width:36px;height:36px;border-radius:11px;background:var(--primary-tint);color:var(--primary);display:flex;align-items:center;justify-content:center;flex:none}
+  .rt{flex:1}.rl{font-size:15px;font-weight:600}.rs{font-size:12px;color:var(--fg2);margin-top:1px}
+  .chev{color:var(--fg3)}
+  .row.danger .ric{background:var(--danger-tint);color:var(--danger)}
+  .row.danger .rl{color:var(--danger)}
+  /* settings appearance */
+  .approw{display:flex;gap:10px;margin-bottom:16px}
+  .appt{flex:1;border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;color:var(--fg2);font-size:13px;font-weight:700}
+  .appt.on{border-color:var(--primary);background:var(--primary-tint);color:var(--primary)}
+  .appt .ck{position:absolute}
+  .toggle{width:44px;height:26px;border-radius:13px;background:var(--primary);position:relative;flex:none}
+  .toggle.off{background:var(--surface2)}
+  .toggle::after{content:"";position:absolute;top:3px;width:20px;height:20px;border-radius:10px;background:#fff;right:3px}
+  .toggle.off::after{right:auto;left:3px}
+  svg{display:block}
+</style>
+
+<div class="h1"><b>Profile &amp; Settings — proposed v2</b><br>Profile gets a gradient identity header + clean grouped rows. Settings gets a card-based appearance picker + tidy toggle groups. Review before I build.</div>
+
+<div class="stage">
+  <!-- PROFILE -->
+  <div><div class="cap">Profile (More) · Light</div>
+  <div class="phone hm"><div class="notch"></div><div class="scr">
+    <div class="title">Profile</div>
+    <div class="phdr">
+      <div class="pav">L</div>
+      <div class="pname">lior</div>
+      <div class="pmail">liorhalivner@gmail.com</div>
+      <div class="ppill">🏠 HaTira</div>
+    </div>
+    <div class="sec">Account</div>
+    <div class="group">
+      <div class="row"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><div class="rt"><div class="rl">Change password</div><div class="rs">Keep your account secure</div></div><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+    <div class="sec">House</div>
+    <div class="group">
+      <div class="row"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/></svg></div><div class="rt"><div class="rl">Housemates</div><div class="rs">3 people</div></div><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="row"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg></div><div class="rt"><div class="rl">Invite code</div><div class="rs">Share to add housemates</div></div><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+    <div class="sec">Preferences</div>
+    <div class="group">
+      <div class="row"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 00-1.7-1L14.5 3h-5l-.3 2.5a7 7 0 00-1.7 1l-2.4-1-2 3.5L3 11a7 7 0 000 2l-2 1.5 2 3.5 2.4-1a7 7 0 001.7 1L9.5 21h5l.3-2.5a7 7 0 001.7-1l2.4 1 2-3.5-2-1.5a7 7 0 00.1-1z"/></svg></div><div class="rt"><div class="rl">Settings</div><div class="rs">Appearance, features, notifications</div></div><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="row danger"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></div><div class="rt"><div class="rl">Sign out</div></div></div>
+    </div>
+  </div></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div><div class="cap">Settings · Dark</div>
+  <div class="phone hm dark"><div class="notch"></div><div class="scr">
+    <div class="title">Settings</div>
+    <div class="sec">Appearance</div>
+    <div class="approw">
+      <div class="appt"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>System</div>
+      <div class="appt"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>Light</div>
+      <div class="appt on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z"/></svg>Dark</div>
+    </div>
+    <div class="sec">Features</div>
+    <div class="group">
+      <div class="row"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-5a2 2 0 012-1.5h7a2 2 0 012 1.5L19 13M5 13h14"/></svg></div><div class="rt"><div class="rl">Parking</div></div><div class="toggle"></div></div>
+      <div class="row"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 4h2l2.5 12h11l2-8H6"/></svg></div><div class="rt"><div class="rl">Grocery</div></div><div class="toggle"></div></div>
+      <div class="row"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l4 4L18 6"/></svg></div><div class="rt"><div class="rl">Chores</div></div><div class="toggle off"></div></div>
+    </div>
+    <div class="sec">About</div>
+    <div class="group">
+      <div class="row"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="rt"><div class="rl">Privacy policy</div></div><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="row"><div class="ric"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3h16v18l-8-4-8 4z"/></svg></div><div class="rt"><div class="rl">Terms</div></div><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+  </div></div>
+  </div>
+</div>

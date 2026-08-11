@@ -1,10 +1,12 @@
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { colors } from '@constants/colors';
+import { View, StyleSheet } from 'react-native';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { useThemedColors } from '@constants/colors';
 
 export default function Index(): React.JSX.Element {
+  const c = useThemedColors();
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color={colors.primary} />
+    <View style={[styles.container, { backgroundColor: c.background }]}>
+      <LoadingSpinner size={140} />
     </View>
   );
 }
@@ -14,6 +16,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
   },
 });

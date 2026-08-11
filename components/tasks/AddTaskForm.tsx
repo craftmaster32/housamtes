@@ -11,7 +11,15 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high'];
+
+// Matches the priority colours on TaskRow so the form echoes the cards.
+const PRIORITY_COLORS = (C: ColorTokens): Record<TaskPriority, string> => ({
+  low: C.positive,
+  medium: C.warning,
+  high: C.danger,
+});
 
 interface AddTaskFormProps {
   onAdd: (input: NewTaskInput) => Promise<void>;
@@ -38,6 +46,10 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps): React.JSX.Element {
       if (prev) setDueDate('');
       return !prev;
     });
+  }, []);
+
+  const handleSelectPriority = useCallback((p: TaskPriority): void => {
+    setPriority(p);
   }, []);
 
   const handleAdd = useCallback(async (): Promise<void> => {
@@ -93,13 +105,19 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps): React.JSX.Element {
         {PRIORITIES.map((p) => (
           <Pressable
             key={p}
-            style={[styles.chip, priority === p && styles.chipActive]}
-            onPress={() => setPriority(p)}
+            style={[styles.chip, styles.chipWithDot, priority === p && styles.chipActive]}
+            onPress={() => handleSelectPriority(p)}
             accessible
             accessibilityRole="radio"
             accessibilityLabel={t(`tasks.priority_${p}`)}
             accessibilityState={{ selected: priority === p }}
           >
+            <View
+              style={[
+                styles.priorityDot,
+                { backgroundColor: priority === p ? '#fff' : PRIORITY_COLORS(C)[p] },
+              ]}
+            />
             <Text style={[styles.chipText, priority === p && styles.chipTextActive]}>
               {t(`tasks.priority_${p}`)}
             </Text>
@@ -183,32 +201,32 @@ export function AddTaskForm({ onAdd }: AddTaskFormProps): React.JSX.Element {
 
 function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
-    form: { gap: 12 },
+    form: { gap: ms(12) },
     input: {
-      minHeight: 46,
+      minHeight: ms(46),
       backgroundColor: C.surface,
-      borderRadius: 10,
+      borderRadius: ms(10),
       borderWidth: 1,
       borderColor: C.border,
-      paddingHorizontal: 13,
-      paddingVertical: 12,
-      fontSize: 15,
+      paddingHorizontal: ms(13),
+      paddingVertical: ms(12),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
     },
-    inputMultiline: { minHeight: 64, textAlignVertical: 'top' },
+    inputMultiline: { minHeight: ms(64), textAlignVertical: 'top' },
     pickerLabel: {
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.bold,
       color: C.textSecondary,
       letterSpacing: 0.72,
       textTransform: 'uppercase',
     },
-    chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+    chipRow: { flexDirection: 'row', gap: ms(8), flexWrap: 'wrap' },
     chip: {
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      minHeight: 44,
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(10),
+      minHeight: ms(44),
       justifyContent: 'center',
       borderRadius: 9999,
       borderWidth: 1,
@@ -216,41 +234,43 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surfaceSecondary,
     },
     chipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    chipText: { fontSize: 13, ...font.semibold, color: C.textSecondary },
+    chipWithDot: { flexDirection: 'row', alignItems: 'center', gap: ms(7) },
+    priorityDot: { width: ms(8), height: ms(8), borderRadius: ms(4) },
+    chipText: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
     chipTextActive: { color: '#fff' },
     dueToggle: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      minHeight: 44,
+      gap: ms(6),
+      minHeight: ms(44),
       alignSelf: 'flex-start',
     },
-    dueToggleText: { fontSize: 13, ...font.semibold, color: C.primary },
+    dueToggleText: { fontSize: mf(13), ...font.semibold, color: C.primary },
     errorBox: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
-      padding: 10,
+      borderRadius: ms(10),
+      padding: ms(10),
     },
-    errorText: { fontSize: 13, ...font.regular, color: C.danger, flex: 1 },
+    errorText: { fontSize: mf(13), ...font.regular, color: C.danger, flex: 1 },
     btnPrimary: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 48,
-      paddingHorizontal: 18,
-      borderRadius: 10,
+      minHeight: ms(48),
+      paddingHorizontal: ms(18),
+      borderRadius: ms(10),
       backgroundColor: C.primary,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     btnOff: { backgroundColor: C.textDisabled },
-    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    btnIcon: { marginEnd: 6 },
+    btnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
+    btnIcon: { marginEnd: ms(6) },
   });
 }

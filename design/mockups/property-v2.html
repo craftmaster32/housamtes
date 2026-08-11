@@ -1,0 +1,81 @@
+<title>Property v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:760px;margin:0 auto 22px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px}
+  .stage{display:flex;gap:38px;justify-content:center;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#7a8494}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.07);--fg1:#0F172A;--fg2:#64748B;--fg3:#98A2B3;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.1);--pos:#2F8550;--pos-tint:rgba(47,133,80,.14);--warn:#B68528;--warn-tint:rgba(182,133,40,.16);--danger:#B84540;--danger-tint:rgba(184,69,64,.12)}
+  .hm.dark{--bg:#0A0F1B;--surface:#141C2C;--surface2:#1E2840;--border:rgba(255,255,255,.07);--fg1:#EEF2F8;--fg2:#8A95AA;--fg3:#5A6479;--primary:#4E82D4;--primary-tint:rgba(78,130,212,.16);--pos:#4FB071;--pos-tint:rgba(79,176,113,.16);--warn:#E0B24D;--warn-tint:rgba(224,178,77,.16);--danger:#E5645F;--danger-tint:rgba(229,100,95,.16)}
+  .phone{width:344px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:56px 18px 22px}
+  .title{font-family:'Fraunces',Georgia,serif;font-size:28px;font-weight:600;letter-spacing:-.5px;line-height:1;margin-bottom:12px}
+  .seg{display:flex;background:var(--surface2);border-radius:11px;padding:3px;margin-bottom:16px}
+  .seg .s{flex:1;text-align:center;padding:9px;border-radius:9px;font-size:13px;font-weight:700;color:var(--fg2)}
+  .seg .s.on{background:var(--surface);color:var(--primary);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  .add{display:flex;align-items:center;justify-content:center;gap:7px;border:1.5px dashed color-mix(in srgb,var(--primary) 45%,transparent);border-radius:14px;padding:13px;color:var(--primary);font-weight:700;font-size:14px;margin-bottom:14px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:11px}
+  .card.done{opacity:.68}
+  .ch{display:flex;align-items:flex-start;gap:11px}
+  .sq{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none}
+  .ci{flex:1;min-width:0}
+  .cn{font-size:15px;font-weight:800;letter-spacing:-.2px}
+  .cn.done{text-decoration:line-through;color:var(--fg3)}
+  .cm{font-size:11.5px;color:var(--fg2);font-weight:500;margin-top:2px}
+  .x{color:var(--fg3);width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex:none}
+  .desc{font-size:13px;color:var(--fg2);line-height:1.5;margin-top:10px}
+  .foot{display:flex;align-items:center;gap:10px;margin-top:12px}
+  .badge{font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:9999px;text-transform:uppercase;letter-spacing:.3px}
+  .badge.open{color:var(--danger);background:var(--danger-tint)}
+  .badge.prog{color:var(--warn);background:var(--warn-tint)}
+  .badge.done{color:var(--pos);background:var(--pos-tint)}
+  .adv{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--primary);background:var(--primary-tint);padding:7px 13px;border-radius:10px}
+  .reopen{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--fg2);border:1px solid var(--border);padding:7px 13px;border-radius:10px}
+  svg{display:block}
+</style>
+<div class="head"><h1>Property — v2</h1><p>Issue category as a line icon in a tinted square (no emoji), Fraunces title, ✕ → icon. Same statuses &amp; flow.</p></div>
+<div class="stage" id="stage"></div>
+<template id="tpl">
+  <div class="scr">
+    <div class="title">Property</div>
+    <div class="seg"><div class="s on">Issues</div><div class="s">Condition</div></div>
+    <div class="add"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Report an issue</div>
+
+    <div class="card">
+      <div class="ch">
+        <div class="sq" style="background:var(--primary-tint);color:var(--primary)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 007-7c0-4-7-11-7-11S5 11 5 15a7 7 0 007 7z"/></svg></div>
+        <div class="ci"><div class="cn">Leaking tap in bathroom</div><div class="cm">Plumbing · Jordan · 2 days ago</div></div>
+        <div class="x"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+      </div>
+      <div class="desc">Drips constantly, getting worse. Might need a new washer.</div>
+      <div class="foot"><span class="badge open">Open</span><span class="adv">Mark in progress</span></div>
+    </div>
+
+    <div class="card">
+      <div class="ch">
+        <div class="sq" style="background:var(--warn-tint);color:var(--warn)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg></div>
+        <div class="ci"><div class="cn">Hallway light flickers</div><div class="cm">Electrical · You · 5 days ago</div></div>
+      </div>
+      <div class="foot"><span class="badge prog">In progress</span><span class="adv">Mark resolved</span></div>
+    </div>
+
+    <div class="card done">
+      <div class="ch">
+        <div class="sq" style="background:var(--surface2);color:var(--fg3)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a5 5 0 00-7 7l1 1L3 21l1-1 6.7-5.7 1 1a5 5 0 007-7z"/></svg></div>
+        <div class="ci"><div class="cn done">Dishwasher not draining</div><div class="cm">Appliance · Sam · fixed 15 Apr</div></div>
+      </div>
+      <div class="foot"><span class="badge done">Resolved</span><span class="reopen">Reopen</span></div>
+    </div>
+  </div>
+</template>
+<script>
+  const s=document.getElementById('stage');
+  [['Light',''],['Dark','dark']].forEach(([l,c])=>{const col=document.createElement('div');col.className='col';const cap=document.createElement('div');cap.className='cap';cap.textContent=l;const p=document.createElement('div');p.className='phone hm'+(c?' '+c:'');p.innerHTML='<div class="notch"></div>'+document.getElementById('tpl').innerHTML;col.appendChild(cap);col.appendChild(p);s.appendChild(col);});
+</script>

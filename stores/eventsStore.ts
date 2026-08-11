@@ -2,7 +2,18 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
+import { notifyHousemates } from '@lib/notifyHousemates';
 import { captureError } from '@lib/errorTracking';
+
+// Friendly "Sat 15 Aug · 20:00" label for the instant event-added push.
+function eventWhenLabel(date: string, startTime?: string): string {
+  const when = new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+  return startTime ? `${when} · ${startTime}` : when;
+}
 
 export type EventRecurrence = 'weekly' | 'monthly' | 'yearly';
 
@@ -177,6 +188,19 @@ export const useEventsStore = create<EventsStore>()(
           const event = mapRow(data as Record<string, unknown>);
           const events = [...get().events, event].sort((a, b) => a.date.localeCompare(b.date));
           set({ events });
+          // Let the other housemates know something landed on the calendar.
+          const actor = useAuthStore.getState().profile;
+          void notifyHousemates({
+            houseId,
+            excludeUserId: createdBy,
+            title: '📅 New event',
+            body: `${actor?.name ?? 'A housemate'} added "${event.title}" · ${eventWhenLabel(
+              event.date,
+              event.startTime
+            )}`,
+            data: { screen: 'calendar' },
+            notificationType: 'event_added',
+          });
           return event.id;
         } catch (err) {
           captureError(err, { context: 'add-event', houseId });

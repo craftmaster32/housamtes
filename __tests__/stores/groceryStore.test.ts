@@ -328,13 +328,35 @@ describe('incrementBought', () => {
     expect(i.isChecked).toBe(true);
   });
 
-  it('rolls back counter on DB error', async () => {
+  it('keeps the optimistic count immediately (DB write is debounced, not awaited)', async () => {
     seedItems({ quantity: '3', boughtCount: 1 });
     mockFrom.mockReturnValue(fail('error'));
 
     await useGroceryStore.getState().incrementBought('item-1');
 
-    expect(useGroceryStore.getState().items[0].boughtCount).toBe(1);
+    // The local count updates immediately; the write is deferred so it never
+    // snaps the number back mid-interaction (resync only runs later, on failure).
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+  });
+
+  it('resyncs from the server when the debounced write fails', async () => {
+    jest.useFakeTimers();
+    try {
+      seedItems({ quantity: '3', boughtCount: 1 });
+      // 1st from() = the failing UPDATE; 2nd = the resync SELECT (server truth).
+      mockFrom.mockReturnValueOnce(fail('permission denied'));
+      mockFrom.mockReturnValueOnce(ok({ bought_count: 1, is_checked: false }));
+
+      await useGroceryStore.getState().incrementBought('item-1');
+      expect(useGroceryStore.getState().items[0].boughtCount).toBe(2); // optimistic
+
+      await jest.runAllTimersAsync(); // fire debounce → write fails → resync
+
+      // Snaps back to the value that's actually on the server.
+      expect(useGroceryStore.getState().items[0].boughtCount).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 
@@ -360,13 +382,15 @@ describe('decrementBought', () => {
     expect(useGroceryStore.getState().items[0].boughtCount).toBe(0);
   });
 
-  it('rolls back counter on DB error', async () => {
+  it('keeps the optimistic count (DB write is debounced, not awaited)', async () => {
     seedItems({ quantity: '3', boughtCount: 2 });
     mockFrom.mockReturnValue(fail('error'));
 
     await useGroceryStore.getState().decrementBought('item-1');
 
-    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+    // Local count updates immediately; the deferred write doesn't snap it back
+    // mid-interaction (a failed write resyncs later, not right now).
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(1);
   });
 });
 
@@ -417,6 +441,90 @@ describe('realtime UPDATE handler', () => {
     expect(items[0].name).toBe('Oat Milk');
     expect(items[1].name).toBe('Bread');
   });
+
+  // Regression: the debounce collapses rapid taps into one write, but if you tap
+  // again after that write fires and before its echo returns, a stale echo could
+  // still snap the counter backwards. The pending-count guard closes that window.
+  it('does not let a stale self-echo revert a fresher local count', async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', quantity: '5', boughtCount: 0 })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().incrementBought('item-1');
+    await useGroceryStore.getState().incrementBought('item-1');
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+
+    // Echo of the FIRST write (count 1) arrives late — must not revert to 1.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', quantity: '5', bought_count: 1 }) });
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+  });
+
+  it('applies the echo once it catches up to the latest write', async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', quantity: '5', boughtCount: 0 })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().incrementBought('item-1');
+    await useGroceryStore.getState().incrementBought('item-1');
+
+    // Echo of the latest write (count 2) lands — guard clears, row applied.
+    capturedHandlers.update!({
+      new: rawRow({ id: 'item-1', quantity: '5', bought_count: 2, name: 'Oat Milk' }),
+    });
+    const updated = useGroceryStore.getState().items[0];
+    expect(updated.boughtCount).toBe(2);
+    expect(updated.name).toBe('Oat Milk');
+
+    // A later remote change now flows through normally (guard was cleared).
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', quantity: '5', bought_count: 3 }) });
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(3);
+  });
+
+  it("still applies a stale echo's other fields while guarding the count", async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', quantity: '5', boughtCount: 0 })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().incrementBought('item-1');
+    await useGroceryStore.getState().incrementBought('item-1');
+
+    // Stale echo (count 1) also carries a name change from another user.
+    capturedHandlers.update!({
+      new: rawRow({ id: 'item-1', quantity: '5', bought_count: 1, name: 'Whole Milk' }),
+    });
+    const updated = useGroceryStore.getState().items[0];
+    expect(updated.boughtCount).toBe(2); // count preserved
+    expect(updated.name).toBe('Whole Milk'); // other fields merged
+  });
+
+  // Regression: regular (checkbox) items had the same self-echo problem — a stale
+  // echo could flip the checkbox back, so a tap read as laggy/unresponsive.
+  it('does not let a stale self-echo revert a freshly toggled checkbox', async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', isChecked: false })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    // Check it, then uncheck it — local state ends unchecked.
+    await useGroceryStore.getState().toggleItem('item-1');
+    await useGroceryStore.getState().toggleItem('item-1');
+    expect(useGroceryStore.getState().items[0].isChecked).toBe(false);
+
+    // Echo of the FIRST write (checked) arrives late — must not re-check it.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: true }) });
+    expect(useGroceryStore.getState().items[0].isChecked).toBe(false);
+  });
+
+  it('applies the checkbox echo once it catches up, then resumes remote updates', async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', isChecked: false })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().toggleItem('item-1'); // -> checked
+
+    // Echo of that write lands — guard clears, other fields merge.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: true, name: 'Oat Milk' }) });
+    expect(useGroceryStore.getState().items[0].isChecked).toBe(true);
+    expect(useGroceryStore.getState().items[0].name).toBe('Oat Milk');
+
+    // A later remote uncheck (e.g. a housemate) now flows through normally.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: false }) });
+    expect(useGroceryStore.getState().items[0].isChecked).toBe(false);
+  });
 });
 
 // ── Realtime: DELETE handler ──────────────────────────────────────────────────
@@ -462,6 +570,53 @@ describe('clearChecked + realtime race condition', () => {
     capturedHandlers.delete!({ old: { id: 'item-1' } });
 
     // item-1 is gone, item-2 still there — not restored by realtime
+    const ids = useGroceryStore.getState().items.map((i) => i.id);
+    expect(ids).toEqual(['item-2']);
+  });
+
+  // Regression: a cleared item flashed back at the top and stayed. A late INSERT
+  // echo (in flight when the item was added) re-added the just-deleted row, then a
+  // late UPDATE echo re-checked it. The delete tombstone must block both.
+  it('a late INSERT echo does not resurrect a just-cleared item', async () => {
+    mockFrom.mockReturnValue(ok([]));
+    await useGroceryStore.getState().load('house-1');
+    useGroceryStore.setState({ items: [item({ id: 'item-1', isChecked: true })] });
+
+    mockFrom.mockReturnValue(ok(null));
+    await useGroceryStore.getState().clearChecked(HOUSE_UUID);
+    expect(useGroceryStore.getState().items).toHaveLength(0);
+
+    // Late INSERT echo for the same row arrives — must be ignored, not prepended.
+    capturedHandlers.insert!({ new: rawRow({ id: 'item-1', is_checked: false }) });
+    expect(useGroceryStore.getState().items).toHaveLength(0);
+
+    // And a late UPDATE echo for it can't revive/re-check it either.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: true }) });
+    expect(useGroceryStore.getState().items).toHaveLength(0);
+  });
+
+  it('a late INSERT echo does not resurrect a deleted item', async () => {
+    mockFrom.mockReturnValue(ok([]));
+    await useGroceryStore.getState().load('house-1');
+    useGroceryStore.setState({ items: [item({ id: 'item-1' })] });
+
+    mockFrom.mockReturnValue(ok(null));
+    await useGroceryStore.getState().deleteItem('item-1');
+
+    capturedHandlers.insert!({ new: rawRow({ id: 'item-1' }) });
+    expect(useGroceryStore.getState().items).toHaveLength(0);
+  });
+
+  it('a genuinely new item (different id) is still added after a clear', async () => {
+    mockFrom.mockReturnValue(ok([]));
+    await useGroceryStore.getState().load('house-1');
+    useGroceryStore.setState({ items: [item({ id: 'item-1', isChecked: true })] });
+
+    mockFrom.mockReturnValue(ok(null));
+    await useGroceryStore.getState().clearChecked(HOUSE_UUID);
+
+    // A fresh add uses a new id — the tombstone must not block it.
+    capturedHandlers.insert!({ new: rawRow({ id: 'item-2', name: 'Eggs' }) });
     const ids = useGroceryStore.getState().items.map((i) => i.id);
     expect(ids).toEqual(['item-2']);
   });

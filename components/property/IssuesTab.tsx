@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -14,27 +15,48 @@ import {
   NEXT_STATUS,
   type MaintenanceStatus,
 } from '@stores/maintenanceStore';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 type TFunction = (key: string, options?: Record<string, unknown>) => string;
 
-function timeAgo(iso: string, t: TFunction): string {
+function localeFor(lang: string): string {
+  return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
+}
+
+// Categories carry an emoji in the store; render a line icon here so the page
+// speaks one visual language (no emoji beside icons).
+const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  Plumbing: 'water-outline',
+  Electrical: 'flash-outline',
+  Appliance: 'construct-outline',
+  Structure: 'home-outline',
+  Pest: 'bug-outline',
+  Other: 'document-text-outline',
+};
+function categoryIcon(label: string): React.ComponentProps<typeof Ionicons>['name'] {
+  return CATEGORY_ICONS[label] ?? 'document-text-outline';
+}
+
+function timeAgo(iso: string, t: TFunction, lang: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const days = Math.floor(diff / 86400000);
   if (days === 0) return t('common.today');
   if (days === 1) return t('common.yesterday');
   if (days < 7) return t('common.days_ago', { count: days });
-  return new Intl.DateTimeFormat(undefined, {
-    day: '2-digit',
-    month: '2-digit',
+  return new Date(iso).toLocaleDateString(localeFor(lang), {
+    day: 'numeric',
+    month: 'short',
     year: 'numeric',
-  }).format(new Date(iso));
+  });
 }
 
 function StatusBadge({ status }: { status: MaintenanceStatus }): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const color = STATUS_COLORS[status];
   return (
     <View style={[styles.statusBadge, { backgroundColor: color + '18' }]}>
@@ -54,11 +76,12 @@ interface RequestCardProps {
 }
 
 function RequestCard({ request, myId }: RequestCardProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const { t, i18n } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
   const updateStatus = useMaintenanceStore((s) => s.updateStatus);
   const remove = useMaintenanceStore((s) => s.remove);
-  const category = MAINTENANCE_CATEGORIES.find((c) => c.label === request.category);
 
   const handleNextStatus = useCallback(() => {
     void updateStatus(request.id, NEXT_STATUS[request.status]);
@@ -71,7 +94,21 @@ function RequestCard({ request, myId }: RequestCardProps): React.JSX.Element {
   return (
     <View style={[styles.card, request.status === 'resolved' && styles.cardResolved]}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardIcon}>{category?.icon ?? '📝'}</Text>
+        <View
+          style={[
+            styles.cardIcon,
+            {
+              backgroundColor:
+                request.status === 'resolved' ? c.surfaceSecondary : c.primary + '18',
+            },
+          ]}
+        >
+          <Ionicons
+            name={categoryIcon(request.category)}
+            size={19}
+            color={request.status === 'resolved' ? c.textTertiary : c.primary}
+          />
+        </View>
         <View style={styles.cardInfo}>
           <Text
             style={[styles.cardTitle, request.status === 'resolved' && styles.cardTitleResolved]}
@@ -81,18 +118,19 @@ function RequestCard({ request, myId }: RequestCardProps): React.JSX.Element {
           <Text style={styles.cardMeta}>
             {request.category} ·{' '}
             {t('maintenance.reported_by', { name: resolveName(request.reportedBy, housemates) })} ·{' '}
-            {timeAgo(request.createdAt, t)}
+            {timeAgo(request.createdAt, t, i18n.language)}
           </Text>
         </View>
         {request.reportedBy === myId && (
           <Pressable
             onPress={handleRemove}
             style={styles.removeBtn}
+            hitSlop={8}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('common.delete')}
           >
-            <Text style={styles.removeBtnText}>✕</Text>
+            <Ionicons name="close" size={18} color={c.textTertiary} />
           </Pressable>
         )}
       </View>
@@ -142,6 +180,8 @@ function AddRequestForm({
   houseId: string;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const add = useMaintenanceStore((s) => s.add);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -177,22 +217,27 @@ function AddRequestForm({
 
       <Text style={styles.fieldLabel}>{t('maintenance.category')}</Text>
       <View style={styles.chipRow}>
-        {MAINTENANCE_CATEGORIES.map((c) => (
-          <Pressable
-            key={c.label}
-            style={[styles.chip, category === c.label && styles.chipActive]}
-            onPress={() => setCategory(c.label)}
-            accessible
-            accessibilityRole="radio"
-            accessibilityLabel={c.label}
-            accessibilityState={{ selected: category === c.label }}
-          >
-            <Text style={styles.chipIcon}>{c.icon}</Text>
-            <Text style={[styles.chipText, category === c.label && styles.chipTextActive]}>
-              {c.label}
-            </Text>
-          </Pressable>
-        ))}
+        {MAINTENANCE_CATEGORIES.map((cat) => {
+          const active = category === cat.label;
+          return (
+            <Pressable
+              key={cat.label}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => setCategory(cat.label)}
+              accessible
+              accessibilityRole="radio"
+              accessibilityLabel={cat.label}
+              accessibilityState={{ selected: active }}
+            >
+              <Ionicons
+                name={categoryIcon(cat.label)}
+                size={14}
+                color={active ? '#fff' : c.textSecondary}
+              />
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{cat.label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Text style={styles.fieldLabel}>{t('maintenance.issue_label')}</Text>
@@ -201,7 +246,7 @@ function AddRequestForm({
         value={title}
         onChangeText={setTitle}
         placeholder={t('maintenance.issue_placeholder')}
-        placeholderTextColor={colors.textDisabled}
+        placeholderTextColor={c.textDisabled}
         accessibilityLabel={t('maintenance.issue_label')}
         accessibilityHint={t('maintenance.issue_placeholder')}
       />
@@ -212,7 +257,7 @@ function AddRequestForm({
         value={description}
         onChangeText={setDescription}
         placeholder={t('maintenance.details_placeholder')}
-        placeholderTextColor={colors.textDisabled}
+        placeholderTextColor={c.textDisabled}
         multiline
         numberOfLines={3}
         accessibilityLabel={t('maintenance.details_label')}
@@ -252,6 +297,8 @@ function AddRequestForm({
 }
 
 export function IssuesTab(): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   const { t } = useTranslation();
   const requests = useMaintenanceStore((s) => s.requests);
   const isLoading = useMaintenanceStore((s) => s.isLoading);
@@ -288,15 +335,20 @@ export function IssuesTab(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityState={{ expanded: showResolved }}
           >
+            <Ionicons
+              name={showResolved ? 'chevron-up' : 'chevron-down'}
+              size={15}
+              color={c.textSecondary}
+            />
             <Text style={styles.resolvedToggleText}>
-              {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
+              {t('maintenance.resolved_section')} ({resolved.length})
             </Text>
           </Pressable>
         );
       }
       return <RequestCard request={item.request} myId={myId} />;
     },
-    [showResolved, resolved.length, t, myId]
+    [showResolved, resolved.length, t, myId, styles, c]
   );
 
   const keyExtractor = useCallback((item: ListItem) => {
@@ -350,150 +402,174 @@ export function IssuesTab(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
-  listHeader: { gap: sizes.sm },
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    scroll: { padding: sizes.lg, paddingBottom: ms(60), gap: sizes.sm },
+    listHeader: { gap: sizes.sm },
 
-  addBtn: {
-    borderWidth: 2,
-    borderColor: colors.primary + '40',
-    borderStyle: 'dashed',
-    borderRadius: 14,
-    paddingVertical: sizes.md,
-    alignItems: 'center',
-  },
-  addBtnText: { color: colors.primary, ...font.semibold, fontSize: sizes.fontMd },
+    addBtn: {
+      borderWidth: 2,
+      borderColor: C.primary + '40',
+      borderStyle: 'dashed',
+      borderRadius: ms(14),
+      paddingVertical: sizes.md,
+      alignItems: 'center',
+    },
+    addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
 
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: sizes.md,
-    gap: sizes.sm,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  } as never,
-  cardResolved: { opacity: 0.65 },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-  cardIcon: { fontSize: 24, lineHeight: 30 },
-  cardInfo: { flex: 1, gap: 2 },
-  cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
-  cardTitleResolved: { textDecorationLine: 'line-through', color: colors.textSecondary },
-  cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: colors.textSecondary },
-  removeBtn: { padding: 4 },
-  removeBtnText: { color: colors.textDisabled, fontSize: sizes.fontSm },
-  cardDescription: {
-    fontSize: sizes.fontSm,
-    ...font.regular,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
-  statusBadge: {
-    borderRadius: sizes.borderRadiusFull,
-    paddingHorizontal: sizes.sm,
-    paddingVertical: 4,
-  },
-  statusText: { fontSize: sizes.fontXs, ...font.bold },
-  advanceBtn: {
-    backgroundColor: colors.primary + '15',
-    borderRadius: sizes.borderRadiusFull,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 5,
-  },
-  advanceBtnText: { color: colors.primary, fontSize: sizes.fontSm, ...font.semibold },
-  reopenBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: sizes.borderRadiusFull,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 4,
-  },
-  reopenBtnText: { color: colors.textSecondary, fontSize: sizes.fontSm, ...font.regular },
+    card: {
+      backgroundColor: C.surface,
+      borderRadius: ms(16),
+      borderWidth: 1,
+      borderColor: C.border,
+      padding: sizes.md,
+      gap: sizes.sm,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    } as never,
+    cardResolved: { opacity: 0.65 },
+    cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: ms(11) },
+    cardIcon: {
+      width: ms(38),
+      height: ms(38),
+      borderRadius: ms(11),
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    cardInfo: { flex: 1, gap: ms(2) },
+    cardTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
+    cardTitleResolved: { textDecorationLine: 'line-through', color: C.textSecondary },
+    cardMeta: { fontSize: sizes.fontXs, ...font.regular, color: C.textSecondary },
+    removeBtn: {
+      padding: ms(4),
+      minWidth: ms(30),
+      minHeight: ms(30),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardDescription: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: mf(20),
+    },
+    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
+    statusBadge: {
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: ms(4),
+    },
+    statusText: { fontSize: sizes.fontXs, ...font.bold },
+    advanceBtn: {
+      backgroundColor: C.primary + '15',
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.md,
+      paddingVertical: ms(5),
+    },
+    advanceBtnText: { color: C.primary, fontSize: sizes.fontSm, ...font.semibold },
+    reopenBtn: {
+      borderWidth: 1,
+      borderColor: C.border,
+      borderRadius: sizes.borderRadiusFull,
+      paddingHorizontal: sizes.md,
+      paddingVertical: ms(4),
+    },
+    reopenBtnText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.regular },
 
-  form: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: sizes.md,
-    gap: sizes.sm,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  } as never,
-  formTitle: { fontSize: 17, ...font.bold, color: colors.textPrimary, marginBottom: sizes.xs },
-  fieldLabel: {
-    fontSize: 12,
-    ...font.semibold,
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: sizes.sm,
-    paddingVertical: 6,
-    borderRadius: sizes.borderRadiusFull,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipIcon: { fontSize: 14 },
-  chipText: { fontSize: sizes.fontSm, ...font.medium, color: colors.textPrimary },
-  chipTextActive: { color: colors.white },
-  input: {
-    backgroundColor: colors.background,
-    borderRadius: sizes.borderRadiusSm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: sizes.sm,
-    paddingVertical: sizes.sm,
-    fontSize: sizes.fontMd,
-    color: colors.textPrimary,
-    ...font.regular,
-  },
-  inputMultiline: { height: 80, textAlignVertical: 'top' },
-  formActions: {
-    flexDirection: 'row',
-    gap: sizes.sm,
-    justifyContent: 'flex-end',
-    marginTop: sizes.xs,
-  },
-  cancelBtn: {
-    paddingHorizontal: sizes.md,
-    paddingVertical: sizes.sm,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cancelBtnText: { color: colors.textSecondary, ...font.medium },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: sizes.md,
-    paddingVertical: sizes.sm,
-    borderRadius: 12,
-  },
-  saveBtnDisabled: { backgroundColor: colors.textDisabled },
-  saveBtnText: { color: colors.white, ...font.semibold },
-  saveError: { color: colors.danger, fontSize: 13, ...font.regular },
+    form: {
+      backgroundColor: C.surface,
+      borderRadius: ms(16),
+      borderWidth: 1,
+      borderColor: C.border,
+      padding: sizes.md,
+      gap: sizes.sm,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    } as never,
+    formTitle: { fontSize: mf(17), ...font.bold, color: C.textPrimary, marginBottom: sizes.xs },
+    fieldLabel: {
+      fontSize: mf(12),
+      ...font.semibold,
+      color: C.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: ms(4),
+      paddingHorizontal: sizes.sm,
+      paddingVertical: ms(6),
+      minHeight: ms(44),
+      borderRadius: sizes.borderRadiusFull,
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+    },
+    chipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    chipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
+    chipTextActive: { color: '#fff' },
+    input: {
+      backgroundColor: C.background,
+      borderRadius: sizes.borderRadiusSm,
+      borderWidth: 1,
+      borderColor: C.border,
+      paddingHorizontal: sizes.sm,
+      paddingVertical: sizes.sm,
+      fontSize: sizes.fontMd,
+      color: C.textPrimary,
+      ...font.regular,
+    },
+    inputMultiline: { height: ms(80), textAlignVertical: 'top' },
+    formActions: {
+      flexDirection: 'row',
+      gap: sizes.sm,
+      justifyContent: 'flex-end',
+      marginTop: sizes.xs,
+    },
+    cancelBtn: {
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: ms(12),
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    cancelBtnText: { color: C.textSecondary, ...font.medium },
+    saveBtn: {
+      backgroundColor: C.primary,
+      paddingHorizontal: sizes.md,
+      paddingVertical: sizes.sm,
+      borderRadius: ms(12),
+    },
+    saveBtnDisabled: { backgroundColor: C.textDisabled },
+    saveBtnText: { color: '#fff', ...font.semibold },
+    saveError: { color: C.danger, fontSize: mf(13), ...font.regular },
 
-  resolvedToggle: { paddingVertical: sizes.sm, alignItems: 'center' },
-  resolvedToggleText: { color: colors.textSecondary, fontSize: sizes.fontSm, ...font.medium },
+    resolvedToggle: {
+      flexDirection: 'row',
+      gap: ms(6),
+      paddingVertical: sizes.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    resolvedToggleText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.medium },
 
-  emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
-  emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: colors.textPrimary },
-  emptyText: {
-    fontSize: sizes.fontSm,
-    ...font.regular,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  errorBanner: {
-    backgroundColor: colors.danger + '15',
-    borderRadius: 10,
-    padding: sizes.sm,
-    borderWidth: 1,
-    borderColor: colors.danger + '40',
-  },
-  errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: colors.danger },
-});
+    emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
+    emptyTitle: { fontSize: sizes.fontMd, ...font.bold, color: C.textPrimary },
+    emptyText: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+    },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ms(20) },
+    errorBanner: {
+      backgroundColor: C.danger + '15',
+      borderRadius: ms(10),
+      padding: sizes.sm,
+      borderWidth: 1,
+      borderColor: C.danger + '40',
+    },
+    errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.danger },
+  });

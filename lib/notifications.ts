@@ -2,6 +2,13 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
+import i18n, { type AppLanguage } from '@lib/i18n';
+
+// Which language this device's reminder notifications should arrive in.
+function currentLanguage(): AppLanguage {
+  const short = (i18n.language ?? 'en').slice(0, 2);
+  return short === 'es' || short === 'he' ? short : 'en';
+}
 
 // How notifications look when the app is in the foreground (native only)
 if (Platform.OS !== 'web') {
@@ -42,7 +49,13 @@ export async function registerPushToken(userId: string, houseId: string): Promis
     const token = tokenData.data;
 
     await supabase.from('push_tokens').upsert(
-      { user_id: userId, house_id: houseId, token, updated_at: new Date().toISOString() },
+      {
+        user_id: userId,
+        house_id: houseId,
+        token,
+        language: currentLanguage(),
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: 'user_id,house_id' }
     );
   } catch (err) {
@@ -52,16 +65,31 @@ export async function registerPushToken(userId: string, houseId: string): Promis
 }
 
 /**
+ * Update the language stored on this user's push tokens so reminder
+ * notifications switch language when the user does. Best-effort.
+ */
+export async function updatePushTokenLanguage(language: AppLanguage): Promise<void> {
+  try {
+    if (Platform.OS === 'web') return;
+    const { data } = await supabase.auth.getUser();
+    const userId = data.user?.id;
+    if (!userId) return;
+    await supabase
+      .from('push_tokens')
+      .update({ language, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+  } catch (err) {
+    captureError(err, { context: 'updatePushTokenLanguage' });
+  }
+}
+
+/**
  * Remove the push token when the user signs out so they stop
  * receiving notifications for a house they've left.
  */
 export async function unregisterPushToken(userId: string, houseId: string): Promise<void> {
   try {
-    await supabase
-      .from('push_tokens')
-      .delete()
-      .eq('user_id', userId)
-      .eq('house_id', houseId);
+    await supabase.from('push_tokens').delete().eq('user_id', userId).eq('house_id', houseId);
   } catch (err) {
     captureError(err, { context: 'unregisterPushToken' });
   }

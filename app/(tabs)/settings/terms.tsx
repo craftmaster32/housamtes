@@ -1,5 +1,5 @@
-import { useMemo, useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { useMemo, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,23 +8,25 @@ import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 
+import { mf, ms } from '@utils/responsive';
 const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    header: { padding: sizes.lg, gap: 4 },
+    header: { padding: sizes.lg, gap: ms(4) },
     backBtn: { marginBottom: sizes.sm },
     backRow: { flexDirection: 'row', alignItems: 'center' },
-    backText: { color: C.primary, fontSize: 15, ...font.medium },
-    heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
-    updated: { color: C.textSecondary, fontSize: 13, ...font.regular },
+    backText: { color: C.primary, fontSize: mf(15), ...font.medium },
+    heading: { fontSize: mf(24), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
+    updated: { color: C.textSecondary, fontSize: mf(13), ...font.regular },
     content: { paddingHorizontal: sizes.lg, paddingBottom: sizes.xxl, gap: sizes.lg },
     section: { gap: sizes.xs },
-    sectionTitle: { fontSize: 15, ...font.bold, color: C.textPrimary },
-    body: { fontSize: 14, ...font.regular, color: C.textSecondary, lineHeight: 22 },
+    sectionTitle: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
+    body: { fontSize: mf(14), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
   });
 
 function Section({ title, children }: { title: string; children: string }): React.JSX.Element {
@@ -46,21 +48,18 @@ export default function TermsScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const headingFont = useHeadingFont('bold');
 
   const handleBackPress = useCallback(() => router.back(), []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <View style={styles.header}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backBtn}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('legal.go_back')}
@@ -74,7 +73,7 @@ export default function TermsScreen(): React.JSX.Element {
               <Text style={styles.backText}>{t('common.back')}</Text>
             </View>
           </Pressable>
-          <Text style={styles.heading}>{t('legal.terms_title')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('legal.terms_title')}</Text>
           <Text style={styles.updated}>
             {t('legal.last_updated', { date: t('legal.legal_date') })}
           </Text>
@@ -125,7 +124,7 @@ export default function TermsScreen(): React.JSX.Element {
           </Section>
 
           <Section title="12. Premium Features and Payments">
-            {`Core features of HouseMates are free. Premium features are clearly labelled with pricing before purchase.\n\nAll payments are processed exclusively through the Apple App Store or Google Play Store, subject to their respective terms. We do not process payments directly and never access your payment card information.\n\nSubscription fees are non-refundable except where required by applicable law.\n\nEU / UK cooling-off: EU and UK consumers have the right to a 14-day cooling-off period for digital services purchased online, subject to conditions. To exercise this right, contact support@housemates.app within 14 days of purchase.\n\nAustralia — Consumer Guarantees: See Section 13 for your non-excludable rights under Australian Consumer Law, including your rights where there is a major or minor failure in the supply of a service.\n\nIsrael — Cancellation Rights: See Section 14 for your cancellation and refund rights under Israeli consumer protection law.`}
+            {`HouseMates is currently free to use. We may offer optional paid ("Premium") features in the future; if and when we do, they will be clearly labelled with pricing shown before purchase, and the core features you use today will remain available at no cost.\n\nAll payments are processed exclusively through the Apple App Store or Google Play Store, subject to their respective terms. We do not process payments directly and never access your payment card information.\n\nAny subscription would auto-renew at the price and interval disclosed at purchase unless you cancel it in your App Store or Play Store account before the renewal date; managing and cancelling a subscription is done through your store account, not inside the app.\n\nSubscription fees are non-refundable except where required by applicable law.\n\nEU / UK cooling-off: EU and UK consumers have the right to a 14-day cooling-off period for digital services purchased online, subject to conditions. To exercise this right, contact support@housemates.app within 14 days of purchase.\n\nAustralia — Consumer Guarantees: See Section 13 for your non-excludable rights under Australian Consumer Law, including your rights where there is a major or minor failure in the supply of a service.\n\nIsrael — Cancellation Rights: See Section 14 for your cancellation and refund rights under Israeli consumer protection law.`}
           </Section>
 
           <Section title="13. Australian Consumer Law — Consumer Guarantees">
@@ -172,11 +171,15 @@ export default function TermsScreen(): React.JSX.Element {
             {`We may update these Terms from time to time. When we make material changes, we will notify you through the app at least 14 days before the changes take effect. Where required by applicable law, we will obtain your re-acceptance before the new Terms apply.\n\nIf you do not agree to revised Terms, you must stop using the app and delete your account before the effective date. Continued use after the effective date constitutes acceptance.\n\nIsrael: material changes to these Terms that constitute a modification of the "standard contract" will be notified in accordance with the Standard Contracts Law 5743-1982.\n\nAustralia: if a change in these Terms would reduce your consumer guarantee rights under the ACL, it will not take effect without your renewed consent.`}
           </Section>
 
-          <Section title="24. Contact Us">
+          <Section title="24. Advertising, Communications & Future Changes">
+            {`Advertising (future): HouseMates does not currently display advertising. We may introduce advertising in the future. If we do, ads will be clearly distinguishable from app content, and any advertising that involves tracking you will be governed by our Privacy Policy and, on iOS, by Apple's App Tracking Transparency framework — the choice is yours. Introducing advertising will never remove your access to the core free features described in Section 4.\n\nService communications: By creating an account you agree to receive the communications needed to operate the app — for example email verification, password resets, security alerts, and important account or Terms notices. These are part of the service and cannot be switched off while your account is active, because the app cannot function safely without them. They are not marketing.\n\nMarketing communications (future): We do not currently send promotional or marketing messages. If we introduce them, they will be opt-in where the law requires it, clearly identified as marketing, and every marketing email will include a way to unsubscribe. You can manage push notifications at any time in your device settings.\n\nChanges to features: HouseMates is provided on an ongoing basis, and we may add, change, or remove features over time — including free, premium, or ad-supported features — subject to the notice provisions in Section 23 and your non-excludable consumer rights.`}
+          </Section>
+
+          <Section title="25. Contact Us">
             {`HouseMates\n\nGeneral support: support@housemates.app\nPrivacy: privacy@housemates.app\nSafety & abuse: safety@housemates.app\nLegal / DMCA: legal@housemates.app\n\nRegulatory & consumer contacts:\n• Australia — ACCC: accc.gov.au\n• Australia — OAIC: oaic.gov.au/privacy/privacy-complaints\n• Israel — Consumer Protection Authority: gov.il/en/departments/consumer_protection_and_fair_trade_authority\n• Israel — Privacy Protection Authority (PPA): gov.il/en/departments/the_privacy_protection_authority — phone *9170\n• UK — ICO: ico.org.uk\n• UK — Consumer Rights: citizensadvice.org.uk\n• EU — European Consumer Centres Network: ec.europa.eu/consumers/ecc\n\nWe aim to respond to all enquiries within 5 business days.`}
           </Section>
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

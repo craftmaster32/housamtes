@@ -1,0 +1,84 @@
+<title>Tasks — style options</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:900px;margin:0 auto 22px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px}
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;max-width:1200px;margin:0 auto}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#5a6472;text-align:center;max-width:344px}
+  .cap small{display:block;font-weight:500;text-transform:none;letter-spacing:0;color:#9aa2ae;margin-top:3px;font-size:12px}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.07);--fg1:#0F172A;--fg2:#64748B;--fg3:#98A2B3;--primary:#3B6FBF;--pos:#2F8550;--warn:#B68528;--danger:#B84540}
+  .phone{width:344px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:56px 18px 22px}
+  .title{font-family:'Fraunces',Georgia,serif;font-size:28px;font-weight:600;letter-spacing:-.5px;line-height:1;margin-bottom:16px}
+  .ck{width:26px;height:26px;border-radius:13px;border:2px solid var(--border);flex:none;margin-top:1px}
+  .body{flex:1;min-width:0}
+  .trow{display:flex;align-items:center;gap:8px}
+  .pdot{width:8px;height:8px;border-radius:4px;flex:none}
+  .tt{font-size:15px;font-weight:700}
+  .tdesc{font-size:13px;color:var(--fg2);margin-top:3px}
+  .meta{display:flex;align-items:center;gap:8px;margin-top:9px}
+  .asg{display:flex;align-items:center;gap:6px;background:var(--surface2);padding:3px 9px 3px 3px;border-radius:9999px}
+  .asg .fav{width:20px;height:20px;border-radius:10px;color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .asg .an{font-size:11.5px;font-weight:700;color:var(--fg2)}
+  .due{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--danger)}
+  .row{display:flex;gap:12px;align-items:flex-start;margin-bottom:11px;position:relative}
+
+  /* 1 CLEAN — white card, soft shadow, left accent */
+  .s1 .row{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:13px 13px 13px 15px;overflow:hidden;box-shadow:0 2px 8px rgba(15,23,42,.06)}
+  .s1 .acc{position:absolute;left:0;top:0;bottom:0;width:4px}
+
+  /* 2 TINTED — card washed in the priority colour, no stripe */
+  .s2 .row{border-radius:16px;padding:14px;border:1px solid transparent}
+  .s2 .row.hi{background:rgba(184,69,64,.09);border-color:rgba(184,69,64,.18)}
+  .s2 .row.me{background:rgba(182,133,40,.10);border-color:rgba(182,133,40,.2)}
+  .s2 .asg{background:rgba(255,255,255,.6)}
+
+  /* 3 FLAT — no shadow, hairline outline, airy, pill priority */
+  .s3 .row{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:14px}
+  .s3 .ck{border-radius:8px}
+  .s3 .ptag{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:6px}
+  svg{display:block}
+</style>
+<div class="head"><h1>Tasks — same layout, 3 styles</h1><p>The first card structure stays. Only the visual treatment changes.</p></div>
+<div class="stage" id="stage"></div>
+
+<template id="tpl">
+  <div class="scr">
+    <div class="title">Tasks</div>
+    <div class="row hi">
+      <span class="acc" style="background:var(--danger)"></span>
+      <span class="ck"></span>
+      <div class="body">
+        <div class="trow"><span class="pdot p" style="background:var(--danger)"></span><span class="ptag pt" style="color:var(--danger);background:rgba(184,69,64,.14)">High</span><span class="tt">Fix the leaking tap</span></div>
+        <div class="tdesc">Bathroom sink drips all night.</div>
+        <div class="meta"><div class="asg"><span class="fav" style="background:#8A5CD0">J</span><span class="an">Jordan</span></div><div class="due"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>Overdue · 16 Apr</div></div>
+      </div>
+    </div>
+    <div class="row me">
+      <span class="acc" style="background:var(--warn)"></span>
+      <span class="ck"></span>
+      <div class="body">
+        <div class="trow"><span class="pdot p" style="background:var(--warn)"></span><span class="ptag pt" style="color:var(--warn);background:rgba(182,133,40,.16)">Med</span><span class="tt">Return the deposit form</span></div>
+        <div class="meta"><div class="asg"><span class="fav" style="background:#3B6FBF">A</span><span class="an">You</span></div></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  const s=document.getElementById('stage');
+  function ph(cls,cap,sub,hidePdot,hideTag){const col=document.createElement('div');col.className='col';const c=document.createElement('div');c.className='cap';c.innerHTML=cap+'<small>'+sub+'</small>';const p=document.createElement('div');p.className='phone hm '+cls;p.innerHTML='<div class="notch"></div>'+document.getElementById('tpl').innerHTML;
+    if(hidePdot)p.querySelectorAll('.pt').forEach(e=>e.style.display='none');
+    if(hideTag)p.querySelectorAll('.p').forEach(e=>e.style.display='none');
+    col.appendChild(c);col.appendChild(p);s.appendChild(col);}
+  ph('s1','1 · Clean','White cards, soft shadow, left accent',true,false);
+  ph('s2','2 · Tinted','Card washed in the priority colour',false,true);
+  ph('s3','3 · Flat','No shadow, hairline outline, priority tag',false,true);
+</script>

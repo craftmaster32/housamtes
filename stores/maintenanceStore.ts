@@ -1,8 +1,12 @@
+import type * as React from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 export type MaintenanceStatus = 'open' | 'in_progress' | 'resolved';
 
@@ -176,13 +180,13 @@ export const useMaintenanceStore = create<MaintenanceStore>()(
   )
 );
 
-export const MAINTENANCE_CATEGORIES = [
-  { label: 'Plumbing', icon: '🚿' },
-  { label: 'Electrical', icon: '⚡' },
-  { label: 'Appliance', icon: '🔧' },
-  { label: 'Structure', icon: '🏗️' },
-  { label: 'Pest', icon: '🐜' },
-  { label: 'Other', icon: '📝' },
+export const MAINTENANCE_CATEGORIES: { label: string; icon: IoniconName }[] = [
+  { label: 'Plumbing', icon: 'water-outline' },
+  { label: 'Electrical', icon: 'flash-outline' },
+  { label: 'Appliance', icon: 'construct-outline' },
+  { label: 'Structure', icon: 'home-outline' },
+  { label: 'Pest', icon: 'bug-outline' },
+  { label: 'Other', icon: 'document-text-outline' },
 ];
 
 export const STATUS_LABELS: Record<MaintenanceStatus, string> = {

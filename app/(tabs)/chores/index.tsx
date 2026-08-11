@@ -1,7 +1,9 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +18,10 @@ import { resolveName } from '@utils/housemates';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { Alert } from '@lib/alert';
 
+import { mf, ms } from '@utils/responsive';
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 
@@ -108,7 +113,7 @@ function ChoreRow({
             <View style={styles.claimedBadge}>
               <Ionicons name="person-outline" size={11} color={C.primary} />
               <Text style={styles.claimedText}>
-                {isMineClaimed ? 'You' : resolveName(chore.claimedBy ?? '', housemates)}
+                {isMineClaimed ? t('common.you') : resolveName(chore.claimedBy ?? '', housemates)}
               </Text>
             </View>
             {isMineClaimed && (
@@ -167,6 +172,7 @@ export default function ChoresScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont();
 
   const RECURRENCE_OPTIONS: { value: Recurrence; label: string }[] = [
     { value: 'once', label: t('chores.once') },
@@ -246,6 +252,24 @@ export default function ChoresScreen(): React.JSX.Element {
     [deleteChore]
   );
 
+  // Destructive: wipes every chore's completion + claims. Confirm first, and
+  // surface a failed reset instead of leaving the rejected promise unhandled.
+  const handleResetAll = useCallback((): void => {
+    if (!houseId) return;
+    Alert.alert(t('chores.reset_confirm_title'), t('chores.reset_confirm_body'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('chores.reset_all'),
+        style: 'destructive',
+        onPress: (): void => {
+          resetAll(houseId).catch((err) => {
+            Alert.alert(t('common.error'), getErrorMessage(err, t('chores.reset_failed')));
+          });
+        },
+      },
+    ]);
+  }, [houseId, resetAll, t]);
+
   const renderChore = useCallback(
     ({ item, index }: { item: Chore; index: number }): React.JSX.Element => (
       <AnimatedListItem index={index}>
@@ -277,38 +301,49 @@ export default function ChoresScreen(): React.JSX.Element {
               {/* ── Hero card ──────────────────────────────────────── */}
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>
-                  <Text style={styles.titleHero}>{t('chores.title')}</Text>
-                  <Text style={styles.textBase}>
-                    {"Assign tasks, claim what you'll do, and check them off together."}
-                  </Text>
+                  <Text style={[styles.titleHero, headingFont]}>{t('chores.title')}</Text>
+                  <Text style={styles.textBase}>{t('chores.subtitle')}</Text>
                 </View>
 
-                {/* Progress bar */}
+                {/* Progress hero */}
                 {chores.length > 0 && (
-                  <View style={styles.progressSection}>
-                    <View style={styles.progressLabelRow}>
-                      <Text style={styles.progressLabel}>
-                        {done.length} of {chores.length} done
+                  <LinearGradient
+                    colors={C.successGradient}
+                    start={{ x: 0.15, y: 0 }}
+                    end={{ x: 0.85, y: 1 }}
+                    style={styles.progressHero}
+                  >
+                    <View style={styles.progressHeroHighlight} />
+                    <View style={styles.progressHeroTop}>
+                      <Text style={styles.progressHeroNum}>
+                        {done.length}
+                        <Text style={styles.progressHeroDenom}>/{chores.length}</Text>
                       </Text>
+                      <View style={styles.progressHeroCopy}>
+                        <Text style={styles.progressHeroLabel}>{t('chores.done_label')}</Text>
+                      </View>
                       {done.length > 0 && canReset && (
                         <Pressable
-                          onPress={() => resetAll(houseId ?? '')}
-                          style={styles.resetBtn}
+                          onPress={handleResetAll}
+                          style={styles.progressHeroReset}
+                          hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
+                          accessible
                           accessibilityRole="button"
+                          accessibilityLabel={t('chores.reset_all')}
                         >
-                          <Text style={styles.resetBtnText}>{t('chores.reset_all')}</Text>
+                          <Text style={styles.progressHeroResetText}>{t('chores.reset_all')}</Text>
                         </Pressable>
                       )}
                     </View>
-                    <View style={styles.progressTrack}>
+                    <View style={styles.progressHeroTrack}>
                       <View
                         style={[
-                          styles.progressFill,
-                          { width: `${progress * 100}%` as unknown as number },
+                          styles.progressHeroFill,
+                          { width: `${progress * 100}%` as `${number}%` },
                         ]}
                       />
                     </View>
-                  </View>
+                  </LinearGradient>
                 )}
 
                 {/* Add form */}
@@ -320,7 +355,7 @@ export default function ChoresScreen(): React.JSX.Element {
                   style={styles.formInput}
                   returnKeyType="done"
                   onSubmitEditing={handleAdd}
-                  accessibilityLabel="Chore name"
+                  accessibilityLabel={t('chores.chore_name_label')}
                   accessibilityHint="Enter the name of the chore and press done to add"
                 />
 
@@ -426,7 +461,7 @@ export default function ChoresScreen(): React.JSX.Element {
               </View>
 
               {isLoading && chores.length === 0 && (
-                <ActivityIndicator size="small" color="#4F78B6" style={styles.loadingIndicator} />
+                <LoadingSpinner size={64} style={styles.loadingIndicator} />
               )}
               {!!storeError && (
                 <View style={styles.storeErrorBox}>
@@ -446,7 +481,7 @@ export default function ChoresScreen(): React.JSX.Element {
           }
           ListFooterComponent={
             done.length > 0 ? (
-              <View style={[styles.sectionHeader, { marginTop: 16 }]}>
+              <View style={[styles.sectionHeader, { marginTop: ms(16) }]}>
                 <Text style={styles.eyebrow}>{t('chores.done_section')}</Text>
                 <View style={[styles.countPill, styles.countPillDone]}>
                   <Text style={styles.countPillText}>{done.length}</Text>
@@ -473,87 +508,110 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
-    sep: { height: 8 },
+    list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
+    sep: { height: ms(8) },
 
     heroCard: {
       backgroundColor: C.surface,
-      borderRadius: 20,
+      borderRadius: ms(20),
       borderWidth: 1,
       borderColor: C.border,
-      padding: 20,
-      gap: 14,
-      marginBottom: 24,
+      padding: ms(20),
+      gap: ms(14),
+      marginBottom: ms(24),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    heroCopy: { gap: 6 },
-    titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-    textBase: { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
+    heroCopy: { gap: ms(6) },
+    titleHero: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
+    textBase: { fontSize: mf(15), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
 
-    progressSection: { gap: 8 },
-    progressLabelRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+    progressHero: {
+      borderRadius: ms(18),
+      padding: ms(18),
+      gap: ms(12),
+      overflow: 'hidden',
+      shadowColor: C.successGradient[1],
+      shadowOffset: { width: 0, height: ms(10) },
+      shadowOpacity: 0.35,
+      shadowRadius: 18,
+      elevation: 6,
     },
-    progressLabel: { fontSize: 13, ...font.semibold, color: C.textSecondary },
-    resetBtn: {
-      paddingVertical: 4,
-      paddingHorizontal: 8,
+    progressHeroHighlight: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: ms(1),
+      backgroundColor: 'rgba(255,255,255,0.2)',
+    },
+    progressHeroTop: { flexDirection: 'row', alignItems: 'center', gap: ms(10) },
+    progressHeroNum: { fontSize: mf(30), ...font.extrabold, color: '#fff', letterSpacing: -0.8 },
+    progressHeroDenom: { fontSize: mf(18), ...font.bold, color: 'rgba(255,255,255,0.7)' },
+    progressHeroCopy: { flex: 1 },
+    progressHeroLabel: {
+      fontSize: mf(12),
+      ...font.bold,
+      color: 'rgba(255,255,255,0.85)',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    progressHeroReset: {
+      paddingVertical: ms(6),
+      paddingHorizontal: ms(12),
       borderRadius: 9999,
-      backgroundColor: C.surfaceSecondary,
+      backgroundColor: 'rgba(255,255,255,0.18)',
     },
-    resetBtnText: { fontSize: 12, ...font.semibold, color: C.textSecondary },
-    progressTrack: {
-      height: 6,
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: 3,
+    progressHeroResetText: { fontSize: mf(12), ...font.bold, color: '#fff' },
+    progressHeroTrack: {
+      height: ms(6),
+      backgroundColor: 'rgba(255,255,255,0.25)',
+      borderRadius: ms(3),
       overflow: 'hidden',
     },
-    progressFill: { height: 6, backgroundColor: C.positive, borderRadius: 3 },
+    progressHeroFill: { height: ms(6), backgroundColor: '#fff', borderRadius: ms(3) },
 
     formInput: {
-      height: 46,
+      height: ms(46),
       backgroundColor: C.surface,
-      borderRadius: 10,
+      borderRadius: ms(10),
       borderWidth: 1,
       borderColor: C.border,
-      paddingHorizontal: 13,
-      fontSize: 15,
+      paddingHorizontal: ms(13),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
     },
 
     pickerLabel: {
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.bold,
       color: C.textSecondary,
       letterSpacing: 0.72,
       textTransform: 'uppercase',
     },
-    chipRow: { flexDirection: 'row', gap: 8 },
+    chipRow: { flexDirection: 'row', gap: ms(8) },
     chip: {
-      paddingHorizontal: 14,
-      paddingVertical: 7,
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(7),
       borderRadius: 9999,
       borderWidth: 1,
       borderColor: C.border,
       backgroundColor: C.surfaceSecondary,
     },
     chipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    chipText: { fontSize: 13, ...font.semibold, color: C.textSecondary },
+    chipText: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
     chipTextActive: { color: '#fff' },
 
-    daySection: { gap: 8 },
-    weekDayRow: { flexDirection: 'row', gap: 6 },
+    daySection: { gap: ms(8) },
+    weekDayRow: { flexDirection: 'row', gap: ms(6) },
     weekDayChip: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(22),
       backgroundColor: C.surfaceSecondary,
       borderWidth: 1,
       borderColor: C.border,
@@ -561,13 +619,13 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
     },
     weekDayChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    weekDayText: { fontSize: 12, ...font.bold, color: C.textSecondary },
+    weekDayText: { fontSize: mf(12), ...font.bold, color: C.textSecondary },
     weekDayTextActive: { color: '#fff' },
-    monthDayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+    monthDayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(4) },
     monthDayChip: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(22),
       backgroundColor: C.surfaceSecondary,
       borderWidth: 1,
       borderColor: C.border,
@@ -575,125 +633,125 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
     },
     monthDayChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    monthDayText: { fontSize: 12, ...font.bold, color: C.textSecondary },
+    monthDayText: { fontSize: mf(12), ...font.bold, color: C.textSecondary },
     monthDayTextActive: { color: '#fff' },
 
     btnPrimary: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 48,
-      paddingHorizontal: 18,
-      borderRadius: 10,
+      minHeight: ms(48),
+      paddingHorizontal: ms(18),
+      borderRadius: ms(10),
       backgroundColor: C.primary,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     btnOff: { backgroundColor: C.textDisabled },
-    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    btnIcon: { marginEnd: 6 },
+    btnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
+    btnIcon: { marginEnd: ms(6) },
 
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 4,
-      marginBottom: 10,
+      gap: ms(8),
+      paddingHorizontal: ms(4),
+      marginBottom: ms(10),
     },
     eyebrow: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.bold,
       color: C.textSecondary,
       letterSpacing: 0.72,
       textTransform: 'uppercase',
     },
     countPill: {
-      minHeight: 22,
-      paddingHorizontal: 8,
+      minHeight: ms(22),
+      paddingHorizontal: ms(8),
       borderRadius: 9999,
       backgroundColor: C.secondary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     countPillDone: { backgroundColor: C.positive + '20' },
-    countPillText: { fontSize: 11, ...font.bold, color: C.secondaryForeground },
+    countPillText: { fontSize: mf(11), ...font.bold, color: C.secondaryForeground },
 
     choreRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderRadius: 14,
+      gap: ms(12),
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(12),
+      borderRadius: ms(14),
       backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     choreRowDone: { backgroundColor: C.surfaceSecondary, borderColor: 'transparent' },
     checkBtn: { flexShrink: 0 },
-    choreInfo: { flex: 1, gap: 4 },
-    choreName: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    choreInfo: { flex: 1, gap: ms(4) },
+    choreName: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
     choreNameDone: { textDecorationLine: 'line-through', color: C.textSecondary },
-    freqRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    freqText: { fontSize: 12, ...font.medium, color: C.primary },
-    claimedRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    freqRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
+    freqText: { fontSize: mf(12), ...font.medium, color: C.primary },
+    claimedRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
     claimedBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: ms(4),
       backgroundColor: C.primary + '18',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+      paddingHorizontal: ms(8),
+      paddingVertical: ms(3),
       borderRadius: 9999,
     },
-    claimedText: { fontSize: 12, ...font.bold, color: C.primary },
-    unclaimText: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    claimBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
-    deleteBtn: { padding: 4, flexShrink: 0 },
+    claimedText: { fontSize: mf(12), ...font.bold, color: C.primary },
+    unclaimText: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
+    claimBtnText: { fontSize: mf(13), ...font.semibold, color: C.primary },
+    deleteBtn: { padding: ms(4), flexShrink: 0 },
 
-    emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
+    emptyWrap: { alignItems: 'center', paddingVertical: ms(48), gap: ms(12) },
     emptyIconWrap: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
+      width: ms(72),
+      height: ms(72),
+      borderRadius: ms(36),
       backgroundColor: C.surfaceSecondary,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    emptyTitle: { fontSize: 16, ...font.bold, color: C.textPrimary },
+    emptyTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
     emptyText: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
 
-    loadingIndicator: { marginBottom: 8 },
+    loadingIndicator: { marginBottom: ms(8) },
     storeErrorBox: {
       backgroundColor: '#FFF0F0',
-      borderRadius: 10,
-      padding: 12,
-      marginBottom: 8,
+      borderRadius: ms(10),
+      padding: ms(12),
+      marginBottom: ms(8),
     },
-    storeErrorText: { fontSize: 13, color: '#D94F4F' },
+    storeErrorText: { fontSize: mf(13), color: '#D94F4F' },
 
     errorBox: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
-      padding: 10,
+      borderRadius: ms(10),
+      padding: ms(10),
     },
-    errorText: { fontSize: 13, ...font.regular, color: C.danger, flex: 1 },
+    errorText: { fontSize: mf(13), ...font.regular, color: C.danger, flex: 1 },
   });
 }

@@ -1,12 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  ActivityIndicator,
-  SectionList,
-  Animated,
-} from 'react-native';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Pressable, ActivityIndicator, SectionList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, Link } from 'expo-router';
@@ -22,12 +15,19 @@ import {
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
+import { CountUpText } from '@components/shared/CountUpText';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { localizeCategoryName } from '@utils/categoryName';
 
+import { mf, ms } from '@utils/responsive';
 // ── Constants ──────────────────────────────────────────────────────────────────
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const BAR_MAX_H = 56;
 
@@ -61,7 +61,7 @@ interface CategoryRowItem {
 
 interface SpendingSection {
   title: string;
-  icon: string;
+  icon: IoniconName;
   total: number;
   data: CategoryRowItem[];
 }
@@ -89,7 +89,10 @@ function InsightCard({
       <View style={styles.insightCardDeco} />
       <View style={styles.insightCardPad}>
         <View style={styles.insightCardHeader}>
-          <Text style={styles.insightCardLabel}>✨ {t('spending.ai_insight')}</Text>
+          <View style={styles.insightCardLabelRow}>
+            <Ionicons name="sparkles" size={13} color="#fff" style={styles.insightCardLabelIcon} />
+            <Text style={styles.insightCardLabel}>{t('spending.ai_insight')}</Text>
+          </View>
           <Pressable
             onPress={onRefresh}
             disabled={isLoading}
@@ -154,9 +157,11 @@ function OverviewCard({
           <Text style={styles.overviewLbl}>
             {isPersonal ? t('spending.my_spending') : t('spending.house_total')}
           </Text>
-          <Text style={styles.overviewAmt}>
-            {fmtFull(isPersonal ? current.total : current.houseTotal, currency)}
-          </Text>
+          <CountUpText
+            style={styles.overviewAmt}
+            value={isPersonal ? current.total : current.houseTotal}
+            format={(n) => fmtFull(n, currency)}
+          />
           {primaryDiff !== null && (
             <View
               style={[
@@ -164,9 +169,14 @@ function OverviewCard({
                 { backgroundColor: isUp ? C.danger + '18' : C.positive + '18' },
               ]}
             >
+              <Ionicons
+                name={isUp ? 'arrow-up' : 'arrow-down'}
+                size={13}
+                color={isUp ? C.danger : C.positive}
+              />
               <Text style={[styles.overviewBadgeText, { color: isUp ? C.danger : C.positive }]}>
-                {isUp ? '↑' : '↓'} {fmtShort(Math.abs(primaryDiff), currency)}
-                {primaryPct !== null ? `  ${Math.abs(primaryPct)}%` : ''}
+                {fmtShort(Math.abs(primaryDiff), currency)}
+                {primaryPct !== null ? ` · ${Math.abs(primaryPct)}%` : ''}
               </Text>
             </View>
           )}
@@ -176,9 +186,11 @@ function OverviewCard({
           <Text style={styles.overviewLbl}>
             {isPersonal ? t('spending.house_total') : t('spending.your_share')}
           </Text>
-          <Text style={styles.overviewAmt}>
-            {fmtFull(isPersonal ? current.houseTotal : current.total, currency)}
-          </Text>
+          <CountUpText
+            style={styles.overviewAmt}
+            value={isPersonal ? current.houseTotal : current.total}
+            format={(n) => fmtFull(n, currency)}
+          />
           {sharePct > 0 && (
             <View style={[styles.overviewBadge, { backgroundColor: C.primary + '12' }]}>
               <Text style={[styles.overviewBadgeText, { color: C.primary }]}>
@@ -360,6 +372,7 @@ function CategoryRow({
   const isUp = pct !== null && pct > 0;
   const barPct = sectionTotal > 0 ? Math.round((cat.amount / sectionTotal) * 100) : 0;
   const canExpand = drillDownItems.length > 0;
+  const displayName = localizeCategoryName(cat.name, t);
 
   const handlePress = useCallback(() => {
     if (canExpand) onToggle(cat.name);
@@ -371,22 +384,28 @@ function CategoryRow({
       onPress={canExpand ? handlePress : undefined}
       accessible
       accessibilityRole={canExpand ? 'button' : 'none'}
-      accessibilityLabel={`${cat.name}, ${fmtFull(cat.amount, currency)}${canExpand ? `, ${t('spending.tap_details')}` : ''}`}
+      accessibilityLabel={`${displayName}, ${fmtFull(cat.amount, currency)}${canExpand ? `, ${t('spending.tap_details')}` : ''}`}
       accessibilityState={canExpand ? { expanded: isExpanded } : undefined}
     >
       <View style={[styles.catIcon, { backgroundColor: cat.color + '18' }]}>
-        <Text style={styles.catIconText}>{cat.icon}</Text>
+        <Ionicons name={cat.icon} size={18} color={cat.color} />
       </View>
       <View style={styles.catInfo}>
         <View style={styles.catTopRow}>
-          <Text style={styles.catName}>{cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}</Text>
+          <Text style={styles.catName}>{displayName}</Text>
           <View style={styles.catAmtGroup}>
             <Text style={styles.catAmt}>{fmtFull(cat.amount, currency)}</Text>
             {pct !== null && (
-              <Text style={[styles.catPct, { color: isUp ? C.danger : C.positive }]}>
-                {isUp ? '↑' : '↓'}
-                {Math.abs(pct)}%
-              </Text>
+              <View style={styles.catPctRow}>
+                <Ionicons
+                  name={isUp ? 'arrow-up' : 'arrow-down'}
+                  size={11}
+                  color={isUp ? C.danger : C.positive}
+                />
+                <Text style={[styles.catPct, { color: isUp ? C.danger : C.positive }]}>
+                  {Math.abs(pct)}%
+                </Text>
+              </View>
             )}
           </View>
           {canExpand && (
@@ -422,7 +441,7 @@ function CategoryRow({
                 >
                   <Pressable
                     style={styles.drillDownRow}
-                    hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
+                    hitSlop={{ top: ms(4), bottom: ms(4), left: ms(8), right: ms(8) }}
                     accessible
                     accessibilityRole="link"
                     accessibilityLabel={t('spending.open_bill', {
@@ -444,7 +463,9 @@ function CategoryRow({
                 </Link>
               ) : (
                 <View key={d.id} style={styles.drillDownRow} accessible accessibilityRole="none">
-                  <Text style={styles.drillDownType}>↻</Text>
+                  <View style={styles.drillDownType}>
+                    <Ionicons name="repeat" size={12} color={C.textSecondary} />
+                  </View>
                   <Text style={styles.drillDownTitle} numberOfLines={1}>
                     {d.title}
                   </Text>
@@ -461,7 +482,7 @@ function CategoryRow({
 
 interface SectionHeaderProps {
   title: string;
-  icon: string;
+  icon: IoniconName;
   total: number;
   currency: string;
 }
@@ -476,7 +497,7 @@ function SpendingSectionHeader({
   const styles = useMemo(() => makeStyles(C), [C]);
   return (
     <View style={styles.sectionHeader}>
-      <Text style={styles.sectionHeaderIcon}>{icon}</Text>
+      <Ionicons name={icon} size={15} color={C.textSecondary} style={styles.sectionHeaderIcon} />
       <Text style={styles.sectionHeaderTitle}>{title}</Text>
       <Text style={styles.sectionHeaderTotal}>{fmtFull(total, currency)}</Text>
     </View>
@@ -507,10 +528,7 @@ export default function SpendingScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const headingFont = useHeadingFont('bold');
 
   const userName = profile?.name ?? '';
 
@@ -584,7 +602,7 @@ export default function SpendingScreen(): React.JSX.Element {
     if (houseBillCats.length > 0) {
       result.push({
         title: t('spending.house_bills_section'),
-        icon: '🏠',
+        icon: 'home-outline',
         total: houseBillTotal,
         data: houseBillCats.map((c) => toCatRow(c, houseBillTotal)),
       });
@@ -592,7 +610,7 @@ export default function SpendingScreen(): React.JSX.Element {
     if (lifestyleCats.length > 0) {
       result.push({
         title: t('spending.lifestyle_section'),
-        icon: '🛍️',
+        icon: 'bag-handle-outline',
         total: lifestyleTotal,
         data: lifestyleCats.map((c) => toCatRow(c, lifestyleTotal)),
       });
@@ -643,7 +661,7 @@ export default function SpendingScreen(): React.JSX.Element {
       >
         <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={C.textPrimary} />
       </Pressable>
-      <Text style={styles.title}>{t('spending.spending_analysis')}</Text>
+      <Text style={[styles.title, headingFont]}>{t('spending.spending_analysis')}</Text>
       <View style={styles.backBtn} />
     </View>
   );
@@ -653,7 +671,7 @@ export default function SpendingScreen(): React.JSX.Element {
       <SafeAreaView style={styles.container}>
         {pageHeader}
         <View style={styles.centered}>
-          <ActivityIndicator color={C.primary} />
+          <LoadingSpinner size={140} />
         </View>
       </SafeAreaView>
     );
@@ -740,7 +758,7 @@ export default function SpendingScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         {pageHeader}
         <SectionList<CategoryRowItem, SpendingSection>
           sections={sections}
@@ -767,7 +785,7 @@ export default function SpendingScreen(): React.JSX.Element {
             ) : null
           }
         />
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -788,10 +806,10 @@ function makeStyles(C: ColorTokens) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: C.border,
     },
-    backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-    title: { fontSize: 17, ...font.bold, color: C.textPrimary },
+    backBtn: { width: ms(44), height: ms(44), justifyContent: 'center', alignItems: 'center' },
+    title: { fontSize: mf(17), ...font.bold, color: C.textPrimary },
 
-    scroll: { padding: sizes.lg, paddingBottom: 60 },
+    scroll: { padding: sizes.lg, paddingBottom: ms(60) },
     listHeaderWrap: { gap: sizes.md, marginBottom: sizes.sm },
 
     // AI Insight card
@@ -802,30 +820,31 @@ function makeStyles(C: ColorTokens) {
     },
     insightCardDeco: {
       position: 'absolute',
-      top: -30,
-      end: -16,
-      width: 120,
-      height: 120,
-      borderRadius: 60,
+      top: ms(-30),
+      end: ms(-16),
+      width: ms(120),
+      height: ms(120),
+      borderRadius: ms(60),
       backgroundColor: 'rgba(255,255,255,0.09)',
     },
-    insightCardPad: { padding: 20, gap: 10 },
+    insightCardPad: { padding: ms(20), gap: ms(10) },
     insightCardHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
     },
+    insightCardLabelRow: { flexDirection: 'row', alignItems: 'center', gap: ms(5), opacity: 0.88 },
+    insightCardLabelIcon: { marginTop: ms(-1) },
     insightCardLabel: {
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.extrabold,
       color: '#fff',
       letterSpacing: 1.1,
-      opacity: 0.88,
     },
-    refreshBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-    insightCardText: { fontSize: 14, ...font.regular, color: '#fff', lineHeight: 21 },
+    refreshBtn: { width: ms(44), height: ms(44), justifyContent: 'center', alignItems: 'center' },
+    insightCardText: { fontSize: mf(14), ...font.regular, color: '#fff', lineHeight: mf(21) },
     insightCardEmpty: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: 'rgba(255,255,255,0.60)',
       fontStyle: 'italic',
@@ -836,28 +855,42 @@ function makeStyles(C: ColorTokens) {
     overviewCard: {
       backgroundColor: C.surface,
       borderRadius: sizes.borderRadiusLg,
-      padding: 20,
-      gap: 14,
+      padding: ms(20),
+      gap: ms(14),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    overviewMonth: { fontSize: 13, ...font.semibold, color: C.textSecondary },
+    overviewMonth: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
     overviewRow: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.md },
-    overviewBlock: { flex: 1, gap: 4 },
-    overviewLbl: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    overviewAmt: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.6 },
-    overviewBadge: {
-      alignSelf: 'flex-start',
-      borderRadius: 8,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+    overviewBlock: { flex: 1, gap: ms(4) },
+    overviewLbl: {
+      fontSize: mf(11),
+      ...font.semibold,
+      color: C.textTertiary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
-    overviewBadgeText: { fontSize: 12, ...font.bold },
-    overviewDivider: { width: 1, height: 56, backgroundColor: C.border, marginTop: 16 },
-    overviewCompare: { fontSize: 12, ...font.regular, color: C.textSecondary, lineHeight: 18 },
+    overviewAmt: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.6 },
+    overviewBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(2),
+      alignSelf: 'flex-start',
+      borderRadius: ms(8),
+      paddingHorizontal: ms(8),
+      paddingVertical: ms(3),
+    },
+    overviewBadgeText: { fontSize: mf(12), ...font.bold },
+    overviewDivider: { width: ms(1), height: ms(56), backgroundColor: C.border, marginTop: ms(16) },
+    overviewCompare: {
+      fontSize: mf(12),
+      ...font.regular,
+      color: C.textSecondary,
+      lineHeight: mf(18),
+    },
 
     // Monthly chart
     chartCard: {
@@ -867,36 +900,42 @@ function makeStyles(C: ColorTokens) {
     },
     chartCardDeco: {
       position: 'absolute',
-      bottom: -44,
-      end: 16,
-      width: 110,
-      height: 110,
-      borderRadius: 55,
+      bottom: ms(-44),
+      end: ms(16),
+      width: ms(110),
+      height: ms(110),
+      borderRadius: ms(55),
       backgroundColor: 'rgba(255,255,255,0.06)',
     },
-    chartPad: { padding: 20, gap: 14 },
+    chartPad: { padding: ms(20), gap: ms(14) },
     chartTitle: {
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.extrabold,
       color: '#fff',
       letterSpacing: 1.1,
       opacity: 0.88,
     },
-    barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 100 },
-    barCol: { flex: 1, minWidth: 44, alignItems: 'center', gap: 5, justifyContent: 'flex-end' },
-    barAmt: { fontSize: 9, ...font.bold, color: 'rgba(255,255,255,0.65)', textAlign: 'center' },
-    barAmtSelected: { color: '#fff', fontSize: 10 },
+    barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: ms(10), height: ms(100) },
+    barCol: {
+      flex: 1,
+      minWidth: ms(44),
+      alignItems: 'center',
+      gap: ms(5),
+      justifyContent: 'flex-end',
+    },
+    barAmt: { fontSize: mf(9), ...font.bold, color: 'rgba(255,255,255,0.65)', textAlign: 'center' },
+    barAmtSelected: { color: '#fff', fontSize: mf(10) },
     barTrack: {
-      width: 18,
+      width: ms(18),
       height: BAR_MAX_H,
-      borderRadius: 999,
+      borderRadius: ms(999),
       backgroundColor: 'rgba(255,255,255,0.14)',
       justifyContent: 'flex-end',
       overflow: 'hidden',
       position: 'relative',
     },
     barTrackSelected: { backgroundColor: 'rgba(255,255,255,0.22)' },
-    barFill: { width: 18, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.30)' },
+    barFill: { width: ms(18), borderRadius: ms(999), backgroundColor: 'rgba(255,255,255,0.30)' },
     barFillSelected: { backgroundColor: '#fff' },
     barShareFill: {
       position: 'absolute',
@@ -904,69 +943,69 @@ function makeStyles(C: ColorTokens) {
       left: 0,
       right: 0,
       backgroundColor: 'rgba(255,255,255,0.56)',
-      borderRadius: 999,
+      borderRadius: ms(999),
     },
-    barLbl: { fontSize: 10, ...font.regular, color: 'rgba(255,255,255,0.70)' },
+    barLbl: { fontSize: mf(10), ...font.regular, color: 'rgba(255,255,255,0.70)' },
     barLblSelected: { color: '#fff', ...font.bold },
     barSelDot: {
-      width: 5,
-      height: 5,
-      borderRadius: 3,
+      width: ms(5),
+      height: ms(5),
+      borderRadius: ms(3),
       backgroundColor: '#fff',
     },
     chartLegend: { flexDirection: 'row', gap: sizes.md },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    legendDot: { width: 8, height: 8, borderRadius: 4 },
-    legendText: { fontSize: 11, ...font.regular, color: 'rgba(255,255,255,0.80)' },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: ms(5) },
+    legendDot: { width: ms(8), height: ms(8), borderRadius: ms(4) },
+    legendText: { fontSize: mf(11), ...font.regular, color: 'rgba(255,255,255,0.80)' },
 
     // Jump-to-current button
     jumpBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       alignSelf: 'flex-end',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      minHeight: 44,
+      paddingHorizontal: ms(16),
+      paddingVertical: ms(12),
+      minHeight: ms(44),
       backgroundColor: C.primary + '12',
-      borderRadius: 22,
+      borderRadius: ms(22),
     },
-    jumpBtnText: { fontSize: 13, ...font.semibold, color: C.primary },
+    jumpBtnText: { fontSize: mf(13), ...font.semibold, color: C.primary },
 
-    breakdownTitle: { fontSize: 16, ...font.bold, color: C.textPrimary, marginTop: 4 },
+    breakdownTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary, marginTop: ms(4) },
     chartSegment: {
       flexDirection: 'row',
       backgroundColor: 'rgba(255,255,255,0.12)',
-      borderRadius: 12,
-      padding: 3,
-      marginBottom: 6,
+      borderRadius: ms(12),
+      padding: ms(3),
+      marginBottom: ms(6),
     },
     chartSegBtn: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 5,
-      paddingVertical: 10,
-      borderRadius: 10,
-      minHeight: 44,
+      gap: ms(5),
+      paddingVertical: ms(10),
+      borderRadius: ms(10),
+      minHeight: ms(44),
     },
     chartSegBtnActive: { backgroundColor: '#fff' },
-    chartSegText: { fontSize: 13, ...font.semibold, color: 'rgba(255,255,255,0.75)' },
+    chartSegText: { fontSize: mf(13), ...font.semibold, color: 'rgba(255,255,255,0.75)' },
     chartSegTextActive: { color: C.primary },
 
     // Section headers
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: ms(8),
       paddingVertical: sizes.sm,
-      paddingHorizontal: 2,
+      paddingHorizontal: ms(2),
       marginTop: sizes.sm,
     },
-    sectionHeaderIcon: { fontSize: 16 },
-    sectionHeaderTitle: { flex: 1, fontSize: 14, ...font.bold, color: C.textPrimary },
-    sectionHeaderTotal: { fontSize: 14, ...font.bold, color: C.textSecondary },
+    sectionHeaderIcon: { marginEnd: ms(2) },
+    sectionHeaderTitle: { flex: 1, fontSize: mf(14), ...font.bold, color: C.textPrimary },
+    sectionHeaderTotal: { fontSize: mf(14), ...font.bold, color: C.textSecondary },
 
     // Category rows
     catRow: {
@@ -978,54 +1017,60 @@ function makeStyles(C: ColorTokens) {
       padding: sizes.md,
       marginBottom: sizes.xs,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     catIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
+      width: ms(40),
+      height: ms(40),
+      borderRadius: ms(12),
       justifyContent: 'center',
       alignItems: 'center',
-      marginTop: 2,
+      marginTop: ms(2),
     },
-    catIconText: { fontSize: 20 },
-    catInfo: { flex: 1, gap: 4 },
+    catInfo: { flex: 1, gap: ms(4) },
     catTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    catName: { fontSize: 14, ...font.semibold, color: C.textPrimary, flex: 1 },
-    catAmtGroup: { alignItems: 'flex-end', gap: 1 },
-    catAmt: { fontSize: 14, ...font.bold, color: C.textPrimary },
-    catPct: { fontSize: 11, ...font.bold },
+    catName: { fontSize: mf(14), ...font.semibold, color: C.textPrimary, flex: 1 },
+    catAmtGroup: { alignItems: 'flex-end', gap: ms(1) },
+    catPctRow: { flexDirection: 'row', alignItems: 'center', gap: ms(1) },
+    catAmt: { fontSize: mf(14), ...font.bold, color: C.textPrimary },
+    catPct: { fontSize: mf(11), ...font.bold },
     catBarTrack: {
-      height: 4,
-      borderRadius: 2,
+      height: ms(4),
+      borderRadius: ms(2),
       backgroundColor: 'rgba(0,0,0,0.06)',
       overflow: 'hidden',
     },
-    catBarFill: { height: 4, borderRadius: 2 },
-    catMyShare: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    catChevron: { marginStart: 4 },
+    catBarFill: { height: ms(4), borderRadius: ms(2) },
+    catMyShare: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
+    catChevron: { marginStart: ms(4) },
 
     // Drill-down accordion
     drillDown: {
-      marginTop: 8,
-      paddingTop: 8,
+      marginTop: ms(8),
+      paddingTop: ms(8),
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: 'rgba(0,0,0,0.08)',
-      gap: 6,
+      gap: ms(6),
     },
     drillDownRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      minHeight: 44,
-      paddingVertical: 4,
+      gap: ms(8),
+      minHeight: ms(44),
+      paddingVertical: ms(4),
     },
-    drillDownType: { width: 14, fontSize: 13, color: C.textSecondary, textAlign: 'center' },
-    drillDownTitle: { flex: 1, fontSize: 13, ...font.regular, color: C.textSecondary },
-    drillDownAmt: { fontSize: 13, ...font.semibold, color: C.textPrimary },
+    drillDownType: {
+      width: ms(14),
+      fontSize: mf(13),
+      color: C.textSecondary,
+      textAlign: 'center',
+      alignItems: 'center',
+    },
+    drillDownTitle: { flex: 1, fontSize: mf(13), ...font.regular, color: C.textSecondary },
+    drillDownAmt: { fontSize: mf(13), ...font.semibold, color: C.textPrimary },
 
     // States
     centered: {
@@ -1056,7 +1101,7 @@ function makeStyles(C: ColorTokens) {
       borderRadius: sizes.borderRadius,
       paddingHorizontal: sizes.lg,
       paddingVertical: sizes.sm,
-      minHeight: 44,
+      minHeight: ms(44),
       justifyContent: 'center',
       alignItems: 'center',
     },

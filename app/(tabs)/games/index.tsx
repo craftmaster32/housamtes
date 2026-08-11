@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Pressable, TextInput } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import Animated, { FadeIn, FadeInDown, BounceIn } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -12,214 +12,11 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
-import {
-  scrambleWord,
-  getRandomChallenge,
-  CATEGORY_LABELS,
-  type WordChallenge,
-} from '@constants/wordGame';
 import { getDailyJoke, getRandomJoke, type DadJoke } from '@constants/dadJokes';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
-type GameTab = 'scramble' | 'jokes';
-
-// ── Word Scramble Game ───────────────────────────────────────────────────────
-function WordScrambleGame(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const [challenge, setChallenge] = useState<WordChallenge>(getRandomChallenge);
-  const [scrambled, setScrambled] = useState(() => scrambleWord(challenge.word));
-  const [guess, setGuess] = useState('');
-  const [showHint, setShowHint] = useState(false);
-  const [result, setResult] = useState<'correct' | 'wrong' | null>(null);
-  const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [round, setRound] = useState(1);
-  const [key, setKey] = useState(0);
-  const inputRef = useRef<TextInput>(null);
-
-  const handleSubmit = useCallback((): void => {
-    if (!guess.trim()) return;
-    const isCorrect = guess.trim().toUpperCase() === challenge.word;
-    setResult(isCorrect ? 'correct' : 'wrong');
-    if (isCorrect) {
-      const points = showHint ? 5 : 10;
-      setScore((s) => s + points);
-      setStreak((s) => s + 1);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } else {
-      setStreak(0);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-    }
-  }, [guess, challenge.word, showHint]);
-
-  const handleNext = useCallback((): void => {
-    const next = getRandomChallenge();
-    setChallenge(next);
-    setScrambled(scrambleWord(next.word));
-    setGuess('');
-    setShowHint(false);
-    setResult(null);
-    setRound((r) => r + 1);
-    setKey((k) => k + 1);
-    setTimeout(() => inputRef.current?.focus(), 200);
-  }, []);
-
-  const handleHint = useCallback((): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setShowHint(true);
-  }, []);
-
-  const handleShuffle = useCallback((): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setScrambled(scrambleWord(challenge.word));
-  }, [challenge.word]);
-
-  const catInfo = CATEGORY_LABELS[challenge.category];
-
-  return (
-    <Animated.View key={key} entering={FadeIn.duration(300)} style={styles.gameContent}>
-      {/* Score bar */}
-      <View style={[styles.scoreBar, { backgroundColor: c.surfaceSecondary }]}>
-        <View style={styles.scorePart}>
-          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.score')}</Text>
-          <Text style={[styles.scoreValue, { color: c.primary }]}>{score}</Text>
-        </View>
-        <View style={styles.scorePart}>
-          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.round')}</Text>
-          <Text style={[styles.scoreValue, { color: c.textPrimary }]}>{round}</Text>
-        </View>
-        <View style={styles.scorePart}>
-          <Text style={[styles.scoreLabel, { color: c.textSecondary }]}>{t('games.streak')}</Text>
-          <Text style={[styles.scoreValue, { color: streak >= 3 ? '#F59E0B' : c.textPrimary }]}>
-            {streak > 0 ? `${streak}🔥` : '0'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Category pill */}
-      <View style={[styles.catPill, { backgroundColor: c.primary + '15' }]}>
-        <Text style={styles.catEmoji}>{catInfo.emoji}</Text>
-        <Text style={[styles.catLabel, { color: c.primary }]}>{catInfo.label}</Text>
-      </View>
-
-      {/* Scrambled word */}
-      <View style={styles.scrambleRow}>
-        {scrambled.split('').map((letter, i) => (
-          <Animated.View
-            key={`${key}-${i}`}
-            entering={BounceIn.delay(i * 60).duration(400)}
-            style={[styles.letterTile, { backgroundColor: c.surface, borderColor: c.border }]}
-          >
-            <Text style={[styles.letterText, { color: c.primary }]}>{letter}</Text>
-          </Animated.View>
-        ))}
-      </View>
-
-      {/* Hint */}
-      {showHint ? (
-        <Animated.View entering={FadeIn.duration(300)}>
-          <Text style={[styles.hintText, { color: c.textSecondary }]}>💡 {challenge.hint}</Text>
-        </Animated.View>
-      ) : (
-        <Pressable
-          style={[styles.hintBtn, { borderColor: c.border }]}
-          onPress={handleHint}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('games.show_hint')}
-        >
-          <Ionicons name="bulb-outline" size={16} color={c.textSecondary} />
-          <Text style={[styles.hintBtnText, { color: c.textSecondary }]}>{t('games.hint_cost')}</Text>
-        </Pressable>
-      )}
-
-      {/* Input + submit */}
-      {result === null ? (
-        <View style={styles.inputRow}>
-          <TextInput
-            ref={inputRef}
-            style={[
-              styles.input,
-              {
-                backgroundColor: c.surface,
-                color: c.textPrimary,
-                borderColor: c.border,
-              },
-            ]}
-            value={guess}
-            onChangeText={setGuess}
-            placeholder={t('games.type_answer')}
-            placeholderTextColor={c.textDisabled}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            onSubmitEditing={handleSubmit}
-            returnKeyType="go"
-            maxLength={challenge.word.length + 2}
-            accessible
-            accessibilityLabel={t('games.answer_field')}
-            accessibilityHint={t('games.answer_field_hint')}
-          />
-          <Pressable
-            style={[
-              styles.submitBtn,
-              { backgroundColor: guess.trim() ? c.primary : c.textDisabled },
-            ]}
-            onPress={handleSubmit}
-            disabled={!guess.trim()}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('games.submit_answer')}
-          >
-            <Ionicons name="checkmark" size={22} color="#fff" />
-          </Pressable>
-        </View>
-      ) : (
-        <Animated.View entering={FadeInDown.duration(300)} style={styles.resultArea}>
-          {result === 'correct' ? (
-            <View style={[styles.resultCard, { backgroundColor: '#10B981' + '18' }]}>
-              <Text style={[styles.resultEmoji]}>🎉</Text>
-              <Text style={[styles.resultText, { color: '#10B981' }]}>
-                {t('games.correct', { points: showHint ? 5 : 10 })}
-              </Text>
-            </View>
-          ) : (
-            <View style={[styles.resultCard, { backgroundColor: '#EF4444' + '18' }]}>
-              <Text style={[styles.resultEmoji]}>😅</Text>
-              <Text style={[styles.resultText, { color: '#EF4444' }]}>
-                {t('games.wrong', { word: challenge.word })}
-              </Text>
-            </View>
-          )}
-          <Pressable
-            style={[styles.nextBtn, { backgroundColor: c.primary }]}
-            onPress={handleNext}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('games.next_word')}
-          >
-            <Text style={styles.nextBtnText}>{t('games.next_word')}</Text>
-          </Pressable>
-        </Animated.View>
-      )}
-
-      {/* Shuffle button */}
-      {result === null && (
-        <Pressable
-          style={[styles.shuffleBtn, { backgroundColor: c.surfaceSecondary }]}
-          onPress={handleShuffle}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('games.shuffle_letters')}
-        >
-          <Ionicons name="shuffle-outline" size={16} color={c.textSecondary} />
-          <Text style={[styles.shuffleBtnText, { color: c.textSecondary }]}>{t('games.shuffle')}</Text>
-        </Pressable>
-      )}
-    </Animated.View>
-  );
-}
-
-// ── Joke Browser ─────────────────────────────────────────────────────────────
+import { mf, ms } from '@utils/responsive';
+// ── Dad Joke Browser ─────────────────────────────────────────────────────────
 function JokeBrowser(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
@@ -239,20 +36,13 @@ function JokeBrowser(): React.JSX.Element {
     setKey((k) => k + 1);
   }, []);
 
-  const CATEGORY_EMOJI: Record<DadJoke['category'], string> = {
-    bills: '💸',
-    parking: '🚗',
-    chores: '🧹',
-    grocery: '🛒',
-    house: '🏠',
-    general: '😄',
-  };
-
   return (
     <Animated.View key={key} entering={FadeIn.duration(300)} style={styles.jokeContent}>
       <View style={[styles.jokeCard, { backgroundColor: c.surface, borderColor: c.border }]}>
         <View style={styles.jokeHeader}>
-          <Text style={styles.jokeEmoji}>{CATEGORY_EMOJI[joke.category]}</Text>
+          <View style={[styles.jokeIcon, { backgroundColor: c.primary + '18' }]}>
+            <Ionicons name="happy-outline" size={18} color={c.primary} />
+          </View>
           <View style={[styles.jokeCatPill, { backgroundColor: c.primary + '15' }]}>
             <Text style={[styles.jokeCatText, { color: c.primary }]}>{joke.category}</Text>
           </View>
@@ -266,13 +56,14 @@ function JokeBrowser(): React.JSX.Element {
           </Animated.View>
         ) : (
           <Pressable
-            style={[styles.jokeRevealBtn, { backgroundColor: c.primary + '15' }]}
+            style={[styles.jokeRevealBtn, { backgroundColor: c.primary }]}
             onPress={handleReveal}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('games.reveal_punchline')}
           >
-            <Text style={[styles.jokeRevealText, { color: c.primary }]}>{t('games.tap_to_reveal')}</Text>
+            <Text style={styles.jokeRevealText}>{t('games.tap_to_reveal')}</Text>
+            <Ionicons name="chevron-forward" size={15} color="#fff" />
           </Pressable>
         )}
       </View>
@@ -285,7 +76,9 @@ function JokeBrowser(): React.JSX.Element {
         accessibilityLabel={t('games.next_joke')}
       >
         <Ionicons name="refresh-outline" size={18} color={c.textSecondary} />
-        <Text style={[styles.jokeNextText, { color: c.textSecondary }]}>{t('games.another_one')}</Text>
+        <Text style={[styles.jokeNextText, { color: c.textSecondary }]}>
+          {t('games.another_one')}
+        </Text>
       </Pressable>
     </Animated.View>
   );
@@ -297,7 +90,7 @@ export default function GamesScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const c = useThemedColors();
-  const [tab, setTab] = useState<GameTab>('scramble');
+  const headingFont = useHeadingFont();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
@@ -310,41 +103,21 @@ export default function GamesScreen(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={t('games.go_back')}
         >
-          <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={24} color={c.textPrimary} />
+          <View style={[styles.backCircle, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <Ionicons
+              name={rtl ? 'chevron-forward' : 'chevron-back'}
+              size={22}
+              color={c.textPrimary}
+            />
+          </View>
         </Pressable>
-        <Text style={[styles.headerTitle, { color: c.textPrimary }]}>{t('games.title')}</Text>
+        <Text style={[styles.headerTitle, headingFont, { color: c.textPrimary }]}>
+          {t('games.dad_jokes')}
+        </Text>
         <View style={styles.backBtn} />
       </View>
 
-      {/* Tab switcher */}
-      <View style={[styles.tabRow, { backgroundColor: c.surfaceSecondary }]}>
-        <Pressable
-          style={[styles.tabBtn, tab === 'scramble' && { backgroundColor: c.surface }]}
-          onPress={() => setTab('scramble')}
-          accessible
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab === 'scramble' }}
-          accessibilityLabel={t('games.word_scramble_game')}
-        >
-          <Text style={[styles.tabText, { color: tab === 'scramble' ? c.primary : c.textSecondary }]}>
-            {t('games.tab_scramble')}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tabBtn, tab === 'jokes' && { backgroundColor: c.surface }]}
-          onPress={() => setTab('jokes')}
-          accessible
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab === 'jokes' }}
-          accessibilityLabel={t('games.dad_jokes')}
-        >
-          <Text style={[styles.tabText, { color: tab === 'jokes' ? c.primary : c.textSecondary }]}>
-            {t('games.tab_jokes')}
-          </Text>
-        </Pressable>
-      </View>
-
-      {tab === 'scramble' ? <WordScrambleGame /> : <JokeBrowser />}
+      <JokeBrowser />
     </SafeAreaView>
   );
 }
@@ -358,129 +131,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.md,
     paddingVertical: sizes.sm,
   },
-  backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 18, ...font.bold },
-
-  // Tabs
-  tabRow: {
-    flexDirection: 'row',
-    marginHorizontal: sizes.md,
-    borderRadius: sizes.borderRadius,
-    padding: 3,
-    gap: 4,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: sizes.borderRadius - 2,
-    alignItems: 'center',
-  },
-  tabText: { fontSize: 14, ...font.semibold },
-
-  // ── Word Scramble ──────────────────────────────────────────────────────────
-  gameContent: {
-    flex: 1,
-    padding: sizes.md,
-    gap: sizes.md,
-    alignItems: 'center',
-  },
-  scoreBar: {
-    flexDirection: 'row',
-    width: '100%',
-    borderRadius: sizes.borderRadius,
-    paddingVertical: sizes.sm + 2,
-    paddingHorizontal: sizes.md,
-  },
-  scorePart: { flex: 1, alignItems: 'center', gap: 2 },
-  scoreLabel: { fontSize: 11, ...font.medium, textTransform: 'uppercase', letterSpacing: 0.8 },
-  scoreValue: { fontSize: 20, ...font.bold },
-  catPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 4,
-    borderRadius: sizes.borderRadiusFull,
-  },
-  catEmoji: { fontSize: 14 },
-  catLabel: { fontSize: 13, ...font.semibold },
-  scrambleRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    marginVertical: sizes.sm,
-  },
-  letterTile: {
-    width: 44,
-    height: 52,
-    borderRadius: sizes.borderRadius,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  letterText: { fontSize: 22, ...font.bold },
-  hintText: { fontSize: 14, ...font.medium, textAlign: 'center' },
-  hintBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 8,
-    borderRadius: sizes.borderRadius,
+  backBtn: { width: ms(44), height: ms(44), justifyContent: 'center', alignItems: 'center' },
+  backCircle: {
+    width: ms(38),
+    height: ms(38),
+    borderRadius: ms(19),
     borderWidth: 1,
-  },
-  hintBtnText: { fontSize: 13, ...font.medium },
-  inputRow: {
-    flexDirection: 'row',
-    width: '100%',
-    gap: sizes.sm,
-    alignItems: 'center',
-  },
-  input: {
-    flex: 1,
-    height: 50,
-    borderWidth: 1.5,
-    borderRadius: sizes.borderRadius,
-    paddingHorizontal: sizes.md,
-    fontSize: 18,
-    ...font.bold,
-    letterSpacing: 2,
-  },
-  submitBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: sizes.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  resultArea: { width: '100%', gap: sizes.sm, alignItems: 'center' },
-  resultCard: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sizes.sm,
-    paddingVertical: sizes.md,
-    paddingHorizontal: sizes.lg,
-    borderRadius: sizes.borderRadius,
-  },
-  resultEmoji: { fontSize: 28 },
-  resultText: { fontSize: 16, ...font.semibold, flex: 1 },
-  nextBtn: {
-    paddingHorizontal: sizes.xl,
-    paddingVertical: 14,
-    borderRadius: sizes.borderRadius,
-  },
-  nextBtnText: { color: '#fff', fontSize: 16, ...font.bold },
-  shuffleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 8,
-    borderRadius: sizes.borderRadius,
-  },
-  shuffleBtnText: { fontSize: 13, ...font.medium },
+  headerTitle: { fontSize: mf(20), ...font.bold },
 
   // ── Joke Browser ───────────────────────────────────────────────────────────
   jokeContent: {
@@ -499,30 +159,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: sizes.sm,
   },
-  jokeEmoji: { fontSize: 28 },
+  jokeIcon: {
+    width: ms(34),
+    height: ms(34),
+    borderRadius: ms(11),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   jokeCatPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: ms(10),
+    paddingVertical: ms(3),
     borderRadius: sizes.borderRadiusFull,
   },
-  jokeCatText: { fontSize: 12, ...font.semibold, textTransform: 'capitalize' },
-  jokeSetup: { fontSize: 18, ...font.semibold, lineHeight: 26 },
-  jokePunchline: { fontSize: 20, ...font.bold, lineHeight: 28 },
+  jokeCatText: { fontSize: mf(11), ...font.bold, textTransform: 'uppercase', letterSpacing: 0.3 },
+  jokeSetup: { fontSize: mf(18), ...font.semibold, lineHeight: mf(26) },
+  jokePunchline: { fontSize: mf(20), ...font.bold, lineHeight: mf(28) },
   jokeRevealBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: ms(5),
     alignSelf: 'flex-start',
-    paddingHorizontal: sizes.lg,
+    paddingStart: sizes.lg,
+    paddingEnd: sizes.md,
     paddingVertical: sizes.sm + 2,
+    minHeight: ms(44),
     borderRadius: sizes.borderRadius,
   },
-  jokeRevealText: { fontSize: 15, ...font.semibold },
+  jokeRevealText: { fontSize: mf(14), ...font.bold, color: '#fff' },
   jokeNextBtn: {
     flexDirection: 'row',
     alignSelf: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: ms(8),
     paddingHorizontal: sizes.lg,
-    paddingVertical: 10,
+    paddingVertical: ms(10),
     borderRadius: sizes.borderRadius,
   },
-  jokeNextText: { fontSize: 14, ...font.semibold },
+  jokeNextText: { fontSize: mf(14), ...font.semibold },
 });

@@ -1,11 +1,13 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
+import { UserAvatar } from '@components/shared/UserAvatar';
 import { useBillsStore, getPersonShare, EditBillSchema, CATEGORIES } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -13,12 +15,16 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { useMemberName } from '@hooks/useMemberName';
+import { localizeCategoryName } from '@utils/categoryName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
+import { Money } from '@components/shared/Money';
 import { Button, EmptyState, Pill } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
   rent: 'home-outline',
   groceries: 'cart-outline',
@@ -51,6 +57,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
   const isLoading = useBillsStore((s) => s.isLoading);
@@ -194,9 +201,12 @@ export default function BillDetailScreen(): React.JSX.Element {
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
           >
-            <Text style={styles.backText}>
-              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
-            </Text>
+            <Ionicons
+              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
+              size={20}
+              color={C.primary}
+            />
+            <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
           {!bill.settled && !isEditing && !isDeleting && (
             <Pressable
@@ -223,7 +233,7 @@ export default function BillDetailScreen(): React.JSX.Element {
         {/* Detail / Edit form */}
         {isEditing ? (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('bills.edit_bill')}</Text>
+            <Text style={[styles.sectionTitle, headingFont]}>{t('bills.edit_bill')}</Text>
             <TextInput
               label={t('bills.title_label')}
               value={title}
@@ -327,36 +337,66 @@ export default function BillDetailScreen(): React.JSX.Element {
             </View>
           </View>
         ) : (
-          <View style={styles.card}>
-            <Text style={styles.billTitle}>{bill.title}</Text>
-            <Text style={styles.billAmount}>{formatFull(bill.amount, currencyCode)}</Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t('bills.category')}</Text>
-              <Text style={styles.metaValue}>{bill.category}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t('bills.date')}</Text>
-              <Text style={styles.metaValue}>{formatDisplayDate(bill.date, i18n.language)}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
-              <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
-            </View>
-            {bill.notes ? (
+          <View>
+            <LinearGradient
+              colors={C.owedGradient}
+              start={{ x: 0.15, y: 0 }}
+              end={{ x: 0.85, y: 1 }}
+              style={styles.detailHero}
+            >
+              <View style={styles.detailHeroHighlight} />
+              <Text style={styles.detailHeroTitle} numberOfLines={2}>
+                {bill.title}
+              </Text>
+              <Money
+                amount={bill.amount}
+                currencyCode={currencyCode}
+                size={40}
+                color="#fff"
+                style={styles.detailHeroAmount}
+              />
+            </LinearGradient>
+            <View style={[styles.card, styles.detailMetaCard]}>
               <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>{t('bills.notes_label')}</Text>
-                <Text style={styles.metaValue} selectable>
-                  {bill.notes}
-                </Text>
+                <Text style={styles.metaLabel}>{t('bills.category')}</Text>
+                <View style={styles.metaValueRow}>
+                  <View style={styles.catPill}>
+                    <Ionicons
+                      name={CATEGORY_ICONS[bill.category?.toLowerCase() ?? ''] ?? 'receipt-outline'}
+                      size={16}
+                      color={C.primary}
+                    />
+                  </View>
+                  <Text style={styles.metaValue}>{localizeCategoryName(bill.category, t)}</Text>
+                </View>
               </View>
-            ) : null}
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t('bills.date')}</Text>
+                <Text style={styles.metaValue}>{formatDisplayDate(bill.date, i18n.language)}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Text style={styles.metaLabel}>{t('bills.paid_by')}</Text>
+                <View style={styles.metaValueRow}>
+                  <UserAvatar userId={bill.paidBy} size={24} />
+                  <Text style={styles.metaValue}>{memberName(bill.paidBy)}</Text>
+                </View>
+              </View>
+              {bill.notes ? (
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>{t('bills.notes_label')}</Text>
+                  <Text style={styles.metaValue} selectable>
+                    {bill.notes}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           </View>
         )}
 
         {/* Split breakdown */}
         {!isEditing && (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>{t('bills.split_breakdown')}</Text>
+            <Text style={[styles.sectionTitle, headingFont]}>{t('bills.split_breakdown')}</Text>
             <Text style={styles.splitTotal}>
               {t('bills.total')} {formatFull(bill.amount, currencyCode)} ·{' '}
               {isCustomSplit
@@ -365,7 +405,7 @@ export default function BillDetailScreen(): React.JSX.Element {
             </Text>
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>
-                <View style={styles.splitDot} />
+                <UserAvatar userId={person} size={26} />
                 <Text style={styles.splitPerson}>{memberName(person)}</Text>
                 <Text style={styles.splitAmount}>
                   {formatFull(getPersonShare(bill, person), currencyCode)}
@@ -414,94 +454,144 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
       marginBottom: sizes.xs,
     },
-    backBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-    editBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-    backText: { color: C.primary, fontSize: 15, ...font.medium },
-    editText: { color: C.primary, fontSize: 15, ...font.medium },
+    backBtn: {
+      minWidth: ms(44),
+      minHeight: ms(44),
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: ms(2),
+    },
+    editBtn: {
+      minWidth: ms(44),
+      minHeight: ms(44),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backText: { color: C.primary, fontSize: mf(15), ...font.medium },
+    editText: { color: C.primary, fontSize: mf(15), ...font.medium },
     card: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       padding: sizes.lg,
       gap: sizes.sm,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.05,
       shadowRadius: 8,
       elevation: 2,
     },
-    billTitle: { fontSize: 22, ...font.bold, color: C.textPrimary, letterSpacing: -0.3 },
-    billAmount: { fontSize: 34, ...font.extrabold, color: C.primary, letterSpacing: -1 },
+    detailHero: {
+      borderRadius: ms(20),
+      padding: ms(22),
+      gap: ms(4),
+      overflow: 'hidden',
+      shadowColor: C.owedShadow,
+      shadowOffset: { width: 0, height: ms(12) },
+      shadowOpacity: 1,
+      shadowRadius: 22,
+      elevation: 8,
+    },
+    detailHeroHighlight: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: ms(1),
+      backgroundColor: 'rgba(255,255,255,0.18)',
+    },
+    detailHeroTitle: { fontSize: mf(15), ...font.semibold, color: 'rgba(255,255,255,0.85)' },
+    detailHeroAmount: { marginTop: ms(2) },
+    detailMetaCard: { marginTop: ms(12) },
     metaRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      paddingVertical: 2,
+      alignItems: 'center',
+      paddingVertical: ms(6),
     },
-    metaLabel: { color: C.textSecondary, fontSize: 14, ...font.regular },
+    metaLabel: { color: C.textSecondary, fontSize: mf(14), ...font.regular },
+    metaValueRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8), flexShrink: 1 },
     metaValue: {
       color: C.textPrimary,
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.semibold,
       flexShrink: 1,
       textAlign: 'right',
     },
-    sectionTitle: { color: C.textPrimary, ...font.bold, fontSize: 15, marginBottom: sizes.xs },
-    splitTotal: { color: C.textSecondary, fontSize: 14, ...font.regular },
-    splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: 4 },
-    splitDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
-    splitPerson: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
-    splitAmount: { color: C.primary, fontSize: 15, ...font.semibold },
+    catPill: {
+      width: ms(30),
+      height: ms(30),
+      borderRadius: ms(9),
+      backgroundColor: C.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionTitle: { color: C.textPrimary, fontSize: mf(18), marginBottom: sizes.xs },
+    splitTotal: { color: C.textSecondary, fontSize: mf(14), ...font.regular },
+    splitRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, paddingVertical: ms(5) },
+    splitPerson: { flex: 1, color: C.textPrimary, fontSize: mf(15), ...font.medium },
+    splitAmount: { color: C.primary, fontSize: mf(15), ...font.semibold },
     input: { backgroundColor: C.surface },
-    dateField: { gap: 4 },
-    dateFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginStart: 4 },
+    dateField: { gap: ms(4) },
+    dateFieldLabel: {
+      fontSize: mf(12),
+      ...font.semibold,
+      color: C.textSecondary,
+      marginStart: ms(4),
+    },
     dateTrigger: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: sizes.sm,
       backgroundColor: C.surface,
-      borderRadius: 4,
+      borderRadius: ms(4),
       borderWidth: 1,
       borderColor: C.border,
-      paddingHorizontal: 14,
-      paddingVertical: 14,
-      minHeight: 56,
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(14),
+      minHeight: ms(56),
     },
-    dateTriggerText: { flex: 1, fontSize: 15, ...font.regular, color: C.textPrimary },
+    dateTriggerText: { flex: 1, fontSize: mf(15), ...font.regular, color: C.textPrimary },
     editButtons: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center', marginTop: sizes.xs },
-    saveBtn: { borderRadius: 14 },
-    deleteBtn: { borderRadius: 14 },
+    saveBtn: { borderRadius: ms(14) },
+    deleteBtn: { borderRadius: ms(14) },
     error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
 
-    categoryField: { gap: 4 },
-    categoryFieldLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginStart: 4 },
-    categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
+    categoryField: { gap: ms(4) },
+    categoryFieldLabel: {
+      fontSize: mf(12),
+      ...font.semibold,
+      color: C.textSecondary,
+      marginStart: ms(4),
+    },
+    categoryScroll: { gap: sizes.xs, paddingVertical: ms(2) },
     catChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      minHeight: 44,
+      gap: ms(5),
+      paddingVertical: ms(10),
+      paddingHorizontal: ms(12),
+      minHeight: ms(44),
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1.5,
       borderColor: C.primary + '55',
       backgroundColor: C.primary + '08',
     },
     catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-    catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
+    catChipText: { color: C.primary, fontSize: mf(13), ...font.semibold },
     catChipTextSelected: { color: C.white },
     catChipAdd: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      minHeight: 44,
+      gap: ms(5),
+      paddingVertical: ms(10),
+      paddingHorizontal: ms(12),
+      minHeight: ms(44),
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1.5,
       borderStyle: 'dashed' as const,
       borderColor: C.primary + '55',
       backgroundColor: 'transparent',
     },
-    catChipAddText: { color: C.primary, fontSize: 13, ...font.semibold },
+    catChipAddText: { color: C.primary, fontSize: mf(13), ...font.semibold },
   });

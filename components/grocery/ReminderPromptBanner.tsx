@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 
+import { mf, ms } from '@utils/responsive';
 export interface ReminderPromptBannerProps {
   /** Name of the item to offer a reminder for; null hides the banner. */
   itemName: string | null;
@@ -87,21 +88,26 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     banner: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      borderRadius: 14,
+      gap: ms(8),
+      borderRadius: ms(14),
       borderWidth: 1,
-      paddingLeft: 14,
-      paddingRight: 6,
-      minHeight: 44,
+      paddingLeft: ms(14),
+      paddingRight: ms(6),
+      minHeight: ms(44),
       shadowColor: C.textPrimary,
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.12,
       shadowRadius: 8,
       elevation: 4,
     },
-    text: { flex: 1, fontSize: 13, ...font.medium },
-    setBtn: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
-    setBtnText: { fontSize: 13, ...font.bold },
-    dismissBtn: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
+    text: { flex: 1, fontSize: mf(13), ...font.medium },
+    setBtn: { minHeight: ms(44), minWidth: ms(44), justifyContent: 'center', alignItems: 'center' },
+    setBtnText: { fontSize: mf(13), ...font.bold },
+    dismissBtn: {
+      minHeight: ms(44),
+      minWidth: ms(44),
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });
 }

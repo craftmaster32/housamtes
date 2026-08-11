@@ -6,6 +6,7 @@ import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { PREMIUM_ENABLED } from '@constants/featureFlags';
 
+import { mf, ms } from '@utils/responsive';
 // The single ad slot for the whole app. Renders a clearly-labelled placeholder
 // for free users and nothing at all for premium users.
 //
@@ -49,23 +50,23 @@ export const AdBanner = (): React.JSX.Element | null => {
 // not shift when the real ad drops in.
 const styles = StyleSheet.create({
   slot: {
-    height: 50,
+    height: ms(50),
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: ms(8),
     borderTopWidth: 1,
   },
   badge: {
-    fontSize: 10,
+    fontSize: mf(10),
     ...font.bold,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     borderWidth: 1,
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
+    borderRadius: ms(4),
+    paddingHorizontal: ms(4),
+    paddingVertical: ms(1),
     overflow: 'hidden',
   },
-  text: { fontSize: 12, ...font.regular },
+  text: { fontSize: mf(12), ...font.regular },
 });

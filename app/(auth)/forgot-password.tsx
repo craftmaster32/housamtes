@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,12 +8,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 type Step = 'email' | 'code';
 
 export default function ForgotPasswordScreen(): React.JSX.Element {
@@ -31,34 +33,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  const fadeHeader = useRef(new Animated.Value(0)).current;
-  const slideCard = useRef(new Animated.Value(30)).current;
-  const fadeCard = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeHeader, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.spring(slideCard, {
-          toValue: 0,
-          tension: 65,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeCard, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [fadeHeader, slideCard, fadeCard]);
 
   const handleSendCode = useCallback(async (): Promise<void> => {
     if (!email.trim()) {
@@ -129,7 +105,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
           <View style={styles.successIcon}>
             <Ionicons name="checkmark-circle" size={56} color={C.success} />
           </View>
-          <Text style={styles.successTitle}>{t('auth.password_updated_title')}</Text>
+          <Text style={[styles.successTitle, headingFont]}>{t('auth.password_updated_title')}</Text>
           <Text style={styles.successBody}>{t('auth.password_updated_body')}</Text>
           <Button
             mode="contained"
@@ -151,7 +127,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.header, { opacity: fadeHeader }]}>
+      <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
           <Pressable
             style={styles.backBtn}
@@ -179,7 +155,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
             />
             <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>
+          <Text style={[styles.headerTitle, headingFont]}>
             {done
               ? t('auth.password_updated_title')
               : step === 'email'
@@ -192,17 +168,9 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
               : t('auth.reset_code_sent_to', { email: email.trim() })}
           </Text>
         </SafeAreaView>
-      </Animated.View>
+      </View>
 
-      <Animated.View
-        style={[
-          styles.cardWrapper,
-          {
-            opacity: fadeCard,
-            transform: [{ translateY: slideCard }],
-          },
-        ]}
-      >
+      <View style={styles.cardWrapper}>
         <View style={styles.card}>
           {step === 'email' ? (
             <>
@@ -332,7 +300,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
             </>
           )}
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 }
@@ -346,39 +314,39 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     header: {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
-      paddingBottom: 28,
-      gap: 8,
+      paddingBottom: ms(28),
+      gap: ms(8),
     },
     headerInner: {
-      gap: 8,
+      gap: ms(8),
     },
     backBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
+      gap: ms(2),
       alignSelf: 'flex-start',
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xs,
       minHeight: sizes.touchTarget,
       marginTop: sizes.xs,
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
     backText: {
-      fontSize: 15.5,
+      fontSize: mf(15.5),
       ...font.medium,
       color: 'rgba(255,255,255,0.85)',
     },
     headerTitle: {
-      fontSize: 22,
+      fontSize: mf(22),
       ...font.extrabold,
       color: '#fff',
       letterSpacing: -0.5,
     },
     headerSubtitle: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: 'rgba(255,255,255,0.65)',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
     cardWrapper: {
       flex: 1,
@@ -387,11 +355,11 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     card: {
       flex: 1,
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: ms(28),
+      borderTopRightRadius: ms(28),
       paddingHorizontal: sizes.lg,
-      paddingTop: 32,
-      paddingBottom: 40,
+      paddingTop: ms(32),
+      paddingBottom: ms(40),
       gap: sizes.md,
     },
     input: {
@@ -403,19 +371,19 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       fontSize: sizes.fontSm,
     },
     button: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       marginTop: sizes.sm,
     },
     buttonContent: {
-      height: 52,
+      height: ms(52),
     },
     buttonLabel: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
       letterSpacing: 0.2,
     },
     resendLabel: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.medium,
     },
     successContainer: {
@@ -430,17 +398,17 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       marginBottom: sizes.sm,
     },
     successTitle: {
-      fontSize: 24,
+      fontSize: mf(24),
       ...font.extrabold,
       color: C.textPrimary,
       textAlign: 'center',
     },
     successBody: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
   });
 }

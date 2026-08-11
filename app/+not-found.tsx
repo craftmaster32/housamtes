@@ -1,5 +1,5 @@
-import { useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { useMemo } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -9,27 +9,21 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 export default function NotFoundScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+      <View style={styles.content}>
         <View style={styles.iconWrap}>
           <Ionicons name="map-outline" size={48} color={C.textSecondary} />
         </View>
         <Text style={styles.code}>404</Text>
         <Text style={styles.title}>{t('not_found.title')}</Text>
-        <Text style={styles.message}>
-          {t('not_found.message')}
-        </Text>
+        <Text style={styles.message}>{t('not_found.message')}</Text>
         <Pressable
           style={({ pressed }) => [styles.btn, pressed && { opacity: 0.8 }]}
           onPress={() => router.replace('/(tabs)/dashboard')}
@@ -40,7 +34,7 @@ export default function NotFoundScreen(): React.JSX.Element {
           <Ionicons name="home-outline" size={18} color="#fff" />
           <Text style={styles.btnText}>{t('not_found.go_to_dashboard')}</Text>
         </Pressable>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -56,40 +50,40 @@ function makeStyles(C: ColorTokens) {
       gap: sizes.md,
     },
     iconWrap: {
-      width: 88,
-      height: 88,
-      borderRadius: 44,
+      width: ms(88),
+      height: ms(88),
+      borderRadius: ms(44),
       backgroundColor: C.surfaceSecondary,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: sizes.sm,
     },
     code: {
-      fontSize: 72,
+      fontSize: mf(72),
       ...font.extrabold,
       color: C.textSecondary,
       letterSpacing: -2,
-      lineHeight: 80,
+      lineHeight: mf(80),
     },
-    title: { fontSize: 22, ...font.bold, color: C.textPrimary, letterSpacing: -0.3 },
+    title: { fontSize: mf(22), ...font.bold, color: C.textPrimary, letterSpacing: -0.3 },
     message: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
-      maxWidth: 280,
+      lineHeight: mf(22),
+      maxWidth: ms(280),
     },
     btn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: ms(8),
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
-      paddingVertical: 14,
-      borderRadius: 14,
+      paddingVertical: ms(14),
+      borderRadius: ms(14),
       marginTop: sizes.sm,
     },
-    btnText: { fontSize: 16, ...font.semibold, color: '#fff' },
+    btnText: { fontSize: mf(16), ...font.semibold, color: '#fff' },
   });
 }

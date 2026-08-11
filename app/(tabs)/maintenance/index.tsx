@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
@@ -10,28 +11,42 @@ import { AddRequestForm } from '@components/maintenance/AddRequestForm';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    scroll: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+    scroll: { padding: sizes.lg, paddingBottom: ms(60), gap: sizes.sm },
 
     pageHeader: { marginBottom: sizes.xs },
-    heading: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
-    headingSub: { fontSize: sizes.fontSm, ...font.regular, color: C.textSecondary, marginTop: 2 },
+    heading: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    headingSub: {
+      fontSize: sizes.fontSm,
+      ...font.regular,
+      color: C.textSecondary,
+      marginTop: ms(2),
+    },
 
     addBtn: {
       borderWidth: 2,
       borderColor: C.primary + '40',
       borderStyle: 'dashed',
-      borderRadius: 14,
+      borderRadius: ms(14),
       paddingVertical: sizes.md,
       alignItems: 'center',
     },
     addBtnText: { color: C.primary, ...font.semibold, fontSize: sizes.fontMd },
 
-    resolvedToggle: { paddingVertical: sizes.sm, alignItems: 'center' },
+    resolvedToggle: {
+      minHeight: ms(44),
+      paddingVertical: sizes.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: ms(4),
+    },
     resolvedToggleText: { color: C.textSecondary, fontSize: sizes.fontSm, ...font.medium },
 
     emptySection: { alignItems: 'center', paddingVertical: sizes.xl, gap: sizes.sm },
@@ -42,10 +57,10 @@ const makeStyles = (C: ColorTokens) =>
       color: C.textSecondary,
       textAlign: 'center',
     },
-    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+    centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ms(20) },
     errorBanner: {
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
+      borderRadius: ms(10),
       padding: sizes.sm,
       borderWidth: 1,
       borderColor: C.danger + '40',
@@ -64,10 +79,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const headingFont = useHeadingFont('bold');
 
   const open = requests.filter((r) => r.status !== 'resolved');
   const resolved = requests.filter((r) => r.status === 'resolved');
@@ -85,7 +97,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll}>
           {!!error && (
             <View style={styles.errorBanner}>
@@ -94,7 +106,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
           )}
 
           <View style={styles.pageHeader}>
-            <Text style={styles.heading}>{t('maintenance.title')}</Text>
+            <Text style={[styles.heading, headingFont]}>{t('maintenance.title')}</Text>
             <Text style={styles.headingSub}>{t('maintenance.subtitle')}</Text>
           </View>
 
@@ -137,8 +149,13 @@ export default function MaintenanceScreen(): React.JSX.Element {
                 accessibilityLabel={`${t('maintenance.resolved_section')} (${resolved.length})`}
                 accessibilityState={{ expanded: showResolved }}
               >
+                <Ionicons
+                  name={showResolved ? 'chevron-up' : 'chevron-down'}
+                  size={15}
+                  color={C.textSecondary}
+                />
                 <Text style={styles.resolvedToggleText}>
-                  {showResolved ? '▲' : '▼'} {t('maintenance.resolved_section')} ({resolved.length})
+                  {t('maintenance.resolved_section')} ({resolved.length})
                 </Text>
               </Pressable>
               {showResolved &&
@@ -148,7 +165,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
             </>
           )}
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

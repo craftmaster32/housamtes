@@ -7,6 +7,7 @@ import { font } from '@constants/typography';
 import { isRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 
+import { mf, ms } from '@utils/responsive';
 interface Step {
   label: string;
 }
@@ -92,7 +93,7 @@ function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.
       alignItems: 'flex-start',
       justifyContent: 'center',
       gap: 0,
-      paddingVertical: 8,
+      paddingVertical: ms(8),
     },
     stepWrapper: {
       alignItems: 'center',
@@ -102,13 +103,13 @@ function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.
     },
     line: {
       position: 'absolute',
-      top: 16,
+      top: ms(16),
       // The row visually flows right-to-left under the inherited RTL `direction`,
       // so the line must extend toward the physical right (where the previous
       // step now sits) instead of always anchoring from the right edge.
       ...(rtl ? { left: '50%' } : { right: '50%' }),
       width: '100%',
-      height: 2,
+      height: ms(2),
       zIndex: -1,
     },
     lineActive: {
@@ -118,9 +119,9 @@ function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.
       backgroundColor: C.border,
     },
     circle: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: ms(32),
+      height: ms(32),
+      borderRadius: ms(16),
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -136,7 +137,7 @@ function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.
       borderColor: C.border,
     },
     circleText: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.semibold,
       color: C.textTertiary,
     },
@@ -144,10 +145,10 @@ function makeStyles(C: ColorTokens, rtl: boolean): ReturnType<typeof StyleSheet.
       color: '#fff',
     },
     label: {
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.medium,
       color: C.textTertiary,
-      marginTop: 6,
+      marginTop: ms(6),
     },
     labelActive: {
       color: C.primary,

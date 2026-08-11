@@ -1,5 +1,5 @@
-import { useMemo, useRef, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Animated, Pressable } from 'react-native';
+import { useMemo, useCallback } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { router, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,42 +12,18 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { HouseSkyline } from '@components/shared/HouseSkyline';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const ONBOARDING_INTENT_KEY = 'onboarding_intent';
-const SKYLINE_HEIGHT = 90;
+const SKYLINE_HEIGHT = ms(90);
 
 export default function WelcomeScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  const fadeTop = useRef(new Animated.Value(0)).current;
-  const slideCard = useRef(new Animated.Value(40)).current;
-  const fadeCard = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeTop, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.spring(slideCard, {
-          toValue: 0,
-          tension: 60,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeCard, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [fadeTop, slideCard, fadeCard]);
+  const headingFont = useHeadingFont();
 
   const handleGetStarted = useCallback(async (): Promise<void> => {
     try {
@@ -60,7 +36,7 @@ export default function WelcomeScreen(): React.JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.top, { opacity: fadeTop }]}>
+      <View style={styles.top}>
         <View
           style={styles.moon}
           accessibilityElementsHidden
@@ -78,7 +54,7 @@ export default function WelcomeScreen(): React.JSX.Element {
             <Ionicons name="home" size={32} color={C.primary} />
           </View>
 
-          <Text style={styles.appName}>HouseMates</Text>
+          <Text style={[styles.appName, headingFont]}>HouseMates</Text>
           <Text style={styles.tagline}>{t('welcome.tagline')}</Text>
         </SafeAreaView>
 
@@ -89,18 +65,10 @@ export default function WelcomeScreen(): React.JSX.Element {
         >
           <HouseSkyline />
         </View>
-      </Animated.View>
+      </View>
 
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            opacity: fadeCard,
-            transform: [{ translateY: slideCard }],
-          },
-        ]}
-      >
-        <Text style={styles.cardHeading}>{t('welcome.card_heading')}</Text>
+      <View style={styles.card}>
+        <Text style={[styles.cardHeading, headingFont]}>{t('welcome.card_heading')}</Text>
         <Text style={styles.cardBody}>{t('welcome.card_body')}</Text>
 
         <Button
@@ -137,7 +105,7 @@ export default function WelcomeScreen(): React.JSX.Element {
         </Link>
 
         <Text style={styles.terms}>{t('auth.by_continuing')}</Text>
-      </Animated.View>
+      </View>
     </View>
   );
 }
@@ -162,21 +130,21 @@ function makeStyles(C: ColorTokens) {
     },
     moon: {
       position: 'absolute',
-      top: 54,
-      right: 40,
-      width: 26,
-      height: 26,
-      borderRadius: 13,
+      top: ms(54),
+      right: ms(40),
+      width: ms(26),
+      height: ms(26),
+      borderRadius: ms(13),
       backgroundColor: 'rgba(255,255,255,0.28)',
       overflow: 'hidden',
     },
     moonShadow: {
       position: 'absolute',
-      top: -6,
-      left: -10,
-      width: 26,
-      height: 26,
-      borderRadius: 13,
+      top: ms(-6),
+      left: ms(-10),
+      width: ms(26),
+      height: ms(26),
+      borderRadius: ms(13),
       backgroundColor: C.primary,
     },
     skylineWrap: {
@@ -188,15 +156,15 @@ function makeStyles(C: ColorTokens) {
       paddingHorizontal: sizes.md,
     },
     iconChip: {
-      width: 72,
-      height: 72,
-      borderRadius: 20,
+      width: ms(72),
+      height: ms(72),
+      borderRadius: ms(20),
       backgroundColor: 'rgba(255,255,255,0.92)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     appName: {
-      fontSize: 34,
+      fontSize: mf(34),
       ...font.extrabold,
       color: '#fff',
       letterSpacing: -1,
@@ -204,7 +172,7 @@ function makeStyles(C: ColorTokens) {
       textAlign: 'center',
     },
     tagline: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.regular,
       color: 'rgba(255,255,255,0.72)',
       textAlign: 'center',
@@ -212,39 +180,39 @@ function makeStyles(C: ColorTokens) {
     },
     card: {
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: ms(28),
+      borderTopRightRadius: ms(28),
       padding: sizes.xl,
-      paddingBottom: 40,
-      gap: 16,
+      paddingBottom: ms(40),
+      gap: ms(16),
     },
     cardHeading: {
-      fontSize: 26,
+      fontSize: mf(26),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.5,
     },
     cardBody: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 22,
+      lineHeight: mf(22),
       marginBottom: sizes.sm,
     },
     primaryButton: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 4 },
+      shadowOffset: { width: 0, height: ms(4) },
       shadowOpacity: 0.28,
       shadowRadius: 12,
       elevation: 4,
     },
     primaryButtonContent: {
-      height: 52,
+      height: ms(52),
       flexDirection: 'row-reverse',
     },
     primaryButtonLabel: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
     },
     loginLink: {
@@ -256,13 +224,13 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
     },
     loginLinkText: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
       color: C.textPrimary,
       textAlign: 'center',
     },
     terms: {
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.regular,
       color: C.textTertiary,
       textAlign: 'center',

@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { MAINTENANCE_CATEGORIES } from '@stores/maintenanceStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+import { ms } from '@utils/responsive';
 interface CategoryPickerProps {
   value: string;
   onChange: (category: string) => void;
@@ -18,9 +20,9 @@ const makeStyles = (C: ColorTokens) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: ms(4),
       paddingHorizontal: sizes.sm,
-      paddingVertical: 6,
+      paddingVertical: ms(6),
       minHeight: sizes.touchTarget,
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1,
@@ -28,7 +30,6 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.surface,
     },
     chipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    chipIcon: { fontSize: 14 },
     chipText: { fontSize: sizes.fontSm, ...font.medium, color: C.textPrimary },
     chipTextActive: { color: '#fff' },
   });
@@ -49,7 +50,7 @@ export const CategoryPicker: React.FC<CategoryPickerProps> = ({ value, onChange 
           accessibilityLabel={c.label}
           accessibilityState={{ selected: value === c.label }}
         >
-          <Text style={styles.chipIcon}>{c.icon}</Text>
+          <Ionicons name={c.icon} size={14} color={value === c.label ? '#fff' : C.textSecondary} />
           <Text style={[styles.chipText, value === c.label && styles.chipTextActive]}>
             {c.label}
           </Text>

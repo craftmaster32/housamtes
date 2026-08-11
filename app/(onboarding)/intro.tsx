@@ -1,14 +1,18 @@
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Dimensions, Pressable, ViewToken, Animated } from 'react-native';
+import { useState, useRef, useCallback, useMemo } from 'react';
+import { View, StyleSheet, FlatList, Dimensions, Pressable, ViewToken } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import type { IoniconName } from '@/types/icons';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const ONBOARDING_KEY = 'housemates_onboarding_seen';
@@ -25,24 +29,30 @@ export async function hasSeenOnboarding(): Promise<boolean> {
 export default function IntroScreen(): React.JSX.Element {
   const { t } = useTranslation();
 
-  const SLIDES = [
+  const SLIDES: {
+    id: string;
+    icon: IoniconName;
+    title: string;
+    subtitle: string;
+    body: string;
+  }[] = [
     {
       id: '1',
-      emoji: '🏠',
+      icon: 'home-outline',
       title: t('onboarding.slide1_title'),
       subtitle: t('onboarding.slide1_subtitle'),
       body: t('onboarding.slide1_body'),
     },
     {
       id: '2',
-      emoji: '💰',
+      icon: 'wallet-outline',
       title: t('onboarding.slide2_title'),
       subtitle: t('onboarding.slide2_subtitle'),
       body: t('onboarding.slide2_body'),
     },
     {
       id: '3',
-      emoji: '🚗',
+      icon: 'car-outline',
       title: t('onboarding.slide3_title'),
       subtitle: t('onboarding.slide3_subtitle'),
       body: t('onboarding.slide3_body'),
@@ -55,10 +65,7 @@ export default function IntroScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const headingFont = useHeadingFont();
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -85,10 +92,16 @@ export default function IntroScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         {/* Skip button */}
         {!isLast && (
-          <Pressable onPress={handleSkip} style={styles.skipBtn} accessible accessibilityRole="button" accessibilityLabel={t('onboarding.skip')}>
+          <Pressable
+            onPress={handleSkip}
+            style={styles.skipBtn}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('onboarding.skip')}
+          >
             <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
           </Pressable>
         )}
@@ -106,9 +119,9 @@ export default function IntroScreen(): React.JSX.Element {
           renderItem={({ item }) => (
             <View style={styles.slide}>
               <View style={styles.emojiCircle}>
-                <Text style={styles.emoji}>{item.emoji}</Text>
+                <Ionicons name={item.icon} size={54} color={C.primary} />
               </View>
-              <Text style={styles.title}>{item.title}</Text>
+              <Text style={[styles.title, headingFont]}>{item.title}</Text>
               <Text style={styles.subtitle}>{item.subtitle}</Text>
               <Text style={styles.body}>{item.body}</Text>
             </View>
@@ -135,7 +148,7 @@ export default function IntroScreen(): React.JSX.Element {
             {isLast ? t('onboarding.lets_go') : t('onboarding.next')}
           </Button>
         </View>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -149,7 +162,7 @@ function makeStyles(C: ColorTokens) {
       paddingHorizontal: sizes.lg,
       paddingVertical: sizes.md,
     },
-    skipText: { color: C.textSecondary, fontSize: 15, ...font.medium },
+    skipText: { color: C.textSecondary, fontSize: mf(15), ...font.medium },
     slide: {
       width: SCREEN_WIDTH,
       paddingHorizontal: sizes.xl,
@@ -158,59 +171,58 @@ function makeStyles(C: ColorTokens) {
       gap: sizes.md,
     },
     emojiCircle: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
+      width: ms(120),
+      height: ms(120),
+      borderRadius: ms(60),
       backgroundColor: C.primary + '15',
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: sizes.md,
     },
-    emoji: { fontSize: 56 },
     title: {
-      fontSize: 28,
+      fontSize: mf(28),
       ...font.extrabold,
       color: C.textPrimary,
       textAlign: 'center',
       letterSpacing: -0.5,
     },
     subtitle: {
-      fontSize: 17,
+      fontSize: mf(17),
       ...font.semibold,
       color: C.primary,
       textAlign: 'center',
       marginTop: -sizes.sm,
     },
     body: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 24,
+      lineHeight: mf(24),
       paddingHorizontal: sizes.sm,
     },
     dotsRow: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 8,
+      gap: ms(8),
       paddingVertical: sizes.lg,
     },
     dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+      width: ms(8),
+      height: ms(8),
+      borderRadius: ms(4),
       backgroundColor: C.border,
     },
     dotActive: {
       backgroundColor: C.primary,
-      width: 24,
+      width: ms(24),
     },
     footer: {
       paddingHorizontal: sizes.xl,
       paddingBottom: sizes.xl,
     },
-    cta: { borderRadius: 14 },
-    ctaContent: { height: 56 },
-    ctaLabel: { fontSize: 16, ...font.semibold },
+    cta: { borderRadius: ms(14) },
+    ctaContent: { height: ms(56) },
+    ctaLabel: { fontSize: mf(16), ...font.semibold },
   });
 }

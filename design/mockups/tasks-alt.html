@@ -1,0 +1,103 @@
+<title>Tasks — structural ideas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:900px;margin:0 auto 22px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px}
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;max-width:1200px;margin:0 auto}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#5a6472;text-align:center;max-width:344px}
+  .cap small{display:block;font-weight:500;text-transform:none;letter-spacing:0;color:#9aa2ae;margin-top:3px;font-size:12px}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.07);--fg1:#0F172A;--fg2:#64748B;--fg3:#98A2B3;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.1);--pos:#2F8550;--warn:#B68528;--danger:#B84540}
+  .phone{width:344px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:56px 18px 22px}
+  .title{font-family:'Fraunces',Georgia,serif;font-size:28px;font-weight:600;letter-spacing:-.5px;line-height:1;margin-bottom:14px}
+  .fav{border-radius:50%;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+  .ck{border-radius:50%;border:2px solid var(--border);flex:none;display:flex;align-items:center;justify-content:center}
+  .ck.on{background:var(--pos);border-color:var(--pos)}
+
+  /* A — grouped by person */
+  .ph{display:flex;align-items:center;gap:9px;margin:16px 2px 9px}
+  .ph .fav{width:28px;height:28px;font-size:12px}
+  .ph .nm{font-size:14px;font-weight:800}
+  .ph .ct{margin-left:auto;font-size:12px;font-weight:700;color:var(--fg3)}
+  .trow{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:11px 12px;margin-bottom:7px}
+  .trow .ck{width:22px;height:22px}
+  .tt{font-size:14px;font-weight:600;flex:1}
+  .tt.done{color:var(--fg3);text-decoration:line-through}
+  .pdot{width:8px;height:8px;border-radius:4px;flex:none}
+  .due{font-size:11px;font-weight:700;color:var(--fg3)}
+  .due.over{color:var(--danger)}
+
+  /* B — grouped by urgency */
+  .sh{display:flex;align-items:center;gap:7px;margin:16px 2px 9px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+  .sh .pill{font-size:11px;font-weight:800;padding:1px 7px;border-radius:9999px}
+
+  /* C — compact checklist */
+  .clist{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-top:4px}
+  .crow{display:flex;align-items:center;gap:11px;padding:12px 13px}
+  .crow+.crow{border-top:1px solid var(--border)}
+  .crow .ck{width:21px;height:21px}
+  .crow .tt{font-size:14px;font-weight:600;flex:1}
+  .crow .fav{width:20px;height:20px;font-size:9px}
+  .csec{font-size:11px;font-weight:800;color:var(--fg3);text-transform:uppercase;letter-spacing:.6px;margin:16px 4px 8px}
+  svg{display:block}
+</style>
+<div class="head"><h1>Tasks — three ways to organise</h1><p>Not just restyles — different structures. Same tasks, grouped differently.</p></div>
+<div class="stage" id="stage"></div>
+
+<template id="A">
+  <div class="scr">
+    <div class="title">Tasks</div>
+    <div class="ph"><span class="fav" style="background:#3B6FBF">A</span><span class="nm">You</span><span class="ct">1 of 2 done</span></div>
+    <div class="trow"><span class="ck"></span><span class="pdot" style="background:var(--warn)"></span><span class="tt">Return deposit form</span><span class="due">25 Apr</span></div>
+    <div class="trow"><span class="ck on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></span><span class="tt done">Take out recycling</span></div>
+    <div class="ph"><span class="fav" style="background:#8A5CD0">J</span><span class="nm">Jordan</span><span class="ct">0 of 1 done</span></div>
+    <div class="trow"><span class="ck"></span><span class="pdot" style="background:var(--danger)"></span><span class="tt">Fix the leaking tap</span><span class="due over">Overdue</span></div>
+    <div class="ph"><span class="fav" style="background:#C77">S</span><span class="nm">Sam</span><span class="ct">1 of 1 done</span></div>
+    <div class="trow"><span class="ck on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></span><span class="tt done">Book carpet cleaner</span></div>
+  </div>
+</template>
+
+<template id="B">
+  <div class="scr">
+    <div class="title">Tasks</div>
+    <div class="sh" style="color:var(--danger)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>Overdue<span class="pill" style="color:var(--danger);background:rgba(184,69,64,.12)">1</span></div>
+    <div class="trow"><span class="ck"></span><span class="fav" style="width:22px;height:22px;font-size:10px;background:#8A5CD0">J</span><span class="tt">Fix the leaking tap</span><span class="due over">16 Apr</span></div>
+    <div class="sh" style="color:var(--fg2)">Today<span class="pill" style="color:var(--primary);background:var(--primary-tint)">1</span></div>
+    <div class="trow"><span class="ck"></span><span class="fav" style="width:22px;height:22px;font-size:10px;background:#3B6FBF">A</span><span class="tt">Call the plumber back</span></div>
+    <div class="sh" style="color:var(--fg2)">Upcoming<span class="pill" style="color:var(--fg2);background:var(--surface2)">1</span></div>
+    <div class="trow"><span class="ck"></span><span class="fav" style="width:22px;height:22px;font-size:10px;background:#3B6FBF">A</span><span class="tt">Return deposit form</span><span class="due">25 Apr</span></div>
+    <div class="sh" style="color:var(--fg3)">Done<span class="pill" style="color:var(--fg3);background:var(--surface2)">1</span></div>
+    <div class="trow" style="opacity:.6"><span class="ck on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></span><span class="tt done">Book carpet cleaner</span></div>
+  </div>
+</template>
+
+<template id="C">
+  <div class="scr">
+    <div class="title">Tasks</div>
+    <div class="csec">Active · 3</div>
+    <div class="clist">
+      <div class="crow"><span class="ck"></span><span class="pdot" style="background:var(--danger)"></span><span class="tt">Fix the leaking tap</span><span class="fav" style="background:#8A5CD0">J</span><span class="due over">Overdue</span></div>
+      <div class="crow"><span class="ck"></span><span class="pdot" style="background:var(--warn)"></span><span class="tt">Return deposit form</span><span class="fav" style="background:#3B6FBF">A</span><span class="due">25 Apr</span></div>
+      <div class="crow"><span class="ck"></span><span class="pdot" style="background:var(--pos)"></span><span class="tt">Water the plants</span><span class="fav" style="background:#C77">S</span></div>
+    </div>
+    <div class="csec">Done · 1</div>
+    <div class="clist">
+      <div class="crow" style="opacity:.6"><span class="ck on"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></span><span class="tt done">Book carpet cleaner</span><span class="fav" style="background:#C77">S</span></div>
+    </div>
+  </div>
+</template>
+
+<script>
+  const s=document.getElementById('stage');
+  function ph(id,cap,sub){const col=document.createElement('div');col.className='col';const c=document.createElement('div');c.className='cap';c.innerHTML=cap+'<small>'+sub+'</small>';const p=document.createElement('div');p.className='phone hm';p.innerHTML='<div class="notch"></div>'+document.getElementById(id).innerHTML;col.appendChild(c);col.appendChild(p);s.appendChild(col);}
+  ph('A','A — grouped by person','See what each housemate owes');
+  ph('B','B — grouped by urgency','Overdue / Today / Upcoming / Done');
+  ph('C','C — compact checklist','Dense, Things/Todoist-style');
+</script>

@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, Pressable, Animated } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, Button, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -7,11 +7,13 @@ import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 export default function VerifyEmailScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const pendingEmail = useAuthStore((s) => s.pendingEmail);
@@ -24,35 +26,8 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   const [error, setError] = useState('');
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideIcon = useRef(new Animated.Value(20)).current;
-  const scaleIcon = useRef(new Animated.Value(0.8)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.spring(slideIcon, {
-          toValue: 0,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleIcon, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [fadeAnim, slideIcon, scaleIcon]);
 
   const steps = useMemo(
     () => [
@@ -112,30 +87,23 @@ export default function VerifyEmailScreen(): React.JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+      <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
           <StepProgress steps={steps} currentStep={1} />
         </SafeAreaView>
-      </Animated.View>
+      </View>
 
-      <Animated.View style={[styles.cardWrapper, { opacity: fadeAnim }]}>
+      <View style={styles.cardWrapper}>
         <View style={styles.card}>
-          <Animated.View
-            style={[
-              styles.envelopeWrap,
-              {
-                transform: [{ translateY: slideIcon }, { scale: scaleIcon }],
-              },
-            ]}
-          >
+          <View style={styles.envelopeWrap}>
             <Ionicons name="mail" size={44} color={C.primary} />
             <View style={styles.checkBadge}>
               <Ionicons name="checkmark-circle" size={20} color={C.success} />
             </View>
-          </Animated.View>
+          </View>
 
           <View style={styles.textBlock}>
-            <Text style={styles.heading}>{t('auth.check_inbox_title')}</Text>
+            <Text style={[styles.heading, headingFont]}>{t('auth.check_inbox_title')}</Text>
             {!!pendingEmail && (
               <Text style={styles.bodyText}>
                 {t('auth.check_inbox_body_code', { email: pendingEmail })}
@@ -212,7 +180,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
             <Text style={styles.goBackText}>{t('auth.wrong_email_go_back')}</Text>
           </Pressable>
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 }
@@ -239,15 +207,15 @@ function makeStyles(C: ColorTokens) {
       flex: 1,
       backgroundColor: C.surface,
       paddingHorizontal: sizes.lg,
-      paddingTop: 24,
-      paddingBottom: 40,
+      paddingTop: ms(24),
+      paddingBottom: ms(40),
       alignItems: 'center',
-      gap: 20,
+      gap: ms(20),
     },
     envelopeWrap: {
-      width: 88,
-      height: 88,
-      borderRadius: 26,
+      width: ms(88),
+      height: ms(88),
+      borderRadius: ms(26),
       backgroundColor: C.secondary,
       justifyContent: 'center',
       alignItems: 'center',
@@ -255,36 +223,36 @@ function makeStyles(C: ColorTokens) {
     },
     checkBadge: {
       position: 'absolute',
-      bottom: -4,
-      end: -4,
+      bottom: ms(-4),
+      end: ms(-4),
       backgroundColor: C.surface,
-      borderRadius: 12,
-      padding: 2,
+      borderRadius: ms(12),
+      padding: ms(2),
     },
     textBlock: {
       alignItems: 'center',
-      gap: 8,
+      gap: ms(8),
     },
     heading: {
-      fontSize: 24,
+      fontSize: mf(24),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.3,
       textAlign: 'center',
     },
     bodyText: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
     hintText: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textTertiary,
       textAlign: 'center',
-      marginTop: 4,
+      marginTop: ms(4),
     },
     errorText: {
       fontSize: sizes.fontXs,
@@ -299,12 +267,12 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: 'rgba(79,176,113,0.1)',
       paddingVertical: sizes.xs,
       paddingHorizontal: sizes.md,
-      borderRadius: 10,
+      borderRadius: ms(10),
     },
     resentText: {
       color: C.success,
       ...font.semibold,
-      fontSize: 14,
+      fontSize: mf(14),
     },
     codeInput: {
       width: '100%',
@@ -312,16 +280,16 @@ function makeStyles(C: ColorTokens) {
       letterSpacing: 4,
     },
     verifyButton: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       width: '100%',
     },
     ghostButton: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       width: '100%',
       borderColor: C.border,
       borderWidth: 1.5,
     },
-    buttonContent: { height: 52 },
+    buttonContent: { height: ms(52) },
     buttonLabel: {
       fontSize: sizes.fontMd,
       ...font.semibold,

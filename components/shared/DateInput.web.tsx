@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { colors } from '@constants/colors';
+import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
 interface DateInputProps {
@@ -11,11 +11,16 @@ interface DateInputProps {
 
 export function DateInput({ value, onChange, style }: DateInputProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const c = useThemedColors();
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const locale = i18n.language === 'he' ? 'he-IL' : i18n.language === 'es' ? 'es-ES' : 'en-GB';
   const displayText = value
-    ? new Date(value + 'T12:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })
+    ? new Date(value + 'T12:00:00').toLocaleDateString(locale, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
     : t('common.pick_date');
 
   return (
@@ -30,9 +35,9 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
         display: 'inline-flex',
         alignItems: 'center',
         gap: '8px',
-        backgroundColor: colors.white,
+        backgroundColor: c.surface,
         borderRadius: sizes.borderRadius,
-        border: `1px solid ${colors.border}`,
+        border: `1px solid ${c.border}`,
         padding: `${sizes.sm}px ${sizes.md}px`,
         cursor: 'pointer',
         userSelect: 'none',
@@ -40,11 +45,23 @@ export function DateInput({ value, onChange, style }: DateInputProps): React.JSX
         ...((style as React.CSSProperties) || {}),
       }}
     >
-      <span style={{ fontSize: '14px', lineHeight: '1' }}>📅</span>
+      <svg
+        width={15}
+        height={15}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={c.textSecondary}
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x={3} y={4.5} width={18} height={17} rx={2.5} />
+        <path d="M3 9h18M8 2.5v4M16 2.5v4" />
+      </svg>
       <span
         style={{
           fontSize: `${sizes.fontSm}px`,
-          color: value ? colors.textPrimary : colors.textSecondary,
+          color: value ? c.textPrimary : c.textSecondary,
           fontFamily: 'inherit',
         }}
       >

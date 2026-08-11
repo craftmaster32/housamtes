@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { HouseTask, TaskPriority } from '@stores/tasksStore';
@@ -9,12 +10,24 @@ import { resolveName } from '@utils/housemates';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 
+import { mf, ms } from '@utils/responsive';
 interface TaskRowProps {
   task: HouseTask;
   myId: string;
   canDelete: boolean;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+}
+
+function localeFor(lang: string): string {
+  return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
+}
+
+function formatDueDate(iso: string, lang: string): string {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.toLocaleDateString(localeFor(lang), { day: 'numeric', month: 'short' });
 }
 
 function isOverdue(task: HouseTask): boolean {
@@ -33,7 +46,7 @@ export function TaskRow({
   onToggle,
   onDelete,
 }: TaskRowProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -44,14 +57,22 @@ export function TaskRow({
     high: C.danger,
   };
   const overdue = isOverdue(task);
+  const assignee = task.assignedTo ? housemates.find((h) => h.id === task.assignedTo) : undefined;
   const assigneeLabel = task.assignedTo
     ? task.assignedTo === myId
       ? t('tasks.assigned_you')
       : resolveName(task.assignedTo, housemates)
     : null;
+  const assigneeColor = assignee?.color ?? C.primary;
 
   return (
     <View style={[styles.row, task.isComplete && styles.rowDone]}>
+      {!task.isComplete && (
+        <View
+          style={[styles.accent, { backgroundColor: priorityColor[task.priority] }]}
+          pointerEvents="none"
+        />
+      )}
       <Pressable
         style={styles.checkBtn}
         onPress={() => onToggle(task.id)}
@@ -69,16 +90,12 @@ export function TaskRow({
 
       <View style={styles.info}>
         <View style={styles.titleRow}>
+          {!task.isComplete && (
+            <View style={[styles.priorityDot, { backgroundColor: priorityColor[task.priority] }]} />
+          )}
           <Text style={[styles.title, task.isComplete && styles.titleDone]} numberOfLines={1}>
             {task.title}
           </Text>
-          <View
-            style={[styles.priorityPill, { backgroundColor: priorityColor[task.priority] + '22' }]}
-          >
-            <Text style={[styles.priorityText, { color: priorityColor[task.priority] }]}>
-              {t(`tasks.priority_${task.priority}`)}
-            </Text>
-          </View>
         </View>
 
         {task.description.length > 0 && (
@@ -91,7 +108,21 @@ export function TaskRow({
           <View style={styles.metaRow}>
             {assigneeLabel && (
               <View style={styles.assigneeBadge}>
-                <Ionicons name="person-outline" size={11} color={C.primary} />
+                <View style={[styles.assigneeAvatar, { backgroundColor: assigneeColor }]}>
+                  {assignee?.avatarUrl ? (
+                    <Image
+                      source={{ uri: assignee.avatarUrl }}
+                      style={styles.assigneeAvatarImg}
+                      contentFit="cover"
+                      accessible
+                      accessibilityLabel={assigneeLabel ?? undefined}
+                    />
+                  ) : (
+                    <Text style={styles.assigneeInitial}>
+                      {(assigneeLabel || '?').trim().charAt(0).toUpperCase()}
+                    </Text>
+                  )}
+                </View>
                 <Text style={styles.assigneeText}>{assigneeLabel}</Text>
               </View>
             )}
@@ -103,7 +134,9 @@ export function TaskRow({
                   color={overdue ? C.danger : C.textSecondary}
                 />
                 <Text style={[styles.dueText, overdue && styles.dueTextOverdue]}>
-                  {overdue ? t('tasks.overdue', { date: task.dueDate }) : task.dueDate}
+                  {overdue
+                    ? t('tasks.overdue', { date: formatDueDate(task.dueDate, i18n.language) })
+                    : formatDueDate(task.dueDate, i18n.language)}
                 </Text>
               </View>
             )}
@@ -130,49 +163,63 @@ export function TaskRow({
 function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     row: {
+      position: 'relative',
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderRadius: 14,
+      gap: ms(12),
+      paddingVertical: ms(12),
+      paddingEnd: ms(14),
+      paddingStart: ms(16),
+      borderRadius: ms(16),
       backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
+      overflow: 'hidden',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
+      shadowOffset: { width: 0, height: ms(2) },
+      shadowOpacity: 0.06,
       shadowRadius: 8,
       elevation: 2,
     },
     rowDone: { backgroundColor: C.surfaceSecondary, borderColor: 'transparent' },
-    checkBtn: { flexShrink: 0, minWidth: 44, minHeight: 44, justifyContent: 'center' },
-    info: { flex: 1, gap: 4 },
-    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    title: { fontSize: 15, ...font.semibold, color: C.textPrimary, flexShrink: 1 },
-    titleDone: { textDecorationLine: 'line-through', color: C.textSecondary },
-    priorityPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 9999 },
-    priorityText: { fontSize: 10, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.4 },
-    description: { fontSize: 13, ...font.regular, color: C.textSecondary, lineHeight: 18 },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+    accent: { position: 'absolute', start: 0, top: 0, bottom: 0, width: ms(4) },
+    checkBtn: { flexShrink: 0, minWidth: ms(44), minHeight: ms(44), justifyContent: 'center' },
+    info: { flex: 1, gap: ms(4) },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
+    priorityDot: { width: ms(8), height: ms(8), borderRadius: ms(4), flexShrink: 0 },
+    title: { fontSize: mf(15), ...font.bold, color: C.textPrimary, flexShrink: 1 },
+    titleDone: { textDecorationLine: 'line-through', color: C.textSecondary, ...font.semibold },
+    description: { fontSize: mf(13), ...font.regular, color: C.textSecondary, lineHeight: mf(18) },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8), flexWrap: 'wrap' },
     assigneeBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      backgroundColor: C.primary + '18',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
+      gap: ms(6),
+      backgroundColor: C.surfaceSecondary,
+      paddingStart: ms(3),
+      paddingEnd: ms(9),
+      paddingVertical: ms(3),
       borderRadius: 9999,
     },
-    assigneeText: { fontSize: 12, ...font.bold, color: C.primary },
-    dueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    dueText: { fontSize: 12, ...font.medium, color: C.textSecondary },
+    assigneeAvatar: {
+      width: ms(20),
+      height: ms(20),
+      borderRadius: ms(10),
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    assigneeAvatarImg: { width: ms(20), height: ms(20) },
+    assigneeInitial: { fontSize: mf(9), ...font.extrabold, color: '#fff' },
+    assigneeText: { fontSize: mf(12), ...font.bold, color: C.textSecondary },
+    dueRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
+    dueText: { fontSize: mf(12), ...font.medium, color: C.textSecondary },
     dueTextOverdue: { color: C.danger, ...font.bold },
     deleteBtn: {
-      padding: 4,
+      padding: ms(4),
       flexShrink: 0,
-      minWidth: 44,
-      minHeight: 44,
+      minWidth: ms(44),
+      minHeight: ms(44),
       alignItems: 'center',
       justifyContent: 'center',
     },

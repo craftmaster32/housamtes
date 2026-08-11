@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, Link } from 'expo-router';
@@ -15,13 +15,16 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
+import { UserAvatar } from '@components/shared/UserAvatar';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
-import { formatFull } from '@constants/currencies';
+import { formatFull, splitMoney } from '@constants/currencies';
 import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { parseAndValidateAddBill, parseAmount, type AddBillPayload } from '@utils/validation';
 
+import { mf, ms } from '@utils/responsive';
 type SplitType = 'equal' | 'custom' | 'percentage';
 
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
@@ -62,6 +65,7 @@ export default function AddBillScreen(): React.JSX.Element {
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const headingFont = useHeadingFont('bold');
   const housemates = useHousematesStore((state) => state.housemates);
   const housematesLoading = useHousematesStore((state) => state.isLoading);
   const addBill = useBillsStore((state) => state.addBill);
@@ -69,6 +73,7 @@ export default function AddBillScreen(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const markSeen = useBadgeStore((s) => s.markSeen);
+  const curSymbol = useMemo(() => splitMoney(0, currencyCode).symbol, [currencyCode]);
 
   const myId = profile?.id ?? '';
   const allIds = useMemo(() => housemates.map((h) => h.id), [housemates]);
@@ -226,6 +231,7 @@ export default function AddBillScreen(): React.JSX.Element {
   }, [selectedPeople, percentAmounts, percentRemaining, setError]);
 
   const handleSave = useCallback(async (): Promise<void> => {
+    if (isLoading) return; // guard against a fast double-tap creating a duplicate bill
     let payload: AddBillPayload;
     try {
       payload = parseAndValidateAddBill({
@@ -285,6 +291,7 @@ export default function AddBillScreen(): React.JSX.Element {
     allIds,
     myId,
     t,
+    isLoading,
   ]);
 
   if (housematesLoading) {
@@ -313,11 +320,37 @@ export default function AddBillScreen(): React.JSX.Element {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>
-              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
-            </Text>
+            <Ionicons
+              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
+              size={20}
+              color={C.primary}
+            />
+            <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
-          <Text style={styles.heading}>{t('bills.add_title')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('bills.add_title')}</Text>
+          <Text style={styles.headingSub}>{t('bills.add_subtitle')}</Text>
+        </View>
+
+        {/* Amount hero */}
+        <View style={styles.amountHero}>
+          <Text style={styles.amountHeroLabel}>{t('bills.amount')}</Text>
+          <View style={styles.amountHeroRow}>
+            <Text style={[styles.amountHeroCur, headingFont]}>{curSymbol}</Text>
+            <RNTextInput
+              value={amount}
+              onChangeText={(v) => {
+                setAmount(v);
+                setError('');
+              }}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={C.textTertiary}
+              underlineColorAndroid="transparent"
+              style={[styles.amountHeroInput, headingFont]}
+              accessibilityLabel={t('bills.amount')}
+              accessibilityHint={t('bills.enter_valid_amount')}
+            />
+          </View>
         </View>
 
         {/* Title */}
@@ -339,45 +372,29 @@ export default function AddBillScreen(): React.JSX.Element {
           />
         </View>
 
-        {/* Amount */}
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('bills.amount')}</Text>
-          <TextInput
-            value={amount}
-            onChangeText={(v) => {
-              setAmount(v);
-              setError('');
-            }}
-            mode="outlined"
-            style={styles.input}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            outlineColor={C.border}
-            activeOutlineColor={C.primary}
-            accessibilityLabel={t('bills.amount')}
-            accessibilityHint={t('bills.enter_valid_amount')}
-          />
-        </View>
-
         {/* Who paid */}
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.who_paid')}</Text>
           <View style={styles.chipRow}>
-            {housemates.map((h) => (
-              <Pressable
-                key={h.id}
-                style={[styles.chip, paidBy === h.id && styles.chipSelected]}
-                onPress={() => setPaidBy(h.id)}
-                accessible
-                accessibilityRole="radio"
-                accessibilityState={{ selected: paidBy === h.id }}
-              >
-                <Text style={[styles.chipText, paidBy === h.id && styles.chipTextSelected]}>
-                  {h.name}
-                  {h.id === myId ? ` (${t('common.me')})` : ''}
-                </Text>
-              </Pressable>
-            ))}
+            {housemates.map((h) => {
+              const selected = paidBy === h.id;
+              return (
+                <Pressable
+                  key={h.id}
+                  style={[styles.pChip, selected && styles.pChipSelected]}
+                  onPress={() => setPaidBy(h.id)}
+                  accessible
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                >
+                  <UserAvatar userId={h.id} size={24} />
+                  <Text style={[styles.pChipText, selected && styles.pChipTextSelected]}>
+                    {h.name}
+                    {h.id === myId ? ` (${t('common.me')})` : ''}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
@@ -390,26 +407,26 @@ export default function AddBillScreen(): React.JSX.Element {
             </Pressable>
           </View>
           <View style={styles.chipRow}>
-            {housemates.map((h) => (
-              <Pressable
-                key={h.id}
-                style={[styles.chip, selectedPeople.includes(h.id) && styles.chipSelected]}
-                onPress={() => togglePerson(h.id)}
-                accessible
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: selectedPeople.includes(h.id) }}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedPeople.includes(h.id) && styles.chipTextSelected,
-                  ]}
+            {housemates.map((h) => {
+              const checked = selectedPeople.includes(h.id);
+              return (
+                <Pressable
+                  key={h.id}
+                  style={[styles.pChip, checked && styles.pChipSelected]}
+                  onPress={() => togglePerson(h.id)}
+                  accessible
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked }}
                 >
-                  {h.name}
-                  {h.id === myId ? ` (${t('common.me')})` : ''}
-                </Text>
-              </Pressable>
-            ))}
+                  <UserAvatar userId={h.id} size={24} />
+                  <Text style={[styles.pChipText, checked && styles.pChipTextSelected]}>
+                    {h.name}
+                    {h.id === myId ? ` (${t('common.me')})` : ''}
+                  </Text>
+                  {checked && <Ionicons name="checkmark" size={15} color={C.primary} />}
+                </Pressable>
+              );
+            })}
           </View>
           {selectedPeople.length > 0 && (
             <Text style={styles.splitCount}>
@@ -422,9 +439,9 @@ export default function AddBillScreen(): React.JSX.Element {
         {selectedPeople.length > 0 && (
           <View style={styles.field}>
             <Text style={styles.label}>{t('bills.how_to_split')}</Text>
-            <View style={styles.chipRow} accessibilityRole="radiogroup">
+            <View style={styles.segment} accessibilityRole="radiogroup">
               <Pressable
-                style={[styles.chip, splitType === 'equal' && styles.chipSelected]}
+                style={[styles.segItem, splitType === 'equal' && styles.segItemOn]}
                 onPress={() => {
                   setSplitType('equal');
                   setError('');
@@ -434,12 +451,12 @@ export default function AddBillScreen(): React.JSX.Element {
                 accessibilityLabel={t('bills.equal')}
                 accessibilityState={{ selected: splitType === 'equal' }}
               >
-                <Text style={[styles.chipText, splitType === 'equal' && styles.chipTextSelected]}>
+                <Text style={[styles.segText, splitType === 'equal' && styles.segTextOn]}>
                   {t('bills.equal')}
                 </Text>
               </Pressable>
               <Pressable
-                style={[styles.chip, splitType === 'custom' && styles.chipSelected]}
+                style={[styles.segItem, splitType === 'custom' && styles.segItemOn]}
                 onPress={() => {
                   setSplitType('custom');
                   setError('');
@@ -449,12 +466,15 @@ export default function AddBillScreen(): React.JSX.Element {
                 accessibilityLabel={t('bills.custom_amounts')}
                 accessibilityState={{ selected: splitType === 'custom' }}
               >
-                <Text style={[styles.chipText, splitType === 'custom' && styles.chipTextSelected]}>
-                  {t('bills.custom_amounts')}
+                <Text
+                  style={[styles.segText, splitType === 'custom' && styles.segTextOn]}
+                  numberOfLines={1}
+                >
+                  {t('bills.custom_short')}
                 </Text>
               </Pressable>
               <Pressable
-                style={[styles.chip, splitType === 'percentage' && styles.chipSelected]}
+                style={[styles.segItem, splitType === 'percentage' && styles.segItemOn]}
                 onPress={() => {
                   setSplitType('percentage');
                   setError('');
@@ -464,9 +484,7 @@ export default function AddBillScreen(): React.JSX.Element {
                 accessibilityLabel={t('bills.by_percent')}
                 accessibilityState={{ selected: splitType === 'percentage' }}
               >
-                <Text
-                  style={[styles.chipText, splitType === 'percentage' && styles.chipTextSelected]}
-                >
+                <Text style={[styles.segText, splitType === 'percentage' && styles.segTextOn]}>
                   {t('bills.by_percent')}
                 </Text>
               </Pressable>
@@ -726,53 +744,118 @@ const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    content: { padding: sizes.lg, gap: sizes.md, paddingBottom: 60 },
+    content: { padding: sizes.lg, gap: sizes.md, paddingBottom: ms(60) },
 
-    header: { gap: 4, marginBottom: sizes.xs },
+    header: { gap: ms(4), marginBottom: sizes.xs },
     backBtn: {
       alignSelf: 'flex-start',
-      minWidth: 44,
-      minHeight: 44,
+      minWidth: ms(44),
+      minHeight: ms(44),
+      flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
+      gap: ms(2),
     },
-    backText: { color: C.primary, fontSize: 15, ...font.semibold },
-    heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    backText: { color: C.primary, fontSize: mf(15), ...font.semibold },
+    heading: { fontSize: mf(29), color: C.textPrimary, letterSpacing: -0.5, lineHeight: mf(34) },
+    headingSub: { fontSize: mf(13), ...font.medium, color: C.textSecondary, marginTop: ms(2) },
+
+    amountHero: {
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
+      borderRadius: ms(18),
+      paddingHorizontal: sizes.lg,
+      paddingTop: ms(14),
+      paddingBottom: ms(12),
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: ms(2) },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    amountHeroLabel: {
+      fontSize: mf(12),
+      ...font.bold,
+      letterSpacing: 0.6,
+      color: C.textTertiary,
+      textTransform: 'uppercase',
+    },
+    amountHeroRow: { flexDirection: 'row', alignItems: 'baseline', gap: ms(6), marginTop: ms(6) },
+    amountHeroCur: { fontSize: mf(26), color: C.textSecondary },
+    amountHeroInput: {
+      flex: 1,
+      fontSize: mf(44),
+      color: C.textPrimary,
+      letterSpacing: -1,
+      padding: 0,
+      margin: 0,
+    },
 
     field: { gap: sizes.xs },
-    label: { color: C.textPrimary, ...font.semibold, fontSize: 14 },
+    label: { color: C.textPrimary, ...font.semibold, fontSize: mf(14) },
     labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    selectAll: { color: C.primary, fontSize: 13, ...font.semibold },
+    selectAll: { color: C.primary, fontSize: mf(13), ...font.semibold },
     input: { backgroundColor: C.surface },
 
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
-    chip: {
-      paddingVertical: 8,
-      paddingHorizontal: sizes.sm,
-      minHeight: 44,
-      justifyContent: 'center',
+    pChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(8),
+      paddingVertical: ms(6),
+      paddingStart: ms(6),
+      paddingEnd: ms(13),
+      minHeight: ms(44),
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1.5,
       borderColor: C.border,
       backgroundColor: C.surface,
     },
-    chipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-    chipText: { color: C.textPrimary, fontSize: 14, ...font.medium },
-    chipTextSelected: { color: C.white },
-    splitCount: { color: C.textSecondary, fontSize: 12, ...font.regular, marginTop: 2 },
+    pChipSelected: { borderColor: C.primary, backgroundColor: C.primaryTint },
+    pChipText: { color: C.textPrimary, fontSize: mf(14), ...font.semibold },
+    pChipTextSelected: { color: C.primary },
+    splitCount: { color: C.textSecondary, fontSize: mf(12), ...font.regular, marginTop: ms(2) },
+
+    segment: {
+      flexDirection: 'row',
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: ms(12),
+      padding: ms(4),
+      gap: ms(4),
+    },
+    segItem: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: ms(9),
+      minHeight: ms(44),
+      borderRadius: ms(9),
+    },
+    segItemOn: {
+      backgroundColor: C.primary,
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: ms(2) },
+      shadowOpacity: 0.28,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+    segText: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
+    segTextOn: { color: '#fff' },
 
     previewBox: {
-      backgroundColor: C.primary + '12',
-      borderRadius: 10,
-      padding: sizes.sm,
+      backgroundColor: C.primaryTint,
+      borderRadius: ms(14),
+      paddingVertical: ms(12),
+      paddingHorizontal: sizes.md,
       alignItems: 'center',
-      marginTop: sizes.xs,
+      marginTop: sizes.sm,
     },
-    previewText: { color: C.primary, ...font.semibold, fontSize: 15 },
+    previewText: { color: C.primary, ...font.bold, fontSize: mf(16) },
 
     customBox: {
       backgroundColor: C.surface,
-      borderRadius: 12,
+      borderRadius: ms(12),
       padding: sizes.md,
       gap: sizes.sm,
       borderWidth: 1,
@@ -780,8 +863,8 @@ const makeStyles = (C: ColorTokens) =>
       marginTop: sizes.xs,
     },
     customRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-    customName: { flex: 1, color: C.textPrimary, fontSize: 15, ...font.medium },
-    customInput: { width: 110, backgroundColor: C.surface },
+    customName: { flex: 1, color: C.textPrimary, fontSize: mf(15), ...font.medium },
+    customInput: { width: ms(110), backgroundColor: C.surface },
     customTotal: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -789,77 +872,81 @@ const makeStyles = (C: ColorTokens) =>
       borderTopWidth: 1,
       borderTopColor: C.border,
     },
-    customTotalLabel: { color: C.textSecondary, fontSize: 14, ...font.medium },
-    customTotalValue: { fontSize: 14, ...font.semibold },
-    customRemainingRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 },
-    pctInputRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    pctSymbol: { fontSize: 16, ...font.semibold, color: C.textPrimary },
+    customTotalLabel: { color: C.textSecondary, fontSize: mf(14), ...font.medium },
+    customTotalValue: { fontSize: mf(14), ...font.semibold },
+    customRemainingRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingTop: ms(4),
+    },
+    pctInputRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
+    pctSymbol: { fontSize: mf(16), ...font.semibold, color: C.textPrimary },
     fillBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       alignSelf: 'flex-start',
-      paddingVertical: 6,
-      paddingHorizontal: 10,
-      borderRadius: 8,
+      paddingVertical: ms(6),
+      paddingHorizontal: ms(10),
+      borderRadius: ms(8),
       borderWidth: 1,
       borderColor: C.primary + '40',
       backgroundColor: C.primary + '08',
-      minHeight: 44,
+      minHeight: ms(44),
     },
-    fillBtnText: { color: C.primary, fontSize: 13, ...font.semibold },
+    fillBtnText: { color: C.primary, fontSize: mf(13), ...font.semibold },
 
-    categoryScroll: { gap: sizes.xs, paddingVertical: 2 },
+    categoryScroll: { gap: sizes.xs, paddingVertical: ms(2) },
     catChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      minHeight: 44,
+      gap: ms(5),
+      paddingVertical: ms(10),
+      paddingHorizontal: ms(12),
+      minHeight: ms(44),
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1.5,
       borderColor: C.primary + '55',
       backgroundColor: C.primary + '08',
     },
     catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-    catChipText: { color: C.primary, fontSize: 13, ...font.semibold },
+    catChipText: { color: C.primary, fontSize: mf(13), ...font.semibold },
     catChipTextSelected: { color: C.white },
     catChipAdd: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      minHeight: 44,
+      gap: ms(5),
+      paddingVertical: ms(10),
+      paddingHorizontal: ms(12),
+      minHeight: ms(44),
       borderRadius: sizes.borderRadiusFull,
       borderWidth: 1.5,
       borderStyle: 'dashed' as const,
       borderColor: C.primary + '55',
       backgroundColor: 'transparent',
     },
-    catChipAddText: { color: C.primary, fontSize: 13, ...font.semibold },
+    catChipAddText: { color: C.primary, fontSize: mf(13), ...font.semibold },
 
     dateTrigger: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: ms(10),
       backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
-      borderRadius: 8,
-      paddingHorizontal: 14,
-      paddingVertical: 14,
-      minHeight: 44,
+      borderRadius: ms(8),
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(14),
+      minHeight: ms(44),
     },
-    dateTriggerText: { flex: 1, fontSize: 15, ...font.medium, color: C.textPrimary },
+    dateTriggerText: { flex: 1, fontSize: mf(15), ...font.medium, color: C.textPrimary },
 
     errorBox: {
       backgroundColor: C.danger + '12',
-      borderRadius: 10,
+      borderRadius: ms(10),
       padding: sizes.md,
     },
-    errorText: { color: C.danger, fontSize: 14, ...font.regular },
+    errorText: { color: C.danger, fontSize: mf(14), ...font.regular },
 
     saveBtn: { marginTop: sizes.sm },
   });

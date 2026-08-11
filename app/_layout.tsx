@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
-  ActivityIndicator,
   StyleSheet,
   PanResponder,
   AppState,
@@ -35,6 +34,8 @@ import { MorePopup } from '@components/shared/MorePopup';
 import { ProfilePopup } from '@components/shared/ProfilePopup';
 import { WebAlertHost } from '@components/shared/WebAlertHost';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { ChatFab } from '@components/shared/ChatFab';
 import { AdBanner } from '@components/premium/AdBanner';
 import { ErrorBoundary } from '@components/shared/ErrorBoundary';
 import { darkColors } from '@constants/colors';
@@ -45,6 +46,29 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { registerWebPush } from '@lib/webPush';
 
 initErrorTracking();
+
+// On returning to the foreground, only re-fetch every store if the app was
+// backgrounded at least this long — long enough that iOS may have dropped the
+// realtime socket. Shorter absences keep their live connection, so a reload is
+// wasted work.
+const FOREGROUND_REFRESH_MS = 20_000;
+
+// Web: opt out of browser auto-translation (Chrome/Safari). It mistranslates our
+// labels ("Personal" → "Staff") and shatters the icon font into empty boxes.
+// This runs at module load — earlier than any component render — because Expo's
+// single web output ignores app/+html.tsx, so the meta tag has to be set here.
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const html = document.documentElement;
+  html.setAttribute('translate', 'no');
+  html.classList.add('notranslate');
+  if (!html.lang) html.lang = 'en';
+  if (!document.querySelector('meta[name="google"][content="notranslate"]')) {
+    const meta = document.createElement('meta');
+    meta.name = 'google';
+    meta.content = 'notranslate';
+    document.head.appendChild(meta);
+  }
+}
 
 export default function RootLayout(): React.JSX.Element | null {
   const c = useColors();
@@ -131,6 +155,11 @@ export default function RootLayout(): React.JSX.Element | null {
     Inter_700Bold: require('../assets/fonts/Inter_700Bold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Inter_800ExtraBold: require('../assets/fonts/Inter_800ExtraBold.ttf'),
+    // Fraunces — display serif for headings (Latin only; Hebrew falls back to Heebo).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Fraunces_600SemiBold: require('../assets/fonts/Fraunces_600SemiBold.ttf'),
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Fraunces_700Bold: require('../assets/fonts/Fraunces_700Bold.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     Heebo_400Regular: require('../assets/fonts/Heebo_400Regular.ttf'),
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -364,8 +393,13 @@ export default function RootLayout(): React.JSX.Element | null {
     loadNotificationPrefs,
   ]);
 
-  // Re-fetch all data when app comes back to foreground — iOS drops the
-  // WebSocket connection when backgrounded, so realtime misses updates.
+  // Re-fetch all data when the app comes back to foreground — iOS drops the
+  // WebSocket connection when backgrounded, so realtime misses updates. But a
+  // quick app-switch (or a transient 'inactive' from the notification shade)
+  // doesn't drop the socket, so re-fetching all ~13 stores every time is wasted
+  // work that makes returning to the app feel slow. Only do the full refresh
+  // once the app has actually been away longer than FOREGROUND_REFRESH_MS.
+  const backgroundedAt = useRef<number | null>(null);
   const foregroundDeferred = useRef<ReturnType<
     typeof InteractionManager.runAfterInteractions
   > | null>(null);
@@ -373,6 +407,12 @@ export default function RootLayout(): React.JSX.Element | null {
     if (!houseId) return;
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        // Skip the refresh for short absences — realtime stayed connected and
+        // already has the latest data.
+        const away = backgroundedAt.current;
+        backgroundedAt.current = null;
+        if (away !== null && Date.now() - away < FOREGROUND_REFRESH_MS) return;
+
         loadHousemates(houseId);
         loadBills(houseId);
         loadRecurringBills(houseId);
@@ -388,6 +428,9 @@ export default function RootLayout(): React.JSX.Element | null {
           loadCondition(houseId);
           loadTasks(houseId);
         });
+      } else if (backgroundedAt.current === null) {
+        // Left the foreground ('background' or 'inactive') — stamp when.
+        backgroundedAt.current = Date.now();
       }
     });
     return (): void => {
@@ -449,13 +492,14 @@ export default function RootLayout(): React.JSX.Element | null {
               <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
             </View>
             {showChrome && <AdBanner />}
+            {showChrome && <ChatFab />}
             {showChrome && <BottomTabBar />}
             {showChrome && <MorePopup />}
             {showChrome && <ProfilePopup />}
             <WebAlertHost />
             {(isLoading || !fontsLoaded) && (
               <View style={styles.splash}>
-                <ActivityIndicator size="large" color={darkColors.primary} />
+                <LoadingSpinner size={140} color={darkColors.primary} />
               </View>
             )}
           </View>

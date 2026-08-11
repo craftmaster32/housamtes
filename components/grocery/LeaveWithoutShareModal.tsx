@@ -4,9 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 
+import { mf, ms } from '@utils/responsive';
 interface LeaveWithoutShareModalProps {
   visible: boolean;
   draftCount: number;
@@ -25,23 +27,17 @@ export function LeaveWithoutShareModal({
   const rtl = isRTL(language);
   const C = useThemedColors();
   const styles = makeStyles(C);
+  const headingFont = useHeadingFont('bold');
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onLeave}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onStayAndShare}>
       <View style={styles.backdrop}>
         <View style={styles.box}>
           <View style={styles.iconWrap}>
-            <Ionicons name="document-text-outline" size={32} color="rgb(133,77,14)" />
+            <Ionicons name="warning-outline" size={30} color={C.danger} />
           </View>
-          <Text style={styles.title}>{t('grocery.share_before_leaving')}</Text>
-          <Text style={styles.body}>
-            {t('grocery.draft_unsaved_body', { count: draftCount })}
-          </Text>
+          <Text style={[styles.title, headingFont]}>{t('grocery.share_before_leaving')}</Text>
+          <Text style={styles.body}>{t('grocery.draft_unsaved_body', { count: draftCount })}</Text>
 
           <Pressable
             style={styles.primaryBtn}
@@ -73,27 +69,59 @@ export function LeaveWithoutShareModal({
 function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     backdrop: {
-      flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'center', alignItems: 'center', padding: 24,
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: ms(24),
     },
     box: {
-      width: '100%', backgroundColor: C.surface, borderRadius: 20, padding: 24, gap: 14,
-      shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15, shadowRadius: 24, elevation: 10,
+      width: '100%',
+      backgroundColor: C.surface,
+      borderRadius: ms(24),
+      padding: ms(24),
+      gap: ms(12),
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: ms(8) },
+      shadowOpacity: 0.15,
+      shadowRadius: 24,
+      elevation: 10,
     },
     iconWrap: {
-      width: 60, height: 60, borderRadius: 30, alignSelf: 'center',
-      backgroundColor: 'rgba(224,178,77,0.15)', justifyContent: 'center', alignItems: 'center',
+      width: ms(60),
+      height: ms(60),
+      borderRadius: ms(30),
+      alignSelf: 'center',
+      backgroundColor: C.dangerTint,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
-    title: { fontSize: 20, ...font.bold, color: C.textPrimary, textAlign: 'center', letterSpacing: -0.4 },
-    body: { fontSize: 14, ...font.regular, color: C.textSecondary, textAlign: 'center', lineHeight: 21 },
+    title: { fontSize: mf(21), color: C.textPrimary, textAlign: 'center', letterSpacing: -0.3 },
+    body: {
+      fontSize: mf(14),
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: mf(21),
+    },
     bodyBold: { ...font.semibold, color: C.textPrimary },
     primaryBtn: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-      minHeight: 50, borderRadius: 12, backgroundColor: C.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: ms(8),
+      minHeight: ms(52),
+      borderRadius: ms(14),
+      backgroundColor: C.primary,
+      marginTop: ms(4),
+      shadowColor: C.primary,
+      shadowOffset: { width: 0, height: ms(8) },
+      shadowOpacity: 0.28,
+      shadowRadius: 16,
+      elevation: 6,
     },
-    primaryBtnText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    leaveBtn: { alignItems: 'center', paddingVertical: 10, minHeight: 44 },
-    leaveBtnText: { fontSize: 14, ...font.regular, color: C.textSecondary },
+    primaryBtnText: { fontSize: mf(15), ...font.bold, color: '#fff' },
+    leaveBtn: { alignItems: 'center', paddingVertical: ms(12), minHeight: ms(44) },
+    leaveBtnText: { fontSize: mf(14), ...font.semibold, color: C.danger },
   });
 }

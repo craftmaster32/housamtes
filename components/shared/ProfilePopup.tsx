@@ -16,6 +16,7 @@ import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+import { mf, ms } from '@utils/responsive';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface MenuItem {
@@ -31,6 +32,7 @@ export function ProfilePopup(): React.JSX.Element {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const isOpen = useProfilePopupStore((s) => s.isOpen);
+  const anchor = useProfilePopupStore((s) => s.anchor);
   const close = useProfilePopupStore((s) => s.close);
   const pathname = usePathname();
   const language = useLanguageStore((s) => s.language);
@@ -50,9 +52,9 @@ export function ProfilePopup(): React.JSX.Element {
       await signOut();
       router.replace('/(auth)/welcome');
     } catch {
-      Alert.alert('Sign out failed', 'Could not sign you out. Please try again.');
+      Alert.alert(t('common.error'), t('profile.sign_out_failed'));
     }
-  }, [signOut]);
+  }, [signOut, t]);
 
   const MENU_ITEMS = useMemo(
     (): MenuItem[] => [
@@ -78,11 +80,11 @@ export function ProfilePopup(): React.JSX.Element {
         Promise.resolve()
           .then(() => item.onPress?.())
           .catch(() => {
-            Alert.alert('Action failed', 'Something went wrong. Please try again.');
+            Alert.alert(t('common.error'), t('common.failed_try_again'));
           });
       }
     },
-    [close]
+    [close, t]
   );
 
   const anim = useRef(new Animated.Value(0)).current;
@@ -123,6 +125,12 @@ export function ProfilePopup(): React.JSX.Element {
   const isDashboard = pathname.endsWith('/dashboard') || pathname.includes('/dashboard/index');
   const dropdownTop = insets.top + (isDashboard ? 83 : 62);
 
+  // Open on the same side as the avatar that triggered it. 'start' = leading
+  // edge (left in LTR, right in RTL); 'end' = trailing edge.
+  const onStart = anchor === 'start';
+  const pinLeft = isRTLMode ? !onStart : onStart;
+  const sideStyle = pinLeft ? styles.panelLeft : styles.panelRight;
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
       {isOpen && (
@@ -137,7 +145,7 @@ export function ProfilePopup(): React.JSX.Element {
       <Animated.View
         style={[
           styles.panel,
-          isRTLMode ? styles.panelRTL : styles.panelLTR,
+          sideStyle,
           {
             backgroundColor: c.surface,
             top: dropdownTop,
@@ -176,7 +184,7 @@ export function ProfilePopup(): React.JSX.Element {
           </View>
           <View style={styles.headerText}>
             <Text style={[styles.headerName, { color: c.textPrimary }]} numberOfLines={1}>
-              {profile?.name ?? 'You'}
+              {profile?.name ?? t('common.you')}
             </Text>
             <Text style={[styles.headerEmail, { color: c.textSecondary }]} numberOfLines={1}>
               {user?.email ?? ''}
@@ -214,17 +222,17 @@ export function ProfilePopup(): React.JSX.Element {
 const styles = StyleSheet.create({
   panel: {
     position: 'absolute',
-    width: 220,
+    width: ms(220),
     borderRadius: sizes.borderRadiusLg,
     paddingVertical: sizes.xs,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: ms(8) },
     shadowOpacity: 0.28,
     shadowRadius: 20,
     elevation: 24,
   },
-  panelLTR: { right: 16 },
-  panelRTL: { left: 16 },
+  panelRight: { right: ms(16) },
+  panelLeft: { left: ms(16) },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -236,18 +244,18 @@ const styles = StyleSheet.create({
     marginBottom: sizes.xs,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: ms(36),
+    height: ms(36),
+    borderRadius: ms(18),
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  avatarImg: { width: 36, height: 36 },
-  avatarInitial: { fontSize: 15, ...font.bold },
+  avatarImg: { width: ms(36), height: ms(36) },
+  avatarInitial: { fontSize: mf(15), ...font.bold },
   headerText: { flex: 1 },
   headerName: { fontSize: sizes.fontSm, ...font.semibold },
-  headerEmail: { fontSize: sizes.fontXs, ...font.regular, marginTop: 1 },
+  headerEmail: { fontSize: sizes.fontXs, ...font.regular, marginTop: ms(1) },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -257,6 +265,6 @@ const styles = StyleSheet.create({
     minHeight: sizes.touchTarget,
   },
   rowPressed: { opacity: 0.6 },
-  rowIcon: { width: 20, textAlign: 'center' },
+  rowIcon: { width: ms(20), textAlign: 'center' },
   rowLabel: { flex: 1, fontSize: sizes.fontSm, ...font.medium },
 });

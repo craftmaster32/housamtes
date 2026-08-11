@@ -1,0 +1,235 @@
+<title>Bills flow v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:900px;margin:0 auto 24px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px;line-height:1.5}
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#7a8494}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.08);--fg1:#0F172A;--fg2:#64748B;--fg3:#94A3B8;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.10);--pos:#2F8550;--neg:#B84540}
+  .phone{width:346px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:52px 18px 26px}
+  .title{font-family:'Fraunces',Georgia,serif;font-size:29px;font-weight:600;letter-spacing:-.5px;line-height:1}
+  .sub{font-size:13px;color:var(--fg2);font-weight:500;margin:5px 0 18px}
+  .back{display:flex;align-items:center;gap:2px;color:var(--primary);font-size:15px;font-weight:600;margin-bottom:14px}
+  .rowb{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .edit{color:var(--primary);font-size:15px;font-weight:600}
+  svg{display:block}
+  .ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+  .lbl{font-size:13px;font-weight:600;color:var(--fg1);margin:0 0 7px}
+  .field{margin-bottom:15px}
+  .input{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:13px 14px;font-size:15px;color:var(--fg1);font-weight:500}
+  .input.ph{color:var(--fg3)}
+
+  /* amount hero */
+  .amtcard{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 18px 16px;margin-bottom:16px;box-shadow:0 2px 10px rgba(15,23,42,.05)}
+  .amtcard .k{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fg3)}
+  .amt{display:flex;align-items:baseline;gap:6px;margin-top:8px}
+  .amt .cur{font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:var(--fg2)}
+  .amt .big{font-family:'Fraunces',serif;font-size:46px;font-weight:600;letter-spacing:-1px;line-height:1;font-variant-numeric:tabular-nums}
+  .amt .dec{font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:var(--fg2)}
+
+  /* avatar chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .ava{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex:none}
+  .pchip{display:flex;align-items:center;gap:8px;padding:6px 13px 6px 6px;border-radius:100px;border:1.5px solid var(--border);background:var(--surface);font-size:14px;font-weight:600;color:var(--fg1)}
+  .pchip.on{border-color:var(--primary);background:var(--primary-tint);color:var(--primary)}
+  .pchip .ck{margin-left:2px;color:var(--primary)}
+
+  /* segmented */
+  .seg{display:flex;background:var(--surface2);border-radius:12px;padding:4px;gap:4px;margin-bottom:12px}
+  .seg span{flex:1;text-align:center;font-size:13px;font-weight:600;color:var(--fg2);padding:8px 0;border-radius:9px}
+  .seg span.on{background:var(--surface);color:var(--primary);box-shadow:0 1px 4px rgba(15,23,42,.10)}
+  .prev{background:var(--primary-tint);border-radius:13px;padding:12px;text-align:center;color:var(--primary);font-weight:700;font-size:15px}
+
+  /* category chips */
+  .cats{display:flex;gap:8px;overflow:hidden}
+  .cat{display:flex;align-items:center;gap:6px;padding:9px 13px;border-radius:100px;border:1.5px solid rgba(59,111,191,.34);background:rgba(59,111,191,.06);color:var(--primary);font-size:13px;font-weight:600;white-space:nowrap}
+  .cat.on{background:var(--primary);border-color:var(--primary);color:#fff}
+  .cat .ic{width:15px;height:15px}
+
+  .daterow{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:13px 14px}
+  .daterow .t{flex:1;font-size:15px;font-weight:500}
+
+  .save{background:var(--primary);color:#fff;border-radius:15px;padding:16px;text-align:center;font-size:16px;font-weight:700;margin-top:6px;box-shadow:0 8px 20px rgba(59,111,191,.30)}
+
+  /* detail hero */
+  .hero{border-radius:22px;padding:22px;background:linear-gradient(135deg,#4A84D0,#274F99);box-shadow:0 14px 30px rgba(41,82,160,.34);position:relative;overflow:hidden}
+  .hero:after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:rgba(255,255,255,.18)}
+  .hero .ht{font-size:15px;font-weight:600;color:rgba(255,255,255,.85)}
+  .hero .ha{display:flex;align-items:baseline;gap:5px;margin-top:6px;color:#fff}
+  .hero .ha .cur{font-family:'Fraunces',serif;font-size:24px;font-weight:600;opacity:.9}
+  .hero .ha .big{font-family:'Fraunces',serif;font-size:44px;font-weight:600;letter-spacing:-1px;line-height:1;font-variant-numeric:tabular-nums}
+  .hero .ha .dec{font-family:'Fraunces',serif;font-size:24px;font-weight:600;opacity:.85}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:16px 17px;box-shadow:0 2px 10px rgba(15,23,42,.05)}
+  .meta{display:flex;align-items:center;justify-content:space-between;padding:9px 0}
+  .meta+.meta{border-top:1px solid var(--border)}
+  .meta .k{color:var(--fg2);font-size:14px;display:flex;align-items:center;gap:8px}
+  .meta .v{color:var(--fg1);font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .catpill{width:30px;height:30px;border-radius:9px;background:var(--primary-tint);display:flex;align-items:center;justify-content:center;color:var(--primary)}
+  .sect{font-family:'Fraunces',serif;font-size:18px;font-weight:600;margin:0 0 10px}
+  .splitrow{display:flex;align-items:center;gap:11px;padding:8px 0}
+  .splitrow .nm{flex:1;font-size:15px;font-weight:500}
+  .splitrow .am{font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums}
+  .del{border:1.5px solid rgba(184,69,64,.4);color:var(--neg);border-radius:15px;padding:15px;text-align:center;font-weight:700;font-size:15px}
+  .status{display:flex;align-items:center;gap:7px;background:rgba(47,133,80,.12);color:var(--pos);border-radius:100px;padding:9px 14px;font-size:13px;font-weight:600;margin-bottom:14px}
+
+  /* setup */
+  .invite{border-radius:22px;padding:22px;background:linear-gradient(135deg,#4A84D0,#274F99);text-align:center;box-shadow:0 14px 30px rgba(41,82,160,.30)}
+  .invite .k{font-size:11px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,.7)}
+  .invite .code{font-family:'Fraunces',serif;font-size:38px;font-weight:600;letter-spacing:8px;color:#fff;margin:8px 0 6px}
+  .invite .h{font-size:12.5px;color:rgba(255,255,255,.8);line-height:1.5;margin-bottom:12px}
+  .invite .cp{display:inline-block;background:rgba(255,255,255,.22);color:#fff;font-weight:600;font-size:14px;padding:9px 22px;border-radius:100px}
+  .seclbl{font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fg2);margin:18px 0 9px}
+  .mlist{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .mrow{display:flex;align-items:center;gap:12px;padding:13px 14px}
+  .mrow+.mrow{border-top:1px solid var(--border)}
+  .ava44{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;font-weight:700;flex:none}
+  .mrow .nm{font-size:16px;font-weight:600}
+  .mrow .yu{font-size:13px;color:var(--fg2);margin-top:1px}
+  .rm{margin-left:auto;color:var(--neg);font-weight:600;font-size:14px}
+  .former{display:flex;flex-wrap:wrap;gap:8px}
+  .fchip{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:6px 13px;font-size:13px;font-weight:600;color:var(--fg2)}
+  .fdot{width:8px;height:8px;border-radius:50%}
+  .infobox{background:rgba(59,111,191,.07);border:1px solid rgba(59,111,191,.18);border-radius:13px;padding:13px;font-size:13px;color:var(--fg2);line-height:1.5;margin-top:14px}
+</style>
+
+<div class="head">
+  <h1>Bills flow — v2 redesign (proposed)</h1>
+  <p>Add expense · Bill detail · Housemates &amp; invites. Same data &amp; every control kept — restyled to the polished bar: Fraunces headings, an amount hero, avatar people-chips, a segmented split switch, and gradient heroes.</p>
+</div>
+
+<div class="stage">
+
+  <!-- ADD BILL -->
+  <div class="col">
+    <div class="cap">Add expense</div>
+    <div class="phone hm"><div class="notch"></div><div class="scr">
+      <div class="back"><svg class="ic" style="width:20px;height:20px"><path d="M13 15l-5-5 5-5"/></svg>Back</div>
+      <div class="title">New expense</div>
+      <div class="sub">Split it fairly in a couple taps</div>
+
+      <div class="amtcard">
+        <div class="k">Amount</div>
+        <div class="amt"><span class="cur">₪</span><span class="big">248</span><span class="dec">.00</span></div>
+      </div>
+
+      <div class="field">
+        <div class="lbl">What for</div>
+        <div class="input">Groceries — Friday shop</div>
+      </div>
+
+      <div class="field">
+        <div class="lbl">Who paid</div>
+        <div class="chips">
+          <div class="pchip on"><span class="ava" style="background:#3B6FBF">L</span>Lior (me)<span class="ck"><svg class="ic" style="width:15px;height:15px"><path d="M4 10l4 4 8-9"/></svg></span></div>
+          <div class="pchip"><span class="ava" style="background:#E0B24D">M</span>Maya</div>
+          <div class="pchip"><span class="ava" style="background:#4FB071">S</span>Sam</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="lbl">Split between</div>
+        <div class="chips">
+          <div class="pchip on"><span class="ava" style="background:#3B6FBF">L</span>Lior<span class="ck"><svg class="ic" style="width:15px;height:15px"><path d="M4 10l4 4 8-9"/></svg></span></div>
+          <div class="pchip on"><span class="ava" style="background:#E0B24D">M</span>Maya<span class="ck"><svg class="ic" style="width:15px;height:15px"><path d="M4 10l4 4 8-9"/></svg></span></div>
+          <div class="pchip on"><span class="ava" style="background:#4FB071">S</span>Sam<span class="ck"><svg class="ic" style="width:15px;height:15px"><path d="M4 10l4 4 8-9"/></svg></span></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="lbl">How to split</div>
+        <div class="seg"><span class="on">Equal</span><span>Custom</span><span>Percent</span></div>
+        <div class="prev">₪82.67 per person</div>
+      </div>
+
+      <div class="field">
+        <div class="lbl">Category</div>
+        <div class="cats">
+          <div class="cat on"><svg class="ic"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 002 1.6h9.7a2 2 0 002-1.6L23 6H6"/></svg>Groceries</div>
+          <div class="cat"><svg class="ic"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Rent</div>
+          <div class="cat"><svg class="ic"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>Utilities</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="lbl">Date</div>
+        <div class="daterow"><svg class="ic" style="color:var(--primary)"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg><span class="t">Fri, Jul 25, 2025</span><svg class="ic" style="width:15px;height:15px;color:var(--fg2)"><path d="M5 8l5 5 5-5"/></svg></div>
+      </div>
+
+      <div class="save">Save expense</div>
+    </div></div>
+  </div>
+
+  <!-- BILL DETAIL -->
+  <div class="col">
+    <div class="cap">Bill detail</div>
+    <div class="phone hm"><div class="notch"></div><div class="scr">
+      <div class="rowb">
+        <div class="back" style="margin:0"><svg class="ic" style="width:20px;height:20px"><path d="M13 15l-5-5 5-5"/></svg>Back</div>
+        <div class="edit">Edit</div>
+      </div>
+
+      <div class="hero">
+        <div class="ht">Groceries — Friday shop</div>
+        <div class="ha"><span class="cur">₪</span><span class="big">248</span><span class="dec">.00</span></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="meta"><span class="k">Category</span><span class="v"><span class="catpill"><svg class="ic" style="width:16px;height:16px"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 002 1.6h9.7a2 2 0 002-1.6L23 6H6"/></svg></span>Groceries</span></div>
+        <div class="meta"><span class="k">Date</span><span class="v">Fri, Jul 25, 2025</span></div>
+        <div class="meta"><span class="k">Paid by</span><span class="v"><span class="ava" style="background:#3B6FBF">L</span>Lior</span></div>
+        <div class="meta"><span class="k">Notes</span><span class="v" style="color:var(--fg2);font-weight:500">Weekly shop</span></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="sect">Split breakdown</div>
+        <div style="font-size:13px;color:var(--fg2);margin-bottom:4px">Total ₪248.00 · equal between 3</div>
+        <div class="splitrow"><span class="ava" style="background:#3B6FBF">L</span><span class="nm">Lior</span><span class="am">₪82.67</span></div>
+        <div class="splitrow"><span class="ava" style="background:#E0B24D">M</span><span class="nm">Maya</span><span class="am">₪82.67</span></div>
+        <div class="splitrow"><span class="ava" style="background:#4FB071">S</span><span class="nm">Sam</span><span class="am">₪82.66</span></div>
+      </div>
+
+      <div class="del" style="margin-top:14px">Delete bill</div>
+    </div></div>
+  </div>
+
+  <!-- SETUP / HOUSEMATES -->
+  <div class="col">
+    <div class="cap">Housemates &amp; invite</div>
+    <div class="phone hm"><div class="notch"></div><div class="scr">
+      <div class="title">Housemates</div>
+      <div class="sub">Flat 4B · Rothschild</div>
+
+      <div class="invite">
+        <div class="k">INVITE CODE</div>
+        <div class="code">7K2Q9</div>
+        <div class="h">Share this code so a housemate can join your place</div>
+        <div class="cp">Copy code</div>
+      </div>
+
+      <div class="seclbl">Members (3)</div>
+      <div class="mlist">
+        <div class="mrow"><span class="ava44" style="background:#3B6FBF">L</span><div><div class="nm">Lior</div><div class="yu">That's you</div></div></div>
+        <div class="mrow"><span class="ava44" style="background:#E0B24D">M</span><div><div class="nm">Maya</div></div><span class="rm">Remove</span></div>
+        <div class="mrow"><span class="ava44" style="background:#4FB071">S</span><div><div class="nm">Sam</div></div><span class="rm">Remove</span></div>
+      </div>
+
+      <div class="seclbl">Who's left</div>
+      <div class="former">
+        <div class="fchip"><span class="fdot" style="background:#AF52DE"></span>Dana (left)</div>
+      </div>
+
+      <div class="infobox">To join a place, open the app, tap “Join a house”, and enter the 5-character invite code.</div>
+    </div></div>
+  </div>
+
+</div>

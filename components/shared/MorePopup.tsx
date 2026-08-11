@@ -19,6 +19,7 @@ import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+import { mf, ms } from '@utils/responsive';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 const webFixedOverlay = { position: 'fixed' } as unknown as ViewStyle;
 
@@ -27,56 +28,59 @@ interface NavItem {
   iconActive: IoniconName;
   labelKey: string;
   route: string;
+  color: string;
   featureKey?: string;
   badgeKey?: BadgeFeature;
 }
 
+// Each feature gets its own accent (like the dashboard tiles) instead of every
+// icon sharing the blue primary — makes the grid easier to scan. Fixed hues
+// that read well on both the cream and navy surfaces.
 const POPUP_NAV: NavItem[] = [
   {
     icon: 'cart-outline',
     iconActive: 'cart',
     labelKey: 'nav.grocery',
     route: '/(tabs)/grocery',
+    color: '#E8892B',
     featureKey: 'grocery',
-  },
-  {
-    icon: 'checkmark-done-outline',
-    iconActive: 'checkmark-done',
-    labelKey: 'nav.chores',
-    route: '/(tabs)/chores',
-    featureKey: 'chores',
   },
   {
     icon: 'calendar-outline',
     iconActive: 'calendar',
     labelKey: 'nav.calendar',
     route: '/(tabs)/calendar',
+    color: '#3B6FBF',
   },
-  { icon: 'images-outline', iconActive: 'images', labelKey: 'nav.photos', route: '/(tabs)/photos' },
-  // Housemates are managed inside the bills/setup flow by design — no dedicated route exists.
   {
-    icon: 'people-outline',
-    iconActive: 'people',
-    labelKey: 'nav.housemates',
-    route: '/(tabs)/bills/setup',
+    icon: 'images-outline',
+    iconActive: 'images',
+    labelKey: 'nav.photos',
+    route: '/(tabs)/photos',
+    color: '#AF52DE',
   },
+  // Housemates intentionally omitted here — they're managed under Settings, so
+  // surfacing them in this menu too was redundant.
   {
     icon: 'list-outline',
     iconActive: 'list',
     labelKey: 'nav.tasks',
     route: '/(tabs)/tasks',
+    color: '#2FA37A',
   },
   {
     icon: 'clipboard-outline',
     iconActive: 'clipboard',
     labelKey: 'nav.notes',
     route: '/(tabs)/notes',
+    color: '#D9A414',
   },
   {
     icon: 'hand-left-outline',
     iconActive: 'hand-left',
     labelKey: 'nav.votes',
     route: '/(tabs)/voting',
+    color: '#EC5A8D',
     featureKey: 'voting',
   },
   {
@@ -84,6 +88,7 @@ const POPUP_NAV: NavItem[] = [
     iconActive: 'construct',
     labelKey: 'nav.property',
     route: '/(tabs)/property',
+    color: '#12A594',
     featureKey: 'maintenance',
   },
 ];
@@ -210,7 +215,7 @@ export function MorePopup(): React.JSX.Element {
               onPress={handleClose}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Close menu"
+              accessibilityLabel={t('common.close')}
             />
           </Animated.View>
 
@@ -250,8 +255,8 @@ export function MorePopup(): React.JSX.Element {
                     accessibilityLabel={t(item.labelKey)}
                     accessibilityState={{ disabled: false }}
                   >
-                    <View style={[styles.iconWrap, { backgroundColor: c.primary + '14' }]}>
-                      <Ionicons name={item.icon} size={22} color={c.primary} />
+                    <View style={[styles.iconWrap, { backgroundColor: item.color + '1F' }]}>
+                      <Ionicons name={item.icon} size={22} color={item.color} />
                       {count > 0 && (
                         <View style={[styles.badge, { backgroundColor: c.danger }]}>
                           <Text style={[styles.badgeText, { color: c.white }]}>
@@ -293,13 +298,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.md,
     paddingTop: sizes.xs,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: ms(-4) },
     shadowOpacity: 0.18,
     shadowRadius: 16,
     elevation: 24,
   },
   handleWrap: { alignItems: 'center', paddingVertical: sizes.sm },
-  handle: { width: 36, height: 4, borderRadius: 2 },
+  handle: { width: ms(36), height: ms(4), borderRadius: ms(2) },
   sectionLabel: {
     fontSize: sizes.fontXxs,
     ...font.semibold,
@@ -317,8 +322,8 @@ const styles = StyleSheet.create({
   },
   gridItemPressed: { opacity: 0.65 },
   iconWrap: {
-    width: 52,
-    height: 52,
+    width: ms(52),
+    height: ms(52),
     borderRadius: sizes.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
@@ -326,15 +331,15 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: -4,
-    end: -4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    top: ms(-4),
+    end: ms(-4),
+    minWidth: ms(16),
+    height: ms(16),
+    borderRadius: ms(8),
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 3,
+    paddingHorizontal: ms(3),
   },
-  badgeText: { fontSize: 9, ...font.bold },
+  badgeText: { fontSize: mf(9), ...font.bold },
   gridLabel: { fontSize: sizes.fontXs, ...font.semibold, textAlign: 'center' },
 });

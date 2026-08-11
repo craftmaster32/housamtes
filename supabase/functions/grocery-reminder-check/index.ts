@@ -4,6 +4,8 @@
 // notification to the person who set them, then marks them sent.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { groceryReminderTitle, normalizeLang, type Lang } from '../_shared/notificationCopy.ts';
+import { assertCronAuthorized } from '../_shared/cronAuth.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const PUSH_TIMEOUT_MS = 5000;
@@ -33,7 +35,9 @@ async function sendPushWithRetry(messages: unknown[]): Promise<boolean> {
   return false;
 }
 
-Deno.serve(async (_req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
+  const denied = assertCronAuthorized(req);
+  if (denied) return denied;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
 
@@ -79,7 +83,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
     const userIds = [...new Set(typedReminders.map((r) => r.user_id))];
     const { data: tokenRows, error: tokenError } = await supabase
       .from('push_tokens')
-      .select('token, user_id, house_id')
+      .select('token, user_id, house_id, language')
       .in('user_id', userIds);
 
     if (tokenError) {
@@ -101,15 +105,16 @@ Deno.serve(async (_req: Request): Promise<Response> => {
       return new Response(JSON.stringify({ error: tokenError.message }), { status: 500 });
     }
 
-    const tokensByUser = new Map<string, string[]>();
+    const tokensByUser = new Map<string, Array<{ token: string; language: Lang }>>();
     for (const row of (tokenRows ?? []) as Array<{
       token: string;
       user_id: string;
       house_id: string;
+      language?: string;
     }>) {
       const key = `${row.user_id}:${row.house_id}`;
       const list = tokensByUser.get(key) ?? [];
-      list.push(row.token);
+      list.push({ token: row.token, language: normalizeLang(row.language) });
       tokensByUser.set(key, list);
     }
 
@@ -118,13 +123,13 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
     for (const reminder of typedReminders) {
       const tokens = (tokensByUser.get(`${reminder.user_id}:${reminder.house_id}`) ?? []).filter(
-        Boolean
+        (r) => Boolean(r.token)
       );
       if (tokens.length === 0) continue;
 
-      const messages = tokens.map((to: string) => ({
-        to,
-        title: '🛒 Grocery reminder',
+      const messages = tokens.map(({ token, language }) => ({
+        to: token,
+        title: groceryReminderTitle(language),
         body: reminder.label,
         sound: 'default',
         data: { screen: 'grocery' },

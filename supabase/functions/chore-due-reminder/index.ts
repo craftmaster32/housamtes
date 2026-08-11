@@ -9,6 +9,8 @@
 // toggle). Unassigned chores are skipped — there is nobody to remind.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { choreDueCopy, normalizeLang } from '../_shared/notificationCopy.ts';
+import { assertCronAuthorized } from '../_shared/cronAuth.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -83,7 +85,9 @@ interface ChoreRow {
   recurrence_day: string | null;
 }
 
-Deno.serve(async (_req: Request): Promise<Response> => {
+Deno.serve(async (req: Request): Promise<Response> => {
+  const denied = assertCronAuthorized(req);
+  if (denied) return denied;
   try {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -160,7 +164,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
       const { data: tokenRows, error: tokensError } = await supabase
         .from('push_tokens')
-        .select('token, user_id')
+        .select('token, user_id, language')
         .eq('house_id', houseId)
         .in('user_id', assigneeIds);
       if (tokensError || !tokenRows || tokenRows.length === 0) continue;
@@ -187,15 +191,19 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         if (count >= MAX_REMINDERS_PER_USER) continue;
         const tokens = tokenRows
           .filter((r: { user_id: string }) => r.user_id === assignee)
-          .map((r: { token: string }) => r.token)
-          .filter(Boolean) as string[];
+          .map((r: { token: string; language?: string }) => ({
+            token: r.token,
+            language: normalizeLang(r.language),
+          }))
+          .filter((r: { token: string }) => Boolean(r.token));
         if (tokens.length === 0) continue;
         remindersPerUser.set(assignee, count + 1);
-        for (const to of tokens) {
+        for (const { token, language } of tokens) {
+          const copy = choreDueCopy(language, { title: chore.title as string });
           messages.push({
-            to,
-            title: '🧹 Chore due today',
-            body: `"${chore.title}" is due today — it's on your list.`,
+            to: token,
+            title: copy.title,
+            body: copy.body,
             sound: 'default',
             data: { screen: 'chores' },
           });

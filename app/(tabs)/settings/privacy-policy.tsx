@@ -1,5 +1,5 @@
-import { useRef, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { useMemo, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,9 +8,11 @@ import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 
+import { mf, ms } from '@utils/responsive';
 function Section({ title, children }: { title: string; children: string }): React.JSX.Element {
   const C = useThemedColors();
   return (
@@ -26,8 +28,8 @@ function Section({ title, children }: { title: string; children: string }): Reac
 function sectionStyles(C: ColorTokens) {
   return StyleSheet.create({
     wrap: { gap: sizes.xs },
-    title: { fontSize: 15, ...font.bold, color: C.textPrimary },
-    body: { fontSize: 14, ...font.regular, color: C.textSecondary, lineHeight: 22 },
+    title: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
+    body: { fontSize: mf(14), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
   });
 }
 
@@ -37,11 +39,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const headingFont = useHeadingFont('bold');
 
   const handleBack = useCallback((): void => {
     router.back();
@@ -49,12 +47,12 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <View style={styles.header}>
           <Pressable
             onPress={handleBack}
             style={styles.backBtn}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={{ top: ms(12), bottom: ms(12), left: ms(12), right: ms(12) }}
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('legal.go_back')}
@@ -68,7 +66,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
               <Text style={styles.backText}>{t('common.back')}</Text>
             </View>
           </Pressable>
-          <Text style={styles.heading}>{t('legal.privacy_title')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('legal.privacy_title')}</Text>
           <Text style={styles.updated}>
             {t('legal.last_updated', { date: t('legal.legal_date') })}
           </Text>
@@ -150,15 +148,19 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
             {`We protect your data using industry-standard measures: TLS 1.2+ encryption in transit, AES-256 encryption at rest, row-level database security restricting access to your household only, and access controls enforced by Supabase's Row-Level Security (RLS).\n\nIsrael — Data Security Regulations 5777-2017: Our security measures are implemented in accordance with these regulations at the appropriate security classification level for the type of data we hold.\n\nData Breach Notification by jurisdiction:\n\n• GDPR (EEA / UK): we will notify the relevant supervisory authority within 72 hours of becoming aware of a breach likely to result in a risk to your rights and freedoms (GDPR Article 33), and notify affected users without undue delay where required (Article 34).\n\n• Australia — NDB Scheme: we will notify the OAIC and affected Australian users as soon as practicable after identifying an eligible data breach likely to result in serious harm under Part IIIC of the Privacy Act 1988.\n\n• Israel: we will notify affected Israeli users and, where required, the Privacy Protection Authority (PPA) and other relevant authorities in the event of a significant data security incident affecting Israeli users' personal information.\n\n• US state laws: we comply with all applicable state breach notification laws (including the New York SHIELD Act, California Civil Code § 1798.82, and equivalents in all other states). We notify affected individuals within the legally required timeframes (typically 30–72 hours for regulatory notification and 30–60 days for individual notification, depending on the applicable state law).\n\nDespite these measures, no system is 100% secure. If you believe your account has been compromised, change your password immediately and contact support@housemates.app.`}
           </Section>
 
-          <Section title="20. Changes to This Policy">
-            {`We may update this policy. When we make material changes, we will notify you through the app at least 14 days before the changes take effect. For significant changes affecting your rights (such as new data sharing), we will request your re-acceptance.\n\nThe "Last updated" date at the top of this page reflects the current version. Archived versions are available on request.`}
+          <Section title="20. Future Features — Advertising, Marketing & Analytics">
+            {`Today, HouseMates does not show advertisements, use advertising trackers, run behavioural or targeted advertising, sell or share your data, or send marketing messages. This section describes only what would happen if any of that changes in the future — it does not describe what we do now.\n\nAdvertising: If we introduce advertising, we will update this Privacy Policy and our App Store privacy disclosures before any ad appears. Any use of your device's advertising identifier, or any tracking of you across apps or websites, will be strictly opt-in through Apple's App Tracking Transparency prompt (and the equivalent controls on Android). We will not turn on targeted or behavioural advertising without clear advance notice and, where the law requires it, your prior consent.\n\nMarketing communications: If we start sending promotional or marketing emails or push notifications, they will be opt-in where required by law, clearly identified as marketing, and every marketing email will include a working unsubscribe link. Service messages you cannot opt out of — email verification, password resets, security alerts, receipts, and other messages needed to run your account — are not marketing and are unaffected.\n\nAnalytics: If we add product analytics to understand how features are used, we will favour privacy-respecting, aggregated, and de-identified analytics, name the provider in Section 6, and update this policy. We will not use analytics to build advertising profiles about you.\n\nPaid features: If we introduce optional paid ("Premium") features, payments will be handled entirely by the Apple App Store or Google Play Store. We will never receive or store your payment card details. See the Terms of Service for the commercial terms.\n\nWhenever we introduce a materially new use of your personal information under this section, we will follow the notice and re-acceptance process in Section 21 (Changes to This Policy).`}
           </Section>
 
-          <Section title="21. Contact Us">
+          <Section title="21. Changes to This Policy">
+            {`We may update this policy. When we make material changes, we will notify you through the app at least 14 days before the changes take effect. For significant changes affecting your rights (such as new data sharing, advertising, or marketing), we will request your re-acceptance.\n\nThe "Last updated" date at the top of this page reflects the current version. Archived versions are available on request.`}
+          </Section>
+
+          <Section title="22. Contact Us">
             {`HouseMates\n\nPrivacy enquiries: privacy@housemates.app\nSafety / content reporting: safety@housemates.app\nCopyright / DMCA: legal@housemates.app\nGeneral support: support@housemates.app\n\nRegulatory contacts for complaints:\n• Australia — OAIC: oaic.gov.au/privacy/privacy-complaints\n• Israel — Privacy Protection Authority (PPA): gov.il/en/departments/the_privacy_protection_authority — phone *9170\n• UK — ICO: ico.org.uk\n• EU — your national data protection authority\n• US — your state Attorney General\n\nWe aim to respond to all privacy enquiries within 5 business days.`}
           </Section>
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -167,12 +169,12 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    header: { padding: sizes.lg, gap: 4 },
+    header: { padding: sizes.lg, gap: ms(4) },
     backBtn: { marginBottom: sizes.sm },
     backRow: { flexDirection: 'row', alignItems: 'center' },
-    backText: { color: C.primary, fontSize: 15, ...font.medium },
-    heading: { fontSize: 24, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
-    updated: { color: C.textSecondary, fontSize: 13, ...font.regular },
+    backText: { color: C.primary, fontSize: mf(15), ...font.medium },
+    heading: { fontSize: mf(24), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.3 },
+    updated: { color: C.textSecondary, fontSize: mf(13), ...font.regular },
     content: { paddingHorizontal: sizes.lg, paddingBottom: sizes.xxl, gap: sizes.lg },
   });
 }

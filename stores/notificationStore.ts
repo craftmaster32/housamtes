@@ -4,6 +4,7 @@ import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 
 export type BillDueDays = 1 | 2 | 3 | 7;
+export type EventReminderDays = 0 | 1 | 2 | 3 | 7;
 
 export interface NotificationPrefs {
   notifyBillAdded: boolean;
@@ -16,6 +17,10 @@ export interface NotificationPrefs {
   notifyChatMessage: boolean;
   notifyGroceryShared: boolean;
   notifyTaskAssigned: boolean;
+  notifyEventAdded: boolean;
+  notifyEventReminder: boolean;
+  eventReminderDaysBefore: EventReminderDays;
+  notifyDailyJoke: boolean;
 }
 
 const DEFAULT_PREFS: NotificationPrefs = {
@@ -29,6 +34,10 @@ const DEFAULT_PREFS: NotificationPrefs = {
   notifyChatMessage: true,
   notifyGroceryShared: true,
   notifyTaskAssigned: true,
+  notifyEventAdded: true,
+  notifyEventReminder: true,
+  eventReminderDaysBefore: 1,
+  notifyDailyJoke: true,
 };
 
 interface NotificationStore {
@@ -52,6 +61,10 @@ function rowToPrefs(row: Record<string, unknown>): NotificationPrefs {
     notifyChatMessage: (row.notify_chat_message ?? true) as boolean,
     notifyGroceryShared: (row.notify_grocery_shared ?? true) as boolean,
     notifyTaskAssigned: (row.notify_task_assigned ?? true) as boolean,
+    notifyEventAdded: (row.notify_event_added ?? true) as boolean,
+    notifyEventReminder: (row.notify_event_reminder ?? true) as boolean,
+    eventReminderDaysBefore: (row.event_reminder_days_before ?? 1) as EventReminderDays,
+    notifyDailyJoke: (row.notify_daily_joke ?? true) as boolean,
   };
 }
 
@@ -70,6 +83,12 @@ function prefsToRow(prefs: Partial<NotificationPrefs>): Record<string, unknown> 
   if (prefs.notifyGroceryShared !== undefined)
     row.notify_grocery_shared = prefs.notifyGroceryShared;
   if (prefs.notifyTaskAssigned !== undefined) row.notify_task_assigned = prefs.notifyTaskAssigned;
+  if (prefs.notifyEventAdded !== undefined) row.notify_event_added = prefs.notifyEventAdded;
+  if (prefs.notifyEventReminder !== undefined)
+    row.notify_event_reminder = prefs.notifyEventReminder;
+  if (prefs.eventReminderDaysBefore !== undefined)
+    row.event_reminder_days_before = prefs.eventReminderDaysBefore;
+  if (prefs.notifyDailyJoke !== undefined) row.notify_daily_joke = prefs.notifyDailyJoke;
   return row;
 }
 

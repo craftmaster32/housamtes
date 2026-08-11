@@ -15,14 +15,23 @@ import { isRTL } from '@lib/i18n';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
-// Routes where the TopBar is hidden (these screens manage their own headers)
-const MAIN_TAB_ROUTES = [
-  '/dashboard', '/bills', '/parking', '/grocery',
-  '/chores', '/profile', '/calendar', '/voting', '/photos', '/property',
+import { mf, ms } from '@utils/responsive';
+// The redesign gave almost every screen its own header + back button, so the
+// shared TopBar is now only needed on the handful of legacy screens that still
+// lack one. Showing it anywhere else produced a duplicate ("two back buttons").
+// Keep this list in sync as those screens get their own headers.
+const LEGACY_TOPBAR_ROUTES = [
+  '/bills/setup',
+  '/tasks',
+  '/notes',
+  '/condition',
+  '/maintenance',
+  '/settings/members',
+  '/settings/categories',
 ];
 
-function isMainTabRoute(pathname: string): boolean {
-  return MAIN_TAB_ROUTES.some((r) => pathname.endsWith(r) || pathname.includes(`${r}/index`));
+function needsTopBar(pathname: string): boolean {
+  return LEGACY_TOPBAR_ROUTES.some((r) => pathname.endsWith(r) || pathname.includes(`${r}/index`));
 }
 
 interface TopBarProps {
@@ -33,10 +42,10 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
   const isRTLMode = isRTL(language);
-  const c        = useColors();
-  const insets   = useSafeAreaInsets();
+  const c = useColors();
+  const insets = useSafeAreaInsets();
   const openProfile = useProfilePopupStore((s) => s.open);
-  const profile     = useAuthStore((s) => s.profile);
+  const profile = useAuthStore((s) => s.profile);
   const pathname = usePathname();
 
   const handleBack = useCallback((): void => {
@@ -47,11 +56,11 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
 
   const handleProfilePress = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    openProfile();
+    openProfile('end'); // avatar sits on the trailing edge of this bar
   }, [openProfile]);
 
-  // Hide on main tab screens — each screen handles its own header
-  if (isMainTabRoute(pathname)) return null;
+  // Only the legacy screens without their own header still get the shared bar.
+  if (!needsTopBar(pathname)) return null;
 
   const initial = profile?.name ? profile.name[0].toUpperCase() : '?';
 
@@ -80,7 +89,11 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
         accessibilityRole="button"
         accessibilityLabel={t('common.back')}
       >
-        <Ionicons name={isRTLMode ? 'chevron-forward' : 'chevron-back'} size={24} color={c.primary} />
+        <Ionicons
+          name={isRTLMode ? 'chevron-forward' : 'chevron-back'}
+          size={24}
+          color={c.primary}
+        />
       </Pressable>
 
       <Text style={[styles.appName, { color: c.primary }]}>HouseMates</Text>
@@ -93,11 +106,25 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
         accessibilityRole="button"
         accessibilityLabel={t('dashboard.open_profile')}
       >
-        <View style={[styles.avatar, { backgroundColor: profile?.avatarUrl ? 'transparent' : (profile?.avatarColor ?? c.primary) }]}>
-          {profile?.avatarUrl
-            ? <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} contentFit="cover" />
-            : <Text style={styles.avatarText}>{initial}</Text>
-          }
+        <View
+          style={[
+            styles.avatar,
+            {
+              backgroundColor: profile?.avatarUrl
+                ? 'transparent'
+                : (profile?.avatarColor ?? c.primary),
+            },
+          ]}
+        >
+          {profile?.avatarUrl ? (
+            <Image
+              source={{ uri: profile.avatarUrl }}
+              style={styles.avatarImg}
+              contentFit="cover"
+            />
+          ) : (
+            <Text style={styles.avatarText}>{initial}</Text>
+          )}
         </View>
       </Pressable>
     </Animated.View>
@@ -110,12 +137,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: sizes.sm,
     paddingHorizontal: sizes.md,
-    paddingBottom: 14,
+    paddingBottom: ms(14),
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   appName: {
     flex: 1,
-    fontSize: 20,
+    fontSize: mf(20),
     ...font.extrabold,
     letterSpacing: -0.8,
     textAlign: 'center',
@@ -127,13 +154,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: ms(34),
+    height: ms(34),
+    borderRadius: ms(17),
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  avatarImg: { width: 34, height: 34 },
-  avatarText: { color: '#fff', fontSize: 14, ...font.bold },
+  avatarImg: { width: ms(34), height: ms(34) },
+  avatarText: { color: '#fff', fontSize: mf(14), ...font.bold },
 });

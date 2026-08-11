@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
@@ -23,7 +24,11 @@ import {
   settleDebts,
   type Bill,
 } from '@stores/billsStore';
-import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
+import {
+  useRecurringBillsStore,
+  calculateFairness,
+  resolveBillIcon,
+} from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -32,13 +37,16 @@ import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useThemedColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
+import { Money } from '@components/shared/Money';
 import { Pill } from '@components/ui';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 type BillFilter = 'recurring' | 'one-off';
 
 interface RecurringPaymentRow {
@@ -186,7 +194,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
       accessibilityLabel={row.title}
     >
       <View style={[styles.billIconWrap, { backgroundColor: c.primary + '12' }]}>
-        <Text style={styles.recurringEmoji}>{row.icon}</Text>
+        <Ionicons name={resolveBillIcon(row.icon)} size={20} color={c.primary} />
       </View>
       <View style={styles.billInfo}>
         <Text style={[styles.billTitle, { color: c.textPrimary }]} numberOfLines={1}>
@@ -216,91 +224,21 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
   );
 }
 
-// ── Settle Up panel ───────────────────────────────────────────────────────────
-function SettleUpPanel(): React.JSX.Element {
-  const c = useThemedColors();
-  const { t } = useTranslation();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
-  const currencyCode = useSettingsStore((s) => s.currencyCode);
-  const bills = useBillsStore((s) => s.bills);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const memberName = useMemberName();
-  const avatarById = new Map(housemates.map((h) => [h.id, h.avatarUrl]));
-  const householdBills = useRecurringBillsStore((s) => s.bills);
-  const payments = useRecurringBillsStore((s) => s.payments);
-
-  const memberIds = housemates.map((h) => h.id);
-  const sharedNet = calculateAllNetBalances(bills.filter((b) => !b.settled));
-  const householdFairness = calculateFairness(householdBills, payments, memberIds);
-
-  const combined = new Map<string, number>(sharedNet);
-  for (const { person, balance } of householdFairness) {
-    combined.set(person, (combined.get(person) ?? 0) + balance);
-  }
-  const settlements = settleDebts(new Map(combined));
-
-  if (settlements.length === 0) {
-    return (
-      <View style={styles.settleAllGood}>
-        <Ionicons name="checkmark-circle" size={20} color={c.positive} />
-        <Text style={[styles.settleAllGoodText, { color: c.positive }]}>
-          {t('bills.everyone_settled')}
-        </Text>
-      </View>
-    );
-  }
-
+// ── Settle avatar (small, on-gradient) ──────────────────────────────────────────
+function SettleAvatar({ name, uri }: { name: string; uri?: string }): React.JSX.Element {
   return (
-    <View style={styles.settleList}>
-      {settlements.map((s, idx) => {
-        const fromName = memberName(s.from);
-        const toName = memberName(s.to);
-        return (
-          <View
-            key={idx}
-            style={[styles.settleRow, { backgroundColor: c.background, borderColor: c.border }]}
-          >
-            <View style={[styles.settleAvatar, { backgroundColor: c.primary + '22' }]}>
-              {avatarById.get(s.from) ? (
-                <Image
-                  source={{ uri: avatarById.get(s.from) }}
-                  style={styles.settleAvatarImg}
-                  contentFit="cover"
-                />
-              ) : (
-                <Text style={[styles.settleAvatarText, { color: c.primary }]}>
-                  {fromName[0]?.toUpperCase()}
-                </Text>
-              )}
-            </View>
-            <Text style={[styles.settleName, { color: c.textPrimary }]}>{fromName}</Text>
-            <Ionicons
-              name={rtl ? 'arrow-back' : 'arrow-forward'}
-              size={12}
-              color={c.textSecondary}
-              style={styles.settleArrow}
-            />
-            <View style={[styles.settleAvatar, { backgroundColor: c.primary + '22' }]}>
-              {avatarById.get(s.to) ? (
-                <Image
-                  source={{ uri: avatarById.get(s.to) }}
-                  style={styles.settleAvatarImg}
-                  contentFit="cover"
-                />
-              ) : (
-                <Text style={[styles.settleAvatarText, { color: c.primary }]}>
-                  {toName[0]?.toUpperCase()}
-                </Text>
-              )}
-            </View>
-            <Text style={[styles.settleName, { color: c.textPrimary }]}>{toName}</Text>
-            <Text style={[styles.settleAmt, { color: c.textPrimary }]}>
-              {formatFull(s.amount, currencyCode)}
-            </Text>
-          </View>
-        );
-      })}
+    <View style={styles.settleAv}>
+      {uri ? (
+        <Image
+          source={{ uri }}
+          style={styles.settleAvImg}
+          contentFit="cover"
+          accessible
+          accessibilityLabel={name}
+        />
+      ) : (
+        <Text style={styles.settleAvText}>{name[0]?.toUpperCase() ?? '?'}</Text>
+      )}
     </View>
   );
 }
@@ -309,6 +247,7 @@ function SettleUpPanel(): React.JSX.Element {
 export default function BillsScreen(): React.JSX.Element {
   const c = useThemedColors();
   const { t, i18n } = useTranslation();
+  const headingFont = useHeadingFont();
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
 
@@ -333,6 +272,13 @@ export default function BillsScreen(): React.JSX.Element {
     if (openRecurring === '1') setFilter('recurring');
   }, [openRecurring]);
   const [showSettle, setShowSettle] = useState(false);
+  // The balance card slides in once on first load. Toggling the one-off/recurring
+  // filter swaps the whole list tree, which would otherwise remount the card and
+  // replay that animation — read as a "jump". Gate it so it only plays once.
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    setEntered(true);
+  }, []);
 
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
@@ -353,6 +299,20 @@ export default function BillsScreen(): React.JSX.Element {
     .filter((b) => b.amount < 0)
     .reduce((s, b) => s + Math.abs(b.amount), 0);
   const netBalance = totalOwed - totalOwe;
+  const isOwed = netBalance >= 0;
+  // The hero's "all settled" state must reflect the current user's own position,
+  // not the whole house: two housemates can still owe each other while I'm square.
+  const iAmSettled = sharedBalances.length === 0;
+
+  // Fewest-transfer settlement plan for the whole house — powers the "Settle up"
+  // strip merged into the balance card.
+  const settlements = settleDebts(new Map(combinedNet));
+  const memberName = useMemberName();
+  const billsRtl = isRTL(i18n.language as never);
+  const avatarById = useMemo(
+    () => new Map(housemates.map((h) => [h.id, h.avatarUrl])),
+    [housemates]
+  );
 
   const billSections = useMemo(() => {
     // Merge one-off bills and logged recurring payments into one date-grouped history.
@@ -370,7 +330,7 @@ export default function BillsScreen(): React.JSX.Element {
           payment: {
             id: p.id,
             title: meta?.name ?? '',
-            icon: meta?.icon ?? '🧾',
+            icon: meta?.icon ?? 'receipt-outline',
             amount: p.amount,
             paidBy: meta?.assignedTo ?? '',
             splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
@@ -438,28 +398,14 @@ export default function BillsScreen(): React.JSX.Element {
       style={[styles.topBar, isWide && styles.topBarWide]}
     >
       <View style={styles.pageHeader}>
-        <View>
-          <Text style={[styles.pageTitle, { color: c.textPrimary }]}>{t('bills.title')}</Text>
+        <View style={styles.pageHeaderText}>
+          <Text style={[styles.pageTitle, headingFont, { color: c.textPrimary }]} numberOfLines={1}>
+            {t('bills.title')}
+          </Text>
           <Text style={[styles.pageSubtitle, { color: c.textSecondary }]}>
             {t('bills.page_subtitle')}
           </Text>
         </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.addBtn,
-            {
-              backgroundColor: c.primary,
-              transform: [{ scale: pressed ? 0.96 : 1 }],
-              opacity: pressed ? 0.88 : 1,
-            },
-          ]}
-          onPress={() => router.push('/(tabs)/bills/add')}
-          accessibilityRole="button"
-          accessibilityLabel={t('bills.add_new_expense')}
-        >
-          <Ionicons name="add" size={18} color="#fff" />
-          <Text style={styles.addBtnText}>{t('bills.add_expense')}</Text>
-        </Pressable>
       </View>
 
       <View
@@ -528,106 +474,145 @@ export default function BillsScreen(): React.JSX.Element {
 
   const ListHeader = (
     <Animated.View
-      entering={FadeInDown.duration(400)}
+      entering={entered ? undefined : FadeInDown.duration(400)}
       style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}
     >
-      {/* ── Balance stats ────────────────────────────────────────── */}
-      <View style={[styles.balanceCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-        <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>
-            {t('bills.owed_to_you')}
-          </Text>
-          <Text
-            style={[styles.balanceStatNum, { color: totalOwed > 0 ? c.positive : c.textPrimary }]}
-          >
-            {formatFull(totalOwed, currencyCode)}
-          </Text>
-        </View>
-        <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
-        <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>
-            {t('bills.net_balance')}
-          </Text>
-          <Text
-            style={[
-              styles.balanceStatNum,
-              { color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textPrimary },
-            ]}
-          >
-            {netBalance > 0 ? '+' : ''}
-            {formatFull(Math.abs(netBalance), currencyCode)}
-          </Text>
-          <Text
-            style={[
-              styles.balanceStatTag,
-              {
-                color: netBalance > 0 ? c.positive : netBalance < 0 ? c.negative : c.textSecondary,
-              },
-            ]}
-          >
-            {netBalance > 0
-              ? t('bills.you_are_owed')
-              : netBalance < 0
-                ? t('bills.you_owe')
-                : t('bills.all_settled_tag')}
-          </Text>
-        </View>
-        <View style={[styles.balanceDivider, { backgroundColor: c.border }]} />
-        <View style={styles.balanceStat}>
-          <Text style={[styles.balanceStatLabel, { color: c.textSecondary }]}>
-            {t('bills.you_owe')}
-          </Text>
-          <Text
-            style={[styles.balanceStatNum, { color: totalOwe > 0 ? c.negative : c.textPrimary }]}
-          >
-            {formatFull(totalOwe, currencyCode)}
-          </Text>
-        </View>
-      </View>
+      {/* ── Balance + settle (one merged card) ───────────────────── */}
+      <LinearGradient
+        colors={isOwed ? c.owedGradient : c.dangerGradient}
+        start={{ x: 0.15, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
+        style={[styles.balanceCard, { shadowColor: isOwed ? c.owedShadow : c.dangerGradient[1] }]}
+      >
+        <View style={styles.balanceHighlight} />
+        <View style={styles.balanceDeco} pointerEvents="none" />
+        <View style={styles.balanceDecoSm} pointerEvents="none" />
 
-      {/* ── Settle Up collapsible ────────────────────────────────── */}
-      <View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.settleCard,
-            {
-              borderColor: showSettle ? c.positive + '60' : c.positive + '35',
-              backgroundColor: c.surface,
-            },
-            pressed && { opacity: 0.85 },
-          ]}
-          onPress={() => setShowSettle((v) => !v)}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel={t('bills.toggle_settle')}
-          accessibilityState={{ expanded: showSettle }}
-        >
-          <View style={styles.settleCardHeader}>
-            <View style={[styles.settleIconWrap, { backgroundColor: c.positive + '18' }]}>
-              <Ionicons name="swap-horizontal-outline" size={16} color={c.positive} />
-            </View>
-            <Text style={[styles.settleCardTitle, { color: c.textPrimary }]}>
-              {t('bills.settle_up')}
+        <View style={styles.balanceTop}>
+          <View style={styles.flexShrink}>
+            <Text style={[styles.balanceLabel, styles.balanceOnHero]}>
+              {iAmSettled
+                ? t('bills.all_settled_tag')
+                : isOwed
+                  ? t('bills.you_are_owed')
+                  : t('bills.you_owe')}
             </Text>
-            <Text style={[styles.settleCardHint, { color: c.textSecondary }]}>
-              {showSettle ? t('bills.hide') : t('bills.see_transfers')}
-            </Text>
-            <Ionicons
-              name={showSettle ? 'chevron-up' : 'chevron-down'}
-              size={16}
-              color={c.textSecondary}
-            />
+            {iAmSettled ? (
+              <Text style={styles.balanceSettledSub}>{t('bills.everyone_settled')}</Text>
+            ) : (
+              <>
+                <Money
+                  amount={Math.abs(netBalance)}
+                  currencyCode={currencyCode}
+                  size={40}
+                  color="#fff"
+                  mutedColor="rgba(255,255,255,0.72)"
+                  style={styles.balanceBigAmt}
+                />
+                <Text style={styles.balanceSub}>
+                  {sharedBalances.length === 1
+                    ? t('bills.net_across', { count: sharedBalances.length })
+                    : t('bills.net_across_plural', { count: sharedBalances.length })}
+                </Text>
+              </>
+            )}
           </View>
-          {showSettle && (
-            <View style={styles.settleContent}>
-              <Text style={[styles.settleCardSub, { color: c.textSecondary }]}>
-                {t('bills.min_transfers')}
-              </Text>
-              <SettleUpPanel />
+          {iAmSettled ? (
+            <View style={styles.balanceCheck}>
+              <Ionicons name="checkmark" size={24} color="#fff" />
             </View>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.balanceAnalysis, pressed && { opacity: 0.85 }]}
+              onPress={() => router.push('/(tabs)/profile/spending')}
+              accessibilityRole="button"
+              accessibilityLabel={t('spending.view_spending')}
+            >
+              <Ionicons name="stats-chart-outline" size={20} color="#fff" />
+            </Pressable>
           )}
-        </Pressable>
-      </View>
+        </View>
+
+        {settlements.length > 0 && (
+          <View style={styles.settlePanel}>
+            <Pressable
+              style={({ pressed }) => [styles.settleStrip, pressed && { opacity: 0.85 }]}
+              onPress={() => setShowSettle((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={t('bills.toggle_settle')}
+              accessibilityState={{ expanded: showSettle }}
+            >
+              <View style={styles.settleStripIcon}>
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              </View>
+              <View style={styles.flexShrink}>
+                <Text style={styles.settleStripTitle}>{t('bills.settle_up')}</Text>
+                <Text style={styles.settleStripSub}>
+                  {showSettle
+                    ? t('bills.min_transfers')
+                    : settlements.length === 1
+                      ? t('bills.n_transfers', { count: settlements.length })
+                      : t('bills.n_transfers_plural', { count: settlements.length })}
+                </Text>
+              </View>
+              <Ionicons name={showSettle ? 'chevron-up' : 'chevron-down'} size={18} color="#fff" />
+            </Pressable>
+
+            {showSettle && (
+              <View style={styles.settleRows}>
+                {settlements.map((s, idx) => {
+                  const fromIsMe = s.from === myId;
+                  const toIsMe = s.to === myId;
+                  const fromName = memberName(s.from).split(' ')[0];
+                  const toName = memberName(s.to).split(' ')[0];
+                  const amtColor = toIsMe
+                    ? '#8FE0AC'
+                    : fromIsMe
+                      ? '#FF8478'
+                      : 'rgba(255,255,255,0.92)';
+                  return (
+                    <View key={idx} style={styles.settleXfer}>
+                      {fromIsMe ? (
+                        <View style={styles.youPill}>
+                          <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
+                        </View>
+                      ) : (
+                        <>
+                          <SettleAvatar name={fromName} uri={avatarById.get(s.from)} />
+                          <Text style={styles.settleXferName} numberOfLines={1}>
+                            {fromName}
+                          </Text>
+                        </>
+                      )}
+                      <Ionicons
+                        name={billsRtl ? 'arrow-back' : 'arrow-forward'}
+                        size={14}
+                        color="rgba(255,255,255,0.55)"
+                        style={styles.settleXferArrow}
+                      />
+                      {toIsMe ? (
+                        <View style={styles.youPill}>
+                          <Text style={styles.youPillText}>{t('bills.you_label')}</Text>
+                        </View>
+                      ) : (
+                        <>
+                          <SettleAvatar name={toName} uri={avatarById.get(s.to)} />
+                          <Text style={styles.settleXferName} numberOfLines={1}>
+                            {toName}
+                          </Text>
+                        </>
+                      )}
+                      <Text style={[styles.settleXferAmt, { color: amtColor }]}>
+                        {formatFull(s.amount, currencyCode)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+      </LinearGradient>
 
       {/* Recurring household bills */}
       {filter === 'recurring' && (
@@ -692,8 +677,8 @@ export default function BillsScreen(): React.JSX.Element {
             </Text>
           </View>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-        SectionSeparatorComponent={() => <View style={{ height: 4 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: ms(8) }} />}
+        SectionSeparatorComponent={() => <View style={{ height: ms(4) }} />}
         ListEmptyComponent={
           <EmptyState
             icon="receipt-outline"
@@ -710,123 +695,173 @@ export default function BillsScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: ms(20) },
   listContent: {
     paddingBottom: Platform.OS === 'web' ? sizes.bottomTabBarHeight : sizes.bottomTabContentPadding,
   },
 
-  topBar: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 4, gap: 12 },
-  topBarWide: { paddingHorizontal: 24 },
-  listHeaderWrap: { paddingHorizontal: 16, paddingTop: 12, gap: 14 },
-  listHeaderWrapWide: { paddingHorizontal: 24 },
+  topBar: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(4), gap: ms(12) },
+  topBarWide: { paddingHorizontal: ms(24) },
+  listHeaderWrap: { paddingHorizontal: ms(16), paddingTop: ms(12), gap: ms(14) },
+  listHeaderWrapWide: { paddingHorizontal: ms(24) },
 
   // ── Page header
   pageHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: ms(12),
   },
-  pageTitle: { fontSize: 28, ...font.extrabold, letterSpacing: -0.8 },
-  pageSubtitle: { fontSize: 13, ...font.regular, marginTop: 2 },
-  addBtn: {
+  pageHeaderText: { flexShrink: 1, minWidth: 0 },
+  pageTitle: { fontSize: mf(28), ...font.extrabold, letterSpacing: -0.8 },
+  pageSubtitle: { fontSize: mf(13), ...font.regular, marginTop: ms(2) },
+
+  // ── Balance + settle (merged card)
+  balanceCard: {
+    borderRadius: ms(20),
+    padding: ms(20),
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: ms(14) },
+    shadowOpacity: 1,
+    shadowRadius: 26,
+    elevation: 9,
+  },
+  balanceHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: ms(1),
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  // Soft decorative circles behind the amount (clipped by the card's overflow).
+  balanceDeco: {
+    position: 'absolute',
+    top: ms(-34),
+    right: ms(-26),
+    width: ms(150),
+    height: ms(150),
+    borderRadius: ms(75),
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  balanceDecoSm: {
+    position: 'absolute',
+    top: ms(22),
+    right: ms(40),
+    width: ms(92),
+    height: ms(92),
+    borderRadius: ms(46),
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  balanceOnHero: { color: 'rgba(255,255,255,0.85)' },
+  balanceTop: { flexDirection: 'row', alignItems: 'flex-start', gap: ms(12) },
+  flexShrink: { flex: 1, minWidth: 0 },
+  balanceLabel: { fontSize: mf(12.5), ...font.semibold },
+  // Isolate money to LTR so digits/symbol don't bidi-reorder under Hebrew/RTL.
+  balanceBigAmt: { marginTop: ms(6), writingDirection: 'ltr' },
+  balanceSub: {
+    fontSize: mf(11.5),
+    ...font.medium,
+    color: 'rgba(255,255,255,0.78)',
+    marginTop: ms(6),
+  },
+  balanceSettledSub: {
+    fontSize: mf(13),
+    ...font.medium,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: ms(4),
+  },
+  balanceAnalysis: {
+    width: ms(46),
+    height: ms(46),
+    borderRadius: ms(15),
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  balanceCheck: {
+    width: ms(44),
+    height: ms(44),
+    borderRadius: ms(22),
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Settle section flush to the card's bottom edge. The "Settle up" header
+  // stays on the gradient (same colour as the amount above); only the expanded
+  // transfer rows sit on a lighter tint, so the data reads as its own panel.
+  settlePanel: {
+    marginTop: ms(16),
+    marginHorizontal: ms(-20),
+    marginBottom: ms(-20),
+  },
+  settleStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    shadowColor: '#4F78B6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 6,
+    gap: ms(11),
+    paddingHorizontal: ms(20),
+    paddingVertical: ms(13),
   },
-  addBtnText: { fontSize: 14, ...font.semibold, color: '#fff' },
-
-  // ── Balance card
-  balanceCard: {
+  settleRows: { backgroundColor: 'rgba(255,255,255,0.1)' },
+  settleStripIcon: {
+    width: ms(30),
+    height: ms(30),
+    borderRadius: ms(10),
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settleStripTitle: { fontSize: mf(14), ...font.bold, color: '#fff' },
+  settleStripSub: {
+    fontSize: mf(11.5),
+    ...font.medium,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: ms(1),
+  },
+  settleXfer: {
     flexDirection: 'row',
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 20,
-    alignItems: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    alignItems: 'center',
+    gap: ms(8),
+    paddingHorizontal: ms(20),
+    paddingVertical: ms(11),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
-  balanceStat: { flex: 1, alignItems: 'center', gap: 3 },
-  balanceDivider: { width: 1, height: 52, alignSelf: 'center' },
-  balanceStatLabel: { fontSize: 12, ...font.medium, textAlign: 'center' },
-  // RNP's Text forces writingDirection from I18nManager; isolate to LTR so the +/- sign
-  // doesn't get bidi-reordered to the wrong side of the amount under Hebrew/RTL.
-  balanceStatNum: {
-    fontSize: 22,
+  settleXferName: { fontSize: mf(13), ...font.bold, color: '#fff', maxWidth: ms(74) },
+  settleXferArrow: { marginHorizontal: ms(1) },
+  settleXferAmt: {
+    marginStart: 'auto' as never,
+    fontSize: mf(14),
     ...font.extrabold,
-    letterSpacing: -0.5,
-    textAlign: 'center',
     writingDirection: 'ltr',
   },
-  balanceStatTag: { fontSize: 11, ...font.semibold, textAlign: 'center' },
-
-  // ── Settle card
-  settleCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  settleCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  settleIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
+  settleAv: {
+    width: ms(26),
+    height: ms(26),
+    borderRadius: ms(13),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  settleCardTitle: { flex: 1, fontSize: 15, ...font.semibold },
-  settleCardHint: { fontSize: 13, ...font.regular },
-  settleContent: { marginTop: 12, gap: 10 },
-  settleCardSub: { fontSize: 13, ...font.regular, lineHeight: 18 },
-
-  settleAllGood: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  settleAllGoodText: { fontSize: 14, ...font.semibold },
-  settleList: { gap: 8 },
-  settleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-  },
-  settleAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
     overflow: 'hidden',
   },
-  settleAvatarImg: { width: 28, height: 28 },
-  settleAvatarText: { fontSize: 12, ...font.bold },
-  settleName: { fontSize: 13, ...font.semibold },
-  settleArrow: { marginHorizontal: 2 },
-  settleAmt: { marginStart: 'auto' as never, fontSize: 14, ...font.bold },
+  settleAvImg: { width: ms(26), height: ms(26) },
+  settleAvText: { fontSize: mf(11), ...font.bold, color: '#fff' },
+  youPill: {
+    paddingHorizontal: ms(11),
+    paddingVertical: ms(5),
+    borderRadius: 9999,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  youPillText: { fontSize: mf(12.5), ...font.bold, color: '#fff' },
 
   // ── Filter tabs
   filterRow: {
     flexDirection: 'row',
-    gap: 8,
-    borderRadius: 14,
-    padding: 4,
+    gap: ms(8),
+    borderRadius: ms(14),
+    padding: ms(4),
     borderWidth: 1,
   },
   filterTab: {
@@ -834,82 +869,101 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 11,
-    minHeight: 44,
+    gap: ms(6),
+    paddingVertical: ms(10),
+    borderRadius: ms(11),
+    minHeight: ms(44),
   },
-  filterTabText: { fontSize: 13, ...font.semibold },
+  filterTabText: { fontSize: mf(13), ...font.semibold },
   filterTabTextActive: { color: '#fff' },
   filterBadge: {
     backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    borderRadius: ms(8),
+    paddingHorizontal: ms(6),
+    paddingVertical: ms(1),
   },
-  filterBadgeText: { fontSize: 11, ...font.bold, color: '#fff' },
+  filterBadgeText: { fontSize: mf(11), ...font.bold, color: '#fff' },
 
-  householdWrap: { minHeight: 200 },
+  householdWrap: { minHeight: ms(200) },
 
   // ── One-off list header
-  listCountRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
-  eyebrow: { fontSize: 11, ...font.bold, letterSpacing: 0.8, textTransform: 'uppercase' },
+  listCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(8),
+    paddingHorizontal: ms(4),
+  },
+  eyebrow: { fontSize: mf(11), ...font.bold, letterSpacing: 0.8, textTransform: 'uppercase' },
   countPill: {
-    minHeight: 20,
-    paddingHorizontal: 8,
+    minHeight: ms(20),
+    paddingHorizontal: ms(8),
     borderRadius: 9999,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
   },
-  countPillText: { fontSize: 11, ...font.bold },
+  countPillText: { fontSize: mf(11), ...font.bold },
 
   // ── Date section header
-  sectionDateHeader: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
-  sectionDateText: { fontSize: 12, ...font.bold, textTransform: 'uppercase', letterSpacing: 0.7 },
+  sectionDateHeader: { paddingHorizontal: ms(20), paddingTop: ms(12), paddingBottom: ms(4) },
+  sectionDateText: {
+    fontSize: mf(12),
+    ...font.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
 
   // ── Bill row card
   billCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 14,
+    gap: ms(12),
+    paddingHorizontal: ms(14),
+    paddingVertical: ms(14),
+    borderRadius: ms(14),
     borderWidth: 1,
-    marginHorizontal: 16,
+    marginHorizontal: ms(16),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: ms(1) },
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
   },
   billIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: ms(42),
+    height: ms(42),
+    borderRadius: ms(12),
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
-  recurringEmoji: { fontSize: 20, lineHeight: 26 },
   billInfo: { flex: 1 },
-  billTitle: { fontSize: 15, ...font.semibold },
-  billMeta: { fontSize: 12, ...font.regular, marginTop: 2 },
-  settledBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, marginEnd: 4 },
-  settledBadgeText: { fontSize: 10, ...font.semibold },
-  billRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  billAmount: { fontSize: 16, ...font.bold },
+  billTitle: { fontSize: mf(15), ...font.semibold },
+  billMeta: { fontSize: mf(12), ...font.regular, marginTop: ms(2) },
+  settledBadge: {
+    paddingHorizontal: ms(7),
+    paddingVertical: ms(3),
+    borderRadius: ms(6),
+    marginEnd: ms(4),
+  },
+  settledBadgeText: { fontSize: mf(10), ...font.semibold },
+  billRight: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
+  billAmount: { fontSize: mf(16), ...font.bold },
 
   // ── Empty state
-  emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 10, paddingHorizontal: 24 },
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: ms(48),
+    gap: ms(10),
+    paddingHorizontal: ms(24),
+  },
   emptyIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: ms(72),
+    height: ms(72),
+    borderRadius: ms(36),
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyTitle: { fontSize: 16, ...font.bold },
-  emptyText: { fontSize: 14, ...font.regular, textAlign: 'center', lineHeight: 20 },
+  emptyTitle: { fontSize: mf(16), ...font.bold },
+  emptyText: { fontSize: mf(14), ...font.regular, textAlign: 'center', lineHeight: mf(20) },
 });

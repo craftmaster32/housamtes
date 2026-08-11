@@ -8,9 +8,10 @@ import {
   ActivityIndicator,
   Platform,
   Modal,
-  Animated,
   type GestureResponderEvent,
 } from 'react-native';
+import { Entrance } from '@components/shared/Entrance';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -30,12 +31,14 @@ import { SpendingCard } from '@components/profile/SpendingCard';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import type { Bill } from '@stores/billsStore';
 import type { Housemate } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 // ── Date helpers ───────────────────────────────────────────────────────────────
 function isSameDay(d: Date, ref: Date): boolean {
   return (
@@ -45,7 +48,10 @@ function isSameDay(d: Date, ref: Date): boolean {
   );
 }
 function billDayLabel(dateStr: string): 'today' | 'yesterday' | 'older' {
-  const d = new Date(dateStr);
+  // Parse the YMD bill date at LOCAL midnight. A bare `new Date('2026-08-10')`
+  // parses as UTC, so west-of-UTC users would see a bill dated today labelled
+  // "yesterday". Appending the time (matching the rest of the app) fixes that.
+  const d = new Date(`${dateStr}T00:00:00`);
   const now = new Date();
   if (isSameDay(d, now)) return 'today';
   const yesterday = new Date(now);
@@ -55,30 +61,6 @@ function billDayLabel(dateStr: string): 'today' | 'yesterday' | 'older' {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
-function QuickAction({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  label: string;
-  onPress: () => void;
-}): React.JSX.Element {
-  const C = useThemedColors();
-  const s = useMemo(() => makeStyles(C), [C]);
-  return (
-    <Pressable
-      style={({ pressed }) => [s.quickCard, pressed && s.quickCardPressed]}
-      onPress={onPress}
-      accessible
-      accessibilityRole="button"
-    >
-      <Ionicons name={icon} size={22} color={C.primary} />
-      <Text style={s.quickLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
 function ProfileRow({
   iconName,
   title,
@@ -147,6 +129,7 @@ function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JS
 }
 
 function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
   const splits = bill.splitBetween.length || 1;
@@ -159,20 +142,22 @@ function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): Rea
   return (
     <View style={s.activityItem}>
       <View style={[s.activityIcon, { backgroundColor: meta.color + '20' }]}>
-        <Text style={s.activityIconText}>{meta.icon}</Text>
+        <Ionicons name={meta.icon} size={17} color={meta.color} />
       </View>
       <View style={s.activityInfo}>
         <Text style={s.activityTitle} numberOfLines={1}>
           {bill.title}
         </Text>
-        <Text style={s.activitySub}>{isPayer ? 'Paid by you' : `Paid by ${bill.paidBy}`}</Text>
+        <Text style={s.activitySub}>
+          {isPayer ? t('profile.paid_by_you') : t('profile.paid_by_name', { name: bill.paidBy })}
+        </Text>
       </View>
       <View style={s.activityAmt}>
         <Text style={s.activityAmtText}>
           -{currency}
           {share.toFixed(2)}
         </Text>
-        <Text style={s.activityAmtSub}>Your share</Text>
+        <Text style={s.activityAmtSub}>{t('profile.your_share')}</Text>
       </View>
     </View>
   );
@@ -188,6 +173,7 @@ function PersonalDetailsForm({
   currentEmail: string;
   onDone: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
   const updateProfile = useAuthStore((ss) => ss.updateProfile);
@@ -201,7 +187,7 @@ function PersonalDetailsForm({
   const handleSave = useCallback(async (): Promise<void> => {
     const parsed = profileDetailsSchema.safeParse({ name, email });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Please check your details.');
+      setError(parsed.error.issues[0]?.message ?? t('profile.check_details'));
       return;
     }
     const trimName = parsed.data.name;
@@ -215,26 +201,26 @@ function PersonalDetailsForm({
       if (nameChanged) await updateProfile(trimName);
       if (emailChanged) await updateEmail(trimEmail);
       if (nameChanged && emailChanged) {
-        setSuccess('Name updated. A confirmation link has been sent to your new email address.');
+        setSuccess(t('profile.name_and_email_updated'));
       } else if (nameChanged) {
-        setSuccess('Name updated.');
+        setSuccess(t('profile.name_updated'));
       } else if (emailChanged) {
-        setSuccess('A confirmation link has been sent to your new email address.');
+        setSuccess(t('profile.email_confirm_sent'));
       } else {
         onDone();
         return;
       }
     } catch (err) {
-      setError(getErrorMessage(err, 'Could not save. Please try again.'));
+      setError(getErrorMessage(err, t('profile.could_not_save')));
     } finally {
       setSaving(false);
     }
-  }, [name, email, currentName, currentEmail, updateProfile, updateEmail, onDone]);
+  }, [name, email, currentName, currentEmail, updateProfile, updateEmail, onDone, t]);
 
   return (
     <View style={s.pwForm}>
       <View>
-        <Text style={s.detailsLabel}>Display name</Text>
+        <Text style={s.detailsLabel}>{t('profile.display_name')}</Text>
         <TextInput
           style={s.textInput}
           value={name}
@@ -243,13 +229,13 @@ function PersonalDetailsForm({
             setError('');
             setSuccess('');
           }}
-          placeholder="Your name"
+          placeholder={t('profile.your_name_placeholder')}
           placeholderTextColor={C.textDisabled}
           autoCapitalize="words"
         />
       </View>
       <View>
-        <Text style={s.detailsLabel}>Email address</Text>
+        <Text style={s.detailsLabel}>{t('profile.email_address')}</Text>
         <TextInput
           style={s.textInput}
           value={email}
@@ -258,15 +244,13 @@ function PersonalDetailsForm({
             setError('');
             setSuccess('');
           }}
-          placeholder="your@email.com"
+          placeholder={t('profile.email_placeholder')}
           placeholderTextColor={C.textDisabled}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
         />
-        <Text style={s.detailsHint}>
-          Changing email sends a confirmation link to the new address.
-        </Text>
+        <Text style={s.detailsHint}>{t('profile.email_change_hint')}</Text>
       </View>
       {!!error && <Text style={s.fieldError}>{error}</Text>}
       {!!success && <Text style={s.detailsSuccess}>{success}</Text>}
@@ -277,10 +261,12 @@ function PersonalDetailsForm({
           disabled={saving}
           accessibilityRole="button"
         >
-          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save changes'}</Text>
+          <Text style={s.saveBtnText}>
+            {saving ? t('profile.saving') : t('profile.save_changes')}
+          </Text>
         </Pressable>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={s.cancelText}>Cancel</Text>
+          <Text style={s.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
     </View>
@@ -289,6 +275,7 @@ function PersonalDetailsForm({
 
 // ── Change password form ───────────────────────────────────────────────────────
 function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
   const changePassword = useAuthStore((ss) => ss.changePassword);
@@ -306,7 +293,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
       confirmPassword,
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Please check your details.');
+      setError(parsed.error.issues[0]?.message ?? t('profile.check_details'));
       return;
     }
     setSaving(true);
@@ -315,18 +302,18 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
       await changePassword(parsed.data.currentPassword, parsed.data.newPassword);
       setSuccess(true);
     } catch (err) {
-      setError(getErrorMessage(err, 'Could not update password. Please try again.'));
+      setError(getErrorMessage(err, t('profile.could_not_update')));
     } finally {
       setSaving(false);
     }
-  }, [currentPassword, newPassword, confirmPassword, changePassword]);
+  }, [currentPassword, newPassword, confirmPassword, changePassword, t]);
 
   if (success) {
     return (
       <View style={s.pwForm}>
-        <Text style={s.detailsSuccess}>Password updated successfully.</Text>
+        <Text style={s.detailsSuccess}>{t('profile.password_success')}</Text>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={s.cancelText}>Done</Text>
+          <Text style={s.cancelText}>{t('common.done')}</Text>
         </Pressable>
       </View>
     );
@@ -335,7 +322,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
   return (
     <View style={s.pwForm}>
       <View>
-        <Text style={s.detailsLabel}>Current password</Text>
+        <Text style={s.detailsLabel}>{t('profile.current_password')}</Text>
         <TextInput
           style={s.textInput}
           value={currentPassword}
@@ -343,16 +330,16 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
             setCurrentPassword(v);
             setError('');
           }}
-          placeholder="Your current password"
+          placeholder={t('profile.current_password_placeholder')}
           placeholderTextColor={C.textDisabled}
           secureTextEntry
           autoCapitalize="none"
           autoComplete="off"
-          accessibilityLabel="Current password"
+          accessibilityLabel={t('profile.current_password')}
         />
       </View>
       <View>
-        <Text style={s.detailsLabel}>New password</Text>
+        <Text style={s.detailsLabel}>{t('profile.new_password')}</Text>
         <TextInput
           style={s.textInput}
           value={newPassword}
@@ -360,15 +347,15 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
             setNewPassword(v);
             setError('');
           }}
-          placeholder="At least 8 characters"
+          placeholder={t('profile.new_password_placeholder')}
           placeholderTextColor={C.textDisabled}
           secureTextEntry
           autoCapitalize="none"
-          accessibilityLabel="New password"
+          accessibilityLabel={t('profile.new_password')}
         />
       </View>
       <View>
-        <Text style={s.detailsLabel}>Confirm new password</Text>
+        <Text style={s.detailsLabel}>{t('profile.confirm_new_password')}</Text>
         <TextInput
           style={s.textInput}
           value={confirmPassword}
@@ -376,11 +363,11 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
             setConfirmPassword(v);
             setError('');
           }}
-          placeholder="Repeat new password"
+          placeholder={t('profile.confirm_password_placeholder')}
           placeholderTextColor={C.textDisabled}
           secureTextEntry
           autoCapitalize="none"
-          accessibilityLabel="Confirm new password"
+          accessibilityLabel={t('profile.confirm_new_password')}
         />
       </View>
       {!!error && <Text style={s.fieldError}>{error}</Text>}
@@ -391,10 +378,12 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
           disabled={saving}
           accessibilityRole="button"
         >
-          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Update password'}</Text>
+          <Text style={s.saveBtnText}>
+            {saving ? t('profile.saving') : t('profile.update_password')}
+          </Text>
         </Pressable>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={s.cancelText}>Cancel</Text>
+          <Text style={s.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
       <Pressable
@@ -402,7 +391,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
         accessibilityRole="button"
         style={s.forgotLink}
       >
-        <Text style={s.forgotLinkText}>Forgot your password?</Text>
+        <Text style={s.forgotLinkText}>{t('profile.forgot_your_password')}</Text>
       </Pressable>
     </View>
   );
@@ -415,7 +404,7 @@ interface CropSource {
   imgH: number;
 }
 
-const CROP_FRAME = 260;
+const CROP_FRAME = ms(260);
 
 function CropEditor({
   source,
@@ -426,6 +415,7 @@ function CropEditor({
   onConfirm: (originX: number, originY: number, cropSize: number) => void;
   onCancel: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -572,7 +562,7 @@ function CropEditor({
     () =>
       StyleSheet.create({
         wrapper: { alignItems: 'center', gap: sizes.md },
-        hint: { fontSize: 13, ...font.regular, color: C.textSecondary },
+        hint: { fontSize: mf(13), ...font.regular, color: C.textSecondary },
         frame: {
           width: CROP_FRAME,
           height: CROP_FRAME,
@@ -583,24 +573,24 @@ function CropEditor({
         },
         zoomRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.xl },
         zoomBtn: {
-          width: 44,
-          height: 44,
-          borderRadius: 22,
+          width: ms(44),
+          height: ms(44),
+          borderRadius: ms(22),
           backgroundColor: C.primary + '15',
           justifyContent: 'center',
           alignItems: 'center',
         },
-        zoomBtnText: { fontSize: 26, color: C.primary, lineHeight: 30 },
-        zoomLabel: { fontSize: 14, ...font.bold, color: C.textSecondary },
+        zoomBtnText: { fontSize: mf(26), color: C.primary, lineHeight: mf(30) },
+        zoomLabel: { fontSize: mf(14), ...font.bold, color: C.textSecondary },
         btnRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.lg },
         confirmBtn: {
           backgroundColor: C.primary,
-          paddingVertical: 12,
+          paddingVertical: ms(12),
           paddingHorizontal: sizes.xl,
-          borderRadius: 10,
+          borderRadius: ms(10),
         },
-        confirmText: { color: '#fff', ...font.semibold, fontSize: 15 },
-        cancelText: { color: C.textSecondary, fontSize: 14, ...font.regular },
+        confirmText: { color: '#fff', ...font.semibold, fontSize: mf(15) },
+        cancelText: { color: C.textSecondary, fontSize: mf(14), ...font.regular },
       }),
     [C]
   );
@@ -627,26 +617,26 @@ function CropEditor({
           style={cedStyles.zoomBtn}
           onPress={() => setScale((ss) => Math.max(1, parseFloat((ss - 0.2).toFixed(1))))}
           accessibilityRole="button"
-          accessibilityLabel="Zoom out"
+          accessibilityLabel={t('profile.zoom_out')}
         >
           <Text style={cedStyles.zoomBtnText}>−</Text>
         </Pressable>
-        <Text style={cedStyles.zoomLabel}>Zoom</Text>
+        <Text style={cedStyles.zoomLabel}>{t('profile.zoom_label')}</Text>
         <Pressable
           style={cedStyles.zoomBtn}
           onPress={() => setScale((ss) => parseFloat((ss + 0.2).toFixed(1)))}
           accessibilityRole="button"
-          accessibilityLabel="Zoom in"
+          accessibilityLabel={t('profile.zoom_in')}
         >
           <Text style={cedStyles.zoomBtnText}>+</Text>
         </Pressable>
       </View>
       <View style={cedStyles.btnRow}>
         <Pressable style={cedStyles.confirmBtn} onPress={handleConfirm} accessibilityRole="button">
-          <Text style={cedStyles.confirmText}>Use Photo</Text>
+          <Text style={cedStyles.confirmText}>{t('profile.use_photo')}</Text>
         </Pressable>
         <Pressable onPress={onCancel} accessibilityRole="button">
-          <Text style={cedStyles.cancelText}>Cancel</Text>
+          <Text style={cedStyles.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
     </View>
@@ -658,7 +648,6 @@ export default function ProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
-  const role = useAuthStore((s) => s.role);
   const signOut = useAuthStore((s) => s.signOut);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
   const houseId = useAuthStore((s) => s.houseId);
@@ -676,10 +665,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const headingFont = useHeadingFont('bold');
 
   const [showDetailsForm, setShowDetailsForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -696,7 +682,6 @@ export default function ProfileScreen(): React.JSX.Element {
   }, [houseId, loadBills]);
 
   const initial = (profile?.name ?? '?')[0].toUpperCase();
-  const isOwnerOrAdmin = role === 'owner' || role === 'admin';
 
   // Top 4 expense categories from current month
   const topCategories = months[0]?.categories.slice(0, 4) ?? [];
@@ -729,12 +714,15 @@ export default function ProfileScreen(): React.JSX.Element {
         // Refresh housemates so the new avatar appears everywhere (stack, members screen, drawer)
         if (houseId) loadHousemates(houseId).catch(() => {});
       } catch (err) {
-        Alert.alert('Upload failed', getErrorMessage(err, 'Could not upload photo.'));
+        Alert.alert(
+          t('profile.upload_failed'),
+          getErrorMessage(err, t('profile.upload_failed_body'))
+        );
       } finally {
         setUploading(false);
       }
     },
-    [cropSource, uploadAvatar, houseId, loadHousemates]
+    [cropSource, uploadAvatar, houseId, loadHousemates, t]
   );
 
   const pickImage = useCallback(
@@ -763,14 +751,14 @@ export default function ProfileScreen(): React.JSX.Element {
       if (source === 'camera') {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Camera access is required to take a photo.');
+          Alert.alert(t('profile.permission_needed'), t('profile.camera_permission_body'));
           return;
         }
         result = await ImagePicker.launchCameraAsync(opts);
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Photo library access is required to choose a photo.');
+          Alert.alert(t('profile.permission_needed'), t('profile.library_permission_body'));
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync(opts);
@@ -781,18 +769,21 @@ export default function ProfileScreen(): React.JSX.Element {
       try {
         await uploadAvatar(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
       } catch (err) {
-        Alert.alert('Upload failed', getErrorMessage(err, 'Could not upload photo.'));
+        Alert.alert(
+          t('profile.upload_failed'),
+          getErrorMessage(err, t('profile.upload_failed_body'))
+        );
       } finally {
         setUploading(false);
       }
     },
-    [uploadAvatar]
+    [uploadAvatar, t]
   );
 
   const pickCover = useCallback(async (): Promise<void> => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Photo library access is required to choose a cover photo.');
+      Alert.alert(t('profile.permission_needed'), t('profile.cover_permission_body'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -808,32 +799,35 @@ export default function ProfileScreen(): React.JSX.Element {
     try {
       await uploadCover(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
     } catch (err) {
-      Alert.alert('Upload failed', getErrorMessage(err, 'Could not upload cover photo.'));
+      Alert.alert(
+        t('profile.upload_failed'),
+        getErrorMessage(err, t('profile.upload_cover_failed'))
+      );
     } finally {
       setUploadingCover(false);
     }
-  }, [uploadCover]);
+  }, [uploadCover, t]);
 
   const handleCoverPress = useCallback((): void => {
     const options: Parameters<typeof Alert.alert>[2] = [
-      { text: 'Choose cover photo', onPress: pickCover },
+      { text: t('profile.choose_cover_photo'), onPress: pickCover },
     ];
     if (profile?.coverUrl) {
       options.push({
-        text: 'Remove cover photo',
+        text: t('profile.remove_cover_photo'),
         style: 'destructive',
         onPress: async () => {
           setUploadingCover(true);
           await removeCover().catch((err: unknown) => {
-            Alert.alert('Error', getErrorMessage(err, 'Could not remove cover photo.'));
+            Alert.alert(t('common.error'), getErrorMessage(err, t('profile.remove_cover_failed')));
           });
           setUploadingCover(false);
         },
       });
     }
-    options.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Cover photo', 'Choose an option', options);
-  }, [pickCover, removeCover, profile?.coverUrl]);
+    options.push({ text: t('common.cancel'), style: 'cancel' });
+    Alert.alert(t('profile.cover_photo'), t('profile.choose_option'), options);
+  }, [pickCover, removeCover, profile?.coverUrl, t]);
 
   const handleAvatarPress = useCallback((): void => {
     // On web, file pickers must be opened synchronously from a user gesture —
@@ -844,13 +838,13 @@ export default function ProfileScreen(): React.JSX.Element {
     }
     const options: Parameters<typeof Alert.alert>[2] = [
       {
-        text: 'Take photo',
+        text: t('photos.take_photo'),
         onPress: (): void => {
           pickImage('camera');
         },
       },
       {
-        text: 'Choose from library',
+        text: t('photos.choose_from_library'),
         onPress: (): void => {
           pickImage('library');
         },
@@ -858,58 +852,47 @@ export default function ProfileScreen(): React.JSX.Element {
     ];
     if (profile?.avatarUrl) {
       options.push({
-        text: 'Remove photo',
+        text: t('profile.remove_photo'),
         style: 'destructive',
         onPress: async () => {
           setUploading(true);
           await removeAvatar().catch((err: unknown) => {
-            Alert.alert('Error', getErrorMessage(err, 'Could not remove photo.'));
+            Alert.alert(t('common.error'), getErrorMessage(err, t('profile.remove_photo_failed')));
           });
           setUploading(false);
         },
       });
     }
-    options.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Profile photo', 'Choose an option', options);
-  }, [pickImage, removeAvatar, profile?.avatarUrl]);
+    options.push({ text: t('common.cancel'), style: 'cancel' });
+    Alert.alert(t('profile.profile_photo'), t('profile.choose_option'), options);
+  }, [pickImage, removeAvatar, profile?.avatarUrl, t]);
 
   const handleDeleteAccount = useCallback((): void => {
-    Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all your personal data. This cannot be undone.\n\nHousehold content you created (bills, chores, etc.) may remain visible to other members.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete My Account',
-          style: 'destructive',
-          onPress: (): void => {
-            Alert.alert(
-              'Are you sure?',
-              'Your account will be permanently deleted. You will lose access immediately.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Yes, Delete Permanently',
-                  style: 'destructive',
-                  onPress: async (): Promise<void> => {
-                    try {
-                      await deleteAccount();
-                      router.replace('/(auth)/welcome');
-                    } catch (err) {
-                      Alert.alert(
-                        'Error',
-                        getErrorMessage(err, 'Could not delete account. Please try again.')
-                      );
-                    }
-                  },
-                },
-              ]
-            );
-          },
+    Alert.alert(t('profile.delete_account'), t('profile.delete_account_body'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('profile.delete_my_account'),
+        style: 'destructive',
+        onPress: (): void => {
+          Alert.alert(t('profile.are_you_sure'), t('profile.delete_permanent_body'), [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('profile.yes_delete_permanently'),
+              style: 'destructive',
+              onPress: async (): Promise<void> => {
+                try {
+                  await deleteAccount();
+                  router.replace('/(auth)/welcome');
+                } catch (err) {
+                  Alert.alert(t('common.error'), getErrorMessage(err, t('profile.delete_failed')));
+                }
+              },
+            },
+          ]);
         },
-      ]
-    );
-  }, [deleteAccount]);
+      },
+    ]);
+  }, [deleteAccount, t]);
 
   const handleLogout = useCallback((): void => {
     if (Platform.OS === 'web') {
@@ -939,7 +922,7 @@ export default function ProfileScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* ── Profile header ──────────────────────────────────────────── */}
           <View style={styles.profileHeader}>
@@ -950,14 +933,14 @@ export default function ProfileScreen(): React.JSX.Element {
               disabled={uploadingCover}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Change cover photo"
+              accessibilityLabel={t('profile.change_cover_photo')}
             >
               {profile?.coverUrl ? (
                 <Image
                   source={{ uri: profile.coverUrl }}
                   style={styles.coverImage}
                   contentFit="cover"
-                  accessibilityLabel="Cover photo"
+                  accessibilityLabel={t('profile.cover_photo')}
                 />
               ) : (
                 <>
@@ -982,7 +965,7 @@ export default function ProfileScreen(): React.JSX.Element {
               disabled={uploading}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Change profile photo"
+              accessibilityLabel={t('profile.change_profile_photo')}
             >
               <View
                 style={[
@@ -999,7 +982,7 @@ export default function ProfileScreen(): React.JSX.Element {
                     source={{ uri: profile.avatarUrl }}
                     style={styles.avatarImage}
                     contentFit="cover"
-                    accessibilityLabel="Profile photo"
+                    accessibilityLabel={t('profile.profile_photo')}
                   />
                 ) : (
                   <Text style={styles.avatarInitial}>{initial}</Text>
@@ -1015,31 +998,12 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             </Pressable>
 
-            <Text style={styles.profileName}>{profile?.name ?? 'You'}</Text>
+            <Text style={styles.profileName}>{profile?.name ?? t('common.you')}</Text>
             {!!user?.email && <Text style={styles.profileEmail}>{user.email}</Text>}
-            <Text style={styles.profileSub}>{houseName || 'Your House'}</Text>
+            <Text style={styles.profileSub}>{houseName || t('profile.the_house')}</Text>
           </View>
 
           <View style={styles.content}>
-            {/* ── Quick actions ──────────────────────────────────────────── */}
-            <View style={styles.quickRow}>
-              <QuickAction
-                icon="card-outline"
-                label="Payment"
-                onPress={() => router.push('/(tabs)/bills/setup')}
-              />
-              <QuickAction
-                icon="notifications-outline"
-                label="Alerts"
-                onPress={() => router.push('/(tabs)/settings/notifications')}
-              />
-              <QuickAction
-                icon="shield-outline"
-                label="Privacy"
-                onPress={() => router.push('/(tabs)/settings/privacy-policy')}
-              />
-            </View>
-
             {/* ── Spending card ──────────────────────────────────────────── */}
             {houseId && profile?.name && <SpendingCard houseId={houseId} userName={profile.name} />}
 
@@ -1047,19 +1011,19 @@ export default function ProfileScreen(): React.JSX.Element {
             {topCategories.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Expense summary</Text>
+                  <Text style={styles.sectionTitle}>{t('profile.expense_summary')}</Text>
                   <Pressable
                     onPress={() => router.push('/(tabs)/profile/spending')}
                     accessibilityRole="button"
                   >
-                    <Text style={styles.sectionAction}>See all</Text>
+                    <Text style={styles.sectionAction}>{t('profile.see_all')}</Text>
                   </Pressable>
                 </View>
                 <View style={styles.expenseGrid}>
                   {topCategories.map((cat) => (
                     <View key={cat.name} style={styles.expenseCard}>
-                      <View style={styles.expenseIconWrap}>
-                        <Text style={styles.expenseIcon}>{cat.icon}</Text>
+                      <View style={[styles.expenseIconWrap, { backgroundColor: cat.color + '18' }]}>
+                        <Ionicons name={cat.icon} size={20} color={cat.color} />
                       </View>
                       <Text style={styles.expenseName}>
                         {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
@@ -1077,19 +1041,19 @@ export default function ProfileScreen(): React.JSX.Element {
             {/* ── House ──────────────────────────────────────────────────── */}
             <View style={styles.card}>
               <View style={styles.cardInnerRow}>
-                <Text style={styles.sectionTitle}>House</Text>
+                <Text style={styles.sectionTitle}>{t('profile.house_label')}</Text>
                 <Pressable
                   onPress={() => router.push('/(tabs)/bills/setup')}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.sectionAction}>Manage</Text>
+                  <Text style={styles.sectionAction}>{t('profile.manage_label')}</Text>
                 </Pressable>
               </View>
               <View style={styles.houseRow}>
                 <View style={styles.houseInfo}>
-                  <Text style={styles.houseName}>{houseName || 'The House'}</Text>
+                  <Text style={styles.houseName}>{houseName || t('profile.the_house')}</Text>
                   <Text style={styles.houseSub}>
-                    {housemates.length} housemate{housemates.length !== 1 ? 's' : ''} connected
+                    {t('profile.housemates_count', { count: housemates.length })}
                   </Text>
                 </View>
                 <HousemateAvatars housemates={housemates} />
@@ -1098,43 +1062,45 @@ export default function ProfileScreen(): React.JSX.Element {
 
             {/* ── Profile settings ───────────────────────────────────────── */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Profile</Text>
+              <Text style={styles.sectionTitle}>{t('profile.profile_label')}</Text>
               <View style={styles.card}>
                 <ProfileRow
                   iconName="person-outline"
-                  title="Personal details"
+                  title={t('profile.personal_details')}
                   sub={
                     showDetailsForm
-                      ? 'Tap to close'
+                      ? t('profile.tap_to_close')
                       : `${profile?.name ?? ''}  ·  ${user?.email ?? ''}`
                   }
                   onPress={() => setShowDetailsForm((v) => !v)}
                 />
                 {showDetailsForm && (
-                  <>
+                  <Entrance offset={10}>
                     <View style={styles.rowDivider} />
                     <PersonalDetailsForm
                       currentName={profile?.name ?? ''}
                       currentEmail={user?.email ?? ''}
                       onDone={() => setShowDetailsForm(false)}
                     />
-                  </>
+                  </Entrance>
                 )}
                 <View style={styles.rowDivider} />
                 <ProfileRow
                   iconName="lock-closed-outline"
-                  title="Change password"
-                  sub={showPasswordForm ? 'Tap to close' : 'Update your login password'}
+                  title={t('profile.change_password')}
+                  sub={
+                    showPasswordForm ? t('profile.tap_to_close') : t('profile.change_password_sub')
+                  }
                   onPress={() => {
                     setShowPasswordForm((v) => !v);
                     setShowDetailsForm(false);
                   }}
                 />
                 {showPasswordForm && (
-                  <>
+                  <Entrance offset={10}>
                     <View style={styles.rowDivider} />
                     <ChangePasswordForm onDone={() => setShowPasswordForm(false)} />
-                  </>
+                  </Entrance>
                 )}
                 <View style={styles.rowDivider} />
                 <ProfileRow
@@ -1162,38 +1128,19 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             </View>
 
-            {/* ── Owner tools ────────────────────────────────────────────── */}
-            {isOwnerOrAdmin && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>House management</Text>
-                <View style={styles.card}>
-                  <ProfileRow
-                    iconName="pricetag-outline"
-                    title="Expense categories"
-                    sub="Add or edit spending categories"
-                    onPress={() => router.push('/(tabs)/settings/categories')}
-                  />
-                  <View style={styles.rowDivider} />
-                  <ProfileRow
-                    iconName="people-outline"
-                    title="Member permissions"
-                    sub="Control what each housemate can see"
-                    onPress={() => router.push('/(tabs)/settings/members')}
-                  />
-                </View>
-              </View>
-            )}
+            {/* House management (categories, member permissions) now lives in
+                Settings so Profile stays personal. */}
 
             {/* ── Recent activity ────────────────────────────────────────── */}
             {(todayBills.length > 0 || yesterdayBills.length > 0) && (
               <View style={styles.card}>
                 <View style={styles.cardInnerRow}>
-                  <Text style={styles.sectionTitle}>Recent activity</Text>
+                  <Text style={styles.sectionTitle}>{t('profile.recent_activity')}</Text>
                   <Ionicons name="search-outline" size={20} color={C.textSecondary} />
                 </View>
                 {todayBills.length > 0 && (
                   <>
-                    <Text style={styles.dayLabel}>TODAY</Text>
+                    <Text style={styles.dayLabel}>{t('profile.today_label')}</Text>
                     {todayBills.map((b) => (
                       <ActivityItem key={b.id} bill={b} userName={profile?.name ?? ''} />
                     ))}
@@ -1201,7 +1148,7 @@ export default function ProfileScreen(): React.JSX.Element {
                 )}
                 {yesterdayBills.length > 0 && (
                   <>
-                    <Text style={styles.dayLabel}>YESTERDAY</Text>
+                    <Text style={styles.dayLabel}>{t('profile.yesterday_label')}</Text>
                     {yesterdayBills.map((b) => (
                       <ActivityItem key={b.id} bill={b} userName={profile?.name ?? ''} />
                     ))}
@@ -1215,7 +1162,7 @@ export default function ProfileScreen(): React.JSX.Element {
                   onPress={() => router.push('/(tabs)/bills/index')}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.viewMoreText}>View previous months</Text>
+                  <Text style={styles.viewMoreText}>{t('profile.view_previous_months')}</Text>
                 </Pressable>
               </View>
             )}
@@ -1237,21 +1184,21 @@ export default function ProfileScreen(): React.JSX.Element {
               onPress={handleDeleteAccount}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Delete account"
+              accessibilityLabel={t('profile.delete_account')}
             >
-              <Text style={styles.deleteAccountText}>Delete Account</Text>
+              <Text style={styles.deleteAccountText}>{t('profile.delete_account')}</Text>
             </Pressable>
 
             <Text style={styles.version}>{t('profile.footer')}</Text>
           </View>
         </ScrollView>
-      </Animated.View>
+      </View>
 
       {/* ── Crop editor modal (web only) ────────────────────────── */}
       <Modal visible={cropSource !== null} transparent animationType="fade">
         <View style={styles.cropOverlay}>
           <View style={styles.cropModal}>
-            <Text style={styles.cropTitle}>Crop photo</Text>
+            <Text style={[styles.cropTitle, headingFont]}>{t('profile.crop_photo')}</Text>
             {cropSource && (
               <CropEditor
                 source={cropSource}
@@ -1261,7 +1208,7 @@ export default function ProfileScreen(): React.JSX.Element {
             )}
             {uploading && (
               <View style={styles.cropUploading}>
-                <ActivityIndicator color={C.primary} />
+                <LoadingSpinner />
                 <Text style={styles.cropUploadingText}>Uploading…</Text>
               </View>
             )}
@@ -1276,7 +1223,7 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     flex: { flex: 1 },
     container: { flex: 1, backgroundColor: C.background },
-    scroll: { paddingBottom: 80 },
+    scroll: { paddingBottom: ms(80) },
     content: { paddingHorizontal: sizes.md, gap: sizes.md, paddingBottom: sizes.lg },
 
     // Profile header
@@ -1289,9 +1236,9 @@ function makeStyles(C: ColorTokens) {
     // Cover photo
     coverWrap: {
       width: '100%',
-      height: 140,
+      height: ms(140),
       backgroundColor: C.secondary,
-      marginBottom: 52,
+      marginBottom: ms(52),
       position: 'relative',
       overflow: 'hidden',
     },
@@ -1307,11 +1254,11 @@ function makeStyles(C: ColorTokens) {
     },
     coverBadge: {
       position: 'absolute',
-      bottom: 8,
-      end: 8,
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      bottom: ms(8),
+      end: ms(8),
+      width: ms(28),
+      height: ms(28),
+      borderRadius: ms(14),
       backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
@@ -1320,53 +1267,53 @@ function makeStyles(C: ColorTokens) {
     },
     decoCircleTL: {
       position: 'absolute',
-      top: 30,
-      start: -20,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      top: ms(30),
+      start: ms(-20),
+      width: ms(56),
+      height: ms(56),
+      borderRadius: ms(28),
       backgroundColor: C.primary,
       opacity: 0.15,
     },
     decoCircleTR: {
       position: 'absolute',
-      top: 60,
-      end: 40,
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      top: ms(60),
+      end: ms(40),
+      width: ms(38),
+      height: ms(38),
+      borderRadius: ms(19),
       backgroundColor: C.primary,
       opacity: 0.15,
     },
-    avatarWrap: { position: 'absolute', top: 90, alignSelf: 'center' },
+    avatarWrap: { position: 'absolute', top: ms(90), alignSelf: 'center' },
     avatarRing: {
-      width: 102,
-      height: 102,
-      borderRadius: 51,
+      width: ms(102),
+      height: ms(102),
+      borderRadius: ms(51),
       justifyContent: 'center',
       alignItems: 'center',
       borderWidth: 3,
       borderColor: 'rgba(255,255,255,0.75)',
       overflow: 'hidden',
     },
-    avatarImage: { width: 96, height: 96 },
+    avatarImage: { width: ms(96), height: ms(96) },
     avatarOverlay: {
       position: 'absolute',
-      width: 96,
-      height: 96,
-      borderRadius: 48,
+      width: ms(96),
+      height: ms(96),
+      borderRadius: ms(48),
       backgroundColor: 'rgba(0,0,0,0.45)',
       justifyContent: 'center',
       alignItems: 'center',
     },
-    avatarInitial: { color: '#fff', fontSize: 40, ...font.bold },
+    avatarInitial: { color: '#fff', fontSize: mf(40), ...font.bold },
     avatarBadge: {
       position: 'absolute',
-      bottom: 2,
-      end: 2,
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      bottom: ms(2),
+      end: ms(2),
+      width: ms(28),
+      height: ms(28),
+      borderRadius: ms(14),
       backgroundColor: C.secondary,
       borderWidth: 2,
       borderColor: C.background,
@@ -1374,35 +1321,20 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
     },
     profileName: {
-      fontSize: 28,
+      fontSize: mf(28),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.56,
-      marginTop: 4,
+      marginTop: ms(4),
     },
-    profileEmail: { fontSize: 13, ...font.regular, color: C.textSecondary },
-    profileSub: { fontSize: 15, ...font.regular, color: C.textSecondary },
-
-    // Quick actions
-    quickRow: { flexDirection: 'row', gap: sizes.sm },
-    quickCard: {
-      flex: 1,
-      backgroundColor: C.surface,
-      borderRadius: sizes.borderRadius,
-      borderWidth: 1,
-      borderColor: C.border,
-      paddingVertical: sizes.md + 3,
-      alignItems: 'center',
-      gap: sizes.sm,
-    },
-    quickCardPressed: { opacity: 0.75 },
-    quickLabel: { fontSize: 12, ...font.bold, color: C.textPrimary, textAlign: 'center' },
+    profileEmail: { fontSize: mf(13), ...font.regular, color: C.textSecondary },
+    profileSub: { fontSize: mf(15), ...font.regular, color: C.textSecondary },
 
     // Section
     section: { gap: sizes.sm },
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    sectionTitle: { fontSize: 18, ...font.extrabold, color: C.textPrimary },
-    sectionAction: { fontSize: 13, ...font.bold, color: C.primary },
+    sectionTitle: { fontSize: mf(18), ...font.extrabold, color: C.textPrimary },
+    sectionAction: { fontSize: mf(13), ...font.bold, color: C.primary },
 
     // Generic card
     card: {
@@ -1426,35 +1358,34 @@ function makeStyles(C: ColorTokens) {
       gap: sizes.xs,
     },
     expenseIconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: 10,
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(10),
       backgroundColor: C.surface,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    expenseIcon: { fontSize: 20 },
-    expenseName: { fontSize: 13, ...font.bold, color: C.textSecondary },
-    expenseAmt: { fontSize: 18, ...font.extrabold, color: C.textPrimary },
+    expenseName: { fontSize: mf(13), ...font.bold, color: C.textSecondary },
+    expenseAmt: { fontSize: mf(18), ...font.extrabold, color: C.textPrimary },
 
     // House section
     houseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    houseInfo: { gap: 2 },
-    houseName: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
-    houseSub: { fontSize: 13, ...font.bold, color: C.textSecondary },
+    houseInfo: { gap: ms(2) },
+    houseName: { fontSize: mf(15), ...font.extrabold, color: C.textPrimary },
+    houseSub: { fontSize: mf(13), ...font.bold, color: C.textSecondary },
     avatarStack: { flexDirection: 'row', alignItems: 'center' },
     stackAvatar: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
+      width: ms(34),
+      height: ms(34),
+      borderRadius: ms(17),
       borderWidth: 2,
       borderColor: '#fff',
       justifyContent: 'center',
       alignItems: 'center',
       overflow: 'hidden',
     },
-    stackAvatarImg: { width: 34, height: 34 },
-    stackAvatarText: { color: '#fff', fontSize: 13, ...font.bold },
+    stackAvatarImg: { width: ms(34), height: ms(34) },
+    stackAvatarText: { color: '#fff', fontSize: mf(13), ...font.bold },
 
     // Profile row
     profileRow: {
@@ -1465,22 +1396,22 @@ function makeStyles(C: ColorTokens) {
     },
     profileRowPressed: { opacity: 0.7 },
     profileRowIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 10,
+      width: ms(40),
+      height: ms(40),
+      borderRadius: ms(10),
       backgroundColor: C.secondary,
       justifyContent: 'center',
       alignItems: 'center',
     },
     profileRowText: { flex: 1 },
-    profileRowTitle: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
-    profileRowSub: { fontSize: 13, ...font.regular, color: C.textSecondary },
+    profileRowTitle: { fontSize: mf(15), ...font.extrabold, color: C.textPrimary },
+    profileRowSub: { fontSize: mf(13), ...font.regular, color: C.textSecondary },
 
-    rowDivider: { height: 1, backgroundColor: C.border, marginStart: 40 + sizes.sm },
+    rowDivider: { height: ms(1), backgroundColor: C.border, marginStart: 40 + sizes.sm },
 
     // Activity
     dayLabel: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.extrabold,
       color: C.textSecondary,
       letterSpacing: 0.65,
@@ -1497,29 +1428,28 @@ function makeStyles(C: ColorTokens) {
       paddingVertical: sizes.sm,
     },
     activityIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 10,
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(10),
       justifyContent: 'center',
       alignItems: 'center',
     },
-    activityIconText: { fontSize: 20 },
     activityInfo: { flex: 1 },
-    activityTitle: { fontSize: 15, ...font.extrabold, color: C.textPrimary },
-    activitySub: { fontSize: 13, ...font.regular, color: C.textSecondary },
+    activityTitle: { fontSize: mf(15), ...font.extrabold, color: C.textPrimary },
+    activitySub: { fontSize: mf(13), ...font.regular, color: C.textSecondary },
     activityAmt: { alignItems: 'flex-end' },
-    activityAmtText: { fontSize: 16, ...font.extrabold, color: C.textPrimary },
-    activityAmtSub: { fontSize: 12, ...font.regular, color: C.textSecondary },
+    activityAmtText: { fontSize: mf(16), ...font.extrabold, color: C.textPrimary },
+    activityAmtSub: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
     viewMoreBtn: {
       borderWidth: 1,
       borderColor: C.border,
-      borderRadius: 10,
+      borderRadius: ms(10),
       paddingVertical: sizes.md,
       alignItems: 'center',
       marginTop: sizes.xs,
     },
     viewMoreBtnPressed: { opacity: 0.7 },
-    viewMoreText: { fontSize: 14, ...font.bold, color: C.textPrimary },
+    viewMoreText: { fontSize: mf(14), ...font.bold, color: C.textPrimary },
 
     // Sign out
     signOutBtn: {
@@ -1535,35 +1465,40 @@ function makeStyles(C: ColorTokens) {
       marginTop: sizes.sm,
     },
     signOutBtnPressed: { opacity: 0.7 },
-    signOutText: { fontSize: 15, ...font.semibold, color: C.negative },
+    signOutText: { fontSize: mf(15), ...font.semibold, color: C.negative },
 
     // Password form
     pwForm: { padding: sizes.sm, gap: sizes.sm },
     textInput: {
       backgroundColor: C.background,
-      borderRadius: 10,
+      borderRadius: ms(10),
       paddingHorizontal: sizes.md,
-      paddingVertical: 12,
-      fontSize: 15,
+      paddingVertical: ms(12),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
       borderWidth: 1,
       borderColor: C.border,
     },
-    fieldError: { color: C.danger, fontSize: 13, ...font.regular },
-    detailsLabel: { fontSize: 12, ...font.semibold, color: C.textSecondary, marginBottom: 4 },
-    detailsHint: { fontSize: 11, ...font.regular, color: C.textDisabled, marginTop: 4 },
-    detailsSuccess: { fontSize: 13, ...font.regular, color: C.positive ?? '#16a34a' },
+    fieldError: { color: C.danger, fontSize: mf(13), ...font.regular },
+    detailsLabel: {
+      fontSize: mf(12),
+      ...font.semibold,
+      color: C.textSecondary,
+      marginBottom: ms(4),
+    },
+    detailsHint: { fontSize: mf(11), ...font.regular, color: C.textDisabled, marginTop: ms(4) },
+    detailsSuccess: { fontSize: mf(13), ...font.regular, color: C.positive ?? '#16a34a' },
     pwBtns: { flexDirection: 'row', alignItems: 'center', gap: sizes.md, marginTop: sizes.xs },
     saveBtn: {
       backgroundColor: C.primary,
-      paddingVertical: 10,
+      paddingVertical: ms(10),
       paddingHorizontal: sizes.lg,
-      borderRadius: 10,
+      borderRadius: ms(10),
     },
     saveBtnOff: { opacity: 0.6 },
-    saveBtnText: { color: '#fff', ...font.semibold, fontSize: 14 },
-    cancelText: { color: C.textSecondary, fontSize: 14, ...font.regular },
+    saveBtnText: { color: '#fff', ...font.semibold, fontSize: mf(14) },
+    cancelText: { color: C.textSecondary, fontSize: mf(14), ...font.regular },
 
     deleteAccountBtn: {
       alignItems: 'center',
@@ -1571,20 +1506,20 @@ function makeStyles(C: ColorTokens) {
       marginTop: sizes.xs,
     },
     deleteAccountText: {
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textDisabled,
       textDecorationLine: 'underline',
     },
     version: {
       color: C.textDisabled,
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       textAlign: 'center',
       marginTop: sizes.sm,
     },
-    forgotLink: { alignSelf: 'flex-start', marginTop: 2 },
-    forgotLinkText: { fontSize: 13, ...font.regular, color: C.primary },
+    forgotLink: { alignSelf: 'flex-start', marginTop: ms(2) },
+    forgotLinkText: { fontSize: mf(13), ...font.regular, color: C.primary },
 
     // Crop editor modal
     cropOverlay: {
@@ -1601,10 +1536,10 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       gap: sizes.md,
       width: '100%',
-      maxWidth: 360,
+      maxWidth: ms(360),
     },
-    cropTitle: { fontSize: 18, ...font.extrabold, color: C.textPrimary },
+    cropTitle: { fontSize: mf(18), ...font.extrabold, color: C.textPrimary },
     cropUploading: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-    cropUploadingText: { fontSize: 14, ...font.regular, color: C.textSecondary },
+    cropUploadingText: { fontSize: mf(14), ...font.regular, color: C.textSecondary },
   });
 }

@@ -15,7 +15,9 @@ type NotificationType =
   | 'chore_overdue'
   | 'chat_message'
   | 'grocery_shared'
-  | 'task_assigned';
+  | 'task_assigned'
+  | 'event_added'
+  | 'event_reminder';
 
 interface NotifyParams {
   houseId: string;

@@ -96,7 +96,8 @@ interface GroceryStore {
     quantity: string,
     addedByUserId: string,
     houseId: string,
-    mode?: AddMode
+    mode?: AddMode,
+    comment?: string
   ) => Promise<void>;
   updateItem: (id: string, name: string, quantity: string) => Promise<void>;
   addComment: (id: string, comment: string) => Promise<void>;
@@ -134,6 +135,100 @@ interface GroceryStore {
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
 let _channelHouseId: string | null = null;
+// Per-item debounce timers for bought-count writes. Rapid +/- taps update local
+// state instantly and only the final value is written once, so realtime echoes
+// don't bounce the number around (which read as lag).
+const _boughtTimers = new Map<string, ReturnType<typeof setTimeout>>();
+// Latest bought_count we've optimistically shown per item. The debounce collapses
+// rapid taps into one write, but a residual window remains: if you tap again after
+// the debounced write fires but before its echo returns, that stale echo can still
+// snap the number backwards. While an item has a pending count, the UPDATE handler
+// keeps the local count until the echo of the latest write catches up.
+const _pendingCounts = new Map<string, number>();
+// Same idea for regular (checkbox) items: the latest checked state we've shown
+// locally while a toggle write is in flight, so a stale self-echo can't flip the
+// checkbox back (which reads as a laggy, unresponsive tap).
+const _pendingChecked = new Map<string, boolean>();
+// Ids deleted locally within the last few seconds. A realtime INSERT/UPDATE echo
+// that was already in flight when we deleted the row would otherwise re-add it —
+// the item flashes back at the top of the list and sticks. Echoes for a tombstoned
+// id are ignored until the window passes. Fresh re-adds use a new id, so they are
+// never affected.
+const _recentlyDeleted = new Map<string, number>();
+const DELETE_TOMBSTONE_MS = 5000;
+
+function tombstone(id: string): void {
+  _recentlyDeleted.set(id, Date.now());
+  // A deleted row has no pending count/toggle to guard, and its debounced write
+  // must not fire against a now-missing row.
+  _pendingCounts.delete(id);
+  _pendingChecked.delete(id);
+  const timer = _boughtTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    _boughtTimers.delete(id);
+  }
+}
+
+function isTombstoned(id: string): boolean {
+  const at = _recentlyDeleted.get(id);
+  if (at === undefined) return false;
+  if (Date.now() - at > DELETE_TOMBSTONE_MS) {
+    _recentlyDeleted.delete(id);
+    return false;
+  }
+  return true;
+}
+
+function scheduleBoughtWrite(
+  id: string,
+  get: () => { items: GroceryItem[] },
+  set: (partial: { items: GroceryItem[] }) => void
+): void {
+  const existing = _boughtTimers.get(id);
+  if (existing) clearTimeout(existing);
+  _boughtTimers.set(
+    id,
+    setTimeout(() => {
+      _boughtTimers.delete(id);
+      const latest = get().items.find((i) => i.id === id);
+      if (!latest) {
+        _pendingCounts.delete(id);
+        return;
+      }
+      void supabase
+        .from('grocery_items')
+        .update({ bought_count: latest.boughtCount, is_checked: latest.isChecked })
+        .eq('id', id)
+        .then(async ({ error }) => {
+          if (!error) return;
+          // The optimistic count never saved. Drop the guard (no echo will
+          // arrive to clear it) and resync this item from the server so the UI
+          // stops showing a count that was never persisted.
+          _pendingCounts.delete(id);
+          captureError(error, { context: 'bought-write', id });
+          const { data } = await supabase
+            .from('grocery_items')
+            .select('bought_count, is_checked')
+            .eq('id', id)
+            .maybeSingle();
+          // A fresh tap after the failure queued a new write — don't clobber it.
+          if (!data || _pendingCounts.has(id)) return;
+          set({
+            items: get().items.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    boughtCount: (data.bought_count as number) ?? 0,
+                    isChecked: (data.is_checked as boolean) ?? false,
+                  }
+                : i
+            ),
+          });
+        });
+    }, 400)
+  );
+}
 // Bumped on every load() and unsubscribe(). An in-flight load compares its own
 // sequence number against this before committing state or (re)subscribing, so a
 // stale load can neither overwrite newer data nor recreate a channel after cleanup.
@@ -294,6 +389,8 @@ export const useGroceryStore = create<GroceryStore>()(
             },
             (payload: { new: Record<string, unknown> }) => {
               const incoming = mapItem(payload.new);
+              // A late echo for a row we just cleared/deleted — don't resurrect it.
+              if (isTombstoned(incoming.id)) return;
               const current = get().items;
               if (!current.find((i) => i.id === incoming.id)) {
                 set({ items: [incoming, ...current] });
@@ -310,7 +407,35 @@ export const useGroceryStore = create<GroceryStore>()(
             },
             (payload: { new: Record<string, unknown> }) => {
               const updated = mapItem(payload.new);
-              set({ items: get().items.map((i) => (i.id === updated.id ? updated : i)) });
+              // A late echo for a row we just cleared/deleted — ignore it so it
+              // can't re-check or otherwise revive a removed item.
+              if (isTombstoned(updated.id)) return;
+              const pendingCount = _pendingCounts.get(updated.id);
+              const pendingChecked = _pendingChecked.get(updated.id);
+              set({
+                items: get().items.map((i) => {
+                  if (i.id !== updated.id) return i;
+                  let next = updated;
+                  // Guard an in-flight +/- write from its own stale echoes: keep the
+                  // fresher local count/checked until the latest write's echo lands.
+                  if (pendingCount !== undefined) {
+                    if (updated.boughtCount === pendingCount) {
+                      _pendingCounts.delete(updated.id);
+                    } else {
+                      next = { ...next, boughtCount: i.boughtCount, isChecked: i.isChecked };
+                    }
+                  }
+                  // Guard an in-flight check/uncheck from its own stale echoes.
+                  if (pendingChecked !== undefined) {
+                    if (updated.isChecked === pendingChecked) {
+                      _pendingChecked.delete(updated.id);
+                    } else {
+                      next = { ...next, isChecked: i.isChecked };
+                    }
+                  }
+                  return next;
+                }),
+              });
             }
           )
           .on(
@@ -324,6 +449,8 @@ export const useGroceryStore = create<GroceryStore>()(
             (payload: { old: Record<string, unknown> }) => {
               const deletedId = payload.old.id as string;
               if (deletedId) {
+                // Tombstone so an out-of-order INSERT/UPDATE echo can't re-add it.
+                tombstone(deletedId);
                 set({ items: get().items.filter((i) => i.id !== deletedId) });
               }
             }
@@ -346,6 +473,11 @@ export const useGroceryStore = create<GroceryStore>()(
       unsubscribe: (): void => {
         // Invalidate any in-flight load so it cannot resubscribe after this cleanup.
         _loadSeq++;
+        _boughtTimers.forEach((t) => clearTimeout(t));
+        _boughtTimers.clear();
+        _pendingCounts.clear();
+        _pendingChecked.clear();
+        _recentlyDeleted.clear();
         if (_channel) {
           supabase.removeChannel(_channel);
           _channel = null;
@@ -353,9 +485,17 @@ export const useGroceryStore = create<GroceryStore>()(
         }
       },
 
-      addItem: async (name, quantity, addedByUserId, houseId, mode = 'shared'): Promise<void> => {
+      addItem: async (
+        name,
+        quantity,
+        addedByUserId,
+        houseId,
+        mode = 'shared',
+        comment
+      ): Promise<void> => {
         const isPersonal = mode !== 'shared';
         const isDraft = mode === 'draft';
+        const trimmedComment = comment?.trim();
         const draftExpiresAt = isDraft
           ? new Date(Date.now() + DRAFT_EXPIRES_MS).toISOString()
           : null;
@@ -368,6 +508,7 @@ export const useGroceryStore = create<GroceryStore>()(
             added_by: addedByUserId,
             is_personal: isPersonal,
             is_draft: isDraft,
+            ...(trimmedComment ? { comment: trimmedComment } : {}),
             ...(draftExpiresAt ? { draft_expires_at: draftExpiresAt } : {}),
           })
           .select()
@@ -407,12 +548,16 @@ export const useGroceryStore = create<GroceryStore>()(
         const item = get().items.find((i) => i.id === id);
         if (!item) return;
         const newChecked = !item.isChecked;
+        _pendingChecked.set(id, newChecked);
         set({ items: get().items.map((i) => (i.id === id ? { ...i, isChecked: newChecked } : i)) });
         const { error } = await supabase
           .from('grocery_items')
           .update({ is_checked: newChecked })
           .eq('id', id);
         if (error) {
+          // No echo will arrive to clear the guard — drop it so later remote
+          // updates to this item aren't held back, then roll the checkbox back.
+          if (_pendingChecked.get(id) === newChecked) _pendingChecked.delete(id);
           set({
             items: get().items.map((i) => (i.id === id ? { ...i, isChecked: !newChecked } : i)),
           });
@@ -429,20 +574,13 @@ export const useGroceryStore = create<GroceryStore>()(
           ? Math.min((item.boughtCount ?? 0) + 1, max)
           : (item.boughtCount ?? 0) + 1;
         const isChecked = hasMax ? count >= max : item.isChecked;
-        const prev = { boughtCount: item.boughtCount, isChecked: item.isChecked };
+        _pendingCounts.set(id, count);
         set({
           items: get().items.map((i) =>
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
           ),
         });
-        const { error } = await supabase
-          .from('grocery_items')
-          .update({ bought_count: count, is_checked: isChecked })
-          .eq('id', id);
-        if (error) {
-          set({ items: get().items.map((i) => (i.id === id ? { ...i, ...prev } : i)) });
-          captureError(error, { context: 'increment-bought', id });
-        }
+        scheduleBoughtWrite(id, get, set);
       },
 
       decrementBought: async (id): Promise<void> => {
@@ -452,27 +590,24 @@ export const useGroceryStore = create<GroceryStore>()(
         const max = parseInt(item.quantity, 10);
         const hasMax = !isNaN(max) && max > 1;
         const isChecked = hasMax ? count >= max : item.isChecked;
-        const prev = { boughtCount: item.boughtCount, isChecked: item.isChecked };
+        _pendingCounts.set(id, count);
         set({
           items: get().items.map((i) =>
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
           ),
         });
-        const { error } = await supabase
-          .from('grocery_items')
-          .update({ bought_count: count, is_checked: isChecked })
-          .eq('id', id);
-        if (error) {
-          set({ items: get().items.map((i) => (i.id === id ? { ...i, ...prev } : i)) });
-          captureError(error, { context: 'decrement-bought', id });
-        }
+        scheduleBoughtWrite(id, get, set);
       },
 
       deleteItem: async (id): Promise<void> => {
         const prevItems = get().items;
+        // Tombstone so an in-flight realtime echo can't re-add the row we remove.
+        tombstone(id);
         set({ items: prevItems.filter((i) => i.id !== id) });
         const { error } = await supabase.from('grocery_items').delete().eq('id', id);
         if (error) {
+          // The row still exists — lift the tombstone and restore it.
+          _recentlyDeleted.delete(id);
           set({ items: prevItems });
           captureError(error, { context: 'delete-grocery-item', id });
           throw new Error('Could not delete the item. Please try again.');
@@ -486,6 +621,9 @@ export const useGroceryStore = create<GroceryStore>()(
         const removedItems = prevItems.filter((i) => i.isChecked);
         if (removedItems.length === 0) return;
         const removedIds = removedItems.map((i) => i.id);
+        // Tombstone up front so a realtime echo already in flight for one of these
+        // rows can't re-add it at the top of the list while the delete lands.
+        removedIds.forEach(tombstone);
         try {
           set({ items: prevItems.filter((i) => !i.isChecked) });
           // Delete by specific IDs, not by is_checked flag — avoids a race where
@@ -506,6 +644,8 @@ export const useGroceryStore = create<GroceryStore>()(
           const currentItems = get().items;
           const currentIds = new Set(currentItems.map((i) => i.id));
           const toRestore = removedItems.filter((i) => !currentIds.has(i.id));
+          // The delete failed — these rows still exist, so lift their tombstones.
+          removedIds.forEach((id) => _recentlyDeleted.delete(id));
           set({ items: [...currentItems, ...toRestore] });
           captureError(err, { context: 'clear-checked-grocery', houseId: parsedHouseId.data });
           throw new Error('Could not clear checked items. Please try again.');

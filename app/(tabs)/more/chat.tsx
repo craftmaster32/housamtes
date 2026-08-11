@@ -8,9 +8,9 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -25,7 +25,9 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const DELETE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
 // ── Time helpers ─────────────────────────────────────────────────────────────
@@ -85,12 +87,18 @@ const makeStyles = (C: ColorTokens) =>
       paddingVertical: sizes.sm,
       backgroundColor: C.surface,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    backBtn: { width: 60 },
+    backBtn: {
+      width: ms(60),
+      minHeight: ms(44),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(2),
+    },
     backText: { color: C.primary, fontSize: sizes.fontMd, ...font.medium },
     headerTitle: { color: C.textPrimary, ...font.bold, fontSize: sizes.fontLg },
 
@@ -105,55 +113,55 @@ const makeStyles = (C: ColorTokens) =>
     separatorLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: C.border },
     separatorLabel: {
       color: C.textSecondary,
-      fontSize: 11,
+      fontSize: mf(11),
       ...font.semibold,
-      paddingHorizontal: 4,
+      paddingHorizontal: ms(4),
     },
 
     row: { flexDirection: 'row', alignItems: 'flex-end', gap: sizes.sm },
     rowMine: { flexDirection: 'row-reverse' },
     avatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: ms(32),
+      height: ms(32),
+      borderRadius: ms(16),
       backgroundColor: C.primary,
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 2,
+      marginBottom: ms(2),
       overflow: 'hidden',
     },
-    avatarImg: { width: 32, height: 32 },
+    avatarImg: { width: ms(32), height: ms(32) },
     avatarText: { color: '#fff', ...font.bold, fontSize: sizes.fontSm },
 
     bubble: {
       backgroundColor: C.surface,
-      borderRadius: 18,
-      borderBottomStartRadius: 4,
-      padding: 10,
-      paddingHorizontal: 13,
+      borderRadius: ms(18),
+      borderBottomStartRadius: ms(4),
+      padding: ms(10),
+      paddingHorizontal: ms(13),
       maxWidth: '72%',
-      gap: 3,
+      gap: ms(3),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     bubbleMine: {
       backgroundColor: C.primary,
-      borderBottomStartRadius: 18,
-      borderBottomEndRadius: 4,
+      borderBottomStartRadius: ms(18),
+      borderBottomEndRadius: ms(4),
     },
 
-    author: { color: C.primary, fontSize: 11, ...font.bold, marginBottom: 1 },
-    msgText: { color: C.textPrimary, fontSize: 15, ...font.regular },
+    author: { color: C.primary, fontSize: mf(11), ...font.bold, marginBottom: ms(1) },
+    msgText: { color: C.textPrimary, fontSize: mf(15), ...font.regular },
     msgTextMine: { color: '#fff' },
 
-    meta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 1 },
-    time: { color: C.textSecondary, fontSize: 11, ...font.regular },
+    meta: { flexDirection: 'row', alignItems: 'center', gap: ms(6), marginTop: ms(1) },
+    time: { color: C.textSecondary, fontSize: mf(11), ...font.regular },
     timeMine: { color: 'rgba(255,255,255,0.7)' },
-    deleteHint: { color: 'rgba(255,255,255,0.55)', fontSize: 10, ...font.regular },
-    reportHint: { color: C.textDisabled, fontSize: 10, ...font.regular },
+    deleteHint: { color: 'rgba(255,255,255,0.55)', fontSize: mf(10), ...font.regular },
+    reportHint: { color: C.textDisabled, fontSize: mf(10), ...font.regular },
 
     empty: { alignItems: 'center', paddingTop: sizes.xxl },
     emptyText: { color: C.textDisabled, ...font.regular, fontSize: sizes.fontMd },
@@ -179,7 +187,7 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.surface,
       alignItems: 'flex-end',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
@@ -187,9 +195,9 @@ const makeStyles = (C: ColorTokens) =>
     input: {
       flex: 1,
       backgroundColor: C.background,
-      borderRadius: 22,
+      borderRadius: ms(22),
       paddingHorizontal: sizes.md,
-      paddingVertical: 10,
+      paddingVertical: ms(10),
       fontSize: sizes.fontMd,
       color: C.textPrimary,
       borderWidth: 1,
@@ -197,15 +205,14 @@ const makeStyles = (C: ColorTokens) =>
       ...font.regular,
     },
     sendBtn: {
-      width: 40,
-      height: 40,
+      width: ms(44),
+      height: ms(44),
       backgroundColor: C.primary,
-      borderRadius: 20,
+      borderRadius: ms(22),
       justifyContent: 'center',
       alignItems: 'center',
     },
     sendBtnDisabled: { backgroundColor: C.border },
-    sendBtnText: { color: '#fff', fontSize: 18, ...font.bold, marginTop: -2 },
   });
 
 // ── MessageBubble ─────────────────────────────────────────────────────────────
@@ -327,10 +334,7 @@ export default function ChatScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const headingFont = useHeadingFont('bold');
 
   // Lazy-load: chat is not loaded at startup, load it when this screen opens
   useEffect(() => {
@@ -388,14 +392,24 @@ export default function ChatScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>
-              {isRTL(currentLanguage) ? `${t('common.back')} ›` : `‹ ${t('common.back')}`}
-            </Text>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons
+              name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
+              size={20}
+              color={C.primary}
+            />
+            <Text style={styles.backText}>{t('common.back')}</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>{t('chat.title')}</Text>
+          <Text style={[styles.headerTitle, headingFont]}>{t('chat.title')}</Text>
           <View style={styles.backBtn} />
         </View>
 
@@ -454,12 +468,21 @@ export default function ChatScreen(): React.JSX.Element {
             <Pressable
               style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
               onPress={handleSend}
+              disabled={!text.trim()}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('chat.send')}
+              accessibilityState={{ disabled: !text.trim() }}
             >
-              <Text style={styles.sendBtnText}>↑</Text>
+              <Ionicons
+                name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-up'}
+                size={20}
+                color="#fff"
+              />
             </Pressable>
           </View>
         </KeyboardAvoidingView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }

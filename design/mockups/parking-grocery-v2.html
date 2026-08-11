@@ -1,0 +1,76 @@
+<title>Parking + Grocery v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:24px}
+  .stage{display:flex;gap:34px;justify-content:center;flex-wrap:wrap}
+  .cap{text-align:center;font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#7a8494;margin-bottom:10px}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.08);--fg1:#0F172A;--fg2:#64748B;--fg3:#94A3B8;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.1);--success:#2F8550;--warning:#B68528;--warning-tint:rgba(182,133,40,.14);--sg1:#3AA968;--sg2:#248049;--dg1:#CE6660;--dg2:#A5403B}
+  .hm.dark{--bg:#0A0F1B;--surface:#151D2E;--surface2:#1F2940;--border:rgba(255,255,255,.08);--fg1:#EEF2F8;--fg2:#8A95AA;--fg3:#586279;--primary:#4E82D4;--primary-tint:rgba(78,130,212,.16);--success:#4FB071;--warning:#E0B24D;--warning-tint:rgba(224,178,77,.16);--sg1:#2F9160;--sg2:#1C6E45;--dg1:#C85752;--dg2:#8E3B37}
+  .phone{width:340px;min-height:680px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.22),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:58px 18px 20px}
+  .title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:16px}
+  /* parking hero */
+  .hero{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+  .hcopy .ht{font-size:17px;font-weight:800;letter-spacing:-.3px}
+  .hcopy .hs{font-size:13px;color:var(--fg2);margin-top:3px}
+  .badge{align-self:center;width:96px;height:96px;border-radius:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#fff}
+  .badge.free{background:linear-gradient(150deg,var(--sg1),var(--sg2));box-shadow:0 8px 18px color-mix(in srgb,var(--sg2) 40%,transparent)}
+  .badge.taken{background:linear-gradient(150deg,var(--dg1),var(--dg2));box-shadow:0 8px 18px color-mix(in srgb,var(--dg2) 40%,transparent)}
+  .badge .bl{font-size:12px;font-weight:800;letter-spacing:.6px}
+  .btnp{background:var(--primary);color:#fff;border-radius:14px;height:50px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:700}
+  .btno{border:1px solid var(--border);color:var(--fg1);border-radius:14px;height:50px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:600}
+  .sec{font-size:12px;font-weight:700;color:var(--fg3);text-transform:uppercase;letter-spacing:.4px;margin:18px 2px 10px}
+  .resv{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px}
+  .resv .d{width:38px;height:38px;border-radius:11px;background:var(--primary-tint);color:var(--primary);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+  .resv .dm{font-size:9px;font-weight:700;text-transform:uppercase}.resv .dn{font-size:14px;font-weight:800}
+  .resv .nm{font-size:14px;font-weight:700}.resv .sb{font-size:12px;color:var(--fg2)}
+  .pill{margin-left:auto;font-size:11px;font-weight:700;padding:4px 9px;border-radius:9999px;background:var(--warning-tint);color:var(--warning)}
+  /* grocery */
+  .seg{display:flex;gap:8px;margin-bottom:14px}
+  .seg .s{flex:1;text-align:center;padding:10px;border-radius:11px;background:var(--surface2);font-size:13px;font-weight:700;color:var(--fg2);border:1px solid var(--border)}
+  .seg .s.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .addrow{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px 6px 6px 14px;margin-bottom:14px}
+  .addrow .i{flex:1;font-size:15px;color:var(--fg3)}
+  .addrow .go{width:38px;height:38px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center}
+  .git{display:flex;align-items:center;gap:11px;padding:12px 4px;border-bottom:1px solid var(--border)}
+  .ck{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--border);flex:none;display:flex;align-items:center;justify-content:center}
+  .ck.on{background:var(--success);border-color:var(--success)}
+  .gn{flex:1;font-size:14.5px;font-weight:500}.gn.done{color:var(--fg3);text-decoration:line-through}
+  .av{width:24px;height:24px;border-radius:12px;background:var(--primary);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  svg{display:block}
+</style>
+<div class="stage">
+  <div><div class="cap">Parking · Free · Light</div><div class="phone hm"><div class="notch"></div><div class="scr">
+    <div class="title">Parking</div>
+    <div class="hero">
+      <div class="hcopy"><div class="ht">The spot's all yours</div><div class="hs">Free real estate — grab it before someone else does.</div></div>
+      <div class="badge free"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-5a2 2 0 012-1.5h7a2 2 0 012 1.5L19 13M5 13h14M5 13v5h2v-2h10v2h2v-5"/><circle cx="7.5" cy="14.5" r="1"/><circle cx="16.5" cy="14.5" r="1"/></svg><div class="bl">FREE</div></div>
+      <div class="btnp"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-5a2 2 0 012-1.5h7a2 2 0 012 1.5L19 13M5 13h14M5 13v5h2v-2h10v2h2v-5"/></svg>Claim the spot</div>
+    </div>
+    <div class="sec">Upcoming</div>
+    <div class="resv"><div class="d"><span class="dm">Jul</span><span class="dn">22</span></div><div style="flex:1"><div class="nm">Sam wants the spot</div><div class="sb">Tue · 09:00–16:00</div></div><span class="pill">VOTE</span></div>
+  </div></div></div>
+
+  <div><div class="cap">Parking · Taken · Dark</div><div class="phone hm dark"><div class="notch"></div><div class="scr">
+    <div class="title">Parking</div>
+    <div class="hero">
+      <div class="hcopy"><div class="ht">Sam took the spot</div><div class="hs">Parked since 14:30 today.</div></div>
+      <div class="badge taken"><svg width="38" height="38" viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-5a2 2 0 012-1.5h7a2 2 0 012 1.5L19 13M5 13h14M5 13v5h2v-2h10v2h2v-5"/></svg><div class="bl">TAKEN</div></div>
+      <div class="btno"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h9m0 0l-3-3m3 3l-3 3M13 4v0a8 8 0 100 16"/></svg>Ask Sam to free it up</div>
+    </div>
+    <div class="sec">Upcoming</div>
+    <div class="resv"><div class="d"><span class="dm">Jul</span><span class="dn">23</span></div><div style="flex:1"><div class="nm">You have the spot</div><div class="sb">Wed · all day</div></div><span class="pill" style="background:color-mix(in srgb,var(--success) 16%,transparent);color:var(--success)">✓ OK</span></div>
+  </div></div></div>
+
+  <div><div class="cap">Grocery · Dark</div><div class="phone hm dark"><div class="notch"></div><div class="scr">
+    <div class="title">Groceries</div>
+    <div class="seg"><div class="s on">Shared</div><div class="s">Draft</div><div class="s">Personal</div></div>
+    <div class="addrow"><span class="i">Add an item…</span><div class="go"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+    <div class="git"><span class="ck"></span><span class="gn">Milk</span><span class="av">A</span></div>
+    <div class="git"><span class="ck"></span><span class="gn">Coffee</span><span class="av" style="background:#E0B24D">S</span></div>
+    <div class="git"><span class="ck on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></span><span class="gn done">Trash bags</span><span class="av" style="background:#4FB071">J</span></div>
+    <div class="git"><span class="ck"></span><span class="gn">Eggs</span><span class="av">A</span></div>
+  </div></div></div>
+</div>

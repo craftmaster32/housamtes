@@ -22,52 +22,90 @@ if (!fs.existsSync(webManifest)) {
 fs.copyFileSync(webManifest, path.join(distDir, 'manifest.json'));
 console.log('✓ manifest.json copied to dist');
 
-// 3. Fix Ionicons for web
-//    - Copy the font to /fonts/ionicons.ttf (clean path, no node_modules)
-//    - Base64-encode it into a standalone /fonts/ionicons.css file
-//    - Link that CSS from every HTML file (one cached download, works in all browsers)
-console.log('\n▶ Fixing Ionicons for web...');
+// 3. Fix @expo/vector-icons fonts for web
+//    Expo's web export doesn't reliably register the icon fonts, so glyphs come
+//    out as ▢/△ tofu. We embed EVERY icon font the app bundles (not just
+//    Ionicons) as base64 @font-face rules under all the family-name aliases
+//    @expo/vector-icons uses, then link one CSS file from every HTML page.
+//    On the native iPhone build these load automatically — this is web-only.
+console.log('\n▶ Embedding icon fonts for web...');
+
+// Icon-font file base name → the CSS font-family names to declare for it.
+// CSS family names are case-insensitive, so we only add genuinely distinct
+// spellings (e.g. the hyphenated aliases expo registers at runtime).
+const ICON_FONTS = {
+  Ionicons: ['Ionicons'],
+  MaterialCommunityIcons: ['MaterialCommunityIcons', 'material-community'],
+  MaterialIcons: ['MaterialIcons', 'material'],
+  FontAwesome: ['FontAwesome'],
+  FontAwesome5_Brands: ['FontAwesome5_Brands', 'FontAwesome5Brands-Regular'],
+  FontAwesome5_Regular: ['FontAwesome5_Regular', 'FontAwesome5Free-Regular'],
+  FontAwesome5_Solid: ['FontAwesome5_Solid', 'FontAwesome5Free-Solid'],
+  Feather: ['Feather'],
+  AntDesign: ['AntDesign', 'anticon'],
+  Entypo: ['Entypo'],
+  EvilIcons: ['EvilIcons'],
+  Foundation: ['Foundation'],
+  Octicons: ['Octicons'],
+  SimpleLineIcons: ['SimpleLineIcons', 'simple-line-icons'],
+  Zocial: ['Zocial'],
+  Fontisto: ['Fontisto'],
+};
 
 const assetsDir = path.join(distDir, 'assets');
 const allAssets = fs.readdirSync(assetsDir, { recursive: true });
-const ioniconsAsset = allAssets.find(
-  (f) => typeof f === 'string' && /Ionicons\.[a-f0-9]+\.ttf$/.test(f)
-);
+const fontsDir = path.join(distDir, 'fonts');
+fs.mkdirSync(fontsDir, { recursive: true });
 
-if (!ioniconsAsset) {
-  console.warn('⚠ Ionicons.ttf not found — icons will be missing');
+const cssBlocks = [];
+const embedded = [];
+for (const [baseName, families] of Object.entries(ICON_FONTS)) {
+  const re = new RegExp(`(?:^|/)${baseName}\\.[a-f0-9]+\\.ttf$`);
+  const asset = allAssets.find((f) => typeof f === 'string' && re.test(f));
+  if (!asset) continue;
+  const srcPath = path.join(assetsDir, asset);
+  const cleanName = `${baseName.toLowerCase()}.ttf`;
+  fs.copyFileSync(srcPath, path.join(fontsDir, cleanName));
+  const b64 = fs.readFileSync(srcPath).toString('base64');
+  for (const family of families) {
+    cssBlocks.push(
+      [
+        '@font-face {',
+        `  font-family: "${family}";`,
+        `  src: url("data:font/truetype;base64,${b64}") format("truetype"),`,
+        `       url("/fonts/${cleanName}") format("truetype");`,
+        '  font-weight: normal;',
+        '  font-style: normal;',
+        '  font-display: block;',
+        '}',
+      ].join('\n')
+    );
+  }
+  embedded.push(`${baseName} (${Math.round((b64.length * 0.75) / 1024)} KB)`);
+}
+
+if (embedded.length === 0) {
+  console.warn('⚠ No icon fonts found in dist/assets — icons will be missing');
 } else {
-  const srcPath = path.join(assetsDir, ioniconsAsset);
-  const fontsDir = path.join(distDir, 'fonts');
-  fs.mkdirSync(fontsDir, { recursive: true });
+  // Keep the filename `ionicons.css` for backwards compatibility with the
+  // injection check below; it now carries every icon font.
+  fs.writeFileSync(
+    path.join(fontsDir, 'ionicons.css'),
+    `/* @expo/vector-icons web fonts — embedded so no network request is needed */\n${cssBlocks.join('\n')}\n`
+  );
 
-  // Copy font to clean path
-  fs.copyFileSync(srcPath, path.join(fontsDir, 'ionicons.ttf'));
-
-  // Base64-encode the font and write a self-contained CSS file
-  const fontB64 = fs.readFileSync(srcPath).toString('base64');
-  const css = [
-    '/* Ionicons web font — embedded so no network request is needed */',
-    '@font-face {',
-    '  font-family: "ionicons";',
-    `  src: url("data:font/truetype;base64,${fontB64}") format("truetype"),`,
-    '       url("/fonts/ionicons.ttf") format("truetype");',
-    '  font-weight: normal;',
-    '  font-style: normal;',
-    '  font-display: block;',
-    '}',
-  ].join('\n');
-  fs.writeFileSync(path.join(fontsDir, 'ionicons.css'), css);
-
-  // Inject <link> into every HTML file
   function injectLink(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory() && entry.name !== 'fonts' && entry.name !== 'assets' && entry.name !== '.vercel') {
+      if (
+        entry.isDirectory() &&
+        entry.name !== 'fonts' &&
+        entry.name !== 'assets' &&
+        entry.name !== '.vercel'
+      ) {
         injectLink(full);
       } else if (entry.name.endsWith('.html')) {
         let html = fs.readFileSync(full, 'utf8');
-        // Remove old injection if present
         html = html.replace(/<style id="ionicons-font">.*?<\/style>/s, '');
         if (!html.includes('ionicons.css')) {
           html = html.replace('<head>', '<head><link rel="stylesheet" href="/fonts/ionicons.css">');
@@ -78,8 +116,7 @@ if (!ioniconsAsset) {
   }
   injectLink(distDir);
 
-  const kb = Math.round(fontB64.length * 0.75 / 1024);
-  console.log(`✓ Ionicons embedded as base64 (${kb} KB) + fallback /fonts/ionicons.ttf`);
+  console.log(`✓ Embedded icon fonts: ${embedded.join(', ')}`);
 }
 
 // 4. Write vercel.json into dist so routing works correctly
@@ -164,8 +201,32 @@ if (fs.existsSync(rootVercel)) {
 }
 
 // 5. Deploy
-console.log('\n▶ Deploying to Vercel...');
+//    Production by default. Set VERCEL_PREVIEW=1 to publish a throwaway preview
+//    deployment on a *.vercel.app URL instead — used to try a branch before it
+//    merges, without touching the live housemates-five.vercel.app site.
+const isPreview = !!process.env.VERCEL_PREVIEW;
+console.log(`\n▶ Deploying to Vercel (${isPreview ? 'preview' : 'production'})...`);
 const tokenFlag = process.env.VERCEL_TOKEN ? `--token ${process.env.VERCEL_TOKEN}` : '';
-execSync(`vercel --prod --yes ${tokenFlag}`.trim(), { cwd: distDir, stdio: 'inherit' });
+const prodFlag = isPreview ? '' : '--prod';
 
-console.log('\n✓ Done! housemates-five.vercel.app is live');
+if (isPreview) {
+  // Capture stdout so we can surface the generated preview URL to CI.
+  const out = execSync(`vercel ${prodFlag} --yes ${tokenFlag}`.trim(), {
+    cwd: distDir,
+    encoding: 'utf8',
+  });
+  process.stdout.write(out);
+  const url = (out.match(/https:\/\/[^\s]+\.vercel\.app/g) || []).pop();
+  if (url) {
+    if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `preview_url=${url}\n`);
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### 🔍 Preview URL\n\n${url}\n`);
+    }
+    console.log(`\n✓ Preview deployed: ${url}`);
+  } else {
+    console.log('\n✓ Preview deployed (URL not detected in output above)');
+  }
+} else {
+  execSync(`vercel --prod --yes ${tokenFlag}`.trim(), { cwd: distDir, stdio: 'inherit' });
+  console.log('\n✓ Done! housemates-five.vercel.app is live');
+}

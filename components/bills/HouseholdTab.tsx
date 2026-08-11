@@ -9,6 +9,7 @@ import {
   getLastPayment,
   getNextDueDate,
   BILL_ICONS,
+  resolveBillIcon,
   type RecurringBill,
   type BillFrequency,
 } from '@stores/recurringBillsStore';
@@ -23,24 +24,26 @@ import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 import { formatDateDDMMYYYY } from '@utils/dates';
 
+import { mf, ms } from '@utils/responsive';
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
 
-const BILL_ICON_LABELS: Record<string, string> = {
-  '🏛️': 'Tax',
-  '⚡': 'Electric',
-  '💧': 'Water',
-  '🔥': 'Gas',
-  '📶': 'Internet',
-  '🏢': 'Building',
-  '🏠': 'Rent',
-  '🧾': 'Other',
-  '🌡️': 'Heating',
-  '♻️': 'Waste',
+// icon name → i18n key, so the picker labels localize with the rest of the app.
+const BILL_ICON_LABEL_KEYS: Record<string, string> = {
+  'business-outline': 'bills.icon_tax',
+  'flash-outline': 'bills.icon_electric',
+  'water-outline': 'bills.icon_water',
+  'flame-outline': 'bills.icon_gas',
+  'wifi-outline': 'bills.icon_internet',
+  business: 'bills.icon_building',
+  'home-outline': 'bills.icon_rent',
+  'receipt-outline': 'bills.icon_other',
+  'thermometer-outline': 'bills.icon_heating',
+  'trash-outline': 'bills.icon_waste',
 };
 
 function dueBadge(
   nextDue: string | null,
-  textSecondaryColor: string
+  tone: { secondary: string; danger: string; warning: string }
 ): { key: string; params?: Record<string, string | number>; color: string } | null {
   if (!nextDue) return null;
   const today = new Date();
@@ -48,10 +51,10 @@ function dueBadge(
   const due = new Date(nextDue + 'T00:00:00');
   const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
   if (diff < 0)
-    return { key: 'bills.household_overdue', params: { n: Math.abs(diff) }, color: '#D9534F' };
-  if (diff === 0) return { key: 'bills.household_due_today', color: '#D9534F' };
-  if (diff <= 7) return { key: 'bills.household_due_in', params: { n: diff }, color: '#E0B24D' };
-  return { key: 'bills.household_due_in', params: { n: diff }, color: textSecondaryColor };
+    return { key: 'bills.household_overdue', params: { n: Math.abs(diff) }, color: tone.danger };
+  if (diff === 0) return { key: 'bills.household_due_today', color: tone.danger };
+  if (diff <= 7) return { key: 'bills.household_due_in', params: { n: diff }, color: tone.warning };
+  return { key: 'bills.household_due_in', params: { n: diff }, color: tone.secondary };
 }
 
 // ── Fairness bar ──────────────────────────────────────────────────────────────
@@ -153,7 +156,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
 
   const last = getLastPayment(bill.id, payments);
   const nextDue = getNextDueDate(bill, payments);
-  const badge = dueBadge(nextDue, c.textSecondary);
+  const badge = dueBadge(nextDue, {
+    secondary: c.textSecondary,
+    danger: c.danger,
+    warning: c.warning,
+  });
   const billPayments = payments
     .filter((p) => p.billId === bill.id)
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
@@ -254,7 +261,9 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     <View style={[styles.billCard, { backgroundColor: c.surface, borderColor: c.border }]}>
       {/* Header row */}
       <View style={styles.billHeader}>
-        <Text style={styles.billIcon}>{bill.icon}</Text>
+        <View style={styles.billIcon}>
+          <Ionicons name={resolveBillIcon(bill.icon)} size={24} color={c.primary} />
+        </View>
         <View style={styles.billHeaderInfo}>
           <Text style={[styles.billName, { color: c.textPrimary }]}>{bill.name}</Text>
           <View style={styles.billMeta}>
@@ -593,14 +602,14 @@ function AddBillForm({
             onPress={() => setIcon(ic)}
             accessible
             accessibilityRole="radio"
-            accessibilityLabel={BILL_ICON_LABELS[ic] ?? ic}
+            accessibilityLabel={BILL_ICON_LABEL_KEYS[ic] ? t(BILL_ICON_LABEL_KEYS[ic]) : ic}
             accessibilityState={{ selected: icon === ic }}
           >
-            <Text style={styles.iconChipEmoji}>{ic}</Text>
+            <Ionicons name={ic} size={20} color={icon === ic ? c.primary : c.textSecondary} />
             <Text
               style={[styles.iconChipLabel, { color: icon === ic ? c.primary : c.textSecondary }]}
             >
-              {BILL_ICON_LABELS[ic] ?? ''}
+              {BILL_ICON_LABEL_KEYS[ic] ? t(BILL_ICON_LABEL_KEYS[ic]) : ''}
             </Text>
           </Pressable>
         ))}
@@ -818,7 +827,7 @@ export function HouseholdTab(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: sizes.lg, paddingBottom: 60, gap: sizes.sm },
+  content: { padding: sizes.lg, paddingBottom: ms(60), gap: sizes.sm },
 
   // Fairness
   fairnessCard: { borderRadius: sizes.borderRadius, padding: sizes.md, gap: sizes.sm },
@@ -829,30 +838,30 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   fairnessRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs },
-  fairnessPerson: { width: 64, fontSize: sizes.fontSm, ...font.semibold },
-  barTrack: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
-  barFill: { height: 8, borderRadius: 4 },
-  fairnessAmount: { width: 56, fontSize: sizes.fontSm, textAlign: 'right' },
-  fairnessBalance: { width: 56, fontSize: sizes.fontXs, ...font.bold, textAlign: 'right' },
-  fairnessNote: { fontSize: 11, marginTop: sizes.xs },
+  fairnessPerson: { width: ms(64), fontSize: sizes.fontSm, ...font.semibold },
+  barTrack: { flex: 1, height: ms(8), borderRadius: ms(4), overflow: 'hidden' },
+  barFill: { height: ms(8), borderRadius: ms(4) },
+  fairnessAmount: { width: ms(56), fontSize: sizes.fontSm, textAlign: 'right' },
+  fairnessBalance: { width: ms(56), fontSize: sizes.fontXs, ...font.bold, textAlign: 'right' },
+  fairnessNote: { fontSize: mf(11), marginTop: sizes.xs },
 
   // Bill card
   billCard: { borderRadius: sizes.borderRadius, borderWidth: 1, padding: sizes.md, gap: sizes.sm },
   billHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: sizes.sm },
-  billIcon: { fontSize: 28, lineHeight: 36 },
-  billHeaderInfo: { flex: 1, gap: 4 },
+  billIcon: { width: ms(32), alignItems: 'center', paddingTop: ms(2) },
+  billHeaderInfo: { flex: 1, gap: ms(4) },
   billName: { fontSize: sizes.fontMd, ...font.bold },
   billMeta: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs, flexWrap: 'wrap' },
   metaChip: {
     borderRadius: sizes.borderRadiusFull,
     paddingHorizontal: sizes.xs,
-    paddingVertical: 2,
+    paddingVertical: ms(2),
   },
   metaChipText: { fontSize: sizes.fontXs, ...font.semibold },
   typicalAmount: { fontSize: sizes.fontXs },
   deleteBtn: {
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: ms(44),
+    minHeight: ms(44),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -862,15 +871,15 @@ const styles = StyleSheet.create({
   dueBadge: {
     borderRadius: sizes.borderRadiusFull,
     paddingHorizontal: sizes.sm,
-    paddingVertical: 3,
+    paddingVertical: ms(3),
   },
   dueBadgeText: { fontSize: sizes.fontXs, ...font.bold },
   billActions: { flexDirection: 'row', alignItems: 'center', gap: sizes.md },
   logBtn: {
     borderRadius: sizes.borderRadiusFull,
     paddingHorizontal: sizes.md,
-    paddingVertical: 5,
-    minHeight: 44,
+    paddingVertical: ms(5),
+    minHeight: ms(44),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -912,7 +921,7 @@ const styles = StyleSheet.create({
   // History
   history: { borderTopWidth: 1, paddingTop: sizes.sm, gap: sizes.xs },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-  historyDate: { fontSize: sizes.fontSm, width: 80 },
+  historyDate: { fontSize: sizes.fontSm, width: ms(80) },
   historyAmount: { fontSize: sizes.fontSm, ...font.semibold },
   historyNote: { flex: 1, fontSize: sizes.fontSm, fontStyle: 'italic' },
 
@@ -927,17 +936,16 @@ const styles = StyleSheet.create({
   },
   iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
   iconChip: {
-    width: 56,
-    height: 56,
+    width: ms(56),
+    height: ms(56),
     borderRadius: sizes.borderRadiusSm,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    gap: 2,
+    gap: ms(2),
   },
-  iconChipEmoji: { fontSize: 20 },
-  iconChipLabel: { fontSize: 9, textAlign: 'center' },
-  fieldHint: { fontSize: 11, marginTop: -2 },
+  iconChipLabel: { fontSize: mf(9), textAlign: 'center' },
+  fieldHint: { fontSize: mf(11), marginTop: ms(-2) },
   dateTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -946,11 +954,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: sizes.sm,
     paddingVertical: sizes.sm,
-    minHeight: 44,
+    minHeight: ms(44),
     flexShrink: 0,
   },
   dateTriggerText: { fontSize: sizes.fontSm },
-  formError: { fontSize: sizes.fontSm, marginTop: 2 },
+  formError: { fontSize: sizes.fontSm, marginTop: ms(2) },
   addInput: {
     borderRadius: sizes.borderRadiusSm,
     borderWidth: 1,
@@ -961,8 +969,8 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
   chip: {
     paddingHorizontal: sizes.sm,
-    paddingVertical: 6,
-    minHeight: 44,
+    paddingVertical: ms(6),
+    minHeight: ms(44),
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: sizes.borderRadiusFull,
@@ -978,7 +986,7 @@ const styles = StyleSheet.create({
   cancelBtn: {
     paddingHorizontal: sizes.md,
     paddingVertical: sizes.sm,
-    minHeight: 44,
+    minHeight: ms(44),
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: sizes.borderRadius,
@@ -988,7 +996,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     paddingHorizontal: sizes.md,
     paddingVertical: sizes.sm,
-    minHeight: 44,
+    minHeight: ms(44),
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: sizes.borderRadius,

@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -19,7 +20,9 @@ import { TaskRow } from '@components/tasks/TaskRow';
 import { AddTaskForm } from '@components/tasks/AddTaskForm';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 const FILTERS: TaskFilter[] = ['all', 'active', 'completed'];
 
 export default function TasksScreen(): React.JSX.Element {
@@ -36,6 +39,7 @@ export default function TasksScreen(): React.JSX.Element {
   const role = useAuthStore((s) => s.role);
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const myId = profile?.id ?? '';
@@ -105,14 +109,14 @@ export default function TasksScreen(): React.JSX.Element {
             <View>
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>
-                  <Text style={styles.titleHero}>{t('tasks.title')}</Text>
+                  <Text style={[styles.titleHero, headingFont]}>{t('tasks.title')}</Text>
                   <Text style={styles.textBase}>{t('tasks.subtitle')}</Text>
                 </View>
                 <AddTaskForm onAdd={handleAdd} />
               </View>
 
               {isLoading && tasks.length === 0 && (
-                <ActivityIndicator size="small" color={C.primary} style={styles.loadingIndicator} />
+                <LoadingSpinner size={64} style={styles.loadingIndicator} />
               )}
               {!!storeError && (
                 <View style={styles.storeErrorBox}>
@@ -169,38 +173,38 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
-    sep: { height: 8 },
+    list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
+    sep: { height: ms(8) },
 
     heroCard: {
       backgroundColor: C.surface,
-      borderRadius: 20,
+      borderRadius: ms(20),
       borderWidth: 1,
       borderColor: C.border,
-      padding: 20,
-      gap: 14,
-      marginBottom: 24,
+      padding: ms(20),
+      gap: ms(14),
+      marginBottom: ms(24),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    heroCopy: { gap: 6 },
-    titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-    textBase: { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
+    heroCopy: { gap: ms(6) },
+    titleHero: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
+    textBase: { fontSize: mf(15), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
 
     filterRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      marginBottom: 14,
-      paddingHorizontal: 4,
+      gap: ms(8),
+      marginBottom: ms(14),
+      paddingHorizontal: ms(4),
     },
     filterChip: {
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      minHeight: 44,
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(10),
+      minHeight: ms(44),
       justifyContent: 'center',
       borderRadius: 9999,
       borderWidth: 1,
@@ -208,44 +212,44 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surfaceSecondary,
     },
     filterChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    filterText: { fontSize: 13, ...font.semibold, color: C.textSecondary },
+    filterText: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
     filterTextActive: { color: '#fff' },
     countPill: {
-      minHeight: 22,
-      paddingHorizontal: 8,
+      minHeight: ms(22),
+      paddingHorizontal: ms(8),
       borderRadius: 9999,
       backgroundColor: C.secondary,
       justifyContent: 'center',
       alignItems: 'center',
       marginStart: 'auto',
     },
-    countPillText: { fontSize: 11, ...font.bold, color: C.secondaryForeground },
+    countPillText: { fontSize: mf(11), ...font.bold, color: C.secondaryForeground },
 
-    emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
+    emptyWrap: { alignItems: 'center', paddingVertical: ms(48), gap: ms(12) },
     emptyIconWrap: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
+      width: ms(72),
+      height: ms(72),
+      borderRadius: ms(36),
       backgroundColor: C.surfaceSecondary,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    emptyTitle: { fontSize: 16, ...font.bold, color: C.textPrimary },
+    emptyTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
     emptyText: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
 
-    loadingIndicator: { marginBottom: 8 },
+    loadingIndicator: { marginBottom: ms(8) },
     storeErrorBox: {
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
-      padding: 12,
-      marginBottom: 8,
+      borderRadius: ms(10),
+      padding: ms(12),
+      marginBottom: ms(8),
     },
-    storeErrorText: { fontSize: 13, color: C.danger },
+    storeErrorText: { fontSize: mf(13), color: C.danger },
   });
 }

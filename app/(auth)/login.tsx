@@ -1,5 +1,12 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Animated, ScrollView } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -9,13 +16,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signInSchema, mapZodError } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
-import { AuthIllustration } from '@components/shared/AuthIllustration';
+import { Entrance } from '@components/shared/Entrance';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
 
@@ -33,36 +42,10 @@ export default function LoginScreen(): React.JSX.Element {
 
   const { t } = useTranslation();
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  const fadeHeader = useRef(new Animated.Value(0)).current;
-  const slideCard = useRef(new Animated.Value(30)).current;
-  const fadeCard = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeHeader, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.spring(slideCard, {
-          toValue: 0,
-          tension: 65,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeCard, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [fadeHeader, slideCard, fadeCard]);
 
   useEffect(() => {
     return (): void => {
@@ -110,7 +93,7 @@ export default function LoginScreen(): React.JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.header, { opacity: fadeHeader }]}>
+      <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
           <Pressable
             style={styles.backBtn}
@@ -131,126 +114,120 @@ export default function LoginScreen(): React.JSX.Element {
             <View style={styles.logoChip}>
               <Ionicons name="home" size={20} color={C.primary} />
             </View>
-            <Text style={styles.brandName}>HouseMates</Text>
+            <Text style={[styles.brandName, headingFont]}>HouseMates</Text>
           </View>
           <Text style={styles.headerTagline}>{t('welcome.tagline')}</Text>
         </SafeAreaView>
-      </Animated.View>
+      </View>
 
-      <Animated.View
-        style={[
-          styles.cardWrapper,
-          {
-            opacity: fadeCard,
-            transform: [{ translateY: slideCard }],
-          },
-        ]}
+      <KeyboardAvoidingView
+        style={styles.cardWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           style={styles.card}
           contentContainerStyle={styles.cardContent}
           keyboardShouldPersistTaps="handled"
         >
-          <TextInput
-            label={t('auth.email')}
-            value={email}
-            onChangeText={(v) => {
-              setEmail(v);
-              setError('');
-            }}
-            mode="outlined"
-            style={styles.input}
-            autoFocus
-            keyboardType="email-address"
-            autoCapitalize="none"
-            returnKeyType="next"
-            onSubmitEditing={() => passwordRef.current?.focus()}
-            accessibilityLabel={t('auth.email')}
-            accessibilityHint={t('auth.email_hint')}
-            error={!!error}
-          />
+          <Entrance style={styles.cardInner}>
+            <TextInput
+              label={t('auth.email')}
+              value={email}
+              onChangeText={(v) => {
+                setEmail(v);
+                setError('');
+              }}
+              mode="outlined"
+              style={styles.input}
+              autoFocus
+              keyboardType="email-address"
+              autoCapitalize="none"
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              accessibilityLabel={t('auth.email')}
+              accessibilityHint={t('auth.email_hint')}
+              error={!!error}
+            />
 
-          <TextInput
-            ref={passwordRef}
-            label={t('auth.password')}
-            value={password}
-            onChangeText={(v) => {
-              setPassword(v);
-              setError('');
-            }}
-            mode="outlined"
-            style={styles.input}
-            secureTextEntry={!showPassword}
-            returnKeyType="go"
-            onSubmitEditing={handleLogin}
-            accessibilityLabel={t('auth.password')}
-            accessibilityHint={t('auth.password_hint')}
-            right={
-              <TextInput.Icon
-                icon={showPassword ? 'eye-off' : 'eye'}
-                onPress={() => setShowPassword((v) => !v)}
-                accessibilityLabel={
-                  showPassword ? t('auth.hide_password') : t('auth.show_password')
-                }
-              />
-            }
-            error={!!error}
-          />
+            <TextInput
+              ref={passwordRef}
+              label={t('auth.password')}
+              value={password}
+              onChangeText={(v) => {
+                setPassword(v);
+                setError('');
+              }}
+              mode="outlined"
+              style={styles.input}
+              secureTextEntry={!showPassword}
+              returnKeyType="go"
+              onSubmitEditing={handleLogin}
+              accessibilityLabel={t('auth.password')}
+              accessibilityHint={t('auth.password_hint')}
+              right={
+                <TextInput.Icon
+                  icon={showPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowPassword((v) => !v)}
+                  accessibilityLabel={
+                    showPassword ? t('auth.hide_password') : t('auth.show_password')
+                  }
+                />
+              }
+              error={!!error}
+            />
 
-          <Pressable
-            style={styles.forgotBtn}
-            onPress={() => router.push('/(auth)/forgot-password')}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.forgot_password')}
-          >
-            <Text style={styles.forgotText}>{t('auth.forgot_password')}</Text>
-          </Pressable>
+            <Pressable
+              style={styles.forgotBtn}
+              onPress={() => router.push('/(auth)/forgot-password')}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.forgot_password')}
+            >
+              <Text style={styles.forgotText}>{t('auth.forgot_password')}</Text>
+            </Pressable>
 
-          {!!error && <Text style={styles.error}>{error}</Text>}
+            {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <Button
-            mode="contained"
-            onPress={handleLogin}
-            loading={isLoading}
-            disabled={isLoading || lockoutRemaining > 0}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
-            buttonColor={C.primary}
-            textColor="#fff"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={
-              lockoutRemaining > 0
-                ? t('auth.locked_out', { n: lockoutRemaining })
-                : t('auth.sign_in')
-            }
-          >
-            {lockoutRemaining > 0
-              ? t('auth.try_again_in', { n: lockoutRemaining })
-              : isLoading
-                ? t('auth.signing_in')
-                : t('auth.sign_in')}
-          </Button>
+            <Button
+              mode="contained"
+              onPress={handleLogin}
+              loading={isLoading}
+              disabled={isLoading || lockoutRemaining > 0}
+              style={styles.button}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
+              buttonColor={C.primary}
+              textColor="#fff"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={
+                lockoutRemaining > 0
+                  ? t('auth.locked_out', { n: lockoutRemaining })
+                  : t('auth.sign_in')
+              }
+            >
+              {lockoutRemaining > 0
+                ? t('auth.try_again_in', { n: lockoutRemaining })
+                : isLoading
+                  ? t('auth.signing_in')
+                  : t('auth.sign_in')}
+            </Button>
 
-          <Pressable
-            style={styles.signupLink}
-            onPress={() => router.push('/(auth)/signup')}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.no_account_signup')}
-          >
-            <Text style={styles.signupText}>
-              {t('auth.no_account')} <Text style={styles.signupTextBold}>{t('auth.sign_up')}</Text>
-            </Text>
-          </Pressable>
-
-          <View style={styles.illustrationSpacer}>
-            <AuthIllustration />
-          </View>
+            <Pressable
+              style={styles.signupLink}
+              onPress={() => router.push('/(auth)/signup')}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.no_account_signup')}
+            >
+              <Text style={styles.signupText}>
+                {t('auth.no_account')}{' '}
+                <Text style={styles.signupTextBold}>{t('auth.sign_up')}</Text>
+              </Text>
+            </Pressable>
+          </Entrance>
         </ScrollView>
-      </Animated.View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -264,51 +241,51 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     header: {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
-      paddingBottom: 28,
+      paddingBottom: ms(28),
     },
     headerInner: {
-      gap: 6,
+      gap: ms(6),
     },
     backBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 2,
+      gap: ms(2),
       alignSelf: 'flex-start',
       paddingVertical: sizes.sm,
       paddingHorizontal: sizes.xs,
       minHeight: sizes.touchTarget,
       marginTop: sizes.xs,
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
     backText: {
-      fontSize: 15.5,
+      fontSize: mf(15.5),
       ...font.medium,
       color: 'rgba(255,255,255,0.85)',
     },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: ms(10),
     },
     logoChip: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+      width: ms(36),
+      height: ms(36),
+      borderRadius: ms(10),
       backgroundColor: 'rgba(255,255,255,0.92)',
       alignItems: 'center',
       justifyContent: 'center',
     },
     brandName: {
-      fontSize: 20,
+      fontSize: mf(20),
       ...font.bold,
       color: '#fff',
       letterSpacing: -0.3,
     },
     headerTagline: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: 'rgba(255,255,255,0.65)',
-      lineHeight: 22,
+      lineHeight: mf(22),
     },
     cardWrapper: {
       flex: 1,
@@ -317,22 +294,16 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     card: {
       flex: 1,
       backgroundColor: C.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+      borderTopLeftRadius: ms(28),
+      borderTopRightRadius: ms(28),
     },
     cardContent: {
       flexGrow: 1,
       paddingHorizontal: sizes.lg,
-      paddingTop: 32,
-      paddingBottom: 24,
-      gap: sizes.md,
+      paddingTop: ms(32),
+      paddingBottom: ms(24),
     },
-    illustrationSpacer: {
-      flex: 1,
-      minHeight: 140,
-      maxHeight: 260,
-      justifyContent: 'flex-end',
-    },
+    cardInner: { gap: sizes.md },
     input: {
       backgroundColor: C.surface,
     },
@@ -343,7 +314,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       justifyContent: 'center',
     },
     forgotText: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.medium,
       color: C.primary,
     },
@@ -353,14 +324,14 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       fontSize: sizes.fontSm,
     },
     button: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       marginTop: sizes.xs,
     },
     buttonContent: {
-      height: 52,
+      height: ms(52),
     },
     buttonLabel: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
       letterSpacing: 0.2,
     },
@@ -371,7 +342,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       justifyContent: 'center',
     },
     signupText: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',

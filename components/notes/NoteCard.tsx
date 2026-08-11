@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { Announcement } from '@stores/announcementsStore';
@@ -10,6 +11,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 interface NoteCardProps {
   note: Announcement;
   myId: string;
@@ -37,7 +39,9 @@ export function NoteCard({
 
   const authorName =
     note.author === myId ? t('notes.author_you') : resolveName(note.author, housemates);
-  const authorColor = housemates.find((h) => h.id === note.author)?.color ?? C.primary;
+  const author = housemates.find((h) => h.id === note.author);
+  const authorColor = author?.color ?? C.primary;
+  const authorInitial = (authorName || '?').trim().charAt(0).toUpperCase();
   const postedDate = new Date(note.createdAt).toLocaleDateString(i18n.language, {
     day: 'numeric',
     month: 'short',
@@ -108,13 +112,28 @@ export function NoteCard({
         </View>
       ) : (
         <>
-          <Text style={styles.noteText}>{note.text}</Text>
+          <View style={[styles.accent, { backgroundColor: authorColor }]} pointerEvents="none" />
           <View style={styles.metaRow}>
-            <View style={[styles.authorDot, { backgroundColor: authorColor }]} />
-            <Text style={styles.metaText}>
-              {authorName} · {postedDate}
-              {wasEdited ? ` · ${t('notes.edited')}` : ''}
-            </Text>
+            <View style={[styles.avatar, { backgroundColor: authorColor }]}>
+              {author?.avatarUrl ? (
+                <Image
+                  source={{ uri: author.avatarUrl }}
+                  style={styles.avatarImg}
+                  contentFit="cover"
+                  accessible
+                  accessibilityLabel={authorName}
+                />
+              ) : (
+                <Text style={styles.avatarText}>{authorInitial}</Text>
+              )}
+            </View>
+            <View style={styles.metaTextWrap}>
+              <Text style={styles.authorName}>{authorName}</Text>
+              <Text style={styles.metaText}>
+                {postedDate}
+                {wasEdited ? ` · ${t('notes.edited')}` : ''}
+              </Text>
+            </View>
             <View style={styles.actions}>
               <Pressable
                 onPress={startEdit}
@@ -140,6 +159,7 @@ export function NoteCard({
               )}
             </View>
           </View>
+          <Text style={styles.noteText}>{note.text}</Text>
         </>
       )}
     </View>
@@ -149,56 +169,72 @@ export function NoteCard({
 function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     card: {
+      position: 'relative',
       backgroundColor: C.surface,
-      borderRadius: 14,
+      borderRadius: ms(16),
       borderWidth: 1,
       borderColor: C.border,
-      padding: 14,
-      gap: 10,
+      paddingVertical: ms(14),
+      paddingEnd: ms(14),
+      paddingStart: ms(16),
+      gap: ms(10),
+      overflow: 'hidden',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    noteText: { fontSize: 15, ...font.regular, color: C.textPrimary, lineHeight: 22 },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    authorDot: { width: 8, height: 8, borderRadius: 4 },
-    metaText: { fontSize: 12, ...font.medium, color: C.textSecondary, flex: 1 },
-    actions: { flexDirection: 'row', gap: 4 },
+    accent: { position: 'absolute', start: 0, top: 0, bottom: 0, width: ms(4) },
+    noteText: { fontSize: mf(14.5), ...font.regular, color: C.textPrimary, lineHeight: mf(21) },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: ms(9) },
+    avatar: {
+      width: ms(28),
+      height: ms(28),
+      borderRadius: ms(14),
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImg: { width: ms(28), height: ms(28) },
+    avatarText: { fontSize: mf(12), ...font.extrabold, color: '#fff' },
+    metaTextWrap: { flex: 1 },
+    authorName: { fontSize: mf(13), ...font.bold, color: C.textPrimary },
+    metaText: { fontSize: mf(11.5), ...font.medium, color: C.textTertiary, marginTop: ms(1) },
+    actions: { flexDirection: 'row', gap: ms(4) },
     iconBtn: {
-      minWidth: 44,
-      minHeight: 44,
+      minWidth: ms(44),
+      minHeight: ms(44),
       justifyContent: 'center',
       alignItems: 'center',
     },
 
-    editWrap: { gap: 10 },
+    editWrap: { gap: ms(10) },
     editInput: {
-      minHeight: 64,
+      minHeight: ms(64),
       backgroundColor: C.surfaceSecondary,
-      borderRadius: 10,
+      borderRadius: ms(10),
       borderWidth: 1,
       borderColor: C.border,
-      paddingHorizontal: 13,
-      paddingVertical: 10,
-      fontSize: 15,
+      paddingHorizontal: ms(13),
+      paddingVertical: ms(10),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
       textAlignVertical: 'top',
     },
-    editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+    editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: ms(8) },
     editBtn: {
-      minHeight: 44,
-      paddingHorizontal: 16,
-      borderRadius: 10,
+      minHeight: ms(44),
+      paddingHorizontal: ms(16),
+      borderRadius: ms(10),
       justifyContent: 'center',
       alignItems: 'center',
     },
     saveBtn: { backgroundColor: C.primary },
     btnOff: { backgroundColor: C.textDisabled },
-    cancelText: { fontSize: 14, ...font.semibold, color: C.textSecondary },
-    saveText: { fontSize: 14, ...font.semibold, color: '#fff' },
-    errorText: { fontSize: 13, ...font.regular, color: C.danger },
+    cancelText: { fontSize: mf(14), ...font.semibold, color: C.textSecondary },
+    saveText: { fontSize: mf(14), ...font.semibold, color: '#fff' },
+    errorText: { fontSize: mf(13), ...font.regular, color: C.danger },
   });
 }

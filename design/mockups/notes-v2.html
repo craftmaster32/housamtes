@@ -1,0 +1,90 @@
+<title>Notes v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:760px;margin:0 auto 22px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px}
+  .stage{display:flex;gap:38px;justify-content:center;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#7a8494}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.07);--fg1:#0F172A;--fg2:#64748B;--fg3:#98A2B3;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.1)}
+  .hm.dark{--bg:#0A0F1B;--surface:#141C2C;--surface2:#1E2840;--border:rgba(255,255,255,.07);--fg1:#EEF2F8;--fg2:#8A95AA;--fg3:#5A6479;--primary:#4E82D4;--primary-tint:rgba(78,130,212,.16)}
+  .phone{width:344px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:56px 18px 22px}
+  .title{font-family:'Fraunces',Georgia,serif;font-size:30px;font-weight:600;letter-spacing:-.5px;line-height:1}
+  .sub{font-size:13px;color:var(--fg2);font-weight:500;margin:5px 0 16px}
+  /* compose */
+  .compose{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:14px;margin-bottom:20px}
+  .ctop{display:flex;gap:10px;align-items:flex-start}
+  .me{width:34px;height:34px;border-radius:17px;background:#3B6FBF;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:none}
+  .cfield{flex:1;font-size:14px;color:var(--fg3);padding-top:7px}
+  .cbtn{display:flex;align-items:center;justify-content:center;gap:6px;background:var(--primary);color:#fff;font-weight:700;font-size:14px;padding:11px;border-radius:12px;margin-top:12px}
+  /* note card */
+  .note{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 14px 12px 16px;margin-bottom:10px;overflow:hidden}
+  .note .accent{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .nhead{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+  .av{width:28px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex:none}
+  .nwho{font-size:13px;font-weight:700}
+  .nwhen{font-size:11.5px;color:var(--fg3);font-weight:500}
+  .acts{margin-left:auto;display:flex;gap:2px;color:var(--fg3)}
+  .acts .ib{width:30px;height:30px;display:flex;align-items:center;justify-content:center}
+  .ntext{font-size:14.5px;line-height:1.5;color:var(--fg1)}
+  .pin{position:absolute;top:12px;right:12px;color:var(--fg3);opacity:.5}
+  svg{display:block}
+</style>
+<div class="head"><h1>Notes — v2</h1><p>House pinboard: each note carries its author's face &amp; colour; friendlier compose card. Title in Fraunces.</p></div>
+<div class="stage" id="stage"></div>
+<template id="tpl">
+  <div class="scr">
+    <div class="title">Notes</div>
+    <div class="sub">Quick messages pinned for the whole house.</div>
+    <div class="compose">
+      <div class="ctop">
+        <div class="me">A</div>
+        <div class="cfield">Leave a note for the house…</div>
+      </div>
+      <div class="cbtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V16a1 1 0 001 1h12a1 1 0 001-1v-.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V7a1 1 0 011-1 2 2 0 000-4H8a2 2 0 000 4 1 1 0 011 1z"/></svg>Pin note</div>
+    </div>
+
+    <div class="note">
+      <div class="accent" style="background:#8A5CD0"></div>
+      <svg class="pin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 10.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V16a1 1 0 001 1h12a1 1 0 001-1v-.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V7a1 1 0 011-1 2 2 0 000-4H8a2 2 0 000 4 1 1 0 011 1z"/></svg>
+      <div class="nhead">
+        <div class="av" style="background:#8A5CD0">J</div>
+        <div><div class="nwho">Jordan</div><div class="nwhen">18 Apr</div></div>
+      </div>
+      <div class="ntext">Landlord's coming Thursday 3pm to fix the boiler — please keep the kitchen tidy 🙏</div>
+    </div>
+
+    <div class="note">
+      <div class="accent" style="background:#3B6FBF"></div>
+      <div class="nhead">
+        <div class="av" style="background:#3B6FBF">A</div>
+        <div><div class="nwho">You</div><div class="nwhen">17 Apr · edited</div></div>
+        <div class="acts">
+          <div class="ib"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></div>
+          <div class="ib"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></div>
+        </div>
+      </div>
+      <div class="ntext">Bins go out tonight — it's our turn this week.</div>
+    </div>
+
+    <div class="note">
+      <div class="accent" style="background:#C77"></div>
+      <div class="nhead">
+        <div class="av" style="background:#C77">S</div>
+        <div><div class="nwho">Sam</div><div class="nwhen">15 Apr</div></div>
+      </div>
+      <div class="ntext">Wifi router restarted, should be faster now.</div>
+    </div>
+  </div>
+</template>
+<script>
+  const s=document.getElementById('stage');
+  [['Light',''],['Dark','dark']].forEach(([l,c])=>{const col=document.createElement('div');col.className='col';const cap=document.createElement('div');cap.className='cap';cap.textContent=l;const p=document.createElement('div');p.className='phone hm'+(c?' '+c:'');p.innerHTML='<div class="notch"></div>'+document.getElementById('tpl').innerHTML;col.appendChild(cap);col.appendChild(p);s.appendChild(col);});
+</script>

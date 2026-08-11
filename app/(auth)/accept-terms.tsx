@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -7,9 +7,11 @@ import { useTranslation, Trans } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 
+import { mf, ms } from '@utils/responsive';
 export default function AcceptTermsScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const [agreed, setAgreed] = useState(false);
@@ -18,12 +20,8 @@ export default function AcceptTermsScreen(): React.JSX.Element {
   const signOut = useAuthStore((s) => s.signOut);
   const isLoading = useAuthStore((s) => s.isLoading);
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-  }, [fadeAnim]);
 
   const handleAccept = useCallback(async (): Promise<void> => {
     if (!agreed) {
@@ -44,7 +42,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.iconWrap}>
             <View style={styles.iconCircle}>
@@ -53,7 +51,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.header}>
-            <Text style={styles.title}>{t('auth.terms_updated_title')}</Text>
+            <Text style={[styles.title, headingFont]}>{t('auth.terms_updated_title')}</Text>
             <Text style={styles.subtitle}>{t('auth.terms_updated_body')}</Text>
           </View>
 
@@ -179,7 +177,7 @@ export default function AcceptTermsScreen(): React.JSX.Element {
             <Text style={styles.signOutText}>{t('auth.sign_out_instead')}</Text>
           </Pressable>
         </ScrollView>
-      </Animated.View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -196,49 +194,49 @@ function makeStyles(C: ColorTokens) {
     },
     iconWrap: { alignItems: 'center', marginBottom: sizes.xs },
     iconCircle: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
+      width: ms(72),
+      height: ms(72),
+      borderRadius: ms(36),
       backgroundColor: C.primaryLight,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    header: { gap: 8, alignItems: 'center' },
+    header: { gap: ms(8), alignItems: 'center' },
     title: {
-      fontSize: 26,
+      fontSize: mf(26),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.5,
       textAlign: 'center',
     },
     subtitle: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 22,
+      lineHeight: mf(22),
       textAlign: 'center',
     },
     changeCard: {
       backgroundColor: C.background,
-      borderRadius: 14,
+      borderRadius: ms(14),
       padding: sizes.md,
       gap: sizes.sm,
     },
     changeHeading: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.semibold,
       color: C.textPrimary,
-      marginBottom: 2,
+      marginBottom: ms(2),
     },
-    changeList: { gap: 10 },
-    changeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-    changeIcon: { marginTop: 2, flexShrink: 0 },
+    changeList: { gap: ms(10) },
+    changeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: ms(8) },
+    changeIcon: { marginTop: ms(2), flexShrink: 0 },
     changeText: {
       flex: 1,
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
     changeBold: { ...font.semibold, color: C.textPrimary },
     termsRow: {
@@ -248,16 +246,16 @@ function makeStyles(C: ColorTokens) {
       marginTop: sizes.xs,
     },
     checkbox: {
-      width: 22,
-      height: 22,
-      borderRadius: 6,
+      width: ms(22),
+      height: ms(22),
+      borderRadius: ms(6),
       borderWidth: 1.5,
       borderColor: C.border,
       backgroundColor: C.surface,
       justifyContent: 'center',
       alignItems: 'center',
       flexShrink: 0,
-      marginTop: 1,
+      marginTop: ms(1),
     },
     checkboxChecked: {
       backgroundColor: C.primary,
@@ -265,10 +263,10 @@ function makeStyles(C: ColorTokens) {
     },
     termsText: {
       flex: 1,
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       color: C.textSecondary,
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
     termsLink: {
       color: C.primary,
@@ -279,15 +277,15 @@ function makeStyles(C: ColorTokens) {
       color: C.danger,
       fontSize: sizes.fontSm,
     },
-    button: { borderRadius: 14, marginTop: sizes.xs },
-    buttonContent: { height: 52 },
-    buttonLabel: { fontSize: 16, ...font.semibold, letterSpacing: 0.2 },
+    button: { borderRadius: ms(14), marginTop: sizes.xs },
+    buttonContent: { height: ms(52) },
+    buttonLabel: { fontSize: mf(16), ...font.semibold, letterSpacing: 0.2 },
     signOutBtn: {
       alignItems: 'center',
       paddingVertical: sizes.sm,
     },
     signOutText: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.medium,
       color: C.textSecondary,
     },

@@ -1,7 +1,9 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +15,9 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { Alert } from '@lib/alert';
 import { getErrorMessage } from '@utils/errors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 export default function NotesScreen(): React.JSX.Element {
   const { t } = useTranslation();
 
@@ -28,6 +32,7 @@ export default function NotesScreen(): React.JSX.Element {
   const role = useAuthStore((s) => s.role);
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const myId = profile?.id ?? '';
@@ -96,20 +101,42 @@ export default function NotesScreen(): React.JSX.Element {
             <View>
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>
-                  <Text style={styles.titleHero}>{t('notes.title')}</Text>
+                  <Text style={[styles.titleHero, headingFont]}>{t('notes.title')}</Text>
                   <Text style={styles.textBase}>{t('notes.subtitle')}</Text>
                 </View>
 
-                <TextInput
-                  value={text}
-                  onChangeText={setText}
-                  placeholder={t('notes.placeholder')}
-                  placeholderTextColor={C.textSecondary}
-                  style={styles.input}
-                  multiline
-                  accessibilityLabel={t('notes.note_label')}
-                  accessibilityHint={t('notes.note_hint')}
-                />
+                <View style={styles.composeRow}>
+                  <View
+                    style={[
+                      styles.composeAvatar,
+                      { backgroundColor: profile?.avatarColor ?? C.primary },
+                    ]}
+                  >
+                    {profile?.avatarUrl ? (
+                      <Image
+                        source={{ uri: profile.avatarUrl }}
+                        style={styles.composeAvatarImg}
+                        contentFit="cover"
+                        accessible
+                        accessibilityLabel={profile?.name ?? t('common.you')}
+                      />
+                    ) : (
+                      <Text style={styles.composeAvatarText}>
+                        {(profile?.name ?? '?').trim().charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <TextInput
+                    value={text}
+                    onChangeText={setText}
+                    placeholder={t('notes.placeholder')}
+                    placeholderTextColor={C.textSecondary}
+                    style={[styles.input, styles.composeInput]}
+                    multiline
+                    accessibilityLabel={t('notes.note_label')}
+                    accessibilityHint={t('notes.note_hint')}
+                  />
+                </View>
 
                 {!!postError && (
                   <View style={styles.errorBox}>
@@ -135,7 +162,7 @@ export default function NotesScreen(): React.JSX.Element {
               </View>
 
               {isLoading && notes.length === 0 && (
-                <ActivityIndicator size="small" color={C.primary} style={styles.loadingIndicator} />
+                <LoadingSpinner size={64} style={styles.loadingIndicator} />
               )}
               {!!storeError && (
                 <View style={styles.storeErrorBox}>
@@ -170,102 +197,114 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
-    sep: { height: 8 },
+    list: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(40) },
+    sep: { height: ms(8) },
 
     heroCard: {
       backgroundColor: C.surface,
-      borderRadius: 20,
+      borderRadius: ms(20),
       borderWidth: 1,
       borderColor: C.border,
-      padding: 20,
-      gap: 14,
-      marginBottom: 24,
+      padding: ms(20),
+      gap: ms(14),
+      marginBottom: ms(24),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
-    heroCopy: { gap: 6 },
-    titleHero: { fontSize: 26, ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
-    textBase: { fontSize: 15, ...font.regular, color: C.textSecondary, lineHeight: 22 },
+    heroCopy: { gap: ms(6) },
+    titleHero: { fontSize: mf(26), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.78 },
+    textBase: { fontSize: mf(15), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
 
     input: {
-      minHeight: 64,
+      minHeight: ms(64),
       backgroundColor: C.surface,
-      borderRadius: 10,
+      borderRadius: ms(10),
       borderWidth: 1,
       borderColor: C.border,
-      paddingHorizontal: 13,
-      paddingVertical: 12,
-      fontSize: 15,
+      paddingHorizontal: ms(13),
+      paddingVertical: ms(12),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
       textAlignVertical: 'top',
     },
+    composeRow: { flexDirection: 'row', gap: ms(10), alignItems: 'flex-start' },
+    composeInput: { flex: 1, backgroundColor: C.surfaceSecondary },
+    composeAvatar: {
+      width: ms(34),
+      height: ms(34),
+      borderRadius: ms(17),
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    composeAvatarImg: { width: ms(34), height: ms(34) },
+    composeAvatarText: { fontSize: mf(14), ...font.extrabold, color: '#fff' },
 
     btnPrimary: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 48,
-      paddingHorizontal: 18,
-      borderRadius: 10,
+      minHeight: ms(48),
+      paddingHorizontal: ms(18),
+      borderRadius: ms(10),
       backgroundColor: C.primary,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: { width: 0, height: ms(2) },
       shadowOpacity: 0.08,
       shadowRadius: 8,
       elevation: 2,
     },
     btnOff: { backgroundColor: C.textDisabled },
-    btnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    btnIcon: { marginEnd: 6 },
+    btnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
+    btnIcon: { marginEnd: ms(6) },
 
     errorBox: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: ms(6),
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
-      padding: 10,
+      borderRadius: ms(10),
+      padding: ms(10),
     },
-    errorText: { fontSize: 13, ...font.regular, color: C.danger, flex: 1 },
+    errorText: { fontSize: mf(13), ...font.regular, color: C.danger, flex: 1 },
 
     capHint: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      marginTop: 16,
+      marginTop: ms(16),
     },
 
-    emptyWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
+    emptyWrap: { alignItems: 'center', paddingVertical: ms(48), gap: ms(12) },
     emptyIconWrap: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
+      width: ms(72),
+      height: ms(72),
+      borderRadius: ms(36),
       backgroundColor: C.surfaceSecondary,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    emptyTitle: { fontSize: 16, ...font.bold, color: C.textPrimary },
+    emptyTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
     emptyText: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
 
-    loadingIndicator: { marginBottom: 8 },
+    loadingIndicator: { marginBottom: ms(8) },
     storeErrorBox: {
       backgroundColor: C.danger + '15',
-      borderRadius: 10,
-      padding: 12,
-      marginBottom: 8,
+      borderRadius: ms(10),
+      padding: ms(12),
+      marginBottom: ms(8),
     },
-    storeErrorText: { fontSize: 13, color: C.danger },
+    storeErrorText: { fontSize: mf(13), color: C.danger },
   });
 }

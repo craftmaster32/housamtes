@@ -8,6 +8,7 @@ import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
+import { mf, ms } from '@utils/responsive';
 interface PremiumUpsellProps {
   // Override the default pitch, e.g. "You've reached the free photo limit".
   title?: string;
@@ -60,27 +61,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: sizes.md,
-    borderRadius: 16,
+    borderRadius: ms(16),
     borderWidth: 1.5,
     padding: sizes.md,
   },
   iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: ms(44),
+    height: ms(44),
+    borderRadius: ms(22),
     alignItems: 'center',
     justifyContent: 'center',
   },
   info: { flex: 1 },
-  title: { fontSize: 15, ...font.semibold },
-  body: { fontSize: 13, ...font.regular, marginTop: 2 },
+  title: { fontSize: mf(15), ...font.semibold },
+  body: { fontSize: mf(13), ...font.regular, marginTop: ms(2) },
   button: {
-    paddingHorizontal: 14,
-    minHeight: 44,
-    borderRadius: 12,
+    paddingHorizontal: ms(14),
+    minHeight: ms(44),
+    borderRadius: ms(12),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonText: { fontSize: 14, ...font.semibold, color: '#fff' },
+  buttonText: { fontSize: mf(14), ...font.semibold, color: '#fff' },
   buttonPressed: { opacity: 0.85 },
 });

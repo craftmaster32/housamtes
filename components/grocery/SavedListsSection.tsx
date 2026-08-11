@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -9,6 +10,7 @@ import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 
+import { mf, ms } from '@utils/responsive';
 interface SavedListsSectionProps {
   lists: GroceryList[];
   isLoading: boolean;
@@ -100,7 +102,8 @@ export function SavedListsSection({
         accessibilityLabel={t('grocery.saved_lists_count', { count: lists.length })}
       >
         <View style={styles.headerLeft}>
-          <Text style={styles.headerIcon}>📋</Text>
+          <Ionicons name="bookmarks-outline" size={16} color={C.textSecondary} />
+
           <Text style={styles.headerLabel}>{t('grocery.saved_lists')}</Text>
           {lists.length > 0 && (
             <View style={styles.badge}>
@@ -117,7 +120,7 @@ export function SavedListsSection({
 
       {expanded && (
         <View style={styles.body}>
-          {isLoading && <ActivityIndicator size="small" color={C.primary} style={styles.loader} />}
+          {isLoading && <LoadingSpinner size={64} style={styles.loader} />}
 
           {!isLoading && lists.length === 0 && (
             <View style={styles.emptyWrap}>
@@ -188,69 +191,68 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     container: {
       backgroundColor: C.surface,
-      borderRadius: 16,
+      borderRadius: ms(16),
       borderWidth: 1,
       borderColor: C.border,
       overflow: 'hidden',
-      marginBottom: 16,
+      marginBottom: ms(16),
     },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      minHeight: 48,
+      paddingHorizontal: ms(16),
+      paddingVertical: ms(14),
+      minHeight: ms(48),
     },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    headerIcon: { fontSize: 16 },
-    headerLabel: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
+    headerLabel: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
     badge: {
       backgroundColor: C.primary,
       borderRadius: 9999,
-      minWidth: 20,
-      height: 20,
+      minWidth: ms(20),
+      height: ms(20),
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 5,
+      paddingHorizontal: ms(5),
     },
-    badgeText: { fontSize: 11, ...font.bold, color: '#fff' },
+    badgeText: { fontSize: mf(11), ...font.bold, color: '#fff' },
     body: {
       borderTopWidth: 1,
       borderTopColor: C.border,
-      paddingHorizontal: 16,
-      paddingBottom: 12,
-      paddingTop: 8,
-      gap: 6,
+      paddingHorizontal: ms(16),
+      paddingBottom: ms(12),
+      paddingTop: ms(8),
+      gap: ms(6),
     },
-    loader: { marginVertical: 12 },
-    emptyWrap: { paddingVertical: 12, gap: 4 },
-    emptyText: { fontSize: 14, ...font.semibold, color: C.textPrimary },
-    emptyHint: { fontSize: 13, ...font.regular, color: C.textSecondary, lineHeight: 18 },
+    loader: { marginVertical: ms(12) },
+    emptyWrap: { paddingVertical: ms(12), gap: ms(4) },
+    emptyText: { fontSize: mf(14), ...font.semibold, color: C.textPrimary },
+    emptyHint: { fontSize: mf(13), ...font.regular, color: C.textSecondary, lineHeight: mf(18) },
     listRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: 12,
+      paddingVertical: ms(10),
+      paddingHorizontal: ms(12),
+      borderRadius: ms(12),
       backgroundColor: C.surfaceSecondary,
-      gap: 10,
+      gap: ms(10),
     },
-    listInfo: { flex: 1, gap: 2 },
-    listNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    listName: { fontSize: 14, ...font.semibold, color: C.textPrimary, flexShrink: 1 },
-    listMeta: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    listActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    iconBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    listInfo: { flex: 1, gap: ms(2) },
+    listNameRow: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
+    listName: { fontSize: mf(14), ...font.semibold, color: C.textPrimary, flexShrink: 1 },
+    listMeta: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
+    listActions: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
+    iconBtn: { width: ms(44), height: ms(44), justifyContent: 'center', alignItems: 'center' },
     loadBtn: {
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: 8,
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(10),
+      borderRadius: ms(8),
       backgroundColor: C.primary,
-      minHeight: 44,
+      minHeight: ms(44),
       justifyContent: 'center',
     },
-    loadBtnText: { fontSize: 13, ...font.semibold, color: '#fff' },
+    loadBtnText: { fontSize: mf(13), ...font.semibold, color: '#fff' },
   });
 }

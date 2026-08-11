@@ -14,7 +14,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 
+import { mf, ms } from '@utils/responsive';
 export type SaveListMode = 'new' | 'update';
 
 interface SaveListModalProps {
@@ -39,6 +41,7 @@ export function SaveListModal({
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = makeStyles(C);
+  const headingFont = useHeadingFont('bold');
 
   const [listName, setListName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -90,13 +93,19 @@ export function SaveListModal({
         <Pressable style={styles.box} onPress={() => {}}>
           {/* Icon */}
           <View style={styles.iconWrap}>
-            <Text style={styles.iconText}>{mode === 'update' ? '🔄' : '📋'}</Text>
+            <View style={styles.iconBadge}>
+              <Ionicons
+                name={mode === 'update' ? 'sync-outline' : 'bookmark-outline'}
+                size={28}
+                color={C.primary}
+              />
+            </View>
           </View>
 
           {mode === 'update' ? (
             /* ── Update mode ──────────────────────────────────────────────── */
             <>
-              <Text style={styles.title}>{t('grocery.update_saved_list')}</Text>
+              <Text style={[styles.title, headingFont]}>{t('grocery.update_saved_list')}</Text>
               <Text style={styles.body}>
                 {t('grocery.update_saved_list_body', { name: existingListName })}
               </Text>
@@ -129,7 +138,7 @@ export function SaveListModal({
           ) : (
             /* ── Save new mode ────────────────────────────────────────────── */
             <>
-              <Text style={styles.title}>{t('grocery.save_this_list')}</Text>
+              <Text style={[styles.title, headingFont]}>{t('grocery.save_this_list')}</Text>
               <Text style={styles.body}>{t('grocery.save_this_list_body')}</Text>
 
               <TextInput
@@ -215,47 +224,54 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: 'rgba(0,0,0,0.45)',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 24,
+      padding: ms(24),
     },
     // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
     switchLtr: { writingDirection: 'ltr' } as ViewStyle,
     box: {
       width: '100%',
       backgroundColor: C.surface,
-      borderRadius: 20,
-      padding: 24,
-      gap: 14,
+      borderRadius: ms(20),
+      padding: ms(24),
+      gap: ms(14),
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
+      shadowOffset: { width: 0, height: ms(8) },
       shadowOpacity: 0.15,
       shadowRadius: 24,
       elevation: 10,
     },
     iconWrap: { alignItems: 'center' },
-    iconText: { fontSize: 40 },
+    iconBadge: {
+      width: ms(60),
+      height: ms(60),
+      borderRadius: ms(30),
+      backgroundColor: C.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     title: {
-      fontSize: 20,
+      fontSize: mf(20),
       ...font.bold,
       color: C.textPrimary,
       textAlign: 'center',
       letterSpacing: -0.4,
     },
     body: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
     bodyBold: { ...font.semibold, color: C.textPrimary },
     nameInput: {
-      height: 48,
-      borderRadius: 12,
+      height: ms(48),
+      borderRadius: ms(12),
       borderWidth: 1,
       borderColor: C.border,
       backgroundColor: C.surfaceSecondary,
-      paddingHorizontal: 14,
-      fontSize: 15,
+      paddingHorizontal: ms(14),
+      fontSize: mf(15),
       ...font.regular,
       color: C.textPrimary,
     },
@@ -264,24 +280,24 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       justifyContent: 'space-between',
       backgroundColor: C.surfaceSecondary,
-      borderRadius: 12,
-      padding: 14,
+      borderRadius: ms(12),
+      padding: ms(14),
     },
-    privateLabel: { fontSize: 14, ...font.semibold, color: C.textPrimary },
-    privateSub: { fontSize: 12, ...font.regular, color: C.textSecondary, marginTop: 2 },
-    errorText: { fontSize: 13, color: '#D94F4F', textAlign: 'center' },
+    privateLabel: { fontSize: mf(14), ...font.semibold, color: C.textPrimary },
+    privateSub: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
+    errorText: { fontSize: mf(13), color: '#D94F4F', textAlign: 'center' },
     primaryBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 6,
-      minHeight: 50,
-      borderRadius: 12,
+      gap: ms(6),
+      minHeight: ms(50),
+      borderRadius: ms(12),
       backgroundColor: C.primary,
     },
     btnOff: { backgroundColor: C.textDisabled },
-    primaryBtnText: { fontSize: 15, ...font.semibold, color: '#fff' },
-    skipBtn: { alignItems: 'center', paddingVertical: 10, minHeight: 44 },
-    skipBtnText: { fontSize: 14, ...font.regular, color: C.textSecondary },
+    primaryBtnText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
+    skipBtn: { alignItems: 'center', paddingVertical: ms(10), minHeight: ms(44) },
+    skipBtnText: { fontSize: mf(14), ...font.regular, color: C.textSecondary },
   });
 }

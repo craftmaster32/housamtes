@@ -1,15 +1,5 @@
-import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Switch,
-  Modal,
-  Platform,
-  Animated,
-  type ViewStyle,
-} from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Modal, Platform, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -20,16 +10,16 @@ import { useAuthStore } from '@stores/authStore';
 import { useBillsStore, calculateBalances } from '@stores/billsStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useSettingsStore, CURRENCIES } from '@stores/settingsStore';
-import { useNotificationStore, BillDueDays } from '@stores/notificationStore';
-import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useLanguageStore } from '@stores/languageStore';
-import { enableWebPush, getWebPushStatus, refreshWebPush, type WebPushStatus } from '@lib/webPush';
-import type { AppLanguage } from '@lib/i18n';
 import { isRTL } from '@lib/i18n';
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { mf, ms } from '@utils/responsive';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function MenuItem({
   icon,
@@ -38,17 +28,20 @@ function MenuItem({
   onPress,
   rightText,
   disabled,
+  danger,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   sub?: string;
   onPress: () => void;
   rightText?: string;
   disabled?: boolean;
+  danger?: boolean;
 }): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const currentLanguage = useLanguageStore((s) => s.language);
+  const iconColor = danger ? C.negative : disabled ? C.textTertiary : C.primary;
   return (
     <Pressable
       style={({ pressed }) => [styles.menuItem, pressed && !disabled && styles.menuItemPressed]}
@@ -56,63 +49,40 @@ function MenuItem({
       disabled={disabled}
       accessible
       accessibilityRole="button"
+      accessibilityLabel={label}
     >
-      <View style={[styles.menuIcon, disabled && styles.menuIconDisabled]}>
-        <Text style={styles.menuIconText}>{icon}</Text>
+      <View
+        style={[
+          styles.menuIcon,
+          disabled && styles.menuIconDisabled,
+          danger && { backgroundColor: C.negative + '15' },
+        ]}
+      >
+        <Ionicons name={icon} size={18} color={iconColor} />
       </View>
       <View style={styles.menuText}>
-        <Text style={[styles.menuLabel, disabled && styles.menuLabelDisabled]}>{label}</Text>
+        <Text
+          style={[
+            styles.menuLabel,
+            disabled && styles.menuLabelDisabled,
+            danger && { color: C.negative },
+          ]}
+        >
+          {label}
+        </Text>
         {sub ? <Text style={styles.menuSub}>{sub}</Text> : null}
       </View>
       {rightText ? (
         <Text style={styles.menuRightText}>{rightText}</Text>
       ) : (
-        <Text style={[styles.menuChevron, disabled && styles.menuChevronDisabled]}>
-          {isRTL(currentLanguage) ? '‹' : '›'}
-        </Text>
+        <Ionicons
+          name={isRTL(currentLanguage) ? 'chevron-back' : 'chevron-forward'}
+          size={18}
+          color={danger ? C.negative : C.textTertiary}
+          style={disabled ? styles.menuChevronDisabled : undefined}
+        />
       )}
     </Pressable>
-  );
-}
-
-function ToggleRow({
-  icon,
-  label,
-  sub,
-  value,
-  onToggle,
-}: {
-  icon: string;
-  label: string;
-  sub?: string;
-  value: boolean;
-  onToggle: (v: boolean) => void;
-}): React.JSX.Element {
-  const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
-  return (
-    <View style={styles.menuItem}>
-      <View style={styles.menuIcon}>
-        <Text style={styles.menuIconText}>{icon}</Text>
-      </View>
-      <View style={styles.menuText}>
-        <Text style={styles.menuLabel}>{label}</Text>
-        {sub ? <Text style={styles.menuSub}>{sub}</Text> : null}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        accessible
-        accessibilityRole="switch"
-        accessibilityLabel={label}
-        accessibilityHint={sub}
-        accessibilityState={{ checked: value }}
-        trackColor={{ false: C.border, true: C.primary }}
-        thumbColor={'#fff'}
-        activeThumbColor={'#fff'}
-        style={styles.switchLtr}
-      />
-    </View>
   );
 }
 
@@ -128,28 +98,85 @@ function SectionDivider({ label }: { label: string }): React.JSX.Element {
   return <Text style={styles.sectionLabel}>{label}</Text>;
 }
 
-const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
-
 const TIMEZONES: { id: string; label: string; region: string }[] = [
-  { id: 'Pacific/Auckland', label: 'Auckland', region: 'UTC+12/13' },
-  { id: 'Australia/Sydney', label: 'Sydney', region: 'UTC+10/11' },
-  { id: 'Asia/Tokyo', label: 'Tokyo', region: 'UTC+9' },
-  { id: 'Australia/Perth', label: 'Perth', region: 'UTC+8' },
-  { id: 'Asia/Singapore', label: 'Singapore', region: 'UTC+8' },
-  { id: 'Asia/Bangkok', label: 'Bangkok', region: 'UTC+7' },
-  { id: 'Asia/Kolkata', label: 'Mumbai / Kolkata', region: 'UTC+5:30' },
-  { id: 'Asia/Dubai', label: 'Dubai', region: 'UTC+4' },
-  { id: 'Europe/Moscow', label: 'Moscow', region: 'UTC+3' },
-  { id: 'Asia/Jerusalem', label: 'Jerusalem', region: 'UTC+2/3' },
-  { id: 'Africa/Cairo', label: 'Cairo', region: 'UTC+2/3' },
-  { id: 'Europe/Paris', label: 'Paris / Berlin', region: 'UTC+1/2' },
-  { id: 'Europe/London', label: 'London', region: 'UTC+0/1' },
-  { id: 'America/Sao_Paulo', label: 'São Paulo', region: 'UTC−3' },
-  { id: 'America/New_York', label: 'New York', region: 'UTC−5' },
-  { id: 'America/Chicago', label: 'Chicago', region: 'UTC−6' },
-  { id: 'America/Denver', label: 'Denver', region: 'UTC−7' },
-  { id: 'America/Los_Angeles', label: 'Los Angeles', region: 'UTC−8' },
-  { id: 'Pacific/Honolulu', label: 'Honolulu', region: 'UTC−10' },
+  { id: 'Pacific/Kiritimati', label: 'Kiritimati', region: 'Kiribati · UTC+14' },
+  { id: 'Pacific/Auckland', label: 'Auckland', region: 'New Zealand · UTC+12/13' },
+  { id: 'Pacific/Fiji', label: 'Suva', region: 'Fiji · UTC+12' },
+  { id: 'Australia/Sydney', label: 'Sydney', region: 'Australia · UTC+10/11' },
+  { id: 'Australia/Melbourne', label: 'Melbourne', region: 'Australia · UTC+10/11' },
+  { id: 'Australia/Brisbane', label: 'Brisbane', region: 'Australia · UTC+10' },
+  { id: 'Pacific/Guam', label: 'Guam', region: 'Guam · UTC+10' },
+  { id: 'Australia/Adelaide', label: 'Adelaide', region: 'Australia · UTC+9:30/10:30' },
+  { id: 'Asia/Tokyo', label: 'Tokyo', region: 'Japan · UTC+9' },
+  { id: 'Asia/Seoul', label: 'Seoul', region: 'South Korea · UTC+9' },
+  { id: 'Asia/Shanghai', label: 'Beijing / Shanghai', region: 'China · UTC+8' },
+  { id: 'Asia/Hong_Kong', label: 'Hong Kong', region: 'Hong Kong · UTC+8' },
+  { id: 'Asia/Taipei', label: 'Taipei', region: 'Taiwan · UTC+8' },
+  { id: 'Australia/Perth', label: 'Perth', region: 'Australia · UTC+8' },
+  { id: 'Asia/Singapore', label: 'Singapore', region: 'Singapore · UTC+8' },
+  { id: 'Asia/Manila', label: 'Manila', region: 'Philippines · UTC+8' },
+  { id: 'Asia/Kuala_Lumpur', label: 'Kuala Lumpur', region: 'Malaysia · UTC+8' },
+  { id: 'Asia/Jakarta', label: 'Jakarta', region: 'Indonesia · UTC+7' },
+  { id: 'Asia/Bangkok', label: 'Bangkok', region: 'Thailand · UTC+7' },
+  { id: 'Asia/Ho_Chi_Minh', label: 'Ho Chi Minh City', region: 'Vietnam · UTC+7' },
+  { id: 'Asia/Dhaka', label: 'Dhaka', region: 'Bangladesh · UTC+6' },
+  { id: 'Asia/Almaty', label: 'Almaty', region: 'Kazakhstan · UTC+6' },
+  { id: 'Asia/Kathmandu', label: 'Kathmandu', region: 'Nepal · UTC+5:45' },
+  { id: 'Asia/Kolkata', label: 'Mumbai / Kolkata', region: 'India · UTC+5:30' },
+  { id: 'Asia/Colombo', label: 'Colombo', region: 'Sri Lanka · UTC+5:30' },
+  { id: 'Asia/Karachi', label: 'Karachi', region: 'Pakistan · UTC+5' },
+  { id: 'Asia/Tashkent', label: 'Tashkent', region: 'Uzbekistan · UTC+5' },
+  { id: 'Asia/Dubai', label: 'Dubai / Abu Dhabi', region: 'UAE · UTC+4' },
+  { id: 'Asia/Baku', label: 'Baku', region: 'Azerbaijan · UTC+4' },
+  { id: 'Asia/Tehran', label: 'Tehran', region: 'Iran · UTC+3:30' },
+  { id: 'Europe/Moscow', label: 'Moscow', region: 'Russia · UTC+3' },
+  { id: 'Asia/Jerusalem', label: 'Jerusalem / Tel Aviv', region: 'Israel · UTC+2/3' },
+  { id: 'Asia/Riyadh', label: 'Riyadh', region: 'Saudi Arabia · UTC+3' },
+  { id: 'Africa/Nairobi', label: 'Nairobi', region: 'Kenya · UTC+3' },
+  { id: 'Europe/Istanbul', label: 'Istanbul', region: 'Türkiye · UTC+3' },
+  { id: 'Africa/Cairo', label: 'Cairo', region: 'Egypt · UTC+2/3' },
+  { id: 'Africa/Johannesburg', label: 'Johannesburg', region: 'South Africa · UTC+2' },
+  { id: 'Europe/Athens', label: 'Athens', region: 'Greece · UTC+2/3' },
+  { id: 'Europe/Bucharest', label: 'Bucharest', region: 'Romania · UTC+2/3' },
+  { id: 'Europe/Helsinki', label: 'Helsinki', region: 'Finland · UTC+2/3' },
+  { id: 'Europe/Kyiv', label: 'Kyiv', region: 'Ukraine · UTC+2/3' },
+  { id: 'Europe/Paris', label: 'Paris', region: 'France · UTC+1/2' },
+  { id: 'Europe/Berlin', label: 'Berlin', region: 'Germany · UTC+1/2' },
+  { id: 'Europe/Madrid', label: 'Madrid', region: 'Spain · UTC+1/2' },
+  { id: 'Europe/Rome', label: 'Rome', region: 'Italy · UTC+1/2' },
+  { id: 'Europe/Amsterdam', label: 'Amsterdam', region: 'Netherlands · UTC+1/2' },
+  { id: 'Europe/Brussels', label: 'Brussels', region: 'Belgium · UTC+1/2' },
+  { id: 'Europe/Zurich', label: 'Zurich', region: 'Switzerland · UTC+1/2' },
+  { id: 'Europe/Vienna', label: 'Vienna', region: 'Austria · UTC+1/2' },
+  { id: 'Europe/Warsaw', label: 'Warsaw', region: 'Poland · UTC+1/2' },
+  { id: 'Europe/Stockholm', label: 'Stockholm', region: 'Sweden · UTC+1/2' },
+  { id: 'Africa/Lagos', label: 'Lagos', region: 'Nigeria · UTC+1' },
+  { id: 'Europe/London', label: 'London', region: 'United Kingdom · UTC+0/1' },
+  { id: 'Europe/Dublin', label: 'Dublin', region: 'Ireland · UTC+0/1' },
+  { id: 'Europe/Lisbon', label: 'Lisbon', region: 'Portugal · UTC+0/1' },
+  { id: 'Atlantic/Reykjavik', label: 'Reykjavík', region: 'Iceland · UTC+0' },
+  { id: 'Africa/Casablanca', label: 'Casablanca', region: 'Morocco · UTC+0/1' },
+  { id: 'Atlantic/Cape_Verde', label: 'Cape Verde', region: 'Cabo Verde · UTC−1' },
+  { id: 'America/Noronha', label: 'Fernando de Noronha', region: 'Brazil · UTC−2' },
+  { id: 'America/Sao_Paulo', label: 'São Paulo', region: 'Brazil · UTC−3' },
+  { id: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires', region: 'Argentina · UTC−3' },
+  { id: 'America/Santiago', label: 'Santiago', region: 'Chile · UTC−3/4' },
+  { id: 'America/St_Johns', label: "St. John's", region: 'Canada · UTC−3:30/2:30' },
+  { id: 'America/Halifax', label: 'Halifax', region: 'Canada · UTC−4/3' },
+  { id: 'America/Caracas', label: 'Caracas', region: 'Venezuela · UTC−4' },
+  { id: 'America/Toronto', label: 'Toronto', region: 'Canada · UTC−5/4' },
+  { id: 'America/New_York', label: 'New York', region: 'US Eastern · UTC−5/4' },
+  { id: 'America/Bogota', label: 'Bogotá', region: 'Colombia · UTC−5' },
+  { id: 'America/Lima', label: 'Lima', region: 'Peru · UTC−5' },
+  { id: 'America/Mexico_City', label: 'Mexico City', region: 'Mexico · UTC−6' },
+  { id: 'America/Chicago', label: 'Chicago', region: 'US Central · UTC−6/5' },
+  { id: 'America/Denver', label: 'Denver', region: 'US Mountain · UTC−7/6' },
+  { id: 'America/Phoenix', label: 'Phoenix', region: 'US Arizona · UTC−7' },
+  { id: 'America/Los_Angeles', label: 'Los Angeles', region: 'US Pacific · UTC−8/7' },
+  { id: 'America/Vancouver', label: 'Vancouver', region: 'Canada · UTC−8/7' },
+  { id: 'America/Anchorage', label: 'Anchorage', region: 'US Alaska · UTC−9/8' },
+  { id: 'Pacific/Honolulu', label: 'Honolulu', region: 'US Hawaii · UTC−10' },
+  { id: 'Pacific/Pago_Pago', label: 'Pago Pago', region: 'Samoa · UTC−11' },
 ];
 
 export default function SettingsScreen(): React.JSX.Element {
@@ -160,7 +187,6 @@ export default function SettingsScreen(): React.JSX.Element {
   const houseTimezone = useHousematesStore((s) => s.timezone);
   const updateTimezone = useHousematesStore((s) => s.updateTimezone);
 
-  const user = useAuthStore((s) => s.user);
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const myRole = useAuthStore((s) => s.role);
@@ -170,73 +196,41 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const currency = useSettingsStore((s) => s.currency);
   const setCurrency = useSettingsStore((s) => s.setCurrency);
+  const themeMode = useSettingsStore((s) => s.themeMode);
+  const currentCurrencyLabel =
+    CURRENCIES.find((c) => c.symbol === currency)
+      ?.label.split('(')[0]
+      .trim() ?? currency;
 
-  const calConnected = useCalendarSyncStore((s) => s.connected);
-  const calAutoSync = useCalendarSyncStore((s) => s.autoSync);
-  const calConnect = useCalendarSyncStore((s) => s.connect);
-  const calDisconnect = useCalendarSyncStore((s) => s.disconnect);
-  const calSetAutoSync = useCalendarSyncStore((s) => s.setAutoSync);
+  const currentLanguage = useLanguageStore((s) => s.language);
 
   const { from } = useLocalSearchParams<{ from?: string }>();
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showDebtModal, setShowDebtModal] = useState(false);
   const [showTimezoneModal, setShowTimezoneModal] = useState(false);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [savingTimezone, setSavingTimezone] = useState(false);
+  const [tzQuery, setTzQuery] = useState('');
+  const filteredTimezones = useMemo(() => {
+    const q = tzQuery.trim().toLowerCase();
+    if (!q) return TIMEZONES;
+    return TIMEZONES.filter(
+      (tz) =>
+        tz.label.toLowerCase().includes(q) ||
+        tz.region.toLowerCase().includes(q) ||
+        tz.id.toLowerCase().replace(/_/g, ' ').includes(q)
+    );
+  }, [tzQuery]);
   const [debtAmount, setDebtAmount] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [requestingVote, setRequestingVote] = useState(false);
-  const [calLoading, setCalLoading] = useState(false);
-
-  const [webPushStatus, setWebPushStatus] = useState<WebPushStatus>('unavailable');
-  useEffect(() => {
-    if (Platform.OS === 'web') setWebPushStatus(getWebPushStatus());
-  }, []);
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-  }, [fadeAnim]);
+  const headingFont = useHeadingFont();
 
-  const handleEnableWebPush = useCallback(async (): Promise<void> => {
-    if (!user?.id || !houseId) return;
-    try {
-      const result = await enableWebPush(user.id, houseId);
-      if (result === 'unavailable') {
-        Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
-      } else {
-        setWebPushStatus(result);
-        if (result === 'denied') {
-          Alert.alert(
-            t('settings.notifications_blocked_title'),
-            t('settings.notifications_blocked_body')
-          );
-        }
-      }
-    } catch {
-      Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
-    }
-  }, [user?.id, houseId, t]);
-
-  // Force a fresh subscribe when the "On" state is stuck (Safari invalidates
-  // subscriptions from time to time and the OS won't retrigger the subscribe
-  // path on its own). This runs regardless of the current webPushStatus.
-  const handleRefreshOrEnableWebPush = useCallback(async (): Promise<void> => {
-    if (!user?.id || !houseId) return;
-    if (webPushStatus === 'granted') {
-      const result = await refreshWebPush(user.id, houseId);
-      setWebPushStatus(getWebPushStatus());
-      if (result.ok) {
-        Alert.alert('✅', 'Fresh subscription saved. Notifications should work now.');
-      } else {
-        const detail = result.message ? `\n\n${result.message}` : '';
-        Alert.alert('Refresh failed', `${result.reason}${detail}`);
-      }
-      return;
-    }
-    await handleEnableWebPush();
-  }, [user?.id, houseId, webPushStatus, handleEnableWebPush]);
+  const themeLabel = t(`settings.theme_${themeMode}`);
+  const languageLabel = t(`settings.language_${currentLanguage}`);
 
   const handleLeavePress = useCallback((): void => {
     const myId = profile?.id ?? '';
@@ -288,46 +282,6 @@ export default function SettingsScreen(): React.JSX.Element {
     }
   }, [profile, houseId, debtAmount, currency, addProposal, t]);
 
-  const prefs = useNotificationStore((s) => s.prefs);
-  const updatePrefs = useNotificationStore((s) => s.update);
-
-  const showRecurringBillsOnCalendar = useSettingsStore((s) => s.showRecurringBillsOnCalendar);
-  const toggleShowRecurringBillsOnCalendar = useSettingsStore(
-    (s) => s.toggleShowRecurringBillsOnCalendar
-  );
-
-  const currentLanguage = useLanguageStore((s) => s.language);
-  const setLanguage = useLanguageStore((s) => s.setLanguage);
-
-  const handleCalendarToggle = useCallback(async (): Promise<void> => {
-    setCalLoading(true);
-    try {
-      if (calConnected) {
-        await calDisconnect();
-      } else {
-        await calConnect();
-      }
-    } finally {
-      setCalLoading(false);
-    }
-  }, [calConnected, calConnect, calDisconnect]);
-
-  const toggle = useCallback(
-    (key: keyof typeof prefs, value: boolean) => {
-      if (!user?.id || !houseId) return;
-      updatePrefs(user.id, houseId, { [key]: value });
-    },
-    [user?.id, houseId, updatePrefs]
-  );
-
-  const setDaysBefore = useCallback(
-    (days: BillDueDays) => {
-      if (!user?.id || !houseId) return;
-      updatePrefs(user.id, houseId, { billDueDaysBefore: days });
-    },
-    [user?.id, houseId, updatePrefs]
-  );
-
   const handleTimezoneSelect = useCallback(
     async (tz: string): Promise<void> => {
       if (!houseId) return;
@@ -344,7 +298,7 @@ export default function SettingsScreen(): React.JSX.Element {
     [houseId, updateTimezone, t]
   );
 
-  const timezoneLabel = TIMEZONES.find((t) => t.id === houseTimezone)?.label ?? houseTimezone;
+  const timezoneLabel = TIMEZONES.find((tz) => tz.id === houseTimezone)?.label ?? houseTimezone;
 
   const handleCopyInviteCode = useCallback(() => {
     Alert.alert(t('settings.invite_code'), `${t('profile.share_code')}\n\n${inviteCode}`, [
@@ -352,15 +306,11 @@ export default function SettingsScreen(): React.JSX.Element {
     ]);
   }, [inviteCode, t]);
 
-  const LANGUAGE_OPTIONS: { code: AppLanguage; label: string; flag: string }[] = [
-    { code: 'en', label: t('settings.language_en'), flag: '🇬🇧' },
-    { code: 'he', label: t('settings.language_he'), flag: '🇮🇱' },
-    { code: 'es', label: t('settings.language_es'), flag: '🇪🇸' },
-  ];
+  const canManageHouse = myRole === 'owner' || myRole === 'admin';
 
   return (
     <SafeAreaView style={styles.container}>
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <View style={styles.flex}>
         <Pressable
           style={styles.backBtn}
           onPress={() => (from === 'profile' ? router.push('/(tabs)/profile') : router.back())}
@@ -374,44 +324,50 @@ export default function SettingsScreen(): React.JSX.Element {
         </Pressable>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.heading}>{t('settings.title')}</Text>
+          <Text style={[styles.heading, headingFont]}>{t('settings.title')}</Text>
 
-          {/* Currency */}
-          <SectionDivider label={t('settings.currency_section')} />
-          <View style={[styles.menuGroup, styles.currencyGroup]}>
-            {CURRENCIES.map((c) => (
-              <Pressable
-                key={c.symbol}
-                style={[styles.currencyChip, currency === c.symbol && styles.currencyChipActive]}
-                onPress={() => setCurrency(c.symbol)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: currency === c.symbol }}
-              >
-                <Text
-                  style={[
-                    styles.currencySymbol,
-                    currency === c.symbol && styles.currencySymbolActive,
-                  ]}
-                >
-                  {c.symbol}
-                </Text>
-                <Text
-                  style={[
-                    styles.currencyLabel,
-                    currency === c.symbol && styles.currencyLabelActive,
-                  ]}
-                >
-                  {c.label.split('(')[0].trim()}
-                </Text>
-              </Pressable>
-            ))}
+          {/* General */}
+          <SectionDivider label={t('settings.general_section')} />
+          <View style={styles.menuGroup}>
+            <MenuItem
+              icon="notifications-outline"
+              label={t('settings.menu_notifications')}
+              onPress={() => router.push('/(tabs)/settings/notifications')}
+            />
+            <RowDivider />
+            <MenuItem
+              icon="color-palette-outline"
+              label={t('settings.menu_appearance')}
+              rightText={themeLabel}
+              onPress={() => router.push('/(tabs)/settings/appearance')}
+            />
+            <RowDivider />
+            <MenuItem
+              icon="language-outline"
+              label={t('settings.menu_language')}
+              rightText={languageLabel}
+              onPress={() => router.push('/(tabs)/settings/language')}
+            />
+            <RowDivider />
+            <MenuItem
+              icon="calendar-outline"
+              label={t('settings.menu_calendar')}
+              onPress={() => router.push('/(tabs)/settings/calendar')}
+            />
+            <RowDivider />
+            <MenuItem
+              icon="cash-outline"
+              label={t('settings.menu_currency')}
+              rightText={`${currency}  ${currentCurrencyLabel}`}
+              onPress={() => setShowCurrencyModal(true)}
+            />
           </View>
 
           {/* House */}
           <SectionDivider label={t('settings.house_section')} />
           <View style={styles.menuGroup}>
             <MenuItem
-              icon="🏠"
+              icon="home-outline"
               label={t('settings.house_name')}
               rightText={houseName || '—'}
               onPress={() => {}}
@@ -421,7 +377,7 @@ export default function SettingsScreen(): React.JSX.Element {
               <>
                 <RowDivider />
                 <MenuItem
-                  icon="🎟️"
+                  icon="ticket-outline"
                   label={t('settings.invite_code')}
                   sub={t('settings.invite_code_sub')}
                   onPress={handleCopyInviteCode}
@@ -430,7 +386,7 @@ export default function SettingsScreen(): React.JSX.Element {
             )}
             <RowDivider />
             <MenuItem
-              icon="🌍"
+              icon="globe-outline"
               label={t('settings.timezone')}
               sub={
                 myRole === 'owner' ? t('settings.timezone_tap') : t('settings.timezone_owner_only')
@@ -443,142 +399,228 @@ export default function SettingsScreen(): React.JSX.Element {
             />
             <RowDivider />
             <MenuItem
-              icon="👥"
+              icon="people-outline"
               label={t('settings.housemates')}
               sub={t('common.person', { count: housemates.length })}
               onPress={() => router.push('/(tabs)/bills/setup')}
             />
+            {canManageHouse && (
+              <>
+                <RowDivider />
+                <MenuItem
+                  icon="pricetag-outline"
+                  label={t('settings.expense_categories')}
+                  sub={t('settings.expense_categories_sub')}
+                  onPress={() => router.push('/(tabs)/settings/categories')}
+                />
+                <RowDivider />
+                <MenuItem
+                  icon="people-circle-outline"
+                  label={t('settings.member_permissions')}
+                  sub={t('settings.member_permissions_sub')}
+                  onPress={() => router.push('/(tabs)/settings/members')}
+                />
+              </>
+            )}
             <RowDivider />
-            <Pressable
-              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            <MenuItem
+              icon="exit-outline"
+              label={t('settings.leave_house')}
+              sub={
+                houseName
+                  ? t('settings.leave_house_desc', { name: houseName })
+                  : t('settings.leave_house_desc_default')
+              }
               onPress={handleLeavePress}
-              accessible
-              accessibilityRole="button"
-            >
-              <View style={[styles.menuIcon, { backgroundColor: C.negative + '15' }]}>
-                <Ionicons name="exit-outline" size={18} color={C.negative} />
-              </View>
-              <View style={styles.menuText}>
-                <Text style={[styles.menuLabel, { color: C.negative }]}>
-                  {t('settings.leave_house')}
-                </Text>
-                <Text style={styles.menuSub}>
-                  {houseName
-                    ? t('settings.leave_house_desc', { name: houseName })
-                    : t('settings.leave_house_desc_default')}
-                </Text>
-              </View>
-              <Text style={[styles.menuChevron, { color: C.negative }]}>
-                {isRTL(currentLanguage) ? '‹' : '›'}
-              </Text>
-            </Pressable>
+              danger
+            />
           </View>
 
-          {/* Leave house confirmation modal */}
-          <Modal
-            visible={showLeaveConfirm}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowLeaveConfirm(false)}
-          >
-            <Pressable style={styles.modalBackdrop} onPress={() => setShowLeaveConfirm(false)}>
-              <Pressable style={styles.modalBox} onPress={() => {}}>
-                <View style={styles.modalIconWrap}>
-                  <Ionicons name="exit-outline" size={28} color={C.negative} />
-                </View>
-                <Text style={styles.modalTitle}>{t('settings.leave_house_title')}</Text>
-                <Text style={styles.modalBody}>
-                  {t(houseName ? 'settings.leave_house_body_named' : 'settings.leave_house_body', {
-                    name: houseName,
-                  })}
+          {/* About */}
+          <SectionDivider label={t('settings.about_section')} />
+          <View style={styles.menuGroup}>
+            <MenuItem
+              icon="information-circle-outline"
+              label={t('settings.version')}
+              sub="HouseMates"
+              onPress={() => {}}
+              disabled
+              rightText="1.0.0"
+            />
+            <RowDivider />
+            <MenuItem
+              icon="document-text-outline"
+              label={t('settings.terms')}
+              sub={t('settings.terms_sub')}
+              onPress={() => router.push('/(tabs)/settings/terms')}
+            />
+            <RowDivider />
+            <MenuItem
+              icon="lock-closed-outline"
+              label={t('settings.privacy')}
+              sub={t('settings.privacy_sub')}
+              onPress={() => router.push('/(tabs)/settings/privacy-policy')}
+            />
+          </View>
+
+          <Text style={styles.footer}>{t('settings.footer')}</Text>
+        </ScrollView>
+
+        {/* Leave house confirmation modal */}
+        <Modal
+          visible={showLeaveConfirm}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowLeaveConfirm(false)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowLeaveConfirm(false)}>
+            <Pressable style={styles.modalBox} onPress={() => {}}>
+              <View style={styles.modalIconWrap}>
+                <Ionicons name="exit-outline" size={28} color={C.negative} />
+              </View>
+              <Text style={[styles.modalTitle, headingFont]}>
+                {t('settings.leave_house_title')}
+              </Text>
+              <Text style={styles.modalBody}>
+                {t(houseName ? 'settings.leave_house_body_named' : 'settings.leave_house_body', {
+                  name: houseName,
+                })}
+              </Text>
+              <Pressable
+                style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
+                onPress={handleLeaveHouse}
+                disabled={leaving}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnDangerText}>
+                  {leaving ? t('settings.leaving') : t('settings.yes_leave')}
                 </Text>
-                <Pressable
-                  style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
-                  onPress={handleLeaveHouse}
-                  disabled={leaving}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.modalBtnDangerText}>
-                    {leaving ? t('settings.leaving') : t('settings.yes_leave')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={styles.modalBtnCancel}
-                  onPress={() => setShowLeaveConfirm(false)}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
-                </Pressable>
+              </Pressable>
+              <Pressable
+                style={styles.modalBtnCancel}
+                onPress={() => setShowLeaveConfirm(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
               </Pressable>
             </Pressable>
-          </Modal>
+          </Pressable>
+        </Modal>
 
-          {/* Debt block modal */}
-          <Modal
-            visible={showDebtModal}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowDebtModal(false)}
-          >
-            <Pressable style={styles.modalBackdrop} onPress={() => setShowDebtModal(false)}>
-              <Pressable style={styles.modalBox} onPress={() => {}}>
-                <View style={[styles.modalIconWrap, { backgroundColor: '#FFF3CD' }]}>
-                  <Ionicons name="warning-outline" size={28} color="#856404" />
-                </View>
-                <Text style={styles.modalTitle}>{t('settings.settle_first_title')}</Text>
-                <Text style={styles.modalBody}>
-                  {t('settings.settle_first_body', {
-                    amount: `${currency}${debtAmount.toFixed(2)}`,
-                  })}
+        {/* Debt block modal */}
+        <Modal
+          visible={showDebtModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDebtModal(false)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowDebtModal(false)}>
+            <Pressable style={styles.modalBox} onPress={() => {}}>
+              <View style={[styles.modalIconWrap, { backgroundColor: '#FFF3CD' }]}>
+                <Ionicons name="warning-outline" size={28} color="#856404" />
+              </View>
+              <Text style={[styles.modalTitle, headingFont]}>
+                {t('settings.settle_first_title')}
+              </Text>
+              <Text style={styles.modalBody}>
+                {t('settings.settle_first_body', {
+                  amount: `${currency}${debtAmount.toFixed(2)}`,
+                })}
+              </Text>
+              <Pressable
+                style={styles.modalBtnPrimary}
+                onPress={() => {
+                  setShowDebtModal(false);
+                  router.push('/(tabs)/bills');
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnPrimaryText}>{t('settings.settle_up')}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtnSecondary, requestingVote && { opacity: 0.6 }]}
+                onPress={handleRequestLeaveVote}
+                disabled={requestingVote}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnSecondaryText}>
+                  {requestingVote ? t('settings.creating_vote') : t('settings.request_vote_leave')}
                 </Text>
-                <Pressable
-                  style={styles.modalBtnPrimary}
-                  onPress={() => {
-                    setShowDebtModal(false);
-                    router.push('/(tabs)/bills');
-                  }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.modalBtnPrimaryText}>{t('settings.settle_up')}</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.modalBtnSecondary, requestingVote && { opacity: 0.6 }]}
-                  onPress={handleRequestLeaveVote}
-                  disabled={requestingVote}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.modalBtnSecondaryText}>
-                    {requestingVote
-                      ? t('settings.creating_vote')
-                      : t('settings.request_vote_leave')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={styles.modalBtnCancel}
-                  onPress={() => setShowDebtModal(false)}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
-                </Pressable>
+              </Pressable>
+              <Pressable
+                style={styles.modalBtnCancel}
+                onPress={() => setShowDebtModal(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
               </Pressable>
             </Pressable>
-          </Modal>
+          </Pressable>
+        </Modal>
 
-          {/* Timezone picker */}
-          <Modal
-            visible={showTimezoneModal}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowTimezoneModal(false)}
+        {/* Timezone picker */}
+        <Modal
+          visible={showTimezoneModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            setShowTimezoneModal(false);
+            setTzQuery('');
+          }}
+        >
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => {
+              setShowTimezoneModal(false);
+              setTzQuery('');
+            }}
           >
-            <Pressable style={styles.modalBackdrop} onPress={() => setShowTimezoneModal(false)}>
-              <Pressable style={styles.tzModalBox} onPress={() => {}}>
-                <Text style={styles.modalTitle}>{t('settings.timezone_title')}</Text>
-                <Text style={[styles.modalBody, { marginBottom: 8 }]}>
-                  {t('settings.timezone_desc')}
-                </Text>
-                <ScrollView style={styles.tzModalList} showsVerticalScrollIndicator={false}>
-                  {TIMEZONES.map((tz, idx) => (
+            <Pressable style={styles.tzModalBox} onPress={() => {}}>
+              <View style={styles.tzHandle} />
+              <Text style={[styles.modalTitle, headingFont]}>{t('settings.timezone_title')}</Text>
+              <Text style={[styles.modalBody, { marginBottom: ms(12) }]}>
+                {t('settings.timezone_desc')}
+              </Text>
+              <View style={styles.tzSearchBox}>
+                <Ionicons name="search" size={16} color={C.textSecondary} />
+                <TextInput
+                  value={tzQuery}
+                  onChangeText={setTzQuery}
+                  placeholder={t('settings.timezone_search')}
+                  placeholderTextColor={C.textDisabled}
+                  style={styles.tzSearchInput}
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  accessibilityLabel={t('settings.timezone_search')}
+                  accessibilityHint={t('settings.timezone_search_hint')}
+                />
+                {tzQuery.length > 0 && (
+                  <Pressable
+                    onPress={() => setTzQuery('')}
+                    hitSlop={{ top: ms(14), bottom: ms(14), left: ms(14), right: ms(14) }}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.clear')}
+                  >
+                    <Ionicons name="close-circle" size={17} color={C.textTertiary} />
+                  </Pressable>
+                )}
+              </View>
+              <Text style={styles.tzCount}>
+                {t('settings.timezone_matches', {
+                  count: filteredTimezones.length,
+                  total: TIMEZONES.length,
+                })}
+              </Text>
+              <ScrollView
+                style={styles.tzModalList}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                {filteredTimezones.length === 0 ? (
+                  <Text style={styles.tzEmpty}>{t('settings.timezone_none')}</Text>
+                ) : (
+                  filteredTimezones.map((tz, idx) => (
                     <View key={tz.id}>
                       {idx > 0 && <View style={styles.rowDivider} />}
                       <Pressable
@@ -597,306 +639,91 @@ export default function SettingsScreen(): React.JSX.Element {
                           <Text style={styles.menuSub}>{tz.region}</Text>
                         </View>
                         {houseTimezone === tz.id && (
-                          <Text style={[styles.menuChevron, { color: C.primary, fontSize: 18 }]}>
-                            ✓
-                          </Text>
+                          <Ionicons name="checkmark" size={20} color={C.primary} />
                         )}
                       </Pressable>
                     </View>
-                  ))}
-                </ScrollView>
-                <Pressable
-                  style={styles.modalBtnCancel}
-                  onPress={() => setShowTimezoneModal(false)}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
-                </Pressable>
+                  ))
+                )}
+              </ScrollView>
+              <Pressable
+                style={styles.modalBtnCancel}
+                onPress={() => {
+                  setShowTimezoneModal(false);
+                  setTzQuery('');
+                }}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnCancelText}>{t('common.close')}</Text>
               </Pressable>
             </Pressable>
-          </Modal>
+          </Pressable>
+        </Modal>
 
-          {/* Calendar */}
-          <SectionDivider label={t('settings.calendar_section')} />
-          <View style={styles.menuGroup}>
-            <View style={styles.menuItem}>
-              <View style={styles.menuIcon}>
-                <Text style={styles.menuIconText}>📅</Text>
-              </View>
-              <View style={styles.menuText}>
-                <Text style={styles.menuLabel}>{t('settings.calendar_connect')}</Text>
-                <Text style={styles.menuSub}>
-                  {calConnected ? t('settings.calendar_syncing') : t('settings.calendar_desc')}
-                </Text>
-              </View>
-              <Switch
-                value={calConnected}
-                onValueChange={handleCalendarToggle}
-                disabled={calLoading}
-                accessible
-                accessibilityRole="switch"
-                accessibilityLabel={t('settings.calendar_connect')}
-                accessibilityHint={
-                  calConnected ? t('settings.calendar_syncing') : t('settings.calendar_desc')
-                }
-                accessibilityState={{ checked: calConnected, disabled: calLoading }}
-                trackColor={{ false: C.border, true: C.primary }}
-                thumbColor={'#fff'}
-                activeThumbColor={'#fff'}
-                style={styles.switchLtr}
-              />
-            </View>
-            {calConnected && (
-              <>
-                <RowDivider />
-                <View style={styles.menuItem}>
-                  <View style={styles.menuIcon}>
-                    <Text style={styles.menuIconText}>📋</Text>
-                  </View>
-                  <View style={styles.menuText}>
-                    <Text style={styles.menuLabel}>{t('settings.calendar_auto_events')}</Text>
-                    <Text style={styles.menuSub}>{t('settings.calendar_auto_events_desc')}</Text>
-                  </View>
-                  <Switch
-                    value={calAutoSync.events}
-                    onValueChange={(v) => calSetAutoSync('events', v)}
-                    accessible
-                    accessibilityRole="switch"
-                    accessibilityLabel={t('settings.calendar_auto_events')}
-                    accessibilityHint={t('settings.calendar_auto_events_desc')}
-                    accessibilityState={{ checked: calAutoSync.events }}
-                    trackColor={{ false: C.border, true: C.primary }}
-                    thumbColor={'#fff'}
-                    activeThumbColor={'#fff'}
-                    style={styles.switchLtr}
-                  />
-                </View>
-                <RowDivider />
-                <View style={styles.menuItem}>
-                  <View style={styles.menuIcon}>
-                    <Text style={styles.menuIconText}>🚗</Text>
-                  </View>
-                  <View style={styles.menuText}>
-                    <Text style={styles.menuLabel}>{t('settings.calendar_auto_parking')}</Text>
-                    <Text style={styles.menuSub}>{t('settings.calendar_auto_parking_desc')}</Text>
-                  </View>
-                  <Switch
-                    value={calAutoSync.parking}
-                    onValueChange={(v) => calSetAutoSync('parking', v)}
-                    accessible
-                    accessibilityRole="switch"
-                    accessibilityLabel={t('settings.calendar_auto_parking')}
-                    accessibilityHint={t('settings.calendar_auto_parking_desc')}
-                    accessibilityState={{ checked: calAutoSync.parking }}
-                    trackColor={{ false: C.border, true: C.primary }}
-                    thumbColor={'#fff'}
-                    activeThumbColor={'#fff'}
-                    style={styles.switchLtr}
-                  />
-                </View>
-              </>
-            )}
-            <RowDivider />
-            <ToggleRow
-              icon="💰"
-              label={t('settings.calendar_recurring')}
-              sub={t('settings.calendar_recurring_desc')}
-              value={showRecurringBillsOnCalendar}
-              onToggle={() => toggleShowRecurringBillsOnCalendar()}
-            />
-          </View>
-
-          {/* Notifications */}
-          <SectionDivider label={t('settings.notifications_section')} />
-          <View style={styles.menuGroup}>
-            {webPushStatus !== 'unavailable' && (
-              <>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.menuItem,
-                    webPushStatus !== 'denied' && pressed && styles.menuItemPressed,
-                  ]}
-                  onPress={webPushStatus === 'denied' ? undefined : handleRefreshOrEnableWebPush}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('settings.browser_notifications')}
-                >
-                  <View style={styles.menuIcon}>
-                    <Text style={styles.menuIconText}>🔔</Text>
-                  </View>
-                  <View style={styles.menuText}>
-                    <Text style={styles.menuLabel}>{t('settings.browser_notifications')}</Text>
-                    <Text style={styles.menuSub}>
-                      {webPushStatus === 'granted'
-                        ? t('settings.notifications_enabled')
-                        : webPushStatus === 'denied'
-                          ? t('settings.notifications_blocked')
-                          : t('settings.notifications_tap_enable')}
-                    </Text>
-                  </View>
-                  {webPushStatus === 'granted' && (
-                    <Text style={styles.webPushOn}>{t('settings.notifications_on')}</Text>
-                  )}
-                  {webPushStatus !== 'denied' && (
-                    <Text style={styles.menuChevron}>{isRTL(currentLanguage) ? '‹' : '›'}</Text>
-                  )}
-                </Pressable>
-                <RowDivider />
-              </>
-            )}
-            <ToggleRow
-              icon="💰"
-              label={t('settings.notify_bill_added')}
-              sub={t('settings.notify_bill_added_sub')}
-              value={prefs.notifyBillAdded}
-              onToggle={(v) => toggle('notifyBillAdded', v)}
-            />
-            <RowDivider />
-            <ToggleRow
-              icon="✅"
-              label={t('settings.notify_bill_settled')}
-              sub={t('settings.notify_bill_settled_sub')}
-              value={prefs.notifyBillSettled}
-              onToggle={(v) => toggle('notifyBillSettled', v)}
-            />
-            <RowDivider />
-            <ToggleRow
-              icon="⏰"
-              label={t('settings.notify_bill_due')}
-              sub={t('settings.notify_bill_due_sub')}
-              value={prefs.notifyBillDue}
-              onToggle={(v) => toggle('notifyBillDue', v)}
-            />
-            {prefs.notifyBillDue && (
-              <View style={styles.daysPickerRow}>
-                <Text style={styles.daysPickerLabel}>{t('settings.remind_me')}</Text>
-                <View style={styles.daysChips}>
-                  {DAYS_OPTIONS.map((d) => (
-                    <Pressable
-                      key={d}
-                      style={[
-                        styles.dayChip,
-                        prefs.billDueDaysBefore === d && styles.dayChipActive,
-                      ]}
-                      onPress={() => setDaysBefore(d)}
-                      accessible
-                      accessibilityRole="button"
-                      accessibilityLabel={t('common.day', { count: d })}
-                      accessibilityState={{ selected: prefs.billDueDaysBefore === d }}
-                    >
-                      <Text
-                        style={[
-                          styles.dayChipText,
-                          prefs.billDueDaysBefore === d && styles.dayChipTextActive,
+        {/* Currency picker sheet */}
+        <Modal
+          visible={showCurrencyModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowCurrencyModal(false)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowCurrencyModal(false)}>
+            <Pressable style={styles.tzModalBox} onPress={() => {}}>
+              <View style={styles.tzHandle} />
+              <Text style={[styles.modalTitle, headingFont]}>{t('settings.currency_pick')}</Text>
+              <ScrollView style={styles.tzModalList} showsVerticalScrollIndicator={false}>
+                {CURRENCIES.map((cur, idx) => {
+                  const selected = cur.symbol === currency;
+                  return (
+                    <View key={cur.symbol}>
+                      {idx > 0 && <View style={styles.rowDivider} />}
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.tzOption,
+                          pressed && styles.menuItemPressed,
                         ]}
+                        onPress={() => {
+                          setCurrency(cur.symbol);
+                          setShowCurrencyModal(false);
+                        }}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: selected }}
                       >
-                        {d}d
-                      </Text>
-                    </Pressable>
-                  ))}
-                  <Text style={styles.daysPickerSuffix}>{t('settings.before_due')}</Text>
-                </View>
-              </View>
-            )}
-            <RowDivider />
-            <ToggleRow
-              icon="🚗"
-              label={t('settings.notify_parking_claimed')}
-              sub={t('settings.notify_parking_claimed_sub')}
-              value={prefs.notifyParkingClaimed}
-              onToggle={(v) => toggle('notifyParkingClaimed', v)}
-            />
-            <RowDivider />
-            <ToggleRow
-              icon="📅"
-              label={t('settings.notify_parking_reservation')}
-              sub={t('settings.notify_parking_reservation_sub')}
-              value={prefs.notifyParkingReservation}
-              onToggle={(v) => toggle('notifyParkingReservation', v)}
-            />
-            <RowDivider />
-            <ToggleRow
-              icon="🧹"
-              label={t('settings.notify_chore')}
-              sub={t('settings.notify_chore_sub')}
-              value={prefs.notifyChoreOverdue}
-              onToggle={(v) => toggle('notifyChoreOverdue', v)}
-            />
-            <RowDivider />
-            <ToggleRow
-              icon="💬"
-              label={t('settings.notify_chat')}
-              sub={t('settings.notify_chat_sub')}
-              value={prefs.notifyChatMessage}
-              onToggle={(v) => toggle('notifyChatMessage', v)}
-            />
-            <RowDivider />
-            <ToggleRow
-              icon="🛒"
-              label={t('settings.notify_grocery_shared')}
-              sub={t('settings.notify_grocery_shared_sub')}
-              value={prefs.notifyGroceryShared}
-              onToggle={(v) => toggle('notifyGroceryShared', v)}
-            />
-          </View>
-
-          {/* Language */}
-          <SectionDivider label={t('settings.language_section')} />
-          <View style={styles.menuGroup}>
-            {LANGUAGE_OPTIONS.map((opt, idx) => (
-              <View key={opt.code}>
-                {idx > 0 && <RowDivider />}
-                <Pressable
-                  style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                  onPress={() => setLanguage(opt.code)}
-                  accessible
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: currentLanguage === opt.code }}
-                >
-                  <View style={styles.menuIcon}>
-                    <Text style={styles.menuIconText}>{opt.flag}</Text>
-                  </View>
-                  <View style={styles.menuText}>
-                    <Text style={styles.menuLabel}>{opt.label}</Text>
-                  </View>
-                  {currentLanguage === opt.code && (
-                    <Text style={[styles.menuChevron, { color: C.primary, fontSize: 18 }]}>✓</Text>
-                  )}
-                </Pressable>
-              </View>
-            ))}
-          </View>
-
-          {/* About */}
-          <SectionDivider label={t('settings.about_section')} />
-          <View style={styles.menuGroup}>
-            <MenuItem
-              icon="📋"
-              label={t('settings.version')}
-              sub="HouseMates"
-              onPress={() => {}}
-              disabled
-              rightText="1.0.0"
-            />
-            <RowDivider />
-            <MenuItem
-              icon="📄"
-              label={t('settings.terms')}
-              sub={t('settings.terms_sub')}
-              onPress={() => router.push('/(tabs)/settings/terms')}
-            />
-            <RowDivider />
-            <MenuItem
-              icon="🔒"
-              label={t('settings.privacy')}
-              sub={t('settings.privacy_sub')}
-              onPress={() => router.push('/(tabs)/settings/privacy-policy')}
-            />
-          </View>
-
-          <Text style={styles.footer}>{t('settings.footer')}</Text>
-        </ScrollView>
-      </Animated.View>
+                        <Text
+                          style={[
+                            styles.currencyGlyphLg,
+                            { color: selected ? C.primary : C.textSecondary },
+                          ]}
+                        >
+                          {cur.symbol}
+                        </Text>
+                        <View style={styles.menuText}>
+                          <Text
+                            style={[
+                              styles.menuLabel,
+                              selected && { color: C.primary, ...font.bold },
+                            ]}
+                          >
+                            {cur.label.split('(')[0].trim()}
+                          </Text>
+                        </View>
+                        {selected && <Ionicons name="checkmark" size={20} color={C.primary} />}
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+              <Pressable
+                style={styles.modalBtnCancel}
+                onPress={() => setShowCurrencyModal(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnCancelText}>{t('common.done')}</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      </View>
     </SafeAreaView>
   );
 }
@@ -905,17 +732,15 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
-    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
     backBtn: {
       paddingHorizontal: sizes.lg,
       paddingVertical: sizes.sm,
       alignSelf: 'flex-start',
     },
-    backBtnText: { fontSize: 16, ...font.semibold, color: C.primary },
-    scroll: { paddingHorizontal: sizes.lg, paddingBottom: 60 },
+    backBtnText: { fontSize: mf(16), ...font.semibold, color: C.primary },
+    scroll: { paddingHorizontal: sizes.lg, paddingBottom: ms(60) },
     heading: {
-      fontSize: 28,
+      fontSize: mf(28),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.5,
@@ -924,201 +749,182 @@ function makeStyles(C: ColorTokens) {
     },
     sectionLabel: {
       color: C.textSecondary,
-      fontSize: 11,
+      fontSize: mf(12),
       ...font.bold,
       letterSpacing: 1.2,
+      textTransform: 'uppercase',
       marginBottom: sizes.sm,
-      marginTop: sizes.xs,
-      marginStart: 4,
+      marginTop: sizes.lg,
+      marginStart: ms(4),
     },
     menuGroup: {
       backgroundColor: C.surface,
       borderRadius: sizes.borderRadiusLg,
-      marginBottom: sizes.lg,
+      marginBottom: sizes.xs,
+      borderWidth: 1,
+      borderColor: C.borderLight,
       overflow: 'hidden',
     },
     menuItem: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
     menuItemPressed: { backgroundColor: C.background },
     menuIcon: {
-      width: 36,
-      height: 36,
+      width: ms(36),
+      height: ms(36),
       borderRadius: sizes.borderRadiusSm,
       backgroundColor: C.background,
       justifyContent: 'center',
       alignItems: 'center',
     },
     menuIconDisabled: { opacity: 0.4 },
-    menuIconText: { fontSize: 18 },
     menuText: { flex: 1 },
-    menuLabel: { color: C.textPrimary, ...font.semibold, fontSize: 15 },
+    menuLabel: { color: C.textPrimary, ...font.semibold, fontSize: mf(15) },
     menuLabelDisabled: { color: C.textSecondary },
-    menuSub: { color: C.textSecondary, fontSize: 13, ...font.regular, marginTop: 1 },
-    menuChevron: { color: C.textDisabled, fontSize: 22 },
+    menuSub: { color: C.textSecondary, fontSize: mf(13), ...font.regular, marginTop: ms(1) },
     menuChevronDisabled: { opacity: 0 },
-    menuRightText: { color: C.textSecondary, ...font.regular, fontSize: 14 },
-    rowDivider: { height: 1, backgroundColor: C.border, marginStart: sizes.md + 36 + sizes.sm },
+    menuRightText: { color: C.textSecondary, ...font.regular, fontSize: mf(14) },
+    rowDivider: { height: ms(1), backgroundColor: C.border, marginStart: sizes.md + 36 + sizes.sm },
     footer: {
       color: C.textDisabled,
-      fontSize: 13,
+      fontSize: mf(13),
       ...font.regular,
       textAlign: 'center',
       marginTop: sizes.md,
     },
-    daysPickerRow: {
-      paddingHorizontal: sizes.md,
-      paddingBottom: sizes.md,
-      gap: sizes.xs,
+    currencyGlyphLg: {
+      width: ms(30),
+      textAlign: 'center',
+      fontSize: mf(18),
+      ...font.bold,
     },
-    daysPickerLabel: {
-      fontSize: 13,
-      ...font.semibold,
-      color: C.textSecondary,
-      marginBottom: 4,
-    },
-    daysChips: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: sizes.xs,
-      flexWrap: 'wrap',
-    },
-    dayChip: {
-      paddingHorizontal: 14,
-      paddingVertical: 6,
-      borderRadius: 20,
-      backgroundColor: C.background,
-      borderWidth: 1,
-      borderColor: C.border,
-    },
-    dayChipActive: {
-      backgroundColor: C.primary,
-      borderColor: C.primary,
-    },
-    dayChipText: {
-      fontSize: 13,
-      ...font.semibold,
-      color: C.textSecondary,
-    },
-    dayChipTextActive: {
-      color: '#fff',
-    },
-    webPushOn: { color: C.positive, ...font.semibold, fontSize: 13 },
-    daysPickerSuffix: {
-      fontSize: 13,
-      ...font.regular,
-      color: C.textSecondary,
-      marginStart: 4,
-    },
-    currencyGroup: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      padding: sizes.md,
-    },
-    currencyChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 10,
-      borderWidth: 1.5,
-      borderColor: C.border,
-      backgroundColor: C.background,
-    },
-    currencyChipActive: {
-      borderColor: C.primary,
-      backgroundColor: C.primary + '12',
-    },
-    currencySymbol: { fontSize: 16, ...font.bold, color: C.textSecondary },
-    currencySymbolActive: { color: C.primary },
-    currencyLabel: { fontSize: 12, ...font.regular, color: C.textSecondary },
-    currencyLabelActive: { color: C.primary },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.45)',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 24,
+      padding: ms(24),
     },
     modalBox: {
       backgroundColor: C.surface,
-      borderRadius: 20,
-      padding: 24,
+      borderRadius: ms(20),
+      padding: ms(24),
       width: '100%',
-      maxWidth: 360,
-      gap: 12,
+      maxWidth: ms(360),
+      gap: ms(12),
       alignItems: 'center',
     },
     tzModalBox: {
       backgroundColor: C.surface,
-      borderRadius: 20,
-      padding: 20,
-      paddingBottom: 16,
+      borderRadius: ms(24),
+      padding: ms(22),
+      paddingBottom: ms(16),
       width: '100%',
-      maxWidth: 360,
-      maxHeight: '80%',
+      maxWidth: ms(380),
+      maxHeight: '82%',
       alignItems: 'stretch',
-      gap: 12,
+      gap: ms(8),
+    },
+    tzHandle: {
+      width: ms(40),
+      height: ms(4),
+      borderRadius: ms(2),
+      backgroundColor: C.border,
+      alignSelf: 'center',
+      marginBottom: ms(2),
+    },
+    tzSearchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(9),
+      backgroundColor: C.surfaceSecondary,
+      borderRadius: ms(12),
+      borderWidth: 1.5,
+      borderColor: C.border,
+      paddingHorizontal: ms(13),
+      paddingVertical: Platform.OS === 'ios' ? 12 : 4,
+    },
+    tzSearchInput: {
+      flex: 1,
+      fontSize: mf(15),
+      ...font.medium,
+      color: C.textPrimary,
+      padding: 0,
+    },
+    tzCount: {
+      fontSize: mf(11),
+      ...font.bold,
+      color: C.textTertiary,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      marginTop: ms(4),
+      marginBottom: ms(2),
+    },
+    tzEmpty: {
+      fontSize: mf(14),
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      paddingVertical: ms(24),
     },
     tzModalList: { flexGrow: 0 },
     tzOption: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 4,
+      paddingVertical: ms(12),
+      paddingHorizontal: ms(4),
+      gap: sizes.sm,
     },
     modalIconWrap: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      width: ms(56),
+      height: ms(56),
+      borderRadius: ms(28),
       backgroundColor: C.negative + '15',
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 4,
+      marginBottom: ms(4),
     },
-    modalTitle: { fontSize: 18, ...font.extrabold, color: C.textPrimary, textAlign: 'center' },
+    modalTitle: { fontSize: mf(18), ...font.extrabold, color: C.textPrimary, textAlign: 'center' },
     modalBody: {
-      fontSize: 14,
+      fontSize: mf(14),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',
-      lineHeight: 20,
+      lineHeight: mf(20),
     },
     modalBtnDanger: {
       width: '100%',
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: ms(14),
+      borderRadius: ms(12),
       backgroundColor: C.negative,
       alignItems: 'center',
-      marginTop: 4,
+      marginTop: ms(4),
     },
-    modalBtnDangerText: { fontSize: 15, ...font.semibold, color: '#fff' },
+    modalBtnDangerText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
     modalBtnPrimary: {
       width: '100%',
-      paddingVertical: 14,
-      borderRadius: 12,
+      paddingVertical: ms(14),
+      borderRadius: ms(12),
       backgroundColor: C.primary,
       alignItems: 'center',
-      marginTop: 4,
+      marginTop: ms(4),
     },
-    modalBtnPrimaryText: { fontSize: 15, ...font.semibold, color: '#fff' },
+    modalBtnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#fff' },
     modalBtnSecondary: {
       width: '100%',
-      paddingVertical: 12,
-      borderRadius: 12,
+      paddingVertical: ms(12),
+      borderRadius: ms(12),
       borderWidth: 1.5,
       borderColor: C.primary,
       alignItems: 'center',
     },
-    modalBtnSecondaryText: { fontSize: 15, ...font.semibold, color: C.primary },
+    modalBtnSecondaryText: { fontSize: mf(15), ...font.semibold, color: C.primary },
     modalBtnCancel: {
       width: '100%',
-      paddingVertical: 12,
-      borderRadius: 12,
+      paddingVertical: ms(12),
+      borderRadius: ms(12),
       borderWidth: 1,
       borderColor: C.border,
       alignItems: 'center',
     },
-    modalBtnCancelText: { fontSize: 15, ...font.semibold, color: C.textPrimary },
+    modalBtnCancelText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
   });
 }

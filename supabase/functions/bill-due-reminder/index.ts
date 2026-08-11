@@ -5,10 +5,14 @@
 // and only sends to those whose reminder day matches.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { billDueCopy, normalizeLang } from '../_shared/notificationCopy.ts';
+import { assertCronAuthorized } from '../_shared/cronAuth.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
+  const denied = assertCronAuthorized(req);
+  if (denied) return denied;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 
@@ -65,7 +69,7 @@ Deno.serve(async (_req: Request) => {
     // Fetch push tokens and preferences for this house in one query
     const { data: tokenRows } = await supabase
       .from('push_tokens')
-      .select('token, user_id')
+      .select('token, user_id, language')
       .eq('house_id', bill.house_id);
 
     if (!tokenRows || tokenRows.length === 0) continue;
@@ -79,12 +83,12 @@ Deno.serve(async (_req: Request) => {
       .in('user_id', userIds);
 
     const prefMap = new Map<string, { notify_bill_due: boolean; bill_due_days_before: number }>();
-    for (const row of (prefRows ?? [])) {
+    for (const row of prefRows ?? []) {
       prefMap.set(row.user_id, row);
     }
 
     // Only send to users whose preference matches today's reminder window
-    const eligibleTokens = tokenRows
+    const eligible = tokenRows
       .filter((r: { user_id: string }) => {
         const prefs = prefMap.get(r.user_id);
         if (!prefs) {
@@ -93,19 +97,30 @@ Deno.serve(async (_req: Request) => {
         }
         return prefs.notify_bill_due !== false && prefs.bill_due_days_before === daysUntilDue;
       })
-      .map((r: { token: string }) => r.token)
-      .filter(Boolean) as string[];
+      .map((r: { token: string; language?: string }) => ({
+        token: r.token,
+        language: normalizeLang(r.language),
+      }))
+      .filter((r: { token: string }) => Boolean(r.token));
 
-    if (eligibleTokens.length === 0) continue;
+    if (eligible.length === 0) continue;
 
     const currency = houseCurrency.get(bill.house_id) ?? '₪';
-    const messages = eligibleTokens.map((to: string) => ({
-      to,
-      title: `⏰ Bill due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`,
-      body: `${bill.title} — ${currency}${Number(bill.amount).toFixed(2)} due on ${bill.date}`,
-      sound: 'default',
-      data: { screen: 'bills' },
-    }));
+    const messages = eligible.map(({ token, language }) => {
+      const copy = billDueCopy(language, {
+        title: bill.title,
+        amount: Number(bill.amount).toFixed(2),
+        currency,
+        daysUntil: daysUntilDue,
+      });
+      return {
+        to: token,
+        title: copy.title,
+        body: copy.body,
+        sound: 'default',
+        data: { screen: 'bills' },
+      };
+    });
 
     await fetch(EXPO_PUSH_URL, {
       method: 'POST',
@@ -113,7 +128,7 @@ Deno.serve(async (_req: Request) => {
       body: JSON.stringify(messages),
     });
 
-    totalSent += eligibleTokens.length;
+    totalSent += eligible.length;
   }
 
   return new Response(JSON.stringify({ sent: totalSent, bills: bills.length }), {

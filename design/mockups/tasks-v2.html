@@ -1,0 +1,96 @@
+<title>Tasks v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="inter.css">
+<link rel="stylesheet" href="displayfonts.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7E3DA;color:#1b2431;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:30px 16px 50px}
+  .head{text-align:center;max-width:760px;margin:0 auto 22px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.5px;margin:0 0 8px}
+  .head p{margin:0;color:#7a8494;font-size:14px}
+  .stage{display:flex;gap:38px;justify-content:center;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .cap{font-size:12.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:#7a8494}
+  .hm{--bg:#F6F2EA;--surface:#fff;--surface2:#F1ECE3;--border:rgba(20,24,32,.07);--fg1:#0F172A;--fg2:#64748B;--fg3:#98A2B3;--primary:#3B6FBF;--primary-tint:rgba(59,111,191,.1);--pos:#2F8550;--warn:#B68528;--danger:#B84540}
+  .hm.dark{--bg:#0A0F1B;--surface:#141C2C;--surface2:#1E2840;--border:rgba(255,255,255,.07);--fg1:#EEF2F8;--fg2:#8A95AA;--fg3:#5A6479;--primary:#4E82D4;--primary-tint:rgba(78,130,212,.16);--pos:#4FB071;--warn:#E0B24D;--danger:#E5645F}
+  .phone{width:344px;border-radius:46px;position:relative;background:var(--bg);color:var(--fg1);overflow:hidden;box-shadow:0 30px 60px rgba(15,23,42,.24),0 0 0 1px rgba(15,23,42,.06)}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:108px;height:31px;border-radius:20px;background:#000;z-index:9}
+  .scr{padding:56px 18px 22px}
+  .title{font-family:'Fraunces',Georgia,serif;font-size:30px;font-weight:600;letter-spacing:-.5px;line-height:1}
+  .sub{font-size:13px;color:var(--fg2);font-weight:500;margin:5px 0 14px}
+  .addcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:6px 6px 6px 14px;display:flex;align-items:center;gap:8px;margin-bottom:16px}
+  .addcard .ph{flex:1;font-size:14px;color:var(--fg3)}
+  .addcard .go{width:40px;height:40px;border-radius:11px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center}
+  .filters{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .chip{font-size:13px;font-weight:700;padding:7px 14px;border-radius:9999px;background:var(--surface2);color:var(--fg2)}
+  .chip.on{background:var(--primary);color:#fff}
+  .count{margin-left:auto;font-size:12px;font-weight:600;color:var(--fg2)}
+  .row{position:relative;display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:13px 13px 13px 15px;margin-bottom:9px;overflow:hidden}
+  .row.done{background:var(--surface2);border-color:transparent}
+  .pacc{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .ck{width:26px;height:26px;border-radius:13px;border:2px solid var(--border);flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center}
+  .ck.on{background:var(--pos);border-color:var(--pos)}
+  .body{flex:1;min-width:0}
+  .trow{display:flex;align-items:center;gap:8px}
+  .pdot{width:8px;height:8px;border-radius:4px;flex:none}
+  .tt{font-size:15px;font-weight:700;letter-spacing:-.1px}
+  .tt.done{color:var(--fg3);text-decoration:line-through;font-weight:600}
+  .tdesc{font-size:13px;color:var(--fg2);margin-top:3px;line-height:1.4}
+  .meta{display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}
+  .asg{display:flex;align-items:center;gap:6px;background:var(--surface2);padding:3px 9px 3px 3px;border-radius:9999px}
+  .asg .fav{width:20px;height:20px;border-radius:10px;color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .asg .an{font-size:11.5px;font-weight:700;color:var(--fg2)}
+  .due{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--fg2)}
+  .due.over{color:var(--danger)}
+  .del{color:var(--fg3);flex:none;width:28px;height:28px;display:flex;align-items:center;justify-content:center}
+  svg{display:block}
+</style>
+<div class="head"><h1>Tasks — v2</h1><p>Assignee shown as a face (like Notes), a priority dot + colour accent, cleaner done state. Same add/complete/delete.</p></div>
+<div class="stage" id="stage"></div>
+<template id="tpl">
+  <div class="scr">
+    <div class="title">Tasks</div>
+    <div class="sub">One-off to-dos for the house.</div>
+    <div class="addcard"><span class="ph">Add a task…</span><div class="go"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+    <div class="filters"><span class="chip on">All</span><span class="chip">Active</span><span class="chip">Done</span><span class="count">3 active</span></div>
+
+    <div class="row">
+      <div class="pacc" style="background:var(--danger)"></div>
+      <div class="ck"></div>
+      <div class="body">
+        <div class="trow"><span class="pdot" style="background:var(--danger)"></span><span class="tt">Fix the leaking tap</span></div>
+        <div class="tdesc">Bathroom sink drips all night.</div>
+        <div class="meta">
+          <div class="asg"><span class="fav" style="background:#8A5CD0">J</span><span class="an">Jordan</span></div>
+          <div class="due over"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>Overdue · 16 Apr</div>
+        </div>
+      </div>
+      <div class="del"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+    </div>
+
+    <div class="row">
+      <div class="pacc" style="background:var(--warn)"></div>
+      <div class="ck"></div>
+      <div class="body">
+        <div class="trow"><span class="pdot" style="background:var(--warn)"></span><span class="tt">Return the deposit form</span></div>
+        <div class="meta">
+          <div class="asg"><span class="fav" style="background:#3B6FBF">A</span><span class="an">You</span></div>
+          <div class="due"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>25 Apr</div>
+        </div>
+      </div>
+      <div class="del"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+    </div>
+
+    <div class="row done">
+      <div class="ck on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></div>
+      <div class="body">
+        <div class="trow"><span class="tt done">Book the carpet cleaner</span></div>
+        <div class="meta"><div class="asg"><span class="fav" style="background:#C77">S</span><span class="an">Sam</span></div></div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+  const s=document.getElementById('stage');
+  [['Light',''],['Dark','dark']].forEach(([l,c])=>{const col=document.createElement('div');col.className='col';const cap=document.createElement('div');cap.className='cap';cap.textContent=l;const p=document.createElement('div');p.className='phone hm'+(c?' '+c:'');p.innerHTML='<div class="notch"></div>'+document.getElementById('tpl').innerHTML;col.appendChild(cap);col.appendChild(p);s.appendChild(col);});
+</script>

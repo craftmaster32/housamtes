@@ -1,20 +1,31 @@
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Platform, TextInput } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Platform,
+  TextInput,
+  type ImageStyle,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { Alert } from '@lib/alert';
-import { colors } from '@constants/colors';
+import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
 
+import { mf, ms } from '@utils/responsive';
 function MenuItem({
   icon,
   label,
@@ -24,7 +35,7 @@ function MenuItem({
   rightText,
   rtl,
 }: {
-  icon: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
   sub?: string;
   onPress: () => void;
@@ -32,6 +43,8 @@ function MenuItem({
   rightText?: string;
   rtl?: boolean;
 }): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   return (
     <Pressable
       style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
@@ -42,7 +55,7 @@ function MenuItem({
       accessibilityHint={sub}
     >
       <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>
-        <Text style={styles.menuIconText}>{icon}</Text>
+        <Ionicons name={icon} size={18} color={danger ? c.negative : c.primary} />
       </View>
       <View style={styles.menuText}>
         <Text style={[styles.menuLabel, danger && styles.menuLabelDanger]}>{label}</Text>
@@ -51,22 +64,33 @@ function MenuItem({
       {rightText ? (
         <Text style={styles.menuRightText}>{rightText}</Text>
       ) : (
-        <Text style={styles.menuChevron}>{rtl ? '‹' : '›'}</Text>
+        <Ionicons
+          name={rtl ? 'chevron-back' : 'chevron-forward'}
+          size={18}
+          color={c.textTertiary}
+        />
       )}
     </Pressable>
   );
 }
 
 function SectionDivider({ label }: { label: string }): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   return <Text style={styles.sectionLabel}>{label}</Text>;
 }
 
 function RowDivider(): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   return <View style={styles.rowDivider} />;
 }
 
 export default function ProfileScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
+  const headingFont = useHeadingFont();
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
   const signOut = useAuthStore((s) => s.signOut);
@@ -163,25 +187,28 @@ export default function ProfileScreen(): React.JSX.Element {
               {
                 backgroundColor: profile?.avatarUrl
                   ? 'transparent'
-                  : (profile?.avatarColor ?? colors.primary),
+                  : (profile?.avatarColor ?? c.primary),
               },
             ]}
           >
             {profile?.avatarUrl ? (
               <Image
                 source={{ uri: profile.avatarUrl }}
-                style={styles.avatarLargeImg}
+                style={styles.avatarLargeImg as ImageStyle}
                 contentFit="cover"
+                accessible
+                accessibilityLabel={profile?.name ?? t('common.you')}
               />
             ) : (
               <Text style={styles.avatarLargeText}>{initial}</Text>
             )}
           </View>
-          <Text style={styles.profileName}>{profile?.name ?? 'You'}</Text>
+          <Text style={[styles.profileName, headingFont]}>{profile?.name ?? t('common.you')}</Text>
           {!!email && <Text style={styles.profileEmail}>{email}</Text>}
           {!!houseName && (
             <View style={styles.housePill}>
-              <Text style={styles.housePillText}>🏠 {houseName}</Text>
+              <Ionicons name="home" size={12} color={c.primary} style={styles.housePillIcon} />
+              <Text style={styles.housePillText}>{houseName}</Text>
             </View>
           )}
         </View>
@@ -190,7 +217,7 @@ export default function ProfileScreen(): React.JSX.Element {
         <SectionDivider label={t('profile.account_section')} />
         <View style={styles.menuGroup}>
           <MenuItem
-            icon="🔑"
+            icon="key-outline"
             label={t('profile.change_password')}
             sub={showPasswordForm ? t('profile.password_prompt') : t('profile.change_password_sub')}
             onPress={() => {
@@ -268,7 +295,7 @@ export default function ProfileScreen(): React.JSX.Element {
         <SectionDivider label={t('profile.house_section')} />
         <View style={styles.menuGroup}>
           <MenuItem
-            icon="👥"
+            icon="people-outline"
             label={t('profile.housemates')}
             sub={
               housemates.length > 0
@@ -282,7 +309,7 @@ export default function ProfileScreen(): React.JSX.Element {
             <>
               <RowDivider />
               <MenuItem
-                icon="🎟️"
+                icon="ticket-outline"
                 label={t('profile.invite_code')}
                 sub={t('profile.invite_code_sub')}
                 rightText={inviteCode}
@@ -297,7 +324,7 @@ export default function ProfileScreen(): React.JSX.Element {
         <SectionDivider label={t('profile.preferences_section')} />
         <View style={styles.menuGroup}>
           <MenuItem
-            icon="⚙️"
+            icon="settings-outline"
             label={t('profile.settings')}
             sub={t('profile.settings_sub')}
             onPress={() => router.push('/(tabs)/more/settings')}
@@ -305,7 +332,7 @@ export default function ProfileScreen(): React.JSX.Element {
           />
           <RowDivider />
           <MenuItem
-            icon="💬"
+            icon="chatbubble-ellipses-outline"
             label={t('profile.chat')}
             sub={t('profile.chat_sub')}
             onPress={() => router.push('/(tabs)/more/chat')}
@@ -317,7 +344,7 @@ export default function ProfileScreen(): React.JSX.Element {
         <SectionDivider label={t('profile.account_section')} />
         <View style={styles.menuGroup}>
           <MenuItem
-            icon="🚪"
+            icon="log-out-outline"
             label={t('profile.sign_out')}
             sub={t('profile.sign_out_sub')}
             onPress={handleLogout}
@@ -341,134 +368,141 @@ function PasswordInput({
   onChange: (t: string) => void;
   placeholder: string;
 }): React.JSX.Element {
+  const c = useThemedColors();
+  const styles = useMemo(() => makeStyles(c), [c]);
   return (
     <TextInput
       style={styles.textInput}
       value={value}
       onChangeText={onChange}
       placeholder={placeholder}
-      placeholderTextColor={colors.textDisabled}
+      placeholderTextColor={c.textDisabled}
       secureTextEntry
       autoCapitalize="none"
     />
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll: { padding: sizes.lg, paddingBottom: 60 },
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.background },
+    scroll: { padding: sizes.lg, paddingBottom: ms(60) },
 
-  // Profile header
-  profileHeader: {
-    alignItems: 'center',
-    paddingVertical: sizes.xl,
-    gap: sizes.xs,
-    marginBottom: sizes.lg,
-  },
-  avatarLarge: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: sizes.sm,
-    overflow: 'hidden',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-  } as never,
-  avatarLargeImg: { width: 96, height: 96 },
-  avatarLargeText: { color: colors.white, fontSize: 40, ...font.bold },
-  profileName: { fontSize: 24, ...font.extrabold, color: colors.textPrimary, letterSpacing: -0.5 },
-  profileEmail: { fontSize: 14, ...font.regular, color: colors.textSecondary },
-  housePill: {
-    backgroundColor: colors.primary + '15',
-    paddingHorizontal: sizes.md,
-    paddingVertical: 4,
-    borderRadius: sizes.borderRadiusFull,
-    marginTop: sizes.xs,
-  },
-  housePillText: { fontSize: 13, ...font.semibold, color: colors.primary },
+    // Profile header
+    profileHeader: {
+      alignItems: 'center',
+      paddingVertical: sizes.xl,
+      gap: sizes.xs,
+      marginBottom: sizes.lg,
+    },
+    avatarLarge: {
+      width: ms(96),
+      height: ms(96),
+      borderRadius: ms(48),
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: sizes.sm,
+      overflow: 'hidden',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+    } as never,
+    avatarLargeImg: { width: ms(96), height: ms(96) },
+    avatarLargeText: { color: '#fff', fontSize: mf(40), ...font.bold },
+    profileName: { fontSize: mf(24), ...font.extrabold, color: C.textPrimary, letterSpacing: -0.5 },
+    profileEmail: { fontSize: mf(14), ...font.regular, color: C.textSecondary },
+    housePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(5),
+      backgroundColor: C.primary + '15',
+      paddingHorizontal: sizes.md,
+      paddingVertical: ms(4),
+      borderRadius: sizes.borderRadiusFull,
+      marginTop: sizes.xs,
+    },
+    housePillIcon: {},
+    housePillText: { fontSize: mf(13), ...font.semibold, color: C.primary },
 
-  // Section labels
-  sectionLabel: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    ...font.bold,
-    letterSpacing: 1.2,
-    marginBottom: sizes.sm,
-    marginTop: sizes.xs,
-    marginStart: 4,
-  },
+    // Section labels
+    sectionLabel: {
+      color: C.textSecondary,
+      fontSize: mf(11),
+      ...font.bold,
+      letterSpacing: 1.2,
+      marginBottom: sizes.sm,
+      marginTop: sizes.xs,
+      marginStart: ms(4),
+    },
 
-  // Menu
-  menuGroup: {
-    backgroundColor: colors.white,
-    borderRadius: sizes.borderRadiusLg,
-    marginBottom: sizes.lg,
-    overflow: 'hidden',
-  },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
-  menuItemPressed: { backgroundColor: colors.background },
-  menuIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: sizes.borderRadiusSm,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuIconDanger: { backgroundColor: colors.negative + '15' },
-  menuIconText: { fontSize: 18 },
-  menuText: { flex: 1 },
-  menuLabel: { color: colors.textPrimary, ...font.semibold, fontSize: 15 },
-  menuLabelDanger: { color: colors.negative },
-  menuSub: { color: colors.textSecondary, fontSize: 13, ...font.regular, marginTop: 1 },
-  menuChevron: { color: colors.textDisabled, fontSize: 22 },
-  menuRightText: { color: colors.primary, ...font.bold, fontSize: 15 },
-  rowDivider: { height: 1, backgroundColor: colors.border, marginStart: sizes.md + 36 + sizes.sm },
+    // Menu
+    menuGroup: {
+      backgroundColor: C.surface,
+      borderRadius: sizes.borderRadiusLg,
+      marginBottom: sizes.lg,
+      overflow: 'hidden',
+    },
+    menuItem: { flexDirection: 'row', alignItems: 'center', padding: sizes.md, gap: sizes.sm },
+    menuItemPressed: { backgroundColor: C.background },
+    menuIcon: {
+      width: ms(36),
+      height: ms(36),
+      borderRadius: sizes.borderRadiusSm,
+      backgroundColor: C.background,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    menuIconDanger: { backgroundColor: C.negative + '15' },
+    menuIconText: { fontSize: mf(18) },
+    menuText: { flex: 1 },
+    menuLabel: { color: C.textPrimary, ...font.semibold, fontSize: mf(15) },
+    menuLabelDanger: { color: C.negative },
+    menuSub: { color: C.textSecondary, fontSize: mf(13), ...font.regular, marginTop: ms(1) },
+    menuChevron: { color: C.textDisabled, fontSize: mf(22) },
+    menuRightText: { color: C.primary, ...font.bold, fontSize: mf(15) },
+    rowDivider: { height: ms(1), backgroundColor: C.border, marginStart: sizes.md + 36 + sizes.sm },
 
-  // Password form
-  passwordForm: {
-    padding: sizes.md,
-    paddingTop: 0,
-    gap: sizes.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  passwordField: { gap: 4 },
-  fieldLabel: { fontSize: 12, ...font.semibold, color: colors.textSecondary, marginStart: 2 },
-  textInput: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingHorizontal: sizes.md,
-    paddingVertical: 12,
-    fontSize: 15,
-    ...font.regular,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  fieldError: { color: colors.danger, fontSize: 13, ...font.regular },
-  passwordButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sizes.md,
-    marginTop: sizes.xs,
-  },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: sizes.lg,
-    borderRadius: 10,
-  },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: colors.white, ...font.semibold, fontSize: 14 },
-  cancelText: { color: colors.textSecondary, fontSize: 14, ...font.regular },
+    // Password form
+    passwordForm: {
+      padding: sizes.md,
+      paddingTop: 0,
+      gap: sizes.sm,
+      borderTopWidth: 1,
+      borderTopColor: C.border,
+    },
+    passwordField: { gap: ms(4) },
+    fieldLabel: { fontSize: mf(12), ...font.semibold, color: C.textSecondary, marginStart: ms(2) },
+    textInput: {
+      backgroundColor: C.background,
+      borderRadius: ms(10),
+      paddingHorizontal: sizes.md,
+      paddingVertical: ms(12),
+      fontSize: mf(15),
+      ...font.regular,
+      color: C.textPrimary,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+    fieldError: { color: C.danger, fontSize: mf(13), ...font.regular },
+    passwordButtons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.md,
+      marginTop: sizes.xs,
+    },
+    saveBtn: {
+      backgroundColor: C.primary,
+      paddingVertical: ms(10),
+      paddingHorizontal: sizes.lg,
+      borderRadius: ms(10),
+    },
+    saveBtnDisabled: { opacity: 0.6 },
+    saveBtnText: { color: '#fff', ...font.semibold, fontSize: mf(14) },
+    cancelText: { color: C.textSecondary, fontSize: mf(14), ...font.regular },
 
-  version: {
-    color: colors.textDisabled,
-    fontSize: 13,
-    ...font.regular,
-    textAlign: 'center',
-    marginTop: sizes.md,
-  },
-});
+    version: {
+      color: C.textDisabled,
+      fontSize: mf(13),
+      ...font.regular,
+      textAlign: 'center',
+      marginTop: sizes.md,
+    },
+  });

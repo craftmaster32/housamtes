@@ -1,20 +1,30 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Animated } from 'react-native';
+import { useState, useCallback, useRef, useMemo } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { Entrance } from '@components/shared/Entrance';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signUpSchema, mapZodError } from '@utils/validation';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
-import { AuthIllustration } from '@components/shared/AuthIllustration';
 import { getErrorMessage } from '@utils/errors';
+import { markTourPending } from '@utils/tour';
 
+import { mf, ms } from '@utils/responsive';
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
 
 type PasswordStrength = 'weak' | 'fair' | 'strong';
@@ -42,6 +52,8 @@ export default function SignupScreen(): React.JSX.Element {
   const [selectedColor] = useState(AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]);
   const [error, setError] = useState('');
   const [passwordTouched, setPasswordTouched] = useState(false);
+  // Single clickwrap gate: confirms 18+ AND agreement to Terms + Privacy.
+  const [agreed, setAgreed] = useState(false);
   const signUp = useAuthStore((s) => s.signUp);
   const isLoading = useAuthStore((s) => s.isLoading);
   const emailRef = useRef<RNTextInput>(null);
@@ -49,34 +61,8 @@ export default function SignupScreen(): React.JSX.Element {
   const confirmRef = useRef<RNTextInput>(null);
 
   const C = useThemedColors();
+  const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  const fadeHeader = useRef(new Animated.Value(0)).current;
-  const slideCard = useRef(new Animated.Value(30)).current;
-  const fadeCard = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(fadeHeader, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.parallel([
-        Animated.spring(slideCard, {
-          toValue: 0,
-          tension: 65,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeCard, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, [fadeHeader, slideCard, fadeCard]);
 
   const steps = useMemo(
     () => [
@@ -95,6 +81,10 @@ export default function SignupScreen(): React.JSX.Element {
 
   const handleSignup = useCallback(async (): Promise<void> => {
     if (isLoading) return;
+    if (!agreed) {
+      setError(t('auth.signup_agree_required'));
+      return;
+    }
     if (password !== confirmPw) {
       setError(t('auth.passwords_no_match'));
       return;
@@ -112,47 +102,44 @@ export default function SignupScreen(): React.JSX.Element {
         result.data.name,
         selectedColor
       );
+      // Brand-new account — queue the one-time welcome tour for the dashboard.
+      await markTourPending();
       if (needsVerification) {
         router.replace('/(auth)/verify-email');
       }
     } catch (err) {
       setError(getErrorMessage(err, t('auth.something_went_wrong')));
     }
-  }, [name, email, password, confirmPw, selectedColor, isLoading, signUp, t]);
+  }, [name, email, password, confirmPw, selectedColor, agreed, isLoading, signUp, t]);
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.header, { opacity: fadeHeader }]}>
+      <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
           <StepProgress steps={steps} currentStep={0} />
         </SafeAreaView>
-      </Animated.View>
+      </View>
 
-      <Animated.View
-        style={[
-          styles.cardWrapper,
-          {
-            opacity: fadeCard,
-            transform: [{ translateY: slideCard }],
-          },
-        ]}
+      <KeyboardAvoidingView
+        style={styles.cardWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           style={styles.card}
           contentContainerStyle={styles.cardContent}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.brandRow}>
+          <Entrance style={styles.brandRow}>
             <View style={styles.logoChip}>
               <Ionicons name="home" size={18} color={C.primary} />
             </View>
             <Text style={styles.brandName}>HouseMates</Text>
-          </View>
+          </Entrance>
 
-          <View style={styles.headerBlock}>
-            <Text style={styles.title}>{t('auth.create_account')}</Text>
+          <Entrance style={styles.headerBlock} delay={70}>
+            <Text style={[styles.title, headingFont]}>{t('auth.create_account')}</Text>
             <Text style={styles.subtitle}>{t('auth.free_to_use')}</Text>
-          </View>
+          </Entrance>
 
           <TextInput
             label={t('auth.your_name')}
@@ -267,42 +254,84 @@ export default function SignupScreen(): React.JSX.Element {
             error={!!error && error === t('auth.passwords_no_match')}
           />
 
+          <View style={styles.agreeRow}>
+            <Pressable
+              onPress={() => {
+                setAgreed((v) => !v);
+                setError('');
+              }}
+              hitSlop={11}
+              accessible
+              accessibilityRole="checkbox"
+              accessibilityLabel={t('auth.signup_agree_label')}
+              accessibilityState={{ checked: agreed }}
+            >
+              <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                {agreed && <Ionicons name="checkmark" size={14} color={'#fff'} />}
+              </View>
+            </Pressable>
+            <Text style={styles.agreeText}>
+              <Trans
+                i18nKey="auth.signup_agree_full"
+                components={{
+                  tos: (
+                    <Text
+                      style={styles.agreeLink}
+                      onPress={() => router.push('/(auth)/terms')}
+                      accessibilityRole="link"
+                    >
+                      {''}
+                    </Text>
+                  ),
+                  privacy: (
+                    <Text
+                      style={styles.agreeLink}
+                      onPress={() => router.push('/(auth)/privacy-policy')}
+                      accessibilityRole="link"
+                    >
+                      {''}
+                    </Text>
+                  ),
+                }}
+              />
+            </Text>
+          </View>
+
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <Button
-            mode="contained"
-            onPress={handleSignup}
-            loading={isLoading}
-            disabled={isLoading}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
-            buttonColor={C.primary}
-            textColor="#fff"
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.create_account')}
-          >
-            {t('auth.create_account')}
-          </Button>
+          <Entrance style={styles.ctaGroup} delay={140}>
+            <Button
+              testID="signup-submit"
+              mode="contained"
+              onPress={handleSignup}
+              loading={isLoading}
+              disabled={isLoading || !agreed}
+              style={styles.button}
+              contentStyle={styles.buttonContent}
+              labelStyle={styles.buttonLabel}
+              buttonColor={C.primary}
+              textColor="#fff"
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.create_account')}
+            >
+              {t('auth.create_account')}
+            </Button>
 
-          <Pressable
-            style={styles.loginLink}
-            onPress={() => router.push('/(auth)/login')}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.has_account_login')}
-          >
-            <Text style={styles.loginText}>
-              {t('auth.has_account')} <Text style={styles.loginTextBold}>{t('auth.log_in')}</Text>
-            </Text>
-          </Pressable>
-
-          <View style={styles.illustrationSpacer}>
-            <AuthIllustration />
-          </View>
+            <Pressable
+              style={styles.loginLink}
+              onPress={() => router.push('/(auth)/login')}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.has_account_login')}
+            >
+              <Text style={styles.loginText}>
+                {t('auth.has_account')} <Text style={styles.loginTextBold}>{t('auth.log_in')}</Text>
+              </Text>
+            </Pressable>
+          </Entrance>
         </ScrollView>
-      </Animated.View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -336,42 +365,36 @@ function makeStyles(C: ColorTokens) {
       paddingBottom: sizes.xl,
       gap: sizes.md,
     },
-    illustrationSpacer: {
-      flex: 1,
-      minHeight: 100,
-      maxHeight: 220,
-      justifyContent: 'flex-end',
-    },
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: ms(8),
     },
     logoChip: {
-      width: 30,
-      height: 30,
-      borderRadius: 8,
+      width: ms(30),
+      height: ms(30),
+      borderRadius: ms(8),
       backgroundColor: C.secondary,
       alignItems: 'center',
       justifyContent: 'center',
     },
     brandName: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.bold,
       color: C.textPrimary,
       letterSpacing: -0.2,
     },
     headerBlock: {
-      gap: 4,
+      gap: ms(4),
     },
     title: {
-      fontSize: 28,
+      fontSize: mf(28),
       ...font.extrabold,
       color: C.textPrimary,
       letterSpacing: -0.5,
     },
     subtitle: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
     },
@@ -379,32 +402,32 @@ function makeStyles(C: ColorTokens) {
       backgroundColor: C.surface,
     },
     passwordBlock: {
-      gap: 6,
+      gap: ms(6),
     },
     fieldError: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.regular,
       color: C.danger,
-      marginStart: 4,
+      marginStart: ms(4),
     },
     strengthRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: ms(8),
     },
     strengthBarBg: {
       flex: 1,
-      height: 4,
-      borderRadius: 2,
+      height: ms(4),
+      borderRadius: ms(2),
       backgroundColor: C.border,
       overflow: 'hidden',
     },
     strengthBarFill: {
-      height: 4,
-      borderRadius: 2,
+      height: ms(4),
+      borderRadius: ms(2),
     },
     strengthLabel: {
-      fontSize: 12,
+      fontSize: mf(12),
       ...font.semibold,
     },
     error: {
@@ -412,15 +435,50 @@ function makeStyles(C: ColorTokens) {
       color: C.danger,
       fontSize: sizes.fontSm,
     },
+    agreeRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: sizes.sm,
+      marginTop: sizes.xs,
+    },
+    checkbox: {
+      width: ms(22),
+      height: ms(22),
+      borderRadius: ms(6),
+      borderWidth: 1.5,
+      borderColor: C.border,
+      backgroundColor: C.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexShrink: 0,
+      marginTop: ms(1),
+    },
+    checkboxChecked: {
+      backgroundColor: C.primary,
+      borderColor: C.primary,
+    },
+    agreeText: {
+      flex: 1,
+      fontSize: mf(14),
+      ...font.medium,
+      color: C.textSecondary,
+      lineHeight: mf(20),
+    },
+    agreeLink: {
+      ...font.semibold,
+      color: C.primary,
+      textDecorationLine: 'underline',
+    },
+    ctaGroup: { gap: sizes.md },
     button: {
-      borderRadius: 14,
+      borderRadius: ms(14),
       marginTop: sizes.xs,
     },
     buttonContent: {
-      height: 52,
+      height: ms(52),
     },
     buttonLabel: {
-      fontSize: 16,
+      fontSize: mf(16),
       ...font.semibold,
       letterSpacing: 0.2,
     },
@@ -431,7 +489,7 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
     },
     loginText: {
-      fontSize: 15,
+      fontSize: mf(15),
       ...font.regular,
       color: C.textSecondary,
       textAlign: 'center',

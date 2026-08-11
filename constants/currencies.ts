@@ -58,6 +58,32 @@ export function currencyFromSymbol(symbol: string | null | undefined): CurrencyC
   return match?.code ?? DEFAULT_CURRENCY;
 }
 
+/** The three visual pieces of a formatted amount, for typographic layout. */
+export interface MoneyParts {
+  symbol: string; // currency mark, e.g. "₪"
+  whole: string; // integer part with thousands separators, e.g. "1,234" (may lead with "-")
+  fraction: string; // decimal separator + digits, e.g. ".56" (empty for zero-decimal currencies)
+}
+
+/**
+ * Split a formatted amount into { symbol, whole, fraction } so a screen can
+ * render the currency mark and the agorot/cents smaller than the main figure
+ * (the polished "₪746.46" money style). Keeps all Intl logic in this module.
+ */
+export function splitMoney(amount: number, code: CurrencyCode | string): MoneyParts {
+  const cur = getCurrency(code);
+  const full = formatFull(amount, code);
+  const rest = full.startsWith(cur.symbol) ? full.slice(cur.symbol.length) : full;
+  if (cur.decimals === 0) return { symbol: cur.symbol, whole: rest, fraction: '' };
+  const sepIndex = rest.length - cur.decimals - 1;
+  if (sepIndex <= 0) return { symbol: cur.symbol, whole: rest, fraction: '' };
+  return {
+    symbol: cur.symbol,
+    whole: rest.slice(0, sepIndex),
+    fraction: rest.slice(sepIndex),
+  };
+}
+
 /** "₪1,234.56" — uses Intl when available, falls back to manual formatting. */
 export function formatFull(amount: number, code: CurrencyCode | string): string {
   const cur = getCurrency(code);
