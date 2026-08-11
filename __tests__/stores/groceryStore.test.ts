@@ -328,15 +328,35 @@ describe('incrementBought', () => {
     expect(i.isChecked).toBe(true);
   });
 
-  it('keeps the optimistic count (DB write is debounced, not awaited)', async () => {
+  it('keeps the optimistic count immediately (DB write is debounced, not awaited)', async () => {
     seedItems({ quantity: '3', boughtCount: 1 });
     mockFrom.mockReturnValue(fail('error'));
 
     await useGroceryStore.getState().incrementBought('item-1');
 
-    // The local count updates immediately; the write is deferred so a failed
-    // write does not snap the number back mid-interaction.
+    // The local count updates immediately; the write is deferred so it never
+    // snaps the number back mid-interaction (resync only runs later, on failure).
     expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+  });
+
+  it('resyncs from the server when the debounced write fails', async () => {
+    jest.useFakeTimers();
+    try {
+      seedItems({ quantity: '3', boughtCount: 1 });
+      // 1st from() = the failing UPDATE; 2nd = the resync SELECT (server truth).
+      mockFrom.mockReturnValueOnce(fail('permission denied'));
+      mockFrom.mockReturnValueOnce(ok({ bought_count: 1, is_checked: false }));
+
+      await useGroceryStore.getState().incrementBought('item-1');
+      expect(useGroceryStore.getState().items[0].boughtCount).toBe(2); // optimistic
+
+      await jest.runAllTimersAsync(); // fire debounce → write fails → resync
+
+      // Snaps back to the value that's actually on the server.
+      expect(useGroceryStore.getState().items[0].boughtCount).toBe(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 
@@ -368,7 +388,8 @@ describe('decrementBought', () => {
 
     await useGroceryStore.getState().decrementBought('item-1');
 
-    // Local count updates immediately; the deferred write doesn't roll it back.
+    // Local count updates immediately; the deferred write doesn't snap it back
+    // mid-interaction (a failed write resyncs later, not right now).
     expect(useGroceryStore.getState().items[0].boughtCount).toBe(1);
   });
 });

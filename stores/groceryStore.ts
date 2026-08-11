@@ -180,7 +180,11 @@ function isTombstoned(id: string): boolean {
   return true;
 }
 
-function scheduleBoughtWrite(id: string, get: () => { items: GroceryItem[] }): void {
+function scheduleBoughtWrite(
+  id: string,
+  get: () => { items: GroceryItem[] },
+  set: (partial: { items: GroceryItem[] }) => void
+): void {
   const existing = _boughtTimers.get(id);
   if (existing) clearTimeout(existing);
   _boughtTimers.set(
@@ -196,13 +200,31 @@ function scheduleBoughtWrite(id: string, get: () => { items: GroceryItem[] }): v
         .from('grocery_items')
         .update({ bought_count: latest.boughtCount, is_checked: latest.isChecked })
         .eq('id', id)
-        .then(({ error }) => {
-          if (error) {
-            // No echo will arrive to clear the guard — drop it so later remote
-            // updates to this item aren't held back.
-            _pendingCounts.delete(id);
-            captureError(error, { context: 'bought-write', id });
-          }
+        .then(async ({ error }) => {
+          if (!error) return;
+          // The optimistic count never saved. Drop the guard (no echo will
+          // arrive to clear it) and resync this item from the server so the UI
+          // stops showing a count that was never persisted.
+          _pendingCounts.delete(id);
+          captureError(error, { context: 'bought-write', id });
+          const { data } = await supabase
+            .from('grocery_items')
+            .select('bought_count, is_checked')
+            .eq('id', id)
+            .maybeSingle();
+          // A fresh tap after the failure queued a new write — don't clobber it.
+          if (!data || _pendingCounts.has(id)) return;
+          set({
+            items: get().items.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    boughtCount: (data.bought_count as number) ?? 0,
+                    isChecked: (data.is_checked as boolean) ?? false,
+                  }
+                : i
+            ),
+          });
         });
     }, 400)
   );
@@ -558,7 +580,7 @@ export const useGroceryStore = create<GroceryStore>()(
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
           ),
         });
-        scheduleBoughtWrite(id, get);
+        scheduleBoughtWrite(id, get, set);
       },
 
       decrementBought: async (id): Promise<void> => {
@@ -574,7 +596,7 @@ export const useGroceryStore = create<GroceryStore>()(
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
           ),
         });
-        scheduleBoughtWrite(id, get);
+        scheduleBoughtWrite(id, get, set);
       },
 
       deleteItem: async (id): Promise<void> => {
