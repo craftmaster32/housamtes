@@ -168,6 +168,7 @@ function MemberCard({
               source={{ uri: member.avatarUrl }}
               style={styles.memberAvatarImg}
               contentFit="cover"
+              accessibilityLabel={t('profile.profile_photo_of', { name: member.name })}
             />
           ) : (
             <Text style={styles.memberAvatarText}>{member.name[0].toUpperCase()}</Text>

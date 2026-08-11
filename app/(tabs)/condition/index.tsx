@@ -272,6 +272,7 @@ const makeStyles = (C: ColorTokens) =>
 // ── Entry card ────────────────────────────────────────────────────────────────
 
 function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const remove = useConditionStore((s) => s.remove);
@@ -303,7 +304,7 @@ function EntryCard({ entry }: { entry: ConditionEntry }): React.JSX.Element {
           hitSlop={8}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Remove entry"
+          accessibilityLabel={t('condition.remove_entry')}
         >
           <Ionicons name="close" size={15} color={C.textDisabled} />
         </Pressable>

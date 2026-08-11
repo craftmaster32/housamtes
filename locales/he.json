@@ -1289,6 +1289,8 @@
     "password_min": "הסיסמה חייבת להכיל לפחות 6 תווים",
     "passwords_no_match": "הסיסמאות לא תואמות",
     "could_not_update": "עדכון הסיסמה נכשל. נסה שוב.",
+    "check_details": "בדוק את הפרטים שלך.",
+    "could_not_save": "השמירה נכשלה. נסה שוב.",
     "house_section": "בית",
     "housemates": "שותפים",
     "no_housemates": "אין שותפים עדיין",

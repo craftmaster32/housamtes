@@ -227,7 +227,7 @@ export function BottomTabBar(): React.JSX.Element {
           onPress={handleAdd}
           accessible={true}
           accessibilityRole="button"
-          accessibilityLabel="Add new expense"
+          accessibilityLabel={t('dashboard.add_expense_btn')}
           accessibilityState={{ disabled: false }}
         >
           <Ionicons name="add" size={28} color={c.primary} />

@@ -1289,6 +1289,8 @@
     "password_min": "Password must be at least 6 characters",
     "passwords_no_match": "Passwords do not match",
     "could_not_update": "Could not update password. Please try again.",
+    "check_details": "Please check your details.",
+    "could_not_save": "Could not save. Please try again.",
     "house_section": "HOUSE",
     "housemates": "Housemates",
     "no_housemates": "No housemates yet",

@@ -184,7 +184,7 @@ export function ProfilePopup(): React.JSX.Element {
           </View>
           <View style={styles.headerText}>
             <Text style={[styles.headerName, { color: c.textPrimary }]} numberOfLines={1}>
-              {profile?.name ?? 'You'}
+              {profile?.name ?? t('common.you')}
             </Text>
             <Text style={[styles.headerEmail, { color: c.textSecondary }]} numberOfLines={1}>
               {user?.email ?? ''}

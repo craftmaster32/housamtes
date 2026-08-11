@@ -129,6 +129,7 @@ function HousemateAvatars({ housemates }: { housemates: Housemate[] }): React.JS
 }
 
 function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
   const splits = bill.splitBetween.length || 1;
@@ -147,14 +148,16 @@ function ActivityItem({ bill, userName }: { bill: Bill; userName: string }): Rea
         <Text style={s.activityTitle} numberOfLines={1}>
           {bill.title}
         </Text>
-        <Text style={s.activitySub}>{isPayer ? 'Paid by you' : `Paid by ${bill.paidBy}`}</Text>
+        <Text style={s.activitySub}>
+          {isPayer ? t('profile.paid_by_you') : t('profile.paid_by_name', { name: bill.paidBy })}
+        </Text>
       </View>
       <View style={s.activityAmt}>
         <Text style={s.activityAmtText}>
           -{currency}
           {share.toFixed(2)}
         </Text>
-        <Text style={s.activityAmtSub}>Your share</Text>
+        <Text style={s.activityAmtSub}>{t('profile.your_share')}</Text>
       </View>
     </View>
   );
@@ -170,6 +173,7 @@ function PersonalDetailsForm({
   currentEmail: string;
   onDone: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
   const updateProfile = useAuthStore((ss) => ss.updateProfile);
@@ -183,7 +187,7 @@ function PersonalDetailsForm({
   const handleSave = useCallback(async (): Promise<void> => {
     const parsed = profileDetailsSchema.safeParse({ name, email });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Please check your details.');
+      setError(parsed.error.issues[0]?.message ?? t('profile.check_details'));
       return;
     }
     const trimName = parsed.data.name;
@@ -197,26 +201,26 @@ function PersonalDetailsForm({
       if (nameChanged) await updateProfile(trimName);
       if (emailChanged) await updateEmail(trimEmail);
       if (nameChanged && emailChanged) {
-        setSuccess('Name updated. A confirmation link has been sent to your new email address.');
+        setSuccess(t('profile.name_and_email_updated'));
       } else if (nameChanged) {
-        setSuccess('Name updated.');
+        setSuccess(t('profile.name_updated'));
       } else if (emailChanged) {
-        setSuccess('A confirmation link has been sent to your new email address.');
+        setSuccess(t('profile.email_confirm_sent'));
       } else {
         onDone();
         return;
       }
     } catch (err) {
-      setError(getErrorMessage(err, 'Could not save. Please try again.'));
+      setError(getErrorMessage(err, t('profile.could_not_save')));
     } finally {
       setSaving(false);
     }
-  }, [name, email, currentName, currentEmail, updateProfile, updateEmail, onDone]);
+  }, [name, email, currentName, currentEmail, updateProfile, updateEmail, onDone, t]);
 
   return (
     <View style={s.pwForm}>
       <View>
-        <Text style={s.detailsLabel}>Display name</Text>
+        <Text style={s.detailsLabel}>{t('profile.display_name')}</Text>
         <TextInput
           style={s.textInput}
           value={name}
@@ -225,13 +229,13 @@ function PersonalDetailsForm({
             setError('');
             setSuccess('');
           }}
-          placeholder="Your name"
+          placeholder={t('profile.your_name_placeholder')}
           placeholderTextColor={C.textDisabled}
           autoCapitalize="words"
         />
       </View>
       <View>
-        <Text style={s.detailsLabel}>Email address</Text>
+        <Text style={s.detailsLabel}>{t('profile.email_address')}</Text>
         <TextInput
           style={s.textInput}
           value={email}
@@ -240,15 +244,13 @@ function PersonalDetailsForm({
             setError('');
             setSuccess('');
           }}
-          placeholder="your@email.com"
+          placeholder={t('profile.email_placeholder')}
           placeholderTextColor={C.textDisabled}
           autoCapitalize="none"
           keyboardType="email-address"
           autoComplete="email"
         />
-        <Text style={s.detailsHint}>
-          Changing email sends a confirmation link to the new address.
-        </Text>
+        <Text style={s.detailsHint}>{t('profile.email_change_hint')}</Text>
       </View>
       {!!error && <Text style={s.fieldError}>{error}</Text>}
       {!!success && <Text style={s.detailsSuccess}>{success}</Text>}
@@ -259,10 +261,12 @@ function PersonalDetailsForm({
           disabled={saving}
           accessibilityRole="button"
         >
-          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save changes'}</Text>
+          <Text style={s.saveBtnText}>
+            {saving ? t('profile.saving') : t('profile.save_changes')}
+          </Text>
         </Pressable>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={s.cancelText}>Cancel</Text>
+          <Text style={s.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
     </View>
@@ -271,6 +275,7 @@ function PersonalDetailsForm({
 
 // ── Change password form ───────────────────────────────────────────────────────
 function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const s = useMemo(() => makeStyles(C), [C]);
   const changePassword = useAuthStore((ss) => ss.changePassword);
@@ -288,7 +293,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
       confirmPassword,
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Please check your details.');
+      setError(parsed.error.issues[0]?.message ?? t('profile.check_details'));
       return;
     }
     setSaving(true);
@@ -297,18 +302,18 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
       await changePassword(parsed.data.currentPassword, parsed.data.newPassword);
       setSuccess(true);
     } catch (err) {
-      setError(getErrorMessage(err, 'Could not update password. Please try again.'));
+      setError(getErrorMessage(err, t('profile.could_not_update')));
     } finally {
       setSaving(false);
     }
-  }, [currentPassword, newPassword, confirmPassword, changePassword]);
+  }, [currentPassword, newPassword, confirmPassword, changePassword, t]);
 
   if (success) {
     return (
       <View style={s.pwForm}>
-        <Text style={s.detailsSuccess}>Password updated successfully.</Text>
+        <Text style={s.detailsSuccess}>{t('profile.password_success')}</Text>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={s.cancelText}>Done</Text>
+          <Text style={s.cancelText}>{t('common.done')}</Text>
         </Pressable>
       </View>
     );
@@ -317,7 +322,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
   return (
     <View style={s.pwForm}>
       <View>
-        <Text style={s.detailsLabel}>Current password</Text>
+        <Text style={s.detailsLabel}>{t('profile.current_password')}</Text>
         <TextInput
           style={s.textInput}
           value={currentPassword}
@@ -325,16 +330,16 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
             setCurrentPassword(v);
             setError('');
           }}
-          placeholder="Your current password"
+          placeholder={t('profile.current_password_placeholder')}
           placeholderTextColor={C.textDisabled}
           secureTextEntry
           autoCapitalize="none"
           autoComplete="off"
-          accessibilityLabel="Current password"
+          accessibilityLabel={t('profile.current_password')}
         />
       </View>
       <View>
-        <Text style={s.detailsLabel}>New password</Text>
+        <Text style={s.detailsLabel}>{t('profile.new_password')}</Text>
         <TextInput
           style={s.textInput}
           value={newPassword}
@@ -342,15 +347,15 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
             setNewPassword(v);
             setError('');
           }}
-          placeholder="At least 8 characters"
+          placeholder={t('profile.new_password_placeholder')}
           placeholderTextColor={C.textDisabled}
           secureTextEntry
           autoCapitalize="none"
-          accessibilityLabel="New password"
+          accessibilityLabel={t('profile.new_password')}
         />
       </View>
       <View>
-        <Text style={s.detailsLabel}>Confirm new password</Text>
+        <Text style={s.detailsLabel}>{t('profile.confirm_new_password')}</Text>
         <TextInput
           style={s.textInput}
           value={confirmPassword}
@@ -358,11 +363,11 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
             setConfirmPassword(v);
             setError('');
           }}
-          placeholder="Repeat new password"
+          placeholder={t('profile.confirm_password_placeholder')}
           placeholderTextColor={C.textDisabled}
           secureTextEntry
           autoCapitalize="none"
-          accessibilityLabel="Confirm new password"
+          accessibilityLabel={t('profile.confirm_new_password')}
         />
       </View>
       {!!error && <Text style={s.fieldError}>{error}</Text>}
@@ -373,10 +378,12 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
           disabled={saving}
           accessibilityRole="button"
         >
-          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Update password'}</Text>
+          <Text style={s.saveBtnText}>
+            {saving ? t('profile.saving') : t('profile.update_password')}
+          </Text>
         </Pressable>
         <Pressable onPress={onDone} accessibilityRole="button">
-          <Text style={s.cancelText}>Cancel</Text>
+          <Text style={s.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
       <Pressable
@@ -384,7 +391,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }): React.JSX.Eleme
         accessibilityRole="button"
         style={s.forgotLink}
       >
-        <Text style={s.forgotLinkText}>Forgot your password?</Text>
+        <Text style={s.forgotLinkText}>{t('profile.forgot_your_password')}</Text>
       </Pressable>
     </View>
   );
@@ -408,6 +415,7 @@ function CropEditor({
   onConfirm: (originX: number, originY: number, cropSize: number) => void;
   onCancel: () => void;
 }): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -609,26 +617,26 @@ function CropEditor({
           style={cedStyles.zoomBtn}
           onPress={() => setScale((ss) => Math.max(1, parseFloat((ss - 0.2).toFixed(1))))}
           accessibilityRole="button"
-          accessibilityLabel="Zoom out"
+          accessibilityLabel={t('profile.zoom_out')}
         >
           <Text style={cedStyles.zoomBtnText}>−</Text>
         </Pressable>
-        <Text style={cedStyles.zoomLabel}>Zoom</Text>
+        <Text style={cedStyles.zoomLabel}>{t('profile.zoom_label')}</Text>
         <Pressable
           style={cedStyles.zoomBtn}
           onPress={() => setScale((ss) => parseFloat((ss + 0.2).toFixed(1)))}
           accessibilityRole="button"
-          accessibilityLabel="Zoom in"
+          accessibilityLabel={t('profile.zoom_in')}
         >
           <Text style={cedStyles.zoomBtnText}>+</Text>
         </Pressable>
       </View>
       <View style={cedStyles.btnRow}>
         <Pressable style={cedStyles.confirmBtn} onPress={handleConfirm} accessibilityRole="button">
-          <Text style={cedStyles.confirmText}>Use Photo</Text>
+          <Text style={cedStyles.confirmText}>{t('profile.use_photo')}</Text>
         </Pressable>
         <Pressable onPress={onCancel} accessibilityRole="button">
-          <Text style={cedStyles.cancelText}>Cancel</Text>
+          <Text style={cedStyles.cancelText}>{t('common.cancel')}</Text>
         </Pressable>
       </View>
     </View>
@@ -927,14 +935,14 @@ export default function ProfileScreen(): React.JSX.Element {
               disabled={uploadingCover}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Change cover photo"
+              accessibilityLabel={t('profile.change_cover_photo')}
             >
               {profile?.coverUrl ? (
                 <Image
                   source={{ uri: profile.coverUrl }}
                   style={styles.coverImage}
                   contentFit="cover"
-                  accessibilityLabel="Cover photo"
+                  accessibilityLabel={t('profile.cover_photo')}
                 />
               ) : (
                 <>
@@ -959,7 +967,7 @@ export default function ProfileScreen(): React.JSX.Element {
               disabled={uploading}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Change profile photo"
+              accessibilityLabel={t('profile.change_profile_photo')}
             >
               <View
                 style={[
@@ -976,7 +984,7 @@ export default function ProfileScreen(): React.JSX.Element {
                     source={{ uri: profile.avatarUrl }}
                     style={styles.avatarImage}
                     contentFit="cover"
-                    accessibilityLabel="Profile photo"
+                    accessibilityLabel={t('profile.profile_photo')}
                   />
                 ) : (
                   <Text style={styles.avatarInitial}>{initial}</Text>
@@ -992,9 +1000,9 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             </Pressable>
 
-            <Text style={styles.profileName}>{profile?.name ?? 'You'}</Text>
+            <Text style={styles.profileName}>{profile?.name ?? t('common.you')}</Text>
             {!!user?.email && <Text style={styles.profileEmail}>{user.email}</Text>}
-            <Text style={styles.profileSub}>{houseName || 'Your House'}</Text>
+            <Text style={styles.profileSub}>{houseName || t('profile.the_house')}</Text>
           </View>
 
           <View style={styles.content}>
@@ -1005,12 +1013,12 @@ export default function ProfileScreen(): React.JSX.Element {
             {topCategories.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Expense summary</Text>
+                  <Text style={styles.sectionTitle}>{t('profile.expense_summary')}</Text>
                   <Pressable
                     onPress={() => router.push('/(tabs)/profile/spending')}
                     accessibilityRole="button"
                   >
-                    <Text style={styles.sectionAction}>See all</Text>
+                    <Text style={styles.sectionAction}>{t('profile.see_all')}</Text>
                   </Pressable>
                 </View>
                 <View style={styles.expenseGrid}>
@@ -1035,19 +1043,19 @@ export default function ProfileScreen(): React.JSX.Element {
             {/* ── House ──────────────────────────────────────────────────── */}
             <View style={styles.card}>
               <View style={styles.cardInnerRow}>
-                <Text style={styles.sectionTitle}>House</Text>
+                <Text style={styles.sectionTitle}>{t('profile.house_label')}</Text>
                 <Pressable
                   onPress={() => router.push('/(tabs)/bills/setup')}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.sectionAction}>Manage</Text>
+                  <Text style={styles.sectionAction}>{t('profile.manage_label')}</Text>
                 </Pressable>
               </View>
               <View style={styles.houseRow}>
                 <View style={styles.houseInfo}>
-                  <Text style={styles.houseName}>{houseName || 'The House'}</Text>
+                  <Text style={styles.houseName}>{houseName || t('profile.the_house')}</Text>
                   <Text style={styles.houseSub}>
-                    {housemates.length} housemate{housemates.length !== 1 ? 's' : ''} connected
+                    {t('profile.housemates_count', { count: housemates.length })}
                   </Text>
                 </View>
                 <HousemateAvatars housemates={housemates} />
@@ -1056,14 +1064,14 @@ export default function ProfileScreen(): React.JSX.Element {
 
             {/* ── Profile settings ───────────────────────────────────────── */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Profile</Text>
+              <Text style={styles.sectionTitle}>{t('profile.profile_label')}</Text>
               <View style={styles.card}>
                 <ProfileRow
                   iconName="person-outline"
-                  title="Personal details"
+                  title={t('profile.personal_details')}
                   sub={
                     showDetailsForm
-                      ? 'Tap to close'
+                      ? t('profile.tap_to_close')
                       : `${profile?.name ?? ''}  ·  ${user?.email ?? ''}`
                   }
                   onPress={() => setShowDetailsForm((v) => !v)}
@@ -1081,8 +1089,10 @@ export default function ProfileScreen(): React.JSX.Element {
                 <View style={styles.rowDivider} />
                 <ProfileRow
                   iconName="lock-closed-outline"
-                  title="Change password"
-                  sub={showPasswordForm ? 'Tap to close' : 'Update your login password'}
+                  title={t('profile.change_password')}
+                  sub={
+                    showPasswordForm ? t('profile.tap_to_close') : t('profile.change_password_sub')
+                  }
                   onPress={() => {
                     setShowPasswordForm((v) => !v);
                     setShowDetailsForm(false);
@@ -1127,12 +1137,12 @@ export default function ProfileScreen(): React.JSX.Element {
             {(todayBills.length > 0 || yesterdayBills.length > 0) && (
               <View style={styles.card}>
                 <View style={styles.cardInnerRow}>
-                  <Text style={styles.sectionTitle}>Recent activity</Text>
+                  <Text style={styles.sectionTitle}>{t('profile.recent_activity')}</Text>
                   <Ionicons name="search-outline" size={20} color={C.textSecondary} />
                 </View>
                 {todayBills.length > 0 && (
                   <>
-                    <Text style={styles.dayLabel}>TODAY</Text>
+                    <Text style={styles.dayLabel}>{t('profile.today_label')}</Text>
                     {todayBills.map((b) => (
                       <ActivityItem key={b.id} bill={b} userName={profile?.name ?? ''} />
                     ))}
@@ -1140,7 +1150,7 @@ export default function ProfileScreen(): React.JSX.Element {
                 )}
                 {yesterdayBills.length > 0 && (
                   <>
-                    <Text style={styles.dayLabel}>YESTERDAY</Text>
+                    <Text style={styles.dayLabel}>{t('profile.yesterday_label')}</Text>
                     {yesterdayBills.map((b) => (
                       <ActivityItem key={b.id} bill={b} userName={profile?.name ?? ''} />
                     ))}
@@ -1154,7 +1164,7 @@ export default function ProfileScreen(): React.JSX.Element {
                   onPress={() => router.push('/(tabs)/bills/index')}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.viewMoreText}>View previous months</Text>
+                  <Text style={styles.viewMoreText}>{t('profile.view_previous_months')}</Text>
                 </Pressable>
               </View>
             )}
@@ -1176,9 +1186,9 @@ export default function ProfileScreen(): React.JSX.Element {
               onPress={handleDeleteAccount}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Delete account"
+              accessibilityLabel={t('profile.delete_account')}
             >
-              <Text style={styles.deleteAccountText}>Delete Account</Text>
+              <Text style={styles.deleteAccountText}>{t('profile.delete_account')}</Text>
             </Pressable>
 
             <Text style={styles.version}>{t('profile.footer')}</Text>

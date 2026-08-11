@@ -215,7 +215,7 @@ export function MorePopup(): React.JSX.Element {
               onPress={handleClose}
               accessible
               accessibilityRole="button"
-              accessibilityLabel="Close menu"
+              accessibilityLabel={t('common.close')}
             />
           </Animated.View>
 

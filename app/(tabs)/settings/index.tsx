@@ -382,7 +382,7 @@ export default function SettingsScreen(): React.JSX.Element {
                 style={styles.switchLtr}
                 accessible
                 accessibilityRole="switch"
-                accessibilityLabel="Connect my calendar"
+                accessibilityLabel={t('settings.calendar_connect')}
                 accessibilityHint="See your personal events in-app and auto-add house events"
                 accessibilityState={{
                   checked: calConnected,
@@ -411,7 +411,7 @@ export default function SettingsScreen(): React.JSX.Element {
                     style={styles.switchLtr}
                     accessible
                     accessibilityRole="switch"
-                    accessibilityLabel="Auto-add house events"
+                    accessibilityLabel={t('settings.calendar_auto_events')}
                     accessibilityHint="New house events go straight to your calendar"
                     accessibilityState={{ checked: calAutoSync.events }}
                   />
@@ -435,7 +435,7 @@ export default function SettingsScreen(): React.JSX.Element {
                     style={styles.switchLtr}
                     accessible
                     accessibilityRole="switch"
-                    accessibilityLabel="Auto-add parking"
+                    accessibilityLabel={t('settings.calendar_auto_parking')}
                     accessibilityHint="Reservations added as pending, updated when approved"
                     accessibilityState={{ checked: calAutoSync.parking }}
                   />

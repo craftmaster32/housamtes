@@ -1289,6 +1289,8 @@
     "password_min": "La contraseña debe tener al menos 6 caracteres",
     "passwords_no_match": "Las contraseñas no coinciden",
     "could_not_update": "No se pudo actualizar la contraseña. Intenta de nuevo.",
+    "check_details": "Revisa tus datos.",
+    "could_not_save": "No se pudo guardar. Intenta de nuevo.",
     "house_section": "CASA",
     "housemates": "Compañeros",
     "no_housemates": "Sin compañeros aún",

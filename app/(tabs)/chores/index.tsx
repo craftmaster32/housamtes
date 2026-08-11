@@ -113,7 +113,7 @@ function ChoreRow({
             <View style={styles.claimedBadge}>
               <Ionicons name="person-outline" size={11} color={C.primary} />
               <Text style={styles.claimedText}>
-                {isMineClaimed ? 'You' : resolveName(chore.claimedBy ?? '', housemates)}
+                {isMineClaimed ? t('common.you') : resolveName(chore.claimedBy ?? '', housemates)}
               </Text>
             </View>
             {isMineClaimed && (
@@ -355,7 +355,7 @@ export default function ChoresScreen(): React.JSX.Element {
                   style={styles.formInput}
                   returnKeyType="done"
                   onSubmitEditing={handleAdd}
-                  accessibilityLabel="Chore name"
+                  accessibilityLabel={t('chores.chore_name_label')}
                   accessibilityHint="Enter the name of the chore and press done to add"
                 />
 
