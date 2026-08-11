@@ -14,8 +14,8 @@ import {
   calculateSimplifiedBalancesForUser,
 } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
-import { useEventsStore } from '@stores/eventsStore';
-import { isEventImminent } from '@utils/events';
+import { useEventsStore, type HouseEvent } from '@stores/eventsStore';
+import { isEventImminent, nextOccurrenceOnOrAfter } from '@utils/events';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useMemberName } from '@hooks/useMemberName';
@@ -185,16 +185,25 @@ function TodayRow(): React.JSX.Element {
   const events = useEventsStore((s) => s.events);
   const today = todayYMD();
 
-  const next = useMemo(
-    () =>
-      [...events]
-        .filter((e) => e.date >= today)
-        .sort(
-          (a, b) =>
-            a.date.localeCompare(b.date) || (a.startTime ?? '').localeCompare(b.startTime ?? '')
-        )[0],
-    [events, today]
-  );
+  // Resolve each event to its next occurrence (expanding weekly/monthly/yearly
+  // repeats), then pick the soonest — so a recurring event whose base date is
+  // in the past still surfaces, matching the reminder push.
+  const next = useMemo<HouseEvent | undefined>(() => {
+    let best: HouseEvent | undefined;
+    for (const e of events) {
+      const occ = nextOccurrenceOnOrAfter(e, today);
+      if (!occ) continue;
+      const candidate = { ...e, date: occ };
+      if (
+        !best ||
+        candidate.date < best.date ||
+        (candidate.date === best.date && (candidate.startTime ?? '') < (best.startTime ?? ''))
+      ) {
+        best = candidate;
+      }
+    }
+    return best;
+  }, [events, today]);
 
   if (!next) return <></>;
 

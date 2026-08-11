@@ -1,4 +1,4 @@
-import { isEventImminent } from '@utils/events';
+import { isEventImminent, nextOccurrenceOnOrAfter } from '@utils/events';
 
 describe('isEventImminent', () => {
   // Fixed reference point: Mon 20 Jul 2026, 15:00 local time.
@@ -30,5 +30,52 @@ describe('isEventImminent', () => {
 
   it('does not flag an event several days out', () => {
     expect(isEventImminent({ date: '2026-07-25', startTime: '10:00' }, now)).toBe(false);
+  });
+});
+
+describe('nextOccurrenceOnOrAfter', () => {
+  const today = '2026-07-20'; // a Monday
+
+  it('returns a non-recurring event on its own day', () => {
+    expect(nextOccurrenceOnOrAfter({ date: '2026-07-22' }, today)).toBe('2026-07-22');
+  });
+
+  it('returns undefined for a passed non-recurring event', () => {
+    expect(nextOccurrenceOnOrAfter({ date: '2026-07-10' }, today)).toBeUndefined();
+  });
+
+  it('advances a weekly event whose base date is in the past to its next occurrence', () => {
+    // Base three weeks ago on a Monday → next Monday on/after today is today.
+    expect(nextOccurrenceOnOrAfter({ date: '2026-06-29', recurrence: 'weekly' }, today)).toBe(
+      '2026-07-20'
+    );
+  });
+
+  it('advances a weekly event to the upcoming weekday when today is not it', () => {
+    // Base was a Wednesday → next Wednesday on/after Mon 20 Jul is Wed 22 Jul.
+    expect(nextOccurrenceOnOrAfter({ date: '2026-07-01', recurrence: 'weekly' }, today)).toBe(
+      '2026-07-22'
+    );
+  });
+
+  it('advances a monthly event to the same day next month', () => {
+    expect(nextOccurrenceOnOrAfter({ date: '2026-05-25', recurrence: 'monthly' }, today)).toBe(
+      '2026-07-25'
+    );
+  });
+
+  it('advances a yearly event to this year’s occurrence', () => {
+    expect(nextOccurrenceOnOrAfter({ date: '2020-08-15', recurrence: 'yearly' }, today)).toBe(
+      '2026-08-15'
+    );
+  });
+
+  it('returns undefined once the recurrence end date has passed', () => {
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-06-01', recurrence: 'weekly', recurrenceEnd: '2026-07-01' },
+        today
+      )
+    ).toBeUndefined();
   });
 });
