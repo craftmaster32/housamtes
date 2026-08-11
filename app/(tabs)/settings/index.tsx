@@ -128,11 +128,11 @@ export default function SettingsScreen(): React.JSX.Element {
       setShowLeaveConfirm(false);
       router.replace('/(onboarding)/house-setup');
     } catch {
-      Alert.alert('Error', 'Could not leave the house. Please try again.');
+      Alert.alert(t('common.error'), t('settings.could_not_leave'));
     } finally {
       setLeaving(false);
     }
-  }, [leaveHouse]);
+  }, [leaveHouse, t]);
 
   const handleRequestLeaveVote = useCallback(async (): Promise<void> => {
     if (!profile || !houseId) return;
@@ -150,7 +150,7 @@ export default function SettingsScreen(): React.JSX.Element {
       setShowDebtModal(false);
       router.push('/(tabs)/voting');
     } catch {
-      Alert.alert('Error', 'Could not create the vote. Please try again.');
+      Alert.alert(t('common.error'), t('settings.could_not_create_vote'));
     } finally {
       setRequestingVote(false);
     }

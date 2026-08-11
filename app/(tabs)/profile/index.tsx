@@ -714,12 +714,15 @@ export default function ProfileScreen(): React.JSX.Element {
         // Refresh housemates so the new avatar appears everywhere (stack, members screen, drawer)
         if (houseId) loadHousemates(houseId).catch(() => {});
       } catch (err) {
-        Alert.alert('Upload failed', getErrorMessage(err, 'Could not upload photo.'));
+        Alert.alert(
+          t('profile.upload_failed'),
+          getErrorMessage(err, t('profile.upload_failed_body'))
+        );
       } finally {
         setUploading(false);
       }
     },
-    [cropSource, uploadAvatar, houseId, loadHousemates]
+    [cropSource, uploadAvatar, houseId, loadHousemates, t]
   );
 
   const pickImage = useCallback(
@@ -748,14 +751,14 @@ export default function ProfileScreen(): React.JSX.Element {
       if (source === 'camera') {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Camera access is required to take a photo.');
+          Alert.alert(t('profile.permission_needed'), t('profile.camera_permission_body'));
           return;
         }
         result = await ImagePicker.launchCameraAsync(opts);
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Photo library access is required to choose a photo.');
+          Alert.alert(t('profile.permission_needed'), t('profile.library_permission_body'));
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync(opts);
@@ -766,18 +769,21 @@ export default function ProfileScreen(): React.JSX.Element {
       try {
         await uploadAvatar(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
       } catch (err) {
-        Alert.alert('Upload failed', getErrorMessage(err, 'Could not upload photo.'));
+        Alert.alert(
+          t('profile.upload_failed'),
+          getErrorMessage(err, t('profile.upload_failed_body'))
+        );
       } finally {
         setUploading(false);
       }
     },
-    [uploadAvatar]
+    [uploadAvatar, t]
   );
 
   const pickCover = useCallback(async (): Promise<void> => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Photo library access is required to choose a cover photo.');
+      Alert.alert(t('profile.permission_needed'), t('profile.cover_permission_body'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -793,32 +799,35 @@ export default function ProfileScreen(): React.JSX.Element {
     try {
       await uploadCover(asset.uri, asset.mimeType ?? 'image/jpeg', asset.base64 ?? undefined);
     } catch (err) {
-      Alert.alert('Upload failed', getErrorMessage(err, 'Could not upload cover photo.'));
+      Alert.alert(
+        t('profile.upload_failed'),
+        getErrorMessage(err, t('profile.upload_cover_failed'))
+      );
     } finally {
       setUploadingCover(false);
     }
-  }, [uploadCover]);
+  }, [uploadCover, t]);
 
   const handleCoverPress = useCallback((): void => {
     const options: Parameters<typeof Alert.alert>[2] = [
-      { text: 'Choose cover photo', onPress: pickCover },
+      { text: t('profile.choose_cover_photo'), onPress: pickCover },
     ];
     if (profile?.coverUrl) {
       options.push({
-        text: 'Remove cover photo',
+        text: t('profile.remove_cover_photo'),
         style: 'destructive',
         onPress: async () => {
           setUploadingCover(true);
           await removeCover().catch((err: unknown) => {
-            Alert.alert('Error', getErrorMessage(err, 'Could not remove cover photo.'));
+            Alert.alert(t('common.error'), getErrorMessage(err, t('profile.remove_cover_failed')));
           });
           setUploadingCover(false);
         },
       });
     }
-    options.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Cover photo', 'Choose an option', options);
-  }, [pickCover, removeCover, profile?.coverUrl]);
+    options.push({ text: t('common.cancel'), style: 'cancel' });
+    Alert.alert(t('profile.cover_photo'), t('profile.choose_option'), options);
+  }, [pickCover, removeCover, profile?.coverUrl, t]);
 
   const handleAvatarPress = useCallback((): void => {
     // On web, file pickers must be opened synchronously from a user gesture —
@@ -829,13 +838,13 @@ export default function ProfileScreen(): React.JSX.Element {
     }
     const options: Parameters<typeof Alert.alert>[2] = [
       {
-        text: 'Take photo',
+        text: t('photos.take_photo'),
         onPress: (): void => {
           pickImage('camera');
         },
       },
       {
-        text: 'Choose from library',
+        text: t('photos.choose_from_library'),
         onPress: (): void => {
           pickImage('library');
         },
@@ -843,58 +852,47 @@ export default function ProfileScreen(): React.JSX.Element {
     ];
     if (profile?.avatarUrl) {
       options.push({
-        text: 'Remove photo',
+        text: t('profile.remove_photo'),
         style: 'destructive',
         onPress: async () => {
           setUploading(true);
           await removeAvatar().catch((err: unknown) => {
-            Alert.alert('Error', getErrorMessage(err, 'Could not remove photo.'));
+            Alert.alert(t('common.error'), getErrorMessage(err, t('profile.remove_photo_failed')));
           });
           setUploading(false);
         },
       });
     }
-    options.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Profile photo', 'Choose an option', options);
-  }, [pickImage, removeAvatar, profile?.avatarUrl]);
+    options.push({ text: t('common.cancel'), style: 'cancel' });
+    Alert.alert(t('profile.profile_photo'), t('profile.choose_option'), options);
+  }, [pickImage, removeAvatar, profile?.avatarUrl, t]);
 
   const handleDeleteAccount = useCallback((): void => {
-    Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all your personal data. This cannot be undone.\n\nHousehold content you created (bills, chores, etc.) may remain visible to other members.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete My Account',
-          style: 'destructive',
-          onPress: (): void => {
-            Alert.alert(
-              'Are you sure?',
-              'Your account will be permanently deleted. You will lose access immediately.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Yes, Delete Permanently',
-                  style: 'destructive',
-                  onPress: async (): Promise<void> => {
-                    try {
-                      await deleteAccount();
-                      router.replace('/(auth)/welcome');
-                    } catch (err) {
-                      Alert.alert(
-                        'Error',
-                        getErrorMessage(err, 'Could not delete account. Please try again.')
-                      );
-                    }
-                  },
-                },
-              ]
-            );
-          },
+    Alert.alert(t('profile.delete_account'), t('profile.delete_account_body'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('profile.delete_my_account'),
+        style: 'destructive',
+        onPress: (): void => {
+          Alert.alert(t('profile.are_you_sure'), t('profile.delete_permanent_body'), [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('profile.yes_delete_permanently'),
+              style: 'destructive',
+              onPress: async (): Promise<void> => {
+                try {
+                  await deleteAccount();
+                  router.replace('/(auth)/welcome');
+                } catch (err) {
+                  Alert.alert(t('common.error'), getErrorMessage(err, t('profile.delete_failed')));
+                }
+              },
+            },
+          ]);
         },
-      ]
-    );
-  }, [deleteAccount]);
+      },
+    ]);
+  }, [deleteAccount, t]);
 
   const handleLogout = useCallback((): void => {
     if (Platform.OS === 'web') {

@@ -52,9 +52,9 @@ export function ProfilePopup(): React.JSX.Element {
       await signOut();
       router.replace('/(auth)/welcome');
     } catch {
-      Alert.alert('Sign out failed', 'Could not sign you out. Please try again.');
+      Alert.alert(t('common.error'), t('profile.sign_out_failed'));
     }
-  }, [signOut]);
+  }, [signOut, t]);
 
   const MENU_ITEMS = useMemo(
     (): MenuItem[] => [
@@ -80,11 +80,11 @@ export function ProfilePopup(): React.JSX.Element {
         Promise.resolve()
           .then(() => item.onPress?.())
           .catch(() => {
-            Alert.alert('Action failed', 'Something went wrong. Please try again.');
+            Alert.alert(t('common.error'), t('common.failed_try_again'));
           });
       }
     },
-    [close]
+    [close, t]
   );
 
   const anim = useRef(new Animated.Value(0)).current;
