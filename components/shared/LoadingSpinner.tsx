@@ -58,7 +58,7 @@ const DRAW_END = 0.6;
 const HOLD_END = 0.82;
 
 /**
- * Nestiq's loading indicator: a single continuous line that draws a little
+ * HouseMates' loading indicator: a single continuous line that draws a little
  * house (with a window), holds, fades, and repeats.
  *
  * The draw-on is a stroke-dashoffset sweep driven by requestAnimationFrame —

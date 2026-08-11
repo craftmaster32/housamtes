@@ -1,4 +1,4 @@
-// Design tokens — light + dark palettes (v2 "Nestiq" design system)
+// Design tokens — light + dark palettes (v2 "HouseMates" design system)
 // `colors` is kept as an alias for lightColors so existing screens don't break.
 //
 // Light  = the warm cream mockup (F6F2EA canvas, white cards).

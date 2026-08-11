@@ -1,8 +1,8 @@
 export interface WebCalendarEvent {
   title: string;
-  date: string;       // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
   startTime?: string; // HH:MM
-  endTime?: string;   // HH:MM
+  endTime?: string; // HH:MM
   notes?: string;
 }
 
@@ -55,7 +55,7 @@ export function openGoogleCalendar(event: WebCalendarEvent): void {
   window.open(
     `https://calendar.google.com/calendar/render?${params.toString()}`,
     '_blank',
-    'noopener,noreferrer',
+    'noopener,noreferrer'
   );
 }
 
@@ -67,7 +67,7 @@ function buildIcs(event: WebCalendarEvent): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Nestiq//EN',
+    'PRODID:-//HouseMates//EN',
     'BEGIN:VEVENT',
     `DTSTAMP:${stamp}`,
     allDay ? `DTSTART;VALUE=DATE:${start}` : `DTSTART:${start}`,
@@ -88,7 +88,10 @@ export function downloadIcs(event: WebCalendarEvent): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${event.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')}.ics`;
+  a.download = `${event.title
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '_')}.ics`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
