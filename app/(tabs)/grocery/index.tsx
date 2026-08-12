@@ -498,7 +498,7 @@ interface SectionData {
   icon: IoniconName;
   data: GroceryItemWithMeta[];
   sectionType: 'draft' | 'private' | 'shared';
-  /** True on the single shared section that carries the "remind me" bell. */
+  /** True on the first ordered section that carries the "remind me" bell. */
   withReminder?: boolean;
 }
 
@@ -1152,7 +1152,9 @@ export default function GroceryScreen(): React.JSX.Element {
           style={styles.sectionBell}
           onPress={handleOpenGeneralReminder}
           hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
+          accessible
           accessibilityRole="button"
+          accessibilityState={{ disabled: false }}
           accessibilityLabel={t('grocery.remind_me')}
         >
           <Ionicons name="alarm-outline" size={18} color={C.primary} />
