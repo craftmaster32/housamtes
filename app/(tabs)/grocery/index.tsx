@@ -498,7 +498,7 @@ interface SectionData {
   icon: IoniconName;
   data: GroceryItemWithMeta[];
   sectionType: 'draft' | 'private' | 'shared';
-  /** True on the single shared section that carries the "remind me" bell. */
+  /** True on the first ordered section that carries the "remind me" bell. */
   withReminder?: boolean;
 }
 
@@ -739,9 +739,11 @@ export default function GroceryScreen(): React.JSX.Element {
     const selected = result.filter((s) => s.sectionType === targetType);
     const rest = result.filter((s) => s.sectionType !== targetType);
     const ordered = [...selected, ...rest];
-    // Put the single "remind me" bell on the first shared section header.
-    const firstShared = ordered.find((s) => s.sectionType === 'shared');
-    if (firstShared) firstShared.withReminder = true;
+    // Put the single "remind me" bell on the top section header, whatever its
+    // type. Anchoring it to the first *shared* section hid it entirely for
+    // anyone whose items are all private or draft (no shared section exists),
+    // so they had no way to open the reminder modal for their own list/items.
+    if (ordered.length > 0) ordered[0].withReminder = true;
     return ordered;
   }, [items, myId, t, effectiveMode]);
 
@@ -1142,6 +1144,30 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: SectionData }): React.JSX.Element => {
+      // A single "remind me" bell lives on whichever section is at the top of
+      // the list (see `sections`), so it's reachable from private/draft items
+      // too — not only when a shared section is present.
+      const reminderBell = section.withReminder ? (
+        <Pressable
+          style={styles.sectionBell}
+          onPress={handleOpenGeneralReminder}
+          hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
+          accessible
+          accessibilityRole="button"
+          accessibilityState={{ disabled: false }}
+          accessibilityLabel={t('grocery.remind_me')}
+        >
+          <Ionicons name="alarm-outline" size={18} color={C.primary} />
+          {reminders.length > 0 && (
+            <View style={styles.sectionBellBadge}>
+              <Text style={styles.sectionBellBadgeText}>
+                {reminders.length > 9 ? '9+' : reminders.length}
+              </Text>
+            </View>
+          )}
+        </Pressable>
+      ) : null;
+
       if (section.sectionType === 'draft') {
         const doneDisabled = isPublishing || !myId;
         return (
@@ -1150,6 +1176,7 @@ export default function GroceryScreen(): React.JSX.Element {
               <Ionicons name={section.icon} size={15} color="rgb(133,77,14)" />
               <Text style={[styles.catTitleText, styles.catTitleTextDraft]}>{section.title}</Text>
             </View>
+            {reminderBell}
             <Pressable
               style={[styles.draftPublishBtn, doneDisabled && styles.draftPublishBtnOff]}
               onPress={handlePublishDraft}
@@ -1174,6 +1201,7 @@ export default function GroceryScreen(): React.JSX.Element {
           <View style={[styles.catTitle, styles.catTitlePersonal]}>
             <Ionicons name={section.icon} size={15} color="rgb(76,29,149)" />
             <Text style={[styles.catTitleText, styles.catTitleTextPersonal]}>{section.title}</Text>
+            {reminderBell}
           </View>
         );
       }
@@ -1181,24 +1209,7 @@ export default function GroceryScreen(): React.JSX.Element {
         <View style={styles.catTitle}>
           <Ionicons name={section.icon} size={15} color={C.textSecondary} />
           <Text style={styles.catTitleText}>{section.title}</Text>
-          {section.withReminder && (
-            <Pressable
-              style={styles.sectionBell}
-              onPress={handleOpenGeneralReminder}
-              hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
-              accessibilityRole="button"
-              accessibilityLabel={t('grocery.remind_me')}
-            >
-              <Ionicons name="alarm-outline" size={18} color={C.primary} />
-              {reminders.length > 0 && (
-                <View style={styles.sectionBellBadge}>
-                  <Text style={styles.sectionBellBadgeText}>
-                    {reminders.length > 9 ? '9+' : reminders.length}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          )}
+          {reminderBell}
         </View>
       );
     },
