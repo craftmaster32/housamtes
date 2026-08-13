@@ -942,9 +942,25 @@ describe('updateSavedList', (): void => {
     });
   }
 
+  function rpcRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      id: LIST_UUID,
+      house_id: HOUSE_UUID,
+      name: 'Old name',
+      created_by: USER_UUID,
+      is_private: false,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-02-02T00:00:00Z',
+      ...overrides,
+    };
+  }
+
   it('rewrites the name, privacy flag and items in local state', async (): Promise<void> => {
     seedList();
-    mockFrom.mockReturnValue(ok(null));
+    mockRpc.mockResolvedValue({
+      data: rpcRow({ name: 'Weekly shop', is_private: true }),
+      error: null,
+    });
 
     await useGroceryStore
       .getState()
@@ -953,6 +969,11 @@ describe('updateSavedList', (): void => {
         isPrivate: true,
       });
 
+    // One atomic RPC carries items + metadata together.
+    expect(mockRpc).toHaveBeenCalledWith(
+      'update_grocery_list',
+      expect.objectContaining({ p_list_id: LIST_UUID, p_name: 'Weekly shop', p_is_private: true })
+    );
     const list = useGroceryStore.getState().savedLists[0];
     expect(list.name).toBe('Weekly shop');
     expect(list.isPrivate).toBe(true);
@@ -965,16 +986,24 @@ describe('updateSavedList', (): void => {
     await expect(
       useGroceryStore.getState().updateSavedList(LIST_UUID, [], { name: '   ' })
     ).rejects.toThrow('Could not update the list. Please try again.');
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
     expect(useGroceryStore.getState().savedLists[0].name).toBe('Old name');
   });
 
   it('saves an item-only edit without changing name or privacy', async (): Promise<void> => {
     seedList({ isPrivate: true, name: 'Keep me' });
-    mockFrom.mockReturnValue(ok(null));
+    // Item-only edit passes null metadata; the RPC returns the unchanged row.
+    mockRpc.mockResolvedValue({
+      data: rpcRow({ name: 'Keep me', is_private: true }),
+      error: null,
+    });
 
     await useGroceryStore.getState().updateSavedList(LIST_UUID, [{ name: 'Bread', quantity: '' }]);
 
+    expect(mockRpc).toHaveBeenCalledWith(
+      'update_grocery_list',
+      expect.objectContaining({ p_list_id: LIST_UUID, p_name: null, p_is_private: null })
+    );
     const list = useGroceryStore.getState().savedLists[0];
     expect(list.name).toBe('Keep me');
     expect(list.isPrivate).toBe(true);
@@ -984,31 +1013,35 @@ describe('updateSavedList', (): void => {
 
 // ── keepDraftPrivate — finishing a draft privately instead of sharing ────────
 describe('keepDraftPrivate', () => {
-  it('turns draft items private without sharing or notifying', async (): Promise<void> => {
+  it('turns my draft items private, leaves other users alone, no notify', async (): Promise<void> => {
     useGroceryStore.setState({
       items: [
-        item({ id: 'd1', isDraft: true, isPersonal: true, addedBy: 'u-me' }),
-        item({ id: 'd2', isDraft: true, isPersonal: true, addedBy: 'u-me' }),
+        item({ id: 'd1', isDraft: true, isPersonal: true, addedBy: USER_UUID }),
+        item({ id: 'd2', isDraft: true, isPersonal: true, addedBy: USER_UUID }),
         item({ id: 'other', isDraft: true, isPersonal: true, addedBy: 'someone-else' }),
       ],
     });
     mockFrom.mockReturnValue(ok(null));
 
-    await useGroceryStore.getState().keepDraftPrivate('u-me', HOUSE_UUID);
+    await useGroceryStore.getState().keepDraftPrivate(USER_UUID, HOUSE_UUID);
 
-    const mine = useGroceryStore.getState().items.filter((i) => i.addedBy === 'u-me');
+    const mine = useGroceryStore.getState().items.filter((i) => i.addedBy === USER_UUID);
     // My drafts are now private (not shared) and no longer drafts.
     expect(mine.every((i) => i.isPersonal && !i.isDraft)).toBe(true);
+    // Another user's draft is untouched.
+    const other = useGroceryStore.getState().items.find((i) => i.id === 'other')!;
+    expect(other.isPersonal).toBe(true);
+    expect(other.isDraft).toBe(true);
     // Nothing gets pushed to the house — that's the whole point.
     expect(notifyHousemates).not.toHaveBeenCalled();
   });
 
   it('does nothing when there are no draft items to convert', async (): Promise<void> => {
     useGroceryStore.setState({
-      items: [item({ id: 's1', isDraft: false, isPersonal: false, addedBy: 'u-me' })],
+      items: [item({ id: 's1', isDraft: false, isPersonal: false, addedBy: USER_UUID })],
     });
 
-    await useGroceryStore.getState().keepDraftPrivate('u-me', HOUSE_UUID);
+    await useGroceryStore.getState().keepDraftPrivate(USER_UUID, HOUSE_UUID);
 
     expect(mockFrom).not.toHaveBeenCalled();
   });

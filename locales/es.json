@@ -786,6 +786,8 @@
     "no_items_yet": "Aún no hay artículos — añade arriba.",
     "quantity": "Cantidad",
     "qty_short": "Cant.",
+    "add_item_name_hint": "Escribe el nombre de un artículo y toca el signo más para añadirlo a la lista",
+    "add_item_qty_hint": "Cantidad opcional del artículo, por ejemplo 2 o 500g",
     "list_name_placeholder": "Nombre de lista, ej. Compras semanales",
     "list_name": "Nombre de la lista",
     "list_name_hint": "Ingresa un nombre para tu lista de compras",

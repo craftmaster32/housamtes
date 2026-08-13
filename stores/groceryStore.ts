@@ -274,6 +274,18 @@ const createGroceryListResultSchema = z.object({
   updated_at: z.string(),
 });
 
+const updateSavedListSchema = z.object({
+  listId: z.string().uuid(),
+  items: createSavedListSchema.shape.items,
+  name: z.string().trim().min(1).optional(),
+  isPrivate: z.boolean().optional(),
+});
+
+const keepDraftPrivateSchema = z.object({
+  userId: z.string().uuid(),
+  houseId: z.string().uuid(),
+});
+
 const createReminderSchema = z.object({
   houseId: z.string().uuid(),
   userId: z.string().uuid(),
@@ -704,29 +716,45 @@ export const useGroceryStore = create<GroceryStore>()(
       // their owner only) instead of shared with the house. No housemate push —
       // that would defeat the point of keeping them private.
       keepDraftPrivate: async (userId: string, houseId: string): Promise<void> => {
+        const parsed = keepDraftPrivateSchema.safeParse({ userId, houseId });
+        if (!parsed.success) {
+          captureError(parsed.error, { context: 'keep-draft-private-validation' });
+          throw new Error('Could not save your private list. Please try again.');
+        }
         const draftIds = get()
           .items.filter((i) => i.isDraft && i.addedBy === userId)
           .map((i) => i.id);
         if (draftIds.length === 0) return;
-        const { error } = await supabase
-          .from('grocery_items')
-          .update({ is_personal: true, is_draft: false, draft_expires_at: null })
-          .in('id', draftIds)
-          .eq('house_id', houseId)
-          .eq('added_by', userId)
-          .eq('is_draft', true);
-        if (error) {
-          captureError(error, { context: 'keep-draft-private', userId });
+        try {
+          const { error } = await supabase
+            .from('grocery_items')
+            .update({ is_personal: true, is_draft: false, draft_expires_at: null })
+            .in('id', draftIds)
+            .eq('house_id', houseId)
+            .eq('added_by', userId)
+            .eq('is_draft', true);
+          if (error) {
+            captureError(error, { context: 'keep-draft-private', houseId, userId });
+            throw new Error('Could not save your private list. Please try again.');
+          }
+          set({
+            items: get().items.map((i) =>
+              draftIds.includes(i.id) && i.addedBy === userId
+                ? { ...i, isPersonal: true, isDraft: false, draftExpiresAt: undefined }
+                : i
+            ),
+            currentDraftSourceListId: null,
+          });
+        } catch (err) {
+          if (
+            err instanceof Error &&
+            err.message === 'Could not save your private list. Please try again.'
+          ) {
+            throw err;
+          }
+          captureError(err, { context: 'keep-draft-private-unexpected', houseId, userId });
           throw new Error('Could not save your private list. Please try again.');
         }
-        set({
-          items: get().items.map((i) =>
-            draftIds.includes(i.id) && i.addedBy === userId
-              ? { ...i, isPersonal: true, isDraft: false, draftExpiresAt: undefined }
-              : i
-          ),
-          currentDraftSourceListId: null,
-        });
       },
 
       startRun: async (shopperId: string, shopperName: string): Promise<void> => {
@@ -875,72 +903,64 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       updateSavedList: async (listId, items, opts): Promise<void> => {
-        const parsedItems = createSavedListSchema.shape.items.safeParse(items);
-        if (!parsedItems.success) {
-          captureError(parsedItems.error, { context: 'update-grocery-list-validation' });
+        const parsed = updateSavedListSchema.safeParse({
+          listId,
+          items,
+          name: opts?.name,
+          isPrivate: opts?.isPrivate,
+        });
+        if (!parsed.success) {
+          captureError(parsed.error, { context: 'update-grocery-list-validation' });
           throw new Error('Could not update the list. Please try again.');
         }
-        // Optional metadata edits (name / privacy). A blank name is rejected so
-        // a list can never lose its title.
-        const nextName = opts?.name !== undefined ? opts.name.trim() : undefined;
-        if (nextName !== undefined && nextName === '') {
-          throw new Error('Could not update the list. Please try again.');
-        }
-        const { error: delError } = await supabase
-          .from('grocery_list_items')
-          .delete()
-          .eq('list_id', listId);
-        if (delError) {
-          captureError(delError, { context: 'update-grocery-list-delete' });
-          throw new Error('Could not update the list. Please try again.');
-        }
-        if (items.length > 0) {
-          const { error: insError } = await supabase.from('grocery_list_items').insert(
-            items.map((item, i) => ({
-              list_id: listId,
+        try {
+          // One transactional RPC replaces the list's items and (optionally) its
+          // name/privacy together, so a mid-write failure can never leave the
+          // saved items and metadata out of sync.
+          const { data, error } = await supabase.rpc('update_grocery_list', {
+            p_list_id: parsed.data.listId,
+            p_items: parsed.data.items.map((item, i) => ({
               name: item.name,
               quantity: item.quantity,
               position: i,
-            }))
-          );
-          if (insError) {
-            captureError(insError, { context: 'update-grocery-list-insert' });
+            })),
+            p_name: parsed.data.name ?? null,
+            p_is_private: parsed.data.isPrivate ?? null,
+          });
+          if (error) {
+            captureError(error, { context: 'update-grocery-list', listId });
             throw new Error('Could not update the list. Please try again.');
           }
-        }
-        const now = new Date().toISOString();
-        const listUpdate: { updated_at: string; name?: string; is_private?: boolean } = {
-          updated_at: now,
-        };
-        if (nextName !== undefined) listUpdate.name = nextName;
-        if (opts?.isPrivate !== undefined) listUpdate.is_private = opts.isPrivate;
-        const { error: updError } = await supabase
-          .from('grocery_lists')
-          .update(listUpdate)
-          .eq('id', listId);
-        if (updError) {
-          captureError(updError, { context: 'update-grocery-list-timestamp' });
+          const result = createGroceryListResultSchema.parse(data);
+          set({
+            savedLists: get().savedLists.map((l) =>
+              l.id === listId
+                ? {
+                    ...l,
+                    name: result.name,
+                    isPrivate: result.is_private,
+                    updatedAt: result.updated_at,
+                    items: parsed.data.items.map((item, i) => ({
+                      id: '',
+                      listId,
+                      name: item.name,
+                      quantity: item.quantity,
+                      position: i,
+                    })),
+                  }
+                : l
+            ),
+          });
+        } catch (err) {
+          if (
+            err instanceof Error &&
+            err.message === 'Could not update the list. Please try again.'
+          ) {
+            throw err;
+          }
+          captureError(err, { context: 'updateSavedList-unexpected', listId });
           throw new Error('Could not update the list. Please try again.');
         }
-        set({
-          savedLists: get().savedLists.map((l) =>
-            l.id === listId
-              ? {
-                  ...l,
-                  updatedAt: now,
-                  ...(nextName !== undefined ? { name: nextName } : {}),
-                  ...(opts?.isPrivate !== undefined ? { isPrivate: opts.isPrivate } : {}),
-                  items: items.map((item, i) => ({
-                    id: '',
-                    listId,
-                    name: item.name,
-                    quantity: item.quantity,
-                    position: i,
-                  })),
-                }
-              : l
-          ),
-        });
       },
 
       deleteSavedList: async (listId: string): Promise<void> => {

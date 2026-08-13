@@ -415,6 +415,9 @@ npm run deploy         # build + deploy web app to Vercel
 ```
 
 - If a migration is involved, `npx supabase db push` runs before `npm run deploy`
+- `npx supabase db push` requires the checkout to be **linked** to the production
+  project first — if it isn't, run `supabase link --project-ref <project-ref>`
+  before the push (the CI pipeline links automatically via secrets)
 - Run either only on `main`, never on a feature branch
 - **Never** use the old long command (`npx expo export...vercel --prod`) — `npm run deploy` wraps all of that
 

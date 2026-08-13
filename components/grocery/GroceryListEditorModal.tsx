@@ -108,6 +108,14 @@ export function GroceryListEditorModal({
     onClose();
   }, [isSaving, onClose]);
 
+  const handleListNameChange = useCallback((v: string): void => {
+    setListName(v);
+    setError(null);
+  }, []);
+
+  // Stops backdrop taps from closing when the sheet itself is pressed.
+  const stopPress = useCallback((): void => {}, []);
+
   const renderItem = useCallback(
     ({ item, index }: { item: SavedListItem; index: number }): React.JSX.Element => (
       <View style={styles.itemRow}>
@@ -135,7 +143,7 @@ export function GroceryListEditorModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
       <Pressable style={styles.backdrop} onPress={handleCancel} disabled={isSaving}>
-        <Pressable style={styles.box} onPress={() => {}}>
+        <Pressable style={styles.box} onPress={stopPress}>
           <View style={styles.iconWrap}>
             <View style={styles.iconBadge}>
               <Ionicons
@@ -150,10 +158,7 @@ export function GroceryListEditorModal({
 
           <TextInput
             value={listName}
-            onChangeText={(v) => {
-              setListName(v);
-              setError(null);
-            }}
+            onChangeText={handleListNameChange}
             placeholder={t('grocery.list_name_placeholder')}
             placeholderTextColor={C.textSecondary}
             style={styles.nameInput}
@@ -198,6 +203,7 @@ export function GroceryListEditorModal({
               onSubmitEditing={handleAddItem}
               accessible
               accessibilityLabel={t('grocery.item_name_placeholder')}
+              accessibilityHint={t('grocery.add_item_name_hint')}
             />
             <TextInput
               value={itemQty}
@@ -210,6 +216,7 @@ export function GroceryListEditorModal({
               onSubmitEditing={handleAddItem}
               accessible
               accessibilityLabel={t('grocery.quantity')}
+              accessibilityHint={t('grocery.add_item_qty_hint')}
             />
             <Pressable
               style={[styles.addItemBtn, !itemName.trim() && styles.addItemBtnOff]}

@@ -1222,7 +1222,7 @@ export default function GroceryScreen(): React.JSX.Element {
       ) : null;
 
       if (section.sectionType === 'draft') {
-        const doneDisabled = isPublishing || !myId;
+        const doneDisabled = isPublishing || !myId || !houseId;
         return (
           <View style={styles.catTitleDraftRow}>
             <View style={[styles.catTitle, styles.catTitleFlex]}>
@@ -1283,6 +1283,7 @@ export default function GroceryScreen(): React.JSX.Element {
       handleKeepDraftPrivate,
       isPublishing,
       myId,
+      houseId,
       styles,
       t,
       C,
