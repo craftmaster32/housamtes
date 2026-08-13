@@ -761,7 +761,7 @@
     "saved_lists_count_one": "Listas guardadas, {{count}} lista",
     "saved_lists_count_other": "Listas guardadas, {{count}} listas",
     "no_saved_lists": "No hay listas guardadas aún.",
-    "no_saved_lists_hint": "Después de compartir un borrador, elige \"Guardar lista\" para crear tus plantillas.",
+    "no_saved_lists_hint": "Toca \"Nueva lista\" para crear tu primera lista guardada.",
     "item_count_one": "{{count}} artículo",
     "item_count_other": "{{count}} artículos",
     "item_count_yours_one": "{{count}} artículo · tuya",

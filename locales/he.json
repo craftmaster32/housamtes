@@ -798,7 +798,7 @@
     "saved_lists_count_one": "רשימות שמורות, {{count}} רשימה",
     "saved_lists_count_other": "רשימות שמורות, {{count}} רשימות",
     "no_saved_lists": "אין רשימות שמורות עדיין.",
-    "no_saved_lists_hint": "אחרי שיתוף טיוטה, בחר \"שמור רשימה\" כדי ליצור תבניות.",
+    "no_saved_lists_hint": "הקש על \"רשימה חדשה\" ליצירת הרשימה השמורה הראשונה שלך.",
     "item_count_one": "{{count}} פריט",
     "item_count_other": "{{count}} פריטים",
     "item_count_yours_one": "פריט {{count}} · שלך",
