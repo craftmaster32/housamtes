@@ -561,6 +561,7 @@ export default function GroceryScreen(): React.JSX.Element {
   // ── Modal state ──────────────────────────────────────────────────────────────
   const [showSaveListModal, setShowSaveListModal] = useState(false);
   const [saveListMode, setSaveListMode] = useState<SaveListMode>('new');
+  const [saveListFromScratch, setSaveListFromScratch] = useState(false);
   const [pendingPublishedItems, setPendingPublishedItems] = useState<SavedListItem[]>([]);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const leaveWarningShownRef = useRef(false);
@@ -842,6 +843,7 @@ export default function GroceryScreen(): React.JSX.Element {
 
       // Show save/update modal
       setPendingPublishedItems(draftSnapshot);
+      setSaveListFromScratch(false);
       if (currentDraftSourceListId) {
         setSaveListMode('update');
       } else {
@@ -856,6 +858,14 @@ export default function GroceryScreen(): React.JSX.Element {
   }, [publishDraftItems, myId, houseId, isPublishing, myDraftItems, currentDraftSourceListId, t]);
 
   // ── Saved lists handlers ───────────────────────────────────────────────────
+  const handleOpenCreateList = useCallback((): void => {
+    setPendingPublishedItems([]);
+    setSaveListMode('new');
+    setSaveListFromScratch(true);
+    setAddError(null);
+    setShowSaveListModal(true);
+  }, []);
+
   const handleLoadList = useCallback(
     async (list: GroceryList): Promise<void> => {
       if (!houseId) return;
@@ -960,11 +970,13 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const handleSaveListSkip = useCallback((): void => {
     setPendingPublishedItems([]);
+    setSaveListFromScratch(false);
     setShowSaveListModal(false);
   }, []);
 
   const handleSaveListClose = useCallback((): void => {
     setPendingPublishedItems([]);
+    setSaveListFromScratch(false);
     setShowSaveListModal(false);
   }, []);
 
@@ -1556,6 +1568,7 @@ export default function GroceryScreen(): React.JSX.Element {
                       onLoadList={handleLoadList}
                       onDeleteList={handleDeleteList}
                       onSetListReminder={handleOpenListReminder}
+                      onCreateList={handleOpenCreateList}
                     />
 
                     {/* ── Load / error states ─────────────────────────────────── */}
@@ -1613,6 +1626,7 @@ export default function GroceryScreen(): React.JSX.Element {
       <SaveListModal
         visible={showSaveListModal}
         mode={saveListMode}
+        fromScratch={saveListFromScratch}
         existingListName={sourceListName}
         onSaveNew={handleSaveNew}
         onUpdate={handleUpdateList}
