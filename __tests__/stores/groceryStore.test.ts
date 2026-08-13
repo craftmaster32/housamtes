@@ -848,7 +848,7 @@ describe('deleteReminder', () => {
 });
 
 // ── createSavedList — direct "New list" creation, private vs shared ──────────
-describe('createSavedList', () => {
+describe('createSavedList', (): void => {
   const LIST_UUID = '00000000-0000-0000-0000-0000000000aa';
 
   function rpcList(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -864,7 +864,7 @@ describe('createSavedList', () => {
     };
   }
 
-  it('creates a private list from scratch and keeps it private (no housemate push)', async () => {
+  it('creates a private list from scratch and keeps it private (no housemate push)', async (): Promise<void> => {
     mockRpc.mockResolvedValue({
       data: rpcList({ is_private: true, name: 'Secret Snacks' }),
       error: null,
@@ -889,7 +889,7 @@ describe('createSavedList', () => {
     });
   });
 
-  it('notifies housemates when the new list is shared (not private)', async () => {
+  it('notifies housemates when the new list is shared (not private)', async (): Promise<void> => {
     mockRpc.mockResolvedValue({ data: rpcList(), error: null });
 
     await useGroceryStore
@@ -910,7 +910,7 @@ describe('createSavedList', () => {
     });
   });
 
-  it('surfaces a friendly error when the RPC fails', async () => {
+  it('surfaces a friendly error when the RPC fails', async (): Promise<void> => {
     mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } });
 
     await expect(
