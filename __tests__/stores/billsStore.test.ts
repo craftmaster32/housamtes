@@ -62,6 +62,7 @@ function bill(overrides: Partial<Bill> = {}): Bill {
     settledBy: null,
     settledAt: null,
     notes: null,
+    receiptUrl: null,
     ...overrides,
   };
 }
@@ -548,5 +549,96 @@ describe('billsStore — load', () => {
     expect(b.amount).toBe(45); // Number('45.00') = 45
     expect(b.paidBy).toBe('Bob');
     expect(b.splitBetween).toEqual(['Alice', 'Bob']);
+  });
+
+  it('maps receipt_url to receiptUrl (and null when absent)', async () => {
+    const withReceipt = {
+      id: 'b1',
+      title: 'Groceries',
+      amount: '60.00',
+      paid_by: 'Bob',
+      split_between: ['Alice', 'Bob'],
+      split_amounts: null,
+      category: 'Groceries',
+      date: '2026-04-15',
+      created_at: '2026-04-15T10:00:00Z',
+      settled: false,
+      settled_by: null,
+      settled_at: null,
+      notes: null,
+      receipt_url: 'https://x.supabase.co/house-photos/house-1/r.jpg',
+    };
+    const withoutReceipt = { ...withReceipt, id: 'b2', receipt_url: null };
+    const rows = [withReceipt, withoutReceipt];
+    mockFrom.mockReturnValue({ ...ok(rows), order: jest.fn(() => ok(rows)) });
+
+    await useBillsStore.getState().load('house-1');
+
+    const bills = useBillsStore.getState().bills;
+    expect(bills.find((b) => b.id === 'b1')?.receiptUrl).toBe(
+      'https://x.supabase.co/house-photos/house-1/r.jpg'
+    );
+    expect(bills.find((b) => b.id === 'b2')?.receiptUrl).toBeNull();
+  });
+});
+
+describe('billsStore — addBill (receipt)', () => {
+  const basePayload = {
+    title: 'Groceries',
+    amount: 60,
+    paidBy: 'u1',
+    splitBetween: ['u1', 'u2'],
+    splitAmounts: null,
+    category: 'Groceries',
+    date: '2026-08-13',
+  };
+
+  function insertedRow(receiptUrl: string | null): Record<string, unknown> {
+    return {
+      id: 'new-bill',
+      title: 'Groceries',
+      amount: '60',
+      paid_by: 'u1',
+      split_between: ['u1', 'u2'],
+      split_amounts: null,
+      category: 'Groceries',
+      date: '2026-08-13',
+      created_at: '2026-08-13T10:00:00Z',
+      notes: null,
+      receipt_url: receiptUrl,
+    };
+  }
+
+  it('sends receipt_url in the insert payload and maps it into state', async () => {
+    const insertSpy = jest.fn(() => ({
+      select: (): { single: () => Promise<unknown> } => ({
+        single: (): Promise<unknown> =>
+          Promise.resolve({ data: insertedRow('https://x/house-photos/h/r.jpg'), error: null }),
+      }),
+    }));
+    mockFrom.mockReturnValue({ insert: insertSpy });
+
+    await useBillsStore
+      .getState()
+      .addBill({ ...basePayload, receiptUrl: 'https://x/house-photos/h/r.jpg' }, 'house-1');
+
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ receipt_url: 'https://x/house-photos/h/r.jpg' })
+    );
+    expect(useBillsStore.getState().bills[0].receiptUrl).toBe('https://x/house-photos/h/r.jpg');
+  });
+
+  it('defaults receipt_url to null when no receipt is attached', async () => {
+    const insertSpy = jest.fn(() => ({
+      select: (): { single: () => Promise<unknown> } => ({
+        single: (): Promise<unknown> => Promise.resolve({ data: insertedRow(null), error: null }),
+      }),
+    }));
+    mockFrom.mockReturnValue({ insert: insertSpy });
+
+    await useBillsStore.getState().addBill(basePayload, 'house-1');
+
+    expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ receipt_url: null }));
+    expect(useBillsStore.getState().bills[0].receiptUrl).toBeNull();
   });
 });

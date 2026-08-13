@@ -61,6 +61,17 @@ interface PhotoStore {
     houseId: string;
   }) => Promise<void>;
   remove: (id: string, storagePath: string) => Promise<void>;
+  // Uploads a receipt image, files it in the Photos → Receipts album, and
+  // returns the canonical bucket URL so a bill can reference the same object.
+  uploadReceipt: (params: {
+    localUri: string;
+    fileName: string;
+    mimeType: string;
+    caption: string;
+    uploadedBy: string;
+    userId: string;
+    houseId: string;
+  }) => Promise<string>;
 }
 
 const BUCKET = 'house-photos';
@@ -80,6 +91,30 @@ const _signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
 // cases. Not used by the app.
 export function __resetSignedUrlCache(): void {
   _signedUrlCache.clear();
+}
+
+// Signs a canonical `house-photos` bucket URL for display (the bucket is
+// private). Reuses the module-level signed-URL cache so re-opening a screen
+// that shows the same object doesn't re-sign it. Returns null if the URL isn't
+// a bucket object or signing fails.
+export async function signHousePhotoUrl(canonicalUrl: string): Promise<string | null> {
+  const path = storagePathFromUrl(canonicalUrl);
+  if (!path) return null;
+  const now = Date.now();
+  const cached = _signedUrlCache.get(path);
+  if (cached && cached.expiresAt - SIGN_REFRESH_BEFORE_MS > now) return cached.url;
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+  if (error || !data?.signedUrl) {
+    if (error) captureError(error, { context: 'sign-house-photo-url' });
+    return null;
+  }
+  _signedUrlCache.set(path, {
+    url: data.signedUrl,
+    expiresAt: now + SIGNED_URL_TTL_SECONDS * 1000,
+  });
+  return data.signedUrl;
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
@@ -240,6 +275,48 @@ export const usePhotoStore = create<PhotoStore>()(
           captureError(insertError, { context: 'photo-insert', houseId });
           throw new Error('Could not save the photo. Please try again.');
         }
+      },
+      uploadReceipt: async ({
+        localUri,
+        fileName,
+        mimeType,
+        caption,
+        uploadedBy,
+        userId,
+        houseId,
+      }): Promise<string> => {
+        const response = await fetch(localUri);
+        const blob = await response.blob();
+        if (blob.size > 20 * 1024 * 1024)
+          throw new Error('Receipt must be under 20 MB. Please choose a smaller image.');
+        const path = `${houseId}/${Date.now()}_${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(BUCKET)
+          .upload(path, blob, { contentType: mimeType, upsert: false });
+        if (uploadError) {
+          captureError(uploadError, { context: 'receipt-upload', houseId });
+          throw new Error('Could not upload the receipt. Please try again.');
+        }
+
+        const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+        const url = urlData.publicUrl;
+
+        // File it in the Photos → Receipts album too. A failed row insert must
+        // not lose the shopper's receipt — the object is uploaded and the bill
+        // will still reference it — so surface it to Sentry and carry on.
+        const { error: insertError } = await supabase.from('photos').insert({
+          house_id: houseId,
+          url,
+          caption: caption || null,
+          category: 'receipts',
+          uploaded_by: uploadedBy,
+          user_id: userId,
+        });
+        if (insertError) {
+          captureError(insertError, { context: 'receipt-photo-insert', houseId });
+        }
+        return url;
       },
       remove: async (id, storagePath): Promise<void> => {
         if (storagePath) {

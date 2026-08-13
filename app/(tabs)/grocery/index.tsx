@@ -532,7 +532,6 @@ export default function GroceryScreen(): React.JSX.Element {
   const keepDraftPrivate = useGroceryStore((s) => s.keepDraftPrivate);
   const addComment = useGroceryStore((s) => s.addComment);
   const activeRun = useGroceryStore((s) => s.activeRun);
-  const startRun = useGroceryStore((s) => s.startRun);
   const endRun = useGroceryStore((s) => s.endRun);
   const savedLists = useGroceryStore((s) => s.savedLists);
   const isLoadingLists = useGroceryStore((s) => s.isLoadingLists);
@@ -1033,14 +1032,17 @@ export default function GroceryScreen(): React.JSX.Element {
   }, [router]);
 
   // ── Shopping run handlers ──────────────────────────────────────────────────
-  const handleStartRun = useCallback(async (): Promise<void> => {
-    try {
-      await startRun(myId, myName);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } catch {
-      setAddError(t('grocery.could_not_start_run'));
-    }
-  }, [startRun, myId, myName, t]);
+  const handleStartRun = useCallback((): void => {
+    // Opening the shopping screen starts (or resumes) the run — it calls
+    // startRun on mount — so navigate straight there.
+    Haptics.selectionAsync().catch(() => {});
+    router.push('/(tabs)/grocery/shop');
+  }, [router]);
+
+  const handleQuickBuy = useCallback((): void => {
+    Haptics.selectionAsync().catch(() => {});
+    router.push('/(tabs)/grocery/quick-buy');
+  }, [router]);
 
   const doEndRun = useCallback(async (): Promise<void> => {
     try {
@@ -1308,11 +1310,14 @@ export default function GroceryScreen(): React.JSX.Element {
             </Text>
           </View>
           <Pressable
-            style={[styles.btnPrimary, styles.btnFull, styles.btnDanger]}
-            onPress={handleEndRun}
+            style={[styles.btnPrimary, styles.btnFull]}
+            onPress={handleStartRun}
             accessibilityRole="button"
           >
-            <Text style={styles.btnPrimaryText}>{t('grocery.done_shopping')}</Text>
+            <Text style={styles.btnPrimaryText}>{t('grocery.shop.continue')}</Text>
+          </Pressable>
+          <Pressable style={styles.btnGhost} onPress={handleEndRun} accessibilityRole="button">
+            <Text style={styles.btnGhostText}>{t('grocery.done_shopping')}</Text>
           </Pressable>
         </View>
       );
@@ -1351,6 +1356,15 @@ export default function GroceryScreen(): React.JSX.Element {
           accessibilityRole="button"
         >
           <Text style={styles.btnPrimaryText}>{t('grocery.im_going_shopping')}</Text>
+        </Pressable>
+        <Pressable
+          style={styles.btnGhost}
+          onPress={handleQuickBuy}
+          accessibilityRole="button"
+          accessibilityLabel={t('grocery.shop.quick_buy')}
+        >
+          <Ionicons name="flash-outline" size={16} color={C.primary} />
+          <Text style={styles.btnGhostText}>{t('grocery.shop.quick_buy')}</Text>
         </Pressable>
       </View>
     );
@@ -1968,7 +1982,15 @@ function makeStyles(C: ColorTokens) {
     },
     btnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#FFFFFF' },
     btnFull: { alignSelf: 'stretch' },
-    btnDanger: { backgroundColor: C.danger },
+    btnGhost: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: ms(6),
+      minHeight: ms(44),
+      paddingHorizontal: ms(12),
+    },
+    btnGhostText: { fontSize: mf(14), ...font.semibold, color: C.primary },
 
     qtyRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8), flexWrap: 'wrap' },
     qtyLabel: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },

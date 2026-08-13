@@ -7,6 +7,7 @@ import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router'
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
+import { BillReceipt } from '@components/bills/BillReceipt';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { useBillsStore, getPersonShare, EditBillSchema, CATEGORIES } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
@@ -414,6 +415,9 @@ export default function BillDetailScreen(): React.JSX.Element {
             ))}
           </View>
         )}
+
+        {/* Receipt */}
+        {!isEditing && bill.receiptUrl ? <BillReceipt receiptUrl={bill.receiptUrl} /> : null}
 
         {/* Actions */}
         {!isEditing && canDelete && !bill.settled && (
