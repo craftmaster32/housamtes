@@ -107,6 +107,7 @@ interface GroceryStore {
   deleteItem: (id: string) => Promise<void>;
   clearChecked: (houseId: string) => Promise<void>;
   publishDraftItems: (userId: string, houseId: string) => Promise<void>;
+  keepDraftPrivate: (userId: string, houseId: string) => Promise<void>;
   startRun: (shopperId: string, shopperName: string) => Promise<void>;
   endRun: () => Promise<void>;
   fetchSavedLists: (houseId: string) => Promise<void>;
@@ -697,6 +698,35 @@ export const useGroceryStore = create<GroceryStore>()(
             ? err
             : new Error('Could not share your list. Please try again.');
         }
+      },
+
+      // Finish a draft WITHOUT sharing it: the items become private (visible to
+      // their owner only) instead of shared with the house. No housemate push —
+      // that would defeat the point of keeping them private.
+      keepDraftPrivate: async (userId: string, houseId: string): Promise<void> => {
+        const draftIds = get()
+          .items.filter((i) => i.isDraft && i.addedBy === userId)
+          .map((i) => i.id);
+        if (draftIds.length === 0) return;
+        const { error } = await supabase
+          .from('grocery_items')
+          .update({ is_personal: true, is_draft: false, draft_expires_at: null })
+          .in('id', draftIds)
+          .eq('house_id', houseId)
+          .eq('added_by', userId)
+          .eq('is_draft', true);
+        if (error) {
+          captureError(error, { context: 'keep-draft-private', userId });
+          throw new Error('Could not save your private list. Please try again.');
+        }
+        set({
+          items: get().items.map((i) =>
+            draftIds.includes(i.id) && i.addedBy === userId
+              ? { ...i, isPersonal: true, isDraft: false, draftExpiresAt: undefined }
+              : i
+          ),
+          currentDraftSourceListId: null,
+        });
       },
 
       startRun: async (shopperId: string, shopperName: string): Promise<void> => {

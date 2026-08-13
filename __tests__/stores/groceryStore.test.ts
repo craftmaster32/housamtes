@@ -981,3 +981,35 @@ describe('updateSavedList', (): void => {
     expect(list.items.map((i) => i.name)).toEqual(['Bread']);
   });
 });
+
+// ── keepDraftPrivate — finishing a draft privately instead of sharing ────────
+describe('keepDraftPrivate', () => {
+  it('turns draft items private without sharing or notifying', async (): Promise<void> => {
+    useGroceryStore.setState({
+      items: [
+        item({ id: 'd1', isDraft: true, isPersonal: true, addedBy: 'u-me' }),
+        item({ id: 'd2', isDraft: true, isPersonal: true, addedBy: 'u-me' }),
+        item({ id: 'other', isDraft: true, isPersonal: true, addedBy: 'someone-else' }),
+      ],
+    });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().keepDraftPrivate('u-me', HOUSE_UUID);
+
+    const mine = useGroceryStore.getState().items.filter((i) => i.addedBy === 'u-me');
+    // My drafts are now private (not shared) and no longer drafts.
+    expect(mine.every((i) => i.isPersonal && !i.isDraft)).toBe(true);
+    // Nothing gets pushed to the house — that's the whole point.
+    expect(notifyHousemates).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when there are no draft items to convert', async (): Promise<void> => {
+    useGroceryStore.setState({
+      items: [item({ id: 's1', isDraft: false, isPersonal: false, addedBy: 'u-me' })],
+    });
+
+    await useGroceryStore.getState().keepDraftPrivate('u-me', HOUSE_UUID);
+
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+});

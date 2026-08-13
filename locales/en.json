@@ -853,6 +853,8 @@
     "draft_mode_a11y_hint": "When on, added items queue in a draft list you can review before sharing",
     "share_draft_a11y": "Share draft with housemates",
     "share_draft_a11y_hint": "Adds all draft items to the shared grocery list",
+    "keep_draft_private_a11y": "Keep these items private",
+    "keep_draft_private_a11y_hint": "Moves your draft items to your private list instead of sharing them",
     "my_draft": "My Draft",
     "my_private_list": "My Private List",
     "item_name_placeholder": "Item name",

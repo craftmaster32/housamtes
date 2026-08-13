@@ -529,6 +529,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const deleteItem = useGroceryStore((s) => s.deleteItem);
   const clearChecked = useGroceryStore((s) => s.clearChecked);
   const publishDraftItems = useGroceryStore((s) => s.publishDraftItems);
+  const keepDraftPrivate = useGroceryStore((s) => s.keepDraftPrivate);
   const addComment = useGroceryStore((s) => s.addComment);
   const activeRun = useGroceryStore((s) => s.activeRun);
   const startRun = useGroceryStore((s) => s.startRun);
@@ -861,6 +862,22 @@ export default function GroceryScreen(): React.JSX.Element {
       setIsPublishing(false);
     }
   }, [publishDraftItems, myId, houseId, isPublishing, myDraftItems, currentDraftSourceListId, t]);
+
+  const handleKeepDraftPrivate = useCallback(async (): Promise<void> => {
+    if (isPublishing || !myId || !houseId) return;
+    if (myDraftItems.length === 0) return;
+    setIsPublishing(true);
+    setAddError(null);
+    try {
+      await keepDraftPrivate(myId, houseId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      leaveWarningShownRef.current = false;
+    } catch (err) {
+      setAddError(getErrorMessage(err, t('grocery.could_not_save_list')));
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [keepDraftPrivate, myId, houseId, isPublishing, myDraftItems, t]);
 
   // ── Saved lists handlers ───────────────────────────────────────────────────
   const handleOpenCreateList = useCallback((): void => {
@@ -1214,6 +1231,18 @@ export default function GroceryScreen(): React.JSX.Element {
             </View>
             {reminderBell}
             <Pressable
+              style={[styles.draftPrivateBtn, doneDisabled && styles.draftPublishBtnOff]}
+              onPress={handleKeepDraftPrivate}
+              disabled={doneDisabled}
+              accessible
+              accessibilityRole="button"
+              accessibilityState={{ disabled: doneDisabled }}
+              accessibilityLabel={t('grocery.keep_draft_private_a11y')}
+              accessibilityHint={t('grocery.keep_draft_private_a11y_hint')}
+            >
+              <Ionicons name="lock-closed" size={22} color="rgb(76,29,149)" />
+            </Pressable>
+            <Pressable
               style={[styles.draftPublishBtn, doneDisabled && styles.draftPublishBtnOff]}
               onPress={handlePublishDraft}
               disabled={doneDisabled}
@@ -1249,7 +1278,17 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
       );
     },
-    [handlePublishDraft, isPublishing, myId, styles, t, C, handleOpenGeneralReminder, reminders]
+    [
+      handlePublishDraft,
+      handleKeepDraftPrivate,
+      isPublishing,
+      myId,
+      styles,
+      t,
+      C,
+      handleOpenGeneralReminder,
+      reminders,
+    ]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
@@ -2021,6 +2060,12 @@ function makeStyles(C: ColorTokens) {
     catTitleTextPersonal: { color: 'rgb(76,29,149)' },
 
     draftPublishBtn: {
+      width: ms(44),
+      height: ms(44),
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    draftPrivateBtn: {
       width: ms(44),
       height: ms(44),
       justifyContent: 'center',

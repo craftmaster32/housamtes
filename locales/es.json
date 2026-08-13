@@ -852,6 +852,8 @@
     "draft_off_hint": "Los artículos van directo a la lista compartida",
     "draft_mode_a11y_hint": "Cuando está activado, los artículos se guardan en un borrador que puedes revisar antes de compartir",
     "share_draft_a11y": "Compartir borrador con compañeros",
+    "keep_draft_private_a11y": "Mantener estos artículos privados",
+    "keep_draft_private_a11y_hint": "Mueve los artículos del borrador a tu lista privada en vez de compartirlos",
     "share_draft_a11y_hint": "Agrega todos los artículos del borrador a la lista de compras compartida",
     "my_draft": "Mi borrador",
     "my_private_list": "Mi lista privada",
