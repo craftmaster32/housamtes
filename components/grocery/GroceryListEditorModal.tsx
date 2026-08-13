@@ -189,22 +189,23 @@ export function GroceryListEditorModal({
             />
           </View>
 
-          {/* Add-item row */}
+          {/* Add-item area: name on its own line, then quantity + Add button.
+              Stacked so the controls can never overflow the modal width. */}
+          <TextInput
+            ref={itemInputRef}
+            value={itemName}
+            onChangeText={setItemName}
+            placeholder={t('grocery.item_name_placeholder')}
+            placeholderTextColor={C.textSecondary}
+            style={styles.itemInput}
+            maxLength={80}
+            returnKeyType="done"
+            onSubmitEditing={handleAddItem}
+            accessible
+            accessibilityLabel={t('grocery.item_name_placeholder')}
+            accessibilityHint={t('grocery.add_item_name_hint')}
+          />
           <View style={styles.addItemRow}>
-            <TextInput
-              ref={itemInputRef}
-              value={itemName}
-              onChangeText={setItemName}
-              placeholder={t('grocery.item_name_placeholder')}
-              placeholderTextColor={C.textSecondary}
-              style={styles.itemInput}
-              maxLength={80}
-              returnKeyType="done"
-              onSubmitEditing={handleAddItem}
-              accessible
-              accessibilityLabel={t('grocery.item_name_placeholder')}
-              accessibilityHint={t('grocery.add_item_name_hint')}
-            />
             <TextInput
               value={itemQty}
               onChangeText={setItemQty}
@@ -225,8 +226,12 @@ export function GroceryListEditorModal({
               accessible
               accessibilityRole="button"
               accessibilityLabel={t('grocery.add_item')}
+              accessibilityState={{ disabled: !itemName.trim() }}
             >
-              <Ionicons name="add" size={22} color="#fff" />
+              <Ionicons name="add" size={20} color="#fff" />
+              <Text style={styles.addItemBtnText} numberOfLines={1} ellipsizeMode="tail">
+                {t('grocery.add_item')}
+              </Text>
             </Pressable>
           </View>
 
@@ -348,7 +353,6 @@ function makeStyles(C: ColorTokens) {
     privateSub: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
     addItemRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
     itemInput: {
-      flex: 1,
       height: ms(46),
       borderRadius: ms(12),
       borderWidth: 1,
@@ -360,7 +364,8 @@ function makeStyles(C: ColorTokens) {
       color: C.textPrimary,
     },
     qtyInput: {
-      width: ms(64),
+      width: ms(72),
+      flexShrink: 0,
       height: ms(46),
       borderRadius: ms(12),
       borderWidth: 1,
@@ -373,13 +378,18 @@ function makeStyles(C: ColorTokens) {
       textAlign: 'center',
     },
     addItemBtn: {
-      width: ms(46),
-      height: ms(46),
-      borderRadius: ms(12),
-      backgroundColor: C.primary,
+      flex: 1,
+      minWidth: 44,
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: ms(6),
+      height: Math.max(44, ms(46)),
+      minHeight: 44,
+      borderRadius: ms(12),
+      backgroundColor: C.primary,
     },
+    addItemBtnText: { fontSize: mf(14), ...font.semibold, color: '#fff', flexShrink: 1 },
     addItemBtnOff: { backgroundColor: C.textDisabled },
     itemsList: { maxHeight: ms(190) },
     itemRow: {
