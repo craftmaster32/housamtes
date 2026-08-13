@@ -37,6 +37,10 @@ import { UserAvatar } from '@components/shared/UserAvatar';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
+import {
+  GroceryListEditorModal,
+  type ListEditorMode,
+} from '@components/grocery/GroceryListEditorModal';
 import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareModal';
 import { SavedListsSection } from '@components/grocery/SavedListsSection';
 import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
@@ -561,8 +565,10 @@ export default function GroceryScreen(): React.JSX.Element {
   // ── Modal state ──────────────────────────────────────────────────────────────
   const [showSaveListModal, setShowSaveListModal] = useState(false);
   const [saveListMode, setSaveListMode] = useState<SaveListMode>('new');
-  const [saveListFromScratch, setSaveListFromScratch] = useState(false);
   const [pendingPublishedItems, setPendingPublishedItems] = useState<SavedListItem[]>([]);
+  const [showListEditor, setShowListEditor] = useState(false);
+  const [listEditorMode, setListEditorMode] = useState<ListEditorMode>('create');
+  const [listEditorTarget, setListEditorTarget] = useState<GroceryList | null>(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const leaveWarningShownRef = useRef(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -843,7 +849,6 @@ export default function GroceryScreen(): React.JSX.Element {
 
       // Show save/update modal
       setPendingPublishedItems(draftSnapshot);
-      setSaveListFromScratch(false);
       if (currentDraftSourceListId) {
         setSaveListMode('update');
       } else {
@@ -859,12 +864,33 @@ export default function GroceryScreen(): React.JSX.Element {
 
   // ── Saved lists handlers ───────────────────────────────────────────────────
   const handleOpenCreateList = useCallback((): void => {
-    setPendingPublishedItems([]);
-    setSaveListMode('new');
-    setSaveListFromScratch(true);
-    setAddError(null);
-    setShowSaveListModal(true);
+    setListEditorTarget(null);
+    setListEditorMode('create');
+    setShowListEditor(true);
   }, []);
+
+  const handleOpenEditList = useCallback((list: GroceryList): void => {
+    setListEditorTarget(list);
+    setListEditorMode('edit');
+    setShowListEditor(true);
+  }, []);
+
+  const handleCloseListEditor = useCallback((): void => {
+    setShowListEditor(false);
+    setListEditorTarget(null);
+  }, []);
+
+  const handleSubmitListEditor = useCallback(
+    async (name: string, isPrivate: boolean, items: SavedListItem[]): Promise<void> => {
+      if (!houseId) throw new Error(t('grocery.could_not_save_list'));
+      if (listEditorMode === 'edit' && listEditorTarget) {
+        await updateSavedList(listEditorTarget.id, items, { name, isPrivate });
+      } else {
+        await createSavedList(name, houseId, myId, items, isPrivate, myName);
+      }
+    },
+    [houseId, listEditorMode, listEditorTarget, updateSavedList, createSavedList, myId, myName, t]
+  );
 
   const handleLoadList = useCallback(
     async (list: GroceryList): Promise<void> => {
@@ -970,13 +996,11 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const handleSaveListSkip = useCallback((): void => {
     setPendingPublishedItems([]);
-    setSaveListFromScratch(false);
     setShowSaveListModal(false);
   }, []);
 
   const handleSaveListClose = useCallback((): void => {
     setPendingPublishedItems([]);
-    setSaveListFromScratch(false);
     setShowSaveListModal(false);
   }, []);
 
@@ -1569,6 +1593,7 @@ export default function GroceryScreen(): React.JSX.Element {
                       onDeleteList={handleDeleteList}
                       onSetListReminder={handleOpenListReminder}
                       onCreateList={handleOpenCreateList}
+                      onEditList={handleOpenEditList}
                     />
 
                     {/* ── Load / error states ─────────────────────────────────── */}
@@ -1626,12 +1651,23 @@ export default function GroceryScreen(): React.JSX.Element {
       <SaveListModal
         visible={showSaveListModal}
         mode={saveListMode}
-        fromScratch={saveListFromScratch}
         existingListName={sourceListName}
         onSaveNew={handleSaveNew}
         onUpdate={handleUpdateList}
         onSkip={handleSaveListSkip}
         onClose={handleSaveListClose}
+      />
+
+      <GroceryListEditorModal
+        visible={showListEditor}
+        mode={listEditorMode}
+        initialName={listEditorTarget?.name ?? ''}
+        initialIsPrivate={listEditorTarget?.isPrivate ?? false}
+        initialItems={
+          listEditorTarget?.items.map((i) => ({ name: i.name, quantity: i.quantity })) ?? []
+        }
+        onSubmit={handleSubmitListEditor}
+        onClose={handleCloseListEditor}
       />
 
       <LeaveWithoutShareModal

@@ -118,7 +118,11 @@ interface GroceryStore {
     isPrivate?: boolean,
     displayName?: string
   ) => Promise<void>;
-  updateSavedList: (listId: string, items: SavedListItem[]) => Promise<void>;
+  updateSavedList: (
+    listId: string,
+    items: SavedListItem[],
+    opts?: { name?: string; isPrivate?: boolean }
+  ) => Promise<void>;
   deleteSavedList: (listId: string) => Promise<void>;
   loadListIntoDraft: (list: GroceryList, userId: string, houseId: string) => Promise<void>;
   setCurrentDraftSourceListId: (id: string | null) => void;
@@ -840,10 +844,16 @@ export const useGroceryStore = create<GroceryStore>()(
         }
       },
 
-      updateSavedList: async (listId, items): Promise<void> => {
+      updateSavedList: async (listId, items, opts): Promise<void> => {
         const parsedItems = createSavedListSchema.shape.items.safeParse(items);
         if (!parsedItems.success) {
           captureError(parsedItems.error, { context: 'update-grocery-list-validation' });
+          throw new Error('Could not update the list. Please try again.');
+        }
+        // Optional metadata edits (name / privacy). A blank name is rejected so
+        // a list can never lose its title.
+        const nextName = opts?.name !== undefined ? opts.name.trim() : undefined;
+        if (nextName !== undefined && nextName === '') {
           throw new Error('Could not update the list. Please try again.');
         }
         const { error: delError } = await supabase
@@ -869,9 +879,14 @@ export const useGroceryStore = create<GroceryStore>()(
           }
         }
         const now = new Date().toISOString();
+        const listUpdate: { updated_at: string; name?: string; is_private?: boolean } = {
+          updated_at: now,
+        };
+        if (nextName !== undefined) listUpdate.name = nextName;
+        if (opts?.isPrivate !== undefined) listUpdate.is_private = opts.isPrivate;
         const { error: updError } = await supabase
           .from('grocery_lists')
-          .update({ updated_at: now })
+          .update(listUpdate)
           .eq('id', listId);
         if (updError) {
           captureError(updError, { context: 'update-grocery-list-timestamp' });
@@ -883,6 +898,8 @@ export const useGroceryStore = create<GroceryStore>()(
               ? {
                   ...l,
                   updatedAt: now,
+                  ...(nextName !== undefined ? { name: nextName } : {}),
+                  ...(opts?.isPrivate !== undefined ? { isPrivate: opts.isPrivate } : {}),
                   items: items.map((item, i) => ({
                     id: '',
                     listId,
