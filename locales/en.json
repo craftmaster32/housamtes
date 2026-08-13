@@ -821,6 +821,8 @@
     "no_just_this_time": "No, just this time",
     "save_this_list": "Save this list?",
     "save_this_list_body": "Give it a name and reuse it anytime — great for your regular weekly shop.",
+    "new_list": "New list",
+    "create_list_body": "Name your list, then flip on \"Keep private\" to keep it just for you.",
     "list_name_placeholder": "List name, e.g. Weekly Shop",
     "list_name": "List name",
     "list_name_hint": "Enter a name for your shopping list",

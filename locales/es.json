@@ -780,6 +780,8 @@
     "no_just_this_time": "No, solo esta vez",
     "save_this_list": "¿Guardar esta lista?",
     "save_this_list_body": "Dale un nombre y reutilízala cuando quieras — ideal para tus compras semanales.",
+    "new_list": "Nueva lista",
+    "create_list_body": "Ponle un nombre y activa \"Mantener privada\" para que sea solo tuya.",
     "list_name_placeholder": "Nombre de lista, ej. Compras semanales",
     "list_name": "Nombre de la lista",
     "list_name_hint": "Ingresa un nombre para tu lista de compras",

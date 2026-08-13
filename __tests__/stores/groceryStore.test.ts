@@ -18,6 +18,7 @@
  */
 
 import { useGroceryStore, type GroceryItem } from '../../stores/groceryStore';
+import { notifyHousemates } from '@lib/notifyHousemates';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Realtime channel mock ─────────────────────────────────────────────────────
@@ -53,10 +54,12 @@ const mockChannel: MockChannel = {
 };
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc: (...a: unknown[]): unknown => mockRpc(...a),
     channel: jest.fn(() => mockChannel),
     removeChannel: jest.fn(),
     auth: {
@@ -145,6 +148,8 @@ beforeEach(() => {
   useGroceryStore.getState().unsubscribe();
   capturedHandlers = {};
   mockFrom.mockReset();
+  mockRpc.mockReset();
+  (notifyHousemates as jest.Mock).mockClear();
   mockChannel.on.mockClear();
   mockChannel.subscribe.mockClear();
 });
@@ -839,5 +844,78 @@ describe('deleteReminder', () => {
     );
 
     expect(useGroceryStore.getState().reminders).toEqual(seeded);
+  });
+});
+
+// ── createSavedList — direct "New list" creation, private vs shared ──────────
+describe('createSavedList', () => {
+  const LIST_UUID = '00000000-0000-0000-0000-0000000000aa';
+
+  function rpcList(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      id: LIST_UUID,
+      house_id: HOUSE_UUID,
+      name: 'Weekly Shop',
+      created_by: USER_UUID,
+      is_private: false,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      ...overrides,
+    };
+  }
+
+  it('creates a private list from scratch and keeps it private (no housemate push)', async () => {
+    mockRpc.mockResolvedValue({
+      data: rpcList({ is_private: true, name: 'Secret Snacks' }),
+      error: null,
+    });
+
+    await useGroceryStore
+      .getState()
+      .createSavedList('Secret Snacks', HOUSE_UUID, USER_UUID, [], true, 'Alex');
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_grocery_list',
+      expect.objectContaining({ p_is_private: true, p_name: 'Secret Snacks' })
+    );
+    // A private list must never notify the rest of the house.
+    expect(notifyHousemates).not.toHaveBeenCalled();
+    // The new (empty) list is prepended to savedLists.
+    expect(useGroceryStore.getState().savedLists[0]).toMatchObject({
+      id: LIST_UUID,
+      name: 'Secret Snacks',
+      isPrivate: true,
+      items: [],
+    });
+  });
+
+  it('notifies housemates when the new list is shared (not private)', async () => {
+    mockRpc.mockResolvedValue({ data: rpcList(), error: null });
+
+    await useGroceryStore
+      .getState()
+      .createSavedList(
+        'Weekly Shop',
+        HOUSE_UUID,
+        USER_UUID,
+        [{ name: 'Milk', quantity: '1' }],
+        false,
+        'Alex'
+      );
+
+    expect(notifyHousemates).toHaveBeenCalledTimes(1);
+    expect(useGroceryStore.getState().savedLists[0]).toMatchObject({
+      name: 'Weekly Shop',
+      isPrivate: false,
+    });
+  });
+
+  it('surfaces a friendly error when the RPC fails', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } });
+
+    await expect(
+      useGroceryStore.getState().createSavedList('X', HOUSE_UUID, USER_UUID, [], true, '')
+    ).rejects.toThrow('Could not save the list. Please try again.');
+    expect(notifyHousemates).not.toHaveBeenCalled();
   });
 });

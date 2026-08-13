@@ -19,6 +19,7 @@ interface SavedListsSectionProps {
   onLoadList: (list: GroceryList) => void;
   onDeleteList: (listId: string) => void;
   onSetListReminder: (list: GroceryList) => void;
+  onCreateList: () => void;
 }
 
 export function SavedListsSection({
@@ -29,6 +30,7 @@ export function SavedListsSection({
   onLoadList,
   onDeleteList,
   onSetListReminder,
+  onCreateList,
 }: SavedListsSectionProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -39,6 +41,11 @@ export function SavedListsSection({
     Haptics.selectionAsync().catch(() => {});
     setExpanded((v) => !v);
   }, []);
+
+  const handleCreate = useCallback((): void => {
+    Haptics.selectionAsync().catch(() => {});
+    onCreateList();
+  }, [onCreateList]);
 
   const handleLoad = useCallback(
     (list: GroceryList): void => {
@@ -93,15 +100,15 @@ export function SavedListsSection({
   return (
     <View style={styles.container}>
       {/* Collapsible header */}
-      <Pressable
-        style={styles.headerRow}
-        onPress={handleToggle}
-        accessible
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        accessibilityLabel={t('grocery.saved_lists_count', { count: lists.length })}
-      >
-        <View style={styles.headerLeft}>
+      <View style={styles.headerRow}>
+        <Pressable
+          style={styles.headerLeft}
+          onPress={handleToggle}
+          accessible
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          accessibilityLabel={t('grocery.saved_lists_count', { count: lists.length })}
+        >
           <Ionicons name="bookmarks-outline" size={16} color={C.textSecondary} />
 
           <Text style={styles.headerLabel}>{t('grocery.saved_lists')}</Text>
@@ -110,13 +117,35 @@ export function SavedListsSection({
               <Text style={styles.badgeText}>{lists.length}</Text>
             </View>
           )}
+        </Pressable>
+        <View style={styles.headerRight}>
+          <Pressable
+            style={styles.newBtn}
+            onPress={handleCreate}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('grocery.new_list')}
+            accessibilityHint={t('grocery.create_list_body')}
+          >
+            <Ionicons name="add" size={16} color={C.primary} />
+            <Text style={styles.newBtnText}>{t('grocery.new_list')}</Text>
+          </Pressable>
+          <Pressable
+            style={styles.chevronBtn}
+            onPress={handleToggle}
+            accessible
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+            accessibilityLabel={t('grocery.saved_lists')}
+          >
+            <Ionicons
+              name={expanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={C.textSecondary}
+            />
+          </Pressable>
         </View>
-        <Ionicons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={16}
-          color={C.textSecondary}
-        />
-      </Pressable>
+      </View>
 
       {expanded && (
         <View style={styles.body}>
@@ -201,11 +230,35 @@ function makeStyles(C: ColorTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: ms(16),
-      paddingVertical: ms(14),
+      paddingLeft: ms(16),
+      paddingRight: ms(8),
       minHeight: ms(48),
     },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
+    headerLeft: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(8),
+      paddingVertical: ms(14),
+    },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: ms(2) },
+    newBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(3),
+      paddingHorizontal: ms(10),
+      paddingVertical: ms(8),
+      minHeight: ms(44),
+      borderRadius: ms(10),
+      backgroundColor: C.primaryTint,
+    },
+    newBtnText: { fontSize: mf(13), ...font.semibold, color: C.primary },
+    chevronBtn: {
+      width: ms(44),
+      height: ms(44),
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     headerLabel: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
     badge: {
       backgroundColor: C.primary,
