@@ -226,9 +226,12 @@ export function GroceryListEditorModal({
               accessible
               accessibilityRole="button"
               accessibilityLabel={t('grocery.add_item')}
+              accessibilityState={{ disabled: !itemName.trim() }}
             >
               <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.addItemBtnText}>{t('grocery.add_item')}</Text>
+              <Text style={styles.addItemBtnText} numberOfLines={1} ellipsizeMode="tail">
+                {t('grocery.add_item')}
+              </Text>
             </Pressable>
           </View>
 
@@ -376,16 +379,17 @@ function makeStyles(C: ColorTokens) {
     },
     addItemBtn: {
       flex: 1,
-      minWidth: 0,
+      minWidth: 44,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: ms(6),
-      height: ms(46),
+      height: Math.max(44, ms(46)),
+      minHeight: 44,
       borderRadius: ms(12),
       backgroundColor: C.primary,
     },
-    addItemBtnText: { fontSize: mf(14), ...font.semibold, color: '#fff' },
+    addItemBtnText: { fontSize: mf(14), ...font.semibold, color: '#fff', flexShrink: 1 },
     addItemBtnOff: { backgroundColor: C.textDisabled },
     itemsList: { maxHeight: ms(190) },
     itemRow: {
