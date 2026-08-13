@@ -271,7 +271,7 @@ Format: `supabase/migrations/YYYYMMDDHHmmss_description.sql`
 
 - `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS` (idempotent)
 - One logical change per file; include indexes + RLS in same file as table
-- Never modify dashboard schema without a migration; run `npx supabase db push` before deploying
+- Never modify dashboard schema without a migration; the post-merge Action applies migrations before deploying
 
 ---
 
@@ -355,7 +355,7 @@ describe('BillCard', () => {
 
 **Phase 2 — Review (CodeRabbit)** 6. Push only after owner says yes: `git push origin branch-name` 7. Claude opens a GitHub PR with a plain-English title + description 8. Wait ~2 minutes for CodeRabbit to auto-review the PR 9. Claude reads CodeRabbit's comments and either fixes the issues or explains why they can be ignored 10. Tell owner: _"CodeRabbit is happy / here's what it flagged — safe to merge"_
 
-**Phase 3 — Merge & verify** 11. Owner clicks **Merge pull request** on GitHub (always use "Create a merge commit" — not squash or rebase) 12. Claude pulls main locally and runs the post-merge check: - `npx tsc --noEmit` — type check - `npm run lint` — code quality - `npm test` — tests 13. **If all pass:** Claude tells owner what terminal commands to run (deploy + optionally db push) 14. **If something fails:** Claude runs `git revert` to safely undo the merge, then investigates on the old branch and reports what went wrong in plain English
+**Phase 3 — Merge & verify** 11. Owner clicks **Merge pull request** on GitHub (always use "Create a merge commit" — not squash or rebase) 12. The **`post-merge.yml` GitHub Action runs automatically** on the merge: type check + lint + tests, applies any DB migrations, redeploys any changed edge functions, then deploys the web app to Vercel — no terminal commands from the owner 13. **If the run is green:** Claude confirms to the owner that the checks passed and the live site is updated (nothing to run) 14. **If the run fails:** Claude investigates and reports what went wrong in plain English; a bad merge can be rolled back via GitHub's **Revert** button (see below)
 
 ### Post-merge rollback (if needed)
 
@@ -387,31 +387,39 @@ Optional one-liner explaining WHY, not what.
 
 ---
 
-## WHEN TO RUN TERMINAL COMMANDS
+## DEPLOY & DATABASE — HANDLED AUTOMATICALLY ON MERGE
 
-These are the only two commands the owner ever needs to run in the terminal.
-Claude will always say explicitly: _"Now run X in your terminal."_
+**The owner does not run deploy or db-push commands.** The `post-merge.yml`
+GitHub Action fires on every merge to `main` and does all of it:
 
-### `npx supabase db push`
+1. Type check + lint + tests
+2. Applies DB migrations — **only** when the merge changed a file in `supabase/migrations/`
+3. Redeploys edge functions — **only** the ones changed in that merge
+4. Deploys the web app to Vercel (housemates-five.vercel.app)
 
-Run this when a task includes **database changes** (new `.sql` files in `supabase/migrations/`).
-Claude will always flag this: _"This task has a migration — run `npx supabase db push` after merging."_
+So after a merge, Claude's job is to **confirm the Action went green** (check
+the run under the repo's Actions tab / PR checks) and tell the owner in plain
+English that the site is live. A green checkmark on the merge = deployed.
+Never tell the owner to "run `npm run deploy`" or "run `npx supabase db push`"
+as a routine step — the pipeline owns that.
 
-- Run it AFTER merging to main, AFTER the post-merge check passes
-- Do NOT run it on a feature branch — only on main
+### Manual fallback (rare — only if the Action is broken or unavailable)
 
-### Deploy (web app)
+These are the underlying commands the pipeline runs. Use them **only** when the
+automated run has failed for an infrastructure reason and the owner needs to
+publish by hand — never as the normal flow:
 
 ```bash
-npm run deploy
+npx supabase db push   # apply migrations — only when there are new .sql files
+npm run deploy         # build + deploy web app to Vercel
 ```
 
-Run this after every merge to keep the live web app (housemates-five.vercel.app) up to date.
-
-- Run it AFTER the post-merge check passes
-- If the task had a migration, run `npx supabase db push` first, then `npm run deploy`
-- Claude will always remind you at the end of every session
-- **Never** use the old long command (`npx expo export...vercel --prod`) — `npm run deploy` does all of that automatically
+- If a migration is involved, `npx supabase db push` runs before `npm run deploy`
+- `npx supabase db push` requires the checkout to be **linked** to the production
+  project first — if it isn't, run `supabase link --project-ref <project-ref>`
+  before the push (the CI pipeline links automatically via secrets)
+- Run either only on `main`, never on a feature branch
+- **Never** use the old long command (`npx expo export...vercel --prod`) — `npm run deploy` wraps all of that
 
 ---
 
@@ -449,9 +457,9 @@ npx tsc --noEmit             # Type check (required before commit)
 npm test                     # Tests
 npm run test:coverage        # Coverage
 npm run lint && npm run format
-npx supabase db push         # Apply migrations (only when there are new .sql files)
+npx supabase db push         # Apply migrations — automated on merge; manual fallback only
 npx supabase db pull         # Pull from dashboard
-npm run deploy               # Build + deploy web app to Vercel (housemates-five.vercel.app)
+npm run deploy               # Deploy web app to Vercel — automated on merge; manual fallback only
 ```
 
 ---

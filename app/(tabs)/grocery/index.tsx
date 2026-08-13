@@ -37,6 +37,10 @@ import { UserAvatar } from '@components/shared/UserAvatar';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
+import {
+  GroceryListEditorModal,
+  type ListEditorMode,
+} from '@components/grocery/GroceryListEditorModal';
 import { LeaveWithoutShareModal } from '@components/grocery/LeaveWithoutShareModal';
 import { SavedListsSection } from '@components/grocery/SavedListsSection';
 import { GroceryReminderModal } from '@components/grocery/GroceryReminderModal';
@@ -525,6 +529,7 @@ export default function GroceryScreen(): React.JSX.Element {
   const deleteItem = useGroceryStore((s) => s.deleteItem);
   const clearChecked = useGroceryStore((s) => s.clearChecked);
   const publishDraftItems = useGroceryStore((s) => s.publishDraftItems);
+  const keepDraftPrivate = useGroceryStore((s) => s.keepDraftPrivate);
   const addComment = useGroceryStore((s) => s.addComment);
   const activeRun = useGroceryStore((s) => s.activeRun);
   const startRun = useGroceryStore((s) => s.startRun);
@@ -561,8 +566,10 @@ export default function GroceryScreen(): React.JSX.Element {
   // ── Modal state ──────────────────────────────────────────────────────────────
   const [showSaveListModal, setShowSaveListModal] = useState(false);
   const [saveListMode, setSaveListMode] = useState<SaveListMode>('new');
-  const [saveListFromScratch, setSaveListFromScratch] = useState(false);
   const [pendingPublishedItems, setPendingPublishedItems] = useState<SavedListItem[]>([]);
+  const [showListEditor, setShowListEditor] = useState(false);
+  const [listEditorMode, setListEditorMode] = useState<ListEditorMode>('create');
+  const [listEditorTarget, setListEditorTarget] = useState<GroceryList | null>(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const leaveWarningShownRef = useRef(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -843,7 +850,6 @@ export default function GroceryScreen(): React.JSX.Element {
 
       // Show save/update modal
       setPendingPublishedItems(draftSnapshot);
-      setSaveListFromScratch(false);
       if (currentDraftSourceListId) {
         setSaveListMode('update');
       } else {
@@ -857,14 +863,51 @@ export default function GroceryScreen(): React.JSX.Element {
     }
   }, [publishDraftItems, myId, houseId, isPublishing, myDraftItems, currentDraftSourceListId, t]);
 
+  const handleKeepDraftPrivate = useCallback(async (): Promise<void> => {
+    if (isPublishing || !myId || !houseId) return;
+    if (myDraftItems.length === 0) return;
+    setIsPublishing(true);
+    setAddError(null);
+    try {
+      await keepDraftPrivate(myId, houseId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      leaveWarningShownRef.current = false;
+    } catch (err) {
+      setAddError(getErrorMessage(err, t('grocery.could_not_save_list')));
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [keepDraftPrivate, myId, houseId, isPublishing, myDraftItems, t]);
+
   // ── Saved lists handlers ───────────────────────────────────────────────────
   const handleOpenCreateList = useCallback((): void => {
-    setPendingPublishedItems([]);
-    setSaveListMode('new');
-    setSaveListFromScratch(true);
-    setAddError(null);
-    setShowSaveListModal(true);
+    setListEditorTarget(null);
+    setListEditorMode('create');
+    setShowListEditor(true);
   }, []);
+
+  const handleOpenEditList = useCallback((list: GroceryList): void => {
+    setListEditorTarget(list);
+    setListEditorMode('edit');
+    setShowListEditor(true);
+  }, []);
+
+  const handleCloseListEditor = useCallback((): void => {
+    setShowListEditor(false);
+    setListEditorTarget(null);
+  }, []);
+
+  const handleSubmitListEditor = useCallback(
+    async (name: string, isPrivate: boolean, items: SavedListItem[]): Promise<void> => {
+      if (!houseId) throw new Error(t('grocery.could_not_save_list'));
+      if (listEditorMode === 'edit' && listEditorTarget) {
+        await updateSavedList(listEditorTarget.id, items, { name, isPrivate });
+      } else {
+        await createSavedList(name, houseId, myId, items, isPrivate, myName);
+      }
+    },
+    [houseId, listEditorMode, listEditorTarget, updateSavedList, createSavedList, myId, myName, t]
+  );
 
   const handleLoadList = useCallback(
     async (list: GroceryList): Promise<void> => {
@@ -970,13 +1013,11 @@ export default function GroceryScreen(): React.JSX.Element {
 
   const handleSaveListSkip = useCallback((): void => {
     setPendingPublishedItems([]);
-    setSaveListFromScratch(false);
     setShowSaveListModal(false);
   }, []);
 
   const handleSaveListClose = useCallback((): void => {
     setPendingPublishedItems([]);
-    setSaveListFromScratch(false);
     setShowSaveListModal(false);
   }, []);
 
@@ -1181,7 +1222,7 @@ export default function GroceryScreen(): React.JSX.Element {
       ) : null;
 
       if (section.sectionType === 'draft') {
-        const doneDisabled = isPublishing || !myId;
+        const doneDisabled = isPublishing || !myId || !houseId;
         return (
           <View style={styles.catTitleDraftRow}>
             <View style={[styles.catTitle, styles.catTitleFlex]}>
@@ -1189,6 +1230,18 @@ export default function GroceryScreen(): React.JSX.Element {
               <Text style={[styles.catTitleText, styles.catTitleTextDraft]}>{section.title}</Text>
             </View>
             {reminderBell}
+            <Pressable
+              style={[styles.draftPrivateBtn, doneDisabled && styles.draftPublishBtnOff]}
+              onPress={handleKeepDraftPrivate}
+              disabled={doneDisabled}
+              accessible
+              accessibilityRole="button"
+              accessibilityState={{ disabled: doneDisabled }}
+              accessibilityLabel={t('grocery.keep_draft_private_a11y')}
+              accessibilityHint={t('grocery.keep_draft_private_a11y_hint')}
+            >
+              <Ionicons name="lock-closed" size={22} color="rgb(76,29,149)" />
+            </Pressable>
             <Pressable
               style={[styles.draftPublishBtn, doneDisabled && styles.draftPublishBtnOff]}
               onPress={handlePublishDraft}
@@ -1225,7 +1278,18 @@ export default function GroceryScreen(): React.JSX.Element {
         </View>
       );
     },
-    [handlePublishDraft, isPublishing, myId, styles, t, C, handleOpenGeneralReminder, reminders]
+    [
+      handlePublishDraft,
+      handleKeepDraftPrivate,
+      isPublishing,
+      myId,
+      houseId,
+      styles,
+      t,
+      C,
+      handleOpenGeneralReminder,
+      reminders,
+    ]
   );
 
   const isMyRun = !!activeRun && activeRun.shopperId === myId;
@@ -1569,6 +1633,7 @@ export default function GroceryScreen(): React.JSX.Element {
                       onDeleteList={handleDeleteList}
                       onSetListReminder={handleOpenListReminder}
                       onCreateList={handleOpenCreateList}
+                      onEditList={handleOpenEditList}
                     />
 
                     {/* ── Load / error states ─────────────────────────────────── */}
@@ -1626,12 +1691,23 @@ export default function GroceryScreen(): React.JSX.Element {
       <SaveListModal
         visible={showSaveListModal}
         mode={saveListMode}
-        fromScratch={saveListFromScratch}
         existingListName={sourceListName}
         onSaveNew={handleSaveNew}
         onUpdate={handleUpdateList}
         onSkip={handleSaveListSkip}
         onClose={handleSaveListClose}
+      />
+
+      <GroceryListEditorModal
+        visible={showListEditor}
+        mode={listEditorMode}
+        initialName={listEditorTarget?.name ?? ''}
+        initialIsPrivate={listEditorTarget?.isPrivate ?? false}
+        initialItems={
+          listEditorTarget?.items.map((i) => ({ name: i.name, quantity: i.quantity })) ?? []
+        }
+        onSubmit={handleSubmitListEditor}
+        onClose={handleCloseListEditor}
       />
 
       <LeaveWithoutShareModal
@@ -1985,6 +2061,12 @@ function makeStyles(C: ColorTokens) {
     catTitleTextPersonal: { color: 'rgb(76,29,149)' },
 
     draftPublishBtn: {
+      width: ms(44),
+      height: ms(44),
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    draftPrivateBtn: {
       width: ms(44),
       height: ms(44),
       justifyContent: 'center',

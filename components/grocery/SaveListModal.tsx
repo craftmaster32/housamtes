@@ -23,9 +23,6 @@ interface SaveListModalProps {
   visible: boolean;
   mode: SaveListMode;
   existingListName?: string;
-  /** True when the user is building a list from scratch (via "New list"),
-   *  rather than being prompted to save items they just shared. */
-  fromScratch?: boolean;
   onSaveNew: (name: string, isPrivate: boolean) => Promise<void>;
   onUpdate: () => Promise<void>;
   onSkip: () => void;
@@ -36,7 +33,6 @@ export function SaveListModal({
   visible,
   mode,
   existingListName,
-  fromScratch = false,
   onSaveNew,
   onUpdate,
   onSkip,
@@ -99,13 +95,7 @@ export function SaveListModal({
           <View style={styles.iconWrap}>
             <View style={styles.iconBadge}>
               <Ionicons
-                name={
-                  mode === 'update'
-                    ? 'sync-outline'
-                    : fromScratch
-                      ? 'add-circle-outline'
-                      : 'bookmark-outline'
-                }
+                name={mode === 'update' ? 'sync-outline' : 'bookmark-outline'}
                 size={28}
                 color={C.primary}
               />
@@ -148,12 +138,8 @@ export function SaveListModal({
           ) : (
             /* ── Save new mode ────────────────────────────────────────────── */
             <>
-              <Text style={[styles.title, headingFont]}>
-                {t(fromScratch ? 'grocery.new_list' : 'grocery.save_this_list')}
-              </Text>
-              <Text style={styles.body}>
-                {t(fromScratch ? 'grocery.create_list_body' : 'grocery.save_this_list_body')}
-              </Text>
+              <Text style={[styles.title, headingFont]}>{t('grocery.save_this_list')}</Text>
+              <Text style={styles.body}>{t('grocery.save_this_list_body')}</Text>
 
               <TextInput
                 value={listName}
@@ -221,9 +207,7 @@ export function SaveListModal({
                 accessibilityRole="button"
                 accessibilityState={{ disabled: isSaving }}
               >
-                <Text style={styles.skipBtnText}>
-                  {t(fromScratch ? 'common.cancel' : 'grocery.one_time_dont_save')}
-                </Text>
+                <Text style={styles.skipBtnText}>{t('grocery.one_time_dont_save')}</Text>
               </Pressable>
             </>
           )}

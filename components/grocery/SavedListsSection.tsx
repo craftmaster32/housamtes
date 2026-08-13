@@ -20,6 +20,7 @@ interface SavedListsSectionProps {
   onDeleteList: (listId: string) => void;
   onSetListReminder: (list: GroceryList) => void;
   onCreateList: () => void;
+  onEditList: (list: GroceryList) => void;
 }
 
 export function SavedListsSection({
@@ -31,6 +32,7 @@ export function SavedListsSection({
   onDeleteList,
   onSetListReminder,
   onCreateList,
+  onEditList,
 }: SavedListsSectionProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -46,6 +48,14 @@ export function SavedListsSection({
     Haptics.selectionAsync().catch(() => {});
     onCreateList();
   }, [onCreateList]);
+
+  const handleEdit = useCallback(
+    (list: GroceryList): void => {
+      Haptics.selectionAsync().catch(() => {});
+      onEditList(list);
+    },
+    [onEditList]
+  );
 
   const handleLoad = useCallback(
     (list: GroceryList): void => {
@@ -186,7 +196,18 @@ export function SavedListsSection({
                 >
                   <Ionicons name="alarm-outline" size={17} color={C.textSecondary} />
                 </Pressable>
-                {/* Delete — only creator can delete */}
+                {/* Edit & delete — only the creator can change their list */}
+                {list.createdBy === myId && (
+                  <Pressable
+                    style={styles.iconBtn}
+                    onPress={() => handleEdit(list)}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={t('grocery.edit_name', { name: list.name })}
+                  >
+                    <Ionicons name="create-outline" size={17} color={C.textSecondary} />
+                  </Pressable>
+                )}
                 {list.createdBy === myId && (
                   <Pressable
                     style={styles.iconBtn}
