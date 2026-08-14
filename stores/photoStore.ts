@@ -103,18 +103,23 @@ export async function signHousePhotoUrl(canonicalUrl: string): Promise<string | 
   const now = Date.now();
   const cached = _signedUrlCache.get(path);
   if (cached && cached.expiresAt - SIGN_REFRESH_BEFORE_MS > now) return cached.url;
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
-  if (error || !data?.signedUrl) {
-    if (error) captureError(error, { context: 'sign-house-photo-url' });
+  try {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+    if (error || !data?.signedUrl) {
+      if (error) captureError(error, { context: 'sign-house-photo-url' });
+      return null;
+    }
+    _signedUrlCache.set(path, {
+      url: data.signedUrl,
+      expiresAt: now + SIGNED_URL_TTL_SECONDS * 1000,
+    });
+    return data.signedUrl;
+  } catch (err) {
+    captureError(err, { context: 'sign-house-photo-url' });
     return null;
   }
-  _signedUrlCache.set(path, {
-    url: data.signedUrl,
-    expiresAt: now + SIGNED_URL_TTL_SECONDS * 1000,
-  });
-  return data.signedUrl;
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
@@ -302,9 +307,6 @@ export const usePhotoStore = create<PhotoStore>()(
         const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
         const url = urlData.publicUrl;
 
-        // File it in the Photos → Receipts album too. A failed row insert must
-        // not lose the shopper's receipt — the object is uploaded and the bill
-        // will still reference it — so surface it to Sentry and carry on.
         const { error: insertError } = await supabase.from('photos').insert({
           house_id: houseId,
           url,
@@ -315,6 +317,9 @@ export const usePhotoStore = create<PhotoStore>()(
         });
         if (insertError) {
           captureError(insertError, { context: 'receipt-photo-insert', houseId });
+          // Best-effort cleanup of the orphaned storage object.
+          await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+          throw new Error('Could not save the receipt. Please try again.');
         }
         return url;
       },

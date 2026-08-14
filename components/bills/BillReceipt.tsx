@@ -24,6 +24,9 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
 
   useEffect((): (() => void) => {
     let cancelled = false;
+    setSignedUrl(null);
+    setFailed(false);
+    setZoomed(false);
     signHousePhotoUrl(receiptUrl)
       .then((url) => {
         if (cancelled) return;
@@ -52,7 +55,7 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
           accessibilityRole="imagebutton"
           accessibilityLabel={t('grocery.shop.view_receipt')}
         >
-          <Image source={{ uri: signedUrl }} style={styles.thumb} resizeMode="cover" />
+          <Image source={{ uri: signedUrl }} style={styles.thumb} resizeMode="cover" accessibilityLabel={t('grocery.shop.view_receipt')} />
           <View style={styles.expandBadge}>
             <Ionicons name="expand-outline" size={16} color="#fff" />
           </View>
@@ -74,7 +77,7 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
             <Ionicons name="close" size={28} color="#fff" />
           </Pressable>
           {signedUrl && (
-            <Image source={{ uri: signedUrl }} style={styles.zoomImage} resizeMode="contain" />
+            <Image source={{ uri: signedUrl }} style={styles.zoomImage} resizeMode="contain" accessibilityLabel={t('grocery.shop.view_receipt')} />
           )}
         </SafeAreaView>
       </Modal>
@@ -82,7 +85,7 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
   );
 };
 
-const makeStyles = (C: ColorTokens) =>
+const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
   StyleSheet.create({
     card: {
       backgroundColor: C.surface,

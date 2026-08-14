@@ -926,7 +926,7 @@
     "my_items": "Mis artículos",
     "shop": {
       "title": "De compras",
-      "progress": "{{bought}} de {{total}} comprado",
+      "progress": "{{bought}} de {{total}} comprados",
       "empty": "Aún no hay nada en tu lista: añade abajo lo que vas a comprar o toca Finalizar para introducir solo un total.",
       "add_placeholder": "Añade algo que estés comprando…",
       "could_not_add": "No se pudo añadir el artículo. Inténtalo de nuevo.",
@@ -959,7 +959,9 @@
       "receipt_unavailable": "La imagen del recibo no está disponible.",
       "view_receipt": "Ver recibo",
       "on_list": "En tu lista",
-      "on_list_hint": "Toca lo que compraste para quitarlo de la lista."
+      "on_list_hint": "Toca lo que compraste para quitarlo de la lista.",
+      "what_for_hint": "Introduce una descripción para este gasto",
+      "add_item_hint": "Escribe el nombre de un artículo y pulsa retorno para añadirlo"
     }
   },
   "chores": {

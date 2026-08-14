@@ -959,7 +959,9 @@
       "receipt_unavailable": "Receipt image isn't available.",
       "view_receipt": "View receipt",
       "on_list": "On your list",
-      "on_list_hint": "Tap what you bought to clear it from the list."
+      "on_list_hint": "Tap what you bought to clear it from the list.",
+      "what_for_hint": "Enter a description for this expense",
+      "add_item_hint": "Type an item name and press return to add it"
     }
   },
   "chores": {

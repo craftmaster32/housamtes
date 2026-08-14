@@ -168,54 +168,57 @@ export const useBillsStore = create<BillsStore>()(
         }
       },
       addBill: async (data, houseId): Promise<void> => {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user.id ?? '';
-        const { data: inserted, error } = await supabase
-          .from('bills')
-          .insert({
-            house_id: houseId,
-            title: data.title,
-            amount: data.amount,
-            paid_by: data.paidBy,
-            split_between: data.splitBetween,
-            split_amounts: data.splitAmounts ?? null,
-            category: data.category,
-            date: data.date,
-            notes: data.notes ?? null,
-            receipt_url: data.receiptUrl ?? null,
-          })
-          .select()
-          .single();
-        if (error) {
-          captureError(error, { context: 'add-bill', houseId, userId });
+        let userId = '';
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          userId = sessionData.session?.user.id ?? '';
+          const { data: inserted, error } = await supabase
+            .from('bills')
+            .insert({
+              house_id: houseId,
+              title: data.title,
+              amount: data.amount,
+              paid_by: data.paidBy,
+              split_between: data.splitBetween,
+              split_amounts: data.splitAmounts ?? null,
+              category: data.category,
+              date: data.date,
+              notes: data.notes ?? null,
+              receipt_url: data.receiptUrl ?? null,
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          const bill: Bill = {
+            id: inserted.id,
+            title: inserted.title,
+            amount: Number(inserted.amount),
+            paidBy: inserted.paid_by,
+            splitBetween: inserted.split_between ?? [],
+            splitAmounts: inserted.split_amounts ?? null,
+            category: inserted.category,
+            date: inserted.date,
+            createdAt: inserted.created_at,
+            settled: false,
+            settledBy: null,
+            settledAt: null,
+            notes: inserted.notes ?? null,
+            receiptUrl: inserted.receipt_url ?? null,
+          };
+          set({ bills: [bill, ...get().bills] });
+          if (userId) {
+            notifyHousemates({
+              houseId,
+              excludeUserId: userId,
+              title: '💸 New expense dropped',
+              body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}. Time to split! 🤝`,
+              data: { screen: 'bills' },
+              notificationType: 'bill_added',
+            });
+          }
+        } catch (err) {
+          captureError(err, { context: 'add-bill', houseId, userId });
           throw new Error('Could not save the bill. Please try again.');
-        }
-        const bill: Bill = {
-          id: inserted.id,
-          title: inserted.title,
-          amount: Number(inserted.amount),
-          paidBy: inserted.paid_by,
-          splitBetween: inserted.split_between ?? [],
-          splitAmounts: inserted.split_amounts ?? null,
-          category: inserted.category,
-          date: inserted.date,
-          createdAt: inserted.created_at,
-          settled: false,
-          settledBy: null,
-          settledAt: null,
-          notes: inserted.notes ?? null,
-          receiptUrl: inserted.receipt_url ?? null,
-        };
-        set({ bills: [bill, ...get().bills] });
-        if (userId) {
-          notifyHousemates({
-            houseId,
-            excludeUserId: userId,
-            title: '💸 New expense dropped',
-            body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}. Time to split! 🤝`,
-            data: { screen: 'bills' },
-            notificationType: 'bill_added',
-          });
         }
       },
       editBill: async (id, updates, houseId): Promise<void> => {

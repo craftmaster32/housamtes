@@ -11,7 +11,7 @@ import {
   storagePathFromUrl,
   signHousePhotoUrl,
   __resetSignedUrlCache,
-} from '../../stores/photoStore';
+} from '@stores/photoStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
