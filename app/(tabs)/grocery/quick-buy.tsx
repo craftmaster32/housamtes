@@ -13,7 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import { useAuthStore } from '@stores/authStore';
-import { ShoppingCheckout } from '@components/grocery/ShoppingCheckout';
+import { useGroceryStore } from '@stores/groceryStore';
+import { ShoppingCheckout, type CheckoutItem } from '@components/grocery/ShoppingCheckout';
 import { EmptyState } from '@components/ui';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -32,13 +33,33 @@ export default function QuickBuyScreen(): React.JSX.Element {
   const myId = profile?.id ?? '';
   const myName = profile?.name ?? '';
 
+  const items = useGroceryStore((s) => s.items);
+  const deleteItem = useGroceryStore((s) => s.deleteItem);
+
+  // Items the shopper could be buying right now: still-unbought shared items
+  // plus their own private ones. Ticking one in the checkout removes it so a
+  // quick one-off purchase doesn't leave the item on the list for someone else.
+  const selectableItems = useMemo<CheckoutItem[]>(
+    () =>
+      items
+        .filter((i) => !i.isChecked && (!i.isPersonal || i.addedBy === myId))
+        .map((i) => ({ id: i.id, name: i.name, quantity: i.quantity })),
+    [items, myId]
+  );
+
   const handleBack = useCallback((): void => {
     router.back();
   }, []);
 
-  const handleSaved = useCallback((): void => {
-    router.replace('/(tabs)/grocery');
-  }, []);
+  const handleSaved = useCallback(
+    (boughtItemIds: string[]): void => {
+      boughtItemIds.forEach((id) => {
+        deleteItem(id).catch(() => {});
+      });
+      router.replace('/(tabs)/grocery');
+    },
+    [deleteItem]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -72,6 +93,7 @@ export default function QuickBuyScreen(): React.JSX.Element {
               myId={myId}
               myName={myName}
               defaultTitle={t('grocery.shop.default_title')}
+              selectableItems={selectableItems}
               onSaved={handleSaved}
             />
           ) : (

@@ -957,7 +957,9 @@
       "save_expense": "Save expense",
       "save_failed": "Could not save the expense. Please try again.",
       "receipt_unavailable": "Receipt image isn't available.",
-      "view_receipt": "View receipt"
+      "view_receipt": "View receipt",
+      "on_list": "On your list",
+      "on_list_hint": "Tap what you bought to clear it from the list."
     }
   },
   "chores": {

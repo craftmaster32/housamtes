@@ -957,7 +957,9 @@
       "save_expense": "Guardar gasto",
       "save_failed": "No se pudo guardar el gasto. Inténtalo de nuevo.",
       "receipt_unavailable": "La imagen del recibo no está disponible.",
-      "view_receipt": "Ver recibo"
+      "view_receipt": "Ver recibo",
+      "on_list": "En tu lista",
+      "on_list_hint": "Toca lo que compraste para quitarlo de la lista."
     }
   },
   "chores": {
