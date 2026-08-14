@@ -961,7 +961,8 @@
       "on_list": "On your list",
       "on_list_hint": "Tap what you bought to clear it from the list.",
       "cleanup_failed": "Saved the expense, but could not finish updating the list. Please check your groceries.",
-      "camera_failed": "Could not open the camera or photos. Please try again."
+      "camera_failed": "Could not open the camera or photos. Please try again.",
+      "mark_all_bought": "Mark all {{name}} as bought"
     }
   },
   "chores": {

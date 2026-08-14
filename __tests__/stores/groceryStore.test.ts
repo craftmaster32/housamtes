@@ -399,6 +399,41 @@ describe('decrementBought', () => {
   });
 });
 
+// ── setBoughtCount ─────────────────────────────────────────────────────────────
+
+describe('setBoughtCount', () => {
+  it('jumps straight to the full quantity and marks it checked', async () => {
+    seedItems({ quantity: '3', boughtCount: 0, isChecked: false });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().setBoughtCount('item-1', 3);
+
+    const i = useGroceryStore.getState().items[0];
+    expect(i.boughtCount).toBe(3);
+    expect(i.isChecked).toBe(true);
+  });
+
+  it('clears the count back to zero and unchecks', async () => {
+    seedItems({ quantity: '3', boughtCount: 3, isChecked: true });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().setBoughtCount('item-1', 0);
+
+    const i = useGroceryStore.getState().items[0];
+    expect(i.boughtCount).toBe(0);
+    expect(i.isChecked).toBe(false);
+  });
+
+  it('clamps a value above the max down to the max', async () => {
+    seedItems({ quantity: '2', boughtCount: 0, isChecked: false });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().setBoughtCount('item-1', 9);
+
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+  });
+});
+
 // ── Realtime: INSERT handler ───────────────────────────────────────────────────
 
 describe('realtime INSERT handler', () => {

@@ -104,6 +104,7 @@ interface GroceryStore {
   toggleItem: (id: string) => Promise<void>;
   incrementBought: (id: string) => Promise<void>;
   decrementBought: (id: string) => Promise<void>;
+  setBoughtCount: (id: string, count: number) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   clearChecked: (houseId: string) => Promise<void>;
   publishDraftItems: (userId: string, houseId: string) => Promise<void>;
@@ -612,6 +613,24 @@ export const useGroceryStore = create<GroceryStore>()(
           items: get().items.map((i) =>
             i.id === id ? { ...i, boughtCount: count, isChecked } : i
           ),
+        });
+        scheduleBoughtWrite(id, get, set);
+      },
+
+      // Jump the bought-count straight to a value (clamped to the item's max),
+      // e.g. tapping a counted item's circle to mark the whole quantity bought
+      // at once instead of tapping + repeatedly. Reuses the same debounced write
+      // and optimistic guards as increment/decrement.
+      setBoughtCount: async (id, count): Promise<void> => {
+        const item = get().items.find((i) => i.id === id);
+        if (!item) return;
+        const max = parseInt(item.quantity, 10);
+        const hasMax = !isNaN(max) && max > 1;
+        const next = hasMax ? Math.max(0, Math.min(count, max)) : Math.max(0, count);
+        const isChecked = hasMax ? next >= max : item.isChecked;
+        _pendingCounts.set(id, next);
+        set({
+          items: get().items.map((i) => (i.id === id ? { ...i, boughtCount: next, isChecked } : i)),
         });
         scheduleBoughtWrite(id, get, set);
       },

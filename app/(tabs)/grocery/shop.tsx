@@ -40,6 +40,7 @@ interface ShopItemRowProps {
   onToggle: (id: string) => void;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
+  onSetCount: (id: string, count: number) => void;
 }
 
 const ShopItemRow = memo(function ShopItemRow({
@@ -47,6 +48,7 @@ const ShopItemRow = memo(function ShopItemRow({
   onToggle,
   onIncrement,
   onDecrement,
+  onSetCount,
 }: ShopItemRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -61,6 +63,12 @@ const ShopItemRow = memo(function ShopItemRow({
   const bought = item.boughtCount ?? 0;
   const done = hasCount ? bought >= qtyNum : item.isChecked;
 
+  const checkCircle = (
+    <View style={[styles.check, done && styles.checkOn]}>
+      {done && <Ionicons name="checkmark" size={16} color="#fff" />}
+    </View>
+  );
+
   return (
     <Pressable
       style={[styles.row, done && styles.rowBought]}
@@ -69,9 +77,21 @@ const ShopItemRow = memo(function ShopItemRow({
       accessibilityState={{ checked: done }}
       accessibilityLabel={item.name}
     >
-      <View style={[styles.check, done && styles.checkOn]}>
-        {done && <Ionicons name="checkmark" size={16} color="#fff" />}
-      </View>
+      {hasCount ? (
+        // Tapping the circle jumps the whole quantity to bought (or clears it),
+        // so you don't have to tap + for every unit.
+        <Pressable
+          onPress={(): void => onSetCount(item.id, done ? 0 : qtyNum)}
+          hitSlop={8}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: done }}
+          accessibilityLabel={t('grocery.shop.mark_all_bought', { name: item.name })}
+        >
+          {checkCircle}
+        </Pressable>
+      ) : (
+        checkCircle
+      )}
       <Text style={[styles.rowName, done && styles.rowNameBought]} numberOfLines={2}>
         {item.name}
       </Text>
@@ -120,6 +140,7 @@ export default function ShopScreen(): React.JSX.Element {
   const toggleItem = useGroceryStore((s) => s.toggleItem);
   const incrementBought = useGroceryStore((s) => s.incrementBought);
   const decrementBought = useGroceryStore((s) => s.decrementBought);
+  const setBoughtCount = useGroceryStore((s) => s.setBoughtCount);
   const clearChecked = useGroceryStore((s) => s.clearChecked);
   const addItem = useGroceryStore((s) => s.addItem);
   const startRun = useGroceryStore((s) => s.startRun);
@@ -191,6 +212,13 @@ export default function ShopScreen(): React.JSX.Element {
     },
     [decrementBought]
   );
+  const onSetCount = useCallback(
+    (id: string, count: number): void => {
+      Haptics.selectionAsync().catch(() => {});
+      setBoughtCount(id, count);
+    },
+    [setBoughtCount]
+  );
 
   const handleAddItem = useCallback(async (): Promise<void> => {
     const name = newItem.trim();
@@ -245,9 +273,10 @@ export default function ShopScreen(): React.JSX.Element {
         onToggle={onToggle}
         onIncrement={onIncrement}
         onDecrement={onDecrement}
+        onSetCount={onSetCount}
       />
     ),
-    [onToggle, onIncrement, onDecrement]
+    [onToggle, onIncrement, onDecrement, onSetCount]
   );
 
   const renderSectionHeader = useCallback(
