@@ -38,31 +38,70 @@ interface ShopSection {
 interface ShopItemRowProps {
   item: GroceryItem;
   onToggle: (id: string) => void;
+  onIncrement: (id: string) => void;
+  onDecrement: (id: string) => void;
 }
 
 const ShopItemRow = memo(function ShopItemRow({
   item,
   onToggle,
+  onIncrement,
+  onDecrement,
 }: ShopItemRowProps): React.JSX.Element {
+  const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const bought = item.isChecked;
+
+  // Items with a plain count > 1 (e.g. "3") get a +/- stepper so you can buy
+  // part of them and leave the rest on the list. Everything else is a simple
+  // bought / not-bought tick.
+  const isPlainInt = /^\d+$/.test(item.quantity.trim());
+  const qtyNum = isPlainInt ? parseInt(item.quantity, 10) : NaN;
+  const hasCount = isPlainInt && qtyNum > 1;
+  const bought = item.boughtCount ?? 0;
+  const done = hasCount ? bought >= qtyNum : item.isChecked;
+
   return (
     <Pressable
-      style={[styles.row, bought && styles.rowBought]}
-      onPress={() => onToggle(item.id)}
+      style={[styles.row, done && styles.rowBought]}
+      onPress={hasCount ? undefined : (): void => onToggle(item.id)}
       accessibilityRole="checkbox"
-      accessibilityState={{ checked: bought }}
+      accessibilityState={{ checked: done }}
       accessibilityLabel={item.name}
     >
-      <View style={[styles.check, bought && styles.checkOn]}>
-        {bought && <Ionicons name="checkmark" size={16} color="#fff" />}
+      <View style={[styles.check, done && styles.checkOn]}>
+        {done && <Ionicons name="checkmark" size={16} color="#fff" />}
       </View>
-      <Text style={[styles.rowName, bought && styles.rowNameBought]} numberOfLines={2}>
+      <Text style={[styles.rowName, done && styles.rowNameBought]} numberOfLines={2}>
         {item.name}
       </Text>
-      {!!item.quantity && item.quantity !== '1' && (
-        <Text style={styles.rowQty}>{item.quantity}</Text>
+      {hasCount ? (
+        <View style={styles.counter}>
+          <Pressable
+            onPress={() => onDecrement(item.id)}
+            style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]}
+            accessibilityRole="button"
+            accessibilityLabel={t('grocery.decrease_item', { name: item.name })}
+            accessibilityState={{ disabled: bought === 0 }}
+          >
+            <Text style={styles.ctrBtnText}>−</Text>
+          </Pressable>
+          <Text style={styles.ctrText}>
+            {bought}/{qtyNum}
+          </Text>
+          <Pressable
+            onPress={() => onIncrement(item.id)}
+            style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]}
+            accessibilityRole="button"
+            accessibilityLabel={t('grocery.increase_item', { name: item.name })}
+            accessibilityState={{ disabled: bought >= qtyNum }}
+          >
+            <Text style={styles.ctrBtnText}>+</Text>
+          </Pressable>
+        </View>
+      ) : (
+        !!item.quantity &&
+        item.quantity !== '1' && <Text style={styles.rowQty}>{item.quantity}</Text>
       )}
     </Pressable>
   );
@@ -76,6 +115,8 @@ export default function ShopScreen(): React.JSX.Element {
 
   const items = useGroceryStore((s) => s.items);
   const toggleItem = useGroceryStore((s) => s.toggleItem);
+  const incrementBought = useGroceryStore((s) => s.incrementBought);
+  const decrementBought = useGroceryStore((s) => s.decrementBought);
   const clearChecked = useGroceryStore((s) => s.clearChecked);
   const addItem = useGroceryStore((s) => s.addItem);
   const activeRun = useGroceryStore((s) => s.activeRun);
@@ -131,6 +172,20 @@ export default function ShopScreen(): React.JSX.Element {
     },
     [toggleItem]
   );
+  const onIncrement = useCallback(
+    (id: string): void => {
+      Haptics.selectionAsync().catch(() => {});
+      incrementBought(id);
+    },
+    [incrementBought]
+  );
+  const onDecrement = useCallback(
+    (id: string): void => {
+      Haptics.selectionAsync().catch(() => {});
+      decrementBought(id);
+    },
+    [decrementBought]
+  );
 
   const handleAddItem = useCallback(async (): Promise<void> => {
     const name = newItem.trim();
@@ -173,9 +228,14 @@ export default function ShopScreen(): React.JSX.Element {
 
   const renderItem = useCallback(
     ({ item }: { item: GroceryItem }): React.JSX.Element => (
-      <ShopItemRow item={item} onToggle={onToggle} />
+      <ShopItemRow
+        item={item}
+        onToggle={onToggle}
+        onIncrement={onIncrement}
+        onDecrement={onDecrement}
+      />
     ),
-    [onToggle]
+    [onToggle, onIncrement, onDecrement]
   );
 
   const renderSectionHeader = useCallback(
@@ -407,6 +467,26 @@ const makeStyles = (C: ColorTokens) =>
     rowName: { flex: 1, fontSize: mf(15), ...font.semibold, color: C.textPrimary },
     rowNameBought: { textDecorationLine: 'line-through', color: C.textTertiary },
     rowQty: { fontSize: mf(13), ...font.medium, color: C.textSecondary },
+    counter: { flexDirection: 'row', alignItems: 'center', gap: ms(6), flexShrink: 0 },
+    ctrBtn: {
+      width: ms(30),
+      height: ms(30),
+      borderRadius: ms(15),
+      borderWidth: 1.5,
+      borderColor: C.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    ctrBtnOff: { borderColor: C.border, opacity: 0.4 },
+    ctrBtnText: { fontSize: mf(18), ...font.bold, color: C.primary, lineHeight: mf(20) },
+    ctrText: {
+      minWidth: ms(34),
+      textAlign: 'center',
+      fontSize: mf(14),
+      ...font.bold,
+      color: C.textPrimary,
+      fontVariant: ['tabular-nums'],
+    },
     empty: { paddingVertical: ms(40) },
     footer: { marginTop: sizes.md, gap: sizes.xs },
     addRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
