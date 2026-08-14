@@ -263,6 +263,17 @@ describe('photoStore — uploadReceipt', () => {
     );
   });
 
+  it('throws (does not return a URL) when the Photos row insert fails', async () => {
+    // The bill must not keep a receipt_url with no matching Photos record.
+    mockUpload.mockResolvedValue({ error: null });
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: `${BASE}/house-1/999_receipt.jpg` } });
+    mockFrom.mockReturnValue({ insert: jest.fn(() => fail('RLS')) });
+
+    await expect(usePhotoStore.getState().uploadReceipt(params)).rejects.toThrow(
+      /Could not save the receipt/
+    );
+  });
+
   it('rejects images larger than 20 MB', async () => {
     (global as unknown as { fetch: jest.Mock }).fetch = jest.fn().mockResolvedValue({
       blob: (): Promise<{ size: number }> => Promise.resolve({ size: 21 * 1024 * 1024 }),

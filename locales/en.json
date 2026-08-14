@@ -959,7 +959,9 @@
       "receipt_unavailable": "Receipt image isn't available.",
       "view_receipt": "View receipt",
       "on_list": "On your list",
-      "on_list_hint": "Tap what you bought to clear it from the list."
+      "on_list_hint": "Tap what you bought to clear it from the list.",
+      "cleanup_failed": "Saved the expense, but could not finish updating the list. Please check your groceries.",
+      "camera_failed": "Could not open the camera or photos. Please try again."
     }
   },
   "chores": {

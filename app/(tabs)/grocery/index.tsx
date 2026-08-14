@@ -1312,11 +1312,19 @@ export default function GroceryScreen(): React.JSX.Element {
           <Pressable
             style={[styles.btnPrimary, styles.btnFull]}
             onPress={handleStartRun}
+            accessible
             accessibilityRole="button"
+            accessibilityLabel={t('grocery.shop.continue')}
           >
             <Text style={styles.btnPrimaryText}>{t('grocery.shop.continue')}</Text>
           </Pressable>
-          <Pressable style={styles.btnGhost} onPress={handleEndRun} accessibilityRole="button">
+          <Pressable
+            style={styles.btnGhost}
+            onPress={handleEndRun}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('grocery.done_shopping')}
+          >
             <Text style={styles.btnGhostText}>{t('grocery.done_shopping')}</Text>
           </Pressable>
         </View>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Image, Modal, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Pressable, Modal, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,11 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
 
   useEffect((): (() => void) => {
     let cancelled = false;
+    // Reset per-URL state so a previous failure or an already-signed image
+    // doesn't linger when the bill's receipt changes.
+    setSignedUrl(null);
+    setFailed(false);
+    setZoomed(false);
     signHousePhotoUrl(receiptUrl)
       .then((url) => {
         if (cancelled) return;
@@ -52,7 +58,12 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
           accessibilityRole="imagebutton"
           accessibilityLabel={t('grocery.shop.view_receipt')}
         >
-          <Image source={{ uri: signedUrl }} style={styles.thumb} resizeMode="cover" />
+          <Image
+            source={{ uri: signedUrl }}
+            style={styles.thumb}
+            contentFit="cover"
+            accessibilityLabel={t('grocery.shop.receipt')}
+          />
           <View style={styles.expandBadge}>
             <Ionicons name="expand-outline" size={16} color="#fff" />
           </View>
@@ -74,7 +85,12 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
             <Ionicons name="close" size={28} color="#fff" />
           </Pressable>
           {signedUrl && (
-            <Image source={{ uri: signedUrl }} style={styles.zoomImage} resizeMode="contain" />
+            <Image
+              source={{ uri: signedUrl }}
+              style={styles.zoomImage}
+              contentFit="contain"
+              accessibilityLabel={t('grocery.shop.receipt')}
+            />
           )}
         </SafeAreaView>
       </Modal>

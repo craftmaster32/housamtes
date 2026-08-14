@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, memo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
 import {
   View,
   StyleSheet,
@@ -79,6 +79,7 @@ const ShopItemRow = memo(function ShopItemRow({
         <View style={styles.counter}>
           <Pressable
             onPress={() => onDecrement(item.id)}
+            hitSlop={8}
             style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]}
             accessibilityRole="button"
             accessibilityLabel={t('grocery.decrease_item', { name: item.name })}
@@ -91,6 +92,7 @@ const ShopItemRow = memo(function ShopItemRow({
           </Text>
           <Pressable
             onPress={() => onIncrement(item.id)}
+            hitSlop={8}
             style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]}
             accessibilityRole="button"
             accessibilityLabel={t('grocery.increase_item', { name: item.name })}
@@ -114,12 +116,12 @@ export default function ShopScreen(): React.JSX.Element {
   const headingFont = useHeadingFont('bold');
 
   const items = useGroceryStore((s) => s.items);
+  const isLoading = useGroceryStore((s) => s.isLoading);
   const toggleItem = useGroceryStore((s) => s.toggleItem);
   const incrementBought = useGroceryStore((s) => s.incrementBought);
   const decrementBought = useGroceryStore((s) => s.decrementBought);
   const clearChecked = useGroceryStore((s) => s.clearChecked);
   const addItem = useGroceryStore((s) => s.addItem);
-  const activeRun = useGroceryStore((s) => s.activeRun);
   const startRun = useGroceryStore((s) => s.startRun);
   const endRun = useGroceryStore((s) => s.endRun);
 
@@ -133,15 +135,18 @@ export default function ShopScreen(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
 
   // Opening the shopping screen means you're at the store — make sure a run is
-  // active (and owned by you) so housemates see it live. Only starts one if
-  // nobody else already has a run going.
+  // active (and owned by you) so housemates see it live. Wait for the store to
+  // finish loading first: starting before hydration could spawn a second run on
+  // top of one that load() is about to restore. Guarded by a ref so it fires
+  // exactly once, and reads activeRun fresh to avoid a stale closure.
+  const startAttemptedRef = useRef(false);
   useEffect((): void => {
-    if (!activeRun && myId && myName) {
+    if (isLoading || startAttemptedRef.current || !myId || !myName) return;
+    startAttemptedRef.current = true;
+    if (!useGroceryStore.getState().activeRun) {
       startRun(myId, myName).catch(() => {});
     }
-    // Run once on mount; startRun is stable and re-firing would restart the clock.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isLoading, myId, myName, startRun]);
 
   const shoppingItems = useMemo(
     () => items.filter((i) => !i.isPersonal || i.addedBy === myId),
@@ -211,20 +216,27 @@ export default function ShopScreen(): React.JSX.Element {
         text: t('grocery.shop.end_run'),
         style: 'destructive',
         onPress: (): void => {
-          endRun().catch(() => {});
-          router.replace('/(tabs)/grocery');
+          // Close the run before leaving so the "at the store" status can't
+          // linger; navigate regardless of the broadcast's outcome.
+          void endRun().finally(() => router.replace('/(tabs)/grocery'));
         },
       },
     ]);
   }, [endRun, t]);
 
-  const handleSaved = useCallback((): void => {
+  const handleSaved = useCallback(async (): Promise<void> => {
     setShowCheckout(false);
-    // Remove everything marked bought, close the run, and return to the list.
-    if (houseId) clearChecked(houseId).catch(() => {});
-    endRun().catch(() => {});
-    router.replace('/(tabs)/grocery');
-  }, [houseId, clearChecked, endRun]);
+    // The expense is already saved. Finish cleanup — remove the bought items
+    // and close the run — BEFORE navigating away, so we never leave the list or
+    // the run in a half-updated state. Surface a plain error if cleanup fails.
+    try {
+      if (houseId) await clearChecked(houseId);
+      await endRun();
+      router.replace('/(tabs)/grocery');
+    } catch {
+      setError(t('grocery.shop.cleanup_failed'));
+    }
+  }, [houseId, clearChecked, endRun, t]);
 
   const renderItem = useCallback(
     ({ item }: { item: GroceryItem }): React.JSX.Element => (
@@ -292,7 +304,11 @@ export default function ShopScreen(): React.JSX.Element {
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View style={styles.empty}>
-              <EmptyState mode="empty" icon="cart-outline" title={t('grocery.shop.empty')} />
+              <EmptyState
+                mode={isLoading ? 'loading' : 'empty'}
+                icon="cart-outline"
+                title={isLoading ? t('common.loading') : t('grocery.shop.empty')}
+              />
             </View>
           }
           ListFooterComponent={

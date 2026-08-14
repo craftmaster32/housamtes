@@ -52,10 +52,10 @@ export default function QuickBuyScreen(): React.JSX.Element {
   }, []);
 
   const handleSaved = useCallback(
-    (boughtItemIds: string[]): void => {
-      boughtItemIds.forEach((id) => {
-        deleteItem(id).catch(() => {});
-      });
+    async (boughtItemIds: string[]): Promise<void> => {
+      // Finish removing the items you ticked as bought before leaving, so the
+      // navigation can't unmount mid-delete and leave them on the list.
+      await Promise.allSettled(boughtItemIds.map((id) => deleteItem(id)));
       router.replace('/(tabs)/grocery');
     },
     [deleteItem]

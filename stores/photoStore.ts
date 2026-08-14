@@ -302,9 +302,10 @@ export const usePhotoStore = create<PhotoStore>()(
         const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
         const url = urlData.publicUrl;
 
-        // File it in the Photos → Receipts album too. A failed row insert must
-        // not lose the shopper's receipt — the object is uploaded and the bill
-        // will still reference it — so surface it to Sentry and carry on.
+        // File it in the Photos → Receipts album too. If this row fails, the
+        // bill must NOT keep a receipt_url that points at an object with no
+        // Photos record — that breaks the "receipt in both places" contract —
+        // so throw and let the caller surface the error instead of returning.
         const { error: insertError } = await supabase.from('photos').insert({
           house_id: houseId,
           url,
@@ -315,6 +316,7 @@ export const usePhotoStore = create<PhotoStore>()(
         });
         if (insertError) {
           captureError(insertError, { context: 'receipt-photo-insert', houseId });
+          throw new Error('Could not save the receipt. Please try again.');
         }
         return url;
       },

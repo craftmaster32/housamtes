@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable, TextInput as RNTextInput, Image } from 'react-native';
+import { View, StyleSheet, Pressable, TextInput as RNTextInput } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -152,26 +153,34 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
   }, []);
 
   const takePhoto = useCallback(async (): Promise<void> => {
-    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-    if (!granted) {
-      setError(t('grocery.shop.camera_denied'));
-      return;
+    try {
+      const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+      if (!granted) {
+        setError(t('grocery.shop.camera_denied'));
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
+      if (!result.canceled && result.assets[0]) attachAsset(result.assets[0]);
+    } catch {
+      setError(t('grocery.shop.camera_failed'));
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
-    if (!result.canceled && result.assets[0]) attachAsset(result.assets[0]);
   }, [attachAsset, t]);
 
   const pickFromLibrary = useCallback(async (): Promise<void> => {
-    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) {
-      setError(t('grocery.shop.library_denied'));
-      return;
+    try {
+      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!granted) {
+        setError(t('grocery.shop.library_denied'));
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets[0]) attachAsset(result.assets[0]);
+    } catch {
+      setError(t('grocery.shop.camera_failed'));
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets[0]) attachAsset(result.assets[0]);
   }, [attachAsset, t]);
 
   const handleAddReceipt = useCallback((): void => {
@@ -512,7 +521,12 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
         <Text style={styles.label}>{t('grocery.shop.receipt')}</Text>
         {receipt ? (
           <View style={styles.receiptRow}>
-            <Image source={{ uri: receipt.uri }} style={styles.receiptThumb} />
+            <Image
+              source={{ uri: receipt.uri }}
+              style={styles.receiptThumb}
+              contentFit="cover"
+              accessibilityLabel={t('grocery.shop.receipt')}
+            />
             <View style={styles.receiptCopy}>
               <Text style={styles.receiptAttached}>{t('grocery.shop.receipt_attached')}</Text>
               <Pressable
