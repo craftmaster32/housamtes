@@ -12,10 +12,20 @@ import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 
 import { mf, ms } from '@utils/responsive';
+// Screens where the floating button would sit on top of a form. The house
+// chat is one tap away from the tab bar on these, and on iOS web the button
+// jumps up over the amount field when the keyboard opens — so hide it here.
+const HIDDEN_ON = [
+  '/more/chat',
+  '/grocery/shop',
+  '/grocery/quick-buy',
+  '/bills/', // add-expense, bill detail, and setup (not the bills list itself)
+];
+
 /**
  * Floating chat button — sits above the bottom tab bar on every main screen and
- * opens the house chat. Hidden while already on the chat screen. Carries an
- * unread-message badge.
+ * opens the house chat. Hidden on the chat screen and on expense/checkout forms
+ * so it never covers their inputs. Carries an unread-message badge.
  */
 export function ChatFab(): React.JSX.Element | null {
   const { t } = useTranslation();
@@ -29,8 +39,8 @@ export function ChatFab(): React.JSX.Element | null {
     router.push('/(tabs)/more/chat');
   }, []);
 
-  // Don't overlay the chat screen with a button that opens the chat.
-  if (pathname.includes('/more/chat')) return null;
+  // Don't overlay the chat screen or expense/checkout forms.
+  if (HIDDEN_ON.some((p) => pathname.includes(p))) return null;
 
   const bottom = Math.max(insets.bottom, 12) + sizes.bottomTabBarHeight - 4;
 
