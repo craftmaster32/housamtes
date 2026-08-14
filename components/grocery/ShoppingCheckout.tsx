@@ -152,26 +152,34 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
   }, []);
 
   const takePhoto = useCallback(async (): Promise<void> => {
-    const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-    if (!granted) {
-      setError(t('grocery.shop.camera_denied'));
-      return;
+    try {
+      const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+      if (!granted) {
+        setError(t('grocery.shop.camera_denied'));
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
+      if (!result.canceled && result.assets[0]) attachAsset(result.assets[0]);
+    } catch {
+      setError(t('grocery.shop.save_failed'));
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
-    if (!result.canceled && result.assets[0]) attachAsset(result.assets[0]);
   }, [attachAsset, t]);
 
   const pickFromLibrary = useCallback(async (): Promise<void> => {
-    const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) {
-      setError(t('grocery.shop.library_denied'));
-      return;
+    try {
+      const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!granted) {
+        setError(t('grocery.shop.library_denied'));
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.7,
+      });
+      if (!result.canceled && result.assets[0]) attachAsset(result.assets[0]);
+    } catch {
+      setError(t('grocery.shop.save_failed'));
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets[0]) attachAsset(result.assets[0]);
   }, [attachAsset, t]);
 
   const handleAddReceipt = useCallback((): void => {
@@ -292,6 +300,7 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
             placeholderTextColor={C.textTertiary}
             style={styles.amountInput}
             accessibilityLabel={t('grocery.shop.total_spent')}
+            accessibilityHint={t('grocery.shop.enter_amount')}
           />
         </View>
       </View>
@@ -306,6 +315,7 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
           placeholderTextColor={C.textTertiary}
           style={styles.titleInput}
           accessibilityLabel={t('grocery.shop.what_for')}
+          accessibilityHint={t('grocery.shop.what_for_hint')}
         />
       </View>
 
@@ -443,6 +453,7 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
                     placeholderTextColor={C.textTertiary}
                     style={styles.splitInput}
                     accessibilityLabel={t('bills.amount_for', { name: nameOf(id) })}
+                    accessibilityHint={t('bills.amount_for_hint')}
                   />
                 </View>
               ))}
@@ -486,6 +497,7 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
                       placeholderTextColor={C.textTertiary}
                       style={styles.splitInput}
                       accessibilityLabel={t('bills.pct_for', { name: nameOf(id) })}
+                      accessibilityHint={t('bills.pct_for_hint')}
                     />
                     <Text style={styles.pctSymbol}>%</Text>
                   </View>
@@ -512,7 +524,12 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
         <Text style={styles.label}>{t('grocery.shop.receipt')}</Text>
         {receipt ? (
           <View style={styles.receiptRow}>
-            <Image source={{ uri: receipt.uri }} style={styles.receiptThumb} />
+            <Image
+              source={{ uri: receipt.uri }}
+              style={styles.receiptThumb}
+              accessible
+              accessibilityLabel={t('grocery.shop.receipt_attached')}
+            />
             <View style={styles.receiptCopy}>
               <Text style={styles.receiptAttached}>{t('grocery.shop.receipt_attached')}</Text>
               <Pressable

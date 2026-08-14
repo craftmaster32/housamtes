@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -36,6 +36,8 @@ export default function QuickBuyScreen(): React.JSX.Element {
   const items = useGroceryStore((s) => s.items);
   const deleteItem = useGroceryStore((s) => s.deleteItem);
 
+  const [cleanupError, setCleanupError] = useState<string | null>(null);
+
   // Items the shopper could be buying right now: still-unbought shared items
   // plus their own private ones. Ticking one in the checkout removes it so a
   // quick one-off purchase doesn't leave the item on the list for someone else.
@@ -52,13 +54,15 @@ export default function QuickBuyScreen(): React.JSX.Element {
   }, []);
 
   const handleSaved = useCallback(
-    (boughtItemIds: string[]): void => {
-      boughtItemIds.forEach((id) => {
-        deleteItem(id).catch(() => {});
-      });
-      router.replace('/(tabs)/grocery');
+    async (boughtItemIds: string[]): Promise<void> => {
+      try {
+        await Promise.all(boughtItemIds.map((id) => deleteItem(id)));
+        router.replace('/(tabs)/grocery');
+      } catch {
+        setCleanupError(t('grocery.could_not_clear'));
+      }
     },
-    [deleteItem]
+    [deleteItem, t]
   );
 
   return (
@@ -87,6 +91,7 @@ export default function QuickBuyScreen(): React.JSX.Element {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {!!cleanupError && <Text style={styles.error}>{cleanupError}</Text>}
           {houseId ? (
             <ShoppingCheckout
               houseId={houseId}
@@ -94,7 +99,7 @@ export default function QuickBuyScreen(): React.JSX.Element {
               myName={myName}
               defaultTitle={t('grocery.shop.default_title')}
               selectableItems={selectableItems}
-              onSaved={handleSaved}
+              onSaved={(ids) => void handleSaved(ids)}
             />
           ) : (
             <EmptyState mode="error" icon="alert-circle-outline" title={t('common.error')} />
@@ -127,4 +132,5 @@ const makeStyles = (C: ColorTokens) =>
     headerTitle: { fontSize: mf(22), color: C.textPrimary, letterSpacing: -0.4 },
     headerSub: { fontSize: mf(13), ...font.medium, color: C.textSecondary, marginTop: ms(1) },
     content: { padding: sizes.lg, paddingBottom: ms(40) },
+    error: { color: C.danger, fontSize: mf(13), ...font.regular, marginBottom: sizes.sm },
   });

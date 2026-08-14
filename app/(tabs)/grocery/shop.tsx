@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -61,14 +62,8 @@ const ShopItemRow = memo(function ShopItemRow({
   const bought = item.boughtCount ?? 0;
   const done = hasCount ? bought >= qtyNum : item.isChecked;
 
-  return (
-    <Pressable
-      style={[styles.row, done && styles.rowBought]}
-      onPress={hasCount ? undefined : (): void => onToggle(item.id)}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: done }}
-      accessibilityLabel={item.name}
-    >
+  const rowContent = (
+    <>
       <View style={[styles.check, done && styles.checkOn]}>
         {done && <Ionicons name="checkmark" size={16} color="#fff" />}
       </View>
@@ -79,6 +74,7 @@ const ShopItemRow = memo(function ShopItemRow({
         <View style={styles.counter}>
           <Pressable
             onPress={() => onDecrement(item.id)}
+            disabled={bought === 0}
             style={[styles.ctrBtn, bought === 0 && styles.ctrBtnOff]}
             accessibilityRole="button"
             accessibilityLabel={t('grocery.decrease_item', { name: item.name })}
@@ -91,6 +87,7 @@ const ShopItemRow = memo(function ShopItemRow({
           </Text>
           <Pressable
             onPress={() => onIncrement(item.id)}
+            disabled={bought >= qtyNum}
             style={[styles.ctrBtn, bought >= qtyNum && styles.ctrBtnOff]}
             accessibilityRole="button"
             accessibilityLabel={t('grocery.increase_item', { name: item.name })}
@@ -103,6 +100,24 @@ const ShopItemRow = memo(function ShopItemRow({
         !!item.quantity &&
         item.quantity !== '1' && <Text style={styles.rowQty}>{item.quantity}</Text>
       )}
+    </>
+  );
+
+  if (hasCount) {
+    return (
+      <View style={[styles.row, done && styles.rowBought]}>{rowContent}</View>
+    );
+  }
+
+  return (
+    <Pressable
+      style={[styles.row, done && styles.rowBought]}
+      onPress={(): void => onToggle(item.id)}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: done }}
+      accessibilityLabel={item.name}
+    >
+      {rowContent}
     </Pressable>
   );
 });
@@ -117,11 +132,13 @@ export default function ShopScreen(): React.JSX.Element {
   const toggleItem = useGroceryStore((s) => s.toggleItem);
   const incrementBought = useGroceryStore((s) => s.incrementBought);
   const decrementBought = useGroceryStore((s) => s.decrementBought);
-  const clearChecked = useGroceryStore((s) => s.clearChecked);
+  const deleteItem = useGroceryStore((s) => s.deleteItem);
   const addItem = useGroceryStore((s) => s.addItem);
   const activeRun = useGroceryStore((s) => s.activeRun);
   const startRun = useGroceryStore((s) => s.startRun);
   const endRun = useGroceryStore((s) => s.endRun);
+  const isStoreLoading = useGroceryStore((s) => s.isLoading);
+  const storeError = useGroceryStore((s) => s.error);
 
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
@@ -134,14 +151,14 @@ export default function ShopScreen(): React.JSX.Element {
 
   // Opening the shopping screen means you're at the store — make sure a run is
   // active (and owned by you) so housemates see it live. Only starts one if
-  // nobody else already has a run going.
+  // nobody else already has a run going. Wait for store hydration first.
   useEffect((): void => {
+    if (isStoreLoading) return;
     if (!activeRun && myId && myName) {
       startRun(myId, myName).catch(() => {});
     }
-    // Run once on mount; startRun is stable and re-firing would restart the clock.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isStoreLoading]);
 
   const shoppingItems = useMemo(
     () => items.filter((i) => !i.isPersonal || i.addedBy === myId),
@@ -211,20 +228,29 @@ export default function ShopScreen(): React.JSX.Element {
         text: t('grocery.shop.end_run'),
         style: 'destructive',
         onPress: (): void => {
-          endRun().catch(() => {});
-          router.replace('/(tabs)/grocery');
+          void (async (): Promise<void> => {
+            try {
+              await endRun();
+              router.replace('/(tabs)/grocery');
+            } catch {
+              setError(t('grocery.could_not_end_run'));
+            }
+          })();
         },
       },
     ]);
   }, [endRun, t]);
 
-  const handleSaved = useCallback((): void => {
+  const handleSaved = useCallback(async (): Promise<void> => {
     setShowCheckout(false);
-    // Remove everything marked bought, close the run, and return to the list.
-    if (houseId) clearChecked(houseId).catch(() => {});
-    endRun().catch(() => {});
-    router.replace('/(tabs)/grocery');
-  }, [houseId, clearChecked, endRun]);
+    try {
+      await Promise.all(boughtIds.map((id) => deleteItem(id)));
+      await endRun();
+      router.replace('/(tabs)/grocery');
+    } catch {
+      setError(t('grocery.could_not_clear'));
+    }
+  }, [boughtIds, deleteItem, endRun, t]);
 
   const renderItem = useCallback(
     ({ item }: { item: GroceryItem }): React.JSX.Element => (
@@ -291,9 +317,23 @@ export default function ShopScreen(): React.JSX.Element {
           contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <EmptyState mode="empty" icon="cart-outline" title={t('grocery.shop.empty')} />
-            </View>
+            isStoreLoading ? (
+              <View style={styles.empty}>
+                <ActivityIndicator size="large" color={C.primary} />
+              </View>
+            ) : storeError ? (
+              <View style={styles.empty}>
+                <EmptyState
+                  mode="error"
+                  icon="alert-circle-outline"
+                  title={storeError}
+                />
+              </View>
+            ) : (
+              <View style={styles.empty}>
+                <EmptyState mode="empty" icon="cart-outline" title={t('grocery.shop.empty')} />
+              </View>
+            )
           }
           ListFooterComponent={
             <View style={styles.footer}>
@@ -307,6 +347,7 @@ export default function ShopScreen(): React.JSX.Element {
                   returnKeyType="done"
                   onSubmitEditing={() => void handleAddItem()}
                   accessibilityLabel={t('grocery.shop.add_placeholder')}
+                  accessibilityHint={t('grocery.shop.add_item_hint')}
                 />
                 <Pressable
                   onPress={() => void handleAddItem()}
@@ -385,7 +426,7 @@ export default function ShopScreen(): React.JSX.Element {
                         ? t('grocery.shop.cart_note', { count: boughtCount })
                         : undefined
                     }
-                    onSaved={handleSaved}
+                    onSaved={() => void handleSaved()}
                   />
                 )}
               </ScrollView>
@@ -469,9 +510,9 @@ const makeStyles = (C: ColorTokens) =>
     rowQty: { fontSize: mf(13), ...font.medium, color: C.textSecondary },
     counter: { flexDirection: 'row', alignItems: 'center', gap: ms(6), flexShrink: 0 },
     ctrBtn: {
-      width: ms(30),
-      height: ms(30),
-      borderRadius: ms(15),
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(22),
       borderWidth: 1.5,
       borderColor: C.primary,
       alignItems: 'center',

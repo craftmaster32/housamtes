@@ -18,7 +18,7 @@ import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Link, useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from '@lib/alert';
 import {
@@ -1032,18 +1032,6 @@ export default function GroceryScreen(): React.JSX.Element {
   }, [router]);
 
   // ── Shopping run handlers ──────────────────────────────────────────────────
-  const handleStartRun = useCallback((): void => {
-    // Opening the shopping screen starts (or resumes) the run — it calls
-    // startRun on mount — so navigate straight there.
-    Haptics.selectionAsync().catch(() => {});
-    router.push('/(tabs)/grocery/shop');
-  }, [router]);
-
-  const handleQuickBuy = useCallback((): void => {
-    Haptics.selectionAsync().catch(() => {});
-    router.push('/(tabs)/grocery/quick-buy');
-  }, [router]);
-
   const doEndRun = useCallback(async (): Promise<void> => {
     try {
       await endRun();
@@ -1309,14 +1297,26 @@ export default function GroceryScreen(): React.JSX.Element {
               {elapsedLabel(activeRun.startedAt, t)} · {t('grocery.housemates_can_see')}
             </Text>
           </View>
+          <Link href="/(tabs)/grocery/shop" asChild>
+            <Pressable
+              style={[styles.btnPrimary, styles.btnFull]}
+              onPress={() => Haptics.selectionAsync().catch(() => {})}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('grocery.shop.continue')}
+              accessibilityState={{}}
+            >
+              <Text style={styles.btnPrimaryText}>{t('grocery.shop.continue')}</Text>
+            </Pressable>
+          </Link>
           <Pressable
-            style={[styles.btnPrimary, styles.btnFull]}
-            onPress={handleStartRun}
+            style={styles.btnGhost}
+            onPress={handleEndRun}
+            accessible
             accessibilityRole="button"
+            accessibilityLabel={t('grocery.done_shopping')}
+            accessibilityState={{}}
           >
-            <Text style={styles.btnPrimaryText}>{t('grocery.shop.continue')}</Text>
-          </Pressable>
-          <Pressable style={styles.btnGhost} onPress={handleEndRun} accessibilityRole="button">
             <Text style={styles.btnGhostText}>{t('grocery.done_shopping')}</Text>
           </Pressable>
         </View>
@@ -1350,22 +1350,31 @@ export default function GroceryScreen(): React.JSX.Element {
           <Text style={styles.titleLg}>{t('grocery.start_shopping_run')}</Text>
           <Text style={styles.textSm}>{t('grocery.start_shopping_hint')}</Text>
         </View>
-        <Pressable
-          style={[styles.btnPrimary, styles.btnFull]}
-          onPress={handleStartRun}
-          accessibilityRole="button"
-        >
-          <Text style={styles.btnPrimaryText}>{t('grocery.im_going_shopping')}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.btnGhost}
-          onPress={handleQuickBuy}
-          accessibilityRole="button"
-          accessibilityLabel={t('grocery.shop.quick_buy')}
-        >
-          <Ionicons name="flash-outline" size={16} color={C.primary} />
-          <Text style={styles.btnGhostText}>{t('grocery.shop.quick_buy')}</Text>
-        </Pressable>
+        <Link href="/(tabs)/grocery/shop" asChild>
+          <Pressable
+            style={[styles.btnPrimary, styles.btnFull]}
+            onPress={() => Haptics.selectionAsync().catch(() => {})}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('grocery.im_going_shopping')}
+            accessibilityState={{}}
+          >
+            <Text style={styles.btnPrimaryText}>{t('grocery.im_going_shopping')}</Text>
+          </Pressable>
+        </Link>
+        <Link href="/(tabs)/grocery/quick-buy" asChild>
+          <Pressable
+            style={styles.btnGhost}
+            onPress={() => Haptics.selectionAsync().catch(() => {})}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('grocery.shop.quick_buy')}
+            accessibilityState={{}}
+          >
+            <Ionicons name="flash-outline" size={16} color={C.primary} />
+            <Text style={styles.btnGhostText}>{t('grocery.shop.quick_buy')}</Text>
+          </Pressable>
+        </Link>
       </View>
     );
   };
