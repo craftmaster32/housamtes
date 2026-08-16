@@ -219,13 +219,16 @@ function DateGroup({
       ]}
     >
       <Text style={[styles.dayLabel, { color: c.textPrimary }]}>{title}</Text>
-      {data.map((row) =>
-        row.kind === 'bill' ? (
-          <BillCard key={row.key} bill={row.bill} />
-        ) : (
-          <RecurringPaymentCard key={row.key} row={row.payment} />
-        )
-      )}
+      {data.map((row, i) => (
+        <View key={row.key}>
+          {i > 0 && <View style={[styles.rowDivider, { backgroundColor: c.border }]} />}
+          {row.kind === 'bill' ? (
+            <BillCard bill={row.bill} />
+          ) : (
+            <RecurringPaymentCard row={row.payment} />
+          )}
+        </View>
+      ))}
     </View>
   );
 }
@@ -1016,6 +1019,8 @@ const styles = StyleSheet.create({
     ...font.bold,
     letterSpacing: 0.3,
   },
+  // Short centered hairline between rows within the same day.
+  rowDivider: { height: StyleSheet.hairlineWidth, width: '50%', alignSelf: 'center' },
 
   // ── Bill row
   billRow: {
