@@ -218,17 +218,14 @@ function DateGroup({
         isLast && styles.groupSegmentLast,
       ]}
     >
-      <Text style={[styles.dayLabel, { color: c.textSecondary }]}>{title}</Text>
-      {data.map((row, i) => (
-        <View key={row.key}>
-          {i > 0 && <View style={[styles.rowDivider, { backgroundColor: c.border }]} />}
-          {row.kind === 'bill' ? (
-            <BillCard bill={row.bill} />
-          ) : (
-            <RecurringPaymentCard row={row.payment} />
-          )}
-        </View>
-      ))}
+      <Text style={[styles.dayLabel, { color: c.textPrimary }]}>{title}</Text>
+      {data.map((row) =>
+        row.kind === 'bill' ? (
+          <BillCard key={row.key} bill={row.bill} />
+        ) : (
+          <RecurringPaymentCard key={row.key} row={row.payment} />
+        )
+      )}
     </View>
   );
 }
@@ -1014,13 +1011,11 @@ const styles = StyleSheet.create({
   dayLabel: {
     paddingHorizontal: ms(16),
     paddingTop: ms(14),
-    paddingBottom: ms(4),
+    paddingBottom: ms(6),
     fontSize: mf(13),
     ...font.bold,
     letterSpacing: 0.3,
   },
-  // Hairline between rows, inset past the icon so it aligns under the text.
-  rowDivider: { height: StyleSheet.hairlineWidth, marginStart: ms(68) },
 
   // ── Bill row
   billRow: {
