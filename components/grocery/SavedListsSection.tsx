@@ -18,7 +18,6 @@ interface SavedListsSectionProps {
   hasDraftItems: boolean;
   onLoadList: (list: GroceryList) => void;
   onDeleteList: (listId: string) => void;
-  onSetListReminder: (list: GroceryList) => void;
   onCreateList: () => void;
   onEditList: (list: GroceryList) => void;
 }
@@ -30,7 +29,6 @@ export function SavedListsSection({
   hasDraftItems,
   onLoadList,
   onDeleteList,
-  onSetListReminder,
   onCreateList,
   onEditList,
 }: SavedListsSectionProps): React.JSX.Element {
@@ -76,14 +74,6 @@ export function SavedListsSection({
       }
     },
     [hasDraftItems, onLoadList, t]
-  );
-
-  const handleSetReminder = useCallback(
-    (list: GroceryList): void => {
-      Haptics.selectionAsync().catch(() => {});
-      onSetListReminder(list);
-    },
-    [onSetListReminder]
   );
 
   const handleDelete = useCallback(
@@ -187,15 +177,6 @@ export function SavedListsSection({
               </View>
 
               <View style={styles.listActions}>
-                <Pressable
-                  style={styles.iconBtn}
-                  onPress={() => handleSetReminder(list)}
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel={t('grocery.remind_me_about_list', { name: list.name })}
-                >
-                  <Ionicons name="alarm-outline" size={17} color={C.textSecondary} />
-                </Pressable>
                 {/* Edit & delete — only the creator can change their list */}
                 {list.createdBy === myId && (
                   <Pressable
