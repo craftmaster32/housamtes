@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, memo } from 'react';
 import {
   View,
   SectionList,
@@ -23,8 +23,6 @@ import {
   calculateAllNetBalances,
   calculateSimplifiedBalancesForUser,
   settleDebts,
-  CATEGORIES,
-  type Bill,
 } from '@stores/billsStore';
 import {
   useRecurringBillsStore,
@@ -47,22 +45,14 @@ import { sizes } from '@constants/sizes';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import {
+  useOneOffBillHistory,
+  type BillRow,
+  type RecurringPaymentRow,
+} from '@hooks/useOneOffBillHistory';
 
 import { mf, ms } from '@utils/responsive';
 type BillFilter = 'recurring' | 'one-off';
-
-interface RecurringPaymentRow {
-  id: string;
-  title: string;
-  icon: string;
-  amount: number;
-  paidBy: string; // user UUID the recurring bill is assigned to
-  splitBetween: string[]; // user UUIDs sharing the cost
-}
-
-type BillRow =
-  | { kind: 'bill'; key: string; date: string; bill: Bill }
-  | { kind: 'payment'; key: string; date: string; payment: RecurringPaymentRow };
 
 // ── Category icons ────────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
@@ -83,27 +73,8 @@ function getCategoryIcon(category: string): React.ComponentProps<typeof Ionicons
   return CATEGORY_ICONS[(category ?? '').toLowerCase()] ?? CATEGORY_ICONS.default;
 }
 
-// ── Date label ────────────────────────────────────────────────────────────────
-function formatDateLabel(dateStr: string, locale: string, t: (key: string) => string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return t('common.unknown');
-  const appLocale = locale === 'he' ? 'he-IL' : locale === 'es' ? 'es-ES' : 'en-GB';
-  const today = new Date();
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-  const yest = new Date(today);
-  yest.setDate(yest.getDate() - 1);
-  const yestStr = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
-  if (dateStr === todayStr) return t('common.today');
-  if (dateStr === yestStr) return t('common.yesterday');
-  return new Date(`${dateStr}T12:00:00`).toLocaleDateString(appLocale, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 // ── Bill row card ─────────────────────────────────────────────────────────────
-function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
+function BillCard({ bill }: { bill: BillRow extends { kind: 'bill' } ? BillRow['bill'] : never }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
@@ -245,6 +216,49 @@ function SettleAvatar({ name, uri }: { name: string; uri?: string }): React.JSX.
   );
 }
 
+// ── Category filter chip ──────────────────────────────────────────────────────
+interface CategoryChipProps {
+  chipKey: string;
+  selected: boolean;
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  setCategory: (cat: string) => void;
+}
+
+const CategoryChip = memo(function CategoryChip({
+  chipKey,
+  selected,
+  label,
+  icon,
+  setCategory,
+}: CategoryChipProps): React.JSX.Element {
+  const c = useThemedColors();
+  const handlePress = useCallback((): void => {
+    setCategory(chipKey);
+  }, [setCategory, chipKey]);
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: selected ? c.primary : c.surface,
+          borderColor: selected ? c.primary : c.border,
+        },
+      ]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+    >
+      <Ionicons name={icon} size={14} color={selected ? '#fff' : c.textSecondary} />
+      <Text style={[styles.chipText, { color: selected ? '#fff' : c.textSecondary }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+});
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function BillsScreen(): React.JSX.Element {
   const c = useThemedColors();
@@ -269,12 +283,10 @@ export default function BillsScreen(): React.JSX.Element {
   const currencyCode = useSettingsStore((s) => s.currencyCode);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
-  // Search + category filtering for the one-off history (mirrors the add form's
-  // category chips so the same taxonomy drives both entry and browsing).
+  // Search state lives here; category state is owned by the hook.
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<string>('all');
   const { openRecurring } = useLocalSearchParams<{ openRecurring?: string }>();
-  useEffect(() => {
+  useEffect((): void => {
     if (openRecurring === '1') setFilter('recurring');
   }, [openRecurring]);
   const [showSettle, setShowSettle] = useState(false);
@@ -282,14 +294,16 @@ export default function BillsScreen(): React.JSX.Element {
   // filter swaps the whole list tree, which would otherwise remount the card and
   // replay that animation — read as a "jump". Gate it so it only plays once.
   const [entered, setEntered] = useState(false);
-  useEffect(() => {
+  useEffect((): void => {
     setEntered(true);
   }, []);
+
+  const { category, setCategory, presentCategories, billSections } = useOneOffBillHistory(search);
 
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const housemates = useHousematesStore((s) => s.housemates);
-  const memberIds = useMemo(() => housemates.map((h) => h.id), [housemates]);
+  const memberIds = useMemo((): string[] => housemates.map((h) => h.id), [housemates]);
 
   const myId = profile?.id ?? '';
   const activeBills = bills.filter((b) => !b.settled);
@@ -316,74 +330,13 @@ export default function BillsScreen(): React.JSX.Element {
   const memberName = useMemberName();
   const billsRtl = isRTL(i18n.language as never);
   const avatarById = useMemo(
-    () => new Map(housemates.map((h) => [h.id, h.avatarUrl])),
+    (): Map<string, string | undefined> => new Map(housemates.map((h) => [h.id, h.avatarUrl])),
     [housemates]
   );
 
-  // Only surface category chips for categories that actually appear in the
-  // current one-off bills, kept in the canonical CATEGORIES order.
-  const presentCategories = useMemo(() => {
-    const seen = new Set(bills.map((b) => (b.category ?? '').toLowerCase()).filter(Boolean));
-    return CATEGORIES.filter((cat) => seen.has(cat.toLowerCase())).map((cat) => cat.toLowerCase());
-  }, [bills]);
-
-  // If the selected category disappears (last bill of that kind deleted/settled
-  // away), fall back to "All" so the list can't get stuck showing nothing.
-  useEffect(() => {
-    if (category !== 'all' && !presentCategories.includes(category)) setCategory('all');
-  }, [presentCategories, category]);
-
-  const billSections = useMemo(() => {
-    // Merge one-off bills and logged recurring payments into one date-grouped history.
-    const billMeta = new Map(
-      householdBills.map((b) => [b.id, { name: b.name, icon: b.icon, assignedTo: b.assignedTo }])
-    );
-    const rows: BillRow[] = [
-      ...bills.map((bill) => ({ kind: 'bill' as const, key: bill.id, date: bill.date, bill })),
-      ...payments.map((p) => {
-        const meta = billMeta.get(p.billId);
-        return {
-          kind: 'payment' as const,
-          key: `recurring:${p.id}`,
-          date: p.paidAt,
-          payment: {
-            id: p.id,
-            title: meta?.name ?? '',
-            icon: meta?.icon ?? 'receipt-outline',
-            amount: p.amount,
-            paidBy: meta?.assignedTo ?? '',
-            splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
-          },
-        };
-      }),
-    ].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-
-    const q = search.trim().toLowerCase();
-    const filtered = rows.filter((row) => {
-      // Category chips filter the categorised one-off bills; logged recurring
-      // payments have no category, so a specific chip hides them.
-      if (category !== 'all') {
-        if (row.kind !== 'bill') return false;
-        if ((row.bill.category ?? '').toLowerCase() !== category) return false;
-      }
-      if (q) {
-        const title = row.kind === 'bill' ? row.bill.title : row.payment.title;
-        if (!title.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-
-    const groups: Record<string, BillRow[]> = {};
-    for (const row of filtered) {
-      const key = row.date || 'Unknown';
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(row);
-    }
-    return Object.entries(groups).map(([date, data]) => ({
-      title: formatDateLabel(date, i18n.language, t),
-      data,
-    }));
-  }, [bills, payments, householdBills, memberIds, i18n.language, t, search, category]);
+  const handleClearSearch = useCallback((): void => {
+    setSearch('');
+  }, []);
 
   const renderBill = useCallback(
     ({ item, index }: { item: BillRow; index: number }): React.JSX.Element => (
@@ -674,11 +627,12 @@ export default function BillsScreen(): React.JSX.Element {
               returnKeyType="search"
               autoCorrect={false}
               accessibilityLabel={t('bills.search_placeholder')}
+              accessibilityHint={t('bills.search_hint')}
             />
             {search.length > 0 && (
               <Pressable
-                onPress={() => setSearch('')}
-                hitSlop={8}
+                onPress={handleClearSearch}
+                style={styles.clearSearchButton}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.clear')}
               >
@@ -693,32 +647,16 @@ export default function BillsScreen(): React.JSX.Element {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chipScroll}
             >
-              {['all', ...presentCategories].map((key) => {
-                const selected = category === key;
-                const label = key === 'all' ? t('bills.filter_all') : t(`bills.cat_${key}`);
-                const icon = key === 'all' ? 'apps-outline' : getCategoryIcon(key);
-                return (
-                  <Pressable
-                    key={key}
-                    onPress={() => setCategory(key)}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: selected ? c.primary : c.surface,
-                        borderColor: selected ? c.primary : c.border,
-                      },
-                    ]}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={label}
-                  >
-                    <Ionicons name={icon} size={14} color={selected ? '#fff' : c.textSecondary} />
-                    <Text style={[styles.chipText, { color: selected ? '#fff' : c.textSecondary }]}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              {['all', ...presentCategories].map((key) => (
+                <CategoryChip
+                  key={key}
+                  chipKey={key}
+                  selected={category === key}
+                  label={key === 'all' ? t('bills.filter_all') : t(`bills.cat_${key}`)}
+                  icon={key === 'all' ? 'apps-outline' : getCategoryIcon(key)}
+                  setCategory={setCategory}
+                />
+              ))}
             </ScrollView>
           )}
 
@@ -1012,13 +950,19 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
   },
+  clearSearchButton: {
+    minWidth: ms(44),
+    minHeight: ms(44),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chipScroll: { gap: ms(8), paddingVertical: ms(1), paddingHorizontal: ms(1) },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: ms(6),
     paddingHorizontal: ms(13),
-    height: ms(36),
+    minHeight: ms(44),
     borderRadius: 9999,
     borderWidth: 1,
   },
