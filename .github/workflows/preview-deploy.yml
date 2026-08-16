@@ -7,7 +7,9 @@ name: Preview deploy
 
 on:
   push:
-    branches: [claude/design-v2-app-implementation-wc1fr3]
+    branches:
+      - claude/design-v2-app-implementation-wc1fr3
+      - claude/grocery-shopping-workflow-269pd3
   workflow_dispatch:
 
 permissions:
@@ -59,7 +61,7 @@ jobs:
         run: |
           pr=$(gh pr list --head "${GITHUB_REF_NAME}" --json number --jq '.[0].number' --repo "${GITHUB_REPOSITORY}")
           if [ -n "$pr" ]; then
-            gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "🔍 **Preview deploy** of the v2 redesign (this branch, real backend, not production): ${URL}"
+            gh pr comment "$pr" --repo "${GITHUB_REPOSITORY}" --body "🔍 **Preview deploy** of this branch (real backend, not production): ${URL}"
           else
             echo "No open PR found for ${GITHUB_REF_NAME}; preview URL: ${URL}"
           fi

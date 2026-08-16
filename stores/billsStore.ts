@@ -44,6 +44,7 @@ export interface Bill {
   settledBy: string | null; // user UUID
   settledAt: string | null;
   notes: string | null;
+  receiptUrl: string | null; // canonical house-photos bucket URL, or null
 }
 
 export interface Balance {
@@ -59,8 +60,12 @@ interface BillsStore {
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addBill: (
-    bill: Omit<Bill, 'id' | 'createdAt' | 'settled' | 'settledBy' | 'settledAt' | 'notes'> & {
+    bill: Omit<
+      Bill,
+      'id' | 'createdAt' | 'settled' | 'settledBy' | 'settledAt' | 'notes' | 'receiptUrl'
+    > & {
       notes?: string;
+      receiptUrl?: string | null;
     },
     houseId: string
   ) => Promise<void>;
@@ -120,6 +125,7 @@ export const useBillsStore = create<BillsStore>()(
             settledBy: r.settled_by ?? null,
             settledAt: r.settled_at ?? null,
             notes: r.notes ?? null,
+            receiptUrl: r.receipt_url ?? null,
           }));
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
@@ -176,6 +182,7 @@ export const useBillsStore = create<BillsStore>()(
             category: data.category,
             date: data.date,
             notes: data.notes ?? null,
+            receipt_url: data.receiptUrl ?? null,
           })
           .select()
           .single();
@@ -197,6 +204,7 @@ export const useBillsStore = create<BillsStore>()(
           settledBy: null,
           settledAt: null,
           notes: inserted.notes ?? null,
+          receiptUrl: inserted.receipt_url ?? null,
         };
         set({ bills: [bill, ...get().bills] });
         if (userId) {

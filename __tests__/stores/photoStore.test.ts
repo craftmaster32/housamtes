@@ -6,13 +6,21 @@
  * raw object path (storagePath) so deletes target the right file.
  */
 
-import { usePhotoStore, storagePathFromUrl, __resetSignedUrlCache } from '../../stores/photoStore';
+import {
+  usePhotoStore,
+  storagePathFromUrl,
+  signHousePhotoUrl,
+  __resetSignedUrlCache,
+} from '../../stores/photoStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
 const mockCreateSignedUrls = jest.fn();
+const mockCreateSignedUrl = jest.fn();
+const mockUpload = jest.fn();
+const mockGetPublicUrl = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
@@ -20,6 +28,9 @@ jest.mock('@lib/supabase', () => ({
     storage: {
       from: (): unknown => ({
         createSignedUrls: (...a: unknown[]): unknown => mockCreateSignedUrls(...a),
+        createSignedUrl: (...a: unknown[]): unknown => mockCreateSignedUrl(...a),
+        upload: (...a: unknown[]): unknown => mockUpload(...a),
+        getPublicUrl: (...a: unknown[]): unknown => mockGetPublicUrl(...a),
       }),
     },
     channel: (): unknown => {
@@ -174,5 +185,100 @@ describe('photoStore — load', () => {
 
     expect(usePhotoStore.getState().isLoading).toBe(false);
     expect(usePhotoStore.getState().photos).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// signHousePhotoUrl
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('signHousePhotoUrl', () => {
+  it('signs a canonical bucket URL and caches it for reuse', async () => {
+    mockCreateSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://signed/r' }, error: null });
+
+    const url = await signHousePhotoUrl(`${BASE}/house-1/r.jpg`);
+    expect(url).toBe('https://signed/r');
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith('house-1/r.jpg', expect.any(Number));
+
+    // Second call for the same object is served from cache — no re-sign.
+    const again = await signHousePhotoUrl(`${BASE}/house-1/r.jpg`);
+    expect(again).toBe('https://signed/r');
+    expect(mockCreateSignedUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns null for a URL outside the bucket without hitting storage', async () => {
+    const url = await signHousePhotoUrl('https://example.com/other.jpg');
+    expect(url).toBeNull();
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it('returns null when signing fails', async () => {
+    mockCreateSignedUrl.mockResolvedValue({ data: null, error: { message: 'nope' } });
+    const url = await signHousePhotoUrl(`${BASE}/house-1/x.jpg`);
+    expect(url).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// uploadReceipt
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('photoStore — uploadReceipt', () => {
+  const params = {
+    localUri: 'file:///tmp/receipt.jpg',
+    fileName: 'receipt.jpg',
+    mimeType: 'image/jpeg',
+    caption: 'Groceries',
+    uploadedBy: 'Alice',
+    userId: 'user-1',
+    houseId: 'house-1',
+  };
+
+  beforeEach(() => {
+    (global as unknown as { fetch: jest.Mock }).fetch = jest.fn().mockResolvedValue({
+      blob: (): Promise<{ size: number }> => Promise.resolve({ size: 1024 }),
+    });
+  });
+
+  it('uploads, files it under receipts, and returns the canonical URL', async () => {
+    mockUpload.mockResolvedValue({ error: null });
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: `${BASE}/house-1/999_receipt.jpg` } });
+    const insertSpy = jest.fn(() => ok(null));
+    mockFrom.mockReturnValue({ insert: insertSpy });
+
+    const url = await usePhotoStore.getState().uploadReceipt(params);
+
+    expect(url).toBe(`${BASE}/house-1/999_receipt.jpg`);
+    expect(mockUpload).toHaveBeenCalled();
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'receipts', house_id: 'house-1', user_id: 'user-1' })
+    );
+  });
+
+  it('throws a friendly error when the upload fails', async () => {
+    mockUpload.mockResolvedValue({ error: { message: 'bucket down' } });
+
+    await expect(usePhotoStore.getState().uploadReceipt(params)).rejects.toThrow(
+      /Could not upload the receipt/
+    );
+  });
+
+  it('throws (does not return a URL) when the Photos row insert fails', async () => {
+    // The bill must not keep a receipt_url with no matching Photos record.
+    mockUpload.mockResolvedValue({ error: null });
+    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: `${BASE}/house-1/999_receipt.jpg` } });
+    mockFrom.mockReturnValue({ insert: jest.fn(() => fail('RLS')) });
+
+    await expect(usePhotoStore.getState().uploadReceipt(params)).rejects.toThrow(
+      /Could not save the receipt/
+    );
+  });
+
+  it('rejects images larger than 20 MB', async () => {
+    (global as unknown as { fetch: jest.Mock }).fetch = jest.fn().mockResolvedValue({
+      blob: (): Promise<{ size: number }> => Promise.resolve({ size: 21 * 1024 * 1024 }),
+    });
+
+    await expect(usePhotoStore.getState().uploadReceipt(params)).rejects.toThrow(/under 20 MB/);
   });
 });
