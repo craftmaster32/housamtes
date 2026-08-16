@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AnimatedListItem } from '@components/shared/AnimatedListItem';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -192,36 +191,44 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
 // ── Date group ────────────────────────────────────────────────────────────────
 // A day's expenses share one soft card, separated by hairlines — a calmer, more
 // unified list than one bordered box per row.
-function DateGroup({ title, data }: { title: string; data: BillRow[] }): React.JSX.Element {
+function DateGroup({
+  title,
+  data,
+  isFirst,
+  isLast,
+}: {
+  title: string;
+  data: BillRow[];
+  isFirst: boolean;
+  isLast: boolean;
+}): React.JSX.Element {
   const c = useThemedColors();
   const isDark = c === darkColors;
+  // Every day is a segment of ONE continuous card: shared surface + side borders,
+  // rounded only at the very top and very bottom. The day label sits inside.
   return (
-    <View style={styles.dateGroup}>
-      <Text style={[styles.sectionDateText, styles.dateLabel, { color: c.textSecondary }]}>
-        {title}
-      </Text>
-      <View
-        style={[
-          styles.groupCard,
-          {
-            // Dark cards sit a step lighter than the near-black background with a
-            // crisper edge, so each day reads as its own surface.
-            backgroundColor: isDark ? c.surfaceSecondary : c.surface,
-            borderColor: isDark ? 'rgba(255,255,255,0.10)' : c.border,
-          },
-        ]}
-      >
-        {data.map((row, i) => (
-          <View key={row.key}>
-            {i > 0 && <View style={[styles.rowDivider, { backgroundColor: c.border }]} />}
-            {row.kind === 'bill' ? (
-              <BillCard bill={row.bill} />
-            ) : (
-              <RecurringPaymentCard row={row.payment} />
-            )}
-          </View>
-        ))}
-      </View>
+    <View
+      style={[
+        styles.groupSegment,
+        {
+          backgroundColor: isDark ? c.surfaceSecondary : c.surface,
+          borderColor: isDark ? 'rgba(255,255,255,0.10)' : c.border,
+        },
+        isFirst && styles.groupSegmentFirst,
+        isLast && styles.groupSegmentLast,
+      ]}
+    >
+      <Text style={[styles.dayLabel, { color: c.textSecondary }]}>{title}</Text>
+      {data.map((row, i) => (
+        <View key={row.key}>
+          {i > 0 && <View style={[styles.rowDivider, { backgroundColor: c.border }]} />}
+          {row.kind === 'bill' ? (
+            <BillCard bill={row.bill} />
+          ) : (
+            <RecurringPaymentCard row={row.payment} />
+          )}
+        </View>
+      ))}
     </View>
   );
 }
@@ -366,6 +373,7 @@ export default function BillsScreen(): React.JSX.Element {
     setSearch('');
   }, []);
 
+  const sectionCount = billSections.length;
   const renderGroup = useCallback(
     ({
       item,
@@ -374,11 +382,14 @@ export default function BillsScreen(): React.JSX.Element {
       item: { title: string; data: BillRow[] };
       index: number;
     }): React.JSX.Element => (
-      <AnimatedListItem index={index}>
-        <DateGroup title={item.title} data={item.data} />
-      </AnimatedListItem>
+      <DateGroup
+        title={item.title}
+        data={item.data}
+        isFirst={index === 0}
+        isLast={index === sectionCount - 1}
+      />
     ),
-    []
+    [sectionCount]
   );
 
   if (isLoading) {
@@ -974,24 +985,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: ms(4),
   },
   eyebrow: { fontSize: mf(11), ...font.bold, letterSpacing: 0.8, textTransform: 'uppercase' },
-  // ── Date group (one soft card per day)
-  dateGroup: { paddingTop: ms(16) },
-  dateLabel: { paddingHorizontal: ms(20), marginBottom: ms(8) },
-  sectionDateText: {
+  // ── Day segments of one continuous card
+  groupSegment: {
+    marginHorizontal: ms(16),
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    overflow: 'hidden',
+  },
+  groupSegmentFirst: {
+    marginTop: ms(4),
+    borderTopWidth: 1,
+    borderTopLeftRadius: ms(16),
+    borderTopRightRadius: ms(16),
+  },
+  groupSegmentLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: ms(16),
+    borderBottomRightRadius: ms(16),
+  },
+  dayLabel: {
+    paddingHorizontal: ms(16),
+    paddingTop: ms(14),
+    paddingBottom: ms(4),
     fontSize: mf(12.5),
     ...font.semibold,
     letterSpacing: 0.2,
-  },
-  groupCard: {
-    marginHorizontal: ms(16),
-    borderRadius: ms(16),
-    borderWidth: 1,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: ms(2) },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
   },
   // Hairline between rows, inset past the icon so it aligns under the text.
   rowDivider: { height: StyleSheet.hairlineWidth, marginStart: ms(68) },
