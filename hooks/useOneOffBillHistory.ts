@@ -60,8 +60,8 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
   // Only surface category chips for categories that actually appear in the
   // current one-off bills, kept in the canonical CATEGORIES order.
   const presentCategories = useMemo((): string[] => {
-    const seen = new Set(bills.map((b) => (b.category ?? '').toLowerCase()).filter(Boolean));
-    return CATEGORIES.filter((cat) => seen.has(cat.toLowerCase())).map((cat) => cat.toLowerCase());
+    const seen = new Set(bills.map((b): string => (b.category ?? '').toLowerCase()).filter(Boolean));
+    return CATEGORIES.filter((cat): boolean => seen.has(cat.toLowerCase())).map((cat): string => cat.toLowerCase());
   }, [bills]);
 
   // If the selected category disappears (last bill of that kind deleted/settled
@@ -73,11 +73,19 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
   const billSections = useMemo((): BillSection[] => {
     // Merge one-off bills and logged recurring payments into one date-grouped history.
     const billMeta = new Map(
-      householdBills.map((b) => [b.id, { name: b.name, icon: b.icon, assignedTo: b.assignedTo }])
+      householdBills.map((b): [string, { name: string; icon: string; assignedTo: string }] => [
+        b.id,
+        { name: b.name, icon: b.icon, assignedTo: b.assignedTo },
+      ])
     );
     const rows: BillRow[] = [
-      ...bills.map((bill) => ({ kind: 'bill' as const, key: bill.id, date: bill.date, bill })),
-      ...payments.map((p) => {
+      ...bills.map((bill): Extract<BillRow, { kind: 'bill' }> => ({
+        kind: 'bill' as const,
+        key: bill.id,
+        date: bill.date,
+        bill,
+      })),
+      ...payments.map((p): Extract<BillRow, { kind: 'payment' }> => {
         const meta = billMeta.get(p.billId);
         return {
           kind: 'payment' as const,
@@ -93,7 +101,7 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
           },
         };
       }),
-    ].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+    ].sort((a, b): number => (b.date ?? '').localeCompare(a.date ?? ''));
 
     const q = search.trim().toLowerCase();
     const filtered = rows.filter((row): boolean => {
@@ -116,7 +124,7 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
       if (!groups[key]) groups[key] = [];
       groups[key].push(row);
     }
-    return Object.entries(groups).map(([date, data]) => ({
+    return Object.entries(groups).map(([date, data]): BillSection => ({
       title: formatDateLabel(date, i18n.language, t),
       data,
     }));
