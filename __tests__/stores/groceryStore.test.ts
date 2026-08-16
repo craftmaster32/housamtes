@@ -432,6 +432,17 @@ describe('setBoughtCount', () => {
 
     expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
   });
+
+  it('ignores junk values (NaN, fractional, negative) without changing state', async () => {
+    seedItems({ quantity: '3', boughtCount: 1, isChecked: false });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().setBoughtCount('item-1', NaN);
+    await useGroceryStore.getState().setBoughtCount('item-1', 1.5);
+    await useGroceryStore.getState().setBoughtCount('item-1', -2);
+
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(1);
+  });
 });
 
 // ── Realtime: INSERT handler ───────────────────────────────────────────────────

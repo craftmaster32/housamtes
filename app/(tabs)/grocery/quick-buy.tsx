@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
+import { Alert } from '@lib/alert';
 import { useAuthStore } from '@stores/authStore';
 import { useGroceryStore } from '@stores/groceryStore';
 import { ShoppingCheckout, type CheckoutItem } from '@components/grocery/ShoppingCheckout';
@@ -53,12 +54,17 @@ export default function QuickBuyScreen(): React.JSX.Element {
 
   const handleSaved = useCallback(
     async (boughtItemIds: string[]): Promise<void> => {
-      // Finish removing the items you ticked as bought before leaving, so the
-      // navigation can't unmount mid-delete and leave them on the list.
-      await Promise.allSettled(boughtItemIds.map((id) => deleteItem(id)));
+      // The expense is already saved. Finish removing the items you ticked as
+      // bought before leaving, so navigation can't unmount mid-delete. If any
+      // removal fails, tell the shopper the item is still on the list (the
+      // expense itself is fine) before returning to the list.
+      const results = await Promise.allSettled(boughtItemIds.map((id) => deleteItem(id)));
+      if (results.some((r) => r.status === 'rejected')) {
+        Alert.alert(t('grocery.shop.default_title'), t('grocery.shop.cleanup_failed'));
+      }
       router.replace('/(tabs)/grocery');
     },
-    [deleteItem]
+    [deleteItem, t]
   );
 
   return (
@@ -71,8 +77,10 @@ export default function QuickBuyScreen(): React.JSX.Element {
           <Pressable
             onPress={handleBack}
             style={styles.iconBtn}
+            accessible
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
+            accessibilityState={{ disabled: false }}
           >
             <Ionicons name="chevron-back" size={22} color={C.primary} />
           </Pressable>

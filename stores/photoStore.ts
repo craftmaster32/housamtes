@@ -289,7 +289,11 @@ export const usePhotoStore = create<PhotoStore>()(
         const blob = await response.blob();
         if (blob.size > 20 * 1024 * 1024)
           throw new Error('Receipt must be under 20 MB. Please choose a smaller image.');
-        const path = `${houseId}/${Date.now()}_${fileName}`;
+        // The file name becomes part of the storage object key — strip anything
+        // that isn't a safe filename character so a device-supplied name can't
+        // shape the path.
+        const safeName = (fileName || 'receipt.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${houseId}/${Date.now()}_${safeName}`;
 
         const { error: uploadError } = await supabase.storage
           .from(BUCKET)

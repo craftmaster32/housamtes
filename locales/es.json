@@ -962,7 +962,8 @@
       "on_list_hint": "Toca lo que compraste para quitarlo de la lista.",
       "cleanup_failed": "Se guardó el gasto, pero no se pudo terminar de actualizar la lista. Revisa tu lista de la compra.",
       "camera_failed": "No se pudo abrir la cámara o las fotos. Inténtalo de nuevo.",
-      "mark_all_bought": "Marcar todo: {{name}}"
+      "mark_all_bought": "Marcar todo: {{name}}",
+      "add_hint": "Lo añade a la lista compartida"
     }
   },
   "chores": {

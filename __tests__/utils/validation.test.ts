@@ -118,12 +118,17 @@ describe('parseAndValidateAddBill — split calculation', () => {
   });
 
   it('percentage split converts to amounts and the last person absorbs rounding', () => {
+    // 10 split 33.33 / 33.33 / 33.34 — fractional cents, last person carries the
+    // rounding so the shares still sum to the exact total.
     const p = parseAndValidateAddBill({
       ...base,
+      amount: '10',
       splitType: 'percentage',
-      percentAmounts: { u1: '50', u2: '25', u3: '25' },
+      percentAmounts: { u1: '33.33', u2: '33.33', u3: '33.34' },
     });
-    expect(p.splitAmounts).toEqual({ u1: 30, u2: 15, u3: 15 });
+    expect(p.splitAmounts).toEqual({ u1: 3.33, u2: 3.33, u3: 3.34 });
+    const sum = Object.values(p.splitAmounts ?? {}).reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(10, 10);
   });
 
   it('throws when percentages do not add up to 100', () => {
@@ -136,8 +141,14 @@ describe('parseAndValidateAddBill — split calculation', () => {
     ).toThrow(z.ZodError);
   });
 
-  it('throws on a zero or missing amount', () => {
+  it('throws on a zero amount', () => {
     expect(() => parseAndValidateAddBill({ ...base, amount: '0', splitType: 'equal' })).toThrow(
+      z.ZodError
+    );
+  });
+
+  it('throws on an empty amount', () => {
+    expect(() => parseAndValidateAddBill({ ...base, amount: '', splitType: 'equal' })).toThrow(
       z.ZodError
     );
   });

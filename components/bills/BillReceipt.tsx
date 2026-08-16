@@ -46,6 +46,12 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
 
   const openZoom = useCallback((): void => setZoomed(true), []);
   const closeZoom = useCallback((): void => setZoomed(false), []);
+  // The signed URL resolved, but the image itself couldn't be fetched/decoded —
+  // show the same "unavailable" fallback instead of a broken image.
+  const handleImageError = useCallback((): void => {
+    setFailed(true);
+    setZoomed(false);
+  }, []);
 
   return (
     <View style={styles.card}>
@@ -55,13 +61,16 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
       ) : signedUrl ? (
         <Pressable
           onPress={openZoom}
+          accessible
           accessibilityRole="imagebutton"
           accessibilityLabel={t('grocery.shop.view_receipt')}
+          accessibilityState={{ expanded: zoomed }}
         >
           <Image
             source={{ uri: signedUrl }}
             style={styles.thumb}
             contentFit="cover"
+            onError={handleImageError}
             accessibilityLabel={t('grocery.shop.receipt')}
           />
           <View style={styles.expandBadge}>
@@ -79,6 +88,7 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
           <Pressable
             onPress={closeZoom}
             style={styles.zoomClose}
+            accessible
             accessibilityRole="button"
             accessibilityLabel={t('common.close')}
           >
@@ -89,6 +99,7 @@ export const BillReceipt: React.FC<BillReceiptProps> = ({ receiptUrl }) => {
               source={{ uri: signedUrl }}
               style={styles.zoomImage}
               contentFit="contain"
+              onError={handleImageError}
               accessibilityLabel={t('grocery.shop.receipt')}
             />
           )}

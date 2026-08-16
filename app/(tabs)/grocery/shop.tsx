@@ -73,9 +73,12 @@ const ShopItemRow = memo(function ShopItemRow({
     <Pressable
       style={[styles.row, done && styles.rowBought]}
       onPress={hasCount ? undefined : (): void => onToggle(item.id)}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: done }}
-      accessibilityLabel={item.name}
+      // For counted rows the row itself isn't tappable (the circle and stepper
+      // are), so don't expose it as an actionable checkbox to assistive tech.
+      accessible={!hasCount}
+      accessibilityRole={hasCount ? undefined : 'checkbox'}
+      accessibilityState={hasCount ? undefined : { checked: done }}
+      accessibilityLabel={hasCount ? undefined : item.name}
     >
       {hasCount ? (
         // Tapping the circle jumps the whole quantity to bought (or clears it),
@@ -83,6 +86,7 @@ const ShopItemRow = memo(function ShopItemRow({
         <Pressable
           onPress={(): void => onSetCount(item.id, done ? 0 : qtyNum)}
           hitSlop={8}
+          accessible
           accessibilityRole="checkbox"
           accessibilityState={{ checked: done }}
           accessibilityLabel={t('grocery.shop.mark_all_bought', { name: item.name })}
@@ -300,8 +304,10 @@ export default function ShopScreen(): React.JSX.Element {
           <Pressable
             onPress={handleLeave}
             style={styles.iconBtn}
+            accessible
             accessibilityRole="button"
             accessibilityLabel={t('common.back')}
+            accessibilityState={{ disabled: false }}
           >
             <Ionicons name="chevron-back" size={22} color={C.primary} />
           </Pressable>
@@ -352,10 +358,12 @@ export default function ShopScreen(): React.JSX.Element {
                   returnKeyType="done"
                   onSubmitEditing={() => void handleAddItem()}
                   accessibilityLabel={t('grocery.shop.add_placeholder')}
+                  accessibilityHint={t('grocery.shop.add_hint')}
                 />
                 <Pressable
                   onPress={() => void handleAddItem()}
                   style={styles.addBtn}
+                  accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('grocery.add')}
                 >
@@ -372,8 +380,10 @@ export default function ShopScreen(): React.JSX.Element {
           <Pressable
             style={styles.primaryBtn}
             onPress={() => setShowCheckout(true)}
+            accessible
             accessibilityRole="button"
             accessibilityLabel={t('grocery.shop.finish')}
+            accessibilityState={{ disabled: false }}
           >
             <Ionicons name="receipt-outline" size={18} color="#fff" />
             <Text style={styles.primaryBtnText}>{t('grocery.shop.finish')}</Text>
@@ -381,8 +391,10 @@ export default function ShopScreen(): React.JSX.Element {
           <Pressable
             style={styles.ghostBtn}
             onPress={handleEndNoExpense}
+            accessible
             accessibilityRole="button"
             accessibilityLabel={t('grocery.shop.leave_no_expense')}
+            accessibilityState={{ disabled: false }}
           >
             <Text style={styles.ghostBtnText}>{t('grocery.shop.leave_no_expense')}</Text>
           </Pressable>
@@ -404,6 +416,7 @@ export default function ShopScreen(): React.JSX.Element {
               <Pressable
                 onPress={() => setShowCheckout(false)}
                 style={styles.iconBtn}
+                accessible
                 accessibilityRole="button"
                 accessibilityLabel={t('common.cancel')}
               >

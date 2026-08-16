@@ -622,6 +622,9 @@ export const useGroceryStore = create<GroceryStore>()(
       // at once instead of tapping + repeatedly. Reuses the same debounced write
       // and optimistic guards as increment/decrement.
       setBoughtCount: async (id, count): Promise<void> => {
+        // Ignore junk values (NaN / Infinity / fractional / negative) — the
+        // count is a whole number of units bought.
+        if (!Number.isInteger(count) || count < 0) return;
         const item = get().items.find((i) => i.id === id);
         if (!item) return;
         const max = parseInt(item.quantity, 10);

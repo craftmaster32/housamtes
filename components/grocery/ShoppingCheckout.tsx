@@ -301,6 +301,7 @@ export const ShoppingCheckout: React.FC<ShoppingCheckoutProps> = ({
             placeholderTextColor={C.textTertiary}
             style={styles.amountInput}
             accessibilityLabel={t('grocery.shop.total_spent')}
+            accessibilityHint={t('bills.enter_valid_amount')}
           />
         </View>
       </View>
