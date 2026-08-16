@@ -624,6 +624,7 @@
     "everyone_settled": "Everyone is settled up!",
     "page_subtitle": "Expenses & balances",
     "search_placeholder": "Search expenses",
+    "search_hint": "Filters expenses by title",
     "filter_all": "All",
     "no_results": "No matching expenses",
     "no_results_hint": "Try a different search or category",

@@ -624,6 +624,7 @@
     "everyone_settled": "¡Todo liquidado!",
     "page_subtitle": "Gastos y balances",
     "search_placeholder": "Buscar gastos",
+    "search_hint": "Filtra gastos por nombre",
     "filter_all": "Todos",
     "no_results": "Sin gastos coincidentes",
     "no_results_hint": "Prueba otra búsqueda o categoría",
