@@ -620,6 +620,7 @@
     "pct_for_hint": "הזן את חלק האחוזים של אדם זה",
     "loading_bills": "טוען חשבונות…",
     "paid_by_each": "שולם ע״י {{name}} · {{amount}} לכל אחד",
+    "paid_by_name": "שולם ע״י {{name}}",
     "settled_badge": "✓ מקוזז",
     "everyone_settled": "הכל מקוזז!",
     "page_subtitle": "הוצאות ויתרות",

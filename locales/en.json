@@ -620,6 +620,7 @@
     "pct_for_hint": "Enter this person's percentage share",
     "loading_bills": "Loading bills…",
     "paid_by_each": "Paid by {{name}} · {{amount}} each",
+    "paid_by_name": "Paid by {{name}}",
     "settled_badge": "✓ Settled",
     "everyone_settled": "Everyone is settled up!",
     "page_subtitle": "Expenses & balances",

@@ -85,7 +85,6 @@ function BillCard({
   const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
-  const share = bill.amount / Math.max(bill.splitBetween.length, 1);
   const icon = getCategoryIcon(bill.category ?? '');
   return (
     <Pressable
@@ -111,10 +110,7 @@ function BillCard({
           {bill.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {t('bills.paid_by_each', {
-            name: memberName(bill.paidBy),
-            amount: formatFull(share, currencyCode),
-          })}
+          {t('bills.paid_by_name', { name: memberName(bill.paidBy) })}
         </Text>
       </View>
       <View style={styles.billRight}>
@@ -146,7 +142,6 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
   const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
-  const share = row.amount / Math.max(row.splitBetween.length, 1);
   return (
     <Pressable
       style={({ pressed }) => [styles.billRow, pressed && { backgroundColor: c.surfaceSecondary }]}
@@ -162,10 +157,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
           {row.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {t('bills.paid_by_each', {
-            name: memberName(row.paidBy),
-            amount: formatFull(share, currencyCode),
-          })}
+          {t('bills.paid_by_name', { name: memberName(row.paidBy) })}
         </Text>
       </View>
       <View style={styles.billRight}>
