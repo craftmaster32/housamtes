@@ -990,11 +990,18 @@ const styles = StyleSheet.create({
     marginHorizontal: ms(16),
     borderLeftWidth: 1,
     borderRightWidth: 1,
+    // Full-width top line marks a new day section; a soft shadow lifts the
+    // whole card off the background so days read as distinct sections.
+    borderTopWidth: 1,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: ms(2) },
+    shadowOpacity: 0.06,
+    shadowRadius: 9,
+    elevation: 2,
   },
   groupSegmentFirst: {
     marginTop: ms(4),
-    borderTopWidth: 1,
     borderTopLeftRadius: ms(16),
     borderTopRightRadius: ms(16),
   },
@@ -1002,14 +1009,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomLeftRadius: ms(16),
     borderBottomRightRadius: ms(16),
+    marginBottom: ms(2),
   },
   dayLabel: {
     paddingHorizontal: ms(16),
     paddingTop: ms(14),
     paddingBottom: ms(4),
-    fontSize: mf(12.5),
-    ...font.semibold,
-    letterSpacing: 0.2,
+    fontSize: mf(13),
+    ...font.bold,
+    letterSpacing: 0.3,
   },
   // Hairline between rows, inset past the icon so it aligns under the text.
   rowDivider: { height: StyleSheet.hairlineWidth, marginStart: ms(68) },
