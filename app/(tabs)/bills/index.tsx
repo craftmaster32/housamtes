@@ -118,8 +118,13 @@ function BillCard({
       onPress={() => router.push(`/(tabs)/bills/${bill.id}`)}
       accessibilityRole="button"
     >
-      <View style={[styles.billIconWrap, { backgroundColor: catColor + (isDark ? '26' : '1A') }]}>
-        <Ionicons name={icon} size={18} color={catColor} />
+      <View
+        style={[
+          styles.billIconWrap,
+          { backgroundColor: catColor + (isDark ? '26' : '1A'), borderColor: catColor + '2E' },
+        ]}
+      >
+        <Ionicons name={icon} size={19} color={catColor} />
       </View>
       <View style={styles.billInfo}>
         <Text
@@ -165,7 +170,12 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
       accessibilityRole="button"
       accessibilityLabel={row.title}
     >
-      <View style={[styles.billIconWrap, { backgroundColor: c.primary + '12' }]}>
+      <View
+        style={[
+          styles.billIconWrap,
+          { backgroundColor: c.primary + '14', borderColor: c.primary + '2E' },
+        ]}
+      >
         <Ionicons name={resolveBillIcon(row.icon)} size={20} color={c.primary} />
       </View>
       <View style={styles.billInfo}>
@@ -995,9 +1005,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: ms(2) },
-    shadowOpacity: 0.06,
-    shadowRadius: 9,
+    shadowOffset: { width: 0, height: ms(5) },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
     elevation: 2,
   },
   groupSegmentFirst: {
@@ -1020,20 +1030,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   // Short centered hairline between rows within the same day.
-  rowDivider: { height: StyleSheet.hairlineWidth, width: '50%', alignSelf: 'center' },
+  rowDivider: { height: StyleSheet.hairlineWidth, width: '42%', alignSelf: 'center' },
 
   // ── Bill row
   billRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ms(12),
-    paddingHorizontal: ms(14),
-    paddingVertical: ms(14),
+    gap: ms(13),
+    paddingHorizontal: ms(16),
+    paddingVertical: ms(15),
   },
   billIconWrap: {
-    width: ms(42),
-    height: ms(42),
+    width: ms(44),
+    height: ms(44),
     borderRadius: ms(14),
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
@@ -1049,7 +1060,12 @@ const styles = StyleSheet.create({
   },
   settledBadgeText: { fontSize: mf(10), ...font.semibold },
   billRight: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
-  billAmount: { fontSize: mf(15.5), ...font.bold, letterSpacing: -0.2 },
+  billAmount: {
+    fontSize: mf(15.5),
+    ...font.bold,
+    letterSpacing: -0.3,
+    fontVariant: ['tabular-nums'],
+  },
 
   // ── Empty state
   emptyWrap: {
