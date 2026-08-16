@@ -41,7 +41,6 @@ import { Pill } from '@components/ui';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
-import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import {
@@ -99,8 +98,6 @@ function BillCard({
 }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
   const isDark = c === darkColors;
@@ -146,11 +143,6 @@ function BillCard({
         >
           {formatFull(bill.amount, currencyCode)}
         </Text>
-        <Ionicons
-          name={rtl ? 'chevron-back' : 'chevron-forward'}
-          size={14}
-          color={c.textSecondary}
-        />
       </View>
     </Pressable>
   );
@@ -160,8 +152,6 @@ function BillCard({
 function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
   const isDark = c === darkColors;
@@ -193,11 +183,6 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
         <Text style={[styles.billAmount, { color: c.textPrimary }]}>
           {formatFull(row.amount, currencyCode)}
         </Text>
-        <Ionicons
-          name={rtl ? 'chevron-back' : 'chevron-forward'}
-          size={14}
-          color={c.textSecondary}
-        />
       </View>
     </Pressable>
   );
