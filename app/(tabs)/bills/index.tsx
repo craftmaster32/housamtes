@@ -240,6 +240,7 @@ const CategoryChip = memo(function CategoryChip({
   return (
     <Pressable
       onPress={handlePress}
+      accessible={true}
       style={[
         styles.chip,
         {
