@@ -35,7 +35,7 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { useBadgeStore } from '@stores/badgeStore';
-import { useThemedColors } from '@constants/colors';
+import { useThemedColors, darkColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { Money } from '@components/shared/Money';
 import { Pill } from '@components/ui';
@@ -85,10 +85,18 @@ function BillCard({
   const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
+  const isDark = c === darkColors;
   const icon = getCategoryIcon(bill.category ?? '');
+  const payer = memberName(bill.paidBy).split(' ')[0];
+  const catLabel = bill.category
+    ? t(`bills.cat_${bill.category.toLowerCase()}`, { defaultValue: bill.category })
+    : '';
   return (
     <Pressable
-      style={({ pressed }) => [styles.billRow, pressed && { backgroundColor: c.surfaceSecondary }]}
+      style={({ pressed }) => [
+        styles.billRow,
+        pressed && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surfaceSecondary },
+      ]}
       onPress={() => router.push(`/(tabs)/bills/${bill.id}`)}
       accessibilityRole="button"
     >
@@ -110,7 +118,7 @@ function BillCard({
           {bill.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {t('bills.paid_by_name', { name: memberName(bill.paidBy) })}
+          {catLabel ? `${catLabel} · ${payer}` : t('bills.paid_by_name', { name: payer })}
         </Text>
       </View>
       <View style={styles.billRight}>
@@ -142,9 +150,13 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
   const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
+  const isDark = c === darkColors;
   return (
     <Pressable
-      style={({ pressed }) => [styles.billRow, pressed && { backgroundColor: c.surfaceSecondary }]}
+      style={({ pressed }) => [
+        styles.billRow,
+        pressed && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surfaceSecondary },
+      ]}
       onPress={() => router.push('/(tabs)/bills?openRecurring=1')}
       accessibilityRole="button"
       accessibilityLabel={row.title}
@@ -157,7 +169,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
           {row.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {t('bills.paid_by_name', { name: memberName(row.paidBy) })}
+          {t('bills.paid_by_name', { name: memberName(row.paidBy).split(' ')[0] })}
         </Text>
       </View>
       <View style={styles.billRight}>
@@ -182,12 +194,23 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
 // unified list than one bordered box per row.
 function DateGroup({ title, data }: { title: string; data: BillRow[] }): React.JSX.Element {
   const c = useThemedColors();
+  const isDark = c === darkColors;
   return (
     <View style={styles.dateGroup}>
       <Text style={[styles.sectionDateText, styles.dateLabel, { color: c.textSecondary }]}>
         {title}
       </Text>
-      <View style={[styles.groupCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <View
+        style={[
+          styles.groupCard,
+          {
+            // Dark cards sit a step lighter than the near-black background with a
+            // crisper edge, so each day reads as its own surface.
+            backgroundColor: isDark ? c.surfaceSecondary : c.surface,
+            borderColor: isDark ? 'rgba(255,255,255,0.10)' : c.border,
+          },
+        ]}
+      >
         {data.map((row, i) => (
           <View key={row.key}>
             {i > 0 && <View style={[styles.rowDivider, { backgroundColor: c.border }]} />}
@@ -990,8 +1013,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   billInfo: { flex: 1 },
-  billTitle: { fontSize: mf(15), ...font.semibold },
-  billMeta: { fontSize: mf(12), ...font.regular, marginTop: ms(2) },
+  billTitle: { fontSize: mf(15.5), ...font.semibold, letterSpacing: -0.2 },
+  billMeta: { fontSize: mf(12.5), ...font.regular, marginTop: ms(3) },
   settledBadge: {
     paddingHorizontal: ms(7),
     paddingVertical: ms(3),
@@ -1000,7 +1023,7 @@ const styles = StyleSheet.create({
   },
   settledBadgeText: { fontSize: mf(10), ...font.semibold },
   billRight: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
-  billAmount: { fontSize: mf(16), ...font.bold },
+  billAmount: { fontSize: mf(15.5), ...font.bold, letterSpacing: -0.2 },
 
   // ── Empty state
   emptyWrap: {
