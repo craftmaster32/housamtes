@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
+  TextInput,
   useWindowDimensions,
   Platform,
 } from 'react-native';
@@ -22,6 +23,7 @@ import {
   calculateAllNetBalances,
   calculateSimplifiedBalancesForUser,
   settleDebts,
+  CATEGORIES,
   type Bill,
 } from '@stores/billsStore';
 import {
@@ -267,6 +269,10 @@ export default function BillsScreen(): React.JSX.Element {
   const currencyCode = useSettingsStore((s) => s.currencyCode);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
+  // Search + category filtering for the one-off history (mirrors the add form's
+  // category chips so the same taxonomy drives both entry and browsing).
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState<string>('all');
   const { openRecurring } = useLocalSearchParams<{ openRecurring?: string }>();
   useEffect(() => {
     if (openRecurring === '1') setFilter('recurring');
@@ -314,6 +320,19 @@ export default function BillsScreen(): React.JSX.Element {
     [housemates]
   );
 
+  // Only surface category chips for categories that actually appear in the
+  // current one-off bills, kept in the canonical CATEGORIES order.
+  const presentCategories = useMemo(() => {
+    const seen = new Set(bills.map((b) => (b.category ?? '').toLowerCase()).filter(Boolean));
+    return CATEGORIES.filter((cat) => seen.has(cat.toLowerCase())).map((cat) => cat.toLowerCase());
+  }, [bills]);
+
+  // If the selected category disappears (last bill of that kind deleted/settled
+  // away), fall back to "All" so the list can't get stuck showing nothing.
+  useEffect(() => {
+    if (category !== 'all' && !presentCategories.includes(category)) setCategory('all');
+  }, [presentCategories, category]);
+
   const billSections = useMemo(() => {
     // Merge one-off bills and logged recurring payments into one date-grouped history.
     const billMeta = new Map(
@@ -339,8 +358,23 @@ export default function BillsScreen(): React.JSX.Element {
       }),
     ].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
 
+    const q = search.trim().toLowerCase();
+    const filtered = rows.filter((row) => {
+      // Category chips filter the categorised one-off bills; logged recurring
+      // payments have no category, so a specific chip hides them.
+      if (category !== 'all') {
+        if (row.kind !== 'bill') return false;
+        if ((row.bill.category ?? '').toLowerCase() !== category) return false;
+      }
+      if (q) {
+        const title = row.kind === 'bill' ? row.bill.title : row.payment.title;
+        if (!title.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+
     const groups: Record<string, BillRow[]> = {};
-    for (const row of rows) {
+    for (const row of filtered) {
       const key = row.date || 'Unknown';
       if (!groups[key]) groups[key] = [];
       groups[key].push(row);
@@ -349,7 +383,7 @@ export default function BillsScreen(): React.JSX.Element {
       title: formatDateLabel(date, i18n.language, t),
       data,
     }));
-  }, [bills, payments, householdBills, memberIds, i18n.language, t]);
+  }, [bills, payments, householdBills, memberIds, i18n.language, t, search, category]);
 
   const renderBill = useCallback(
     ({ item, index }: { item: BillRow; index: number }): React.JSX.Element => (
@@ -621,21 +655,87 @@ export default function BillsScreen(): React.JSX.Element {
         </View>
       )}
 
-      {/* One-off list eyebrow */}
+      {/* One-off: search + category chips + list eyebrow */}
       {filter === 'one-off' && bills.length + payments.length > 0 && (
-        <View style={styles.listCountRow}>
-          <Text style={[styles.eyebrow, { color: c.textSecondary }]}>
-            {t('bills.all_expenses')}
-          </Text>
+        <View style={styles.oneOffControls}>
           <View
             style={[
-              styles.countPill,
+              styles.searchBar,
               { backgroundColor: c.surfaceSecondary, borderColor: c.border },
             ]}
           >
-            <Text style={[styles.countPillText, { color: c.textSecondary }]}>
-              {bills.length + payments.length}
+            <Ionicons name="search" size={17} color={c.textSecondary} />
+            <TextInput
+              style={[styles.searchInput, { color: c.textPrimary }]}
+              value={search}
+              onChangeText={setSearch}
+              placeholder={t('bills.search_placeholder')}
+              placeholderTextColor={c.textSecondary}
+              returnKeyType="search"
+              autoCorrect={false}
+              accessibilityLabel={t('bills.search_placeholder')}
+            />
+            {search.length > 0 && (
+              <Pressable
+                onPress={() => setSearch('')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.clear')}
+              >
+                <Ionicons name="close-circle" size={17} color={c.textSecondary} />
+              </Pressable>
+            )}
+          </View>
+
+          {presentCategories.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipScroll}
+            >
+              {['all', ...presentCategories].map((key) => {
+                const selected = category === key;
+                const label = key === 'all' ? t('bills.filter_all') : t(`bills.cat_${key}`);
+                const icon = key === 'all' ? 'apps-outline' : getCategoryIcon(key);
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => setCategory(key)}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: selected ? c.primary : c.surface,
+                        borderColor: selected ? c.primary : c.border,
+                      },
+                    ]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={label}
+                  >
+                    <Ionicons name={icon} size={14} color={selected ? '#fff' : c.textSecondary} />
+                    <Text style={[styles.chipText, { color: selected ? '#fff' : c.textSecondary }]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          <View style={styles.listCountRow}>
+            <Text style={[styles.eyebrow, { color: c.textSecondary }]}>
+              {t('bills.all_expenses')}
             </Text>
+            <View
+              style={[
+                styles.countPill,
+                { backgroundColor: c.surfaceSecondary, borderColor: c.border },
+              ]}
+            >
+              <Text style={[styles.countPillText, { color: c.textSecondary }]}>
+                {bills.length + payments.length}
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -680,11 +780,19 @@ export default function BillsScreen(): React.JSX.Element {
         ItemSeparatorComponent={() => <View style={{ height: ms(8) }} />}
         SectionSeparatorComponent={() => <View style={{ height: ms(4) }} />}
         ListEmptyComponent={
-          <EmptyState
-            icon="receipt-outline"
-            title={t('bills.no_expenses_yet')}
-            message={t('bills.no_expenses_hint')}
-          />
+          bills.length + payments.length > 0 ? (
+            <EmptyState
+              icon="search-outline"
+              title={t('bills.no_results')}
+              message={t('bills.no_results_hint')}
+            />
+          ) : (
+            <EmptyState
+              icon="receipt-outline"
+              title={t('bills.no_expenses_yet')}
+              message={t('bills.no_expenses_hint')}
+            />
+          )
         }
       />
     </SafeAreaView>
@@ -886,6 +994,36 @@ const styles = StyleSheet.create({
 
   householdWrap: { minHeight: ms(200) },
 
+  // ── One-off search + category chips
+  oneOffControls: { gap: ms(12) },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(8),
+    paddingHorizontal: ms(14),
+    height: ms(46),
+    borderRadius: ms(14),
+    borderWidth: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: mf(14),
+    ...font.regular,
+    paddingVertical: 0,
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
+  },
+  chipScroll: { gap: ms(8), paddingVertical: ms(1), paddingHorizontal: ms(1) },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(6),
+    paddingHorizontal: ms(13),
+    height: ms(36),
+    borderRadius: 9999,
+    borderWidth: 1,
+  },
+  chipText: { fontSize: mf(13), ...font.semibold },
+
   // ── One-off list header
   listCountRow: {
     flexDirection: 'row',
@@ -919,20 +1057,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: ms(12),
     paddingHorizontal: ms(14),
-    paddingVertical: ms(14),
-    borderRadius: ms(14),
+    paddingVertical: ms(15),
+    borderRadius: ms(16),
     borderWidth: 1,
     marginHorizontal: ms(16),
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: ms(1) },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: ms(2) },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
     elevation: 1,
   },
   billIconWrap: {
     width: ms(42),
     height: ms(42),
-    borderRadius: ms(12),
+    borderRadius: ms(14),
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
