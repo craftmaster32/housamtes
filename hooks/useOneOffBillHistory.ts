@@ -22,6 +22,10 @@ export interface BillSection {
   data: BillRow[];
 }
 
+/**
+ * Human-friendly label for a `YYYY-MM-DD` date: "Today" / "Yesterday" for the
+ * two most recent days, otherwise a short localized weekday-month-day string.
+ */
 function formatDateLabel(dateStr: string, locale: string, t: (key: string) => string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return t('common.unknown');
   const appLocale = locale === 'he' ? 'he-IL' : locale === 'es' ? 'es-ES' : 'en-GB';
@@ -47,6 +51,13 @@ interface UseOneOffBillHistoryResult {
   billSections: BillSection[];
 }
 
+/**
+ * Builds the one-off expense history for the Bills screen: merges bills and
+ * logged recurring payments, derives the categories currently in use, applies
+ * the search text and selected-category filters, and groups the result into
+ * date-labeled sections. Owns the selected-category state and resets it to
+ * "all" when the active category no longer has any expenses.
+ */
 export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult {
   const { t, i18n } = useTranslation();
   const bills = useBillsStore((s) => s.bills);
@@ -60,8 +71,12 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
   // Only surface category chips for categories that actually appear in the
   // current one-off bills, kept in the canonical CATEGORIES order.
   const presentCategories = useMemo((): string[] => {
-    const seen = new Set(bills.map((b): string => (b.category ?? '').toLowerCase()).filter(Boolean));
-    return CATEGORIES.filter((cat): boolean => seen.has(cat.toLowerCase())).map((cat): string => cat.toLowerCase());
+    const seen = new Set(
+      bills.map((b): string => (b.category ?? '').toLowerCase()).filter(Boolean)
+    );
+    return CATEGORIES.filter((cat): boolean => seen.has(cat.toLowerCase())).map((cat): string =>
+      cat.toLowerCase()
+    );
   }, [bills]);
 
   // If the selected category disappears (last bill of that kind deleted/settled
@@ -79,12 +94,14 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
       ])
     );
     const rows: BillRow[] = [
-      ...bills.map((bill): Extract<BillRow, { kind: 'bill' }> => ({
-        kind: 'bill' as const,
-        key: bill.id,
-        date: bill.date,
-        bill,
-      })),
+      ...bills.map(
+        (bill): Extract<BillRow, { kind: 'bill' }> => ({
+          kind: 'bill' as const,
+          key: bill.id,
+          date: bill.date,
+          bill,
+        })
+      ),
       ...payments.map((p): Extract<BillRow, { kind: 'payment' }> => {
         const meta = billMeta.get(p.billId);
         return {
@@ -124,10 +141,12 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
       if (!groups[key]) groups[key] = [];
       groups[key].push(row);
     }
-    return Object.entries(groups).map(([date, data]): BillSection => ({
-      title: formatDateLabel(date, i18n.language, t),
-      data,
-    }));
+    return Object.entries(groups).map(
+      ([date, data]): BillSection => ({
+        title: formatDateLabel(date, i18n.language, t),
+        data,
+      })
+    );
   }, [bills, payments, householdBills, memberIds, i18n.language, t, search, category]);
 
   return { category, setCategory, presentCategories, billSections };

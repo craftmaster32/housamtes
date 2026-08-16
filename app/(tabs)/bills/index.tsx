@@ -67,6 +67,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name
   phone: 'phone-portrait-outline',
   default: 'receipt-outline',
 };
+/** Ionicon name for a category, falling back to a generic receipt icon. */
 function getCategoryIcon(category: string): React.ComponentProps<typeof Ionicons>['name'] {
   return CATEGORY_ICONS[(category ?? '').toLowerCase()] ?? CATEGORY_ICONS.default;
 }
@@ -86,11 +87,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   internet: '#06B6D4',
   phone: '#6366F1',
 };
+/** Accent colour for a category's icon tile; returns `fallback` when unmapped. */
 function getCategoryColor(category: string, fallback: string): string {
   return CATEGORY_COLORS[(category ?? '').toLowerCase()] ?? fallback;
 }
 
 // ── Bill row card ─────────────────────────────────────────────────────────────
+/** A single one-off expense row: category-coloured tile, title, "category · payer", and total. */
 function BillCard({
   bill,
 }: {
@@ -154,6 +157,7 @@ function BillCard({
 }
 
 // ── Recurring payment row (shown in the one-off history) ────────────────────────
+/** A logged recurring-payment row shown inline within the one-off expense history. */
 function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
@@ -201,6 +205,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
 // ── Date group ────────────────────────────────────────────────────────────────
 // A day's expenses share one soft card, separated by hairlines — a calmer, more
 // unified list than one bordered box per row.
+/** One day's expenses rendered as a segment of the continuous card, with an inline day label. */
 function DateGroup({
   title,
   data,
@@ -244,6 +249,7 @@ function DateGroup({
 }
 
 // ── Settle avatar (small, on-gradient) ──────────────────────────────────────────
+/** Small circular avatar (photo or initial) used inside the settle-up transfer list. */
 function SettleAvatar({ name, uri }: { name: string; uri?: string }): React.JSX.Element {
   return (
     <View style={styles.settleAv}>
@@ -271,6 +277,7 @@ interface CategoryChipProps {
   setCategory: (cat: string) => void;
 }
 
+/** A single category filter chip (icon + label) in the horizontal chip row. */
 const CategoryChip = memo(function CategoryChip({
   chipKey,
   selected,
@@ -305,6 +312,11 @@ const CategoryChip = memo(function CategoryChip({
 });
 
 // ── Main screen ───────────────────────────────────────────────────────────────
+/**
+ * Bills tab. Shows the balance/settle-up hero, a one-off vs recurring filter,
+ * and — for one-off expenses — a search box, category chips, and the expense
+ * history grouped into day sections.
+ */
 export default function BillsScreen(): React.JSX.Element {
   const c = useThemedColors();
   const { t, i18n } = useTranslation();
