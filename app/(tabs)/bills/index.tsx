@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, memo } from 'react';
 import {
   View,
-  SectionList,
+  FlatList,
   ScrollView,
   StyleSheet,
   Pressable,
@@ -74,7 +74,11 @@ function getCategoryIcon(category: string): React.ComponentProps<typeof Ionicons
 }
 
 // ── Bill row card ─────────────────────────────────────────────────────────────
-function BillCard({ bill }: { bill: Extract<BillRow, { kind: 'bill' }>['bill'] }): React.JSX.Element {
+function BillCard({
+  bill,
+}: {
+  bill: Extract<BillRow, { kind: 'bill' }>['bill'];
+}): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
@@ -85,15 +89,7 @@ function BillCard({ bill }: { bill: Extract<BillRow, { kind: 'bill' }>['bill'] }
   const icon = getCategoryIcon(bill.category ?? '');
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.billCard,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.border,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
-          opacity: pressed ? 0.92 : 1,
-        },
-      ]}
+      style={({ pressed }) => [styles.billRow, pressed && { backgroundColor: c.surfaceSecondary }]}
       onPress={() => router.push(`/(tabs)/bills/${bill.id}`)}
       accessibilityRole="button"
     >
@@ -153,15 +149,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
   const share = row.amount / Math.max(row.splitBetween.length, 1);
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.billCard,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.border,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
-          opacity: pressed ? 0.92 : 1,
-        },
-      ]}
+      style={({ pressed }) => [styles.billRow, pressed && { backgroundColor: c.surfaceSecondary }]}
       onPress={() => router.push('/(tabs)/bills?openRecurring=1')}
       accessibilityRole="button"
       accessibilityLabel={row.title}
@@ -194,6 +182,32 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
         />
       </View>
     </Pressable>
+  );
+}
+
+// ── Date group ────────────────────────────────────────────────────────────────
+// A day's expenses share one soft card, separated by hairlines — a calmer, more
+// unified list than one bordered box per row.
+function DateGroup({ title, data }: { title: string; data: BillRow[] }): React.JSX.Element {
+  const c = useThemedColors();
+  return (
+    <View style={styles.dateGroup}>
+      <Text style={[styles.sectionDateText, styles.dateLabel, { color: c.textSecondary }]}>
+        {title}
+      </Text>
+      <View style={[styles.groupCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+        {data.map((row, i) => (
+          <View key={row.key}>
+            {i > 0 && <View style={[styles.rowDivider, { backgroundColor: c.border }]} />}
+            {row.kind === 'bill' ? (
+              <BillCard bill={row.bill} />
+            ) : (
+              <RecurringPaymentCard row={row.payment} />
+            )}
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -253,9 +267,7 @@ const CategoryChip = memo(function CategoryChip({
       accessibilityLabel={label}
     >
       <Ionicons name={icon} size={14} color={selected ? '#fff' : c.textSecondary} />
-      <Text style={[styles.chipText, { color: selected ? '#fff' : c.textSecondary }]}>
-        {label}
-      </Text>
+      <Text style={[styles.chipText, { color: selected ? '#fff' : c.textSecondary }]}>{label}</Text>
     </Pressable>
   );
 });
@@ -339,14 +351,16 @@ export default function BillsScreen(): React.JSX.Element {
     setSearch('');
   }, []);
 
-  const renderBill = useCallback(
-    ({ item, index }: { item: BillRow; index: number }): React.JSX.Element => (
+  const renderGroup = useCallback(
+    ({
+      item,
+      index,
+    }: {
+      item: { title: string; data: BillRow[] };
+      index: number;
+    }): React.JSX.Element => (
       <AnimatedListItem index={index}>
-        {item.kind === 'bill' ? (
-          <BillCard bill={item.bill} />
-        ) : (
-          <RecurringPaymentCard row={item.payment} />
-        )}
+        <DateGroup title={item.title} data={item.data} />
       </AnimatedListItem>
     ),
     []
@@ -424,11 +438,6 @@ export default function BillsScreen(): React.JSX.Element {
           >
             {t('bills.one_off_expenses')}
           </Text>
-          {bills.length > 0 && filter === 'one-off' && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{bills.length}</Text>
-            </View>
-          )}
         </Pressable>
         <Pressable
           style={({ pressed }) => [
@@ -700,24 +709,14 @@ export default function BillsScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       {topBar}
-      <SectionList<BillRow>
+      <FlatList
         style={styles.flex}
-        sections={billSections}
-        keyExtractor={(item) => item.key}
-        renderItem={renderBill}
+        data={billSections}
+        keyExtractor={(section) => section.title}
+        renderItem={renderGroup}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        stickySectionHeadersEnabled={false}
         ListHeaderComponent={ListHeader}
-        renderSectionHeader={({ section }) => (
-          <View style={styles.sectionDateHeader}>
-            <Text style={[styles.sectionDateText, { color: c.textSecondary }]}>
-              {section.title}
-            </Text>
-          </View>
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: ms(8) }} />}
-        SectionSeparatorComponent={() => <View style={{ height: ms(4) }} />}
         ListEmptyComponent={
           bills.length + payments.length > 0 ? (
             <EmptyState
@@ -923,13 +922,6 @@ const styles = StyleSheet.create({
   },
   filterTabText: { fontSize: mf(13), ...font.semibold },
   filterTabTextActive: { color: '#fff' },
-  filterBadge: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: ms(8),
-    paddingHorizontal: ms(6),
-    paddingVertical: ms(1),
-  },
-  filterBadgeText: { fontSize: mf(11), ...font.bold, color: '#fff' },
 
   householdWrap: { minHeight: ms(200) },
 
@@ -987,30 +979,35 @@ const styles = StyleSheet.create({
   },
   countPillText: { fontSize: mf(11), ...font.bold },
 
-  // ── Date section header
-  sectionDateHeader: { paddingHorizontal: ms(20), paddingTop: ms(12), paddingBottom: ms(4) },
+  // ── Date group (one soft card per day)
+  dateGroup: { paddingTop: ms(16) },
+  dateLabel: { paddingHorizontal: ms(20), marginBottom: ms(8) },
   sectionDateText: {
-    fontSize: mf(12),
-    ...font.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
+    fontSize: mf(12.5),
+    ...font.semibold,
+    letterSpacing: 0.2,
   },
+  groupCard: {
+    marginHorizontal: ms(16),
+    borderRadius: ms(16),
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: ms(2) },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  // Hairline between rows, inset past the icon so it aligns under the text.
+  rowDivider: { height: StyleSheet.hairlineWidth, marginStart: ms(68) },
 
-  // ── Bill row card
-  billCard: {
+  // ── Bill row
+  billRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: ms(12),
     paddingHorizontal: ms(14),
-    paddingVertical: ms(15),
-    borderRadius: ms(16),
-    borderWidth: 1,
-    marginHorizontal: ms(16),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: ms(2) },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 1,
+    paddingVertical: ms(14),
   },
   billIconWrap: {
     width: ms(42),
