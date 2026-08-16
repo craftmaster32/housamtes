@@ -381,12 +381,12 @@ const ItemRow = memo(function ItemRow({
             <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>
               {item.name}
             </Text>
-            {!!item.quantity && item.quantity !== '1' && (
+            {/* Counted items show their target via the 0/N counter, so no qty
+              badge here; non-counted items still show their quantity label. */}
+            {!hasCount && !!item.quantity && item.quantity !== '1' && (
               <View style={rowStyles.itemQty}>
                 <Text style={rowStyles.itemQtyText}>
-                  {hasCount
-                    ? `x${qtyNum}`
-                    : localizeQuantityForDisplay(item.quantity, language === 'he')}
+                  {localizeQuantityForDisplay(item.quantity, language === 'he')}
                 </Text>
               </View>
             )}
@@ -572,7 +572,6 @@ export default function GroceryScreen(): React.JSX.Element {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const leaveWarningShownRef = useRef(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
-  const [reminderListTarget, setReminderListTarget] = useState<GroceryList | null>(null);
   const [reminderDefaultLabel, setReminderDefaultLabel] = useState('');
   const {
     name: addedItemName,
@@ -935,30 +934,17 @@ export default function GroceryScreen(): React.JSX.Element {
   // ── Reminder handlers ───────────────────────────────────────────────────────
   const handleOpenGeneralReminder = useCallback((): void => {
     dismissAddedItemPrompt();
-    setReminderListTarget(null);
     setReminderDefaultLabel('');
     setShowReminderModal(true);
   }, [dismissAddedItemPrompt]);
 
-  const handleOpenListReminder = useCallback(
-    (list: GroceryList): void => {
-      dismissAddedItemPrompt();
-      setReminderListTarget(list);
-      setReminderDefaultLabel(list.name);
-      setShowReminderModal(true);
-    },
-    [dismissAddedItemPrompt]
-  );
-
   const handleOpenItemReminder = useCallback((name: string): void => {
-    setReminderListTarget(null);
     setReminderDefaultLabel(name);
     setShowReminderModal(true);
   }, []);
 
   const handleCloseReminderModal = useCallback((): void => {
     setShowReminderModal(false);
-    setReminderListTarget(null);
     setReminderDefaultLabel('');
   }, []);
 
@@ -977,7 +963,7 @@ export default function GroceryScreen(): React.JSX.Element {
         await createReminder({
           houseId,
           userId: myId,
-          listId: reminderListTarget?.id ?? null,
+          listId: null,
           label,
           remindAt,
         });
@@ -985,7 +971,7 @@ export default function GroceryScreen(): React.JSX.Element {
         throw err instanceof Error ? err : new Error('Could not set the reminder.');
       }
     },
-    [createReminder, houseId, myId, reminderListTarget]
+    [createReminder, houseId, myId]
   );
 
   // ── Save list modal handlers ───────────────────────────────────────────────
@@ -1642,9 +1628,6 @@ export default function GroceryScreen(): React.JSX.Element {
                       </View>
                     </View>
 
-                    {/* Reminders now live as a per-list alarm icon in Saved Lists
-                      (below), so the standalone Reminders section was removed. */}
-
                     {/* ── Saved Lists section ──────────────────────────────────── */}
                     <SavedListsSection
                       lists={savedLists}
@@ -1653,7 +1636,6 @@ export default function GroceryScreen(): React.JSX.Element {
                       hasDraftItems={myDraftItems.length > 0}
                       onLoadList={handleLoadList}
                       onDeleteList={handleDeleteList}
-                      onSetListReminder={handleOpenListReminder}
                       onCreateList={handleOpenCreateList}
                       onEditList={handleOpenEditList}
                     />
