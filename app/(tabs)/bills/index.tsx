@@ -674,16 +674,6 @@ export default function BillsScreen(): React.JSX.Element {
             <Text style={[styles.eyebrow, { color: c.textSecondary }]}>
               {t('bills.all_expenses')}
             </Text>
-            <View
-              style={[
-                styles.countPill,
-                { backgroundColor: c.surfaceSecondary, borderColor: c.border },
-              ]}
-            >
-              <Text style={[styles.countPillText, { color: c.textSecondary }]}>
-                {bills.length + payments.length}
-              </Text>
-            </View>
           </View>
         </View>
       )}
@@ -969,16 +959,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: ms(4),
   },
   eyebrow: { fontSize: mf(11), ...font.bold, letterSpacing: 0.8, textTransform: 'uppercase' },
-  countPill: {
-    minHeight: ms(20),
-    paddingHorizontal: ms(8),
-    borderRadius: 9999,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  countPillText: { fontSize: mf(11), ...font.bold },
-
   // ── Date group (one soft card per day)
   dateGroup: { paddingTop: ms(16) },
   dateLabel: { paddingHorizontal: ms(20), marginBottom: ms(8) },
