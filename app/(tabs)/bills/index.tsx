@@ -74,7 +74,7 @@ function getCategoryIcon(category: string): React.ComponentProps<typeof Ionicons
 }
 
 // ── Bill row card ─────────────────────────────────────────────────────────────
-function BillCard({ bill }: { bill: BillRow extends { kind: 'bill' } ? BillRow['bill'] : never }): React.JSX.Element {
+function BillCard({ bill }: { bill: Extract<BillRow, { kind: 'bill' }>['bill'] }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
