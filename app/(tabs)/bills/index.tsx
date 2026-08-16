@@ -72,6 +72,25 @@ function getCategoryIcon(category: string): React.ComponentProps<typeof Ionicons
   return CATEGORY_ICONS[(category ?? '').toLowerCase()] ?? CATEGORY_ICONS.default;
 }
 
+// Each category gets its own colour so the list reads with variety and life,
+// rather than a wall of identical tiles.
+const CATEGORY_COLORS: Record<string, string> = {
+  food: '#F59E0B',
+  groceries: '#22C55E',
+  transport: '#3B82F6',
+  utilities: '#EAB308',
+  rent: '#14B8A6',
+  entertainment: '#EF4444',
+  health: '#F43F5E',
+  travel: '#0EA5E9',
+  shopping: '#8B5CF6',
+  internet: '#06B6D4',
+  phone: '#6366F1',
+};
+function getCategoryColor(category: string, fallback: string): string {
+  return CATEGORY_COLORS[(category ?? '').toLowerCase()] ?? fallback;
+}
+
 // ── Bill row card ─────────────────────────────────────────────────────────────
 function BillCard({
   bill,
@@ -86,6 +105,9 @@ function BillCard({
   const memberName = useMemberName();
   const isDark = c === darkColors;
   const icon = getCategoryIcon(bill.category ?? '');
+  const catColor = bill.settled
+    ? c.textSecondary
+    : getCategoryColor(bill.category ?? '', c.primary);
   const payer = memberName(bill.paidBy).split(' ')[0];
   const catLabel = bill.category
     ? t(`bills.cat_${bill.category.toLowerCase()}`, { defaultValue: bill.category })
@@ -99,15 +121,8 @@ function BillCard({
       onPress={() => router.push(`/(tabs)/bills/${bill.id}`)}
       accessibilityRole="button"
     >
-      <View
-        style={[
-          styles.billIconWrap,
-          {
-            backgroundColor: bill.settled ? c.surfaceSecondary : c.primary + '12',
-          },
-        ]}
-      >
-        <Ionicons name={icon} size={18} color={bill.settled ? c.textSecondary : c.primary} />
+      <View style={[styles.billIconWrap, { backgroundColor: catColor + (isDark ? '26' : '1A') }]}>
+        <Ionicons name={icon} size={18} color={catColor} />
       </View>
       <View style={styles.billInfo}>
         <Text
