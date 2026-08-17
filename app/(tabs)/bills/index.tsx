@@ -1,16 +1,16 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, memo } from 'react';
 import {
   View,
-  SectionList,
+  FlatList,
   ScrollView,
   StyleSheet,
   Pressable,
+  TextInput,
   useWindowDimensions,
   Platform,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AnimatedListItem } from '@components/shared/AnimatedListItem';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,7 +22,6 @@ import {
   calculateAllNetBalances,
   calculateSimplifiedBalancesForUser,
   settleDebts,
-  type Bill,
 } from '@stores/billsStore';
 import {
   useRecurringBillsStore,
@@ -35,32 +34,23 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { useBadgeStore } from '@stores/badgeStore';
-import { useThemedColors } from '@constants/colors';
+import { useThemedColors, darkColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { Money } from '@components/shared/Money';
 import { Pill } from '@components/ui';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
-import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import {
+  useOneOffBillHistory,
+  type BillRow,
+  type RecurringPaymentRow,
+} from '@hooks/useOneOffBillHistory';
 
 import { mf, ms } from '@utils/responsive';
 type BillFilter = 'recurring' | 'one-off';
-
-interface RecurringPaymentRow {
-  id: string;
-  title: string;
-  icon: string;
-  amount: number;
-  paidBy: string; // user UUID the recurring bill is assigned to
-  splitBetween: string[]; // user UUIDs sharing the cost
-}
-
-type BillRow =
-  | { kind: 'bill'; key: string; date: string; bill: Bill }
-  | { kind: 'payment'; key: string; date: string; payment: RecurringPaymentRow };
 
 // ── Category icons ────────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
@@ -77,49 +67,56 @@ const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name
   phone: 'phone-portrait-outline',
   default: 'receipt-outline',
 };
+/** Ionicon name for a category, falling back to a generic receipt icon. */
 function getCategoryIcon(category: string): React.ComponentProps<typeof Ionicons>['name'] {
   return CATEGORY_ICONS[(category ?? '').toLowerCase()] ?? CATEGORY_ICONS.default;
 }
 
-// ── Date label ────────────────────────────────────────────────────────────────
-function formatDateLabel(dateStr: string, locale: string, t: (key: string) => string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return t('common.unknown');
-  const appLocale = locale === 'he' ? 'he-IL' : locale === 'es' ? 'es-ES' : 'en-GB';
-  const today = new Date();
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-  const yest = new Date(today);
-  yest.setDate(yest.getDate() - 1);
-  const yestStr = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
-  if (dateStr === todayStr) return t('common.today');
-  if (dateStr === yestStr) return t('common.yesterday');
-  return new Date(`${dateStr}T12:00:00`).toLocaleDateString(appLocale, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
+// Each category gets its own colour so the list reads with variety and life,
+// rather than a wall of identical tiles.
+const CATEGORY_COLORS: Record<string, string> = {
+  food: '#F59E0B',
+  groceries: '#22C55E',
+  transport: '#3B82F6',
+  utilities: '#EAB308',
+  rent: '#14B8A6',
+  entertainment: '#EF4444',
+  health: '#F43F5E',
+  travel: '#0EA5E9',
+  shopping: '#8B5CF6',
+  internet: '#06B6D4',
+  phone: '#6366F1',
+};
+/** Accent colour for a category's icon tile; returns `fallback` when unmapped. */
+function getCategoryColor(category: string, fallback: string): string {
+  return CATEGORY_COLORS[(category ?? '').toLowerCase()] ?? fallback;
 }
 
 // ── Bill row card ─────────────────────────────────────────────────────────────
-function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
+/** A single one-off expense row: category-coloured tile, title, "category · payer", and total. */
+function BillCard({
+  bill,
+}: {
+  bill: Extract<BillRow, { kind: 'bill' }>['bill'];
+}): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
-  const share = bill.amount / Math.max(bill.splitBetween.length, 1);
+  const isDark = c === darkColors;
   const icon = getCategoryIcon(bill.category ?? '');
+  const catColor = bill.settled
+    ? c.textSecondary
+    : getCategoryColor(bill.category ?? '', c.primary);
+  const payer = memberName(bill.paidBy).split(' ')[0];
+  const catLabel = bill.category
+    ? t(`bills.cat_${bill.category.toLowerCase()}`, { defaultValue: bill.category })
+    : '';
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.billCard,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.border,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
-          opacity: pressed ? 0.92 : 1,
-        },
+        styles.billRow,
+        pressed && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surfaceSecondary },
       ]}
       onPress={() => router.push(`/(tabs)/bills/${bill.id}`)}
       accessibilityRole="button"
@@ -127,12 +124,10 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
       <View
         style={[
           styles.billIconWrap,
-          {
-            backgroundColor: bill.settled ? c.surfaceSecondary : c.primary + '12',
-          },
+          { backgroundColor: catColor + (isDark ? '26' : '1A'), borderColor: catColor + '2E' },
         ]}
       >
-        <Ionicons name={icon} size={18} color={bill.settled ? c.textSecondary : c.primary} />
+        <Ionicons name={icon} size={19} color={catColor} />
       </View>
       <View style={styles.billInfo}>
         <Text
@@ -142,10 +137,7 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
           {bill.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {t('bills.paid_by_each', {
-            name: memberName(bill.paidBy),
-            amount: formatFull(share, currencyCode),
-          })}
+          {catLabel ? `${catLabel} · ${payer}` : t('bills.paid_by_name', { name: payer })}
         </Text>
       </View>
       <View style={styles.billRight}>
@@ -159,41 +151,35 @@ function BillCard({ bill }: { bill: Bill }): React.JSX.Element {
         >
           {formatFull(bill.amount, currencyCode)}
         </Text>
-        <Ionicons
-          name={rtl ? 'chevron-back' : 'chevron-forward'}
-          size={14}
-          color={c.textSecondary}
-        />
       </View>
     </Pressable>
   );
 }
 
 // ── Recurring payment row (shown in the one-off history) ────────────────────────
+/** A logged recurring-payment row shown inline within the one-off expense history. */
 function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
-  const share = row.amount / Math.max(row.splitBetween.length, 1);
+  const isDark = c === darkColors;
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.billCard,
-        {
-          backgroundColor: c.surface,
-          borderColor: c.border,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
-          opacity: pressed ? 0.92 : 1,
-        },
+        styles.billRow,
+        pressed && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surfaceSecondary },
       ]}
       onPress={() => router.push('/(tabs)/bills?openRecurring=1')}
       accessibilityRole="button"
       accessibilityLabel={row.title}
     >
-      <View style={[styles.billIconWrap, { backgroundColor: c.primary + '12' }]}>
+      <View
+        style={[
+          styles.billIconWrap,
+          { backgroundColor: c.primary + '14', borderColor: c.primary + '2E' },
+        ]}
+      >
         <Ionicons name={resolveBillIcon(row.icon)} size={20} color={c.primary} />
       </View>
       <View style={styles.billInfo}>
@@ -201,10 +187,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
           {row.title}
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
-          {t('bills.paid_by_each', {
-            name: memberName(row.paidBy),
-            amount: formatFull(share, currencyCode),
-          })}
+          {t('bills.paid_by_name', { name: memberName(row.paidBy).split(' ')[0] })}
         </Text>
       </View>
       <View style={styles.billRight}>
@@ -214,17 +197,59 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
         <Text style={[styles.billAmount, { color: c.textPrimary }]}>
           {formatFull(row.amount, currencyCode)}
         </Text>
-        <Ionicons
-          name={rtl ? 'chevron-back' : 'chevron-forward'}
-          size={14}
-          color={c.textSecondary}
-        />
       </View>
     </Pressable>
   );
 }
 
+// ── Date group ────────────────────────────────────────────────────────────────
+// A day's expenses share one soft card, separated by hairlines — a calmer, more
+// unified list than one bordered box per row.
+/** One day's expenses rendered as a segment of the continuous card, with an inline day label. */
+function DateGroup({
+  title,
+  data,
+  isFirst,
+  isLast,
+}: {
+  title: string;
+  data: BillRow[];
+  isFirst: boolean;
+  isLast: boolean;
+}): React.JSX.Element {
+  const c = useThemedColors();
+  const isDark = c === darkColors;
+  // Every day is a segment of ONE continuous card: shared surface + side borders,
+  // rounded only at the very top and very bottom. The day label sits inside.
+  return (
+    <View
+      style={[
+        styles.groupSegment,
+        {
+          backgroundColor: isDark ? c.surfaceSecondary : c.surface,
+          borderColor: isDark ? 'rgba(255,255,255,0.10)' : c.border,
+        },
+        isFirst && styles.groupSegmentFirst,
+        isLast && styles.groupSegmentLast,
+      ]}
+    >
+      <Text style={[styles.dayLabel, { color: c.textPrimary }]}>{title}</Text>
+      {data.map((row, i) => (
+        <View key={row.key}>
+          {i > 0 && <View style={[styles.rowDivider, { backgroundColor: c.border }]} />}
+          {row.kind === 'bill' ? (
+            <BillCard bill={row.bill} />
+          ) : (
+            <RecurringPaymentCard row={row.payment} />
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 // ── Settle avatar (small, on-gradient) ──────────────────────────────────────────
+/** Small circular avatar (photo or initial) used inside the settle-up transfer list. */
 function SettleAvatar({ name, uri }: { name: string; uri?: string }): React.JSX.Element {
   return (
     <View style={styles.settleAv}>
@@ -243,7 +268,55 @@ function SettleAvatar({ name, uri }: { name: string; uri?: string }): React.JSX.
   );
 }
 
+// ── Category filter chip ──────────────────────────────────────────────────────
+interface CategoryChipProps {
+  chipKey: string;
+  selected: boolean;
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  setCategory: (cat: string) => void;
+}
+
+/** A single category filter chip (icon + label) in the horizontal chip row. */
+const CategoryChip = memo(function CategoryChip({
+  chipKey,
+  selected,
+  label,
+  icon,
+  setCategory,
+}: CategoryChipProps): React.JSX.Element {
+  const c = useThemedColors();
+  const handlePress = useCallback((): void => {
+    setCategory(chipKey);
+  }, [setCategory, chipKey]);
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      accessible={true}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: selected ? c.primary : c.surface,
+          borderColor: selected ? c.primary : c.border,
+        },
+      ]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+    >
+      <Ionicons name={icon} size={14} color={selected ? '#fff' : c.textSecondary} />
+      <Text style={[styles.chipText, { color: selected ? '#fff' : c.textSecondary }]}>{label}</Text>
+    </Pressable>
+  );
+});
+
 // ── Main screen ───────────────────────────────────────────────────────────────
+/**
+ * Bills tab. Shows the balance/settle-up hero, a one-off vs recurring filter,
+ * and — for one-off expenses — a search box, category chips, and the expense
+ * history grouped into day sections.
+ */
 export default function BillsScreen(): React.JSX.Element {
   const c = useThemedColors();
   const { t, i18n } = useTranslation();
@@ -267,8 +340,10 @@ export default function BillsScreen(): React.JSX.Element {
   const currencyCode = useSettingsStore((s) => s.currencyCode);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
+  // Search state lives here; category state is owned by the hook.
+  const [search, setSearch] = useState('');
   const { openRecurring } = useLocalSearchParams<{ openRecurring?: string }>();
-  useEffect(() => {
+  useEffect((): void => {
     if (openRecurring === '1') setFilter('recurring');
   }, [openRecurring]);
   const [showSettle, setShowSettle] = useState(false);
@@ -276,14 +351,16 @@ export default function BillsScreen(): React.JSX.Element {
   // filter swaps the whole list tree, which would otherwise remount the card and
   // replay that animation — read as a "jump". Gate it so it only plays once.
   const [entered, setEntered] = useState(false);
-  useEffect(() => {
+  useEffect((): void => {
     setEntered(true);
   }, []);
+
+  const { category, setCategory, presentCategories, billSections } = useOneOffBillHistory(search);
 
   const householdBills = useRecurringBillsStore((s) => s.bills);
   const payments = useRecurringBillsStore((s) => s.payments);
   const housemates = useHousematesStore((s) => s.housemates);
-  const memberIds = useMemo(() => housemates.map((h) => h.id), [housemates]);
+  const memberIds = useMemo((): string[] => housemates.map((h) => h.id), [housemates]);
 
   const myId = profile?.id ?? '';
   const activeBills = bills.filter((b) => !b.settled);
@@ -310,58 +387,31 @@ export default function BillsScreen(): React.JSX.Element {
   const memberName = useMemberName();
   const billsRtl = isRTL(i18n.language as never);
   const avatarById = useMemo(
-    () => new Map(housemates.map((h) => [h.id, h.avatarUrl])),
+    (): Map<string, string | undefined> => new Map(housemates.map((h) => [h.id, h.avatarUrl])),
     [housemates]
   );
 
-  const billSections = useMemo(() => {
-    // Merge one-off bills and logged recurring payments into one date-grouped history.
-    const billMeta = new Map(
-      householdBills.map((b) => [b.id, { name: b.name, icon: b.icon, assignedTo: b.assignedTo }])
-    );
-    const rows: BillRow[] = [
-      ...bills.map((bill) => ({ kind: 'bill' as const, key: bill.id, date: bill.date, bill })),
-      ...payments.map((p) => {
-        const meta = billMeta.get(p.billId);
-        return {
-          kind: 'payment' as const,
-          key: `recurring:${p.id}`,
-          date: p.paidAt,
-          payment: {
-            id: p.id,
-            title: meta?.name ?? '',
-            icon: meta?.icon ?? 'receipt-outline',
-            amount: p.amount,
-            paidBy: meta?.assignedTo ?? '',
-            splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
-          },
-        };
-      }),
-    ].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+  const handleClearSearch = useCallback((): void => {
+    setSearch('');
+  }, []);
 
-    const groups: Record<string, BillRow[]> = {};
-    for (const row of rows) {
-      const key = row.date || 'Unknown';
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(row);
-    }
-    return Object.entries(groups).map(([date, data]) => ({
-      title: formatDateLabel(date, i18n.language, t),
-      data,
-    }));
-  }, [bills, payments, householdBills, memberIds, i18n.language, t]);
-
-  const renderBill = useCallback(
-    ({ item, index }: { item: BillRow; index: number }): React.JSX.Element => (
-      <AnimatedListItem index={index}>
-        {item.kind === 'bill' ? (
-          <BillCard bill={item.bill} />
-        ) : (
-          <RecurringPaymentCard row={item.payment} />
-        )}
-      </AnimatedListItem>
+  const sectionCount = billSections.length;
+  const renderGroup = useCallback(
+    ({
+      item,
+      index,
+    }: {
+      item: { title: string; data: BillRow[] };
+      index: number;
+    }): React.JSX.Element => (
+      <DateGroup
+        title={item.title}
+        data={item.data}
+        isFirst={index === 0}
+        isLast={index === sectionCount - 1}
+      />
     ),
-    []
+    [sectionCount]
   );
 
   if (isLoading) {
@@ -436,11 +486,6 @@ export default function BillsScreen(): React.JSX.Element {
           >
             {t('bills.one_off_expenses')}
           </Text>
-          {bills.length > 0 && filter === 'one-off' && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{bills.length}</Text>
-            </View>
-          )}
         </Pressable>
         <Pressable
           style={({ pressed }) => [
@@ -621,20 +666,61 @@ export default function BillsScreen(): React.JSX.Element {
         </View>
       )}
 
-      {/* One-off list eyebrow */}
+      {/* One-off: search + category chips + list eyebrow */}
       {filter === 'one-off' && bills.length + payments.length > 0 && (
-        <View style={styles.listCountRow}>
-          <Text style={[styles.eyebrow, { color: c.textSecondary }]}>
-            {t('bills.all_expenses')}
-          </Text>
+        <View style={styles.oneOffControls}>
           <View
             style={[
-              styles.countPill,
+              styles.searchBar,
               { backgroundColor: c.surfaceSecondary, borderColor: c.border },
             ]}
           >
-            <Text style={[styles.countPillText, { color: c.textSecondary }]}>
-              {bills.length + payments.length}
+            <Ionicons name="search" size={17} color={c.textSecondary} />
+            <TextInput
+              style={[styles.searchInput, { color: c.textPrimary }]}
+              value={search}
+              onChangeText={setSearch}
+              placeholder={t('bills.search_placeholder')}
+              placeholderTextColor={c.textSecondary}
+              returnKeyType="search"
+              autoCorrect={false}
+              accessibilityLabel={t('bills.search_placeholder')}
+              accessibilityHint={t('bills.search_hint')}
+            />
+            {search.length > 0 && (
+              <Pressable
+                onPress={handleClearSearch}
+                style={styles.clearSearchButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.clear')}
+              >
+                <Ionicons name="close-circle" size={17} color={c.textSecondary} />
+              </Pressable>
+            )}
+          </View>
+
+          {presentCategories.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipScroll}
+            >
+              {['all', ...presentCategories].map((key) => (
+                <CategoryChip
+                  key={key}
+                  chipKey={key}
+                  selected={category === key}
+                  label={key === 'all' ? t('bills.filter_all') : t(`bills.cat_${key}`)}
+                  icon={key === 'all' ? 'apps-outline' : getCategoryIcon(key)}
+                  setCategory={setCategory}
+                />
+              ))}
+            </ScrollView>
+          )}
+
+          <View style={styles.listCountRow}>
+            <Text style={[styles.eyebrow, { color: c.textSecondary }]}>
+              {t('bills.all_expenses')}
             </Text>
           </View>
         </View>
@@ -661,30 +747,28 @@ export default function BillsScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       {topBar}
-      <SectionList<BillRow>
+      <FlatList
         style={styles.flex}
-        sections={billSections}
-        keyExtractor={(item) => item.key}
-        renderItem={renderBill}
+        data={billSections}
+        keyExtractor={(section) => section.title}
+        renderItem={renderGroup}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        stickySectionHeadersEnabled={false}
         ListHeaderComponent={ListHeader}
-        renderSectionHeader={({ section }) => (
-          <View style={styles.sectionDateHeader}>
-            <Text style={[styles.sectionDateText, { color: c.textSecondary }]}>
-              {section.title}
-            </Text>
-          </View>
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: ms(8) }} />}
-        SectionSeparatorComponent={() => <View style={{ height: ms(4) }} />}
         ListEmptyComponent={
-          <EmptyState
-            icon="receipt-outline"
-            title={t('bills.no_expenses_yet')}
-            message={t('bills.no_expenses_hint')}
-          />
+          bills.length + payments.length > 0 ? (
+            <EmptyState
+              icon="search-outline"
+              title={t('bills.no_results')}
+              message={t('bills.no_results_hint')}
+            />
+          ) : (
+            <EmptyState
+              icon="receipt-outline"
+              title={t('bills.no_expenses_yet')}
+              message={t('bills.no_expenses_hint')}
+            />
+          )
         }
       />
     </SafeAreaView>
@@ -876,15 +960,44 @@ const styles = StyleSheet.create({
   },
   filterTabText: { fontSize: mf(13), ...font.semibold },
   filterTabTextActive: { color: '#fff' },
-  filterBadge: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: ms(8),
-    paddingHorizontal: ms(6),
-    paddingVertical: ms(1),
-  },
-  filterBadgeText: { fontSize: mf(11), ...font.bold, color: '#fff' },
 
   householdWrap: { minHeight: ms(200) },
+
+  // ── One-off search + category chips
+  oneOffControls: { gap: ms(12) },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(8),
+    paddingHorizontal: ms(14),
+    height: ms(46),
+    borderRadius: ms(14),
+    borderWidth: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: mf(14),
+    ...font.regular,
+    paddingVertical: 0,
+    ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
+  },
+  clearSearchButton: {
+    minWidth: ms(44),
+    minHeight: ms(44),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipScroll: { gap: ms(8), paddingVertical: ms(1), paddingHorizontal: ms(1) },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ms(6),
+    paddingHorizontal: ms(13),
+    minHeight: ms(44),
+    borderRadius: 9999,
+    borderWidth: 1,
+  },
+  chipText: { fontSize: mf(13), ...font.semibold },
 
   // ── One-off list header
   listCountRow: {
@@ -894,52 +1007,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: ms(4),
   },
   eyebrow: { fontSize: mf(11), ...font.bold, letterSpacing: 0.8, textTransform: 'uppercase' },
-  countPill: {
-    minHeight: ms(20),
-    paddingHorizontal: ms(8),
-    borderRadius: 9999,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
+  // ── Day segments of one continuous card
+  groupSegment: {
+    marginHorizontal: ms(16),
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    // Full-width top line marks a new day section; a soft shadow lifts the
+    // whole card off the background so days read as distinct sections.
+    borderTopWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: ms(5) },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    elevation: 2,
   },
-  countPillText: { fontSize: mf(11), ...font.bold },
-
-  // ── Date section header
-  sectionDateHeader: { paddingHorizontal: ms(20), paddingTop: ms(12), paddingBottom: ms(4) },
-  sectionDateText: {
-    fontSize: mf(12),
+  groupSegmentFirst: {
+    marginTop: ms(4),
+    borderTopLeftRadius: ms(16),
+    borderTopRightRadius: ms(16),
+  },
+  groupSegmentLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: ms(16),
+    borderBottomRightRadius: ms(16),
+    marginBottom: ms(2),
+  },
+  dayLabel: {
+    paddingHorizontal: ms(16),
+    paddingTop: ms(14),
+    paddingBottom: ms(6),
+    fontSize: mf(13),
     ...font.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.7,
+    letterSpacing: 0.3,
   },
+  // Short centered hairline between rows within the same day.
+  rowDivider: { height: StyleSheet.hairlineWidth, width: '42%', alignSelf: 'center' },
 
-  // ── Bill row card
-  billCard: {
+  // ── Bill row
+  billRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ms(12),
-    paddingHorizontal: ms(14),
-    paddingVertical: ms(14),
-    borderRadius: ms(14),
-    borderWidth: 1,
-    marginHorizontal: ms(16),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: ms(1) },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    gap: ms(13),
+    paddingHorizontal: ms(16),
+    paddingVertical: ms(15),
   },
   billIconWrap: {
-    width: ms(42),
-    height: ms(42),
-    borderRadius: ms(12),
+    width: ms(44),
+    height: ms(44),
+    borderRadius: ms(14),
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
   billInfo: { flex: 1 },
-  billTitle: { fontSize: mf(15), ...font.semibold },
-  billMeta: { fontSize: mf(12), ...font.regular, marginTop: ms(2) },
+  billTitle: { fontSize: mf(15.5), ...font.semibold, letterSpacing: -0.2 },
+  billMeta: { fontSize: mf(12.5), ...font.regular, marginTop: ms(3) },
   settledBadge: {
     paddingHorizontal: ms(7),
     paddingVertical: ms(3),
@@ -948,7 +1072,12 @@ const styles = StyleSheet.create({
   },
   settledBadgeText: { fontSize: mf(10), ...font.semibold },
   billRight: { flexDirection: 'row', alignItems: 'center', gap: ms(4) },
-  billAmount: { fontSize: mf(16), ...font.bold },
+  billAmount: {
+    fontSize: mf(15.5),
+    ...font.bold,
+    letterSpacing: -0.3,
+    fontVariant: ['tabular-nums'],
+  },
 
   // ── Empty state
   emptyWrap: {
