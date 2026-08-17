@@ -12,7 +12,15 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Path,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+  Mask,
+  Rect,
+} from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +46,12 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 const CARD_H = ms(158);
 const GAP = ms(12);
 const PARK_GRADIENT = ['#2C3E4C', '#1A2732'] as const;
+// Sleek car silhouette, drawn once and reused as the parking card's faint
+// backdrop. Fills the otherwise-empty right half of the card.
+const CAR_PATH =
+  'M10 70 Q10 62 22 60 L40 58 C48 46 60 40 74 39 L96 39 C112 39 122 46 130 58 ' +
+  'L146 62 Q152 64 152 72 L152 74 Q152 78 147 78 L133 78 A13 13 0 0 0 107 78 ' +
+  'L66 78 A13 13 0 0 0 40 78 L15 78 Q10 78 10 72 Z';
 
 const CARD_ICON: Record<DashboardCardKey, IoniconName> = {
   groceries: 'cart-outline',
@@ -140,6 +154,13 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       overflow: 'hidden',
       justifyContent: 'space-between',
       padding: ms(15),
+    },
+    parkArt: {
+      position: 'absolute',
+      right: ms(-30),
+      top: 0,
+      bottom: 0,
+      justifyContent: 'center',
     },
     parkPill: {
       alignSelf: 'flex-start',
@@ -489,6 +510,21 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+      <View style={styles.parkArt} pointerEvents="none">
+        <Svg width={ms(196)} height={ms(130)} viewBox="0 0 160 100">
+          <Defs>
+            {/* Left-to-right fade so the car dissolves before it reaches the text. */}
+            <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
+              <Stop offset="0" stopColor="#fff" stopOpacity={0} />
+              <Stop offset="0.5" stopColor="#fff" stopOpacity={1} />
+            </SvgLinearGradient>
+            <Mask id="parkFadeMask">
+              <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
+            </Mask>
+          </Defs>
+          <Path d={CAR_PATH} fill={accent} opacity={0.1} mask="url(#parkFadeMask)" />
+        </Svg>
+      </View>
       <View style={[styles.parkPill, { backgroundColor: pillBg }]}>
         <Text style={[styles.parkPillText, { color: accent }]}>
           {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
