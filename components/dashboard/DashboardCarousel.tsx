@@ -511,18 +511,18 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.parkArt} pointerEvents="none">
-        <Svg width={ms(196)} height={ms(130)} viewBox="0 0 160 100">
+        <Svg width={ms(210)} height={ms(140)} viewBox="0 0 160 100">
           <Defs>
             {/* Left-to-right fade so the car dissolves before it reaches the text. */}
             <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset="0.5" stopColor="#fff" stopOpacity={1} />
+              <Stop offset="0.4" stopColor="#fff" stopOpacity={1} />
             </SvgLinearGradient>
             <Mask id="parkFadeMask">
               <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
             </Mask>
           </Defs>
-          <Path d={CAR_PATH} fill={accent} opacity={0.1} mask="url(#parkFadeMask)" />
+          <Path d={CAR_PATH} fill={accent} opacity={0.17} mask="url(#parkFadeMask)" />
         </Svg>
       </View>
       <View style={[styles.parkPill, { backgroundColor: pillBg }]}>
