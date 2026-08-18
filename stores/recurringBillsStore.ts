@@ -41,6 +41,7 @@ export interface HouseholdPayment {
   billId: string;
   amount: number;
   paidAt: string; // YYYY-MM-DD
+  createdAt: string; // when the payment was logged — feeds the activity feed
   note: string;
   splitBetween?: string[]; // user UUIDs sharing the cost; undefined = split among all housemates
 }
@@ -62,7 +63,10 @@ interface RecurringBillsStore {
     changes: Pick<RecurringBill, 'name' | 'assignedTo' | 'frequency' | 'typicalAmount' | 'icon'>
   ) => Promise<void>;
   deleteBill: (id: string) => Promise<void>;
-  logPayment: (payment: Omit<HouseholdPayment, 'id'>, houseId: string) => Promise<void>;
+  logPayment: (
+    payment: Omit<HouseholdPayment, 'id' | 'createdAt'>,
+    houseId: string
+  ) => Promise<void>;
   updatePayment: (
     id: string,
     changes: Pick<HouseholdPayment, 'amount' | 'paidAt' | 'note' | 'splitBetween'>
@@ -124,6 +128,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             billId: r.bill_id,
             amount: Number(r.amount),
             paidAt: r.paid_at,
+            createdAt: r.created_at,
             note: r.note ?? '',
             splitBetween:
               Array.isArray(r.split_between) && r.split_between.length > 0
@@ -295,6 +300,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           billId: inserted.bill_id,
           amount: Number(inserted.amount),
           paidAt: inserted.paid_at,
+          createdAt: inserted.created_at,
           note: inserted.note ?? '',
           splitBetween:
             Array.isArray(inserted.split_between) && inserted.split_between.length > 0

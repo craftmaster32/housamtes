@@ -53,6 +53,7 @@ const payment = (billId: string, amount: number, splitBetween?: string[]): House
   billId,
   amount,
   paidAt: '2026-07-01',
+  createdAt: '2026-07-01T00:00:00Z',
   note: '',
   splitBetween,
 });
@@ -191,6 +192,7 @@ describe('load', () => {
             bill_id: 'b1',
             amount: '341',
             paid_at: '2026-06-01',
+            created_at: '2026-06-01T09:00:00Z',
             note: null,
             split_between: [],
           },
@@ -220,6 +222,7 @@ describe('load', () => {
       billId: 'b1',
       amount: 341,
       paidAt: '2026-06-01',
+      createdAt: '2026-06-01T09:00:00Z',
       note: '',
       splitBetween: undefined,
     });
@@ -389,6 +392,7 @@ describe('logPayment', () => {
         bill_id: 'b1',
         amount: '250',
         paid_at: '2026-07-10',
+        created_at: '2026-07-10T12:00:00Z',
         note: 'June bill',
         split_between: ['alice', 'bob'],
       })
@@ -412,6 +416,7 @@ describe('logPayment', () => {
       billId: 'b1',
       amount: 250,
       paidAt: '2026-07-10',
+      createdAt: '2026-07-10T12:00:00Z',
       note: 'June bill',
       splitBetween: ['alice', 'bob'],
     });
@@ -458,6 +463,7 @@ describe('updatePayment', () => {
       billId: 'b1',
       amount: 175,
       paidAt: '2026-08-15',
+      createdAt: '2026-07-01T00:00:00Z',
       note: 'fixed typo',
       splitBetween: ['alice', 'bob'],
     });
