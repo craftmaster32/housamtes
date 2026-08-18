@@ -42,7 +42,12 @@ jest.mock('@stores/settingsStore', () => ({
   useSettingsStore: { getState: (): { currency: string } => ({ currency: '$' }) },
 }));
 jest.mock('@stores/authStore', () => ({
-  useAuthStore: { getState: (): { houseId: string } => ({ houseId: 'house-1' }) },
+  useAuthStore: {
+    getState: (): { houseId: string; profile: { id: string } } => ({
+      houseId: 'house-1',
+      profile: { id: 'u1' },
+    }),
+  },
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -63,6 +68,8 @@ function bill(overrides: Partial<Bill> = {}): Bill {
     settledAt: null,
     notes: null,
     receiptUrl: null,
+    editedAt: null,
+    editedBy: null,
     ...overrides,
   };
 }
@@ -469,6 +476,9 @@ describe('billsStore — editBill', () => {
 
     expect(useBillsStore.getState().bills[0].title).toBe('New Rent');
     expect(useBillsStore.getState().bills[0].category).toBe('Groceries');
+    // The edit is stamped so it can surface as "edited" activity in the bell.
+    expect(useBillsStore.getState().bills[0].editedBy).toBe('u1');
+    expect(typeof useBillsStore.getState().bills[0].editedAt).toBe('string');
   });
 
   it('notifies housemates when the amount changes', async () => {

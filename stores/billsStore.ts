@@ -45,6 +45,8 @@ export interface Bill {
   settledAt: string | null;
   notes: string | null;
   receiptUrl: string | null; // canonical house-photos bucket URL, or null
+  editedAt: string | null; // when the bill was last edited (not settled/created)
+  editedBy: string | null; // user UUID who last edited it
 }
 
 export interface Balance {
@@ -62,7 +64,15 @@ interface BillsStore {
   addBill: (
     bill: Omit<
       Bill,
-      'id' | 'createdAt' | 'settled' | 'settledBy' | 'settledAt' | 'notes' | 'receiptUrl'
+      | 'id'
+      | 'createdAt'
+      | 'settled'
+      | 'settledBy'
+      | 'settledAt'
+      | 'notes'
+      | 'receiptUrl'
+      | 'editedAt'
+      | 'editedBy'
     > & {
       notes?: string;
       receiptUrl?: string | null;
@@ -126,6 +136,8 @@ export const useBillsStore = create<BillsStore>()(
             settledAt: r.settled_at ?? null,
             notes: r.notes ?? null,
             receiptUrl: r.receipt_url ?? null,
+            editedAt: r.edited_at ?? null,
+            editedBy: r.edited_by ?? null,
           }));
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
@@ -205,6 +217,8 @@ export const useBillsStore = create<BillsStore>()(
           settledAt: null,
           notes: inserted.notes ?? null,
           receiptUrl: inserted.receipt_url ?? null,
+          editedAt: null,
+          editedBy: null,
         };
         set({ bills: [bill, ...get().bills] });
         if (userId) {
@@ -220,6 +234,8 @@ export const useBillsStore = create<BillsStore>()(
       },
       editBill: async (id, updates, houseId): Promise<void> => {
         const before = get().bills.find((b) => b.id === id);
+        const editedBy = useAuthStore.getState().profile?.id ?? null;
+        const editedAt = new Date().toISOString();
         const { error } = await supabase
           .from('bills')
           .update({
@@ -228,6 +244,8 @@ export const useBillsStore = create<BillsStore>()(
             date: updates.date,
             notes: updates.notes,
             category: updates.category,
+            edited_at: editedAt,
+            edited_by: editedBy,
           })
           .eq('id', id);
         if (error) {
@@ -244,6 +262,8 @@ export const useBillsStore = create<BillsStore>()(
                   date: updates.date,
                   notes: updates.notes,
                   category: updates.category,
+                  editedAt,
+                  editedBy,
                 }
               : b
           ),

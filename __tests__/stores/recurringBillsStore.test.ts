@@ -46,6 +46,8 @@ const bill = (id: string, assignedTo: string): RecurringBill => ({
   typicalAmount: 0,
   icon: '🧾',
   createdAt: '2026-01-01T00:00:00Z',
+  editedAt: null,
+  editedBy: null,
 });
 
 const payment = (billId: string, amount: number, splitBetween?: string[]): HouseholdPayment => ({
@@ -56,6 +58,8 @@ const payment = (billId: string, amount: number, splitBetween?: string[]): House
   createdAt: '2026-07-01T00:00:00Z',
   note: '',
   splitBetween,
+  editedAt: null,
+  editedBy: null,
 });
 
 beforeEach(() => {
@@ -214,6 +218,8 @@ describe('load', () => {
         icon: '⚡',
         createdAt: '2026-01-01T00:00:00Z',
         nextDueDate: '2026-08-01',
+        editedAt: null,
+        editedBy: null,
       },
     ]);
     // Empty split_between array is the "everyone" sentinel → undefined in the app model.
@@ -225,6 +231,8 @@ describe('load', () => {
       createdAt: '2026-06-01T09:00:00Z',
       note: '',
       splitBetween: undefined,
+      editedAt: null,
+      editedBy: null,
     });
   });
 
@@ -419,6 +427,8 @@ describe('logPayment', () => {
       createdAt: '2026-07-10T12:00:00Z',
       note: 'June bill',
       splitBetween: ['alice', 'bob'],
+      editedAt: null,
+      editedBy: null,
     });
   });
 
@@ -447,6 +457,8 @@ describe('updatePayment', () => {
         paid_at: '2026-08-15',
         note: 'fixed typo',
         split_between: ['alice', 'bob'],
+        edited_at: '2026-08-15T10:00:00Z',
+        edited_by: 'user-editor',
       })
     );
 
@@ -466,6 +478,8 @@ describe('updatePayment', () => {
       createdAt: '2026-07-01T00:00:00Z',
       note: 'fixed typo',
       splitBetween: ['alice', 'bob'],
+      editedAt: '2026-08-15T10:00:00Z',
+      editedBy: 'user-editor',
     });
     // The other payment is untouched.
     expect(s.payments.find((p) => p.id === 'p2')?.amount).toBe(200);

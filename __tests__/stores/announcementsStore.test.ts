@@ -41,6 +41,8 @@ function note(overrides: Partial<Announcement> = {}): Announcement {
     text: 'WiFi password: sunflower42',
     createdAt: '2026-07-01T00:00:00Z',
     updatedAt: '2026-07-01T00:00:00Z',
+    editedAt: null,
+    editedBy: null,
     ...overrides,
   };
 }
@@ -153,6 +155,8 @@ describe('announcementsStore — edit', () => {
     const updated = useAnnouncementsStore.getState().items[0];
     expect(updated.text).toBe('WiFi password: tulip99');
     expect(updated.updatedAt).not.toBe(updated.createdAt); // marked as edited
+    // Stamped so the edit can surface as "edited a note" in the activity bell.
+    expect(typeof updated.editedAt).toBe('string');
   });
 
   it('throws and leaves the note unchanged when DB update fails', async () => {
