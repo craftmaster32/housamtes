@@ -40,6 +40,10 @@ interface RecurringBillsStore {
     bill: Omit<RecurringBill, 'id' | 'createdAt'>,
     houseId: string
   ) => Promise<RecurringBill>;
+  updateBill: (
+    id: string,
+    changes: Pick<RecurringBill, 'name' | 'assignedTo' | 'frequency' | 'typicalAmount' | 'icon'>
+  ) => Promise<void>;
   deleteBill: (id: string) => Promise<void>;
   logPayment: (payment: Omit<HouseholdPayment, 'id'>, houseId: string) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
@@ -192,6 +196,38 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         };
         set({ bills: [...get().bills, bill] });
         return bill;
+      },
+      updateBill: async (id, changes): Promise<void> => {
+        const { data: updated, error } = await supabase
+          .from('recurring_bills')
+          .update({
+            name: changes.name,
+            assigned_to: changes.assignedTo,
+            frequency: changes.frequency,
+            typical_amount: changes.typicalAmount,
+            icon: changes.icon,
+          })
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) {
+          captureError(error, { context: 'update-recurring-bill', billId: id });
+          throw new Error('Could not update the bill. Please try again.');
+        }
+        set({
+          bills: get().bills.map((b) =>
+            b.id === id
+              ? {
+                  ...b,
+                  name: updated.name,
+                  assignedTo: updated.assigned_to,
+                  frequency: updated.frequency as BillFrequency,
+                  typicalAmount: Number(updated.typical_amount),
+                  icon: updated.icon ?? 'receipt-outline',
+                }
+              : b
+          ),
+        });
       },
       deleteBill: async (id): Promise<void> => {
         const { error } = await supabase.from('recurring_bills').delete().eq('id', id);

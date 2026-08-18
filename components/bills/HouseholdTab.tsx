@@ -133,9 +133,21 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const deleteBill = useRecurringBillsStore((s) => s.deleteBill);
   const deletePayment = useRecurringBillsStore((s) => s.deletePayment);
   const houseId = useAuthStore((s) => s.houseId);
+  const profile = useAuthStore((s) => s.profile);
   const housemates = useHousematesStore((s) => s.housemates);
   const memberName = useMemberName();
   const currency = useSettingsStore((s) => s.currency);
+
+  const people = useMemo(
+    () =>
+      [
+        profile ? { id: profile.id, name: profile.name ?? '' } : null,
+        ...housemates.map((h) => ({ id: h.id, name: h.name })),
+      ]
+        .filter((p): p is PersonOption => Boolean(p?.id && p?.name))
+        .filter((p, i, arr) => arr.findIndex((q) => q.id === p.id) === i),
+    [profile, housemates]
+  );
 
   const todayStr = ((): string => {
     const d = new Date();
@@ -151,6 +163,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const [cardError, setCardError] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showLogDatePicker, setShowLogDatePicker] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const memberIds = useMemo(() => housemates.map((m) => m.id), [housemates]);
 
@@ -250,6 +263,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
   const toggleShowHistory = useCallback((): void => setShowHistory((v) => !v), []);
+  const startEditing = useCallback((): void => {
+    setLogging(false);
+    setEditing(true);
+  }, []);
+  const stopEditing = useCallback((): void => setEditing(false), []);
   const openLogDatePicker = useCallback((): void => setShowLogDatePicker(true), []);
   const closeLogDatePicker = useCallback((): void => setShowLogDatePicker(false), []);
   const handleLogDateSelect = useCallback((val: string): void => {
@@ -284,6 +302,16 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           </View>
         </View>
         <Pressable
+          onPress={startEditing}
+          style={styles.deleteBtn}
+          accessibilityRole="button"
+          accessibilityLabel={t('bills.edit_bill')}
+          accessibilityState={{ selected: editing }}
+          hitSlop={8}
+        >
+          <Ionicons name="pencil" size={16} color={c.textSecondary} />
+        </Pressable>
+        <Pressable
           onPress={handleDeleteBill}
           style={styles.deleteBtn}
           accessibilityRole="button"
@@ -294,187 +322,200 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
         </Pressable>
       </View>
 
-      {/* Last payment + due date */}
-      <View style={styles.billStatus}>
-        {last ? (
-          <Text style={[styles.lastPaid, { color: c.textSecondary }]}>
-            {t('bills.household_last_paid')} {formatDateDDMMYYYY(last.paidAt)} · {currency}
-            {last.amount.toFixed(0)}
-          </Text>
-        ) : (
-          <Text style={[styles.neverPaid, { color: c.textDisabled }]}>
-            {t('bills.household_no_payments')}
-          </Text>
-        )}
-        {badge && (
-          <View style={[styles.dueBadge, { backgroundColor: badge.color + '18' }]}>
-            <Text style={[styles.dueBadgeText, { color: badge.color }]}>
-              {t(badge.key, badge.params)}
-            </Text>
+      {editing ? (
+        <EditBillForm bill={bill} people={people} onClose={stopEditing} />
+      ) : (
+        <>
+          {/* Last payment + due date */}
+          <View style={styles.billStatus}>
+            {last ? (
+              <Text style={[styles.lastPaid, { color: c.textSecondary }]}>
+                {t('bills.household_last_paid')} {formatDateDDMMYYYY(last.paidAt)} · {currency}
+                {last.amount.toFixed(0)}
+              </Text>
+            ) : (
+              <Text style={[styles.neverPaid, { color: c.textDisabled }]}>
+                {t('bills.household_no_payments')}
+              </Text>
+            )}
+            {badge && (
+              <View style={[styles.dueBadge, { backgroundColor: badge.color + '18' }]}>
+                <Text style={[styles.dueBadgeText, { color: badge.color }]}>
+                  {t(badge.key, badge.params)}
+                </Text>
+              </View>
+            )}
           </View>
-        )}
-      </View>
 
-      {/* Actions */}
-      <View style={styles.billActions}>
-        <Pressable
-          style={[styles.logBtn, { backgroundColor: c.primary + '20' }]}
-          onPress={toggleLogging}
-          disabled={isSubmittingLog}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={logging ? t('common.cancel') : t('bills.household_log_payment')}
-          accessibilityState={{ selected: logging, disabled: isSubmittingLog }}
-        >
-          <Text style={[styles.logBtnText, { color: c.primary }]}>
-            {logging ? t('common.cancel') : t('bills.household_log_payment')}
-          </Text>
-        </Pressable>
-        {billPayments.length > 0 && (
-          <Pressable
-            onPress={toggleShowHistory}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('bills.household_history')}
-            accessibilityState={{ expanded: showHistory }}
-          >
-            <Text style={[styles.historyLink, { color: c.textSecondary }]}>
-              {showHistory
-                ? t('bills.household_hide_history')
-                : `${t('bills.household_history')} (${billPayments.length})`}
-            </Text>
-          </Pressable>
-        )}
-      </View>
-
-      {!!cardError && <Text style={[styles.formError, { color: c.negative }]}>{cardError}</Text>}
-
-      {/* Log payment inline form */}
-      {logging && (
-        <View style={[styles.logForm, { borderTopColor: c.border }]}>
-          <View style={styles.logRow}>
-            <TextInput
-              style={[
-                styles.logAmountInput,
-                { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
-              ]}
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              placeholder={t('bills.household_amount')}
-              placeholderTextColor={c.textDisabled}
-              accessibilityLabel={t('bills.household_amount')}
-              accessibilityHint={t('bills.hint_amount_paid')}
-            />
+          {/* Actions */}
+          <View style={styles.billActions}>
             <Pressable
-              style={[styles.dateTrigger, { backgroundColor: c.background, borderColor: c.border }]}
-              onPress={openLogDatePicker}
+              style={[styles.logBtn, { backgroundColor: c.primary + '20' }]}
+              onPress={toggleLogging}
+              disabled={isSubmittingLog}
               accessible
               accessibilityRole="button"
-              accessibilityLabel={t('bills.select_payment_date')}
+              accessibilityLabel={logging ? t('common.cancel') : t('bills.household_log_payment')}
+              accessibilityState={{ selected: logging, disabled: isSubmittingLog }}
             >
-              <Ionicons name="calendar-outline" size={15} color={c.primary} />
-              <Text style={[styles.dateTriggerText, { color: c.textPrimary }]}>
-                {formatDateDDMMYYYY(date)}
+              <Text style={[styles.logBtnText, { color: c.primary }]}>
+                {logging ? t('common.cancel') : t('bills.household_log_payment')}
               </Text>
             </Pressable>
-          </View>
-          <DatePickerModal
-            visible={showLogDatePicker}
-            value={date}
-            onSelect={handleLogDateSelect}
-            onClose={closeLogDatePicker}
-          />
-          <TextInput
-            style={[
-              styles.logNoteInput,
-              { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
-            ]}
-            value={note}
-            onChangeText={setNote}
-            placeholder={t('bills.household_note')}
-            placeholderTextColor={c.textDisabled}
-            accessibilityLabel={t('bills.household_note')}
-            accessibilityHint={t('bills.hint_optional_note')}
-          />
-
-          {/* Who shares this payment (defaults to everyone) */}
-          {housemates.length > 0 && (
-            <>
-              <Text style={[styles.splitLabel, { color: c.textSecondary }]}>
-                {t('bills.household_split_between')}
-              </Text>
-              <View style={styles.chipRow}>
-                {housemates.map((m) => {
-                  const selected = splitWith.includes(m.id);
-                  return (
-                    <Pressable
-                      key={m.id}
-                      style={[
-                        styles.chip,
-                        { borderColor: c.border, backgroundColor: c.surface },
-                        selected && { backgroundColor: c.primary, borderColor: c.primary },
-                      ]}
-                      onPress={() => toggleSplitMember(m.id)}
-                      accessible
-                      accessibilityRole="checkbox"
-                      accessibilityLabel={m.name}
-                      accessibilityState={{ checked: selected }}
-                    >
-                      <Text style={[styles.chipText, { color: selected ? '#fff' : c.textPrimary }]}>
-                        {m.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
-          )}
-
-          <Pressable
-            style={[
-              styles.savePaymentBtn,
-              { backgroundColor: isLogDisabled ? c.textDisabled : c.primary },
-            ]}
-            onPress={handleLog}
-            disabled={isLogDisabled}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('bills.household_save_payment')}
-            accessibilityState={{ disabled: isLogDisabled }}
-          >
-            <Text style={styles.savePaymentBtnText}>{t('bills.household_save_payment')}</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* Payment history */}
-      {showHistory && (
-        <View style={[styles.history, { borderTopColor: c.border }]}>
-          {billPayments.map((p) => (
-            <View key={p.id} style={styles.historyRow}>
-              <Text style={[styles.historyDate, { color: c.textSecondary }]}>
-                {formatDateDDMMYYYY(p.paidAt)}
-              </Text>
-              <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
-                {currency}
-                {p.amount.toFixed(0)}
-              </Text>
-              {p.note ? (
-                <Text style={[styles.historyNote, { color: c.textSecondary }]}>{p.note}</Text>
-              ) : null}
+            {billPayments.length > 0 && (
               <Pressable
-                onPress={() => handleDeletePayment(p.id)}
-                hitSlop={8}
+                onPress={toggleShowHistory}
                 accessible
                 accessibilityRole="button"
-                accessibilityLabel={t('bills.delete_payment')}
+                accessibilityLabel={t('bills.household_history')}
+                accessibilityState={{ expanded: showHistory }}
               >
-                <Ionicons name="close" size={14} color={c.textSecondary} />
+                <Text style={[styles.historyLink, { color: c.textSecondary }]}>
+                  {showHistory
+                    ? t('bills.household_hide_history')
+                    : `${t('bills.household_history')} (${billPayments.length})`}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+
+          {!!cardError && (
+            <Text style={[styles.formError, { color: c.negative }]}>{cardError}</Text>
+          )}
+
+          {/* Log payment inline form */}
+          {logging && (
+            <View style={[styles.logForm, { borderTopColor: c.border }]}>
+              <View style={styles.logRow}>
+                <TextInput
+                  style={[
+                    styles.logAmountInput,
+                    { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+                  ]}
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                  placeholder={t('bills.household_amount')}
+                  placeholderTextColor={c.textDisabled}
+                  accessibilityLabel={t('bills.household_amount')}
+                  accessibilityHint={t('bills.hint_amount_paid')}
+                />
+                <Pressable
+                  style={[
+                    styles.dateTrigger,
+                    { backgroundColor: c.background, borderColor: c.border },
+                  ]}
+                  onPress={openLogDatePicker}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('bills.select_payment_date')}
+                >
+                  <Ionicons name="calendar-outline" size={15} color={c.primary} />
+                  <Text style={[styles.dateTriggerText, { color: c.textPrimary }]}>
+                    {formatDateDDMMYYYY(date)}
+                  </Text>
+                </Pressable>
+              </View>
+              <DatePickerModal
+                visible={showLogDatePicker}
+                value={date}
+                onSelect={handleLogDateSelect}
+                onClose={closeLogDatePicker}
+              />
+              <TextInput
+                style={[
+                  styles.logNoteInput,
+                  { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+                ]}
+                value={note}
+                onChangeText={setNote}
+                placeholder={t('bills.household_note')}
+                placeholderTextColor={c.textDisabled}
+                accessibilityLabel={t('bills.household_note')}
+                accessibilityHint={t('bills.hint_optional_note')}
+              />
+
+              {/* Who shares this payment (defaults to everyone) */}
+              {housemates.length > 0 && (
+                <>
+                  <Text style={[styles.splitLabel, { color: c.textSecondary }]}>
+                    {t('bills.household_split_between')}
+                  </Text>
+                  <View style={styles.chipRow}>
+                    {housemates.map((m) => {
+                      const selected = splitWith.includes(m.id);
+                      return (
+                        <Pressable
+                          key={m.id}
+                          style={[
+                            styles.chip,
+                            { borderColor: c.border, backgroundColor: c.surface },
+                            selected && { backgroundColor: c.primary, borderColor: c.primary },
+                          ]}
+                          onPress={() => toggleSplitMember(m.id)}
+                          accessible
+                          accessibilityRole="checkbox"
+                          accessibilityLabel={m.name}
+                          accessibilityState={{ checked: selected }}
+                        >
+                          <Text
+                            style={[styles.chipText, { color: selected ? '#fff' : c.textPrimary }]}
+                          >
+                            {m.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+
+              <Pressable
+                style={[
+                  styles.savePaymentBtn,
+                  { backgroundColor: isLogDisabled ? c.textDisabled : c.primary },
+                ]}
+                onPress={handleLog}
+                disabled={isLogDisabled}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('bills.household_save_payment')}
+                accessibilityState={{ disabled: isLogDisabled }}
+              >
+                <Text style={styles.savePaymentBtnText}>{t('bills.household_save_payment')}</Text>
               </Pressable>
             </View>
-          ))}
-        </View>
+          )}
+
+          {/* Payment history */}
+          {showHistory && (
+            <View style={[styles.history, { borderTopColor: c.border }]}>
+              {billPayments.map((p) => (
+                <View key={p.id} style={styles.historyRow}>
+                  <Text style={[styles.historyDate, { color: c.textSecondary }]}>
+                    {formatDateDDMMYYYY(p.paidAt)}
+                  </Text>
+                  <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
+                    {currency}
+                    {p.amount.toFixed(0)}
+                  </Text>
+                  {p.note ? (
+                    <Text style={[styles.historyNote, { color: c.textSecondary }]}>{p.note}</Text>
+                  ) : null}
+                  <Pressable
+                    onPress={() => handleDeletePayment(p.id)}
+                    hitSlop={8}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={t('bills.delete_payment')}
+                  >
+                    <Ionicons name="close" size={14} color={c.textSecondary} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+        </>
       )}
     </View>
   );
@@ -760,6 +801,229 @@ function AddBillForm({
         >
           <Text style={styles.saveBtnText}>
             {saving ? t('bills.household_saving') : t('bills.household_add_bill')}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+// ── Edit bill form ────────────────────────────────────────────────────────────
+
+function EditBillForm({
+  bill,
+  people,
+  onClose,
+}: {
+  bill: RecurringBill;
+  people: PersonOption[];
+  onClose: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation();
+  const c = useThemedColors();
+  const updateBill = useRecurringBillsStore((s) => s.updateBill);
+  const [name, setName] = useState(bill.name);
+  const [assignedTo, setAssignedTo] = useState(bill.assignedTo);
+  const [frequency, setFrequency] = useState<BillFrequency>(bill.frequency);
+  const [typicalAmount, setTypicalAmount] = useState(String(bill.typicalAmount));
+  const [icon, setIcon] = useState(resolveBillIcon(bill.icon));
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = useCallback(async (): Promise<void> => {
+    if (saving) return;
+    if (!name.trim()) {
+      setError(t('bills.household_name_required'));
+      return;
+    }
+    const amt = parseFloat(typicalAmount.replace(',', '.'));
+    if (!typicalAmount || isNaN(amt) || amt <= 0) {
+      setError(t('bills.household_invalid_amount'));
+      return;
+    }
+    if (!assignedTo) {
+      setError(t('bills.household_assignee_required'));
+      return;
+    }
+    try {
+      setSaving(true);
+      await updateBill(bill.id, {
+        name: name.trim(),
+        assignedTo,
+        frequency,
+        typicalAmount: amt,
+        icon,
+      });
+      onClose();
+    } catch (err) {
+      setError(getErrorMessage(err, t('bills.failed_save')));
+    } finally {
+      setSaving(false);
+    }
+  }, [name, assignedTo, frequency, typicalAmount, icon, updateBill, bill.id, onClose, t, saving]);
+
+  const handleCancel = useCallback((): void => {
+    if (saving) return;
+    onClose();
+  }, [saving, onClose]);
+
+  const isSaveDisabled =
+    saving || !name.trim() || !assignedTo || !(parseFloat(typicalAmount.replace(',', '.')) > 0);
+
+  return (
+    <View style={[styles.addForm, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <Text style={[styles.addFormTitle, { color: c.textPrimary }]}>
+        {t('bills.household_edit_bill')}
+      </Text>
+
+      {/* Icon picker */}
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_icon')}
+      </Text>
+      <View style={styles.iconRow}>
+        {BILL_ICONS.map((ic) => (
+          <Pressable
+            key={ic}
+            style={[
+              styles.iconChip,
+              { backgroundColor: c.surfaceSecondary, borderColor: 'transparent' },
+              icon === ic && { borderColor: c.primary, backgroundColor: c.primary + '18' },
+            ]}
+            onPress={() => setIcon(ic)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={BILL_ICON_LABEL_KEYS[ic] ? t(BILL_ICON_LABEL_KEYS[ic]) : ic}
+            accessibilityState={{ selected: icon === ic }}
+          >
+            <Ionicons name={ic} size={20} color={icon === ic ? c.primary : c.textSecondary} />
+            <Text
+              style={[styles.iconChipLabel, { color: icon === ic ? c.primary : c.textSecondary }]}
+            >
+              {BILL_ICON_LABEL_KEYS[ic] ? t(BILL_ICON_LABEL_KEYS[ic]) : ''}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Name */}
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_bill_name')}
+      </Text>
+      <TextInput
+        style={[
+          styles.addInput,
+          { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+        ]}
+        value={name}
+        onChangeText={setName}
+        placeholder={t('bills.household_bill_name_placeholder')}
+        placeholderTextColor={c.textDisabled}
+        autoCorrect={false}
+        accessibilityLabel={t('bills.household_bill_name')}
+        accessibilityHint={t('bills.hint_bill_name')}
+      />
+
+      {/* Assigned to */}
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_who_pays')}
+      </Text>
+      <View style={styles.chipRow}>
+        {people.map((p) => (
+          <Pressable
+            key={p.id}
+            style={[
+              styles.chip,
+              { borderColor: c.border, backgroundColor: c.surface },
+              assignedTo === p.id && { backgroundColor: c.primary, borderColor: c.primary },
+            ]}
+            onPress={() => setAssignedTo(p.id)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={p.name}
+            accessibilityState={{ selected: assignedTo === p.id }}
+          >
+            <Text
+              style={[styles.chipText, { color: assignedTo === p.id ? '#fff' : c.textPrimary }]}
+            >
+              {p.name}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Frequency */}
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_how_often')}
+      </Text>
+      <View style={styles.chipRow}>
+        {FREQUENCIES.map((f) => (
+          <Pressable
+            key={f}
+            style={[
+              styles.chip,
+              { borderColor: c.border, backgroundColor: c.surface },
+              frequency === f && { backgroundColor: c.primary, borderColor: c.primary },
+            ]}
+            onPress={() => setFrequency(f)}
+            accessible
+            accessibilityRole="radio"
+            accessibilityLabel={t(`bills.freq_${f}`)}
+            accessibilityState={{ selected: frequency === f }}
+          >
+            <Text style={[styles.chipText, { color: frequency === f ? '#fff' : c.textPrimary }]}>
+              {t(`bills.freq_${f}`)}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Typical amount */}
+      <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+        {t('bills.household_typical_amount')}
+      </Text>
+      <TextInput
+        style={[
+          styles.addInput,
+          { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+        ]}
+        value={typicalAmount}
+        onChangeText={setTypicalAmount}
+        keyboardType="decimal-pad"
+        placeholder="0"
+        placeholderTextColor={c.textDisabled}
+        accessibilityLabel={t('bills.household_typical_amount')}
+        accessibilityHint={t('bills.hint_typical_amount')}
+      />
+
+      {!!error && <Text style={[styles.formError, { color: c.negative }]}>{error}</Text>}
+
+      <View style={styles.addFormActions}>
+        <Pressable
+          style={[styles.cancelBtn, { borderColor: c.border }]}
+          onPress={handleCancel}
+          disabled={saving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
+          accessibilityState={{ disabled: saving }}
+        >
+          <Text style={[styles.cancelBtnText, { color: c.textSecondary }]}>
+            {t('common.cancel')}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.saveBtn, { backgroundColor: isSaveDisabled ? c.textDisabled : c.primary }]}
+          onPress={handleSave}
+          disabled={isSaveDisabled}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={
+            saving ? t('bills.household_saving') : t('bills.household_save_changes')
+          }
+          accessibilityState={{ disabled: isSaveDisabled }}
+        >
+          <Text style={styles.saveBtnText}>
+            {saving ? t('bills.household_saving') : t('bills.household_save_changes')}
           </Text>
         </Pressable>
       </View>

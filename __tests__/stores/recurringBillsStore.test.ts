@@ -296,6 +296,60 @@ describe('addBill', () => {
   });
 });
 
+describe('updateBill', () => {
+  it('applies the edited fields to the matching bill', async () => {
+    useRecurringBillsStore.setState({ bills: [bill('b1', 'alice'), bill('b2', 'bob')] });
+    mockFrom.mockReturnValueOnce(
+      ok({
+        id: 'b1',
+        name: 'Electric (edited)',
+        assigned_to: 'bob',
+        frequency: 'quarterly',
+        typical_amount: '420',
+        icon: 'flash-outline',
+        created_at: '2026-01-01T00:00:00Z',
+        next_due_date: null,
+      })
+    );
+
+    await useRecurringBillsStore.getState().updateBill('b1', {
+      name: 'Electric (edited)',
+      assignedTo: 'bob',
+      frequency: 'quarterly',
+      typicalAmount: 420,
+      icon: 'flash-outline',
+    });
+
+    const s = useRecurringBillsStore.getState();
+    const edited = s.bills.find((b) => b.id === 'b1');
+    expect(edited).toMatchObject({
+      name: 'Electric (edited)',
+      assignedTo: 'bob',
+      frequency: 'quarterly',
+      typicalAmount: 420,
+      icon: 'flash-outline',
+    });
+    // The other bill is left untouched.
+    expect(s.bills.find((b) => b.id === 'b2')?.name).toBe('Bill b2');
+  });
+
+  it('throws a plain-English error and changes nothing when the update fails', async () => {
+    useRecurringBillsStore.setState({ bills: [bill('b1', 'alice')] });
+    mockFrom.mockReturnValueOnce(fail('update failed'));
+
+    await expect(
+      useRecurringBillsStore.getState().updateBill('b1', {
+        name: 'Nope',
+        assignedTo: 'bob',
+        frequency: 'monthly',
+        typicalAmount: 10,
+        icon: 'flash-outline',
+      })
+    ).rejects.toThrow('Could not update the bill. Please try again.');
+    expect(useRecurringBillsStore.getState().bills[0].name).toBe('Bill b1');
+  });
+});
+
 describe('deleteBill', () => {
   it('removes the bill and its payments', async () => {
     useRecurringBillsStore.setState({
