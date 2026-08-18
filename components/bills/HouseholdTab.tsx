@@ -11,6 +11,7 @@ import {
   BILL_ICONS,
   resolveBillIcon,
   type RecurringBill,
+  type HouseholdPayment,
   type BillFrequency,
 } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
@@ -119,6 +120,256 @@ function FairnessSection(): React.JSX.Element {
       <Text style={[styles.fairnessNote, { color: c.textDisabled }]}>
         {t('bills.household_balance_note')}
       </Text>
+    </View>
+  );
+}
+
+// ── Payment history row ─────────────────────────────────────────────────────────
+
+interface HousemateOption {
+  id: string;
+  name: string;
+}
+
+/** One logged payment in a bill's history — read-only by default, editable inline. */
+function PaymentHistoryRow({
+  payment,
+  housemates,
+  currency,
+  onDelete,
+}: {
+  payment: HouseholdPayment;
+  housemates: HousemateOption[];
+  currency: string;
+  onDelete: (id: string) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation();
+  const c = useThemedColors();
+  const updatePayment = useRecurringBillsStore((s) => s.updatePayment);
+
+  const memberIds = useMemo(() => housemates.map((m) => m.id), [housemates]);
+  const [editing, setEditing] = useState(false);
+  const [amount, setAmount] = useState(String(payment.amount));
+  const [date, setDate] = useState(payment.paidAt);
+  const [note, setNote] = useState(payment.note);
+  const [splitWith, setSplitWith] = useState<string[]>(
+    payment.splitBetween && payment.splitBetween.length > 0 ? payment.splitBetween : memberIds
+  );
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const parsedAmount = parseFloat(amount.replace(',', '.'));
+  const isSaveDisabled =
+    saving || !amount || isNaN(parsedAmount) || parsedAmount <= 0 || splitWith.length === 0;
+
+  const startEditing = useCallback((): void => {
+    // Reset the form to the current payment values whenever it opens.
+    setAmount(String(payment.amount));
+    setDate(payment.paidAt);
+    setNote(payment.note);
+    setSplitWith(
+      payment.splitBetween && payment.splitBetween.length > 0 ? payment.splitBetween : memberIds
+    );
+    setError('');
+    setEditing(true);
+  }, [payment.amount, payment.paidAt, payment.note, payment.splitBetween, memberIds]);
+
+  const cancelEditing = useCallback((): void => {
+    if (saving) return;
+    setEditing(false);
+  }, [saving]);
+
+  const toggleSplitMember = useCallback((id: string): void => {
+    setSplitWith((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
+  const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
+  const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
+  const handleDateSelect = useCallback((val: string): void => {
+    setDate(val);
+    setShowDatePicker(false);
+  }, []);
+
+  const handleSave = useCallback(async (): Promise<void> => {
+    if (saving) return;
+    const parsed = parseFloat(amount.replace(',', '.'));
+    if (!amount || isNaN(parsed) || parsed <= 0) {
+      setError(t('bills.enter_valid_amount'));
+      return;
+    }
+    if (splitWith.length === 0) {
+      setError(t('bills.household_split_required'));
+      return;
+    }
+    try {
+      setSaving(true);
+      setError('');
+      await updatePayment(payment.id, {
+        amount: parsed,
+        paidAt: date,
+        note,
+        splitBetween: splitWith,
+      });
+      setEditing(false);
+    } catch {
+      setError(t('bills.failed_save'));
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, amount, date, note, splitWith, updatePayment, payment.id, t]);
+
+  const handleDelete = useCallback((): void => onDelete(payment.id), [onDelete, payment.id]);
+
+  if (!editing) {
+    return (
+      <View style={styles.historyRow}>
+        <Text style={[styles.historyDate, { color: c.textSecondary }]}>
+          {formatDateDDMMYYYY(payment.paidAt)}
+        </Text>
+        <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
+          {currency}
+          {payment.amount.toFixed(0)}
+        </Text>
+        {payment.note ? (
+          <Text style={[styles.historyNote, { color: c.textSecondary }]}>{payment.note}</Text>
+        ) : (
+          <View style={styles.historyNote} />
+        )}
+        <Pressable
+          onPress={startEditing}
+          hitSlop={8}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('bills.edit_payment')}
+        >
+          <Ionicons name="pencil" size={14} color={c.textSecondary} />
+        </Pressable>
+        <Pressable
+          onPress={handleDelete}
+          hitSlop={8}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('bills.delete_payment')}
+        >
+          <Ionicons name="close" size={14} color={c.textSecondary} />
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.historyEdit, { borderColor: c.border, backgroundColor: c.background }]}>
+      <View style={styles.logRow}>
+        <TextInput
+          style={[
+            styles.logAmountInput,
+            { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary },
+          ]}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          placeholder={t('bills.household_amount')}
+          placeholderTextColor={c.textDisabled}
+          accessibilityLabel={t('bills.household_amount')}
+          accessibilityHint={t('bills.hint_amount_paid')}
+        />
+        <Pressable
+          style={[styles.dateTrigger, { backgroundColor: c.surface, borderColor: c.border }]}
+          onPress={openDatePicker}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('bills.select_payment_date')}
+        >
+          <Ionicons name="calendar-outline" size={15} color={c.primary} />
+          <Text style={[styles.dateTriggerText, { color: c.textPrimary }]}>
+            {formatDateDDMMYYYY(date)}
+          </Text>
+        </Pressable>
+      </View>
+      <DatePickerModal
+        visible={showDatePicker}
+        value={date}
+        onSelect={handleDateSelect}
+        onClose={closeDatePicker}
+      />
+      <TextInput
+        style={[
+          styles.logNoteInput,
+          { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary },
+        ]}
+        value={note}
+        onChangeText={setNote}
+        placeholder={t('bills.household_note')}
+        placeholderTextColor={c.textDisabled}
+        accessibilityLabel={t('bills.household_note')}
+        accessibilityHint={t('bills.hint_optional_note')}
+      />
+
+      {housemates.length > 0 && (
+        <>
+          <Text style={[styles.splitLabel, { color: c.textSecondary }]}>
+            {t('bills.household_split_between')}
+          </Text>
+          <View style={styles.chipRow}>
+            {housemates.map((m) => {
+              const selected = splitWith.includes(m.id);
+              return (
+                <Pressable
+                  key={m.id}
+                  style={[
+                    styles.chip,
+                    { borderColor: c.border, backgroundColor: c.surface },
+                    selected && { backgroundColor: c.primary, borderColor: c.primary },
+                  ]}
+                  onPress={() => toggleSplitMember(m.id)}
+                  accessible
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={m.name}
+                  accessibilityState={{ checked: selected }}
+                >
+                  <Text style={[styles.chipText, { color: selected ? '#fff' : c.textPrimary }]}>
+                    {m.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
+
+      {!!error && <Text style={[styles.formError, { color: c.negative }]}>{error}</Text>}
+
+      <View style={styles.addFormActions}>
+        <Pressable
+          style={[styles.cancelBtn, { borderColor: c.border }]}
+          onPress={cancelEditing}
+          disabled={saving}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={t('common.cancel')}
+          accessibilityState={{ disabled: saving }}
+        >
+          <Text style={[styles.cancelBtnText, { color: c.textSecondary }]}>
+            {t('common.cancel')}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.saveBtn, { backgroundColor: isSaveDisabled ? c.textDisabled : c.primary }]}
+          onPress={handleSave}
+          disabled={isSaveDisabled}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={
+            saving ? t('bills.household_saving') : t('bills.household_save_changes')
+          }
+          accessibilityState={{ disabled: isSaveDisabled }}
+        >
+          <Text style={styles.saveBtnText}>
+            {saving ? t('bills.household_saving') : t('bills.household_save_changes')}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -491,27 +742,13 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           {showHistory && (
             <View style={[styles.history, { borderTopColor: c.border }]}>
               {billPayments.map((p) => (
-                <View key={p.id} style={styles.historyRow}>
-                  <Text style={[styles.historyDate, { color: c.textSecondary }]}>
-                    {formatDateDDMMYYYY(p.paidAt)}
-                  </Text>
-                  <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
-                    {currency}
-                    {p.amount.toFixed(0)}
-                  </Text>
-                  {p.note ? (
-                    <Text style={[styles.historyNote, { color: c.textSecondary }]}>{p.note}</Text>
-                  ) : null}
-                  <Pressable
-                    onPress={() => handleDeletePayment(p.id)}
-                    hitSlop={8}
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityLabel={t('bills.delete_payment')}
-                  >
-                    <Ionicons name="close" size={14} color={c.textSecondary} />
-                  </Pressable>
-                </View>
+                <PaymentHistoryRow
+                  key={p.id}
+                  payment={p}
+                  housemates={housemates}
+                  currency={currency}
+                  onDelete={handleDeletePayment}
+                />
               ))}
             </View>
           )}
@@ -1188,6 +1425,12 @@ const styles = StyleSheet.create({
   historyDate: { fontSize: sizes.fontSm, width: ms(80) },
   historyAmount: { fontSize: sizes.fontSm, ...font.semibold },
   historyNote: { flex: 1, fontSize: sizes.fontSm, fontStyle: 'italic' },
+  historyEdit: {
+    borderWidth: 1,
+    borderRadius: sizes.borderRadiusSm,
+    padding: sizes.sm,
+    gap: sizes.sm,
+  },
 
   // Add form
   addForm: { borderRadius: sizes.borderRadius, borderWidth: 1, padding: sizes.md, gap: sizes.sm },

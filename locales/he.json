@@ -516,6 +516,7 @@
     "delete_bill": "מחק חשבון",
     "edit_bill": "ערוך חשבון",
     "delete_payment": "מחק תשלום",
+    "edit_payment": "ערוך תשלום",
     "household_missing": "הבית לא נטען",
     "hint_amount_paid": "הזן את הסכום ששולם",
     "hint_optional_note": "הערה אופציונלית",

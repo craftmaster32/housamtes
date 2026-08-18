@@ -46,6 +46,10 @@ interface RecurringBillsStore {
   ) => Promise<void>;
   deleteBill: (id: string) => Promise<void>;
   logPayment: (payment: Omit<HouseholdPayment, 'id'>, houseId: string) => Promise<void>;
+  updatePayment: (
+    id: string,
+    changes: Pick<HouseholdPayment, 'amount' | 'paidAt' | 'note' | 'splitBetween'>
+  ) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
 }
 
@@ -273,6 +277,43 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
               : undefined,
         };
         set({ payments: [payment, ...get().payments] });
+      },
+      updatePayment: async (id, changes): Promise<void> => {
+        // Empty array (not null) is the "split among everyone" sentinel — matches the
+        // NOT NULL column and how logPayment / load treat it.
+        const splitBetween =
+          changes.splitBetween && changes.splitBetween.length > 0 ? changes.splitBetween : [];
+        const { data: updated, error } = await supabase
+          .from('household_payments')
+          .update({
+            amount: changes.amount,
+            paid_at: changes.paidAt,
+            note: changes.note,
+            split_between: splitBetween,
+          })
+          .eq('id', id)
+          .select()
+          .single();
+        if (error) {
+          captureError(error, { context: 'update-payment', paymentId: id });
+          throw new Error('Could not update the payment. Please try again.');
+        }
+        set({
+          payments: get().payments.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  amount: Number(updated.amount),
+                  paidAt: updated.paid_at,
+                  note: updated.note ?? '',
+                  splitBetween:
+                    Array.isArray(updated.split_between) && updated.split_between.length > 0
+                      ? (updated.split_between as string[])
+                      : undefined,
+                }
+              : p
+          ),
+        });
       },
       deletePayment: async (id): Promise<void> => {
         const { error } = await supabase.from('household_payments').delete().eq('id', id);
