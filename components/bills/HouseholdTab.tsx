@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, TextInput, Modal } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -131,7 +131,7 @@ interface HousemateOption {
   name: string;
 }
 
-/** One logged payment in a bill's history — read-only by default, editable inline. */
+/** One logged payment in a bill's history — read-only row; pencil or long-press opens an edit popup. */
 function PaymentHistoryRow({
   payment,
   housemates,
@@ -221,156 +221,226 @@ function PaymentHistoryRow({
 
   const handleDelete = useCallback((): void => onDelete(payment.id), [onDelete, payment.id]);
 
-  if (!editing) {
-    return (
-      <View style={styles.historyRow}>
-        <Text style={[styles.historyDate, { color: c.textSecondary }]}>
-          {formatDateDDMMYYYY(payment.paidAt)}
-        </Text>
-        <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
-          {currency}
-          {payment.amount.toFixed(0)}
-        </Text>
-        {payment.note ? (
-          <Text style={[styles.historyNote, { color: c.textSecondary }]}>{payment.note}</Text>
-        ) : (
-          <View style={styles.historyNote} />
-        )}
+  return (
+    <>
+      {/* Read-only row — tap the pencil or long-press the row to edit. */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.historyRow,
+          styles.historyRowTappable,
+          { borderColor: c.border },
+          pressed && { backgroundColor: c.surfaceSecondary },
+        ]}
+        onLongPress={startEditing}
+        delayLongPress={250}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`${formatDateDDMMYYYY(payment.paidAt)} · ${currency}${payment.amount.toFixed(0)}`}
+        accessibilityHint={t('bills.edit_payment_hint')}
+      >
+        <View style={styles.historyMain}>
+          <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
+            {currency}
+            {payment.amount.toFixed(0)}
+          </Text>
+          <Text style={[styles.historyDate, { color: c.textSecondary }]}>
+            {formatDateDDMMYYYY(payment.paidAt)}
+          </Text>
+          {payment.note ? (
+            <Text style={[styles.historyNote, { color: c.textSecondary }]} numberOfLines={1}>
+              {payment.note}
+            </Text>
+          ) : null}
+        </View>
         <Pressable
           onPress={startEditing}
-          hitSlop={8}
+          hitSlop={10}
+          style={styles.historyIconBtn}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('bills.edit_payment')}
         >
-          <Ionicons name="pencil" size={14} color={c.textSecondary} />
+          <Ionicons name="pencil" size={16} color={c.textSecondary} />
         </Pressable>
         <Pressable
           onPress={handleDelete}
-          hitSlop={8}
+          hitSlop={10}
+          style={styles.historyIconBtn}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('bills.delete_payment')}
         >
-          <Ionicons name="close" size={14} color={c.textSecondary} />
+          <Ionicons name="trash-outline" size={16} color={c.textSecondary} />
         </Pressable>
-      </View>
-    );
-  }
+      </Pressable>
 
-  return (
-    <View style={[styles.historyEdit, { borderColor: c.border, backgroundColor: c.background }]}>
-      <View style={styles.logRow}>
-        <TextInput
-          style={[
-            styles.logAmountInput,
-            { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary },
-          ]}
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="decimal-pad"
-          placeholder={t('bills.household_amount')}
-          placeholderTextColor={c.textDisabled}
-          accessibilityLabel={t('bills.household_amount')}
-          accessibilityHint={t('bills.hint_amount_paid')}
-        />
-        <Pressable
-          style={[styles.dateTrigger, { backgroundColor: c.surface, borderColor: c.border }]}
-          onPress={openDatePicker}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('bills.select_payment_date')}
-        >
-          <Ionicons name="calendar-outline" size={15} color={c.primary} />
-          <Text style={[styles.dateTriggerText, { color: c.textPrimary }]}>
-            {formatDateDDMMYYYY(date)}
-          </Text>
-        </Pressable>
-      </View>
-      <DatePickerModal
-        visible={showDatePicker}
-        value={date}
-        onSelect={handleDateSelect}
-        onClose={closeDatePicker}
-      />
-      <TextInput
-        style={[
-          styles.logNoteInput,
-          { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary },
-        ]}
-        value={note}
-        onChangeText={setNote}
-        placeholder={t('bills.household_note')}
-        placeholderTextColor={c.textDisabled}
-        accessibilityLabel={t('bills.household_note')}
-        accessibilityHint={t('bills.hint_optional_note')}
-      />
+      {/* Edit popup */}
+      <Modal
+        visible={editing}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelEditing}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.modalOverlay} onPress={cancelEditing}>
+          <Pressable
+            style={[styles.modalCard, { backgroundColor: c.surface }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: c.textPrimary }]}>
+                {t('bills.edit_payment')}
+              </Text>
+              <Pressable
+                onPress={cancelEditing}
+                hitSlop={10}
+                style={styles.historyIconBtn}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('common.cancel')}
+              >
+                <Ionicons name="close" size={20} color={c.textSecondary} />
+              </Pressable>
+            </View>
 
-      {housemates.length > 0 && (
-        <>
-          <Text style={[styles.splitLabel, { color: c.textSecondary }]}>
-            {t('bills.household_split_between')}
-          </Text>
-          <View style={styles.chipRow}>
-            {housemates.map((m) => {
-              const selected = splitWith.includes(m.id);
-              return (
-                <Pressable
-                  key={m.id}
-                  style={[
-                    styles.chip,
-                    { borderColor: c.border, backgroundColor: c.surface },
-                    selected && { backgroundColor: c.primary, borderColor: c.primary },
-                  ]}
-                  onPress={() => toggleSplitMember(m.id)}
-                  accessible
-                  accessibilityRole="checkbox"
-                  accessibilityLabel={m.name}
-                  accessibilityState={{ checked: selected }}
-                >
-                  <Text style={[styles.chipText, { color: selected ? '#fff' : c.textPrimary }]}>
-                    {m.name}
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+                {t('bills.household_amount')}
+              </Text>
+              <TextInput
+                style={[
+                  styles.addInput,
+                  { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+                ]}
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="decimal-pad"
+                placeholder={t('bills.household_amount')}
+                placeholderTextColor={c.textDisabled}
+                accessibilityLabel={t('bills.household_amount')}
+                accessibilityHint={t('bills.hint_amount_paid')}
+              />
+
+              <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+                {t('bills.select_payment_date')}
+              </Text>
+              <Pressable
+                style={[
+                  styles.dateTrigger,
+                  { backgroundColor: c.background, borderColor: c.border },
+                ]}
+                onPress={openDatePicker}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('bills.select_payment_date')}
+              >
+                <Ionicons name="calendar-outline" size={16} color={c.primary} />
+                <Text style={[styles.dateTriggerText, { color: c.textPrimary }]}>
+                  {formatDateDDMMYYYY(date)}
+                </Text>
+              </Pressable>
+
+              <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+                {t('bills.household_note')}
+              </Text>
+              <TextInput
+                style={[
+                  styles.addInput,
+                  { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary },
+                ]}
+                value={note}
+                onChangeText={setNote}
+                placeholder={t('bills.household_note')}
+                placeholderTextColor={c.textDisabled}
+                accessibilityLabel={t('bills.household_note')}
+                accessibilityHint={t('bills.hint_optional_note')}
+              />
+
+              {housemates.length > 0 && (
+                <>
+                  <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+                    {t('bills.household_split_between')}
                   </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </>
-      )}
+                  <View style={styles.chipRow}>
+                    {housemates.map((m) => {
+                      const selected = splitWith.includes(m.id);
+                      return (
+                        <Pressable
+                          key={m.id}
+                          style={[
+                            styles.chip,
+                            { borderColor: c.border, backgroundColor: c.surface },
+                            selected && { backgroundColor: c.primary, borderColor: c.primary },
+                          ]}
+                          onPress={() => toggleSplitMember(m.id)}
+                          accessible
+                          accessibilityRole="checkbox"
+                          accessibilityLabel={m.name}
+                          accessibilityState={{ checked: selected }}
+                        >
+                          <Text
+                            style={[styles.chipText, { color: selected ? '#fff' : c.textPrimary }]}
+                          >
+                            {m.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
 
-      {!!error && <Text style={[styles.formError, { color: c.negative }]}>{error}</Text>}
+              {!!error && <Text style={[styles.formError, { color: c.negative }]}>{error}</Text>}
+            </ScrollView>
 
-      <View style={styles.addFormActions}>
-        <Pressable
-          style={[styles.cancelBtn, { borderColor: c.border }]}
-          onPress={cancelEditing}
-          disabled={saving}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('common.cancel')}
-          accessibilityState={{ disabled: saving }}
-        >
-          <Text style={[styles.cancelBtnText, { color: c.textSecondary }]}>
-            {t('common.cancel')}
-          </Text>
+            <View style={styles.addFormActions}>
+              <Pressable
+                style={[styles.cancelBtn, { borderColor: c.border }]}
+                onPress={cancelEditing}
+                disabled={saving}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('common.cancel')}
+                accessibilityState={{ disabled: saving }}
+              >
+                <Text style={[styles.cancelBtnText, { color: c.textSecondary }]}>
+                  {t('common.cancel')}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.saveBtn,
+                  { backgroundColor: isSaveDisabled ? c.textDisabled : c.primary },
+                ]}
+                onPress={handleSave}
+                disabled={isSaveDisabled}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={
+                  saving ? t('bills.household_saving') : t('bills.household_save_changes')
+                }
+                accessibilityState={{ disabled: isSaveDisabled }}
+              >
+                <Text style={styles.saveBtnText}>
+                  {saving ? t('bills.household_saving') : t('bills.household_save_changes')}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
         </Pressable>
-        <Pressable
-          style={[styles.saveBtn, { backgroundColor: isSaveDisabled ? c.textDisabled : c.primary }]}
-          onPress={handleSave}
-          disabled={isSaveDisabled}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={
-            saving ? t('bills.household_saving') : t('bills.household_save_changes')
-          }
-          accessibilityState={{ disabled: isSaveDisabled }}
-        >
-          <Text style={styles.saveBtnText}>
-            {saving ? t('bills.household_saving') : t('bills.household_save_changes')}
-          </Text>
-        </Pressable>
-      </View>
-    </View>
+
+        <DatePickerModal
+          visible={showDatePicker}
+          value={date}
+          onSelect={handleDateSelect}
+          onClose={closeDatePicker}
+        />
+      </Modal>
+    </>
   );
 }
 
@@ -1421,16 +1491,54 @@ const styles = StyleSheet.create({
 
   // History
   history: { borderTopWidth: 1, paddingTop: sizes.sm, gap: sizes.xs },
-  historyRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-  historyDate: { fontSize: sizes.fontSm, width: ms(80) },
-  historyAmount: { fontSize: sizes.fontSm, ...font.semibold },
-  historyNote: { flex: 1, fontSize: sizes.fontSm, fontStyle: 'italic' },
-  historyEdit: {
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.xs },
+  historyRowTappable: {
     borderWidth: 1,
     borderRadius: sizes.borderRadiusSm,
-    padding: sizes.sm,
-    gap: sizes.sm,
+    paddingVertical: sizes.xs,
+    paddingHorizontal: sizes.sm,
+    minHeight: ms(44),
   },
+  historyMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
+  historyDate: { fontSize: sizes.fontSm },
+  historyAmount: { fontSize: sizes.fontMd, ...font.bold, minWidth: ms(56) },
+  historyNote: { flex: 1, fontSize: sizes.fontSm, fontStyle: 'italic' },
+  historyIconBtn: {
+    minWidth: ms(36),
+    minHeight: ms(36),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Edit-payment popup
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: ms(20),
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: ms(360),
+    maxHeight: '85%',
+    borderRadius: ms(20),
+    padding: sizes.lg,
+    gap: sizes.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: ms(12) },
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: { fontSize: sizes.fontLg, ...font.bold },
+  modalScroll: { flexGrow: 0 },
+  modalScrollContent: { gap: sizes.sm, paddingBottom: sizes.xs },
 
   // Add form
   addForm: { borderRadius: sizes.borderRadius, borderWidth: 1, padding: sizes.md, gap: sizes.sm },

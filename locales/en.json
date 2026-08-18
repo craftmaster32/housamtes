@@ -516,6 +516,7 @@
     "edit_bill": "Edit bill",
     "delete_payment": "Delete payment",
     "edit_payment": "Edit payment",
+    "edit_payment_hint": "Long-press to edit this payment",
     "household_missing": "Household not loaded",
     "hint_amount_paid": "Enter the amount paid",
     "hint_optional_note": "Optional note",

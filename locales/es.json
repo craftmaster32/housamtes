@@ -517,6 +517,7 @@
     "edit_bill": "Editar gasto",
     "delete_payment": "Eliminar pago",
     "edit_payment": "Editar pago",
+    "edit_payment_hint": "Mantén pulsado para editar este pago",
     "household_missing": "Casa no cargada",
     "hint_amount_paid": "Ingresa el monto pagado",
     "hint_optional_note": "Nota opcional",
