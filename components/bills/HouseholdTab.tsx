@@ -223,7 +223,9 @@ function PaymentHistoryRow({
 
   return (
     <>
-      {/* Read-only row — tap the pencil or long-press the row to edit. */}
+      {/* Read-only row. Long-press opens the editor for sighted touch users; the
+          pencil button is the equivalent path for assistive tech. The container is
+          intentionally not `accessible` so its text and nested buttons stay reachable. */}
       <Pressable
         style={({ pressed }) => [
           styles.historyRow,
@@ -233,10 +235,6 @@ function PaymentHistoryRow({
         ]}
         onLongPress={startEditing}
         delayLongPress={250}
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel={`${formatDateDDMMYYYY(payment.paidAt)} · ${currency}${payment.amount.toFixed(0)}`}
-        accessibilityHint={t('bills.edit_payment_hint')}
       >
         <View style={styles.historyMain}>
           <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
@@ -254,7 +252,6 @@ function PaymentHistoryRow({
         </View>
         <Pressable
           onPress={startEditing}
-          hitSlop={10}
           style={styles.historyIconBtn}
           accessible
           accessibilityRole="button"
@@ -264,7 +261,6 @@ function PaymentHistoryRow({
         </Pressable>
         <Pressable
           onPress={handleDelete}
-          hitSlop={10}
           style={styles.historyIconBtn}
           accessible
           accessibilityRole="button"
@@ -286,6 +282,7 @@ function PaymentHistoryRow({
           <Pressable
             style={[styles.modalCard, { backgroundColor: c.surface }]}
             onPress={(e) => e.stopPropagation()}
+            accessibilityViewIsModal
           >
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: c.textPrimary }]}>
@@ -432,14 +429,15 @@ function PaymentHistoryRow({
             </View>
           </Pressable>
         </Pressable>
-
-        <DatePickerModal
-          visible={showDatePicker}
-          value={date}
-          onSelect={handleDateSelect}
-          onClose={closeDatePicker}
-        />
       </Modal>
+
+      {/* Sibling of the edit Modal (not nested) — nested RN Modals misbehave on Android. */}
+      <DatePickerModal
+        visible={showDatePicker}
+        value={date}
+        onSelect={handleDateSelect}
+        onClose={closeDatePicker}
+      />
     </>
   );
 }
@@ -1504,8 +1502,8 @@ const styles = StyleSheet.create({
   historyAmount: { fontSize: sizes.fontMd, ...font.bold, minWidth: ms(56) },
   historyNote: { flex: 1, fontSize: sizes.fontSm, fontStyle: 'italic' },
   historyIconBtn: {
-    minWidth: ms(36),
-    minHeight: ms(36),
+    minWidth: ms(44),
+    minHeight: ms(44),
     justifyContent: 'center',
     alignItems: 'center',
   },
