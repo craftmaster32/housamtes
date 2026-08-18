@@ -296,6 +296,60 @@ describe('addBill', () => {
   });
 });
 
+describe('updateBill', () => {
+  it('applies the edited fields to the matching bill', async () => {
+    useRecurringBillsStore.setState({ bills: [bill('b1', 'alice'), bill('b2', 'bob')] });
+    mockFrom.mockReturnValueOnce(
+      ok({
+        id: 'b1',
+        name: 'Electric (edited)',
+        assigned_to: 'bob',
+        frequency: 'quarterly',
+        typical_amount: '420',
+        icon: 'flash-outline',
+        created_at: '2026-01-01T00:00:00Z',
+        next_due_date: null,
+      })
+    );
+
+    await useRecurringBillsStore.getState().updateBill('b1', {
+      name: 'Electric (edited)',
+      assignedTo: 'bob',
+      frequency: 'quarterly',
+      typicalAmount: 420,
+      icon: 'flash-outline',
+    });
+
+    const s = useRecurringBillsStore.getState();
+    const edited = s.bills.find((b) => b.id === 'b1');
+    expect(edited).toMatchObject({
+      name: 'Electric (edited)',
+      assignedTo: 'bob',
+      frequency: 'quarterly',
+      typicalAmount: 420,
+      icon: 'flash-outline',
+    });
+    // The other bill is left untouched.
+    expect(s.bills.find((b) => b.id === 'b2')?.name).toBe('Bill b2');
+  });
+
+  it('throws a plain-English error and changes nothing when the update fails', async () => {
+    useRecurringBillsStore.setState({ bills: [bill('b1', 'alice')] });
+    mockFrom.mockReturnValueOnce(fail('update failed'));
+
+    await expect(
+      useRecurringBillsStore.getState().updateBill('b1', {
+        name: 'Nope',
+        assignedTo: 'bob',
+        frequency: 'monthly',
+        typicalAmount: 10,
+        icon: 'flash-outline',
+      })
+    ).rejects.toThrow('Could not update the bill. Please try again.');
+    expect(useRecurringBillsStore.getState().bills[0].name).toBe('Bill b1');
+  });
+});
+
 describe('deleteBill', () => {
   it('removes the bill and its payments', async () => {
     useRecurringBillsStore.setState({
@@ -372,6 +426,75 @@ describe('logPayment', () => {
         .logPayment({ billId: 'b1', amount: 250, paidAt: '2026-07-10', note: '' }, 'house-1')
     ).rejects.toThrow('Could not log the payment. Please try again.');
     expect(useRecurringBillsStore.getState().payments).toHaveLength(0);
+  });
+});
+
+describe('updatePayment', () => {
+  it('applies the edited amount, date, note and split to the matching payment', async () => {
+    const p1 = { ...payment('b1', 100), id: 'p1' };
+    const p2 = { ...payment('b1', 200), id: 'p2' };
+    useRecurringBillsStore.setState({ payments: [p1, p2] });
+    mockFrom.mockReturnValueOnce(
+      ok({
+        id: 'p1',
+        bill_id: 'b1',
+        amount: '175',
+        paid_at: '2026-08-15',
+        note: 'fixed typo',
+        split_between: ['alice', 'bob'],
+      })
+    );
+
+    await useRecurringBillsStore.getState().updatePayment('p1', {
+      amount: 175,
+      paidAt: '2026-08-15',
+      note: 'fixed typo',
+      splitBetween: ['alice', 'bob'],
+    });
+
+    const s = useRecurringBillsStore.getState();
+    expect(s.payments.find((p) => p.id === 'p1')).toEqual({
+      id: 'p1',
+      billId: 'b1',
+      amount: 175,
+      paidAt: '2026-08-15',
+      note: 'fixed typo',
+      splitBetween: ['alice', 'bob'],
+    });
+    // The other payment is untouched.
+    expect(s.payments.find((p) => p.id === 'p2')?.amount).toBe(200);
+  });
+
+  it('treats an empty split as the everyone sentinel (undefined in the app model)', async () => {
+    useRecurringBillsStore.setState({ payments: [{ ...payment('b1', 100), id: 'p1' }] });
+    mockFrom.mockReturnValueOnce(
+      ok({
+        id: 'p1',
+        bill_id: 'b1',
+        amount: '100',
+        paid_at: '2026-07-01',
+        note: '',
+        split_between: [],
+      })
+    );
+
+    await useRecurringBillsStore
+      .getState()
+      .updatePayment('p1', { amount: 100, paidAt: '2026-07-01', note: '', splitBetween: [] });
+
+    expect(useRecurringBillsStore.getState().payments[0].splitBetween).toBeUndefined();
+  });
+
+  it('throws a plain-English error and changes nothing when the update fails', async () => {
+    useRecurringBillsStore.setState({ payments: [{ ...payment('b1', 100), id: 'p1' }] });
+    mockFrom.mockReturnValueOnce(fail('update failed'));
+
+    await expect(
+      useRecurringBillsStore
+        .getState()
+        .updatePayment('p1', { amount: 999, paidAt: '2026-09-01', note: 'nope' })
+    ).rejects.toThrow('Could not update the payment. Please try again.');
+    expect(useRecurringBillsStore.getState().payments[0].amount).toBe(100);
   });
 });
 
