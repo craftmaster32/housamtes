@@ -12,7 +12,15 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Path,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+  Mask,
+  Rect,
+} from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +33,8 @@ import { useVotingStore } from '@stores/votingStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { resolveName } from '@utils/housemates';
 import { mf, ms } from '@utils/responsive';
 import {
@@ -38,6 +48,12 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 const CARD_H = ms(158);
 const GAP = ms(12);
 const PARK_GRADIENT = ['#2C3E4C', '#1A2732'] as const;
+// Sleek car silhouette, drawn once and reused as the parking card's faint
+// backdrop. Fills the otherwise-empty right half of the card.
+const CAR_PATH =
+  'M10 70 Q10 62 22 60 L40 58 C48 46 60 40 74 39 L96 39 C112 39 122 46 130 58 ' +
+  'L146 62 Q152 64 152 72 L152 74 Q152 78 147 78 L133 78 A13 13 0 0 0 107 78 ' +
+  'L66 78 A13 13 0 0 0 40 78 L15 78 Q10 78 10 72 Z';
 
 const CARD_ICON: Record<DashboardCardKey, IoniconName> = {
   groceries: 'cart-outline',
@@ -141,6 +157,36 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       justifyContent: 'space-between',
       padding: ms(15),
     },
+    // LTR: car sits in the bottom-right corner. RTL: mirror it to the
+    // bottom-left (scaleX flips both the silhouette's facing and its fade so
+    // the solid body lands away from the right-aligned Hebrew text).
+    parkArt: {
+      position: 'absolute',
+      right: ms(-14),
+      bottom: ms(-4),
+    },
+    parkArtNarrow: {
+      position: 'absolute',
+      right: ms(-14),
+      bottom: ms(-2),
+    },
+    parkArtRTL: {
+      position: 'absolute',
+      left: ms(-14),
+      bottom: ms(-4),
+      transform: [{ scaleX: -1 }],
+    },
+    parkArtNarrowRTL: {
+      position: 'absolute',
+      left: ms(-14),
+      bottom: ms(-2),
+      transform: [{ scaleX: -1 }],
+    },
+    // The text column is capped so the long free-spot sub-line ("El primero que
+    // llega…") truncates and never runs onto the car. The big status word is
+    // short in every language, so the whole block can share one width cap.
+    parkText: { maxWidth: '58%' },
+    parkTextNarrow: { maxWidth: '66%' },
     parkPill: {
       alignSelf: 'flex-start',
       paddingHorizontal: ms(9),
@@ -470,16 +516,42 @@ function VotesCard({
 
 function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const current = useParkingStore((s) => s.current);
   const housemates = useHousematesStore((s) => s.housemates);
+  const [cardW, setCardW] = useState(0);
+  const onLayout = useCallback((e: LayoutChangeEvent): void => {
+    setCardW(e.nativeEvent.layout.width);
+  }, []);
   const isFree = !current;
   const accent = isFree ? '#8FE0AC' : '#FF8478';
   const pillBg = isFree ? 'rgba(79,176,113,0.16)' : 'rgba(255,97,85,0.16)';
   const occupant = resolveName(current?.occupant ?? '', housemates, '').split(' ')[0];
+  // When pinned, the card renders at ~half width. There the big status word
+  // ("Ocupado") already fills most of the row, so the car becomes a faint
+  // corner texture. At full width it takes the right half as a whole car.
+  const narrow = cardW === 0 || cardW < 210;
+  // Size the car to the right ~half of the actual card so a whole car always
+  // fits beside the text instead of running through it. When pinned the card is
+  // tight, so the car shrinks to a small corner accent that clears the big word.
+  const carW = narrow ? ms(104) : Math.min(cardW * 0.52, ms(210));
+  const carH = carW / 1.6;
+  const artStyle = rtl
+    ? narrow
+      ? styles.parkArtNarrowRTL
+      : styles.parkArtRTL
+    : narrow
+      ? styles.parkArtNarrow
+      : styles.parkArt;
+  const handleParkingPress = useCallback((): void => {
+    router.push('/(tabs)/parking');
+  }, []);
   return (
     <Pressable
       style={({ pressed }) => [styles.parkShell, pressed && { opacity: 0.9 }]}
-      onPress={() => router.push('/(tabs)/parking')}
+      onPress={handleParkingPress}
+      onLayout={onLayout}
       accessibilityRole="button"
       accessibilityLabel={t('dashboard.parking_label')}
     >
@@ -489,12 +561,35 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+      <View style={artStyle} pointerEvents="none">
+        <Svg width={carW} height={carH} viewBox="0 0 160 100">
+          <Defs>
+            {/* At full width the whole car shows with a soft nose. When pinned
+                the card is too tight, so a flat transparent lead-in keeps the
+                car fully clear of the text and only turns solid to its right. */}
+            <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
+              <Stop offset="0" stopColor="#fff" stopOpacity={0} />
+              <Stop offset={narrow ? 0.55 : 0} stopColor="#fff" stopOpacity={0} />
+              <Stop offset={narrow ? 0.82 : 0.3} stopColor="#fff" stopOpacity={1} />
+            </SvgLinearGradient>
+            <Mask id="parkFadeMask">
+              <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
+            </Mask>
+          </Defs>
+          <Path
+            d={CAR_PATH}
+            fill={accent}
+            opacity={narrow ? 0.44 : 0.4}
+            mask="url(#parkFadeMask)"
+          />
+        </Svg>
+      </View>
       <View style={[styles.parkPill, { backgroundColor: pillBg }]}>
         <Text style={[styles.parkPillText, { color: accent }]}>
           {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
         </Text>
       </View>
-      <View>
+      <View style={narrow ? styles.parkTextNarrow : styles.parkText}>
         <Text style={styles.parkLabel}>{t('dashboard.parking_label')}</Text>
         <Text style={styles.parkStatus}>
           {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
