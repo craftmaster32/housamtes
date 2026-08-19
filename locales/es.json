@@ -335,7 +335,7 @@
     "parking_label": "PARKING",
     "parking_free": "Libre",
     "parking_in_use": "Ocupado",
-    "parking_first_come": "El primero que llega se lo queda",
+    "parking_first_come": "El primero que llega",
     "parking_free_it_up": "¿Terminaste? Libéralo",
     "parking_by": "por {{name}}",
     "chores_label": "TAREAS",

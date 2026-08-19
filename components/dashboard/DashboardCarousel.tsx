@@ -33,6 +33,8 @@ import { useVotingStore } from '@stores/votingStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { resolveName } from '@utils/housemates';
 import { mf, ms } from '@utils/responsive';
 import {
@@ -155,6 +157,9 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       justifyContent: 'space-between',
       padding: ms(15),
     },
+    // LTR: car sits in the bottom-right corner. RTL: mirror it to the
+    // bottom-left (scaleX flips both the silhouette's facing and its fade so
+    // the solid body lands away from the right-aligned Hebrew text).
     parkArt: {
       position: 'absolute',
       right: ms(-14),
@@ -165,9 +170,23 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       right: ms(-14),
       bottom: ms(-2),
     },
-    // Only the long sub-line is capped (and it truncates), so it stops before
-    // the car. The big status word is left free so it never wraps.
-    parkSubClamp: { maxWidth: '52%' },
+    parkArtRTL: {
+      position: 'absolute',
+      left: ms(-14),
+      bottom: ms(-4),
+      transform: [{ scaleX: -1 }],
+    },
+    parkArtNarrowRTL: {
+      position: 'absolute',
+      left: ms(-14),
+      bottom: ms(-2),
+      transform: [{ scaleX: -1 }],
+    },
+    // The text column is capped so the long free-spot sub-line ("El primero que
+    // llega…") truncates and never runs onto the car. The big status word is
+    // short in every language, so the whole block can share one width cap.
+    parkText: { maxWidth: '58%' },
+    parkTextNarrow: { maxWidth: '66%' },
     parkPill: {
       alignSelf: 'flex-start',
       paddingHorizontal: ms(9),
@@ -497,6 +516,8 @@ function VotesCard({
 
 function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const current = useParkingStore((s) => s.current);
   const housemates = useHousematesStore((s) => s.housemates);
   const [cardW, setCardW] = useState(0);
@@ -512,9 +533,17 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   // corner texture. At full width it takes the right half as a whole car.
   const narrow = cardW === 0 || cardW < 210;
   // Size the car to the right ~half of the actual card so a whole car always
-  // fits beside the text instead of running through it.
-  const carW = narrow ? ms(134) : Math.min(cardW * 0.52, ms(210));
+  // fits beside the text instead of running through it. When pinned the card is
+  // tight, so the car shrinks to a small corner accent that clears the big word.
+  const carW = narrow ? ms(104) : Math.min(cardW * 0.52, ms(210));
   const carH = carW / 1.6;
+  const artStyle = rtl
+    ? narrow
+      ? styles.parkArtNarrowRTL
+      : styles.parkArtRTL
+    : narrow
+      ? styles.parkArtNarrow
+      : styles.parkArt;
   const handleParkingPress = useCallback((): void => {
     router.push('/(tabs)/parking');
   }, []);
@@ -532,7 +561,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={narrow ? styles.parkArtNarrow : styles.parkArt} pointerEvents="none">
+      <View style={artStyle} pointerEvents="none">
         <Svg width={carW} height={carH} viewBox="0 0 160 100">
           <Defs>
             {/* At full width the whole car shows with a soft nose. When pinned
@@ -540,8 +569,8 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
                 car fully clear of the text and only turns solid to its right. */}
             <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.5 : 0} stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.72 : 0.3} stopColor="#fff" stopOpacity={1} />
+              <Stop offset={narrow ? 0.55 : 0} stopColor="#fff" stopOpacity={0} />
+              <Stop offset={narrow ? 0.82 : 0.3} stopColor="#fff" stopOpacity={1} />
             </SvgLinearGradient>
             <Mask id="parkFadeMask">
               <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
@@ -560,12 +589,12 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
           {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
         </Text>
       </View>
-      <View>
+      <View style={narrow ? styles.parkTextNarrow : styles.parkText}>
         <Text style={styles.parkLabel}>{t('dashboard.parking_label')}</Text>
         <Text style={styles.parkStatus}>
           {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
         </Text>
-        <Text style={[styles.parkSub, !narrow && styles.parkSubClamp]} numberOfLines={1}>
+        <Text style={styles.parkSub} numberOfLines={1}>
           {isFree ? t('dashboard.parking_first_come') : occupant || t('common.unknown')}
         </Text>
       </View>
