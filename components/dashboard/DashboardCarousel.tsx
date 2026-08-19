@@ -182,11 +182,6 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       bottom: ms(-2),
       transform: [{ scaleX: -1 }],
     },
-    // The text column is capped so the long free-spot sub-line ("El primero que
-    // llega…") truncates and never runs onto the car. The big status word is
-    // short in every language, so the whole block can share one width cap.
-    parkText: { maxWidth: '58%' },
-    parkTextNarrow: { maxWidth: '66%' },
     parkPill: {
       alignSelf: 'flex-start',
       paddingHorizontal: ms(9),
@@ -528,15 +523,18 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   const accent = isFree ? '#8FE0AC' : '#FF8478';
   const pillBg = isFree ? 'rgba(79,176,113,0.16)' : 'rgba(255,97,85,0.16)';
   const occupant = resolveName(current?.occupant ?? '', housemates, '').split(' ')[0];
-  // When pinned, the card renders at ~half width. There the big status word
-  // ("Ocupado") already fills most of the row, so the car becomes a faint
-  // corner texture. At full width it takes the right half as a whole car.
+  // When another card is pinned this one renders at ~half width, so the car is
+  // sized and faded a little differently there than at full width.
   const narrow = cardW === 0 || cardW < 210;
-  // Size the car to the right ~half of the actual card so a whole car always
-  // fits beside the text instead of running through it. When pinned the card is
-  // tight, so the car shrinks to a small corner accent that clears the big word.
-  const carW = narrow ? ms(104) : Math.min(cardW * 0.52, ms(210));
+  // The car fills the empty side of the card. It's bolder when the spot is free
+  // (only the short "Free" word shares the row) and pulls back a touch when
+  // taken, so the occupant's name and the longer status word stay clear of it.
+  const carW = narrow ? (isFree ? ms(140) : ms(120)) : Math.min(cardW * 0.52, ms(210));
   const carH = carW / 1.6;
+  // Left edge of the car fades in; held back further when there is text to
+  // protect (taken, or the tight pinned width) and let bolder when free.
+  const fadeHold = isFree ? (narrow ? 0.12 : 0) : narrow ? 0.5 : 0;
+  const fadeSolid = isFree ? (narrow ? 0.42 : 0.22) : narrow ? 0.78 : 0.32;
   const artStyle = rtl
     ? narrow
       ? styles.parkArtNarrowRTL
@@ -564,24 +562,18 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
       <View style={artStyle} pointerEvents="none">
         <Svg width={carW} height={carH} viewBox="0 0 160 100">
           <Defs>
-            {/* At full width the whole car shows with a soft nose. When pinned
-                the card is too tight, so a flat transparent lead-in keeps the
-                car fully clear of the text and only turns solid to its right. */}
+            {/* A transparent lead-in on the text side dissolves the car before
+                it reaches the words, then it turns solid toward its own edge. */}
             <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.55 : 0} stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.82 : 0.3} stopColor="#fff" stopOpacity={1} />
+              <Stop offset={fadeHold} stopColor="#fff" stopOpacity={0} />
+              <Stop offset={fadeSolid} stopColor="#fff" stopOpacity={1} />
             </SvgLinearGradient>
             <Mask id="parkFadeMask">
               <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
             </Mask>
           </Defs>
-          <Path
-            d={CAR_PATH}
-            fill={accent}
-            opacity={narrow ? 0.44 : 0.4}
-            mask="url(#parkFadeMask)"
-          />
+          <Path d={CAR_PATH} fill={accent} opacity={isFree ? 0.5 : 0.4} mask="url(#parkFadeMask)" />
         </Svg>
       </View>
       <View style={[styles.parkPill, { backgroundColor: pillBg }]}>
@@ -589,14 +581,18 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
           {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
         </Text>
       </View>
-      <View style={narrow ? styles.parkTextNarrow : styles.parkText}>
+      <View>
         <Text style={styles.parkLabel}>{t('dashboard.parking_label')}</Text>
         <Text style={styles.parkStatus}>
           {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
         </Text>
-        <Text style={styles.parkSub} numberOfLines={1}>
-          {isFree ? t('dashboard.parking_first_come') : occupant || t('common.unknown')}
-        </Text>
+        {/* When free, the car is the hero — no sub-line to crowd it. When taken,
+            show who has the spot. */}
+        {!isFree && (
+          <Text style={styles.parkSub} numberOfLines={1}>
+            {occupant || t('common.unknown')}
+          </Text>
+        )}
       </View>
     </Pressable>
   );
