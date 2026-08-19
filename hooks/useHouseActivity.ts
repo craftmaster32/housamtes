@@ -100,16 +100,18 @@ export function useHouseActivity(limit = 30): ActivityEntry[] {
       // The logger — not the bill's assignee — is who took this action. Fall back
       // to the assignee only for legacy payments logged before we tracked it.
       const loggedActor = p.loggedBy ?? bill?.assignedTo ?? '';
-      entries.push({
-        id: `rpay:${p.id}`,
-        createdAt: p.createdAt,
-        actorId: loggedActor,
-        icon: bill ? resolveBillIcon(bill.icon) : 'receipt-outline',
-        tone: 'success',
-        actionKey: 'activity.logged_payment',
-        detail: bill?.name ?? '',
-        route: { pathname: '/(tabs)/bills', params: { openRecurring: '1' } },
-      });
+      if (loggedActor) {
+        entries.push({
+          id: `rpay:${p.id}`,
+          createdAt: p.createdAt,
+          actorId: loggedActor,
+          icon: bill ? resolveBillIcon(bill.icon) : 'receipt-outline',
+          tone: 'success',
+          actionKey: 'activity.logged_payment',
+          detail: bill?.name ?? '',
+          route: { pathname: '/(tabs)/bills', params: { openRecurring: '1' } },
+        });
+      }
       if (p.editedBy && p.editedAt) {
         entries.push({
           id: `rpay-edit:${p.id}`,
