@@ -509,7 +509,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   // When pinned, the card renders at ~half width; a full-size car would run
   // straight through the text. Below that threshold we shrink it, tuck it into
   // the bottom-right corner, and fade it harder so the text stays clean.
-  const narrow = cardW > 0 && cardW < 210;
+  const narrow = cardW === 0 || cardW < 210;
   return (
     <Pressable
       style={({ pressed }) => [styles.parkShell, pressed && { opacity: 0.9 }]}
