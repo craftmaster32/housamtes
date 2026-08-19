@@ -157,10 +157,15 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     },
     parkArt: {
       position: 'absolute',
-      right: ms(-30),
+      right: ms(-26),
       top: 0,
       bottom: 0,
       justifyContent: 'center',
+    },
+    parkArtNarrow: {
+      position: 'absolute',
+      right: ms(-12),
+      bottom: ms(2),
     },
     parkPill: {
       alignSelf: 'flex-start',
@@ -493,14 +498,23 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   const { t } = useTranslation();
   const current = useParkingStore((s) => s.current);
   const housemates = useHousematesStore((s) => s.housemates);
+  const [cardW, setCardW] = useState(0);
+  const onLayout = useCallback((e: LayoutChangeEvent): void => {
+    setCardW(e.nativeEvent.layout.width);
+  }, []);
   const isFree = !current;
   const accent = isFree ? '#8FE0AC' : '#FF8478';
   const pillBg = isFree ? 'rgba(79,176,113,0.16)' : 'rgba(255,97,85,0.16)';
   const occupant = resolveName(current?.occupant ?? '', housemates, '').split(' ')[0];
+  // When pinned, the card renders at ~half width; a full-size car would run
+  // straight through the text. Below that threshold we shrink it, tuck it into
+  // the bottom-right corner, and fade it harder so the text stays clean.
+  const narrow = cardW > 0 && cardW < 210;
   return (
     <Pressable
       style={({ pressed }) => [styles.parkShell, pressed && { opacity: 0.9 }]}
       onPress={() => router.push('/(tabs)/parking')}
+      onLayout={onLayout}
       accessibilityRole="button"
       accessibilityLabel={t('dashboard.parking_label')}
     >
@@ -510,19 +524,24 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.parkArt} pointerEvents="none">
-        <Svg width={ms(210)} height={ms(140)} viewBox="0 0 160 100">
+      <View style={narrow ? styles.parkArtNarrow : styles.parkArt} pointerEvents="none">
+        <Svg width={ms(narrow ? 128 : 224)} height={ms(narrow ? 85 : 150)} viewBox="0 0 160 100">
           <Defs>
             {/* Left-to-right fade so the car dissolves before it reaches the text. */}
             <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset="0.4" stopColor="#fff" stopOpacity={1} />
+              <Stop offset={narrow ? 0.5 : 0.22} stopColor="#fff" stopOpacity={1} />
             </SvgLinearGradient>
             <Mask id="parkFadeMask">
               <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
             </Mask>
           </Defs>
-          <Path d={CAR_PATH} fill={accent} opacity={0.17} mask="url(#parkFadeMask)" />
+          <Path
+            d={CAR_PATH}
+            fill={accent}
+            opacity={narrow ? 0.16 : 0.24}
+            mask="url(#parkFadeMask)"
+          />
         </Svg>
       </View>
       <View style={[styles.parkPill, { backgroundColor: pillBg }]}>
