@@ -157,17 +157,17 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     },
     parkArt: {
       position: 'absolute',
-      right: ms(-22),
+      right: ms(-14),
       bottom: ms(-4),
     },
     parkArtNarrow: {
       position: 'absolute',
-      right: ms(-10),
+      right: ms(-8),
       bottom: ms(-2),
     },
-    // Cap the text to the left column so the sub-line truncates before it
-    // reaches the car, keeping the two from overlapping.
-    parkText: { maxWidth: '60%' },
+    // Only the long sub-line is capped (and it truncates), so it stops before
+    // the car. The big status word is left free so it never wraps.
+    parkSubClamp: { maxWidth: '52%' },
     parkPill: {
       alignSelf: 'flex-start',
       paddingHorizontal: ms(9),
@@ -507,10 +507,14 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   const accent = isFree ? '#8FE0AC' : '#FF8478';
   const pillBg = isFree ? 'rgba(79,176,113,0.16)' : 'rgba(255,97,85,0.16)';
   const occupant = resolveName(current?.occupant ?? '', housemates, '').split(' ')[0];
-  // When pinned, the card renders at ~half width; a full-size car would run
-  // straight through the text. Below that threshold we shrink it, tuck it into
-  // the bottom-right corner, and fade it harder so the text stays clean.
+  // When pinned, the card renders at ~half width. There the big status word
+  // ("Ocupado") already fills most of the row, so the car becomes a faint
+  // corner texture. At full width it takes the right half as a whole car.
   const narrow = cardW === 0 || cardW < 210;
+  // Size the car to the right ~half of the actual card so a whole car always
+  // fits beside the text instead of running through it.
+  const carW = narrow ? ms(120) : Math.min(cardW * 0.52, ms(210));
+  const carH = carW / 1.6;
   const handleParkingPress = useCallback((): void => {
     router.push('/(tabs)/parking');
   }, []);
@@ -529,15 +533,14 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         style={StyleSheet.absoluteFill}
       />
       <View style={narrow ? styles.parkArtNarrow : styles.parkArt} pointerEvents="none">
-        <Svg width={ms(narrow ? 128 : 224)} height={ms(narrow ? 80 : 140)} viewBox="0 0 160 100">
+        <Svg width={carW} height={carH} viewBox="0 0 160 100">
           <Defs>
-            {/* Fade with a flat transparent lead-in: the car is fully invisible
-                across the text column on the left, then ramps to solid on the
-                right so it lives in its own space instead of behind the words. */}
+            {/* Soft front fade only: the whole car shows, its nose dissolving
+                gently so the silhouette reads as a complete car sitting on the
+                right, not a hard-cut half. */}
             <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.42 : 0.4} stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.66 : 0.62} stopColor="#fff" stopOpacity={1} />
+              <Stop offset={narrow ? 0.5 : 0.28} stopColor="#fff" stopOpacity={1} />
             </SvgLinearGradient>
             <Mask id="parkFadeMask">
               <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
@@ -546,7 +549,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
           <Path
             d={CAR_PATH}
             fill={accent}
-            opacity={narrow ? 0.22 : 0.32}
+            opacity={narrow ? 0.14 : 0.34}
             mask="url(#parkFadeMask)"
           />
         </Svg>
@@ -556,12 +559,12 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
           {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
         </Text>
       </View>
-      <View style={styles.parkText}>
+      <View>
         <Text style={styles.parkLabel}>{t('dashboard.parking_label')}</Text>
         <Text style={styles.parkStatus}>
           {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
         </Text>
-        <Text style={styles.parkSub} numberOfLines={1}>
+        <Text style={[styles.parkSub, !narrow && styles.parkSubClamp]} numberOfLines={1}>
           {isFree ? t('dashboard.parking_first_come') : occupant || t('common.unknown')}
         </Text>
       </View>
