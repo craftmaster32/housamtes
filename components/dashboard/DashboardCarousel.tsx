@@ -513,7 +513,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   const narrow = cardW === 0 || cardW < 210;
   // Size the car to the right ~half of the actual card so a whole car always
   // fits beside the text instead of running through it.
-  const carW = narrow ? ms(120) : Math.min(cardW * 0.52, ms(210));
+  const carW = narrow ? ms(134) : Math.min(cardW * 0.52, ms(210));
   const carH = carW / 1.6;
   const handleParkingPress = useCallback((): void => {
     router.push('/(tabs)/parking');
@@ -540,7 +540,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
                 right, not a hard-cut half. */}
             <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.5 : 0.28} stopColor="#fff" stopOpacity={1} />
+              <Stop offset={narrow ? 0.36 : 0.28} stopColor="#fff" stopOpacity={1} />
             </SvgLinearGradient>
             <Mask id="parkFadeMask">
               <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
@@ -549,7 +549,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
           <Path
             d={CAR_PATH}
             fill={accent}
-            opacity={narrow ? 0.26 : 0.34}
+            opacity={narrow ? 0.44 : 0.34}
             mask="url(#parkFadeMask)"
           />
         </Svg>
