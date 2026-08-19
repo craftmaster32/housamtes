@@ -46,6 +46,7 @@ export interface HouseholdPayment {
   createdAt: string; // when the payment was logged — feeds the activity feed
   note: string;
   splitBetween?: string[]; // user UUIDs sharing the cost; undefined = split among all housemates
+  loggedBy: string | null; // user UUID who logged it (may differ from the bill's assignee)
   editedAt: string | null; // when the payment was last edited
   editedBy: string | null; // user UUID who last edited it
 }
@@ -68,7 +69,7 @@ interface RecurringBillsStore {
   ) => Promise<void>;
   deleteBill: (id: string) => Promise<void>;
   logPayment: (
-    payment: Omit<HouseholdPayment, 'id' | 'createdAt' | 'editedAt' | 'editedBy'>,
+    payment: Omit<HouseholdPayment, 'id' | 'createdAt' | 'loggedBy' | 'editedAt' | 'editedBy'>,
     houseId: string
   ) => Promise<void>;
   updatePayment: (
@@ -140,6 +141,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
               Array.isArray(r.split_between) && r.split_between.length > 0
                 ? (r.split_between as string[])
                 : undefined,
+            loggedBy: r.logged_by ?? null,
             editedAt: r.edited_at ?? null,
             editedBy: r.edited_by ?? null,
           }));
@@ -295,6 +297,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         // NOT NULL, and the load path treats an empty array the same as "all housemates".
         const splitBetween =
           data.splitBetween && data.splitBetween.length > 0 ? data.splitBetween : [];
+        const loggedBy = useAuthStore.getState().profile?.id ?? null;
         const { data: inserted, error } = await supabase
           .from('household_payments')
           .insert({
@@ -304,6 +307,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             paid_at: data.paidAt,
             note: data.note,
             split_between: splitBetween,
+            logged_by: loggedBy,
           })
           .select()
           .single();
@@ -322,6 +326,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             Array.isArray(inserted.split_between) && inserted.split_between.length > 0
               ? (inserted.split_between as string[])
               : undefined,
+          loggedBy: inserted.logged_by ?? loggedBy,
           editedAt: null,
           editedBy: null,
         };

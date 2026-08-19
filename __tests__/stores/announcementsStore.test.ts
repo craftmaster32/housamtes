@@ -63,6 +63,7 @@ beforeEach(() => {
   useAnnouncementsStore.setState({ items: [], isLoading: false, error: null });
   useAuthStore.setState({
     houseId: HOUSE,
+    profile: { id: ME },
   } as unknown as Partial<ReturnType<typeof useAuthStore.getState>>);
   jest.clearAllMocks();
 });
@@ -155,8 +156,9 @@ describe('announcementsStore — edit', () => {
     const updated = useAnnouncementsStore.getState().items[0];
     expect(updated.text).toBe('WiFi password: tulip99');
     expect(updated.updatedAt).not.toBe(updated.createdAt); // marked as edited
-    // Stamped so the edit can surface as "edited a note" in the activity bell.
+    // Stamped with who + when so the edit can surface as "edited a note" in the bell.
     expect(typeof updated.editedAt).toBe('string');
+    expect(updated.editedBy).toBe(ME);
   });
 
   it('throws and leaves the note unchanged when DB update fails', async () => {

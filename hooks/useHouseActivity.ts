@@ -97,10 +97,13 @@ export function useHouseActivity(limit = 30): ActivityEntry[] {
     for (const p of payments) {
       if (!p.createdAt) continue;
       const bill = recurringBills.find((b) => b.id === p.billId);
+      // The logger — not the bill's assignee — is who took this action. Fall back
+      // to the assignee only for legacy payments logged before we tracked it.
+      const loggedActor = p.loggedBy ?? bill?.assignedTo ?? '';
       entries.push({
         id: `rpay:${p.id}`,
         createdAt: p.createdAt,
-        actorId: bill?.assignedTo ?? '',
+        actorId: loggedActor,
         icon: bill ? resolveBillIcon(bill.icon) : 'receipt-outline',
         tone: 'success',
         actionKey: 'activity.logged_payment',

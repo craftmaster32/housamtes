@@ -18,6 +18,12 @@ ALTER TABLE recurring_bills     ADD COLUMN IF NOT EXISTS edited_by uuid;
 ALTER TABLE household_payments  ADD COLUMN IF NOT EXISTS edited_at timestamptz;
 ALTER TABLE household_payments  ADD COLUMN IF NOT EXISTS edited_by uuid;
 
+-- Who logged the payment. Unlike a bill's assignee (the designated payer), any
+-- housemate can log a payment, so the activity feed needs the actual logger to
+-- attribute "logged a payment" correctly. Nullable: legacy rows predate this and
+-- fall back to the bill's assignee in the feed.
+ALTER TABLE household_payments  ADD COLUMN IF NOT EXISTS logged_by uuid;
+
 ALTER TABLE grocery_items       ADD COLUMN IF NOT EXISTS edited_at timestamptz;
 ALTER TABLE grocery_items       ADD COLUMN IF NOT EXISTS edited_by uuid;
 

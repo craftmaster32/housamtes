@@ -25,7 +25,12 @@ jest.mock('@lib/supabase', () => ({
 }));
 jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
 jest.mock('@stores/authStore', () => ({
-  useAuthStore: { getState: (): { houseId: string } => ({ houseId: 'house-1' }) },
+  useAuthStore: {
+    getState: (): { houseId: string; profile: { id: string } } => ({
+      houseId: 'house-1',
+      profile: { id: 'user-logger' },
+    }),
+  },
 }));
 
 import {
@@ -58,6 +63,7 @@ const payment = (billId: string, amount: number, splitBetween?: string[]): House
   createdAt: '2026-07-01T00:00:00Z',
   note: '',
   splitBetween,
+  loggedBy: null,
   editedAt: null,
   editedBy: null,
 });
@@ -231,6 +237,7 @@ describe('load', () => {
       createdAt: '2026-06-01T09:00:00Z',
       note: '',
       splitBetween: undefined,
+      loggedBy: null,
       editedAt: null,
       editedBy: null,
     });
@@ -427,6 +434,8 @@ describe('logPayment', () => {
       createdAt: '2026-07-10T12:00:00Z',
       note: 'June bill',
       splitBetween: ['alice', 'bob'],
+      // Attributed to whoever logged it, not the bill's assignee.
+      loggedBy: 'user-logger',
       editedAt: null,
       editedBy: null,
     });
@@ -478,6 +487,7 @@ describe('updatePayment', () => {
       createdAt: '2026-07-01T00:00:00Z',
       note: 'fixed typo',
       splitBetween: ['alice', 'bob'],
+      loggedBy: null,
       editedAt: '2026-08-15T10:00:00Z',
       editedBy: 'user-editor',
     });
