@@ -157,15 +157,13 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     },
     parkArt: {
       position: 'absolute',
-      right: ms(-26),
-      top: 0,
-      bottom: 0,
-      justifyContent: 'center',
+      right: ms(-22),
+      bottom: ms(-4),
     },
     parkArtNarrow: {
       position: 'absolute',
-      right: ms(-12),
-      bottom: ms(2),
+      right: ms(-10),
+      bottom: ms(-2),
     },
     parkPill: {
       alignSelf: 'flex-start',
@@ -525,12 +523,14 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         style={StyleSheet.absoluteFill}
       />
       <View style={narrow ? styles.parkArtNarrow : styles.parkArt} pointerEvents="none">
-        <Svg width={ms(narrow ? 128 : 224)} height={ms(narrow ? 85 : 150)} viewBox="0 0 160 100">
+        <Svg width={ms(narrow ? 128 : 224)} height={ms(narrow ? 80 : 140)} viewBox="0 0 160 100">
           <Defs>
-            {/* Left-to-right fade so the car dissolves before it reaches the text. */}
+            {/* Left-to-right fade: fully transparent across the text on the left,
+                turning solid only on the right so the car reads boldly there
+                without smearing behind the words. */}
             <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.5 : 0.22} stopColor="#fff" stopOpacity={1} />
+              <Stop offset={narrow ? 0.52 : 0.45} stopColor="#fff" stopOpacity={1} />
             </SvgLinearGradient>
             <Mask id="parkFadeMask">
               <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
@@ -539,7 +539,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
           <Path
             d={CAR_PATH}
             fill={accent}
-            opacity={narrow ? 0.16 : 0.24}
+            opacity={narrow ? 0.22 : 0.32}
             mask="url(#parkFadeMask)"
           />
         </Svg>
