@@ -508,10 +508,13 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   // straight through the text. Below that threshold we shrink it, tuck it into
   // the bottom-right corner, and fade it harder so the text stays clean.
   const narrow = cardW === 0 || cardW < 210;
+  const handleParkingPress = useCallback((): void => {
+    router.push('/(tabs)/parking');
+  }, []);
   return (
     <Pressable
       style={({ pressed }) => [styles.parkShell, pressed && { opacity: 0.9 }]}
-      onPress={() => router.push('/(tabs)/parking')}
+      onPress={handleParkingPress}
       onLayout={onLayout}
       accessibilityRole="button"
       accessibilityLabel={t('dashboard.parking_label')}
