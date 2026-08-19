@@ -549,7 +549,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
           <Path
             d={CAR_PATH}
             fill={accent}
-            opacity={narrow ? 0.14 : 0.34}
+            opacity={narrow ? 0.26 : 0.34}
             mask="url(#parkFadeMask)"
           />
         </Svg>
