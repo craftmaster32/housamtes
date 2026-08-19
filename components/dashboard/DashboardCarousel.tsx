@@ -162,7 +162,7 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     },
     parkArtNarrow: {
       position: 'absolute',
-      right: ms(-8),
+      right: ms(-14),
       bottom: ms(-2),
     },
     // Only the long sub-line is capped (and it truncates), so it stops before
@@ -535,12 +535,13 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
       <View style={narrow ? styles.parkArtNarrow : styles.parkArt} pointerEvents="none">
         <Svg width={carW} height={carH} viewBox="0 0 160 100">
           <Defs>
-            {/* Soft front fade only: the whole car shows, its nose dissolving
-                gently so the silhouette reads as a complete car sitting on the
-                right, not a hard-cut half. */}
+            {/* At full width the whole car shows with a soft nose. When pinned
+                the card is too tight, so a flat transparent lead-in keeps the
+                car fully clear of the text and only turns solid to its right. */}
             <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.36 : 0.28} stopColor="#fff" stopOpacity={1} />
+              <Stop offset={narrow ? 0.5 : 0} stopColor="#fff" stopOpacity={0} />
+              <Stop offset={narrow ? 0.72 : 0.3} stopColor="#fff" stopOpacity={1} />
             </SvgLinearGradient>
             <Mask id="parkFadeMask">
               <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
@@ -549,7 +550,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
           <Path
             d={CAR_PATH}
             fill={accent}
-            opacity={narrow ? 0.44 : 0.34}
+            opacity={narrow ? 0.44 : 0.4}
             mask="url(#parkFadeMask)"
           />
         </Svg>
