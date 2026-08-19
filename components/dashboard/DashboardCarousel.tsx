@@ -165,6 +165,9 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       right: ms(-10),
       bottom: ms(-2),
     },
+    // Cap the text to the left column so the sub-line truncates before it
+    // reaches the car, keeping the two from overlapping.
+    parkText: { maxWidth: '60%' },
     parkPill: {
       alignSelf: 'flex-start',
       paddingHorizontal: ms(9),
@@ -528,12 +531,13 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
       <View style={narrow ? styles.parkArtNarrow : styles.parkArt} pointerEvents="none">
         <Svg width={ms(narrow ? 128 : 224)} height={ms(narrow ? 80 : 140)} viewBox="0 0 160 100">
           <Defs>
-            {/* Left-to-right fade: fully transparent across the text on the left,
-                turning solid only on the right so the car reads boldly there
-                without smearing behind the words. */}
+            {/* Fade with a flat transparent lead-in: the car is fully invisible
+                across the text column on the left, then ramps to solid on the
+                right so it lives in its own space instead of behind the words. */}
             <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset={narrow ? 0.52 : 0.45} stopColor="#fff" stopOpacity={1} />
+              <Stop offset={narrow ? 0.42 : 0.4} stopColor="#fff" stopOpacity={0} />
+              <Stop offset={narrow ? 0.66 : 0.62} stopColor="#fff" stopOpacity={1} />
             </SvgLinearGradient>
             <Mask id="parkFadeMask">
               <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
@@ -552,7 +556,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
           {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
         </Text>
       </View>
-      <View>
+      <View style={styles.parkText}>
         <Text style={styles.parkLabel}>{t('dashboard.parking_label')}</Text>
         <Text style={styles.parkStatus}>
           {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
