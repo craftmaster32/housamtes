@@ -323,6 +323,7 @@ function PinnedNote(): React.JSX.Element {
 function OwedHero(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
+  const rtl = isRTL(useLanguageStore((s) => s.language));
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const bills = useBillsStore((s) => s.bills);
   const profile = useAuthStore((s) => s.profile);
@@ -367,8 +368,8 @@ function OwedHero(): React.JSX.Element {
         end={{ x: 0.85, y: 1 }}
         style={[styles.hero, { shadowColor: c.owedShadow }]}
       >
-        <View style={styles.heroDeco} />
-        <View style={styles.heroDecoSm} />
+        <View style={[styles.heroDeco, rtl ? styles.heroDecoLeft : styles.heroDecoRight]} />
+        <View style={[styles.heroDecoSm, rtl ? styles.heroDecoSmLeft : styles.heroDecoSmRight]} />
         <View style={styles.heroHighlight} />
 
         {settled ? (
@@ -634,26 +635,30 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 10,
   },
+  // The decorative rings sit on the side opposite the amount. In RTL the amount
+  // moves to the right, so the rings flip to the left to stay clear of it.
   heroDeco: {
     position: 'absolute',
     bottom: ms(-40),
-    right: ms(-20),
     width: ms(150),
     height: ms(150),
     borderRadius: ms(75),
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.13)',
   },
+  heroDecoRight: { right: ms(-20) },
+  heroDecoLeft: { left: ms(-20) },
   heroDecoSm: {
     position: 'absolute',
     bottom: ms(-8),
-    right: ms(20),
     width: ms(96),
     height: ms(96),
     borderRadius: ms(48),
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.10)',
   },
+  heroDecoSmRight: { right: ms(20) },
+  heroDecoSmLeft: { left: ms(20) },
   // Hairline of light along the top edge — the "lit from above" cue that reads
   // as depth on the gradient.
   heroHighlight: {

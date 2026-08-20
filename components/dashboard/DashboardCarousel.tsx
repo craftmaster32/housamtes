@@ -12,7 +12,15 @@ import {
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Path,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+  Mask,
+  Rect,
+} from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +33,8 @@ import { useVotingStore } from '@stores/votingStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { resolveName } from '@utils/housemates';
 import { mf, ms } from '@utils/responsive';
 import {
@@ -38,6 +48,12 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 const CARD_H = ms(158);
 const GAP = ms(12);
 const PARK_GRADIENT = ['#2C3E4C', '#1A2732'] as const;
+// Sleek car silhouette, drawn once and reused as the parking card's faint
+// backdrop. Fills the otherwise-empty right half of the card.
+const CAR_PATH =
+  'M10 70 Q10 62 22 60 L40 58 C48 46 60 40 74 39 L96 39 C112 39 122 46 130 58 ' +
+  'L146 62 Q152 64 152 72 L152 74 Q152 78 147 78 L133 78 A13 13 0 0 0 107 78 ' +
+  'L66 78 A13 13 0 0 0 40 78 L15 78 Q10 78 10 72 Z';
 
 const CARD_ICON: Record<DashboardCardKey, IoniconName> = {
   groceries: 'cart-outline',
@@ -140,6 +156,31 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       overflow: 'hidden',
       justifyContent: 'space-between',
       padding: ms(15),
+    },
+    // LTR: car sits in the bottom-right corner. RTL: mirror it to the
+    // bottom-left (scaleX flips both the silhouette's facing and its fade so
+    // the solid body lands away from the right-aligned Hebrew text).
+    parkArt: {
+      position: 'absolute',
+      right: ms(-14),
+      bottom: ms(-4),
+    },
+    parkArtNarrow: {
+      position: 'absolute',
+      right: ms(-14),
+      bottom: ms(-2),
+    },
+    parkArtRTL: {
+      position: 'absolute',
+      left: ms(-14),
+      bottom: ms(-4),
+      transform: [{ scaleX: -1 }],
+    },
+    parkArtNarrowRTL: {
+      position: 'absolute',
+      left: ms(-14),
+      bottom: ms(-2),
+      transform: [{ scaleX: -1 }],
     },
     parkPill: {
       alignSelf: 'flex-start',
@@ -470,16 +511,45 @@ function VotesCard({
 
 function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   const { t } = useTranslation();
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
   const current = useParkingStore((s) => s.current);
   const housemates = useHousematesStore((s) => s.housemates);
+  const [cardW, setCardW] = useState(0);
+  const onLayout = useCallback((e: LayoutChangeEvent): void => {
+    setCardW(e.nativeEvent.layout.width);
+  }, []);
   const isFree = !current;
   const accent = isFree ? '#8FE0AC' : '#FF8478';
   const pillBg = isFree ? 'rgba(79,176,113,0.16)' : 'rgba(255,97,85,0.16)';
   const occupant = resolveName(current?.occupant ?? '', housemates, '').split(' ')[0];
+  // When another card is pinned this one renders at ~half width, so the car is
+  // sized and faded a little differently there than at full width.
+  const narrow = cardW === 0 || cardW < 210;
+  // The car fills the empty side of the card and reaches toward the middle so
+  // there's no dead band next to the (now short) status text — capped by the
+  // card height. It's bolder when free and pulls back a touch when taken.
+  const carW = narrow ? (isFree ? ms(140) : ms(120)) : Math.min(cardW * 0.66, ms(240));
+  const carH = carW / 1.6;
+  // Left edge of the car fades in; held back further when there is text to
+  // protect (taken, or the tight pinned width) and let bolder when free.
+  const fadeHold = isFree ? (narrow ? 0.12 : 0) : narrow ? 0.5 : 0;
+  const fadeSolid = isFree ? (narrow ? 0.42 : 0.15) : narrow ? 0.78 : 0.32;
+  const artStyle = rtl
+    ? narrow
+      ? styles.parkArtNarrowRTL
+      : styles.parkArtRTL
+    : narrow
+      ? styles.parkArtNarrow
+      : styles.parkArt;
+  const handleParkingPress = useCallback((): void => {
+    router.push('/(tabs)/parking');
+  }, []);
   return (
     <Pressable
       style={({ pressed }) => [styles.parkShell, pressed && { opacity: 0.9 }]}
-      onPress={() => router.push('/(tabs)/parking')}
+      onPress={handleParkingPress}
+      onLayout={onLayout}
       accessibilityRole="button"
       accessibilityLabel={t('dashboard.parking_label')}
     >
@@ -489,6 +559,23 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+      <View style={artStyle} pointerEvents="none">
+        <Svg width={carW} height={carH} viewBox="0 0 160 100">
+          <Defs>
+            {/* A transparent lead-in on the text side dissolves the car before
+                it reaches the words, then it turns solid toward its own edge. */}
+            <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
+              <Stop offset="0" stopColor="#fff" stopOpacity={0} />
+              <Stop offset={fadeHold} stopColor="#fff" stopOpacity={0} />
+              <Stop offset={fadeSolid} stopColor="#fff" stopOpacity={1} />
+            </SvgLinearGradient>
+            <Mask id="parkFadeMask">
+              <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
+            </Mask>
+          </Defs>
+          <Path d={CAR_PATH} fill={accent} opacity={isFree ? 0.5 : 0.4} mask="url(#parkFadeMask)" />
+        </Svg>
+      </View>
       <View style={[styles.parkPill, { backgroundColor: pillBg }]}>
         <Text style={[styles.parkPillText, { color: accent }]}>
           {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
@@ -499,9 +586,13 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         <Text style={styles.parkStatus}>
           {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
         </Text>
-        <Text style={styles.parkSub} numberOfLines={1}>
-          {isFree ? t('dashboard.parking_first_come') : occupant || t('common.unknown')}
-        </Text>
+        {/* When free, the car is the hero — no sub-line to crowd it. When taken,
+            show who has the spot. */}
+        {!isFree && (
+          <Text style={styles.parkSub} numberOfLines={1}>
+            {occupant || t('common.unknown')}
+          </Text>
+        )}
       </View>
     </Pressable>
   );
@@ -557,6 +648,7 @@ function renderCard(
 export function DashboardCarousel(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
+  const rtl = isRTL(useLanguageStore((s) => s.language));
   const styles = useMemo(() => makeStyles(c), [c]);
   const enabled = useDashboardCardsStore((s) => s.enabled);
   const pinned = useDashboardCardsStore((s) => s.pinned);
@@ -591,16 +683,16 @@ export function DashboardCarousel(): React.JSX.Element {
     setWidth(e.nativeEvent.layout.width);
   }, []);
 
+  // In RTL the horizontal scroll offset runs negative (0 at the right, growing
+  // negative toward the left), so flip its sign to get a plain 0→N position.
   const syncIndex = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>): void => {
       if (stride <= 0) return;
-      const i = Math.max(
-        0,
-        Math.min(Math.round(e.nativeEvent.contentOffset.x / stride), railKeys.length - 1)
-      );
+      const offset = e.nativeEvent.contentOffset.x * (rtl ? -1 : 1);
+      const i = Math.max(0, Math.min(Math.round(offset / stride), railKeys.length - 1));
       setIndex((prev) => (prev === i ? prev : i));
     },
-    [stride, railKeys.length]
+    [stride, railKeys.length, rtl]
   );
 
   // Live scroll position drives the smooth dot morph (and web dot tracking).
@@ -615,10 +707,17 @@ export function DashboardCarousel(): React.JSX.Element {
 
   const goTo = useCallback(
     (i: number): void => {
-      scrollRef.current?.scrollTo({ x: i * stride, animated: true });
+      scrollRef.current?.scrollTo({ x: i * stride * (rtl ? -1 : 1), animated: true });
       setIndex(i);
     },
-    [stride]
+    [stride, rtl]
+  );
+
+  // The dot morph interpolates on a growing positive position; in RTL the raw
+  // offset is negative, so feed it the flipped value.
+  const scrollProgress = useMemo(
+    () => (rtl ? Animated.multiply(scrollX, -1) : scrollX),
+    [rtl, scrollX]
   );
 
   const rail =
@@ -632,12 +731,21 @@ export function DashboardCarousel(): React.JSX.Element {
         snapToAlignment="start"
         onScroll={onScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={{ paddingRight: railOuter - cardW }}
+        // The peek that reveals the next card sits on the trailing edge. In RTL
+        // the row flows right-to-left, so that edge — and the inter-card gap —
+        // flips to the left; keeping them on the right would shove the first
+        // card off the right border and leave a gap there.
+        contentContainerStyle={
+          rtl ? { paddingLeft: railOuter - cardW } : { paddingRight: railOuter - cardW }
+        }
       >
         {railKeys.map((key, i) => (
           <View
             key={key}
-            style={{ width: cardW, marginRight: i === railKeys.length - 1 ? 0 : GAP }}
+            style={{
+              width: cardW,
+              [rtl ? 'marginLeft' : 'marginRight']: i === railKeys.length - 1 ? 0 : GAP,
+            }}
           >
             {renderCard(key, styles, c, pinnedKey !== null)}
           </View>
@@ -681,12 +789,12 @@ export function DashboardCarousel(): React.JSX.Element {
               <View style={styles.dots}>
                 {railKeys.map((key, i) => {
                   const inputRange = [(i - 1) * stride, i * stride, (i + 1) * stride];
-                  const dotWidth = scrollX.interpolate({
+                  const dotWidth = scrollProgress.interpolate({
                     inputRange,
                     outputRange: [7, 22, 7],
                     extrapolate: 'clamp',
                   });
-                  const dotColor = scrollX.interpolate({
+                  const dotColor = scrollProgress.interpolate({
                     inputRange,
                     outputRange: [c.border, c.primary, c.border],
                     extrapolate: 'clamp',
