@@ -683,16 +683,16 @@ export function DashboardCarousel(): React.JSX.Element {
     setWidth(e.nativeEvent.layout.width);
   }, []);
 
+  // In RTL the horizontal scroll offset runs negative (0 at the right, growing
+  // negative toward the left), so flip its sign to get a plain 0→N position.
   const syncIndex = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>): void => {
       if (stride <= 0) return;
-      const i = Math.max(
-        0,
-        Math.min(Math.round(e.nativeEvent.contentOffset.x / stride), railKeys.length - 1)
-      );
+      const offset = e.nativeEvent.contentOffset.x * (rtl ? -1 : 1);
+      const i = Math.max(0, Math.min(Math.round(offset / stride), railKeys.length - 1));
       setIndex((prev) => (prev === i ? prev : i));
     },
-    [stride, railKeys.length]
+    [stride, railKeys.length, rtl]
   );
 
   // Live scroll position drives the smooth dot morph (and web dot tracking).
@@ -707,10 +707,17 @@ export function DashboardCarousel(): React.JSX.Element {
 
   const goTo = useCallback(
     (i: number): void => {
-      scrollRef.current?.scrollTo({ x: i * stride, animated: true });
+      scrollRef.current?.scrollTo({ x: i * stride * (rtl ? -1 : 1), animated: true });
       setIndex(i);
     },
-    [stride]
+    [stride, rtl]
+  );
+
+  // The dot morph interpolates on a growing positive position; in RTL the raw
+  // offset is negative, so feed it the flipped value.
+  const scrollProgress = useMemo(
+    () => (rtl ? Animated.multiply(scrollX, -1) : scrollX),
+    [rtl, scrollX]
   );
 
   const rail =
@@ -782,12 +789,12 @@ export function DashboardCarousel(): React.JSX.Element {
               <View style={styles.dots}>
                 {railKeys.map((key, i) => {
                   const inputRange = [(i - 1) * stride, i * stride, (i + 1) * stride];
-                  const dotWidth = scrollX.interpolate({
+                  const dotWidth = scrollProgress.interpolate({
                     inputRange,
                     outputRange: [7, 22, 7],
                     extrapolate: 'clamp',
                   });
-                  const dotColor = scrollX.interpolate({
+                  const dotColor = scrollProgress.interpolate({
                     inputRange,
                     outputRange: [c.border, c.primary, c.border],
                     extrapolate: 'clamp',
