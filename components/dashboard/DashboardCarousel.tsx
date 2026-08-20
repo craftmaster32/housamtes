@@ -526,15 +526,17 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   // When another card is pinned this one renders at ~half width, so the car is
   // sized and faded a little differently there than at full width.
   const narrow = cardW === 0 || cardW < 210;
-  // The car fills the empty side of the card and reaches toward the middle so
-  // there's no dead band next to the (now short) status text — capped by the
-  // card height. It's bolder when free and pulls back a touch when taken.
-  const carW = narrow ? (isFree ? ms(140) : ms(120)) : Math.min(cardW * 0.66, ms(240));
-  const carH = carW / 1.6;
-  // Left edge of the car fades in; held back further when there is text to
+  // The car reaches most of the way across the card so there's no dead band
+  // beside the (now short) status text. A whole car is only ~1.6× as wide as
+  // tall, which the card height caps well before the full width — so the height
+  // is capped and the SVG is allowed to stretch (preserveAspectRatio="none"),
+  // letting the silhouette run long and low to fill the space.
+  const carW = narrow ? (isFree ? ms(140) : ms(120)) : Math.min(cardW * 0.72, ms(300));
+  const carH = Math.min(carW / 1.6, ms(152));
+  // The car's text-side edge fades out; held back further when there is text to
   // protect (taken, or the tight pinned width) and let bolder when free.
   const fadeHold = isFree ? (narrow ? 0.12 : 0) : narrow ? 0.5 : 0;
-  const fadeSolid = isFree ? (narrow ? 0.42 : 0.15) : narrow ? 0.78 : 0.32;
+  const fadeSolid = isFree ? (narrow ? 0.42 : 0.2) : narrow ? 0.78 : 0.34;
   const artStyle = rtl
     ? narrow
       ? styles.parkArtNarrowRTL
@@ -560,7 +562,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         style={StyleSheet.absoluteFill}
       />
       <View style={artStyle} pointerEvents="none">
-        <Svg width={carW} height={carH} viewBox="0 0 160 100">
+        <Svg width={carW} height={carH} viewBox="0 0 160 100" preserveAspectRatio="none">
           <Defs>
             {/* A transparent lead-in on the text side dissolves the car before
                 it reaches the words, then it turns solid toward its own edge. */}
