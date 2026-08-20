@@ -215,7 +215,8 @@ describe('toggleItem', () => {
 describe('updateItem', () => {
   it('applies the new name/quantity and stamps who edited it', async () => {
     seedItems({ name: 'Milk', quantity: '1' });
-    mockFrom.mockReturnValue(ok(null));
+    const chain = ok(null);
+    mockFrom.mockReturnValue(chain);
 
     await useGroceryStore.getState().updateItem('item-1', 'Oat milk', '2');
 
@@ -225,6 +226,10 @@ describe('updateItem', () => {
     // Stamped so the edit can surface as "edited a shopping item" in the bell.
     expect(updated.editedBy).toBe('u-groc');
     expect(typeof updated.editedAt).toBe('string');
+    // …and the audit fields are sent to the database, not just kept locally.
+    expect(chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ edited_by: 'u-groc', edited_at: expect.any(String) })
+    );
   });
 
   it('leaves state unchanged when the DB update fails', async () => {

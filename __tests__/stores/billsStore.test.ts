@@ -460,7 +460,8 @@ describe('billsStore — editBill', () => {
 
   it('updates state on success', async () => {
     useBillsStore.setState({ bills: [bill({ id: 'b1', title: 'Rent' })] });
-    mockFrom.mockReturnValue(ok());
+    const chain = ok();
+    mockFrom.mockReturnValue(chain);
 
     await useBillsStore.getState().editBill(
       'b1',
@@ -479,6 +480,10 @@ describe('billsStore — editBill', () => {
     // The edit is stamped so it can surface as "edited" activity in the bell.
     expect(useBillsStore.getState().bills[0].editedBy).toBe('u1');
     expect(typeof useBillsStore.getState().bills[0].editedAt).toBe('string');
+    // …and the audit fields are actually sent to the database, not just kept locally.
+    expect(chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ edited_by: 'u1', edited_at: expect.any(String) })
+    );
   });
 
   it('notifies housemates when the amount changes', async () => {

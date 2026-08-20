@@ -458,18 +458,17 @@ describe('updatePayment', () => {
     const p1 = { ...payment('b1', 100), id: 'p1' };
     const p2 = { ...payment('b1', 200), id: 'p2' };
     useRecurringBillsStore.setState({ payments: [p1, p2] });
-    mockFrom.mockReturnValueOnce(
-      ok({
-        id: 'p1',
-        bill_id: 'b1',
-        amount: '175',
-        paid_at: '2026-08-15',
-        note: 'fixed typo',
-        split_between: ['alice', 'bob'],
-        edited_at: '2026-08-15T10:00:00Z',
-        edited_by: 'user-editor',
-      })
-    );
+    const chain = ok({
+      id: 'p1',
+      bill_id: 'b1',
+      amount: '175',
+      paid_at: '2026-08-15',
+      note: 'fixed typo',
+      split_between: ['alice', 'bob'],
+      edited_at: '2026-08-15T10:00:00Z',
+      edited_by: 'user-editor',
+    });
+    mockFrom.mockReturnValueOnce(chain);
 
     await useRecurringBillsStore.getState().updatePayment('p1', {
       amount: 175,
@@ -477,6 +476,12 @@ describe('updatePayment', () => {
       note: 'fixed typo',
       splitBetween: ['alice', 'bob'],
     });
+
+    // The update sends the acting user (profile id) as the editor; the value mapped
+    // back into state comes from the DB response above (which the trigger authored).
+    expect(chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ edited_by: 'user-logger', edited_at: expect.any(String) })
+    );
 
     const s = useRecurringBillsStore.getState();
     expect(s.payments.find((p) => p.id === 'p1')).toEqual({

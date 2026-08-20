@@ -149,7 +149,8 @@ describe('announcementsStore — edit', () => {
 
   it('updates the note text in state on success', async () => {
     useAnnouncementsStore.setState({ items: [note({ id: 'n1' })] });
-    mockFrom.mockReturnValue(ok());
+    const chain = ok();
+    mockFrom.mockReturnValue(chain);
 
     await useAnnouncementsStore.getState().edit('n1', 'WiFi password: tulip99');
 
@@ -159,6 +160,10 @@ describe('announcementsStore — edit', () => {
     // Stamped with who + when so the edit can surface as "edited a note" in the bell.
     expect(typeof updated.editedAt).toBe('string');
     expect(updated.editedBy).toBe(ME);
+    // …and the audit fields are sent to the database, not just kept locally.
+    expect(chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ edited_by: ME, edited_at: expect.any(String) })
+    );
   });
 
   it('throws and leaves the note unchanged when DB update fails', async () => {
