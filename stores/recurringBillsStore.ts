@@ -1,12 +1,29 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { parseISO, addMonths, format } from 'date-fns';
+import { z } from 'zod';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 import type { IoniconName } from '@/types/icons';
 
 export type BillFrequency = 'monthly' | 'bimonthly' | 'quarterly';
+
+// Validate edits before they reach Supabase (the edit forms also validate in the UI).
+const billChangesSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  assignedTo: z.string().min(1),
+  frequency: z.enum(['monthly', 'bimonthly', 'quarterly']),
+  typicalAmount: z.number().positive().finite(),
+  icon: z.string().min(1),
+});
+
+const paymentChangesSchema = z.object({
+  amount: z.number().positive().finite(),
+  paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  note: z.string(),
+  splitBetween: z.array(z.string().min(1)).optional(),
+});
 
 export interface RecurringBill {
   id: string;
@@ -40,8 +57,16 @@ interface RecurringBillsStore {
     bill: Omit<RecurringBill, 'id' | 'createdAt'>,
     houseId: string
   ) => Promise<RecurringBill>;
+  updateBill: (
+    id: string,
+    changes: Pick<RecurringBill, 'name' | 'assignedTo' | 'frequency' | 'typicalAmount' | 'icon'>
+  ) => Promise<void>;
   deleteBill: (id: string) => Promise<void>;
   logPayment: (payment: Omit<HouseholdPayment, 'id'>, houseId: string) => Promise<void>;
+  updatePayment: (
+    id: string,
+    changes: Pick<HouseholdPayment, 'amount' | 'paidAt' | 'note' | 'splitBetween'>
+  ) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
 }
 
@@ -193,6 +218,46 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         set({ bills: [...get().bills, bill] });
         return bill;
       },
+      updateBill: async (id, changes): Promise<void> => {
+        const parsed = billChangesSchema.safeParse(changes);
+        if (!parsed.success) {
+          throw new Error('Please check the bill details and try again.');
+        }
+        let updated;
+        try {
+          const res = await supabase
+            .from('recurring_bills')
+            .update({
+              name: parsed.data.name,
+              assigned_to: parsed.data.assignedTo,
+              frequency: parsed.data.frequency,
+              typical_amount: parsed.data.typicalAmount,
+              icon: parsed.data.icon,
+            })
+            .eq('id', id)
+            .select()
+            .single();
+          if (res.error) throw res.error;
+          updated = res.data;
+        } catch (err) {
+          captureError(err, { context: 'update-recurring-bill', billId: id });
+          throw new Error('Could not update the bill. Please try again.');
+        }
+        set({
+          bills: get().bills.map((b) =>
+            b.id === id
+              ? {
+                  ...b,
+                  name: updated.name,
+                  assignedTo: updated.assigned_to,
+                  frequency: updated.frequency as BillFrequency,
+                  typicalAmount: Number(updated.typical_amount),
+                  icon: updated.icon ?? 'receipt-outline',
+                }
+              : b
+          ),
+        });
+      },
       deleteBill: async (id): Promise<void> => {
         const { error } = await supabase.from('recurring_bills').delete().eq('id', id);
         if (error) {
@@ -237,6 +302,53 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
               : undefined,
         };
         set({ payments: [payment, ...get().payments] });
+      },
+      updatePayment: async (id, changes): Promise<void> => {
+        const parsed = paymentChangesSchema.safeParse(changes);
+        if (!parsed.success) {
+          throw new Error('Please check the payment details and try again.');
+        }
+        // Empty array (not null) is the "split among everyone" sentinel — matches the
+        // NOT NULL column and how logPayment / load treat it.
+        const splitBetween =
+          parsed.data.splitBetween && parsed.data.splitBetween.length > 0
+            ? parsed.data.splitBetween
+            : [];
+        let updated;
+        try {
+          const res = await supabase
+            .from('household_payments')
+            .update({
+              amount: parsed.data.amount,
+              paid_at: parsed.data.paidAt,
+              note: parsed.data.note,
+              split_between: splitBetween,
+            })
+            .eq('id', id)
+            .select()
+            .single();
+          if (res.error) throw res.error;
+          updated = res.data;
+        } catch (err) {
+          captureError(err, { context: 'update-payment', paymentId: id });
+          throw new Error('Could not update the payment. Please try again.');
+        }
+        set({
+          payments: get().payments.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  amount: Number(updated.amount),
+                  paidAt: updated.paid_at,
+                  note: updated.note ?? '',
+                  splitBetween:
+                    Array.isArray(updated.split_between) && updated.split_between.length > 0
+                      ? (updated.split_between as string[])
+                      : undefined,
+                }
+              : p
+          ),
+        });
       },
       deletePayment: async (id): Promise<void> => {
         const { error } = await supabase.from('household_payments').delete().eq('id', id);
