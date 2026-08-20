@@ -51,6 +51,7 @@ BEGIN
                     OR (NEW.typical_amount IS DISTINCT FROM OLD.typical_amount)
                     OR (NEW.icon           IS DISTINCT FROM OLD.icon);
   ELSIF TG_TABLE_NAME = 'household_payments' THEN
+    NEW.logged_by := OLD.logged_by;
     content_changed := (NEW.amount        IS DISTINCT FROM OLD.amount)
                     OR (NEW.paid_at       IS DISTINCT FROM OLD.paid_at)
                     OR (NEW.note          IS DISTINCT FROM OLD.note)
