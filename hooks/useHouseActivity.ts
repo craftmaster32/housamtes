@@ -3,6 +3,7 @@ import { type Href } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { type IoniconName } from '@/types/icons';
 import { useBillsStore } from '@stores/billsStore';
+import { useRecurringBillsStore, resolveBillIcon } from '@stores/recurringBillsStore';
 import { useGroceryStore } from '@stores/groceryStore';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useTasksStore } from '@stores/tasksStore';
@@ -31,6 +32,8 @@ export interface ActivityEntry {
  */
 export function useHouseActivity(limit = 30): ActivityEntry[] {
   const bills = useBillsStore((s) => s.bills);
+  const recurringBills = useRecurringBillsStore((s) => s.bills);
+  const payments = useRecurringBillsStore((s) => s.payments);
   const groceryItems = useGroceryStore((s) => s.items);
   const announcements = useAnnouncementsStore((s) => s.items);
   const tasks = useTasksStore((s) => s.tasks);
@@ -51,6 +54,76 @@ export function useHouseActivity(limit = 30): ActivityEntry[] {
         detail: b.title,
         route: { pathname: '/(tabs)/bills/[id]', params: { id: b.id } },
       });
+      if (b.editedBy && b.editedAt) {
+        entries.push({
+          id: `bill-edit:${b.id}`,
+          createdAt: b.editedAt,
+          actorId: b.editedBy,
+          icon: 'receipt-outline',
+          tone: 'primary',
+          actionKey: 'activity.edited_expense',
+          detail: b.title,
+          route: { pathname: '/(tabs)/bills/[id]', params: { id: b.id } },
+        });
+      }
+    }
+
+    for (const rb of recurringBills) {
+      if (!rb.createdAt) continue;
+      entries.push({
+        id: `rbill:${rb.id}`,
+        createdAt: rb.createdAt,
+        actorId: rb.assignedTo,
+        icon: resolveBillIcon(rb.icon),
+        tone: 'primary',
+        actionKey: 'activity.added_recurring_bill',
+        detail: rb.name,
+        route: { pathname: '/(tabs)/bills', params: { openRecurring: '1' } },
+      });
+      if (rb.editedBy && rb.editedAt) {
+        entries.push({
+          id: `rbill-edit:${rb.id}`,
+          createdAt: rb.editedAt,
+          actorId: rb.editedBy,
+          icon: resolveBillIcon(rb.icon),
+          tone: 'primary',
+          actionKey: 'activity.edited_recurring_bill',
+          detail: rb.name,
+          route: { pathname: '/(tabs)/bills', params: { openRecurring: '1' } },
+        });
+      }
+    }
+
+    for (const p of payments) {
+      if (!p.createdAt) continue;
+      const bill = recurringBills.find((b) => b.id === p.billId);
+      // The logger — not the bill's assignee — is who took this action. Fall back
+      // to the assignee only for legacy payments logged before we tracked it.
+      const loggedActor = p.loggedBy ?? bill?.assignedTo ?? '';
+      if (loggedActor) {
+        entries.push({
+          id: `rpay:${p.id}`,
+          createdAt: p.createdAt,
+          actorId: loggedActor,
+          icon: bill ? resolveBillIcon(bill.icon) : 'receipt-outline',
+          tone: 'success',
+          actionKey: 'activity.logged_payment',
+          detail: bill?.name ?? '',
+          route: { pathname: '/(tabs)/bills', params: { openRecurring: '1' } },
+        });
+      }
+      if (p.editedBy && p.editedAt) {
+        entries.push({
+          id: `rpay-edit:${p.id}`,
+          createdAt: p.editedAt,
+          actorId: p.editedBy,
+          icon: bill ? resolveBillIcon(bill.icon) : 'receipt-outline',
+          tone: 'success',
+          actionKey: 'activity.edited_payment',
+          detail: bill?.name ?? '',
+          route: { pathname: '/(tabs)/bills', params: { openRecurring: '1' } },
+        });
+      }
     }
 
     for (const g of groceryItems) {
@@ -65,6 +138,18 @@ export function useHouseActivity(limit = 30): ActivityEntry[] {
         detail: g.name,
         route: '/(tabs)/grocery',
       });
+      if (g.editedBy && g.editedAt) {
+        entries.push({
+          id: `groc-edit:${g.id}`,
+          createdAt: g.editedAt,
+          actorId: g.editedBy,
+          icon: 'cart-outline',
+          tone: 'warning',
+          actionKey: 'activity.edited_grocery',
+          detail: g.name,
+          route: '/(tabs)/grocery',
+        });
+      }
     }
 
     for (const a of announcements) {
@@ -79,6 +164,18 @@ export function useHouseActivity(limit = 30): ActivityEntry[] {
         detail: a.text,
         route: '/(tabs)/notes',
       });
+      if (a.editedBy && a.editedAt) {
+        entries.push({
+          id: `ann-edit:${a.id}`,
+          createdAt: a.editedAt,
+          actorId: a.editedBy,
+          icon: 'megaphone-outline',
+          tone: 'purple',
+          actionKey: 'activity.edited_note',
+          detail: a.text,
+          route: '/(tabs)/notes',
+        });
+      }
     }
 
     for (const tk of tasks) {
@@ -111,7 +208,7 @@ export function useHouseActivity(limit = 30): ActivityEntry[] {
 
     entries.sort((x, y) => (y.createdAt ?? '').localeCompare(x.createdAt ?? ''));
     return entries.slice(0, limit);
-  }, [bills, groceryItems, announcements, tasks, proposals, limit]);
+  }, [bills, recurringBills, payments, groceryItems, announcements, tasks, proposals, limit]);
 }
 
 function localeFor(lang: string): string {

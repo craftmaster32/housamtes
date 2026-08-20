@@ -25,6 +25,8 @@ export interface GroceryItem {
   isDraft: boolean;
   comment?: string;
   draftExpiresAt?: string;
+  editedAt?: string; // when the item was last edited (name/quantity)
+  editedBy?: string; // user UUID who last edited it
 }
 
 export interface SavedListItem {
@@ -253,6 +255,8 @@ function mapItem(r: Record<string, unknown>): GroceryItem {
     isDraft: (r.is_draft as boolean) ?? false,
     comment: (r.comment as string) ?? undefined,
     draftExpiresAt: (r.draft_expires_at as string) ?? undefined,
+    editedAt: (r.edited_at as string) ?? undefined,
+    editedBy: (r.edited_by as string) ?? undefined,
   };
 }
 
@@ -551,15 +555,21 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       updateItem: async (id, name, quantity): Promise<void> => {
+        const editedBy = useAuthStore.getState().profile?.id ?? undefined;
+        const editedAt = new Date().toISOString();
         const { error } = await supabase
           .from('grocery_items')
-          .update({ name, quantity })
+          .update({ name, quantity, edited_at: editedAt, edited_by: editedBy ?? null })
           .eq('id', id);
         if (error) {
           captureError(error, { context: 'update-grocery' });
           throw new Error('Could not update the item. Please try again.');
         }
-        set({ items: get().items.map((i) => (i.id === id ? { ...i, name, quantity } : i)) });
+        set({
+          items: get().items.map((i) =>
+            i.id === id ? { ...i, name, quantity, editedAt, editedBy } : i
+          ),
+        });
       },
 
       toggleItem: async (id): Promise<void> => {

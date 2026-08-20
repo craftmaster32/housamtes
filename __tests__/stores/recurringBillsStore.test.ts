@@ -25,7 +25,12 @@ jest.mock('@lib/supabase', () => ({
 }));
 jest.mock('@lib/errorTracking', () => ({ captureError: jest.fn() }));
 jest.mock('@stores/authStore', () => ({
-  useAuthStore: { getState: (): { houseId: string } => ({ houseId: 'house-1' }) },
+  useAuthStore: {
+    getState: (): { houseId: string; profile: { id: string } } => ({
+      houseId: 'house-1',
+      profile: { id: 'user-logger' },
+    }),
+  },
 }));
 
 import {
@@ -46,6 +51,8 @@ const bill = (id: string, assignedTo: string): RecurringBill => ({
   typicalAmount: 0,
   icon: '🧾',
   createdAt: '2026-01-01T00:00:00Z',
+  editedAt: null,
+  editedBy: null,
 });
 
 const payment = (billId: string, amount: number, splitBetween?: string[]): HouseholdPayment => ({
@@ -53,8 +60,12 @@ const payment = (billId: string, amount: number, splitBetween?: string[]): House
   billId,
   amount,
   paidAt: '2026-07-01',
+  createdAt: '2026-07-01T00:00:00Z',
   note: '',
   splitBetween,
+  loggedBy: null,
+  editedAt: null,
+  editedBy: null,
 });
 
 beforeEach(() => {
@@ -191,6 +202,7 @@ describe('load', () => {
             bill_id: 'b1',
             amount: '341',
             paid_at: '2026-06-01',
+            created_at: '2026-06-01T09:00:00Z',
             note: null,
             split_between: [],
           },
@@ -212,6 +224,8 @@ describe('load', () => {
         icon: '⚡',
         createdAt: '2026-01-01T00:00:00Z',
         nextDueDate: '2026-08-01',
+        editedAt: null,
+        editedBy: null,
       },
     ]);
     // Empty split_between array is the "everyone" sentinel → undefined in the app model.
@@ -220,8 +234,12 @@ describe('load', () => {
       billId: 'b1',
       amount: 341,
       paidAt: '2026-06-01',
+      createdAt: '2026-06-01T09:00:00Z',
       note: '',
       splitBetween: undefined,
+      loggedBy: null,
+      editedAt: null,
+      editedBy: null,
     });
   });
 
@@ -389,6 +407,7 @@ describe('logPayment', () => {
         bill_id: 'b1',
         amount: '250',
         paid_at: '2026-07-10',
+        created_at: '2026-07-10T12:00:00Z',
         note: 'June bill',
         split_between: ['alice', 'bob'],
       })
@@ -412,8 +431,13 @@ describe('logPayment', () => {
       billId: 'b1',
       amount: 250,
       paidAt: '2026-07-10',
+      createdAt: '2026-07-10T12:00:00Z',
       note: 'June bill',
       splitBetween: ['alice', 'bob'],
+      // Attributed to whoever logged it, not the bill's assignee.
+      loggedBy: 'user-logger',
+      editedAt: null,
+      editedBy: null,
     });
   });
 
@@ -434,16 +458,17 @@ describe('updatePayment', () => {
     const p1 = { ...payment('b1', 100), id: 'p1' };
     const p2 = { ...payment('b1', 200), id: 'p2' };
     useRecurringBillsStore.setState({ payments: [p1, p2] });
-    mockFrom.mockReturnValueOnce(
-      ok({
-        id: 'p1',
-        bill_id: 'b1',
-        amount: '175',
-        paid_at: '2026-08-15',
-        note: 'fixed typo',
-        split_between: ['alice', 'bob'],
-      })
-    );
+    const chain = ok({
+      id: 'p1',
+      bill_id: 'b1',
+      amount: '175',
+      paid_at: '2026-08-15',
+      note: 'fixed typo',
+      split_between: ['alice', 'bob'],
+      edited_at: '2026-08-15T10:00:00Z',
+      edited_by: 'user-editor',
+    });
+    mockFrom.mockReturnValueOnce(chain);
 
     await useRecurringBillsStore.getState().updatePayment('p1', {
       amount: 175,
@@ -452,14 +477,24 @@ describe('updatePayment', () => {
       splitBetween: ['alice', 'bob'],
     });
 
+    // The update sends the acting user (profile id) as the editor; the value mapped
+    // back into state comes from the DB response above (which the trigger authored).
+    expect(chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ edited_by: 'user-logger', edited_at: expect.any(String) })
+    );
+
     const s = useRecurringBillsStore.getState();
     expect(s.payments.find((p) => p.id === 'p1')).toEqual({
       id: 'p1',
       billId: 'b1',
       amount: 175,
       paidAt: '2026-08-15',
+      createdAt: '2026-07-01T00:00:00Z',
       note: 'fixed typo',
       splitBetween: ['alice', 'bob'],
+      loggedBy: null,
+      editedAt: '2026-08-15T10:00:00Z',
+      editedBy: 'user-editor',
     });
     // The other payment is untouched.
     expect(s.payments.find((p) => p.id === 'p2')?.amount).toBe(200);
