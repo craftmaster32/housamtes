@@ -56,6 +56,9 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     }
   }, [email, t]);
 
+  const toggleShowPassword = useCallback((): void => setShowPassword((v) => !v), []);
+  const toggleShowConfirm = useCallback((): void => setShowConfirm((v) => !v), []);
+
   const handleReset = useCallback(async (): Promise<void> => {
     if (!code.trim()) {
       setError(t('auth.enter_code_error'));
@@ -251,8 +254,11 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 right={
                   <TextInput.Icon
                     icon={showPassword ? 'eye-off' : 'eye'}
-                    onPress={() => setShowPassword((v) => !v)}
+                    onPress={toggleShowPassword}
                     forceTextInputFocus={false}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showPassword }}
                     accessibilityLabel={
                       showPassword ? t('auth.hide_password') : t('auth.show_password')
                     }
@@ -278,8 +284,11 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 right={
                   <TextInput.Icon
                     icon={showConfirm ? 'eye-off' : 'eye'}
-                    onPress={() => setShowConfirm((v) => !v)}
+                    onPress={toggleShowConfirm}
                     forceTextInputFocus={false}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showConfirm }}
                     accessibilityLabel={
                       showConfirm ? t('auth.hide_password') : t('auth.show_password')
                     }

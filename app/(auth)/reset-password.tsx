@@ -31,6 +31,9 @@ export default function ResetPasswordScreen(): React.JSX.Element {
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
+  const toggleShowPassword = useCallback((): void => setShowPassword((v) => !v), []);
+  const toggleShowConfirm = useCallback((): void => setShowConfirm((v) => !v), []);
+
   const handleReset = useCallback(async () => {
     if (!password) {
       setError(t('auth.enter_password_error'));
@@ -110,11 +113,16 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           autoFocus
           returnKeyType="next"
           error={!!error && !confirm}
+          accessibilityLabel={t('auth.new_password')}
+          accessibilityHint={t('auth.new_password_hint')}
           right={
             <TextInput.Icon
               icon={showPassword ? 'eye-off' : 'eye'}
-              onPress={() => setShowPassword((v) => !v)}
+              onPress={toggleShowPassword}
               forceTextInputFocus={false}
+              accessible
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showPassword }}
               accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
             />
           }
@@ -133,11 +141,16 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           returnKeyType="done"
           onSubmitEditing={handleReset}
           error={!!error}
+          accessibilityLabel={t('auth.confirm_password')}
+          accessibilityHint={t('auth.confirm_password_hint')}
           right={
             <TextInput.Icon
               icon={showConfirm ? 'eye-off' : 'eye'}
-              onPress={() => setShowConfirm((v) => !v)}
+              onPress={toggleShowConfirm}
               forceTextInputFocus={false}
+              accessible
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showConfirm }}
               accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
             />
           }
