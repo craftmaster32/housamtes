@@ -47,6 +47,50 @@ the `{{ .Token }}` placeholder — that's what Supabase swaps for the real code.
 
 ---
 
+## 2b. Paste the password-reset email (required for "Forgot password")
+
+> **Email OTP expiration requirement:** The reset-password email template tells
+> users their code expires in **1 hour**. To keep this accurate, make sure the
+> Supabase setting matches: Dashboard → **Authentication → Sign In / Providers →
+> Auth Providers → Email → Email OTP expiration** → set to **3600 seconds** (this is the default).
+> If you change this setting, update the expiry text in `reset-password.html` to
+> match.
+
+The **"Forgot password"** screen works exactly like signup: it asks for a
+**6-digit code**, not a link. Supabase's *default* Reset Password email sends a
+**clickable link** instead — so with the default in place, the code the screen
+asks for never arrives and the reset can't be completed. You have to swap in the
+code template, the same way you did for signup:
+
+Supabase Dashboard → **Authentication → Email Templates → "Reset Password"**
+
+- **Subject:** `Your HouseMates password reset code`
+- **Message body (HTML):** open `reset-password.html` in this folder, copy
+  everything, and paste it into the body box (switch the editor to source/HTML
+  if needed).
+- Save, then use the **"Send test email"** button to confirm the code lands in
+  your inbox.
+
+Same rule as before: keep the `{{ .Token }}` placeholder — that's the code the
+forgot-password screen checks.
+
+> **If a reset email doesn't arrive:** Check these things in order:
+> - **Is the recipient a project-team address?** The default built-in sender only
+>   delivers to members of your Supabase organisation — emails to other addresses
+>   are silently rejected.
+> - **Check the spam folder.** Emails from the built-in shared sender occasionally
+>   land there.
+> - **Check Supabase Auth logs** (Dashboard → **Authentication → Logs**) for any
+>   delivery errors or rate-limit events.
+>
+> The default sender has a small shared hourly cap across *all* auth emails
+> (signups + resets combined) and has no delivery SLA — it is intended for
+> development use only. The real fix is Step 3 (your own sender), which removes
+> the built-in shared cap and allows higher configurable limits — though your
+> SMTP provider's own rate limits and Supabase's per-project limits still apply.
+
+---
+
 ## 3. Make it come from "HouseMates" (later — needs a domain)
 
 Right now emails send from Supabase's shared address
@@ -78,4 +122,7 @@ Ping me when you have the domain and I'll walk through it with you.
 - `app/(auth)/verify-email.tsx` → the screen where the code is entered.
 - `app/(auth)/signup.tsx` → on signup, routes to the verify screen when
   confirmation is required.
-- The template's `{{ .Token }}` is the same code `verifyEmailOtp` checks.
+- `app/(auth)/forgot-password.tsx` → `resetPasswordForEmail()` sends the reset
+  code, then `verifyOtp({ type: 'recovery' })` checks the code the user types.
+- The templates' `{{ .Token }}` is the same code `verifyEmailOtp` (signup) and
+  the forgot-password screen (reset) check.
