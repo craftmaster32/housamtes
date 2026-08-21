@@ -25,6 +25,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -241,11 +243,21 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 }}
                 mode="outlined"
                 style={styles.input}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 returnKeyType="next"
                 accessibilityLabel={t('auth.new_password')}
                 accessibilityHint={t('auth.new_password_hint')}
                 error={!!error}
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? 'eye-off' : 'eye'}
+                    onPress={() => setShowPassword((v) => !v)}
+                    forceTextInputFocus={false}
+                    accessibilityLabel={
+                      showPassword ? t('auth.hide_password') : t('auth.show_password')
+                    }
+                  />
+                }
               />
 
               <TextInput
@@ -257,12 +269,22 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 }}
                 mode="outlined"
                 style={styles.input}
-                secureTextEntry
+                secureTextEntry={!showConfirm}
                 returnKeyType="done"
                 onSubmitEditing={handleReset}
                 accessibilityLabel={t('auth.confirm_password')}
                 accessibilityHint={t('auth.confirm_password_hint')}
                 error={!!error}
+                right={
+                  <TextInput.Icon
+                    icon={showConfirm ? 'eye-off' : 'eye'}
+                    onPress={() => setShowConfirm((v) => !v)}
+                    forceTextInputFocus={false}
+                    accessibilityLabel={
+                      showConfirm ? t('auth.hide_password') : t('auth.show_password')
+                    }
+                  />
+                }
               />
 
               {!!error && <Text style={styles.error}>{error}</Text>}

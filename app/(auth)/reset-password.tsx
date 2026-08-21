@@ -25,6 +25,8 @@ export default function ResetPasswordScreen(): React.JSX.Element {
   const rtl = isRTL(language);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -104,10 +106,18 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           }}
           mode="outlined"
           style={styles.input}
-          secureTextEntry
+          secureTextEntry={!showPassword}
           autoFocus
           returnKeyType="next"
           error={!!error && !confirm}
+          right={
+            <TextInput.Icon
+              icon={showPassword ? 'eye-off' : 'eye'}
+              onPress={() => setShowPassword((v) => !v)}
+              forceTextInputFocus={false}
+              accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+            />
+          }
         />
 
         <TextInput
@@ -119,10 +129,18 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           }}
           mode="outlined"
           style={styles.input}
-          secureTextEntry
+          secureTextEntry={!showConfirm}
           returnKeyType="done"
           onSubmitEditing={handleReset}
           error={!!error}
+          right={
+            <TextInput.Icon
+              icon={showConfirm ? 'eye-off' : 'eye'}
+              onPress={() => setShowConfirm((v) => !v)}
+              forceTextInputFocus={false}
+              accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
+            />
+          }
         />
 
         {!!error && <Text style={styles.error}>{error}</Text>}
