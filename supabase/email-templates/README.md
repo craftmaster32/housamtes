@@ -47,6 +47,35 @@ the `{{ .Token }}` placeholder — that's what Supabase swaps for the real code.
 
 ---
 
+## 2b. Paste the password-reset email (required for "Forgot password")
+
+The **"Forgot password"** screen works exactly like signup: it asks for a
+**6-digit code**, not a link. Supabase's *default* Reset Password email sends a
+**clickable link** instead — so with the default in place, the code the screen
+asks for never arrives and the reset can't be completed. You have to swap in the
+code template, the same way you did for signup:
+
+Supabase Dashboard → **Authentication → Email Templates → "Reset Password"**
+
+- **Subject:** `Your HouseMates password reset code`
+- **Message body (HTML):** open `reset-password.html` in this folder, copy
+  everything, and paste it into the body box (switch the editor to source/HTML
+  if needed).
+- Save, then use the **"Send test email"** button to confirm the code lands in
+  your inbox.
+
+Same rule as before: keep the `{{ .Token }}` placeholder — that's the code the
+forgot-password screen checks.
+
+> **If a reset email doesn't arrive at all:** it's almost always Supabase's
+> built-in email cap. The built-in sender has a small shared hourly limit across
+> *all* auth emails (signups + resets combined), so after a few test runs new
+> emails silently stop sending for a while. Wait an hour and try once, and check
+> your **spam** folder. The real fix is Step 3 (your own sender), which removes
+> the cap.
+
+---
+
 ## 3. Make it come from "HouseMates" (later — needs a domain)
 
 Right now emails send from Supabase's shared address
@@ -78,4 +107,7 @@ Ping me when you have the domain and I'll walk through it with you.
 - `app/(auth)/verify-email.tsx` → the screen where the code is entered.
 - `app/(auth)/signup.tsx` → on signup, routes to the verify screen when
   confirmation is required.
-- The template's `{{ .Token }}` is the same code `verifyEmailOtp` checks.
+- `app/(auth)/forgot-password.tsx` → `resetPasswordForEmail()` sends the reset
+  code, then `verifyOtp({ type: 'recovery' })` checks the code the user types.
+- The templates' `{{ .Token }}` is the same code `verifyEmailOtp` (signup) and
+  the forgot-password screen (reset) check.
