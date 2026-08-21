@@ -52,7 +52,7 @@ the `{{ .Token }}` placeholder — that's what Supabase swaps for the real code.
 > **Email OTP expiration requirement:** The reset-password email template tells
 > users their code expires in **1 hour**. To keep this accurate, make sure the
 > Supabase setting matches: Dashboard → **Authentication → Sign In / Providers →
-> Email → Email OTP expiration** → set to **3600 seconds** (this is the default).
+> Auth Providers → Email → Email OTP expiration** → set to **3600 seconds** (this is the default).
 > If you change this setting, update the expiry text in `reset-password.html` to
 > match.
 
