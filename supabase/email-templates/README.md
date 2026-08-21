@@ -74,11 +74,18 @@ Supabase Dashboard → **Authentication → Email Templates → "Reset Password"
 Same rule as before: keep the `{{ .Token }}` placeholder — that's the code the
 forgot-password screen checks.
 
-> **If a reset email doesn't arrive at all:** it's almost always Supabase's
-> built-in email cap. The built-in sender has a small shared hourly limit across
-> *all* auth emails (signups + resets combined), so after a few test runs new
-> emails silently stop sending for a while. Wait an hour and try once, and check
-> your **spam** folder. The real fix is Step 3 (your own sender), which removes
+> **If a reset email doesn't arrive:** Check these things in order:
+> - **Is the recipient a project-team address?** The default built-in sender only
+>   delivers to members of your Supabase organisation — emails to other addresses
+>   are silently rejected.
+> - **Check the spam folder.** Emails from the built-in shared sender occasionally
+>   land there.
+> - **Check Supabase Auth logs** (Dashboard → **Authentication → Logs**) for any
+>   delivery errors or rate-limit events.
+>
+> The default sender has a small shared hourly cap across *all* auth emails
+> (signups + resets combined) and has no delivery SLA — it is intended for
+> development use only. The real fix is Step 3 (your own sender), which removes
 > the built-in shared cap and allows higher configurable limits — though your
 > SMTP provider's own rate limits and Supabase's per-project limits still apply.
 
