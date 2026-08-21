@@ -72,7 +72,8 @@ forgot-password screen checks.
 > *all* auth emails (signups + resets combined), so after a few test runs new
 > emails silently stop sending for a while. Wait an hour and try once, and check
 > your **spam** folder. The real fix is Step 3 (your own sender), which removes
-> the cap.
+> the built-in shared cap and lets you configure a higher limit — though your
+> SMTP provider's own rate limits and Supabase's per-project limits still apply.
 
 ---
 
