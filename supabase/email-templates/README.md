@@ -49,6 +49,13 @@ the `{{ .Token }}` placeholder — that's what Supabase swaps for the real code.
 
 ## 2b. Paste the password-reset email (required for "Forgot password")
 
+> **Email OTP expiration requirement:** The reset-password email template tells
+> users their code expires in **1 hour**. To keep this accurate, make sure the
+> Supabase setting matches: Dashboard → **Authentication → Sign In / Providers →
+> Email → Email OTP expiration** → set to **3600 seconds** (this is the default).
+> If you change this setting, update the expiry text in `reset-password.html` to
+> match.
+
 The **"Forgot password"** screen works exactly like signup: it asks for a
 **6-digit code**, not a link. Supabase's *default* Reset Password email sends a
 **clickable link** instead — so with the default in place, the code the screen
