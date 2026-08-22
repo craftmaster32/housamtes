@@ -269,6 +269,7 @@ export const useAuthStore = create<AuthStore>()(
                 role: memberData.role,
                 permissions: memberData.permissions,
                 needsTermsAcceptance: !consentOk,
+                error: null,
               });
               if (memberData.houseId) {
                 registerPushToken(session.user.id, memberData.houseId);
