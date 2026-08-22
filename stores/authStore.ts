@@ -254,47 +254,57 @@ export const useAuthStore = create<AuthStore>()(
           eventId: number,
           session: Session | null
         ): Promise<void> => {
-          if (session?.user) {
-            const [profile, memberData, consentOk] = await Promise.all([
-              fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
-              fetchMemberData(session.user.id),
-              hasCurrentConsent(session.user.id),
-            ]);
-            if (eventId !== latestAuthEventId) return; // superseded by a newer event
-            identifyUser(session.user.id);
-            set({
-              user: session.user,
-              session,
-              profile,
-              houseId: memberData.houseId,
-              role: memberData.role,
-              permissions: memberData.permissions,
-              needsTermsAcceptance: !consentOk,
-            });
-            if (memberData.houseId) {
-              registerPushToken(session.user.id, memberData.houseId);
-              registerWebPush(session.user.id, memberData.houseId);
+          try {
+            if (session?.user) {
+              const [profile, memberData, consentOk] = await Promise.all([
+                fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
+                fetchMemberData(session.user.id),
+                hasCurrentConsent(session.user.id),
+              ]);
+              if (eventId !== latestAuthEventId) return; // superseded by a newer event
+              identifyUser(session.user.id);
+              set({
+                user: session.user,
+                session,
+                profile,
+                houseId: memberData.houseId,
+                role: memberData.role,
+                permissions: memberData.permissions,
+                needsTermsAcceptance: !consentOk,
+              });
+              if (memberData.houseId) {
+                registerPushToken(session.user.id, memberData.houseId);
+                registerWebPush(session.user.id, memberData.houseId);
+              }
+            } else {
+              if (eventId !== latestAuthEventId) return; // superseded by a newer event
+              const prev = useAuthStore.getState();
+              if (prev.user && prev.houseId) {
+                unregisterPushToken(prev.user.id, prev.houseId);
+                unregisterWebPush(prev.user.id, prev.houseId);
+              }
+              clearUser();
+              set({
+                user: null,
+                session: null,
+                profile: null,
+                houseId: null,
+                role: null,
+                permissions: DEFAULT_PERMISSIONS,
+              });
             }
-          } else {
-            if (eventId !== latestAuthEventId) return; // superseded by a newer event
-            const prev = useAuthStore.getState();
-            if (prev.user && prev.houseId) {
-              unregisterPushToken(prev.user.id, prev.houseId);
-              unregisterWebPush(prev.user.id, prev.houseId);
-            }
-            clearUser();
-            set({
-              user: null,
-              session: null,
-              profile: null,
-              houseId: null,
-              role: null,
-              permissions: DEFAULT_PERMISSIONS,
-            });
+          } catch (err) {
+            if (eventId !== latestAuthEventId) return;
+            const userId = session?.user?.id;
+            const { houseId } = useAuthStore.getState();
+            captureError(err, { context: 'auth-state-change', userId, houseId });
+            set({ error: 'Something went wrong. Please sign in again.' });
           }
         };
 
         supabase.auth.onAuthStateChange((event: AuthChangeEvent, session) => {
+          const eventId = ++latestAuthEventId;
+
           if (event === 'PASSWORD_RECOVERY') {
             set({ isPasswordRecovery: true });
             return;
@@ -303,7 +313,9 @@ export const useAuthStore = create<AuthStore>()(
           // Let getSession() own the first load so we never double-fetch
           if (!initialSessionHandled) return;
 
-          // Token refresh: just swap the session object, no extra DB calls
+          // Token refresh: just swap the session object, no extra DB calls.
+          // latestAuthEventId is already incremented above, so any pending
+          // deferred handler from an earlier event is now invalidated.
           if (event === 'TOKEN_REFRESHED' && session) {
             set({ session });
             return;
@@ -316,7 +328,6 @@ export const useAuthStore = create<AuthStore>()(
           // that fired the event — e.g. updateUser() during password reset,
           // which would hang forever. setTimeout(…, 0) runs the work after the
           // lock has been released.
-          const eventId = ++latestAuthEventId;
           setTimeout(() => {
             void handleAuthChange(eventId, session);
           }, 0);
