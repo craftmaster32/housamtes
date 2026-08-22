@@ -207,6 +207,13 @@ interface AuthStore {
 
 let _appStateSub: ReturnType<typeof AppState.addEventListener> | null = null;
 
+// Monotonic id for auth events. Lives at module scope so both the deferred
+// handleAuthChange work (inside initialize) and signOut() can access it.
+// Incrementing before signOut() clears local state ensures any in-flight
+// deferred handler from an earlier event sees a stale id and bails out,
+// preventing it from writing user/session back into the cleared store.
+let latestAuthEventId = 0;
+
 export const useAuthStore = create<AuthStore>()(
   devtools(
     (set) => ({
@@ -240,15 +247,6 @@ export const useAuthStore = create<AuthStore>()(
         // Flag so the listener ignores the SIGNED_IN that fires on startup —
         // the initial session is handled below by getSession() instead.
         let initialSessionHandled = false;
-
-        // Monotonic id for auth events. The heavy handler below runs
-        // asynchronously (deferred — see the setTimeout in the listener), so a
-        // fast follow-up event (e.g. SIGNED_OUT right after USER_UPDATED during
-        // password reset) can land while an earlier handler is still awaiting
-        // its DB fetches. Each handler captures the id it was scheduled with and
-        // bails out before writing state if a newer event has since arrived, so
-        // a slow earlier handler can never clobber a newer one's result.
-        let latestAuthEventId = 0;
 
         const handleAuthChange = async (
           eventId: number,
@@ -528,6 +526,11 @@ export const useAuthStore = create<AuthStore>()(
           unregisterPushToken(prevUser.id, prevHouseId);
           unregisterWebPush(prevUser.id, prevHouseId);
         }
+        // Invalidate any in-flight deferred auth handlers before clearing state.
+        // If signOut() fails (e.g. expired token), onAuthStateChange never fires,
+        // so a pending deferred handler from an earlier event could otherwise
+        // overwrite the local sign-out with its stale user/session data.
+        ++latestAuthEventId;
         // Clear local state regardless of whether the Supabase call succeeds
         // (e.g. expired token will cause signOut to fail but user should still be logged out locally)
         await supabase.auth.signOut().catch(() => {});

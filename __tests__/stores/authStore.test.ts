@@ -1014,6 +1014,39 @@ describe('authStore — initialize', () => {
     expect(useAuthStore.getState().houseId).toBe('h1');
   });
 
+  it('does not overwrite local sign-out state when a pending handler races a rejected signOut()', async () => {
+    // Regression: latestAuthEventId was function-scoped to initialize(), so
+    // signOut() could not advance it. A deferred handler queued before signOut()
+    // would then pass the stale-event check and restore user/session into the store.
+    let authCallback: ((event: string, session: unknown) => void) | undefined;
+    mockAuth.onAuthStateChange.mockImplementation(
+      (cb: (event: string, session: unknown) => void) => {
+        authCallback = cb;
+        return { data: { subscription: { unsubscribe: jest.fn() } } };
+      }
+    );
+    mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    mockMemberOfHouse();
+    // signOut() rejects (expired token) so onAuthStateChange never fires a SIGNED_OUT
+    mockAuth.signOut.mockRejectedValue(new Error('token expired'));
+
+    await useAuthStore.getState().initialize();
+
+    // Fire an authenticated event — this queues a deferred handler but doesn't run it yet.
+    authCallback?.('USER_UPDATED', fakeSession());
+
+    // signOut() must increment latestAuthEventId before clearing local state,
+    // so that the pending handler is invalidated even though the server call fails.
+    await useAuthStore.getState().signOut();
+
+    // Flush the deferred handler — it should bail because its eventId is now stale.
+    await flushDeferred();
+
+    // Local sign-out state must NOT be overwritten by the deferred authenticated handler.
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().session).toBeNull();
+  });
+
   it('lets a newer auth event win over a slower in-flight one (no stale overwrite)', async () => {
     let authCallback: ((event: string, session: unknown) => void) | undefined;
     mockAuth.onAuthStateChange.mockImplementation(
