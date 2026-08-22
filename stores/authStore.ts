@@ -295,14 +295,14 @@ export const useAuthStore = create<AuthStore>()(
             }
           } catch (err) {
             if (eventId !== latestAuthEventId) return;
-            const userId = session?.user?.id;
+            const userId = session?.user?.id ?? '';
             const { houseId } = useAuthStore.getState();
-            captureError(err, { context: 'auth-state-change', userId, houseId });
+            captureError(err, { context: 'auth-state-change', userId, houseId: houseId ?? '' });
             set({ error: 'Something went wrong. Please sign in again.' });
           }
         };
 
-        supabase.auth.onAuthStateChange((event: AuthChangeEvent, session) => {
+        supabase.auth.onAuthStateChange((event: AuthChangeEvent, session): void => {
           const eventId = ++latestAuthEventId;
 
           if (event === 'PASSWORD_RECOVERY') {
@@ -328,7 +328,7 @@ export const useAuthStore = create<AuthStore>()(
           // that fired the event — e.g. updateUser() during password reset,
           // which would hang forever. setTimeout(…, 0) runs the work after the
           // lock has been released.
-          setTimeout(() => {
+          setTimeout((): void => {
             void handleAuthChange(eventId, session);
           }, 0);
         });
