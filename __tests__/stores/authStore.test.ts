@@ -15,7 +15,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
-// ── Module mocks ──────────────────────────────────────────────────────────────
+// ── Module mocks ─────────────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
 const mockAuth = {
@@ -95,7 +95,7 @@ jest.mock('expo-secure-store', () => ({
 
 import { useAuthStore, DEFAULT_PERMISSIONS } from '@stores/authStore';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────────────────
 
 const fakeUser = (id = 'u1'): User =>
   ({ id, email: 'alice@example.com', user_metadata: {} }) as unknown as User;
@@ -124,6 +124,15 @@ function mockMemberOfHouse(): void {
   });
 }
 
+/**
+ * Auth-state changes now run their DB work on a deferred tick (setTimeout 0) to
+ * avoid deadlocking Supabase's internal auth lock. Await this after firing the
+ * onAuthStateChange callback so those handlers have run.
+ */
+function flushDeferred(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function resetStore(): void {
   useAuthStore.setState({
     user: null,
@@ -146,9 +155,9 @@ beforeEach(() => {
   mockTables({});
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // signIn
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — signIn', () => {
   it('populates user, session, profile and house membership on success', async () => {
@@ -211,9 +220,9 @@ describe('authStore — signIn', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // signUp
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — signUp', () => {
   it('sanitizes the duplicate-email error', async () => {
@@ -249,9 +258,9 @@ describe('authStore — signUp', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // signOut
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — signOut', () => {
   it('clears all local auth state on success', async () => {
@@ -297,9 +306,9 @@ describe('authStore — signOut', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // changePassword
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — changePassword', () => {
   beforeEach(() => {
@@ -350,9 +359,9 @@ describe('authStore — changePassword', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // leaveHouse
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — leaveHouse', () => {
   it('is a no-op when the user has no house', async () => {
@@ -401,9 +410,9 @@ describe('authStore — leaveHouse', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // deleteAccount
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — deleteAccount', () => {
   const realFetch = global.fetch;
@@ -495,9 +504,9 @@ describe('authStore — deleteAccount', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // signUp — happy paths
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — signUp success', () => {
   it('signs the user straight in when no email confirmation is required', async () => {
@@ -553,9 +562,9 @@ describe('authStore — signUp success', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // resendVerification
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — resendVerification', () => {
   it('asks Supabase to resend the signup email', async () => {
@@ -575,9 +584,9 @@ describe('authStore — resendVerification', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // verifyEmailOtp
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — verifyEmailOtp', () => {
   it('verifies the signup code and signs the user in on success', async (): Promise<void> => {
@@ -645,9 +654,9 @@ describe('authStore — verifyEmailOtp', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // updateProfile / updateEmail
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — updateProfile', () => {
   it('is a no-op when signed out', async () => {
@@ -699,9 +708,9 @@ describe('authStore — updateEmail', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // reloadMembership
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — reloadMembership', () => {
   it('is a no-op when signed out', async () => {
@@ -741,9 +750,9 @@ describe('authStore — reloadMembership', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // acceptUpdatedTerms
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — acceptUpdatedTerms', () => {
   it('is a no-op when signed out', async () => {
@@ -774,9 +783,9 @@ describe('authStore — acceptUpdatedTerms', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Small state actions
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — small state actions', () => {
   it('setHouseId stores the id immediately', () => {
@@ -797,9 +806,9 @@ describe('authStore — small state actions', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // Avatar / cover photos
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — avatar and cover', () => {
   const profile = { id: 'u1', name: 'Alice', avatarColor: '#fff', avatarUrl: 'old-url' };
@@ -858,9 +867,9 @@ describe('authStore — avatar and cover', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // initialize — app-startup session restore
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — initialize', () => {
   it('restores a signed-in session with profile and house membership', async () => {
@@ -951,9 +960,9 @@ describe('authStore — initialize', () => {
   });
 
   it('clears local state when the auth listener reports a sign-out', async () => {
-    let authCallback: ((event: string, session: unknown) => Promise<void>) | undefined;
+    let authCallback: ((event: string, session: unknown) => void) | undefined;
     mockAuth.onAuthStateChange.mockImplementation(
-      (cb: (event: string, session: unknown) => Promise<void>) => {
+      (cb: (event: string, session: unknown) => void) => {
         authCallback = cb;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
       }
@@ -963,18 +972,76 @@ describe('authStore — initialize', () => {
     await useAuthStore.getState().initialize();
     useAuthStore.setState({ user: fakeUser(), houseId: 'h1' });
 
-    await authCallback?.('SIGNED_OUT', null);
+    authCallback?.('SIGNED_OUT', null);
+    await flushDeferred();
 
     const s = useAuthStore.getState();
     expect(s.user).toBeNull();
     expect(s.houseId).toBeNull();
     expect(mockUnregisterPushToken).toHaveBeenCalledWith('u1', 'h1');
   });
+
+  // ── Deadlock regression ─────────────────────────────────────────────────
+  // Supabase serializes auth calls behind an internal lock and awaits the
+  // onAuthStateChange callback *inside* it. If the callback does awaited
+  // Supabase work synchronously, the operation that fired the event (e.g.
+  // updateUser() during password reset) deadlocks and hangs forever. The
+  // callback must return without touching the database; the heavy work is
+  // deferred to a later tick. These tests lock that behaviour in.
+
+  it('does not hit the database synchronously inside the auth callback (deadlock guard)', async () => {
+    let authCallback: ((event: string, session: unknown) => void) | undefined;
+    mockAuth.onAuthStateChange.mockImplementation(
+      (cb: (event: string, session: unknown) => void) => {
+        authCallback = cb;
+        return { data: { subscription: { unsubscribe: jest.fn() } } };
+      }
+    );
+    mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    mockMemberOfHouse();
+
+    await useAuthStore.getState().initialize();
+    mockFrom.mockClear();
+
+    // The callback must return synchronously without querying Supabase...
+    authCallback?.('USER_UPDATED', fakeSession());
+    expect(mockFrom).not.toHaveBeenCalled();
+
+    // ...and only then, on a later tick, populate the store.
+    await flushDeferred();
+    expect(mockFrom).toHaveBeenCalled();
+    expect(useAuthStore.getState().user?.id).toBe('u1');
+    expect(useAuthStore.getState().houseId).toBe('h1');
+  });
+
+  it('lets a newer auth event win over a slower in-flight one (no stale overwrite)', async () => {
+    let authCallback: ((event: string, session: unknown) => void) | undefined;
+    mockAuth.onAuthStateChange.mockImplementation(
+      (cb: (event: string, session: unknown) => void) => {
+        authCallback = cb;
+        return { data: { subscription: { unsubscribe: jest.fn() } } };
+      }
+    );
+    mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    mockMemberOfHouse();
+
+    await useAuthStore.getState().initialize();
+
+    // Mirrors password reset: updateUser() (USER_UPDATED) immediately followed
+    // by signOut() (SIGNED_OUT). The sign-out is the newer event and must win,
+    // even though the sign-in handler's DB fetch resolves afterwards.
+    authCallback?.('USER_UPDATED', fakeSession());
+    authCallback?.('SIGNED_OUT', null);
+    await flushDeferred();
+
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().houseId).toBeNull();
+  });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // uploadCover
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 
 describe('authStore — uploadCover', () => {
   it('stores the cover photo and swaps in a fresh signed URL', async () => {
