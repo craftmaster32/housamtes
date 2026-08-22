@@ -962,7 +962,7 @@ describe('authStore — initialize', () => {
   it('clears local state when the auth listener reports a sign-out', async () => {
     let authCallback: ((event: string, session: unknown) => void) | undefined;
     mockAuth.onAuthStateChange.mockImplementation(
-      (cb: (event: string, session: unknown) => void) => {
+      (cb: (event: string, session: unknown) => void): { data: { subscription: { unsubscribe: jest.Mock } } } => {
         authCallback = cb;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
       }
@@ -989,10 +989,10 @@ describe('authStore — initialize', () => {
   // callback must return without touching the database; the heavy work is
   // deferred to a later tick. These tests lock that behaviour in.
 
-  it('does not hit the database synchronously inside the auth callback (deadlock guard)', async () => {
+  it('does not hit the database synchronously inside the auth callback (deadlock guard)', async (): Promise<void> => {
     let authCallback: ((event: string, session: unknown) => void) | undefined;
     mockAuth.onAuthStateChange.mockImplementation(
-      (cb: (event: string, session: unknown) => void) => {
+      (cb: (event: string, session: unknown) => void): { data: { subscription: { unsubscribe: jest.Mock } } } => {
         authCallback = cb;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
       }
@@ -1014,13 +1014,13 @@ describe('authStore — initialize', () => {
     expect(useAuthStore.getState().houseId).toBe('h1');
   });
 
-  it('does not overwrite local sign-out state when a pending handler races a rejected signOut()', async () => {
+  it('does not overwrite local sign-out state when a pending handler races a rejected signOut()', async (): Promise<void> => {
     // Regression: latestAuthEventId was function-scoped to initialize(), so
     // signOut() could not advance it. A deferred handler queued before signOut()
     // would then pass the stale-event check and restore user/session into the store.
     let authCallback: ((event: string, session: unknown) => void) | undefined;
     mockAuth.onAuthStateChange.mockImplementation(
-      (cb: (event: string, session: unknown) => void) => {
+      (cb: (event: string, session: unknown) => void): { data: { subscription: { unsubscribe: jest.Mock } } } => {
         authCallback = cb;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
       }
@@ -1047,10 +1047,10 @@ describe('authStore — initialize', () => {
     expect(useAuthStore.getState().session).toBeNull();
   });
 
-  it('lets a newer auth event win over a slower in-flight one (no stale overwrite)', async () => {
+  it('lets a newer auth event win over a slower in-flight one (no stale overwrite)', async (): Promise<void> => {
     let authCallback: ((event: string, session: unknown) => void) | undefined;
     mockAuth.onAuthStateChange.mockImplementation(
-      (cb: (event: string, session: unknown) => void) => {
+      (cb: (event: string, session: unknown) => void): { data: { subscription: { unsubscribe: jest.Mock } } } => {
         authCallback = cb;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
       }
