@@ -7,7 +7,7 @@ import { identifyUser, clearUser, captureError } from '@lib/errorTracking';
 import { registerPushToken, unregisterPushToken } from '@lib/notifications';
 import { registerWebPush, unregisterWebPush } from '@lib/webPush';
 import { emailOtpSchema } from '@utils/validation';
-import type { User, Session } from '@supabase/supabase-js';
+import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
 const CURRENT_TERMS_VERSION = '2026-05-10';
@@ -36,7 +36,7 @@ async function clearPendingEmail(): Promise<void> {
   }
 }
 
-// ── Persistent house cache ────────────────────────────────────────────────────
+// ── Persistent house cache ───────────────────────────────────────────────────────
 // Stores houseId keyed by userId so the app never forgets which house
 // a user belongs to, even across refreshes or platform switches.
 // Mobile: expo-secure-store (iOS Keychain / Android Keystore — survives reinstalls
@@ -241,27 +241,26 @@ export const useAuthStore = create<AuthStore>()(
         // the initial session is handled below by getSession() instead.
         let initialSessionHandled = false;
 
-        supabase.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'PASSWORD_RECOVERY') {
-            set({ isPasswordRecovery: true });
-            return;
-          }
+        // Monotonic id for auth events. The heavy handler below runs
+        // asynchronously (deferred — see the setTimeout in the listener), so a
+        // fast follow-up event (e.g. SIGNED_OUT right after USER_UPDATED during
+        // password reset) can land while an earlier handler is still awaiting
+        // its DB fetches. Each handler captures the id it was scheduled with and
+        // bails out before writing state if a newer event has since arrived, so
+        // a slow earlier handler can never clobber a newer one's result.
+        let latestAuthEventId = 0;
 
-          // Let getSession() own the first load so we never double-fetch
-          if (!initialSessionHandled) return;
-
-          // Token refresh: just swap the session object, no extra DB calls
-          if (event === 'TOKEN_REFRESHED' && session) {
-            set({ session });
-            return;
-          }
-
+        const handleAuthChange = async (
+          eventId: number,
+          session: Session | null
+        ): Promise<void> => {
           if (session?.user) {
             const [profile, memberData, consentOk] = await Promise.all([
               fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
               fetchMemberData(session.user.id),
               hasCurrentConsent(session.user.id),
             ]);
+            if (eventId !== latestAuthEventId) return; // superseded by a newer event
             identifyUser(session.user.id);
             set({
               user: session.user,
@@ -277,6 +276,7 @@ export const useAuthStore = create<AuthStore>()(
               registerWebPush(session.user.id, memberData.houseId);
             }
           } else {
+            if (eventId !== latestAuthEventId) return; // superseded by a newer event
             const prev = useAuthStore.getState();
             if (prev.user && prev.houseId) {
               unregisterPushToken(prev.user.id, prev.houseId);
@@ -292,6 +292,34 @@ export const useAuthStore = create<AuthStore>()(
               permissions: DEFAULT_PERMISSIONS,
             });
           }
+        };
+
+        supabase.auth.onAuthStateChange((event: AuthChangeEvent, session) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            set({ isPasswordRecovery: true });
+            return;
+          }
+
+          // Let getSession() own the first load so we never double-fetch
+          if (!initialSessionHandled) return;
+
+          // Token refresh: just swap the session object, no extra DB calls
+          if (event === 'TOKEN_REFRESHED' && session) {
+            set({ session });
+            return;
+          }
+
+          // Defer all Supabase-touching work out of this callback. Supabase
+          // serializes auth calls behind an internal lock and awaits this
+          // callback *inside* that lock; doing Supabase calls here (which
+          // re-acquire the lock) synchronously deadlocks the very operation
+          // that fired the event — e.g. updateUser() during password reset,
+          // which would hang forever. setTimeout(…, 0) runs the work after the
+          // lock has been released.
+          const eventId = ++latestAuthEventId;
+          setTimeout(() => {
+            void handleAuthChange(eventId, session);
+          }, 0);
         });
 
         // Restore pending verification email across restarts
