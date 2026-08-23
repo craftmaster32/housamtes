@@ -234,9 +234,11 @@ describe('expandRecurrenceDates', () => {
       wFrom,
       wTo
     );
-    // 4,001 days × 2 occurrences per 7 days ≈ 1,143+ results.
-    expect(result.length).toBeGreaterThan(1000);
+    // 4,001 days × 2 occurrences per 7 days = exactly 1,144 results.
+    // (572 Mondays + 572 Thursdays; wTo = 2037-06-19 is a Friday, last Thu = 2037-06-18.)
+    expect(result).toHaveLength(1144);
     expect(result[0]).toBe('2026-07-06'); // first Monday (base)
     expect(result[1]).toBe('2026-07-09'); // first Thursday
+    expect(result[result.length - 1]).toBe('2037-06-18'); // final Thursday
   });
 });

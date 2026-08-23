@@ -93,19 +93,40 @@ export function nextOccurrenceOnOrAfter(
   const from = parseYMD(fromYMD);
   const end = event.recurrenceEnd ? parseYMD(event.recurrenceEnd) : null;
 
-  // Weekly on a set of weekdays (e.g. every Mon & Thu): scan day by day for the
-  // next listed weekday that falls in an "on" week (week index divisible by step).
+  // Weekly on a set of weekdays (e.g. every Mon & Thu): jump directly to the
+  // next "on" week rather than scanning day-by-day, so large intervals (e.g.
+  // every 572 weeks) don't hit an arbitrary scan limit.
   const weekdays = event.recurrence === 'weekly' ? normalizeWeekdays(event.recurrenceDays) : [];
   if (weekdays.length > 0) {
     const daySet = new Set(weekdays);
+    const sortedDays = [...daySet].sort((a, b) => a - b);
     let cur = base > from ? base : from; // never before the base date
-    let guard = 0;
-    while (guard++ < 4000) {
+
+    for (;;) {
       if (end && cur > end) return undefined;
-      if (daySet.has(cur.getDay()) && weeksBetween(base, cur) % step === 0) return ymd(cur);
-      cur = addDays(cur, 1);
+
+      const weekStart = startOfWeek(cur);
+      const weekNum = weeksBetween(base, weekStart);
+      const rem = weekNum % step;
+
+      if (rem !== 0) {
+        // Not an "on" week; jump directly to the start of the next "on" week.
+        cur = addDays(weekStart, (step - rem) * 7);
+        if (end && cur > end) return undefined;
+      }
+
+      // In an "on" week: find the first listed weekday >= cur's day-of-week.
+      const curDow = cur.getDay();
+      const matchDow = sortedDays.find((d) => d >= curDow);
+      if (matchDow !== undefined) {
+        const candidate = addDays(cur, matchDow - curDow);
+        if (end && candidate > end) return undefined;
+        return ymd(candidate);
+      }
+
+      // No listed weekday at or after cur's position; advance to next "on" week.
+      cur = addDays(weekStart, step * 7);
     }
-    return undefined;
   }
 
   let cur = base;
