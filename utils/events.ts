@@ -130,8 +130,7 @@ export function nextOccurrenceOnOrAfter(
   }
 
   let cur = base;
-  let guard = 0;
-  while (guard++ < 10000) {
+  for (;;) {
     if (end && cur > end) return undefined;
     if (cur >= from) return ymd(cur);
     if (event.recurrence === 'daily') cur = addDays(cur, step);
@@ -139,7 +138,6 @@ export function nextOccurrenceOnOrAfter(
     else if (event.recurrence === 'monthly') cur = addMonthsClamped(cur, step);
     else cur = addMonthsClamped(cur, 12 * step);
   }
-  return undefined;
 }
 
 /**

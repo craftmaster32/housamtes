@@ -152,6 +152,14 @@ describe('nextOccurrenceOnOrAfter', () => {
       )
     ).toBeUndefined();
   });
+
+  it('resolves a daily event whose base date is in the very distant past', () => {
+    // 1970-01-01 daily needs >20,000 advances to reach 2026-07-20.
+    // The old 10,000-iteration guard would return undefined; removing it must fix that.
+    expect(
+      nextOccurrenceOnOrAfter({ date: '1970-01-01', recurrence: 'daily' }, '2026-07-20')
+    ).toBe('2026-07-20');
+  });
 });
 
 describe('expandRecurrenceDates', () => {
