@@ -15,7 +15,9 @@ function eventWhenLabel(date: string, startTime?: string): string {
   return startTime ? `${when} · ${startTime}` : when;
 }
 
-export type EventRecurrence = 'weekly' | 'monthly' | 'yearly';
+// The recurrence unit; the actual cadence is (recurrenceInterval × unit), so
+// weekly with an interval of 2 is "every 2 weeks". Interval defaults to 1.
+export type EventRecurrence = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface HouseEvent {
   id: string;
@@ -26,6 +28,7 @@ export interface HouseEvent {
   endTime?: string; // HH:MM
   notes?: string;
   recurrence?: EventRecurrence;
+  recurrenceInterval?: number; // "every N units" — defaults to 1
   recurrenceEnd?: string; // YYYY-MM-DD — when recurrence stops
   createdBy: string; // user UUID
   createdAt: string;
@@ -41,6 +44,7 @@ interface AddEventPayload {
   endDate?: string;
   notes?: string;
   recurrence?: EventRecurrence;
+  recurrenceInterval?: number;
   recurrenceEnd?: string;
 }
 
@@ -52,6 +56,7 @@ export interface EventUpdates {
   endTime?: string;
   notes?: string;
   recurrence?: EventRecurrence;
+  recurrenceInterval?: number;
   recurrenceEnd?: string;
 }
 
@@ -84,6 +89,7 @@ function mapRow(r: Record<string, unknown>): HouseEvent {
     endTime: (r.end_time as string | null) ?? undefined,
     notes: (r.notes as string | null) ?? undefined,
     recurrence: (r.recurrence as EventRecurrence | null) ?? undefined,
+    recurrenceInterval: (r.recurrence_interval as number | null) ?? undefined,
     recurrenceEnd: (r.recurrence_end as string | null) ?? undefined,
     createdBy: r.created_by as string,
     createdAt: r.created_at as string,
@@ -165,6 +171,7 @@ export const useEventsStore = create<EventsStore>()(
           endDate,
           notes,
           recurrence,
+          recurrenceInterval,
           recurrenceEnd,
         } = payload;
         try {
@@ -180,6 +187,8 @@ export const useEventsStore = create<EventsStore>()(
               end_date: endDate ?? null,
               notes: notes ?? null,
               recurrence: recurrence ?? null,
+              // Only meaningful with a recurrence; default to 1 ("every unit").
+              recurrence_interval: recurrence ? (recurrenceInterval ?? 1) : null,
               recurrence_end: recurrenceEnd ?? null,
             })
             .select()
@@ -217,7 +226,13 @@ export const useEventsStore = create<EventsStore>()(
           if ('startTime' in updates) dbPayload.start_time = updates.startTime ?? null;
           if ('endTime' in updates) dbPayload.end_time = updates.endTime ?? null;
           if ('notes' in updates) dbPayload.notes = updates.notes ?? null;
-          if ('recurrence' in updates) dbPayload.recurrence = updates.recurrence ?? null;
+          if ('recurrence' in updates) {
+            dbPayload.recurrence = updates.recurrence ?? null;
+            // Keep interval consistent with the unit: 1 when recurring, null when cleared.
+            dbPayload.recurrence_interval = updates.recurrence
+              ? (updates.recurrenceInterval ?? 1)
+              : null;
+          }
           if ('recurrenceEnd' in updates) dbPayload.recurrence_end = updates.recurrenceEnd ?? null;
 
           const { error } = await supabase.from('events').update(dbPayload).eq('id', id);
@@ -232,7 +247,12 @@ export const useEventsStore = create<EventsStore>()(
                 if ('startTime' in updates) merged.startTime = updates.startTime;
                 if ('endTime' in updates) merged.endTime = updates.endTime;
                 if ('notes' in updates) merged.notes = updates.notes;
-                if ('recurrence' in updates) merged.recurrence = updates.recurrence;
+                if ('recurrence' in updates) {
+                  merged.recurrence = updates.recurrence;
+                  merged.recurrenceInterval = updates.recurrence
+                    ? (updates.recurrenceInterval ?? 1)
+                    : undefined;
+                }
                 if ('recurrenceEnd' in updates) merged.recurrenceEnd = updates.recurrenceEnd;
                 return merged;
               })

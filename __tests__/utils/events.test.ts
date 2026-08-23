@@ -58,6 +58,52 @@ describe('nextOccurrenceOnOrAfter', () => {
     );
   });
 
+  it('advances a biweekly (every 2 weeks) event by 14-day steps', () => {
+    // Base Mon 6 Jul; +14 = Mon 20 Jul is the first occurrence on/after today.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-06', recurrence: 'weekly', recurrenceInterval: 2 },
+        today
+      )
+    ).toBe('2026-07-20');
+  });
+
+  it('skips the off-week for a biweekly event', () => {
+    // Base Mon 13 Jul, every 2 weeks → 13 Jul, 27 Jul, … so Mon 20 Jul is skipped;
+    // next occurrence on/after today (Mon 20 Jul) is Mon 27 Jul.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-13', recurrence: 'weekly', recurrenceInterval: 2 },
+        today
+      )
+    ).toBe('2026-07-27');
+  });
+
+  it('advances a daily event with an interval to its next occurrence', () => {
+    // Base Fri 17 Jul, every 3 days → 17, 20, … so Mon 20 Jul is on schedule.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-17', recurrence: 'daily', recurrenceInterval: 3 },
+        today
+      )
+    ).toBe('2026-07-20');
+  });
+
+  it('advances an every-2-months event over the interval', () => {
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-03-25', recurrence: 'monthly', recurrenceInterval: 2 },
+        today
+      )
+    ).toBe('2026-07-25');
+  });
+
+  it('treats a missing interval as 1 (plain weekly)', () => {
+    expect(nextOccurrenceOnOrAfter({ date: '2026-06-29', recurrence: 'weekly' }, today)).toBe(
+      '2026-07-20'
+    );
+  });
+
   it('advances a monthly event to the same day next month', () => {
     expect(nextOccurrenceOnOrAfter({ date: '2026-05-25', recurrence: 'monthly' }, today)).toBe(
       '2026-07-25'

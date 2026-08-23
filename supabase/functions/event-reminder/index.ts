@@ -20,7 +20,8 @@ interface EventRow {
   date: string;
   start_time: string | null;
   house_id: string;
-  recurrence: 'weekly' | 'monthly' | 'yearly' | null;
+  recurrence: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
+  recurrence_interval: number | null;
   recurrence_end: string | null;
 }
 
@@ -46,20 +47,28 @@ function addMonthsClamped(d: Date, n: number): Date {
   return nd;
 }
 
+// "every N units" — legacy rows have a null interval, meaning 1.
+function normalizeInterval(interval: number | null): number {
+  if (!interval || !Number.isFinite(interval)) return 1;
+  return Math.max(1, Math.floor(interval));
+}
+
 // Does the (possibly recurring) event fall on targetYMD?
 function occursOn(event: EventRow, targetYMD: string): boolean {
   if (targetYMD < event.date) return false;
   if (event.recurrence_end && targetYMD > event.recurrence_end) return false;
   if (!event.recurrence) return event.date === targetYMD;
 
+  const step = normalizeInterval(event.recurrence_interval);
   const target = new Date(`${targetYMD}T00:00:00`);
   let cur = new Date(`${event.date}T00:00:00`);
   let guard = 0;
   while (cur <= target && guard++ < 10000) {
     if (toYMD(cur) === targetYMD) return true;
-    if (event.recurrence === 'weekly') cur = addDays(cur, 7);
-    else if (event.recurrence === 'monthly') cur = addMonthsClamped(cur, 1);
-    else cur = addMonthsClamped(cur, 12);
+    if (event.recurrence === 'daily') cur = addDays(cur, step);
+    else if (event.recurrence === 'weekly') cur = addDays(cur, 7 * step);
+    else if (event.recurrence === 'monthly') cur = addMonthsClamped(cur, step);
+    else cur = addMonthsClamped(cur, 12 * step);
   }
   return false;
 }
@@ -78,7 +87,9 @@ Deno.serve(async (req: Request) => {
 
   const { data: events, error } = await supabase
     .from('events')
-    .select('id, title, date, start_time, house_id, recurrence, recurrence_end');
+    .select(
+      'id, title, date, start_time, house_id, recurrence, recurrence_interval, recurrence_end'
+    );
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });

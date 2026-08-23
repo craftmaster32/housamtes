@@ -1,4 +1,6 @@
-export type EventRecurrence = 'weekly' | 'monthly' | 'yearly';
+// The recurrence unit. The cadence is (interval × unit) — e.g. weekly with an
+// interval of 2 is "every 2 weeks" (biweekly). Interval defaults to 1.
+export type EventRecurrence = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface ImminentEventInput {
   date: string; // YYYY-MM-DD
@@ -8,7 +10,15 @@ export interface ImminentEventInput {
 export interface RecurringEventInput {
   date: string; // YYYY-MM-DD — the first/base occurrence
   recurrence?: EventRecurrence;
+  recurrenceInterval?: number; // "every N units" — defaults to 1
   recurrenceEnd?: string; // YYYY-MM-DD — when the repeat stops
+}
+
+// Clamp a stored interval to a sane whole number (>= 1). Handles legacy rows
+// where the column is null and any accidental fractional/zero values.
+export function normalizeInterval(interval: number | undefined | null): number {
+  if (!interval || !Number.isFinite(interval)) return 1;
+  return Math.max(1, Math.floor(interval));
 }
 
 function ymd(d: Date): string {
@@ -50,6 +60,7 @@ export function nextOccurrenceOnOrAfter(
   if (!event.recurrence) {
     return event.date >= fromYMD ? event.date : undefined;
   }
+  const step = normalizeInterval(event.recurrenceInterval);
   const from = parseYMD(fromYMD);
   const end = event.recurrenceEnd ? parseYMD(event.recurrenceEnd) : null;
   let cur = parseYMD(event.date);
@@ -57,9 +68,10 @@ export function nextOccurrenceOnOrAfter(
   while (guard++ < 10000) {
     if (end && cur > end) return undefined;
     if (cur >= from) return ymd(cur);
-    if (event.recurrence === 'weekly') cur = addDays(cur, 7);
-    else if (event.recurrence === 'monthly') cur = addMonthsClamped(cur, 1);
-    else cur = addMonthsClamped(cur, 12);
+    if (event.recurrence === 'daily') cur = addDays(cur, step);
+    else if (event.recurrence === 'weekly') cur = addDays(cur, 7 * step);
+    else if (event.recurrence === 'monthly') cur = addMonthsClamped(cur, step);
+    else cur = addMonthsClamped(cur, 12 * step);
   }
   return undefined;
 }
