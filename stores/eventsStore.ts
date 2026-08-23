@@ -1,10 +1,21 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { z } from 'zod';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import { captureError } from '@lib/errorTracking';
 import { normalizeInterval, normalizeWeekdays } from '@utils/events';
+
+// Reject fractional intervals and out-of-range weekday values before any DB write.
+const recurrencePayloadSchema = z.object({
+  recurrenceInterval: z
+    .number()
+    .int('Interval must be a whole number')
+    .min(1, 'Interval must be at least 1')
+    .optional(),
+  recurrenceDays: z.array(z.number().int().min(0).max(6)).optional(),
+});
 
 // The DB payload for a weekly weekday set: a normalized non-empty array, or null.
 function weekdaysPayload(
@@ -190,6 +201,12 @@ export const useEventsStore = create<EventsStore>()(
           recurrenceDays,
           recurrenceEnd,
         } = payload;
+        const addValidation = recurrencePayloadSchema.safeParse({ recurrenceInterval, recurrenceDays });
+        if (!addValidation.success) {
+          const msg = 'Invalid repeat settings: interval must be a whole number ≥ 1 and weekdays must be 0–6.';
+          set({ error: msg });
+          throw new Error(msg);
+        }
         try {
           const { data, error } = await supabase
             .from('events')
@@ -236,6 +253,15 @@ export const useEventsStore = create<EventsStore>()(
       },
 
       editEvent: async (id, updates): Promise<void> => {
+        const editValidation = recurrencePayloadSchema.safeParse({
+          recurrenceInterval: updates.recurrenceInterval,
+          recurrenceDays: updates.recurrenceDays,
+        });
+        if (!editValidation.success) {
+          const msg = 'Invalid repeat settings: interval must be a whole number ≥ 1 and weekdays must be 0–6.';
+          set({ error: msg });
+          throw new Error(msg);
+        }
         try {
           // Only include optional fields that were explicitly provided by the caller.
           // Using `in` distinguishes "set to undefined (= clear)" from "key absent (= preserve)".
@@ -244,14 +270,29 @@ export const useEventsStore = create<EventsStore>()(
           if ('startTime' in updates) dbPayload.start_time = updates.startTime ?? null;
           if ('endTime' in updates) dbPayload.end_time = updates.endTime ?? null;
           if ('notes' in updates) dbPayload.notes = updates.notes ?? null;
+          const clearingRecurrence = 'recurrence' in updates && !updates.recurrence;
           if ('recurrence' in updates) {
             dbPayload.recurrence = updates.recurrence ?? null;
-            // Normalized interval when recurring, null when cleared.
-            dbPayload.recurrence_interval = updates.recurrence
-              ? normalizeInterval(updates.recurrenceInterval)
-              : null;
-            // Weekday set only survives on a weekly repeat.
-            dbPayload.recurrence_days = weekdaysPayload(updates.recurrence, updates.recurrenceDays);
+          }
+          if (clearingRecurrence) {
+            // Clearing recurrence also clears interval and days.
+            dbPayload.recurrence_interval = null;
+            dbPayload.recurrence_days = null;
+          } else {
+            // Process interval and days independently; when recurrence changes, also derive them.
+            if ('recurrenceInterval' in updates || 'recurrence' in updates) {
+              dbPayload.recurrence_interval = updates.recurrence
+                ? normalizeInterval(updates.recurrenceInterval)
+                : 'recurrenceInterval' in updates
+                ? normalizeInterval(updates.recurrenceInterval)
+                : undefined;
+            }
+            if ('recurrenceDays' in updates || 'recurrence' in updates) {
+              const currentEvent = get().events.find((e) => e.id === id);
+              const effectiveRecurrence =
+                'recurrence' in updates ? updates.recurrence : currentEvent?.recurrence;
+              dbPayload.recurrence_days = weekdaysPayload(effectiveRecurrence, updates.recurrenceDays);
+            }
           }
           if ('recurrenceEnd' in updates) dbPayload.recurrence_end = updates.recurrenceEnd ?? null;
 
@@ -267,13 +308,22 @@ export const useEventsStore = create<EventsStore>()(
                 if ('startTime' in updates) merged.startTime = updates.startTime;
                 if ('endTime' in updates) merged.endTime = updates.endTime;
                 if ('notes' in updates) merged.notes = updates.notes;
-                if ('recurrence' in updates) {
-                  merged.recurrence = updates.recurrence;
-                  merged.recurrenceInterval = updates.recurrence
-                    ? normalizeInterval(updates.recurrenceInterval)
-                    : undefined;
-                  merged.recurrenceDays =
-                    weekdaysPayload(updates.recurrence, updates.recurrenceDays) ?? undefined;
+                if (clearingRecurrence) {
+                  merged.recurrence = undefined;
+                  merged.recurrenceInterval = undefined;
+                  merged.recurrenceDays = undefined;
+                } else {
+                  if ('recurrence' in updates) merged.recurrence = updates.recurrence;
+                  if ('recurrenceInterval' in updates || 'recurrence' in updates) {
+                    merged.recurrenceInterval =
+                      dbPayload.recurrence_interval != null
+                        ? (dbPayload.recurrence_interval as number)
+                        : undefined;
+                  }
+                  if ('recurrenceDays' in updates || 'recurrence' in updates) {
+                    merged.recurrenceDays =
+                      (dbPayload.recurrence_days as number[] | null) ?? undefined;
+                  }
                 }
                 if ('recurrenceEnd' in updates) merged.recurrenceEnd = updates.recurrenceEnd;
                 return merged;
