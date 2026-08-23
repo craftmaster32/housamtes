@@ -232,10 +232,15 @@ function parseRecurrence(
   text: string,
   hasWeekday: boolean
 ): { recurrence: EventRecurrence; interval: number } | undefined {
-  // Fixed 2-week shorthands.
+  // Fixed 2-unit shorthands. The Hebrew dual forms (יומיים / שבועיים / חודשיים /
+  // שנתיים = "two days/weeks/months/years") are checked before the unit branches
+  // because each contains the bare-keyword prefix of its unit (e.g. שנתי in שנתיים).
+  if (/יומיים/.test(text)) return { recurrence: 'daily', interval: 2 };
   if (/bi-?weekly|fortnight(ly)?|quincenal|שבועיים/.test(text)) {
     return { recurrence: 'weekly', interval: 2 };
   }
+  if (/חודשיים/.test(text)) return { recurrence: 'monthly', interval: 2 };
+  if (/שנתיים/.test(text)) return { recurrence: 'yearly', interval: 2 };
   // "every Monday" / "cada lunes" / "כל יום שני" → weekly on that day. Checked
   // before the unit branches: in Hebrew a weekday name contains "יום" (day), so
   // this keeps it from being misread as a daily repeat. Skipped only when the

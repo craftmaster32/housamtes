@@ -1,4 +1,4 @@
-import { isEventImminent, nextOccurrenceOnOrAfter } from '@utils/events';
+import { isEventImminent, nextOccurrenceOnOrAfter, expandRecurrenceDates } from '@utils/events';
 
 describe('isEventImminent', () => {
   // Fixed reference point: Mon 20 Jul 2026, 15:00 local time.
@@ -151,5 +151,64 @@ describe('nextOccurrenceOnOrAfter', () => {
         today
       )
     ).toBeUndefined();
+  });
+});
+
+describe('expandRecurrenceDates', () => {
+  const from = new Date('2026-07-01T00:00:00');
+  const to = new Date('2026-07-31T23:59:59');
+
+  it('returns nothing for a non-recurring event', () => {
+    expect(expandRecurrenceDates({ date: '2026-07-10' }, from, to)).toEqual([]);
+  });
+
+  it('expands a weekly event across the window', () => {
+    // Base Mon 6 Jul, weekly → 6, 13, 20, 27 Jul.
+    expect(expandRecurrenceDates({ date: '2026-07-06', recurrence: 'weekly' }, from, to)).toEqual([
+      '2026-07-06',
+      '2026-07-13',
+      '2026-07-20',
+      '2026-07-27',
+    ]);
+  });
+
+  it('expands an every-2-weeks event, skipping off weeks', () => {
+    expect(
+      expandRecurrenceDates(
+        { date: '2026-07-06', recurrence: 'weekly', recurrenceInterval: 2 },
+        from,
+        to
+      )
+    ).toEqual(['2026-07-06', '2026-07-20']);
+  });
+
+  it('expands a weekly multi-day (Mon & Thu) event', () => {
+    // Base Mon 6 Jul on [Mon(1), Thu(4)] → 6, 9, 13, 16, 20, 23, 27, 30 Jul.
+    expect(
+      expandRecurrenceDates(
+        { date: '2026-07-06', recurrence: 'weekly', recurrenceDays: [1, 4] },
+        from,
+        to
+      )
+    ).toEqual([
+      '2026-07-06',
+      '2026-07-09',
+      '2026-07-13',
+      '2026-07-16',
+      '2026-07-20',
+      '2026-07-23',
+      '2026-07-27',
+      '2026-07-30',
+    ]);
+  });
+
+  it('stops at the recurrence end date', () => {
+    expect(
+      expandRecurrenceDates(
+        { date: '2026-07-06', recurrence: 'weekly', recurrenceEnd: '2026-07-15' },
+        from,
+        to
+      )
+    ).toEqual(['2026-07-06', '2026-07-13']);
   });
 });

@@ -122,6 +122,53 @@ export function nextOccurrenceOnOrAfter(
 }
 
 /**
+ * Every occurrence date (YYYY-MM-DD) of a recurring event within [from, to],
+ * honouring the interval, an optional weekly weekday set, and the recurrence end.
+ * Used to paint the calendar grid; non-recurring events are handled by the caller.
+ */
+export function expandRecurrenceDates(event: RecurringEventInput, from: Date, to: Date): string[] {
+  if (!event.recurrence) return [];
+  const step = normalizeInterval(event.recurrenceInterval);
+  const recEnd = event.recurrenceEnd ? parseYMD(event.recurrenceEnd) : null;
+  const base = parseYMD(event.date);
+  const dates: string[] = [];
+
+  // Weekly on a set of weekdays (e.g. every Mon & Thu): scan the window day by
+  // day, keeping listed weekdays that fall in an "on" week (step-aligned).
+  const days = event.recurrence === 'weekly' ? normalizeWeekdays(event.recurrenceDays) : [];
+  if (days.length > 0) {
+    const daySet = new Set(days);
+    let cur = base > from ? base : from; // never before the base date
+    let guard = 0;
+    while (cur <= to && guard++ < 4000) {
+      if (recEnd && cur > recEnd) break;
+      if (weeksBetween(base, cur) % step === 0 && daySet.has(cur.getDay())) dates.push(ymd(cur));
+      cur = addDays(cur, 1);
+    }
+    return dates;
+  }
+
+  let current = base;
+  const advance = (): void => {
+    if (event.recurrence === 'daily') current = addDays(current, step);
+    else if (event.recurrence === 'weekly') current = addDays(current, 7 * step);
+    else if (event.recurrence === 'monthly') current = addMonthsClamped(current, step);
+    else current = addMonthsClamped(current, 12 * step);
+  };
+
+  // Fast-forward to the first occurrence at or after `from`, guarded against a
+  // stray zero/negative interval spinning forever.
+  let guard = 0;
+  while (current < from && guard++ < 10000) advance();
+  while (current <= to && guard++ < 20000) {
+    if (recEnd && current > recEnd) break;
+    dates.push(ymd(current));
+    advance();
+  }
+  return dates;
+}
+
+/**
  * An event is "imminent" when it lands on the current calendar day (so all-day
  * and later-today events still surface), or when it starts within the next 24
  * hours. Events whose start has already passed on a future date are never

@@ -221,6 +221,25 @@ describe('parseRepeatText', () => {
     expect(parseRepeatText('כל יום', ref).recurrence).toBe('daily');
   });
 
+  it('understands the Hebrew dual forms (every two days/weeks/months/years)', () => {
+    expect(parseRepeatText('כל יומיים', ref)).toMatchObject({
+      recurrence: 'daily',
+      recurrenceInterval: 2,
+    });
+    expect(parseRepeatText('כל שבועיים', ref)).toMatchObject({
+      recurrence: 'weekly',
+      recurrenceInterval: 2,
+    });
+    expect(parseRepeatText('כל חודשיים', ref)).toMatchObject({
+      recurrence: 'monthly',
+      recurrenceInterval: 2,
+    });
+    expect(parseRepeatText('כל שנתיים', ref)).toMatchObject({
+      recurrence: 'yearly',
+      recurrenceInterval: 2,
+    });
+  });
+
   it('defaults the reference to now when omitted', () => {
     // Just assert it runs and produces a well-formed date for a weekday phrase.
     const r = parseRepeatText('every friday');

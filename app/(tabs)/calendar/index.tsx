@@ -31,9 +31,8 @@ import { isRTL } from '@lib/i18n';
 import { Alert } from '@lib/alert';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
-import { addDays, addWeeks, addMonths, addYears } from 'date-fns';
 import { parseRepeatText } from '@utils/repeatParser';
-import { normalizeInterval, normalizeWeekdays, weeksBetween } from '@utils/events';
+import { normalizeInterval, normalizeWeekdays, expandRecurrenceDates } from '@utils/events';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -101,57 +100,6 @@ function formatShortDate(ymd: string, lang: string): string {
   if (!m) return ymd;
   const locale = lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
   return new Date(ymd + 'T12:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
-}
-
-function expandRecurringDates(
-  startDate: string,
-  recurrence: EventRecurrence,
-  interval: number,
-  recurrenceDays: number[] | undefined,
-  recurrenceEnd: string | undefined,
-  from: Date,
-  to: Date
-): string[] {
-  const step = normalizeInterval(interval);
-  const recEnd = recurrenceEnd ? new Date(recurrenceEnd + 'T00:00:00') : null;
-  const base = new Date(startDate + 'T00:00:00');
-  const dates: string[] = [];
-
-  // Weekly on a set of weekdays (e.g. every Mon & Thu): scan the window day by
-  // day, keeping listed weekdays that fall in an "on" week (step-aligned).
-  const days = recurrence === 'weekly' ? normalizeWeekdays(recurrenceDays) : [];
-  if (days.length > 0) {
-    const daySet = new Set(days);
-    let cur = base > from ? base : from;
-    let guard = 0;
-    while (cur <= to && guard++ < 4000) {
-      if (recEnd && cur > recEnd) break;
-      const weeks = weeksBetween(base, cur);
-      if (weeks >= 0 && weeks % step === 0 && daySet.has(cur.getDay())) dates.push(toYMD(cur));
-      cur = addDays(cur, 1);
-    }
-    return dates;
-  }
-
-  let current = base;
-  const advance = (): void => {
-    if (recurrence === 'daily') current = addDays(current, step);
-    else if (recurrence === 'weekly') current = addWeeks(current, step);
-    else if (recurrence === 'monthly') current = addMonths(current, step);
-    else current = addYears(current, step);
-  };
-
-  // Fast-forward to the first occurrence at or after 'from'. Guarded so a stray
-  // zero/negative interval can never spin forever.
-  let guard = 0;
-  while (current < from && guard++ < 10000) advance();
-
-  while (current <= to && guard++ < 20000) {
-    if (recEnd && current > recEnd) break;
-    dates.push(toYMD(current));
-    advance();
-  }
-  return dates;
 }
 
 // 'daily' → 'day', etc. — the singular noun used when composing repeat labels.
@@ -440,7 +388,14 @@ function EventFormModal({
     } else if (parsed.date) {
       parts.push(formatShortDate(parsed.date, i18n.language));
     }
-    if (parsed.date) setDate(parsed.date);
+    if (parsed.date) {
+      setDate(parsed.date);
+      // A newly parsed start date can't sit after an existing "repeat until" date.
+      if (recurrenceEnd && parsed.date > recurrenceEnd) {
+        setRecurrenceEnd('');
+        setShowRecEnd(false);
+      }
+    }
     if (parsed.startTime) {
       setStartTime(parsed.startTime);
       if (parsed.endTime) setEndTime(parsed.endTime);
@@ -448,7 +403,7 @@ function EventFormModal({
     }
     setError('');
     setSmartFeedback({ ok: true, text: parts.join(' · ') });
-  }, [smartText, t, i18n.language]);
+  }, [smartText, recurrenceEnd, t, i18n.language]);
 
   const isEditing = !!editingEvent;
 
@@ -919,15 +874,7 @@ export default function CalendarScreen(): React.JSX.Element {
       };
 
       if (e.recurrence) {
-        const dates = expandRecurringDates(
-          e.date,
-          e.recurrence,
-          normalizeInterval(e.recurrenceInterval),
-          e.recurrenceDays,
-          e.recurrenceEnd,
-          gridStart,
-          expandEnd
-        );
+        const dates = expandRecurrenceDates(e, gridStart, expandEnd);
         if (e.endDate && e.endDate > e.date) {
           const spanDays = Math.round(
             (new Date(e.endDate + 'T00:00:00').getTime() -
@@ -1859,10 +1806,12 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     customSummary: { fontSize: mf(12.5), ...font.medium, color: C.primary, marginTop: ms(8) },
 
     // Weekday multi-select (S M T W T F S)
-    dayRow: { flexDirection: 'row', gap: ms(5) },
+    dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(5) },
     dayToggle: {
-      flex: 1,
-      minHeight: ms(44),
+      flexGrow: 1,
+      flexBasis: 40,
+      minWidth: 44,
+      minHeight: 44,
       paddingVertical: ms(8),
       alignItems: 'center',
       justifyContent: 'center',
