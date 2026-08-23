@@ -139,8 +139,7 @@ export function expandRecurrenceDates(event: RecurringEventInput, from: Date, to
   if (days.length > 0) {
     const daySet = new Set(days);
     let cur = base > from ? base : from; // never before the base date
-    let guard = 0;
-    while (cur <= to && guard++ < 4000) {
+    while (cur <= to) {
       if (recEnd && cur > recEnd) break;
       if (weeksBetween(base, cur) % step === 0 && daySet.has(cur.getDay())) dates.push(ymd(cur));
       cur = addDays(cur, 1);
@@ -156,11 +155,10 @@ export function expandRecurrenceDates(event: RecurringEventInput, from: Date, to
     else current = addMonthsClamped(current, 12 * step);
   };
 
-  // Fast-forward to the first occurrence at or after `from`, guarded against a
-  // stray zero/negative interval spinning forever.
-  let guard = 0;
-  while (current < from && guard++ < 10000) advance();
-  while (current <= to && guard++ < 20000) {
+  // Fast-forward to the first occurrence at or after `from`. interval >= 1 is
+  // enforced by normalizeInterval, so this always terminates.
+  while (current < from) advance();
+  while (current <= to) {
     if (recEnd && current > recEnd) break;
     dates.push(ymd(current));
     advance();

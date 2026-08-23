@@ -211,4 +211,32 @@ describe('expandRecurrenceDates', () => {
       )
     ).toEqual(['2026-07-06', '2026-07-13']);
   });
+
+  it('handles a daily event whose base date is in the distant past', () => {
+    // Base 1970-01-01 (daily); fast-forward to July 2026 requires >20,000 advances.
+    // Old guard at 10,000 would fail to reach the window and pre-window dates
+    // would leak into the output.
+    const result = expandRecurrenceDates(
+      { date: '1970-01-01', recurrence: 'daily' },
+      new Date('2026-07-01T00:00:00'),
+      new Date('2026-07-03T23:59:59')
+    );
+    expect(result).toEqual(['2026-07-01', '2026-07-02', '2026-07-03']);
+  });
+
+  it('expands a weekly multi-day event across a window longer than 4,000 scan days', () => {
+    // Base Mon 6 Jul 2026 on [Mon(1), Thu(4)]; 4,001-day window.
+    // Old guard at 4,000 iterations would silently drop occurrences past day 4,000.
+    const wFrom = new Date('2026-07-06T00:00:00');
+    const wTo = new Date(wFrom.getTime() + 4001 * 24 * 60 * 60 * 1000);
+    const result = expandRecurrenceDates(
+      { date: '2026-07-06', recurrence: 'weekly', recurrenceDays: [1, 4] },
+      wFrom,
+      wTo
+    );
+    // 4,001 days × 2 occurrences per 7 days ≈ 1,143+ results.
+    expect(result.length).toBeGreaterThan(1000);
+    expect(result[0]).toBe('2026-07-06'); // first Monday (base)
+    expect(result[1]).toBe('2026-07-09'); // first Thursday
+  });
 });
