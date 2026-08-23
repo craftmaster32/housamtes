@@ -7,7 +7,7 @@ import { identifyUser, clearUser, captureError } from '@lib/errorTracking';
 import { registerPushToken, unregisterPushToken } from '@lib/notifications';
 import { registerWebPush, unregisterWebPush } from '@lib/webPush';
 import { emailOtpSchema } from '@utils/validation';
-import type { User, Session } from '@supabase/supabase-js';
+import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
 const CURRENT_TERMS_VERSION = '2026-05-10';
@@ -36,7 +36,7 @@ async function clearPendingEmail(): Promise<void> {
   }
 }
 
-// ── Persistent house cache ────────────────────────────────────────────────────
+// ── Persistent house cache ───────────────────────────────────────────────────────
 // Stores houseId keyed by userId so the app never forgets which house
 // a user belongs to, even across refreshes or platform switches.
 // Mobile: expo-secure-store (iOS Keychain / Android Keystore — survives reinstalls
@@ -207,6 +207,13 @@ interface AuthStore {
 
 let _appStateSub: ReturnType<typeof AppState.addEventListener> | null = null;
 
+// Monotonic id for auth events. Lives at module scope so both the deferred
+// handleAuthChange work (inside initialize) and signOut() can access it.
+// Incrementing before signOut() clears local state ensures any in-flight
+// deferred handler from an earlier event sees a stale id and bails out,
+// preventing it from writing user/session back into the cleared store.
+let latestAuthEventId = 0;
+
 export const useAuthStore = create<AuthStore>()(
   devtools(
     (set) => ({
@@ -241,7 +248,62 @@ export const useAuthStore = create<AuthStore>()(
         // the initial session is handled below by getSession() instead.
         let initialSessionHandled = false;
 
-        supabase.auth.onAuthStateChange(async (event, session) => {
+        const handleAuthChange = async (
+          eventId: number,
+          session: Session | null
+        ): Promise<void> => {
+          try {
+            if (session?.user) {
+              const [profile, memberData, consentOk] = await Promise.all([
+                fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
+                fetchMemberData(session.user.id),
+                hasCurrentConsent(session.user.id),
+              ]);
+              if (eventId !== latestAuthEventId) return; // superseded by a newer event
+              identifyUser(session.user.id);
+              set({
+                user: session.user,
+                session,
+                profile,
+                houseId: memberData.houseId,
+                role: memberData.role,
+                permissions: memberData.permissions,
+                needsTermsAcceptance: !consentOk,
+                error: null,
+              });
+              if (memberData.houseId) {
+                registerPushToken(session.user.id, memberData.houseId);
+                registerWebPush(session.user.id, memberData.houseId);
+              }
+            } else {
+              if (eventId !== latestAuthEventId) return; // superseded by a newer event
+              const prev = useAuthStore.getState();
+              if (prev.user && prev.houseId) {
+                unregisterPushToken(prev.user.id, prev.houseId);
+                unregisterWebPush(prev.user.id, prev.houseId);
+              }
+              clearUser();
+              set({
+                user: null,
+                session: null,
+                profile: null,
+                houseId: null,
+                role: null,
+                permissions: DEFAULT_PERMISSIONS,
+              });
+            }
+          } catch (err) {
+            if (eventId !== latestAuthEventId) return;
+            const userId = session?.user?.id ?? '';
+            const { houseId } = useAuthStore.getState();
+            captureError(err, { context: 'auth-state-change', userId, houseId: houseId ?? '' });
+            set({ error: 'Something went wrong. Please sign in again.' });
+          }
+        };
+
+        supabase.auth.onAuthStateChange((event: AuthChangeEvent, session): void => {
+          const eventId = ++latestAuthEventId;
+
           if (event === 'PASSWORD_RECOVERY') {
             set({ isPasswordRecovery: true });
             return;
@@ -250,48 +312,24 @@ export const useAuthStore = create<AuthStore>()(
           // Let getSession() own the first load so we never double-fetch
           if (!initialSessionHandled) return;
 
-          // Token refresh: just swap the session object, no extra DB calls
+          // Token refresh: just swap the session object, no extra DB calls.
+          // latestAuthEventId is already incremented above, so any pending
+          // deferred handler from an earlier event is now invalidated.
           if (event === 'TOKEN_REFRESHED' && session) {
             set({ session });
             return;
           }
 
-          if (session?.user) {
-            const [profile, memberData, consentOk] = await Promise.all([
-              fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
-              fetchMemberData(session.user.id),
-              hasCurrentConsent(session.user.id),
-            ]);
-            identifyUser(session.user.id);
-            set({
-              user: session.user,
-              session,
-              profile,
-              houseId: memberData.houseId,
-              role: memberData.role,
-              permissions: memberData.permissions,
-              needsTermsAcceptance: !consentOk,
-            });
-            if (memberData.houseId) {
-              registerPushToken(session.user.id, memberData.houseId);
-              registerWebPush(session.user.id, memberData.houseId);
-            }
-          } else {
-            const prev = useAuthStore.getState();
-            if (prev.user && prev.houseId) {
-              unregisterPushToken(prev.user.id, prev.houseId);
-              unregisterWebPush(prev.user.id, prev.houseId);
-            }
-            clearUser();
-            set({
-              user: null,
-              session: null,
-              profile: null,
-              houseId: null,
-              role: null,
-              permissions: DEFAULT_PERMISSIONS,
-            });
-          }
+          // Defer all Supabase-touching work out of this callback. Supabase
+          // serializes auth calls behind an internal lock and awaits this
+          // callback *inside* that lock; doing Supabase calls here (which
+          // re-acquire the lock) synchronously deadlocks the very operation
+          // that fired the event — e.g. updateUser() during password reset,
+          // which would hang forever. setTimeout(…, 0) runs the work after the
+          // lock has been released.
+          setTimeout((): void => {
+            void handleAuthChange(eventId, session);
+          }, 0);
         });
 
         // Restore pending verification email across restarts
@@ -489,6 +527,11 @@ export const useAuthStore = create<AuthStore>()(
           unregisterPushToken(prevUser.id, prevHouseId);
           unregisterWebPush(prevUser.id, prevHouseId);
         }
+        // Invalidate any in-flight deferred auth handlers before clearing state.
+        // If signOut() fails (e.g. expired token), onAuthStateChange never fires,
+        // so a pending deferred handler from an earlier event could otherwise
+        // overwrite the local sign-out with its stale user/session data.
+        ++latestAuthEventId;
         // Clear local state regardless of whether the Supabase call succeeds
         // (e.g. expired token will cause signOut to fail but user should still be logged out locally)
         await supabase.auth.signOut().catch(() => {});
