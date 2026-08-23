@@ -32,13 +32,13 @@ function pad2(n: number): string {
 // Sunday = 0 … Saturday = 6, matching Date.getDay(). English + Spanish + Hebrew
 // weekday names (longer aliases first so e.g. "thursday" wins over "thu").
 const WEEKDAYS: Array<{ re: RegExp; dow: number }> = [
-  { re: /sundays?|\bsun\b|domingos?|\bdom\b|ראשון/, dow: 0 },
-  { re: /mondays?|\bmon\b|lunes|\blun\b|שני/, dow: 1 },
-  { re: /tuesdays?|\btues?\b|martes|\bmar\b|שלישי/, dow: 2 },
-  { re: /wednesdays?|\bweds?\b|mi[eé]rcoles|\bmi[eé]\b|רביעי/, dow: 3 },
-  { re: /thursdays?|\bthurs?\b|\bthu\b|jueves|\bjue\b|חמישי/, dow: 4 },
-  { re: /fridays?|\bfri\b|viernes|\bvie\b|שישי/, dow: 5 },
-  { re: /saturdays?|\bsat\b|s[aá]bados?|\bs[aá]b\b|שבת/, dow: 6 },
+  { re: /sundays?|\bsun\b|domingos?|\bdom\b|ראשון(?![א-ת])/, dow: 0 },
+  { re: /mondays?|\bmon\b|lunes|\blun\b|שני(?![א-ת])/, dow: 1 },
+  { re: /tuesdays?|\btues?\b|martes|\bmar\b|שלישי(?![א-ת])/, dow: 2 },
+  { re: /wednesdays?|\bweds?\b|mi[eé]rcoles|\bmi[eé]\b|רביעי(?![א-ת])/, dow: 3 },
+  { re: /thursdays?|\bthurs?\b|\bthu\b|jueves|\bjue\b|חמישי(?![א-ת])/, dow: 4 },
+  { re: /fridays?|\bfri\b|viernes|\bvie\b|שישי(?![א-ת])/, dow: 5 },
+  { re: /saturdays?|\bsat\b|s[aá]bados?|\bs[aá]b\b|שבת(?![א-ת])/, dow: 6 },
 ];
 
 // "every" / "each" / "cada" / "כל" — the lead-in to a cadence phrase.
