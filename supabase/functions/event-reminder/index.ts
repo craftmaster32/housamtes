@@ -83,13 +83,18 @@ function occursOn(event: EventRow, targetYMD: string): boolean {
     return weeks >= 0 && weeks % step === 0;
   }
 
+  // Daily and weekly are pure arithmetic — no need to walk each occurrence.
+  // Round the day difference so a DST transition can't shift it off a whole day.
+  const dayDiff = Math.round((target.getTime() - base.getTime()) / 86400000);
+  if (event.recurrence === 'daily') return dayDiff >= 0 && dayDiff % step === 0;
+  if (event.recurrence === 'weekly') return dayDiff >= 0 && dayDiff % (7 * step) === 0;
+
+  // Monthly / yearly clamp to shorter months, so step through them.
   let cur = base;
   let guard = 0;
   while (cur <= target && guard++ < 10000) {
     if (toYMD(cur) === targetYMD) return true;
-    if (event.recurrence === 'daily') cur = addDays(cur, step);
-    else if (event.recurrence === 'weekly') cur = addDays(cur, 7 * step);
-    else if (event.recurrence === 'monthly') cur = addMonthsClamped(cur, step);
+    if (event.recurrence === 'monthly') cur = addMonthsClamped(cur, step);
     else cur = addMonthsClamped(cur, 12 * step);
   }
   return false;

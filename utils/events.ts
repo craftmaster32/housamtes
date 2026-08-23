@@ -38,14 +38,14 @@ export function normalizeWeekdays(days: number[] | undefined | null): number[] {
 }
 
 // Midnight of the Sunday that starts d's week — the anchor for weekly cadence.
-function startOfWeek(d: Date): Date {
+export function startOfWeek(d: Date): Date {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   x.setDate(x.getDate() - x.getDay());
   return x;
 }
 
 // Whole weeks between two dates' week-starts (>= 0 when b is on/after a's week).
-function weeksBetween(base: Date, d: Date): number {
+export function weeksBetween(base: Date, d: Date): number {
   return Math.round((startOfWeek(d).getTime() - startOfWeek(base).getTime()) / (7 * DAY_MS));
 }
 

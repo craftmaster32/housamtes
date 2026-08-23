@@ -33,7 +33,7 @@ import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { addDays, addWeeks, addMonths, addYears } from 'date-fns';
 import { parseRepeatText } from '@utils/repeatParser';
-import { normalizeInterval, normalizeWeekdays } from '@utils/events';
+import { normalizeInterval, normalizeWeekdays, weeksBetween } from '@utils/events';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -103,14 +103,6 @@ function formatShortDate(ymd: string, lang: string): string {
   return new Date(ymd + 'T12:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-function startOfWeek(d: Date): Date {
-  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  x.setDate(x.getDate() - x.getDay());
-  return x;
-}
-
 function expandRecurringDates(
   startDate: string,
   recurrence: EventRecurrence,
@@ -134,9 +126,7 @@ function expandRecurringDates(
     let guard = 0;
     while (cur <= to && guard++ < 4000) {
       if (recEnd && cur > recEnd) break;
-      const weeks = Math.round(
-        (startOfWeek(cur).getTime() - startOfWeek(base).getTime()) / WEEK_MS
-      );
+      const weeks = weeksBetween(base, cur);
       if (weeks >= 0 && weeks % step === 0 && daySet.has(cur.getDay())) dates.push(toYMD(cur));
       cur = addDays(cur, 1);
     }
@@ -438,7 +428,7 @@ function EventFormModal({
     const parts: string[] = [];
     const days = normalizeWeekdays(parsed.recurrenceDays);
     if (parsed.recurrence) {
-      const iv = normalizeInterval(parsed.recurrenceInterval);
+      const iv = Math.min(MAX_INTERVAL, normalizeInterval(parsed.recurrenceInterval));
       setRecurrence(parsed.recurrence);
       setRecurrenceInterval(iv);
       setRecurrenceDays(parsed.recurrence === 'weekly' ? days : []);
@@ -1815,7 +1805,7 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     chip: {
       paddingHorizontal: ms(14),
       paddingVertical: ms(9),
-      minHeight: ms(40),
+      minHeight: 44,
       justifyContent: 'center',
       borderRadius: ms(20),
       borderWidth: 1,
@@ -1852,8 +1842,8 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       padding: ms(4),
     },
     stepBtn: {
-      width: ms(40),
-      height: ms(40),
+      width: 44,
+      height: 44,
       justifyContent: 'center',
       alignItems: 'center',
       borderRadius: ms(9),

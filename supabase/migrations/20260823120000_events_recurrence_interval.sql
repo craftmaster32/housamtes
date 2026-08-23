@@ -3,9 +3,11 @@
 -- interval 2 = every 2 weeks / biweekly), and widens the unit set to include
 -- 'daily'. Existing rows keep their unit and default to an interval of 1.
 
-ALTER TABLE events ADD COLUMN IF NOT EXISTS recurrence_interval integer NOT NULL DEFAULT 1;
+-- Nullable (with a default of 1): non-recurring events store null here, matching
+-- how the app writes the field. Existing rows adopt the default.
+ALTER TABLE events ADD COLUMN IF NOT EXISTS recurrence_interval integer DEFAULT 1;
 
--- Interval must be a positive whole number.
+-- Interval, when present, must be a positive whole number.
 ALTER TABLE events DROP CONSTRAINT IF EXISTS chk_events_recurrence_interval;
 ALTER TABLE events ADD CONSTRAINT chk_events_recurrence_interval
   CHECK (recurrence_interval >= 1);

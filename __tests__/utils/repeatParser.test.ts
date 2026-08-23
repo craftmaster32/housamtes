@@ -146,6 +146,33 @@ describe('parseRepeatText', () => {
     expect(iv.endTime).toBeUndefined();
   });
 
+  it('reads "every other Monday" as biweekly on that day', () => {
+    const r = parseRepeatText('every other monday', ref);
+    expect(r.recurrence).toBe('weekly');
+    expect(r.recurrenceInterval).toBe(2);
+    expect(r.recurrenceDays).toBeUndefined();
+    expect(r.date).toBe('2026-07-20');
+  });
+
+  it('reads a spelled-out Hebrew interval', () => {
+    // "every three weeks" in Hebrew.
+    expect(parseRepeatText('כל שלושה שבועות', ref)).toMatchObject({
+      recurrence: 'weekly',
+      recurrenceInterval: 3,
+    });
+  });
+
+  it('shares the meridiem across a range even when a side has minutes', () => {
+    expect(parseRepeatText('8:30 to 9 pm', ref)).toMatchObject({
+      startTime: '20:30',
+      endTime: '21:00',
+    });
+    expect(parseRepeatText('8 pm to 9:30', ref)).toMatchObject({
+      startTime: '20:00',
+      endTime: '21:30',
+    });
+  });
+
   it('parses a time on its own (no cadence)', () => {
     const r = parseRepeatText('22:00', ref);
     expect(r.startTime).toBe('22:00');

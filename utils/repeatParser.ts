@@ -1,4 +1,4 @@
-import type { EventRecurrence } from './events';
+import type { EventRecurrence } from '@utils/events';
 
 // Plain-English (and Spanish / Hebrew) repeat parser. Turns a phrase like
 // "every Monday at 10 pm" into the calendar form's fields (recurrence, next
@@ -71,6 +71,25 @@ const NUMBER_WORDS: Record<string, number> = {
   nueve: 9,
   ten: 10,
   diez: 10,
+  // Hebrew spelled-out counts (common masculine/feminine forms).
+  שתי: 2,
+  שניים: 2,
+  שתיים: 2,
+  שלושה: 3,
+  שלוש: 3,
+  ארבעה: 4,
+  ארבע: 4,
+  חמישה: 5,
+  חמש: 5,
+  שישה: 6,
+  שש: 6,
+  שבעה: 7,
+  שבע: 7,
+  שמונה: 8,
+  תשעה: 9,
+  תשע: 9,
+  עשרה: 10,
+  עשר: 10,
 };
 
 // Per-unit noun fragments in each language (singular + plural variants).
@@ -165,9 +184,10 @@ function parseTimeRange(text: string): { start?: string; end?: string } {
   let mer1 = m[4];
   let mer2 = m[8];
   if (isRange) {
-    // A contiguous range shares its meridiem: "8 to 9 pm" → both pm.
-    if (mer2 && !mer1 && !m[3]) mer1 = mer2;
-    if (mer1 && !mer2 && !m[7]) mer2 = mer1;
+    // A contiguous range shares its meridiem: "8 to 9 pm" and "8:30 to 9 pm"
+    // are both pm. Only one side needs to state it.
+    if (mer2 && !mer1) mer1 = mer2;
+    if (mer1 && !mer2) mer2 = mer1;
   } else {
     // A bare "X and Y" list needs an explicit clock signal to count as two times,
     // otherwise "Monday and Thursday" style text could be misread.
@@ -222,7 +242,14 @@ function parseRecurrence(
   // text spells out an explicit "every N <unit>" (e.g. "every 2 weeks on Monday"),
   // which is a deliberate interval; a time like "10 pm" does not count.
   if (hasWeekday && new RegExp(EVERY).test(text) && !EXPLICIT_COUNT_RE.test(text)) {
-    return { recurrence: 'weekly', interval: 1 };
+    // "every other Monday" / "every 2nd Friday" → carry the count as the interval.
+    const countTok = text.match(new RegExp(`${EVERY}\\s+(\\d+|[a-zא-ת]+)`))?.[1];
+    const n = countTok
+      ? /^\d+$/.test(countTok)
+        ? parseInt(countTok, 10)
+        : NUMBER_WORDS[countTok]
+      : undefined;
+    return { recurrence: 'weekly', interval: n && n >= 1 ? n : 1 };
   }
   // Order matters: check the longer units before the shorter, and "every N
   // weeks" before a bare "weekly", since the count phrases share the unit noun.

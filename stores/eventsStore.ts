@@ -4,6 +4,17 @@ import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import { captureError } from '@lib/errorTracking';
+import { normalizeInterval, normalizeWeekdays } from '@utils/events';
+
+// The DB payload for a weekly weekday set: a normalized non-empty array, or null.
+function weekdaysPayload(
+  recurrence: EventRecurrence | undefined,
+  days: number[] | undefined
+): number[] | null {
+  if (recurrence !== 'weekly' || !days) return null;
+  const clean = normalizeWeekdays(days);
+  return clean.length > 0 ? clean : null;
+}
 
 // Friendly "Sat 15 Aug · 20:00" label for the instant event-added push.
 function eventWhenLabel(date: string, startTime?: string): string {
@@ -192,13 +203,10 @@ export const useEventsStore = create<EventsStore>()(
               end_date: endDate ?? null,
               notes: notes ?? null,
               recurrence: recurrence ?? null,
-              // Only meaningful with a recurrence; default to 1 ("every unit").
-              recurrence_interval: recurrence ? (recurrenceInterval ?? 1) : null,
+              // Only meaningful with a recurrence; normalized to a whole number >= 1.
+              recurrence_interval: recurrence ? normalizeInterval(recurrenceInterval) : null,
               // Weekday set only applies to weekly repeats.
-              recurrence_days:
-                recurrence === 'weekly' && recurrenceDays && recurrenceDays.length > 0
-                  ? recurrenceDays
-                  : null,
+              recurrence_days: weekdaysPayload(recurrence, recurrenceDays),
               recurrence_end: recurrenceEnd ?? null,
             })
             .select()
@@ -238,17 +246,12 @@ export const useEventsStore = create<EventsStore>()(
           if ('notes' in updates) dbPayload.notes = updates.notes ?? null;
           if ('recurrence' in updates) {
             dbPayload.recurrence = updates.recurrence ?? null;
-            // Keep interval consistent with the unit: 1 when recurring, null when cleared.
+            // Normalized interval when recurring, null when cleared.
             dbPayload.recurrence_interval = updates.recurrence
-              ? (updates.recurrenceInterval ?? 1)
+              ? normalizeInterval(updates.recurrenceInterval)
               : null;
             // Weekday set only survives on a weekly repeat.
-            dbPayload.recurrence_days =
-              updates.recurrence === 'weekly' &&
-              updates.recurrenceDays &&
-              updates.recurrenceDays.length > 0
-                ? updates.recurrenceDays
-                : null;
+            dbPayload.recurrence_days = weekdaysPayload(updates.recurrence, updates.recurrenceDays);
           }
           if ('recurrenceEnd' in updates) dbPayload.recurrence_end = updates.recurrenceEnd ?? null;
 
@@ -267,14 +270,10 @@ export const useEventsStore = create<EventsStore>()(
                 if ('recurrence' in updates) {
                   merged.recurrence = updates.recurrence;
                   merged.recurrenceInterval = updates.recurrence
-                    ? (updates.recurrenceInterval ?? 1)
+                    ? normalizeInterval(updates.recurrenceInterval)
                     : undefined;
                   merged.recurrenceDays =
-                    updates.recurrence === 'weekly' &&
-                    updates.recurrenceDays &&
-                    updates.recurrenceDays.length > 0
-                      ? updates.recurrenceDays
-                      : undefined;
+                    weekdaysPayload(updates.recurrence, updates.recurrenceDays) ?? undefined;
                 }
                 if ('recurrenceEnd' in updates) merged.recurrenceEnd = updates.recurrenceEnd;
                 return merged;
