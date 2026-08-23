@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit configuration.
+#
+# The project coding guidelines (CLAUDE.md) require try/catch on every async
+# function and explicit return types. Those rules are meant for application
+# code, not tests: Jest already fails a test when a promise rejects, and the
+# repo's ESLint config forbids catch blocks that only rethrow
+# (`no-useless-catch`). Applying the guideline to test files therefore produces
+# review suggestions that, once committed, break `npm run lint` in CI. Scope the
+# noisy rules out of test files so review and CI stop contradicting each other.
+version: 2
+reviews:
+  path_instructions:
+    - path: '**/*.test.{ts,tsx}'
+      instructions: >-
+        This is a test file. Do NOT require try/catch error handling in test
+        bodies or in inline callbacks (e.g. jest mockImplementation callbacks):
+        Jest reports rejected promises as failures on its own, and the repo's
+        ESLint `no-useless-catch` rule forbids a catch that only rethrows, so
+        such a suggestion breaks CI. Do NOT require explicit return-type
+        annotations on inline test/mock callbacks. Always respect the repo's
+        ESLint rules over the general coding guidelines when they conflict.
+    - path: '__tests__/**'
+      instructions: >-
+        This is a test file. Do NOT require try/catch error handling in test
+        bodies or in inline callbacks (e.g. jest mockImplementation callbacks):
+        Jest reports rejected promises as failures on its own, and the repo's
+        ESLint `no-useless-catch` rule forbids a catch that only rethrows, so
+        such a suggestion breaks CI. Do NOT require explicit return-type
+        annotations on inline test/mock callbacks. Always respect the repo's
+        ESLint rules over the general coding guidelines when they conflict.
