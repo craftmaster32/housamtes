@@ -13,6 +13,7 @@ export interface ParsedRepeat {
   recurrenceDays?: number[];
   date?: string; // YYYY-MM-DD — the earliest named weekday on/after the reference
   startTime?: string; // HH:MM (24-hour)
+  endTime?: string; // HH:MM — set from a range ("10 to 12") or two times ("10 and 12")
   // True when we understood at least one part of the phrase. When false the
   // caller should tell the user we couldn't make sense of the text.
   matched: boolean;
@@ -123,6 +124,63 @@ function parseTime(text: string): string | undefined {
   return undefined;
 }
 
+// Build HH:MM from parts. With an am/pm marker the hour is 12-hour; without, it
+// is treated as 24-hour. Returns undefined for out-of-range values.
+function hm(hour: number, minute: number, meridiem?: string): string | undefined {
+  if (meridiem) {
+    if (hour < 1 || hour > 12 || minute > 59) return undefined;
+    let hh = hour % 12;
+    if (/^p/i.test(meridiem)) hh += 12;
+    return `${pad2(hh)}:${pad2(minute)}`;
+  }
+  if (hour > 23 || minute > 59) return undefined;
+  return `${pad2(hour)}:${pad2(minute)}`;
+}
+
+// A clock time that is NOT immediately followed by a duration unit — so "2" in
+// "2 weeks" is never read as a time.
+const TIME_TOKEN =
+  '(\\d{1,2})(?::(\\d{2}))?\\s*(a\\.?m\\.?|p\\.?m\\.?)?' +
+  '(?!\\s*(?:weeks?|days?|months?|years?|semanas?|d[ií]as?|mes(?:es)?|a[nñ]os?|hours?|hrs?|minutes?|mins?))';
+
+// "from X to Y", "X - Y", "between X and Y", "de X a Y", "at X and Y" …
+const TIME_RANGE_RE = new RegExp(
+  `\\b(from|between|at|de|entre)?\\s*${TIME_TOKEN}\\s*` +
+    `(\\bto\\b|\\buntil\\b|\\btill\\b|\\bthrough\\b|\\bhasta\\b|עד|\\band\\b|\\ba\\b|-|–|—)\\s*` +
+    `(?:at\\s+)?${TIME_TOKEN}`,
+  'i'
+);
+
+// A start/end time pair from a range ("10 to 12") or two joined times
+// ("at 10 and 2 pm"). Returns {} when no such pair is present.
+function parseTimeRange(text: string): { start?: string; end?: string } {
+  const m = TIME_RANGE_RE.exec(text);
+  if (!m) return {};
+  const prefix = (m[1] || '').toLowerCase();
+  const conn = m[5].toLowerCase();
+  const rangeWord = /^(to|until|till|through|hasta|עד|-|–|—)$/.test(conn);
+  const prefixRange = ['from', 'between', 'de', 'entre'].includes(prefix);
+  const isRange = rangeWord || prefixRange;
+
+  let mer1 = m[4];
+  let mer2 = m[8];
+  if (isRange) {
+    // A contiguous range shares its meridiem: "8 to 9 pm" → both pm.
+    if (mer2 && !mer1 && !m[3]) mer1 = mer2;
+    if (mer1 && !mer2 && !m[7]) mer2 = mer1;
+  } else {
+    // A bare "X and Y" list needs an explicit clock signal to count as two times,
+    // otherwise "Monday and Thursday" style text could be misread.
+    const explicit = mer1 || mer2 || m[3] || m[7] || prefix === 'at';
+    if (!explicit) return {};
+  }
+
+  const start = hm(parseInt(m[2], 10), m[3] ? parseInt(m[3], 10) : 0, mer1);
+  const end = hm(parseInt(m[6], 10), m[7] ? parseInt(m[7], 10) : 0, mer2);
+  if (!start || !end) return {};
+  return start === end ? { start } : { start, end };
+}
+
 // A boundary that also works after Hebrew letters — plain \b keys off ASCII \w,
 // so it never fires between a Hebrew letter and the end of the string.
 const NOT_LETTER = '(?![a-zא-ת])';
@@ -201,7 +259,11 @@ export function parseRepeatText(input: string, reference: Date = new Date()): Pa
     (a, b) => a - b
   );
   const parsed = parseRecurrence(text, weekdays.length > 0);
-  const startTime = parseTime(text);
+  // A time range ("10 to 12") / two times ("10 and 2 pm") fills start + end;
+  // otherwise fall back to a single start time.
+  const range = parseTimeRange(text);
+  const startTime = range.start ?? parseTime(text);
+  const endTime = range.end;
 
   // Base date = the soonest named weekday on or after the reference day.
   const date =
@@ -219,6 +281,7 @@ export function parseRepeatText(input: string, reference: Date = new Date()): Pa
     recurrenceDays,
     date,
     startTime,
+    endTime,
     matched: !!parsed || !!date || !!startTime,
   };
 }

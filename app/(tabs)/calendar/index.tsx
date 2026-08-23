@@ -453,7 +453,8 @@ function EventFormModal({
     if (parsed.date) setDate(parsed.date);
     if (parsed.startTime) {
       setStartTime(parsed.startTime);
-      parts.push(parsed.startTime);
+      if (parsed.endTime) setEndTime(parsed.endTime);
+      parts.push(parsed.endTime ? `${parsed.startTime} – ${parsed.endTime}` : parsed.startTime);
     }
     setError('');
     setSmartFeedback({ ok: true, text: parts.join(' · ') });

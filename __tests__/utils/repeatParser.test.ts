@@ -107,6 +107,45 @@ describe('parseRepeatText', () => {
     });
   });
 
+  it('parses a "from X to Y" time range into start and end', () => {
+    expect(parseRepeatText('from 10 to 12', ref)).toMatchObject({
+      startTime: '10:00',
+      endTime: '12:00',
+    });
+    expect(parseRepeatText('every monday from 8 to 9 pm', ref)).toMatchObject({
+      recurrence: 'weekly',
+      startTime: '20:00',
+      endTime: '21:00',
+    });
+    expect(parseRepeatText('10am-2pm', ref)).toMatchObject({
+      startTime: '10:00',
+      endTime: '14:00',
+    });
+  });
+
+  it('parses two times joined with "and" into start and end', () => {
+    expect(parseRepeatText('every monday at 10 and 12', ref)).toMatchObject({
+      recurrence: 'weekly',
+      startTime: '10:00',
+      endTime: '12:00',
+    });
+    expect(parseRepeatText('at 9 am and 5 pm', ref)).toMatchObject({
+      startTime: '09:00',
+      endTime: '17:00',
+    });
+  });
+
+  it('does not treat weekday "and" or interval numbers as a time range', () => {
+    // "Monday and Thursday" must not become a time range.
+    const days = parseRepeatText('every monday and thursday', ref);
+    expect(days.startTime).toBeUndefined();
+    expect(days.endTime).toBeUndefined();
+    // "every 2 weeks" — the 2 is an interval, not a time.
+    const iv = parseRepeatText('every 2 weeks', ref);
+    expect(iv.startTime).toBeUndefined();
+    expect(iv.endTime).toBeUndefined();
+  });
+
   it('parses a time on its own (no cadence)', () => {
     const r = parseRepeatText('22:00', ref);
     expect(r.startTime).toBe('22:00');
