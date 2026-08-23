@@ -11,6 +11,10 @@ export interface RecurringEventInput {
   date: string; // YYYY-MM-DD — the first/base occurrence
   recurrence?: EventRecurrence;
   recurrenceInterval?: number; // "every N units" — defaults to 1
+  // For weekly recurrence only: the weekdays it lands on (0 = Sun … 6 = Sat),
+  // e.g. [1, 4] = every Monday and Thursday. Empty/undefined → the base date's
+  // own weekday, once per (interval) week.
+  recurrenceDays?: number[];
   recurrenceEnd?: string; // YYYY-MM-DD — when the repeat stops
 }
 
@@ -19,6 +23,30 @@ export interface RecurringEventInput {
 export function normalizeInterval(interval: number | undefined | null): number {
   if (!interval || !Number.isFinite(interval)) return 1;
   return Math.max(1, Math.floor(interval));
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Sorted, de-duplicated, valid weekday numbers (0–6). Anything else is dropped.
+export function normalizeWeekdays(days: number[] | undefined | null): number[] {
+  if (!days || days.length === 0) return [];
+  const seen = new Set<number>();
+  for (const d of days) {
+    if (Number.isInteger(d) && d >= 0 && d <= 6) seen.add(d);
+  }
+  return [...seen].sort((a, b) => a - b);
+}
+
+// Midnight of the Sunday that starts d's week — the anchor for weekly cadence.
+function startOfWeek(d: Date): Date {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - x.getDay());
+  return x;
+}
+
+// Whole weeks between two dates' week-starts (>= 0 when b is on/after a's week).
+function weeksBetween(base: Date, d: Date): number {
+  return Math.round((startOfWeek(d).getTime() - startOfWeek(base).getTime()) / (7 * DAY_MS));
 }
 
 function ymd(d: Date): string {
@@ -61,9 +89,26 @@ export function nextOccurrenceOnOrAfter(
     return event.date >= fromYMD ? event.date : undefined;
   }
   const step = normalizeInterval(event.recurrenceInterval);
+  const base = parseYMD(event.date);
   const from = parseYMD(fromYMD);
   const end = event.recurrenceEnd ? parseYMD(event.recurrenceEnd) : null;
-  let cur = parseYMD(event.date);
+
+  // Weekly on a set of weekdays (e.g. every Mon & Thu): scan day by day for the
+  // next listed weekday that falls in an "on" week (week index divisible by step).
+  const weekdays = event.recurrence === 'weekly' ? normalizeWeekdays(event.recurrenceDays) : [];
+  if (weekdays.length > 0) {
+    const daySet = new Set(weekdays);
+    let cur = base > from ? base : from; // never before the base date
+    let guard = 0;
+    while (guard++ < 4000) {
+      if (end && cur > end) return undefined;
+      if (daySet.has(cur.getDay()) && weeksBetween(base, cur) % step === 0) return ymd(cur);
+      cur = addDays(cur, 1);
+    }
+    return undefined;
+  }
+
+  let cur = base;
   let guard = 0;
   while (guard++ < 10000) {
     if (end && cur > end) return undefined;
@@ -75,8 +120,6 @@ export function nextOccurrenceOnOrAfter(
   }
   return undefined;
 }
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * An event is "imminent" when it lands on the current calendar day (so all-day

@@ -1229,6 +1229,8 @@
     "repeat_weekly": "Weekly",
     "repeat_monthly": "Monthly",
     "repeat_yearly": "Yearly",
+    "repeat_on_days": "On these days",
+    "repeat_on_days_hint": "Leave empty to repeat on the start date’s weekday.",
     "repeat_daily": "Daily",
     "repeat_custom": "Custom",
     "repeat_every": "Repeat every",

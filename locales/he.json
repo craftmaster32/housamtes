@@ -1229,6 +1229,8 @@
     "repeat_weekly": "שבועי",
     "repeat_monthly": "חודשי",
     "repeat_yearly": "שנתי",
+    "repeat_on_days": "בימים אלה",
+    "repeat_on_days_hint": "השאירו ריק כדי לחזור ביום בשבוע של תאריך ההתחלה.",
     "repeat_daily": "יומי",
     "repeat_custom": "מותאם אישית",
     "repeat_every": "חזרה כל",

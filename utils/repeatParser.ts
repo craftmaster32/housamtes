@@ -8,7 +8,10 @@ import type { EventRecurrence } from './events';
 export interface ParsedRepeat {
   recurrence?: EventRecurrence;
   recurrenceInterval?: number; // "every N units" — e.g. 2 with weekly = biweekly
-  date?: string; // YYYY-MM-DD — the next occurrence of a named weekday
+  // Weekly-on-multiple-days, e.g. "every Monday and Thursday" → [1, 4]
+  // (0 = Sun … 6 = Sat). Set only when 2+ weekdays are named with a weekly repeat.
+  recurrenceDays?: number[];
+  date?: string; // YYYY-MM-DD — the earliest named weekday on/after the reference
   startTime?: string; // HH:MM (24-hour)
   // True when we understood at least one part of the phrase. When false the
   // caller should tell the user we couldn't make sense of the text.
@@ -183,23 +186,37 @@ function parseRecurrence(
 /**
  * Parse a free-text repeat description into calendar-form fields.
  *
- * Understands weekly / biweekly (every 2 weeks) / monthly / yearly cadences, a
- * named weekday (resolved to its next date on or after `reference`), and a time
- * of day. Recognises English, Spanish, and Hebrew keywords. Returns
- * `matched: false` when nothing was recognised.
+ * Understands weekly / biweekly (every 2 weeks) / monthly / yearly cadences, one
+ * or more named weekdays ("every Monday and Thursday" → weekly on both), and a
+ * time of day. Named weekdays resolve to their next date on or after `reference`.
+ * Recognises English, Spanish, and Hebrew keywords. Returns `matched: false`
+ * when nothing was recognised.
  */
 export function parseRepeatText(input: string, reference: Date = new Date()): ParsedRepeat {
   const text = input.toLowerCase().trim();
   if (!text) return { matched: false };
 
-  const weekday = WEEKDAYS.find((w) => w.re.test(text));
-  const parsed = parseRecurrence(text, !!weekday);
+  // Every distinct weekday named, sorted (0 = Sun … 6 = Sat).
+  const weekdays = [...new Set(WEEKDAYS.filter((w) => w.re.test(text)).map((w) => w.dow))].sort(
+    (a, b) => a - b
+  );
+  const parsed = parseRecurrence(text, weekdays.length > 0);
   const startTime = parseTime(text);
-  const date = weekday ? nextWeekdayOnOrAfter(reference, weekday.dow) : undefined;
+
+  // Base date = the soonest named weekday on or after the reference day.
+  const date =
+    weekdays.length > 0
+      ? weekdays.map((dow) => nextWeekdayOnOrAfter(reference, dow)).sort()[0]
+      : undefined;
+
+  // Only a genuine weekly repeat across 2+ days becomes a weekday set.
+  const recurrenceDays =
+    parsed?.recurrence === 'weekly' && weekdays.length > 1 ? weekdays : undefined;
 
   return {
     recurrence: parsed?.recurrence,
     recurrenceInterval: parsed ? parsed.interval : undefined,
+    recurrenceDays,
     date,
     startTime,
     matched: !!parsed || !!date || !!startTime,

@@ -17,3 +17,15 @@ ALTER TABLE events DROP CONSTRAINT IF EXISTS events_recurrence_check;
 ALTER TABLE events DROP CONSTRAINT IF EXISTS chk_events_recurrence;
 ALTER TABLE events ADD CONSTRAINT chk_events_recurrence
   CHECK (recurrence IN ('daily', 'weekly', 'monthly', 'yearly'));
+
+-- For weekly repeats, the weekdays it lands on (0 = Sunday … 6 = Saturday),
+-- e.g. {1,4} = every Monday and Thursday. Null/empty = the base date's weekday.
+ALTER TABLE events ADD COLUMN IF NOT EXISTS recurrence_days smallint[];
+
+-- Every listed weekday must be a valid 0–6 index.
+ALTER TABLE events DROP CONSTRAINT IF EXISTS chk_events_recurrence_days;
+ALTER TABLE events ADD CONSTRAINT chk_events_recurrence_days
+  CHECK (
+    recurrence_days IS NULL
+    OR (recurrence_days <@ ARRAY[0, 1, 2, 3, 4, 5, 6]::smallint[])
+  );

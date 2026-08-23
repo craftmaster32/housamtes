@@ -1229,6 +1229,8 @@
     "repeat_weekly": "Semanal",
     "repeat_monthly": "Mensual",
     "repeat_yearly": "Anual",
+    "repeat_on_days": "En estos días",
+    "repeat_on_days_hint": "Déjalo vacío para repetir el día de la semana de la fecha de inicio.",
     "repeat_daily": "Diario",
     "repeat_custom": "Personalizado",
     "repeat_every": "Repetir cada",

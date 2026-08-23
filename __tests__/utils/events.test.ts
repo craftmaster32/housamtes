@@ -104,6 +104,34 @@ describe('nextOccurrenceOnOrAfter', () => {
     );
   });
 
+  it('finds the next day of a weekly multi-day (Mon & Thu) event', () => {
+    // Base Mon 20 Jul on [Mon, Thu]; today is Mon 20 → next occurrence is today.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-20', recurrence: 'weekly', recurrenceDays: [1, 4] },
+        today
+      )
+    ).toBe('2026-07-20');
+    // From Tue 21 Jul, the next listed day is Thu 23 Jul.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-20', recurrence: 'weekly', recurrenceDays: [1, 4] },
+        '2026-07-21'
+      )
+    ).toBe('2026-07-23');
+  });
+
+  it('respects the interval for a multi-day weekly event (every other week)', () => {
+    // Base week of Mon 20 Jul, [Mon, Thu], every 2 weeks. The off week (27 Jul –
+    // 2 Aug) is skipped, so after Thu 23 Jul the next is Mon 3 Aug.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-20', recurrence: 'weekly', recurrenceInterval: 2, recurrenceDays: [1, 4] },
+        '2026-07-24'
+      )
+    ).toBe('2026-08-03');
+  });
+
   it('advances a monthly event to the same day next month', () => {
     expect(nextOccurrenceOnOrAfter({ date: '2026-05-25', recurrence: 'monthly' }, today)).toBe(
       '2026-07-25'

@@ -21,6 +21,34 @@ describe('parseRepeatText', () => {
     });
   });
 
+  it('parses "every Monday and Thursday at 10 pm" into a weekly day set', () => {
+    const r = parseRepeatText('every Monday and Thursday at 10 pm', ref);
+    expect(r.recurrence).toBe('weekly');
+    expect(r.recurrenceInterval).toBe(1);
+    expect(r.recurrenceDays).toEqual([1, 4]);
+    expect(r.startTime).toBe('22:00');
+    // Base date is the soonest of the two weekdays on/after the reference (Mon 20).
+    expect(r.date).toBe('2026-07-20');
+  });
+
+  it('sorts and de-duplicates named weekdays and uses the soonest as the date', () => {
+    // Fri (5) and Wed (3): from Mon 20 Jul, Wed 22 is sooner than Fri 24.
+    const r = parseRepeatText('every friday and wednesday', ref);
+    expect(r.recurrenceDays).toEqual([3, 5]);
+    expect(r.date).toBe('2026-07-22');
+  });
+
+  it('does not set a day set for a single weekday', () => {
+    expect(parseRepeatText('every monday', ref).recurrenceDays).toBeUndefined();
+  });
+
+  it('understands multi-day phrases in Hebrew', () => {
+    // "every Sunday and Tuesday" → [0, 2].
+    const r = parseRepeatText('כל יום ראשון ושלישי', ref);
+    expect(r.recurrence).toBe('weekly');
+    expect(r.recurrenceDays).toEqual([0, 2]);
+  });
+
   it('resolves a weekday to its next occurrence after the reference day', () => {
     // Friday is 4 days after Mon 20 Jul → Fri 24 Jul.
     expect(parseRepeatText('friday 18:30', ref)).toMatchObject({

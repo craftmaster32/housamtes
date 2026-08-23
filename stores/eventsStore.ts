@@ -29,6 +29,7 @@ export interface HouseEvent {
   notes?: string;
   recurrence?: EventRecurrence;
   recurrenceInterval?: number; // "every N units" — defaults to 1
+  recurrenceDays?: number[]; // weekly-only: weekdays it lands on (0 = Sun … 6 = Sat)
   recurrenceEnd?: string; // YYYY-MM-DD — when recurrence stops
   createdBy: string; // user UUID
   createdAt: string;
@@ -45,6 +46,7 @@ interface AddEventPayload {
   notes?: string;
   recurrence?: EventRecurrence;
   recurrenceInterval?: number;
+  recurrenceDays?: number[];
   recurrenceEnd?: string;
 }
 
@@ -57,6 +59,7 @@ export interface EventUpdates {
   notes?: string;
   recurrence?: EventRecurrence;
   recurrenceInterval?: number;
+  recurrenceDays?: number[];
   recurrenceEnd?: string;
 }
 
@@ -90,6 +93,7 @@ function mapRow(r: Record<string, unknown>): HouseEvent {
     notes: (r.notes as string | null) ?? undefined,
     recurrence: (r.recurrence as EventRecurrence | null) ?? undefined,
     recurrenceInterval: (r.recurrence_interval as number | null) ?? undefined,
+    recurrenceDays: (r.recurrence_days as number[] | null) ?? undefined,
     recurrenceEnd: (r.recurrence_end as string | null) ?? undefined,
     createdBy: r.created_by as string,
     createdAt: r.created_at as string,
@@ -172,6 +176,7 @@ export const useEventsStore = create<EventsStore>()(
           notes,
           recurrence,
           recurrenceInterval,
+          recurrenceDays,
           recurrenceEnd,
         } = payload;
         try {
@@ -189,6 +194,11 @@ export const useEventsStore = create<EventsStore>()(
               recurrence: recurrence ?? null,
               // Only meaningful with a recurrence; default to 1 ("every unit").
               recurrence_interval: recurrence ? (recurrenceInterval ?? 1) : null,
+              // Weekday set only applies to weekly repeats.
+              recurrence_days:
+                recurrence === 'weekly' && recurrenceDays && recurrenceDays.length > 0
+                  ? recurrenceDays
+                  : null,
               recurrence_end: recurrenceEnd ?? null,
             })
             .select()
@@ -232,6 +242,13 @@ export const useEventsStore = create<EventsStore>()(
             dbPayload.recurrence_interval = updates.recurrence
               ? (updates.recurrenceInterval ?? 1)
               : null;
+            // Weekday set only survives on a weekly repeat.
+            dbPayload.recurrence_days =
+              updates.recurrence === 'weekly' &&
+              updates.recurrenceDays &&
+              updates.recurrenceDays.length > 0
+                ? updates.recurrenceDays
+                : null;
           }
           if ('recurrenceEnd' in updates) dbPayload.recurrence_end = updates.recurrenceEnd ?? null;
 
@@ -252,6 +269,12 @@ export const useEventsStore = create<EventsStore>()(
                   merged.recurrenceInterval = updates.recurrence
                     ? (updates.recurrenceInterval ?? 1)
                     : undefined;
+                  merged.recurrenceDays =
+                    updates.recurrence === 'weekly' &&
+                    updates.recurrenceDays &&
+                    updates.recurrenceDays.length > 0
+                      ? updates.recurrenceDays
+                      : undefined;
                 }
                 if ('recurrenceEnd' in updates) merged.recurrenceEnd = updates.recurrenceEnd;
                 return merged;

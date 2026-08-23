@@ -33,7 +33,7 @@ import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { addDays, addWeeks, addMonths, addYears } from 'date-fns';
 import { parseRepeatText } from '@utils/repeatParser';
-import { normalizeInterval } from '@utils/events';
+import { normalizeInterval, normalizeWeekdays } from '@utils/events';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -55,6 +55,7 @@ interface CalendarEvent {
   notes?: string;
   recurrence?: EventRecurrence;
   recurrenceInterval?: number;
+  recurrenceDays?: number[];
   person?: string;
 }
 
@@ -102,19 +103,47 @@ function formatShortDate(ymd: string, lang: string): string {
   return new Date(ymd + 'T12:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function startOfWeek(d: Date): Date {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - x.getDay());
+  return x;
+}
+
 function expandRecurringDates(
   startDate: string,
   recurrence: EventRecurrence,
   interval: number,
+  recurrenceDays: number[] | undefined,
   recurrenceEnd: string | undefined,
   from: Date,
   to: Date
 ): string[] {
   const step = normalizeInterval(interval);
   const recEnd = recurrenceEnd ? new Date(recurrenceEnd + 'T00:00:00') : null;
+  const base = new Date(startDate + 'T00:00:00');
   const dates: string[] = [];
-  let current = new Date(startDate + 'T00:00:00');
 
+  // Weekly on a set of weekdays (e.g. every Mon & Thu): scan the window day by
+  // day, keeping listed weekdays that fall in an "on" week (step-aligned).
+  const days = recurrence === 'weekly' ? normalizeWeekdays(recurrenceDays) : [];
+  if (days.length > 0) {
+    const daySet = new Set(days);
+    let cur = base > from ? base : from;
+    let guard = 0;
+    while (cur <= to && guard++ < 4000) {
+      if (recEnd && cur > recEnd) break;
+      const weeks = Math.round(
+        (startOfWeek(cur).getTime() - startOfWeek(base).getTime()) / WEEK_MS
+      );
+      if (weeks >= 0 && weeks % step === 0 && daySet.has(cur.getDay())) dates.push(toYMD(cur));
+      cur = addDays(cur, 1);
+    }
+    return dates;
+  }
+
+  let current = base;
   const advance = (): void => {
     if (recurrence === 'daily') current = addDays(current, step);
     else if (recurrence === 'weekly') current = addWeeks(current, step);
@@ -216,6 +245,7 @@ function EventFormModal({
   const [notes, setNotes] = useState('');
   const [recurrence, setRecurrence] = useState<EventRecurrence | ''>('');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
   const [customMode, setCustomMode] = useState(false);
   const [smartText, setSmartText] = useState('');
   const [smartFeedback, setSmartFeedback] = useState<{ ok: boolean; text: string } | null>(null);
@@ -237,6 +267,9 @@ function EventFormModal({
       setRecurrence(editingEvent.recurrence ?? '');
       const interval = normalizeInterval(editingEvent.recurrenceInterval);
       setRecurrenceInterval(interval);
+      setRecurrenceDays(
+        editingEvent.recurrence === 'weekly' ? normalizeWeekdays(editingEvent.recurrenceDays) : []
+      );
       // Show the custom builder when the saved cadence isn't a plain preset.
       setCustomMode(!!editingEvent.recurrence && interval > 1);
       setRecurrenceEnd(editingEvent.recurrenceEnd ?? '');
@@ -251,6 +284,7 @@ function EventFormModal({
       setNotes('');
       setRecurrence('');
       setRecurrenceInterval(1);
+      setRecurrenceDays([]);
       setCustomMode(false);
       setRecurrenceEnd('');
       setShowRecEnd(false);
@@ -286,6 +320,11 @@ function EventFormModal({
       const resolvedRec = recurrence || undefined;
       // Interval only matters when repeating; a preset unit uses 1.
       const resolvedInterval = resolvedRec ? normalizeInterval(recurrenceInterval) : undefined;
+      // The weekday set applies only to weekly repeats.
+      const resolvedDays =
+        resolvedRec === 'weekly' && recurrenceDays.length > 0
+          ? normalizeWeekdays(recurrenceDays)
+          : undefined;
       if (editingEvent) {
         const updates: EventUpdates = {
           title: title.trim(),
@@ -296,6 +335,7 @@ function EventFormModal({
           notes: notes || undefined,
           recurrence: resolvedRec,
           recurrenceInterval: resolvedInterval,
+          recurrenceDays: resolvedDays,
           recurrenceEnd: resolvedRecEnd,
         };
         await editEvent(editingEvent.id, updates);
@@ -311,6 +351,7 @@ function EventFormModal({
           notes: notes || undefined,
           recurrence: resolvedRec,
           recurrenceInterval: resolvedInterval,
+          recurrenceDays: resolvedDays,
           recurrenceEnd: resolvedRecEnd,
         });
         syncHouseEvent({
@@ -338,6 +379,7 @@ function EventFormModal({
     notes,
     recurrence,
     recurrenceInterval,
+    recurrenceDays,
     showRecEnd,
     recurrenceEnd,
     editingEvent,
@@ -371,10 +413,19 @@ function EventFormModal({
     setCustomMode(false);
     setRecurrence(value);
     setRecurrenceInterval(1);
+    // The weekday set only applies to weekly repeats.
+    if (value !== 'weekly') setRecurrenceDays([]);
   }, []);
 
   const adjustInterval = useCallback((delta: number): void => {
     setRecurrenceInterval((n) => Math.min(MAX_INTERVAL, Math.max(1, n + delta)));
+  }, []);
+
+  const toggleDay = useCallback((dow: number): void => {
+    setSmartFeedback(null);
+    setRecurrenceDays((prev) =>
+      prev.includes(dow) ? prev.filter((d) => d !== dow) : [...prev, dow].sort((a, b) => a - b)
+    );
   }, []);
 
   // Read the plain-English box, fill in what we understood, and report back.
@@ -385,17 +436,21 @@ function EventFormModal({
       return;
     }
     const parts: string[] = [];
+    const days = normalizeWeekdays(parsed.recurrenceDays);
     if (parsed.recurrence) {
       const iv = normalizeInterval(parsed.recurrenceInterval);
       setRecurrence(parsed.recurrence);
       setRecurrenceInterval(iv);
+      setRecurrenceDays(parsed.recurrence === 'weekly' ? days : []);
       setCustomMode(iv > 1);
       parts.push(recurrenceLabel(t, parsed.recurrence, iv));
     }
-    if (parsed.date) {
-      setDate(parsed.date);
+    if (days.length > 1) {
+      parts.push(days.map((d) => t(`calendar.${WEEKDAY_KEYS[d]}`)).join(', '));
+    } else if (parsed.date) {
       parts.push(formatShortDate(parsed.date, i18n.language));
     }
+    if (parsed.date) setDate(parsed.date);
     if (parsed.startTime) {
       setStartTime(parsed.startTime);
       parts.push(parsed.startTime);
@@ -650,6 +705,44 @@ function EventFormModal({
               </View>
             )}
 
+            {/* Weekly-only: pick the weekdays it lands on (e.g. Mon + Thu). */}
+            {recurrence === 'weekly' && (
+              <>
+                <Text style={[formStyles.label, formStyles.labelGap]}>
+                  {t('calendar.repeat_on_days')}{' '}
+                  <Text style={formStyles.optional}>({t('common.optional')})</Text>
+                </Text>
+                <View style={formStyles.dayRow}>
+                  {WEEKDAY_KEYS.map((key, dow) => {
+                    const selected = recurrenceDays.includes(dow);
+                    return (
+                      <Pressable
+                        key={key}
+                        style={[formStyles.dayToggle, selected && formStyles.dayToggleSelected]}
+                        onPress={() => toggleDay(dow)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected }}
+                        accessibilityLabel={t(`calendar.${key}`)}
+                      >
+                        <Text
+                          style={[
+                            formStyles.dayToggleText,
+                            selected && formStyles.dayToggleTextSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {t(`calendar.${key}`)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {recurrenceDays.length === 0 && (
+                  <Text style={formStyles.dayHint}>{t('calendar.repeat_on_days_hint')}</Text>
+                )}
+              </>
+            )}
+
             {recurrence !== '' && (
               <>
                 <Text style={[formStyles.label, formStyles.labelGap]}>
@@ -831,6 +924,7 @@ export default function CalendarScreen(): React.JSX.Element {
         notes: e.notes,
         recurrence: e.recurrence,
         recurrenceInterval: e.recurrenceInterval,
+        recurrenceDays: e.recurrenceDays,
       };
 
       if (e.recurrence) {
@@ -838,6 +932,7 @@ export default function CalendarScreen(): React.JSX.Element {
           e.date,
           e.recurrence,
           normalizeInterval(e.recurrenceInterval),
+          e.recurrenceDays,
           e.recurrenceEnd,
           gridStart,
           expandEnd
@@ -1771,6 +1866,24 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       color: C.textPrimary,
     },
     customSummary: { fontSize: mf(12.5), ...font.medium, color: C.primary, marginTop: ms(8) },
+
+    // Weekday multi-select (S M T W T F S)
+    dayRow: { flexDirection: 'row', gap: ms(5) },
+    dayToggle: {
+      flex: 1,
+      minHeight: ms(44),
+      paddingVertical: ms(8),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: ms(10),
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+    },
+    dayToggleSelected: { backgroundColor: C.primary, borderColor: C.primary },
+    dayToggleText: { fontSize: mf(11), ...font.semibold, color: C.textSecondary },
+    dayToggleTextSelected: { color: '#fff' },
+    dayHint: { fontSize: mf(11.5), ...font.regular, color: C.textSecondary, marginTop: ms(6) },
 
     errorText: { fontSize: mf(13), ...font.regular, color: C.negative },
     btns: { flexDirection: 'row', gap: ms(10), marginTop: ms(4) },
