@@ -20,7 +20,9 @@ interface EventRow {
   date: string;
   start_time: string | null;
   house_id: string;
-  recurrence: 'weekly' | 'monthly' | 'yearly' | null;
+  recurrence: 'daily' | 'weekly' | 'monthly' | 'yearly' | null;
+  recurrence_interval: number | null;
+  recurrence_days: number[] | null;
   recurrence_end: string | null;
 }
 
@@ -46,20 +48,54 @@ function addMonthsClamped(d: Date, n: number): Date {
   return nd;
 }
 
+// "every N units" — legacy rows have a null interval, meaning 1.
+function normalizeInterval(interval: number | null): number {
+  if (!interval || !Number.isFinite(interval)) return 1;
+  return Math.max(1, Math.floor(interval));
+}
+
+// Midnight of the Sunday starting d's week — the anchor for weekly cadence.
+function startOfWeek(d: Date): Date {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - x.getDay());
+  return x;
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
 // Does the (possibly recurring) event fall on targetYMD?
 function occursOn(event: EventRow, targetYMD: string): boolean {
   if (targetYMD < event.date) return false;
   if (event.recurrence_end && targetYMD > event.recurrence_end) return false;
   if (!event.recurrence) return event.date === targetYMD;
 
+  const step = normalizeInterval(event.recurrence_interval);
+  const base = new Date(`${event.date}T00:00:00`);
   const target = new Date(`${targetYMD}T00:00:00`);
-  let cur = new Date(`${event.date}T00:00:00`);
+
+  // Weekly on a set of weekdays (e.g. every Mon & Thu).
+  const days = (event.recurrence_days ?? []).filter((d) => d >= 0 && d <= 6);
+  if (event.recurrence === 'weekly' && days.length > 0) {
+    if (!days.includes(target.getDay())) return false;
+    const weeks = Math.round(
+      (startOfWeek(target).getTime() - startOfWeek(base).getTime()) / WEEK_MS
+    );
+    return weeks >= 0 && weeks % step === 0;
+  }
+
+  // Daily and weekly are pure arithmetic — no need to walk each occurrence.
+  // Round the day difference so a DST transition can't shift it off a whole day.
+  const dayDiff = Math.round((target.getTime() - base.getTime()) / 86400000);
+  if (event.recurrence === 'daily') return dayDiff >= 0 && dayDiff % step === 0;
+  if (event.recurrence === 'weekly') return dayDiff >= 0 && dayDiff % (7 * step) === 0;
+
+  // Monthly / yearly clamp to shorter months, so step through them.
+  let cur = base;
   let guard = 0;
   while (cur <= target && guard++ < 10000) {
     if (toYMD(cur) === targetYMD) return true;
-    if (event.recurrence === 'weekly') cur = addDays(cur, 7);
-    else if (event.recurrence === 'monthly') cur = addMonthsClamped(cur, 1);
-    else cur = addMonthsClamped(cur, 12);
+    if (event.recurrence === 'monthly') cur = addMonthsClamped(cur, step);
+    else cur = addMonthsClamped(cur, 12 * step);
   }
   return false;
 }
@@ -78,7 +114,9 @@ Deno.serve(async (req: Request) => {
 
   const { data: events, error } = await supabase
     .from('events')
-    .select('id, title, date, start_time, house_id, recurrence, recurrence_end');
+    .select(
+      'id, title, date, start_time, house_id, recurrence, recurrence_interval, recurrence_days, recurrence_end'
+    );
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });

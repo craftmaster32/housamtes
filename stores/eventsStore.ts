@@ -1,9 +1,31 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { z } from 'zod';
 import { supabase } from '@lib/supabase';
 import { useAuthStore } from '@stores/authStore';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import { captureError } from '@lib/errorTracking';
+import { normalizeInterval, normalizeWeekdays } from '@utils/events';
+
+// Reject fractional intervals and out-of-range weekday values before any DB write.
+const recurrencePayloadSchema = z.object({
+  recurrenceInterval: z
+    .number()
+    .int('Interval must be a whole number')
+    .min(1, 'Interval must be at least 1')
+    .optional(),
+  recurrenceDays: z.array(z.number().int().min(0).max(6)).optional(),
+});
+
+// The DB payload for a weekly weekday set: a normalized non-empty array, or null.
+function weekdaysPayload(
+  recurrence: EventRecurrence | undefined,
+  days: number[] | undefined
+): number[] | null {
+  if (recurrence !== 'weekly' || !days) return null;
+  const clean = normalizeWeekdays(days);
+  return clean.length > 0 ? clean : null;
+}
 
 // Friendly "Sat 15 Aug · 20:00" label for the instant event-added push.
 function eventWhenLabel(date: string, startTime?: string): string {
@@ -15,7 +37,9 @@ function eventWhenLabel(date: string, startTime?: string): string {
   return startTime ? `${when} · ${startTime}` : when;
 }
 
-export type EventRecurrence = 'weekly' | 'monthly' | 'yearly';
+// The recurrence unit; the actual cadence is (recurrenceInterval × unit), so
+// weekly with an interval of 2 is "every 2 weeks". Interval defaults to 1.
+export type EventRecurrence = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface HouseEvent {
   id: string;
@@ -26,6 +50,8 @@ export interface HouseEvent {
   endTime?: string; // HH:MM
   notes?: string;
   recurrence?: EventRecurrence;
+  recurrenceInterval?: number; // "every N units" — defaults to 1
+  recurrenceDays?: number[]; // weekly-only: weekdays it lands on (0 = Sun … 6 = Sat)
   recurrenceEnd?: string; // YYYY-MM-DD — when recurrence stops
   createdBy: string; // user UUID
   createdAt: string;
@@ -41,6 +67,8 @@ interface AddEventPayload {
   endDate?: string;
   notes?: string;
   recurrence?: EventRecurrence;
+  recurrenceInterval?: number;
+  recurrenceDays?: number[];
   recurrenceEnd?: string;
 }
 
@@ -52,6 +80,8 @@ export interface EventUpdates {
   endTime?: string;
   notes?: string;
   recurrence?: EventRecurrence;
+  recurrenceInterval?: number;
+  recurrenceDays?: number[];
   recurrenceEnd?: string;
 }
 
@@ -84,6 +114,8 @@ function mapRow(r: Record<string, unknown>): HouseEvent {
     endTime: (r.end_time as string | null) ?? undefined,
     notes: (r.notes as string | null) ?? undefined,
     recurrence: (r.recurrence as EventRecurrence | null) ?? undefined,
+    recurrenceInterval: (r.recurrence_interval as number | null) ?? undefined,
+    recurrenceDays: (r.recurrence_days as number[] | null) ?? undefined,
     recurrenceEnd: (r.recurrence_end as string | null) ?? undefined,
     createdBy: r.created_by as string,
     createdAt: r.created_at as string,
@@ -165,8 +197,16 @@ export const useEventsStore = create<EventsStore>()(
           endDate,
           notes,
           recurrence,
+          recurrenceInterval,
+          recurrenceDays,
           recurrenceEnd,
         } = payload;
+        const addValidation = recurrencePayloadSchema.safeParse({ recurrenceInterval, recurrenceDays });
+        if (!addValidation.success) {
+          const msg = 'Invalid repeat settings: interval must be a whole number ≥ 1 and weekdays must be 0–6.';
+          set({ error: msg });
+          throw new Error(msg);
+        }
         try {
           const { data, error } = await supabase
             .from('events')
@@ -180,6 +220,10 @@ export const useEventsStore = create<EventsStore>()(
               end_date: endDate ?? null,
               notes: notes ?? null,
               recurrence: recurrence ?? null,
+              // Only meaningful with a recurrence; normalized to a whole number >= 1.
+              recurrence_interval: recurrence ? normalizeInterval(recurrenceInterval) : null,
+              // Weekday set only applies to weekly repeats.
+              recurrence_days: weekdaysPayload(recurrence, recurrenceDays),
               recurrence_end: recurrenceEnd ?? null,
             })
             .select()
@@ -209,6 +253,15 @@ export const useEventsStore = create<EventsStore>()(
       },
 
       editEvent: async (id, updates): Promise<void> => {
+        const editValidation = recurrencePayloadSchema.safeParse({
+          recurrenceInterval: updates.recurrenceInterval,
+          recurrenceDays: updates.recurrenceDays,
+        });
+        if (!editValidation.success) {
+          const msg = 'Invalid repeat settings: interval must be a whole number ≥ 1 and weekdays must be 0–6.';
+          set({ error: msg });
+          throw new Error(msg);
+        }
         try {
           // Only include optional fields that were explicitly provided by the caller.
           // Using `in` distinguishes "set to undefined (= clear)" from "key absent (= preserve)".
@@ -217,7 +270,30 @@ export const useEventsStore = create<EventsStore>()(
           if ('startTime' in updates) dbPayload.start_time = updates.startTime ?? null;
           if ('endTime' in updates) dbPayload.end_time = updates.endTime ?? null;
           if ('notes' in updates) dbPayload.notes = updates.notes ?? null;
-          if ('recurrence' in updates) dbPayload.recurrence = updates.recurrence ?? null;
+          const clearingRecurrence = 'recurrence' in updates && !updates.recurrence;
+          if ('recurrence' in updates) {
+            dbPayload.recurrence = updates.recurrence ?? null;
+          }
+          if (clearingRecurrence) {
+            // Clearing recurrence also clears interval and days.
+            dbPayload.recurrence_interval = null;
+            dbPayload.recurrence_days = null;
+          } else {
+            // Process interval and days independently; when recurrence changes, also derive them.
+            if ('recurrenceInterval' in updates || 'recurrence' in updates) {
+              dbPayload.recurrence_interval = updates.recurrence
+                ? normalizeInterval(updates.recurrenceInterval)
+                : 'recurrenceInterval' in updates
+                ? normalizeInterval(updates.recurrenceInterval)
+                : undefined;
+            }
+            if ('recurrenceDays' in updates || 'recurrence' in updates) {
+              const currentEvent = get().events.find((e) => e.id === id);
+              const effectiveRecurrence =
+                'recurrence' in updates ? updates.recurrence : currentEvent?.recurrence;
+              dbPayload.recurrence_days = weekdaysPayload(effectiveRecurrence, updates.recurrenceDays);
+            }
+          }
           if ('recurrenceEnd' in updates) dbPayload.recurrence_end = updates.recurrenceEnd ?? null;
 
           const { error } = await supabase.from('events').update(dbPayload).eq('id', id);
@@ -232,7 +308,23 @@ export const useEventsStore = create<EventsStore>()(
                 if ('startTime' in updates) merged.startTime = updates.startTime;
                 if ('endTime' in updates) merged.endTime = updates.endTime;
                 if ('notes' in updates) merged.notes = updates.notes;
-                if ('recurrence' in updates) merged.recurrence = updates.recurrence;
+                if (clearingRecurrence) {
+                  merged.recurrence = undefined;
+                  merged.recurrenceInterval = undefined;
+                  merged.recurrenceDays = undefined;
+                } else {
+                  if ('recurrence' in updates) merged.recurrence = updates.recurrence;
+                  if ('recurrenceInterval' in updates || 'recurrence' in updates) {
+                    merged.recurrenceInterval =
+                      dbPayload.recurrence_interval != null
+                        ? (dbPayload.recurrence_interval as number)
+                        : undefined;
+                  }
+                  if ('recurrenceDays' in updates || 'recurrence' in updates) {
+                    merged.recurrenceDays =
+                      (dbPayload.recurrence_days as number[] | null) ?? undefined;
+                  }
+                }
                 if ('recurrenceEnd' in updates) merged.recurrenceEnd = updates.recurrenceEnd;
                 return merged;
               })

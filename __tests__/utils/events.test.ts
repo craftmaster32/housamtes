@@ -1,4 +1,4 @@
-import { isEventImminent, nextOccurrenceOnOrAfter } from '@utils/events';
+import { isEventImminent, nextOccurrenceOnOrAfter, expandRecurrenceDates } from '@utils/events';
 
 describe('isEventImminent', () => {
   // Fixed reference point: Mon 20 Jul 2026, 15:00 local time.
@@ -58,6 +58,80 @@ describe('nextOccurrenceOnOrAfter', () => {
     );
   });
 
+  it('advances a biweekly (every 2 weeks) event by 14-day steps', () => {
+    // Base Mon 6 Jul; +14 = Mon 20 Jul is the first occurrence on/after today.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-06', recurrence: 'weekly', recurrenceInterval: 2 },
+        today
+      )
+    ).toBe('2026-07-20');
+  });
+
+  it('skips the off-week for a biweekly event', () => {
+    // Base Mon 13 Jul, every 2 weeks → 13 Jul, 27 Jul, … so Mon 20 Jul is skipped;
+    // next occurrence on/after today (Mon 20 Jul) is Mon 27 Jul.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-13', recurrence: 'weekly', recurrenceInterval: 2 },
+        today
+      )
+    ).toBe('2026-07-27');
+  });
+
+  it('advances a daily event with an interval to its next occurrence', () => {
+    // Base Fri 17 Jul, every 3 days → 17, 20, … so Mon 20 Jul is on schedule.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-17', recurrence: 'daily', recurrenceInterval: 3 },
+        today
+      )
+    ).toBe('2026-07-20');
+  });
+
+  it('advances an every-2-months event over the interval', () => {
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-03-25', recurrence: 'monthly', recurrenceInterval: 2 },
+        today
+      )
+    ).toBe('2026-07-25');
+  });
+
+  it('treats a missing interval as 1 (plain weekly)', () => {
+    expect(nextOccurrenceOnOrAfter({ date: '2026-06-29', recurrence: 'weekly' }, today)).toBe(
+      '2026-07-20'
+    );
+  });
+
+  it('finds the next day of a weekly multi-day (Mon & Thu) event', () => {
+    // Base Mon 20 Jul on [Mon, Thu]; today is Mon 20 → next occurrence is today.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-20', recurrence: 'weekly', recurrenceDays: [1, 4] },
+        today
+      )
+    ).toBe('2026-07-20');
+    // From Tue 21 Jul, the next listed day is Thu 23 Jul.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-20', recurrence: 'weekly', recurrenceDays: [1, 4] },
+        '2026-07-21'
+      )
+    ).toBe('2026-07-23');
+  });
+
+  it('respects the interval for a multi-day weekly event (every other week)', () => {
+    // Base week of Mon 20 Jul, [Mon, Thu], every 2 weeks. The off week (27 Jul –
+    // 2 Aug) is skipped, so after Thu 23 Jul the next is Mon 3 Aug.
+    expect(
+      nextOccurrenceOnOrAfter(
+        { date: '2026-07-20', recurrence: 'weekly', recurrenceInterval: 2, recurrenceDays: [1, 4] },
+        '2026-07-24'
+      )
+    ).toBe('2026-08-03');
+  });
+
   it('advances a monthly event to the same day next month', () => {
     expect(nextOccurrenceOnOrAfter({ date: '2026-05-25', recurrence: 'monthly' }, today)).toBe(
       '2026-07-25'
@@ -77,5 +151,102 @@ describe('nextOccurrenceOnOrAfter', () => {
         today
       )
     ).toBeUndefined();
+  });
+
+  it('resolves a daily event whose base date is in the very distant past', () => {
+    // 1970-01-01 daily needs >20,000 advances to reach 2026-07-20.
+    // The old 10,000-iteration guard would return undefined; removing it must fix that.
+    expect(
+      nextOccurrenceOnOrAfter({ date: '1970-01-01', recurrence: 'daily' }, '2026-07-20')
+    ).toBe('2026-07-20');
+  });
+});
+
+describe('expandRecurrenceDates', () => {
+  const from = new Date('2026-07-01T00:00:00');
+  const to = new Date('2026-07-31T23:59:59');
+
+  it('returns nothing for a non-recurring event', () => {
+    expect(expandRecurrenceDates({ date: '2026-07-10' }, from, to)).toEqual([]);
+  });
+
+  it('expands a weekly event across the window', () => {
+    // Base Mon 6 Jul, weekly → 6, 13, 20, 27 Jul.
+    expect(expandRecurrenceDates({ date: '2026-07-06', recurrence: 'weekly' }, from, to)).toEqual([
+      '2026-07-06',
+      '2026-07-13',
+      '2026-07-20',
+      '2026-07-27',
+    ]);
+  });
+
+  it('expands an every-2-weeks event, skipping off weeks', () => {
+    expect(
+      expandRecurrenceDates(
+        { date: '2026-07-06', recurrence: 'weekly', recurrenceInterval: 2 },
+        from,
+        to
+      )
+    ).toEqual(['2026-07-06', '2026-07-20']);
+  });
+
+  it('expands a weekly multi-day (Mon & Thu) event', () => {
+    // Base Mon 6 Jul on [Mon(1), Thu(4)] → 6, 9, 13, 16, 20, 23, 27, 30 Jul.
+    expect(
+      expandRecurrenceDates(
+        { date: '2026-07-06', recurrence: 'weekly', recurrenceDays: [1, 4] },
+        from,
+        to
+      )
+    ).toEqual([
+      '2026-07-06',
+      '2026-07-09',
+      '2026-07-13',
+      '2026-07-16',
+      '2026-07-20',
+      '2026-07-23',
+      '2026-07-27',
+      '2026-07-30',
+    ]);
+  });
+
+  it('stops at the recurrence end date', () => {
+    expect(
+      expandRecurrenceDates(
+        { date: '2026-07-06', recurrence: 'weekly', recurrenceEnd: '2026-07-15' },
+        from,
+        to
+      )
+    ).toEqual(['2026-07-06', '2026-07-13']);
+  });
+
+  it('handles a daily event whose base date is in the distant past', () => {
+    // Base 1970-01-01 (daily); fast-forward to July 2026 requires >20,000 advances.
+    // Old guard at 10,000 would fail to reach the window and pre-window dates
+    // would leak into the output.
+    const result = expandRecurrenceDates(
+      { date: '1970-01-01', recurrence: 'daily' },
+      new Date('2026-07-01T00:00:00'),
+      new Date('2026-07-03T23:59:59')
+    );
+    expect(result).toEqual(['2026-07-01', '2026-07-02', '2026-07-03']);
+  });
+
+  it('expands a weekly multi-day event across a window longer than 4,000 scan days', () => {
+    // Base Mon 6 Jul 2026 on [Mon(1), Thu(4)]; 4,001-day window.
+    // Old guard at 4,000 iterations would silently drop occurrences past day 4,000.
+    const wFrom = new Date('2026-07-06T00:00:00');
+    const wTo = new Date(wFrom.getTime() + 4001 * 24 * 60 * 60 * 1000);
+    const result = expandRecurrenceDates(
+      { date: '2026-07-06', recurrence: 'weekly', recurrenceDays: [1, 4] },
+      wFrom,
+      wTo
+    );
+    // 4,001 days × 2 occurrences per 7 days = exactly 1,144 results.
+    // (572 Mondays + 572 Thursdays; wTo = 2037-06-19 is a Friday, last Thu = 2037-06-18.)
+    expect(result).toHaveLength(1144);
+    expect(result[0]).toBe('2026-07-06'); // first Monday (base)
+    expect(result[1]).toBe('2026-07-09'); // first Thursday
+    expect(result[result.length - 1]).toBe('2037-06-18'); // final Thursday
   });
 });

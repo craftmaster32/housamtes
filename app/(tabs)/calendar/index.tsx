@@ -31,7 +31,8 @@ import { isRTL } from '@lib/i18n';
 import { Alert } from '@lib/alert';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
-import { addWeeks, addMonths, addYears } from 'date-fns';
+import { parseRepeatText } from '@utils/repeatParser';
+import { normalizeInterval, normalizeWeekdays, expandRecurrenceDates } from '@utils/events';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -52,6 +53,8 @@ interface CalendarEvent {
   endTime?: string;
   notes?: string;
   recurrence?: EventRecurrence;
+  recurrenceInterval?: number;
+  recurrenceDays?: number[];
   person?: string;
 }
 
@@ -99,32 +102,28 @@ function formatShortDate(ymd: string, lang: string): string {
   return new Date(ymd + 'T12:00:00').toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
-function expandRecurringDates(
-  startDate: string,
+// 'daily' → 'day', etc. — the singular noun used when composing repeat labels.
+const UNIT_NOUN: Record<EventRecurrence, 'day' | 'week' | 'month' | 'year'> = {
+  daily: 'day',
+  weekly: 'week',
+  monthly: 'month',
+  yearly: 'year',
+};
+
+// A friendly label for a cadence: "Weekly" when interval is 1, otherwise
+// "Every N weeks". `t` is the i18next translator.
+function recurrenceLabel(
+  t: (key: string, opts?: Record<string, unknown>) => string,
   recurrence: EventRecurrence,
-  recurrenceEnd: string | undefined,
-  from: Date,
-  to: Date
-): string[] {
-  const recEnd = recurrenceEnd ? new Date(recurrenceEnd + 'T00:00:00') : null;
-  const dates: string[] = [];
-  let current = new Date(startDate + 'T00:00:00');
-
-  const advance = (): void => {
-    if (recurrence === 'weekly') current = addWeeks(current, 1);
-    else if (recurrence === 'monthly') current = addMonths(current, 1);
-    else current = addYears(current, 1);
-  };
-
-  // Fast-forward to the first occurrence at or after 'from'
-  while (current < from) advance();
-
-  while (current <= to) {
-    if (recEnd && current > recEnd) break;
-    dates.push(toYMD(current));
-    advance();
-  }
-  return dates;
+  interval: number
+): string {
+  const step = normalizeInterval(interval);
+  if (step === 1) return t(`calendar.repeat_${recurrence}`);
+  const noun = UNIT_NOUN[recurrence];
+  return t('calendar.repeat_every_n', {
+    count: step,
+    unit: t(`calendar.repeat_unit_${noun}s`),
+  });
 }
 
 // ── Event Form Modal (add + edit) ─────────────────────────────────────────────
@@ -135,18 +134,27 @@ interface EventFormModalProps {
   onClose: () => void;
 }
 
-function useRecurrenceOptions(): Array<{ label: string; value: EventRecurrence | '' }> {
+// A repeat preset is either "none", one of the units (interval 1), or "custom"
+// (the caller reveals an interval builder).
+type RepeatPreset = EventRecurrence | '' | 'custom';
+
+function useRecurrenceOptions(): Array<{ label: string; value: RepeatPreset }> {
   const { t } = useTranslation();
   return useMemo(
     () => [
       { label: t('calendar.repeat_none'), value: '' as const },
-      { label: t('calendar.repeat_weekly'), value: 'weekly' as EventRecurrence },
-      { label: t('calendar.repeat_monthly'), value: 'monthly' as EventRecurrence },
-      { label: t('calendar.repeat_yearly'), value: 'yearly' as EventRecurrence },
+      { label: t('calendar.repeat_daily'), value: 'daily' as const },
+      { label: t('calendar.repeat_weekly'), value: 'weekly' as const },
+      { label: t('calendar.repeat_monthly'), value: 'monthly' as const },
+      { label: t('calendar.repeat_yearly'), value: 'yearly' as const },
+      { label: t('calendar.repeat_custom'), value: 'custom' as const },
     ],
     [t]
   );
 }
+
+const CUSTOM_UNITS: EventRecurrence[] = ['daily', 'weekly', 'monthly', 'yearly'];
+const MAX_INTERVAL = 99;
 
 function EventFormModal({
   visible,
@@ -154,7 +162,7 @@ function EventFormModal({
   editingEvent,
   onClose,
 }: EventFormModalProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const formStyles = useMemo(() => makeFormStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
@@ -174,6 +182,11 @@ function EventFormModal({
   const [endTime, setEndTime] = useState('');
   const [notes, setNotes] = useState('');
   const [recurrence, setRecurrence] = useState<EventRecurrence | ''>('');
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
+  const [customMode, setCustomMode] = useState(false);
+  const [smartText, setSmartText] = useState('');
+  const [smartFeedback, setSmartFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const [showRecEnd, setShowRecEnd] = useState(false);
   const [recurrenceEnd, setRecurrenceEnd] = useState('');
   const [saving, setSaving] = useState(false);
@@ -190,6 +203,13 @@ function EventFormModal({
       setEndTime(editingEvent.endTime ?? '');
       setNotes(editingEvent.notes ?? '');
       setRecurrence(editingEvent.recurrence ?? '');
+      const interval = normalizeInterval(editingEvent.recurrenceInterval);
+      setRecurrenceInterval(interval);
+      setRecurrenceDays(
+        editingEvent.recurrence === 'weekly' ? normalizeWeekdays(editingEvent.recurrenceDays) : []
+      );
+      // Show the custom builder when the saved cadence isn't a plain preset.
+      setCustomMode(!!editingEvent.recurrence && interval > 1);
       setRecurrenceEnd(editingEvent.recurrenceEnd ?? '');
       setShowRecEnd(!!editingEvent.recurrenceEnd);
     } else {
@@ -201,9 +221,14 @@ function EventFormModal({
       setEndTime('');
       setNotes('');
       setRecurrence('');
+      setRecurrenceInterval(1);
+      setRecurrenceDays([]);
+      setCustomMode(false);
       setRecurrenceEnd('');
       setShowRecEnd(false);
     }
+    setSmartText('');
+    setSmartFeedback(null);
     setError('');
   }, [visible, editingEvent, initialDate]);
 
@@ -231,6 +256,13 @@ function EventFormModal({
       const resolvedEndDate = showEndDate && endDate ? endDate : undefined;
       const resolvedRecEnd = recurrence && showRecEnd && recurrenceEnd ? recurrenceEnd : undefined;
       const resolvedRec = recurrence || undefined;
+      // Interval only matters when repeating; a preset unit uses 1.
+      const resolvedInterval = resolvedRec ? normalizeInterval(recurrenceInterval) : undefined;
+      // The weekday set applies only to weekly repeats.
+      const resolvedDays =
+        resolvedRec === 'weekly' && recurrenceDays.length > 0
+          ? normalizeWeekdays(recurrenceDays)
+          : undefined;
       if (editingEvent) {
         const updates: EventUpdates = {
           title: title.trim(),
@@ -240,6 +272,8 @@ function EventFormModal({
           endTime: endTime || undefined,
           notes: notes || undefined,
           recurrence: resolvedRec,
+          recurrenceInterval: resolvedInterval,
+          recurrenceDays: resolvedDays,
           recurrenceEnd: resolvedRecEnd,
         };
         await editEvent(editingEvent.id, updates);
@@ -254,6 +288,8 @@ function EventFormModal({
           endDate: resolvedEndDate,
           notes: notes || undefined,
           recurrence: resolvedRec,
+          recurrenceInterval: resolvedInterval,
+          recurrenceDays: resolvedDays,
           recurrenceEnd: resolvedRecEnd,
         });
         syncHouseEvent({
@@ -280,6 +316,8 @@ function EventFormModal({
     endTime,
     notes,
     recurrence,
+    recurrenceInterval,
+    recurrenceDays,
     showRecEnd,
     recurrenceEnd,
     editingEvent,
@@ -296,6 +334,76 @@ function EventFormModal({
   const handleModalShow = useCallback((): void => {
     Keyboard.dismiss();
   }, []);
+
+  // Which repeat chip reads as selected.
+  const activePreset: RepeatPreset = customMode ? 'custom' : recurrence;
+
+  const handlePreset = useCallback((value: RepeatPreset): void => {
+    setSmartFeedback(null);
+    if (value === 'custom') {
+      setCustomMode(true);
+      // Entering custom: make sure there's a unit and a meaningful interval so it
+      // reads as a genuine custom cadence (e.g. "every 2 weeks").
+      setRecurrence((prev) => prev || 'weekly');
+      setRecurrenceInterval((prev) => (prev > 1 ? prev : 2));
+      return;
+    }
+    setCustomMode(false);
+    setRecurrence(value);
+    setRecurrenceInterval(1);
+    // The weekday set only applies to weekly repeats.
+    if (value !== 'weekly') setRecurrenceDays([]);
+  }, []);
+
+  const adjustInterval = useCallback((delta: number): void => {
+    setRecurrenceInterval((n) => Math.min(MAX_INTERVAL, Math.max(1, n + delta)));
+  }, []);
+
+  const toggleDay = useCallback((dow: number): void => {
+    setSmartFeedback(null);
+    setRecurrenceDays((prev) =>
+      prev.includes(dow) ? prev.filter((d) => d !== dow) : [...prev, dow].sort((a, b) => a - b)
+    );
+  }, []);
+
+  // Read the plain-English box, fill in what we understood, and report back.
+  const handleApplySmart = useCallback((): void => {
+    const parsed = parseRepeatText(smartText);
+    if (!parsed.matched) {
+      setSmartFeedback({ ok: false, text: t('calendar.repeat_smart_unrecognized') });
+      return;
+    }
+    const parts: string[] = [];
+    const days = normalizeWeekdays(parsed.recurrenceDays);
+    if (parsed.recurrence) {
+      const iv = Math.min(MAX_INTERVAL, normalizeInterval(parsed.recurrenceInterval));
+      setRecurrence(parsed.recurrence);
+      setRecurrenceInterval(iv);
+      setRecurrenceDays(parsed.recurrence === 'weekly' ? days : []);
+      setCustomMode(iv > 1);
+      parts.push(recurrenceLabel(t, parsed.recurrence, iv));
+    }
+    if (days.length > 1) {
+      parts.push(days.map((d) => t(`calendar.${WEEKDAY_KEYS[d]}`)).join(', '));
+    } else if (parsed.date) {
+      parts.push(formatShortDate(parsed.date, i18n.language));
+    }
+    if (parsed.date) {
+      setDate(parsed.date);
+      // A newly parsed start date can't sit after an existing "repeat until" date.
+      if (recurrenceEnd && parsed.date > recurrenceEnd) {
+        setRecurrenceEnd('');
+        setShowRecEnd(false);
+      }
+    }
+    if (parsed.startTime) {
+      setStartTime(parsed.startTime);
+      if (parsed.endTime) setEndTime(parsed.endTime);
+      parts.push(parsed.endTime ? `${parsed.startTime} – ${parsed.endTime}` : parsed.startTime);
+    }
+    setError('');
+    setSmartFeedback({ ok: true, text: parts.join(' · ') });
+  }, [smartText, recurrenceEnd, t, i18n.language]);
 
   const isEditing = !!editingEvent;
 
@@ -414,24 +522,172 @@ function EventFormModal({
             />
 
             <Text style={[formStyles.label, formStyles.labelGap]}>{t('calendar.repeat')}</Text>
-            <View style={formStyles.segment} accessibilityRole="radiogroup">
-              {RECURRENCE_OPTIONS.map(({ label, value }) => (
-                <Pressable
-                  key={value || 'none'}
-                  style={[formStyles.segItem, recurrence === value && formStyles.segItemSelected]}
-                  onPress={() => setRecurrence(value)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: recurrence === value }}
-                >
-                  <Text
-                    style={[formStyles.segText, recurrence === value && formStyles.segTextSelected]}
-                    numberOfLines={1}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              ))}
+
+            {/* Plain-English shortcut: type it, we fill the fields in. */}
+            <View style={formStyles.smartRow}>
+              <TextInput
+                style={[formStyles.input, formStyles.smartInput]}
+                value={smartText}
+                onChangeText={(v) => {
+                  setSmartText(v);
+                  setSmartFeedback(null);
+                }}
+                placeholder={t('calendar.repeat_smart_placeholder')}
+                placeholderTextColor={C.textSecondary}
+                autoFocus={false}
+                returnKeyType="done"
+                onSubmitEditing={handleApplySmart}
+                accessibilityLabel={t('calendar.repeat_smart_label')}
+                accessibilityHint={t('calendar.repeat_smart_hint')}
+              />
+              <Pressable
+                style={[formStyles.smartBtn, !smartText.trim() && formStyles.btnDisabled]}
+                onPress={handleApplySmart}
+                disabled={!smartText.trim()}
+                accessibilityRole="button"
+                accessibilityLabel={t('calendar.repeat_smart_apply')}
+              >
+                <Ionicons name="sparkles" size={14} color="#fff" />
+                <Text style={formStyles.smartBtnText}>{t('calendar.repeat_smart_apply')}</Text>
+              </Pressable>
             </View>
+            {!!smartFeedback && (
+              <Text
+                style={[
+                  formStyles.smartFeedback,
+                  smartFeedback.ok ? formStyles.smartFeedbackOk : formStyles.smartFeedbackErr,
+                ]}
+              >
+                {smartFeedback.ok
+                  ? `${t('calendar.repeat_smart_understood')} ${smartFeedback.text}`
+                  : smartFeedback.text}
+              </Text>
+            )}
+
+            {/* Or pick a repeat cadence directly. */}
+            <View style={formStyles.chipWrap} accessibilityRole="radiogroup">
+              {RECURRENCE_OPTIONS.map(({ label, value }) => {
+                const selected = activePreset === value;
+                return (
+                  <Pressable
+                    key={value || 'none'}
+                    style={[formStyles.chip, selected && formStyles.chipSelected]}
+                    onPress={() => handlePreset(value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text
+                      style={[formStyles.chipText, selected && formStyles.chipTextSelected]}
+                      numberOfLines={1}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Custom builder: repeat every N days / weeks / months / years. */}
+            {customMode && recurrence !== '' && (
+              <View style={formStyles.customBox}>
+                <View style={formStyles.customRow}>
+                  <Text style={formStyles.customLabel}>{t('calendar.repeat_every')}</Text>
+                  <View style={formStyles.stepper}>
+                    <Pressable
+                      style={[
+                        formStyles.stepBtn,
+                        recurrenceInterval <= 1 && formStyles.stepBtnDisabled,
+                      ]}
+                      onPress={() => adjustInterval(-1)}
+                      disabled={recurrenceInterval <= 1}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('calendar.repeat_interval_decrease')}
+                    >
+                      <Ionicons name="remove" size={18} color={C.primary} />
+                    </Pressable>
+                    <Text style={formStyles.stepValue}>{recurrenceInterval}</Text>
+                    <Pressable
+                      style={[
+                        formStyles.stepBtn,
+                        recurrenceInterval >= MAX_INTERVAL && formStyles.stepBtnDisabled,
+                      ]}
+                      onPress={() => adjustInterval(1)}
+                      disabled={recurrenceInterval >= MAX_INTERVAL}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('calendar.repeat_interval_increase')}
+                    >
+                      <Ionicons name="add" size={18} color={C.primary} />
+                    </Pressable>
+                  </View>
+                </View>
+                <View style={formStyles.chipWrap}>
+                  {CUSTOM_UNITS.map((unit) => {
+                    const selected = recurrence === unit;
+                    return (
+                      <Pressable
+                        key={unit}
+                        style={[formStyles.chip, selected && formStyles.chipSelected]}
+                        onPress={() => setRecurrence(unit)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                      >
+                        <Text
+                          style={[formStyles.chipText, selected && formStyles.chipTextSelected]}
+                          numberOfLines={1}
+                        >
+                          {t(
+                            `calendar.repeat_unit_${UNIT_NOUN[unit]}${
+                              recurrenceInterval === 1 ? '' : 's'
+                            }`
+                          )}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={formStyles.customSummary}>
+                  {recurrenceLabel(t, recurrence, recurrenceInterval)}
+                </Text>
+              </View>
+            )}
+
+            {/* Weekly-only: pick the weekdays it lands on (e.g. Mon + Thu). */}
+            {recurrence === 'weekly' && (
+              <>
+                <Text style={[formStyles.label, formStyles.labelGap]}>
+                  {t('calendar.repeat_on_days')}{' '}
+                  <Text style={formStyles.optional}>({t('common.optional')})</Text>
+                </Text>
+                <View style={formStyles.dayRow}>
+                  {WEEKDAY_KEYS.map((key, dow) => {
+                    const selected = recurrenceDays.includes(dow);
+                    return (
+                      <Pressable
+                        key={key}
+                        style={[formStyles.dayToggle, selected && formStyles.dayToggleSelected]}
+                        onPress={() => toggleDay(dow)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected }}
+                        accessibilityLabel={t(`calendar.${key}`)}
+                      >
+                        <Text
+                          style={[
+                            formStyles.dayToggleText,
+                            selected && formStyles.dayToggleTextSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {t(`calendar.${key}`)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {recurrenceDays.length === 0 && (
+                  <Text style={formStyles.dayHint}>{t('calendar.repeat_on_days_hint')}</Text>
+                )}
+              </>
+            )}
 
             {recurrence !== '' && (
               <>
@@ -613,16 +869,12 @@ export default function CalendarScreen(): React.JSX.Element {
         endDate: e.endDate,
         notes: e.notes,
         recurrence: e.recurrence,
+        recurrenceInterval: e.recurrenceInterval,
+        recurrenceDays: e.recurrenceDays,
       };
 
       if (e.recurrence) {
-        const dates = expandRecurringDates(
-          e.date,
-          e.recurrence,
-          e.recurrenceEnd,
-          gridStart,
-          expandEnd
-        );
+        const dates = expandRecurrenceDates(e, gridStart, expandEnd);
         if (e.endDate && e.endDate > e.date) {
           const spanDays = Math.round(
             (new Date(e.endDate + 'T00:00:00').getTime() -
@@ -1054,7 +1306,9 @@ export default function CalendarScreen(): React.JSX.Element {
                           {item.recurrence && (
                             <View style={styles.recurrenceBadge}>
                               <Ionicons name="repeat" size={11} color="#6366f1" />
-                              <Text style={styles.recurrenceBadgeText}>{item.recurrence}</Text>
+                              <Text style={styles.recurrenceBadgeText}>
+                                {recurrenceLabel(t, item.recurrence, item.recurrenceInterval ?? 1)}
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -1476,31 +1730,101 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       color: C.textSecondary,
       textDecorationLine: 'underline',
     },
-    segment: {
+    // Smart "describe it in words" box
+    smartRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
+    smartInput: { flex: 1, marginBottom: 0 },
+    smartBtn: {
       flexDirection: 'row',
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: ms(12),
-      padding: ms(4),
-      gap: ms(3),
-    },
-    segItem: {
-      flex: 1,
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: ms(5),
+      backgroundColor: C.primary,
+      paddingHorizontal: ms(14),
+      borderRadius: ms(12),
+      minHeight: ms(48),
+    },
+    smartBtnText: { fontSize: mf(13), ...font.semibold, color: '#fff' },
+    smartFeedback: { fontSize: mf(12.5), ...font.medium, marginTop: ms(8) },
+    smartFeedbackOk: { color: C.positive },
+    smartFeedbackErr: { color: C.textSecondary },
+
+    // Repeat cadence chips + custom builder
+    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(8), marginTop: ms(10) },
+    chip: {
+      paddingHorizontal: ms(14),
       paddingVertical: ms(9),
-      minHeight: ms(44),
+      minHeight: 44,
+      justifyContent: 'center',
+      borderRadius: ms(20),
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+    },
+    chipSelected: { backgroundColor: C.primary, borderColor: C.primary },
+    chipText: { fontSize: mf(12.5), ...font.semibold, color: C.textSecondary },
+    chipTextSelected: { color: '#fff' },
+    customBox: {
+      marginTop: ms(12),
+      padding: ms(14),
+      borderRadius: ms(14),
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+      gap: ms(4),
+    },
+    customRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: ms(12),
+    },
+    customLabel: { fontSize: mf(13.5), ...font.semibold, color: C.textPrimary },
+    stepper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(6),
+      backgroundColor: C.surface,
+      borderRadius: ms(12),
+      borderWidth: 1,
+      borderColor: C.border,
+      padding: ms(4),
+    },
+    stepBtn: {
+      width: 44,
+      height: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
       borderRadius: ms(9),
     },
-    segItemSelected: {
-      backgroundColor: C.primary,
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.3,
-      shadowRadius: 6,
-      elevation: 2,
+    stepBtnDisabled: { opacity: 0.35 },
+    stepValue: {
+      minWidth: ms(28),
+      textAlign: 'center',
+      fontSize: mf(16),
+      ...font.bold,
+      color: C.textPrimary,
     },
-    segText: { fontSize: mf(12.5), ...font.semibold, color: C.textSecondary },
-    segTextSelected: { color: '#fff' },
+    customSummary: { fontSize: mf(12.5), ...font.medium, color: C.primary, marginTop: ms(8) },
+
+    // Weekday multi-select (S M T W T F S)
+    dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(5) },
+    dayToggle: {
+      flexGrow: 1,
+      flexBasis: 40,
+      minWidth: 44,
+      minHeight: 44,
+      paddingVertical: ms(8),
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: ms(10),
+      borderWidth: 1,
+      borderColor: C.border,
+      backgroundColor: C.surfaceSecondary,
+    },
+    dayToggleSelected: { backgroundColor: C.primary, borderColor: C.primary },
+    dayToggleText: { fontSize: mf(11), ...font.semibold, color: C.textSecondary },
+    dayToggleTextSelected: { color: '#fff' },
+    dayHint: { fontSize: mf(11.5), ...font.regular, color: C.textSecondary, marginTop: ms(6) },
+
     errorText: { fontSize: mf(13), ...font.regular, color: C.negative },
     btns: { flexDirection: 'row', gap: ms(10), marginTop: ms(4) },
     btnOutline: {
