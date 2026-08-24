@@ -10,7 +10,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { initErrorTracking } from '@lib/errorTracking';
-import { Stack, router, useSegments, useNavigationContainerRef } from 'expo-router';
+import { Stack, router, useSegments } from 'expo-router';
 import { supabase } from '@lib/supabase';
 import { PaperProvider, MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
@@ -43,7 +43,7 @@ import { useColors } from '@hooks/useColors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
-import { goBack, registerNavigationRef } from '@stores/navigationStore';
+import { goBack } from '@stores/navigationStore';
 import { registerWebPush } from '@lib/webPush';
 
 initErrorTracking();
@@ -243,13 +243,6 @@ export default function RootLayout(): React.JSX.Element | null {
   const segArr = segments as string[];
   const segmentsKey = segArr[0] ?? '';
   const currentScreen = segArr[1] ?? '';
-
-  // Expose the navigation container so navigationStore can reset the Tabs
-  // navigator's history when moving between base pages (see navigateToBase).
-  const navContainerRef = useNavigationContainerRef();
-  useEffect(() => {
-    registerNavigationRef(navContainerRef);
-  }, [navContainerRef]);
 
   const loadHousemates = useHousematesStore((s) => s.load);
   const loadBills = useBillsStore((s) => s.load);

@@ -2,25 +2,25 @@
  * QA — navigationStore
  *
  * The app is one hidden Tabs navigator; back walks the tab navigator's internal
- * `history`. To get the "base page" model we RESET that history to [home, base]
- * whenever we land on a base page, so back from any base returns home (and every
- * back mechanism — buttons, swipe, hardware, browser — follows suit).
+ * `history`. TabHistoryBridge collapses that history to [home, base] whenever a
+ * base (main section) tab becomes focused, so back from any section returns home.
  *
  * Covers:
- *  • toTabRouteName — href → Tabs route name mapping
+ *  • isBaseTab — which route names are base pages vs flows
  *  • computeBaseHistory — the [home] / [home, base] history a base leaves behind
- *  • resetToBase — dispatches a RESET to the Tabs navigator with that history
- *  • navigateToBase — falls back to a plain navigate when navigation isn't ready
- *  • goBack — one level back, collapsing to home at the root
+ *  • collapseHistoryForBase — the pure decision the bridge applies (null = leave)
+ *  • goBack / navigateToBase — imperative helpers
+ *  • end-to-end against the REAL TabRouter: the reported "chores → bills →
+ *    calendar → back" retrace now lands on home.
  */
 
+import { TabRouter, CommonActions } from '@react-navigation/routers';
 import {
-  HOME_ROUTE,
-  toTabRouteName,
+  HOME_TAB_NAME,
+  isBaseTab,
   computeBaseHistory,
-  resetToBase,
+  collapseHistoryForBase,
   navigateToBase,
-  registerNavigationRef,
   goBack,
 } from '../../stores/navigationStore';
 
@@ -35,60 +35,32 @@ jest.mock('expo-router', () => ({
   },
 }));
 
-jest.mock('@react-navigation/native', () => ({
-  CommonActions: {
-    reset: (state: unknown): { type: string; payload: unknown } => ({
-      type: 'RESET',
-      payload: state,
-    }),
-  },
-}));
+const ROUTES = [
+  { name: 'dashboard/index', key: 'd' },
+  { name: 'chores/index', key: 'ch' },
+  { name: 'bills/index', key: 'b' },
+  { name: 'calendar/index', key: 'c' },
+  { name: 'bills/add', key: 'add' },
+  { name: 'more/settings', key: 'set' },
+];
+const idxOf = (name: string): number => ROUTES.findIndex((r) => r.name === name);
 
-type Ref = Parameters<typeof registerNavigationRef>[0];
-
-// A fake Tabs-inside-Stack navigation tree with three tabs.
-function makeRef(ready = true): { ref: Ref; dispatch: jest.Mock } {
-  const dispatch = jest.fn();
-  const tabState = {
-    type: 'tab',
-    key: 'tab-1',
-    index: 0,
-    routeNames: ['dashboard/index', 'bills/index', 'calendar/index'],
-    routes: [
-      { name: 'dashboard/index', key: 'd' },
-      { name: 'bills/index', key: 'b' },
-      { name: 'calendar/index', key: 'c' },
-    ],
-    history: [{ type: 'route', key: 'd' }],
-  };
-  const root = {
-    type: 'stack',
-    key: 'stack-1',
-    routes: [{ name: '(tabs)', key: 't', state: tabState }],
-  };
-  const ref = {
-    isReady: (): boolean => ready,
-    getRootState: (): unknown => root,
-    dispatch,
-  } as unknown as Ref;
-  return { ref, dispatch };
-}
-
-describe('toTabRouteName', () => {
-  it('maps single-segment hrefs to <name>/index', () => {
-    expect(toTabRouteName('/(tabs)/bills')).toBe('bills/index');
-    expect(toTabRouteName('/(tabs)/calendar')).toBe('calendar/index');
-    expect(toTabRouteName('/(tabs)/dashboard')).toBe('dashboard/index');
+describe('isBaseTab', () => {
+  it('treats feature index screens and the settings hub as bases', () => {
+    ['dashboard/index', 'bills/index', 'calendar/index', 'chores/index', 'more/settings'].forEach(
+      (n) => expect(isBaseTab(n)).toBe(true)
+    );
   });
-  it('keeps multi-segment leaf routes as-is', () => {
-    expect(toTabRouteName('/(tabs)/more/settings')).toBe('more/settings');
-    expect(toTabRouteName('/(tabs)/bills/index')).toBe('bills/index');
+  it('treats add / edit / detail / sub-settings as flows', () => {
+    ['bills/add', 'bills/[id]', 'settings/language', 'grocery/shop', 'profile/spending'].forEach(
+      (n) => expect(isBaseTab(n)).toBe(false)
+    );
   });
 });
 
 describe('computeBaseHistory', () => {
   it('leaves just [home] for the home tab', () => {
-    expect(computeBaseHistory('dashboard/index', 'd', 'd')).toEqual([{ type: 'route', key: 'd' }]);
+    expect(computeBaseHistory(HOME_TAB_NAME, 'd', 'd')).toEqual([{ type: 'route', key: 'd' }]);
   });
   it('leaves [home, base] for any other base', () => {
     expect(computeBaseHistory('calendar/index', 'd', 'c')).toEqual([
@@ -98,83 +70,94 @@ describe('computeBaseHistory', () => {
   });
 });
 
-describe('resetToBase', () => {
-  beforeEach(() => {
-    mockNavigate.mockClear();
-  });
-
-  it('dispatches a RESET to the Tabs navigator with [home, base] history', () => {
-    const { ref, dispatch } = makeRef();
-    registerNavigationRef(ref);
-
-    const ok = resetToBase('calendar/index');
-    expect(ok).toBe(true);
-    expect(dispatch).toHaveBeenCalledTimes(1);
-
-    const action = dispatch.mock.calls[0][0];
-    expect(action.type).toBe('RESET');
-    expect(action.target).toBe('tab-1');
-    expect(action.payload.index).toBe(2); // calendar is routes[2]
-    expect(action.payload.history).toEqual([
+describe('collapseHistoryForBase', () => {
+  it('collapses to [home, base] when a base is focused with accumulated history', () => {
+    // history: dashboard → chores → bills → calendar (focused calendar)
+    const history = [{ key: 'd' }, { key: 'ch' }, { key: 'b' }, { key: 'c' }];
+    expect(collapseHistoryForBase(ROUTES, idxOf('calendar/index'), history)).toEqual([
       { type: 'route', key: 'd' },
       { type: 'route', key: 'c' },
     ]);
   });
 
-  it('returns false when navigation is not ready', () => {
-    const { ref, dispatch } = makeRef(false);
-    registerNavigationRef(ref);
-    expect(resetToBase('bills/index')).toBe(false);
-    expect(dispatch).not.toHaveBeenCalled();
+  it('leaves flow pages alone (returns null)', () => {
+    const history = [{ key: 'd' }, { key: 'b' }, { key: 'add' }];
+    expect(collapseHistoryForBase(ROUTES, idxOf('bills/add'), history)).toBeNull();
   });
 
-  it('returns false for an unknown base route', () => {
-    const { ref, dispatch } = makeRef();
-    registerNavigationRef(ref);
-    expect(resetToBase('nope/index')).toBe(false);
-    expect(dispatch).not.toHaveBeenCalled();
+  it('is a no-op when a base already sits on [home, base]', () => {
+    const history = [{ key: 'd' }, { key: 'b' }];
+    expect(collapseHistoryForBase(ROUTES, idxOf('bills/index'), history)).toBeNull();
+  });
+
+  it('collapses home itself to [home]', () => {
+    const history = [{ key: 'd' }, { key: 'b' }, { key: 'd' }];
+    expect(collapseHistoryForBase(ROUTES, idxOf('dashboard/index'), history)).toEqual([
+      { type: 'route', key: 'd' },
+    ]);
   });
 });
 
-describe('navigateToBase', () => {
+describe('imperative helpers', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
-  });
-
-  it('resets history for a known base', () => {
-    const { ref, dispatch } = makeRef();
-    registerNavigationRef(ref);
-    navigateToBase('/(tabs)/bills');
-    expect(dispatch).toHaveBeenCalledTimes(1);
-    expect(dispatch.mock.calls[0][0].payload.index).toBe(1); // bills is routes[1]
-    expect(mockNavigate).not.toHaveBeenCalled();
-  });
-
-  it('falls back to a plain navigate when navigation is not ready', () => {
-    const { ref } = makeRef(false);
-    registerNavigationRef(ref);
-    navigateToBase('/(tabs)/calendar');
-    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/calendar');
-  });
-});
-
-describe('goBack', () => {
-  beforeEach(() => {
     mockBack.mockClear();
-    mockNavigate.mockClear();
   });
 
-  it('goes back one level when possible', () => {
+  it('navigateToBase navigates to the href', () => {
+    navigateToBase('/(tabs)/bills');
+    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/bills');
+  });
+
+  it('goBack goes back one level when possible', () => {
     mockCanGoBack.mockReturnValue(true);
     expect(goBack()).toBe(true);
     expect(mockBack).toHaveBeenCalledTimes(1);
   });
 
-  it('collapses to home when it cannot go back', () => {
+  it('goBack collapses to home when it cannot go back', () => {
     mockCanGoBack.mockReturnValue(false);
-    registerNavigationRef(makeRef(false).ref); // not ready → navigateToBase falls back
     expect(goBack()).toBe(false);
-    expect(mockBack).not.toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith(HOME_ROUTE);
+    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/dashboard');
+  });
+});
+
+describe('end-to-end with the real TabRouter', () => {
+  it('chores → bills → calendar → back lands on home (not a retrace)', () => {
+    const routeNames = ['dashboard/index', 'chores/index', 'bills/index', 'calendar/index'];
+    const opts = { routeNames, routeParamList: {}, routeGetIdList: {} } as never;
+    const router = TabRouter({ backBehavior: 'history' });
+    const nav = (s: unknown, name: string): unknown =>
+      router.getStateForAction(s as never, CommonActions.navigate({ name }) as never, opts) ?? s;
+
+    // dashboard → chores → bills → calendar
+    let state = router.getInitialState(opts) as {
+      routes: { name: string; key: string }[];
+      index: number;
+      history?: { key: string }[];
+      key: string;
+    };
+    state = nav(state, 'chores/index') as typeof state;
+    state = nav(state, 'bills/index') as typeof state;
+    state = nav(state, 'calendar/index') as typeof state;
+
+    // The bridge computes the collapse for the focused base (calendar)…
+    const nextHistory = collapseHistoryForBase(state.routes, state.index, state.history);
+    if (!nextHistory) throw new Error('expected a history collapse for a focused base');
+
+    // …and applies it as a reset.
+    const afterReset = router.getStateForAction(
+      state as never,
+      { ...CommonActions.reset({ ...state, history: nextHistory }), target: state.key } as never,
+      opts
+    ) as typeof state;
+
+    // Back now goes straight home.
+    const back = router.getStateForAction(
+      afterReset as never,
+      CommonActions.goBack() as never,
+      opts
+    ) as typeof state | null;
+    expect(back && back.routes[back.index].name).toBe('dashboard/index');
   });
 });
