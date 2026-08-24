@@ -2,7 +2,8 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import type { ViewStyle } from 'react-native';
 import { Text } from 'react-native-paper';
-import { router, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -194,7 +195,7 @@ export function MorePopup(): React.JSX.Element {
       close();
       const featureToMark = item.badgeKey ?? (item.featureKey as BadgeFeature | undefined);
       if (featureToMark) markSeen(featureToMark).catch(() => {});
-      router.push(item.route as Parameters<typeof router.push>[0]);
+      navigateToBase(item.route);
     },
     [close, markSeen]
   );

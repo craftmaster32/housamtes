@@ -13,6 +13,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useAuthStore } from '@stores/authStore';
@@ -327,7 +328,7 @@ export default function ProfileScreen(): React.JSX.Element {
             icon="settings-outline"
             label={t('profile.settings')}
             sub={t('profile.settings_sub')}
-            onPress={() => router.push('/(tabs)/more/settings')}
+            onPress={() => navigateToBase('/(tabs)/more/settings')}
             rtl={rtl}
           />
           <RowDivider />

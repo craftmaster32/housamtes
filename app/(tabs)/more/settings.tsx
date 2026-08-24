@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable, Modal, Platform, TextInput } f
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { goBack } from '@stores/navigationStore';
+import { goBack, navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -275,7 +275,7 @@ export default function SettingsScreen(): React.JSX.Element {
         houseId
       );
       setShowDebtModal(false);
-      router.push('/(tabs)/voting');
+      navigateToBase('/(tabs)/voting');
     } catch {
       Alert.alert(t('common.error'), t('settings.could_not_create_vote'));
     } finally {
@@ -314,7 +314,7 @@ export default function SettingsScreen(): React.JSX.Element {
       <View style={styles.flex}>
         <Pressable
           style={styles.backBtn}
-          onPress={() => (from === 'profile' ? router.push('/(tabs)/profile') : goBack())}
+          onPress={() => (from === 'profile' ? navigateToBase('/(tabs)/profile') : goBack())}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
@@ -532,7 +532,7 @@ export default function SettingsScreen(): React.JSX.Element {
                 style={styles.modalBtnPrimary}
                 onPress={() => {
                   setShowDebtModal(false);
-                  router.push('/(tabs)/bills');
+                  navigateToBase('/(tabs)/bills');
                 }}
                 accessibilityRole="button"
               >

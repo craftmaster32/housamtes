@@ -22,7 +22,7 @@ import Svg, {
   Rect,
 } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -363,7 +363,7 @@ function GroceriesCard({
     <View style={styles.shell}>
       <Pressable
         style={styles.cardTop}
-        onPress={() => router.push('/(tabs)/grocery')}
+        onPress={() => navigateToBase('/(tabs)/grocery')}
         accessibilityRole="button"
         accessibilityLabel={t('dashboard.grocery_list')}
       >
@@ -428,7 +428,7 @@ function ChoresCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JS
   return (
     <CardShell
       styles={styles}
-      onPress={() => router.push('/(tabs)/tasks')}
+      onPress={() => navigateToBase('/(tabs)/tasks')}
       accessibilityLabel={t('dashboard.x_of_y_done', { done, total })}
     >
       <View style={styles.cardTop}>
@@ -487,7 +487,7 @@ function VotesCard({
   return (
     <CardShell
       styles={styles}
-      onPress={() => router.push('/(tabs)/voting')}
+      onPress={() => navigateToBase('/(tabs)/voting')}
       accessibilityLabel={t('dashboard.votes_label')}
     >
       <View style={styles.cardTop}>
@@ -543,7 +543,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
       ? styles.parkArtNarrow
       : styles.parkArt;
   const handleParkingPress = useCallback((): void => {
-    router.push('/(tabs)/parking');
+    navigateToBase('/(tabs)/parking');
   }, []);
   return (
     <Pressable
@@ -605,7 +605,7 @@ function BillsCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX
   return (
     <CardShell
       styles={styles}
-      onPress={() => router.push('/(tabs)/bills')}
+      onPress={() => navigateToBase('/(tabs)/bills')}
       accessibilityLabel={t('dashboard.bills_label')}
     >
       <View style={styles.cardTop}>

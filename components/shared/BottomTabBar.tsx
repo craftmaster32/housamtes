@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -156,7 +157,7 @@ export function BottomTabBar(): React.JSX.Element {
       if (tab.id === 'more') {
         openMore();
       } else {
-        router.navigate(tab.route as Parameters<typeof router.navigate>[0]);
+        navigateToBase(tab.route);
       }
     },
     [openMore, closeMore, closeProfile]

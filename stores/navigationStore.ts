@@ -1,131 +1,136 @@
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
 import { router } from 'expo-router';
+import { CommonActions } from '@react-navigation/native';
+import type { NavigationContainerRefWithCurrent } from '@react-navigation/native';
 
-// Home is the root of every back path. Pressing back from any base page lands
-// here; pressing back from home does nothing (or exits on Android).
-export const HOME_ROUTE = '/dashboard';
-
-// "Base" pages are the main destinations a housemate switches between — from
-// the bottom bar, the More sheet, the profile menu or a dashboard tile. Landing
-// on a base page collapses the back stack to [home, base]: the base you came
-// from and whatever flow you had open there are dropped, so back from a base
-// always returns home (never to the previous base). Every route NOT listed here
-// is treated as a "flow" screen (add / edit / detail / a settings sub-page) that
-// stacks on top of the current base and, on back, returns to it.
+// The whole app is one hidden Tabs navigator (see app/(tabs)/_layout.tsx): every
+// screen — bills, calendar, add-bill, a settings sub-page — is a tab. The tab
+// navigator's back (used by router.back(), the edge-swipe, Android hardware back
+// and web browser back alike) walks its internal `history` array, which grows on
+// every navigation. That's why "back" retraced every screen ever visited.
 //
-// Paths are compared without the (tabs) group segment, which Expo Router's
-// usePathname() already omits.
-const BASE_ROUTES: readonly string[] = [
-  HOME_ROUTE,
-  '/bills',
-  '/parking',
-  '/grocery',
-  '/chores',
-  '/calendar',
-  '/photos',
-  '/tasks',
-  '/notes',
-  '/voting',
-  '/property',
-  '/profile',
-  '/games',
-  '/maintenance',
-  '/condition',
-  '/more',
-  // Two settings hubs exist in the app; both are top-level destinations whose
-  // sub-pages (/settings/language, /settings/appearance…) are flows on top.
-  '/settings',
-  '/more/settings',
-];
-
-// Drop any query string and trailing slash so paths compare cleanly, and make
-// the empty root resolve to home.
-export function normalizePath(path: string): string {
-  const noQuery = path.split('?')[0];
-  const trimmed = noQuery.length > 1 ? noQuery.replace(/\/+$/, '') : noQuery;
-  return trimmed === '' || trimmed === '/' ? HOME_ROUTE : trimmed;
-}
-
-export function isBaseRoute(path: string): boolean {
-  return BASE_ROUTES.includes(normalizePath(path));
-}
-
-// A base page resets the stack: home alone if it *is* home, otherwise [home, base].
-function baseReset(path: string): string[] {
-  return path === HOME_ROUTE ? [HOME_ROUTE] : [HOME_ROUTE, path];
-}
-
-// Pure reducer: given the current back stack and the path just navigated to,
-// return the next back stack.
+// The model we want:
+//  • Base pages (bills, calendar, chores, settings…) are the main destinations.
+//    Landing on one collapses history to [home, base] — the previous base and
+//    its flow are dropped — so back from any base returns home.
+//  • Flow pages (add / edit / detail / a settings sub-page) push on top of the
+//    current base, so back returns to that base, then home.
 //
-//  • same as the top       → unchanged (re-navigation / params-only change)
-//  • already in the stack  → truncate back to it (we returned to an ancestor,
-//                            e.g. tapping the active tab or a native back)
-//  • a new base page       → reset to [home] / [home, base]
-//  • a new flow page       → push on top of the current base's flow
-export function reduceStack(stack: string[], rawPath: string): string[] {
-  const path = normalizePath(rawPath);
-  if (stack.length === 0) return baseReset(path);
+// We achieve this by resetting the Tabs navigator's real `history` to
+// [home, base] whenever we navigate to a base page (navigateToBase). Flow pages
+// keep using a normal router.push, which appends to history as before. Because
+// we fix the actual navigation history — not a shadow copy — every back
+// mechanism (in-app buttons, swipe, hardware, browser) then behaves correctly.
 
-  const top = stack[stack.length - 1];
-  if (path === top) return stack;
+export const HOME_ROUTE = '/(tabs)/dashboard';
+// The home tab's route name inside the Tabs navigator.
+const HOME_TAB_NAME = 'dashboard/index';
 
-  const existing = stack.lastIndexOf(path);
-  if (existing !== -1) return stack.slice(0, existing + 1);
-
-  if (isBaseRoute(path)) return baseReset(path);
-  return [...stack, path];
+// A minimal view of a React Navigation state tree — enough to find the Tabs
+// navigator and read its routes/keys without depending on the full generic types.
+interface NavStateLike {
+  type?: string;
+  key?: string;
+  index?: number;
+  routeNames?: string[];
+  routes: { name: string; key?: string; state?: NavStateLike }[];
+  history?: { type: string; key: string }[];
+  preloadedRouteKeys?: string[];
 }
 
-// The route a back press should land on, or null when already at the root.
-export function backTarget(stack: string[]): string | null {
-  return stack.length > 1 ? stack[stack.length - 2] : null;
+type HistoryItem = { type: string; key: string };
+
+// Convert an app href ('/(tabs)/calendar', '/(tabs)/more/settings') into the
+// Tabs route name registered in app/(tabs)/_layout.tsx ('calendar/index',
+// 'more/settings'). Single-segment features live at '<name>/index'.
+export function toTabRouteName(href: string): string {
+  const rel = href.replace(/^\/?\(tabs\)\//, '').replace(/^\/+/, '');
+  return rel.includes('/') ? rel : `${rel}/index`;
 }
 
-// The stack after popping one level (never past the root).
-export function stackAfterBack(stack: string[]): string[] {
-  return stack.length > 1 ? stack.slice(0, stack.length - 1) : stack;
+// The back history a base page should leave behind: just [home] for home itself,
+// otherwise [home, base] so back returns home.
+export function computeBaseHistory(
+  baseName: string,
+  homeKey: string,
+  baseKey: string
+): HistoryItem[] {
+  return baseName === HOME_TAB_NAME
+    ? [{ type: 'route', key: homeKey }]
+    : [
+        { type: 'route', key: homeKey },
+        { type: 'route', key: baseKey },
+      ];
 }
 
-interface NavigationStore {
-  // Logical back stack: stack[0] is always home, the last entry is the current
-  // screen. Flow screens stack on top of their base; switching base collapses.
-  stack: string[];
-  // Reconcile the stack with the screen we just landed on. Call on every tabs
-  // pathname change.
-  sync: (path: string) => void;
-  // Navigate one step back through the logical stack. Returns true if it moved,
-  // false when already home (so callers can exit / do nothing).
-  goBack: () => boolean;
-  // Forget the stack (e.g. on sign-out) so the next entry starts fresh at home.
-  reset: () => void;
+let navRef: NavigationContainerRefWithCurrent<ReactNavigation.RootParamList> | null = null;
+
+// Registered once from the root layout so the module can reach the live
+// navigation state from non-component call sites (the tab bar, the More sheet…).
+export function registerNavigationRef(
+  ref: NavigationContainerRefWithCurrent<ReactNavigation.RootParamList>
+): void {
+  navRef = ref;
 }
 
-export const useNavigationStore = create<NavigationStore>()(
-  devtools(
-    (set, get) => ({
-      stack: [HOME_ROUTE],
-      sync: (path): void => set((s) => ({ stack: reduceStack(s.stack, path) })),
-      goBack: (): boolean => {
-        const target = backTarget(get().stack);
-        if (target === null) return false;
-        set((s) => ({ stack: stackAfterBack(s.stack) }));
-        // Stack entries are group-less pathnames (from usePathname). Navigate
-        // with the (tabs)-qualified href the rest of the app uses so the route
-        // always resolves.
-        const href = `/(tabs)${target}` as Parameters<typeof router.navigate>[0];
-        router.navigate(href);
-        return true;
-      },
-      reset: (): void => set({ stack: [HOME_ROUTE] }),
-    }),
-    { name: 'navigation-store' }
-  )
-);
+// Depth-first search for the Tabs navigator's state in the tree.
+function findTabState(state: NavStateLike): NavStateLike | undefined {
+  if (state.type === 'tab') return state;
+  for (const route of state.routes) {
+    if (route.state) {
+      const found = findTabState(route.state);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
 
-// Convenience for call sites that only need the back action (screen headers,
-// the swipe gesture, the hardware back button). Returns true if it navigated.
+// Reset the Tabs navigator's history to [home, base] and focus the base. Returns
+// false if navigation isn't ready or the routes can't be found, so the caller can
+// fall back to a plain navigate.
+export function resetToBase(baseName: string): boolean {
+  if (!navRef || !navRef.isReady()) return false;
+  const root = navRef.getRootState() as unknown as NavStateLike | undefined;
+  if (!root) return false;
+  const tab = findTabState(root);
+  if (!tab || !tab.key) return false;
+
+  const baseIdx = tab.routes.findIndex((r) => r.name === baseName);
+  const homeIdx = tab.routes.findIndex((r) => r.name === HOME_TAB_NAME);
+  if (baseIdx === -1 || homeIdx === -1) return false;
+
+  const homeKey = tab.routes[homeIdx].key;
+  const baseKey = tab.routes[baseIdx].key;
+  if (!homeKey || !baseKey) return false;
+
+  const nextState = {
+    ...tab,
+    index: baseIdx,
+    history: computeBaseHistory(baseName, homeKey, baseKey),
+    stale: false,
+  };
+  navRef.dispatch({
+    ...CommonActions.reset(nextState as unknown as Parameters<typeof CommonActions.reset>[0]),
+    target: tab.key,
+  });
+  return true;
+}
+
+// Navigate to a base page: collapse history to [home, base]. Falls back to a
+// plain navigate if the reset can't run (e.g. navigation not ready yet).
+export function navigateToBase(href: string): void {
+  if (!resetToBase(toTabRouteName(href))) {
+    router.navigate(href as Parameters<typeof router.navigate>[0]);
+  }
+}
+
+// One-level back through the (now correct) navigation history. Used by screen
+// back buttons and the edge-swipe. Returns true if it moved; at the root it
+// collapses to home instead.
 export function goBack(): boolean {
-  return useNavigationStore.getState().goBack();
+  if (router.canGoBack()) {
+    router.back();
+    return true;
+  }
+  navigateToBase(HOME_ROUTE);
+  return false;
 }

@@ -12,6 +12,7 @@ import {
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, Link } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore, CURRENCIES, type ThemeMode } from '@stores/settingsStore';
@@ -148,7 +149,7 @@ export default function SettingsScreen(): React.JSX.Element {
         houseId
       );
       setShowDebtModal(false);
-      router.push('/(tabs)/voting');
+      navigateToBase('/(tabs)/voting');
     } catch {
       Alert.alert(t('common.error'), t('settings.could_not_create_vote'));
     } finally {
@@ -526,7 +527,7 @@ export default function SettingsScreen(): React.JSX.Element {
                   style={[styles.modalBtnPrimary]}
                   onPress={() => {
                     setShowDebtModal(false);
-                    router.push('/(tabs)/bills');
+                    navigateToBase('/(tabs)/bills');
                   }}
                   accessibilityRole="button"
                 >

@@ -18,6 +18,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
@@ -1159,7 +1160,7 @@ export default function ProfileScreen(): React.JSX.Element {
                     styles.viewMoreBtn,
                     pressed && styles.viewMoreBtnPressed,
                   ]}
-                  onPress={() => router.push('/(tabs)/bills/index')}
+                  onPress={() => navigateToBase('/(tabs)/bills/index')}
                   accessibilityRole="button"
                 >
                   <Text style={styles.viewMoreText}>{t('profile.view_previous_months')}</Text>

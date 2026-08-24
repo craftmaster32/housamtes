@@ -1,184 +1,180 @@
 /**
  * QA — navigationStore
  *
- * Locks in the "base page" back model:
- *  • Base pages (bills, calendar, chores, settings…) collapse the stack to
- *    [home, base] — switching between bases never accumulates, so back from a
- *    base always returns home.
- *  • Flow pages (add / edit / detail / settings sub-pages) stack on top of the
- *    current base, so back returns to that base, then home.
- *  • The user's reported bug: bills/add → chores → calendar → back must land on
- *    home, not retrace calendar → chores → bills/add.
+ * The app is one hidden Tabs navigator; back walks the tab navigator's internal
+ * `history`. To get the "base page" model we RESET that history to [home, base]
+ * whenever we land on a base page, so back from any base returns home (and every
+ * back mechanism — buttons, swipe, hardware, browser — follows suit).
+ *
+ * Covers:
+ *  • toTabRouteName — href → Tabs route name mapping
+ *  • computeBaseHistory — the [home] / [home, base] history a base leaves behind
+ *  • resetToBase — dispatches a RESET to the Tabs navigator with that history
+ *  • navigateToBase — falls back to a plain navigate when navigation isn't ready
+ *  • goBack — one level back, collapsing to home at the root
  */
 
 import {
   HOME_ROUTE,
-  isBaseRoute,
-  normalizePath,
-  reduceStack,
-  backTarget,
-  stackAfterBack,
-  useNavigationStore,
+  toTabRouteName,
+  computeBaseHistory,
+  resetToBase,
+  navigateToBase,
+  registerNavigationRef,
+  goBack,
 } from '../../stores/navigationStore';
 
 const mockNavigate = jest.fn();
+const mockBack = jest.fn();
+const mockCanGoBack = jest.fn();
 jest.mock('expo-router', () => ({
   router: {
     navigate: (...a: unknown[]): void => mockNavigate(...a),
+    back: (...a: unknown[]): void => mockBack(...a),
+    canGoBack: (): boolean => mockCanGoBack(),
   },
 }));
 
-// Replay a sequence of navigations through the pure reducer.
-function run(paths: string[], start: string[] = []): string[] {
-  return paths.reduce((stack, p) => reduceStack(stack, p), start);
+jest.mock('@react-navigation/native', () => ({
+  CommonActions: {
+    reset: (state: unknown): { type: string; payload: unknown } => ({
+      type: 'RESET',
+      payload: state,
+    }),
+  },
+}));
+
+type Ref = Parameters<typeof registerNavigationRef>[0];
+
+// A fake Tabs-inside-Stack navigation tree with three tabs.
+function makeRef(ready = true): { ref: Ref; dispatch: jest.Mock } {
+  const dispatch = jest.fn();
+  const tabState = {
+    type: 'tab',
+    key: 'tab-1',
+    index: 0,
+    routeNames: ['dashboard/index', 'bills/index', 'calendar/index'],
+    routes: [
+      { name: 'dashboard/index', key: 'd' },
+      { name: 'bills/index', key: 'b' },
+      { name: 'calendar/index', key: 'c' },
+    ],
+    history: [{ type: 'route', key: 'd' }],
+  };
+  const root = {
+    type: 'stack',
+    key: 'stack-1',
+    routes: [{ name: '(tabs)', key: 't', state: tabState }],
+  };
+  const ref = {
+    isReady: (): boolean => ready,
+    getRootState: (): unknown => root,
+    dispatch,
+  } as unknown as Ref;
+  return { ref, dispatch };
 }
 
-describe('normalizePath', () => {
-  it('strips query strings and trailing slashes', () => {
-    expect(normalizePath('/bills/')).toBe('/bills');
-    expect(normalizePath('/bills?tab=open')).toBe('/bills');
-    expect(normalizePath('/settings/language/')).toBe('/settings/language');
+describe('toTabRouteName', () => {
+  it('maps single-segment hrefs to <name>/index', () => {
+    expect(toTabRouteName('/(tabs)/bills')).toBe('bills/index');
+    expect(toTabRouteName('/(tabs)/calendar')).toBe('calendar/index');
+    expect(toTabRouteName('/(tabs)/dashboard')).toBe('dashboard/index');
   });
-  it('resolves the empty root to home', () => {
-    expect(normalizePath('/')).toBe(HOME_ROUTE);
-    expect(normalizePath('')).toBe(HOME_ROUTE);
-  });
-});
-
-describe('isBaseRoute', () => {
-  it('recognises main destinations as base pages', () => {
-    ['/dashboard', '/bills', '/calendar', '/chores', '/more/settings'].forEach((p) =>
-      expect(isBaseRoute(p)).toBe(true)
-    );
-  });
-  it('treats add / edit / detail / sub-settings as flows, not bases', () => {
-    [
-      '/bills/add',
-      '/bills/123',
-      '/settings/language',
-      '/grocery/shop',
-      '/profile/spending',
-    ].forEach((p) => expect(isBaseRoute(p)).toBe(false));
+  it('keeps multi-segment leaf routes as-is', () => {
+    expect(toTabRouteName('/(tabs)/more/settings')).toBe('more/settings');
+    expect(toTabRouteName('/(tabs)/bills/index')).toBe('bills/index');
   });
 });
 
-describe('reduceStack — base pages collapse', () => {
-  it('starts a fresh stack at [home, base]', () => {
-    expect(reduceStack([], '/bills')).toEqual([HOME_ROUTE, '/bills']);
+describe('computeBaseHistory', () => {
+  it('leaves just [home] for the home tab', () => {
+    expect(computeBaseHistory('dashboard/index', 'd', 'd')).toEqual([{ type: 'route', key: 'd' }]);
   });
-  it('landing on home alone keeps just [home]', () => {
-    expect(reduceStack([], HOME_ROUTE)).toEqual([HOME_ROUTE]);
-  });
-  it('switching base drops the previous base and its flow', () => {
-    const afterBillsFlow = run(['/bills', '/bills/add']);
-    expect(afterBillsFlow).toEqual([HOME_ROUTE, '/bills', '/bills/add']);
-    // Now switch to a different base → previous base + flow are gone.
-    expect(reduceStack(afterBillsFlow, '/calendar')).toEqual([HOME_ROUTE, '/calendar']);
-  });
-});
-
-describe('reduceStack — flow pages stack on the base', () => {
-  it('pushes a flow on top of its base', () => {
-    expect(run(['/calendar', '/calendar/x'])).toEqual([HOME_ROUTE, '/calendar', '/calendar/x']);
-  });
-  it('keeps multi-level flows within a base', () => {
-    expect(run(['/bills', '/bills/add', '/bills/123'])).toEqual([
-      HOME_ROUTE,
-      '/bills',
-      '/bills/add',
-      '/bills/123',
+  it('leaves [home, base] for any other base', () => {
+    expect(computeBaseHistory('calendar/index', 'd', 'c')).toEqual([
+      { type: 'route', key: 'd' },
+      { type: 'route', key: 'c' },
     ]);
   });
-  it('a flow launched from home sits directly on home', () => {
-    // e.g. the "+" add-bill button pressed from the dashboard
-    expect(run(['/bills/add'])).toEqual([HOME_ROUTE, '/bills/add']);
-  });
 });
 
-describe('reduceStack — returning to an ancestor truncates', () => {
-  it('tapping the active base tab pops its flow', () => {
-    const stack = run(['/calendar', '/calendar/x']);
-    expect(reduceStack(stack, '/calendar')).toEqual([HOME_ROUTE, '/calendar']);
-  });
-  it('navigating home truncates to [home]', () => {
-    const stack = run(['/bills', '/bills/add']);
-    expect(reduceStack(stack, HOME_ROUTE)).toEqual([HOME_ROUTE]);
-  });
-  it('re-navigating to the same screen is a no-op', () => {
-    const stack = run(['/bills']);
-    expect(reduceStack(stack, '/bills')).toBe(stack);
-  });
-});
-
-describe('backTarget / stackAfterBack', () => {
-  it('returns null at the root and does not pop past it', () => {
-    expect(backTarget([HOME_ROUTE])).toBeNull();
-    expect(stackAfterBack([HOME_ROUTE])).toEqual([HOME_ROUTE]);
-  });
-  it('points one level down and pops one level', () => {
-    const stack = [HOME_ROUTE, '/chores', '/chores/edit'];
-    expect(backTarget(stack)).toBe('/chores');
-    expect(stackAfterBack(stack)).toEqual([HOME_ROUTE, '/chores']);
-  });
-});
-
-describe('user scenario — bills/add → chores → calendar → back lands home', () => {
-  it('does not retrace the previous bases', () => {
-    let stack = run(['/bills/add', '/chores', '/calendar']);
-    expect(stack).toEqual([HOME_ROUTE, '/calendar']);
-    // back → home (not chores, not bills/add)
-    expect(backTarget(stack)).toBe(HOME_ROUTE);
-    stack = stackAfterBack(stack);
-    expect(stack).toEqual([HOME_ROUTE]);
-  });
-});
-
-describe('user scenario — calendar flow, then chores edit', () => {
-  it('back from the chores edit lands on chores, then home', () => {
-    // calendar → (add event) → switch to chores → (edit chore)
-    let stack = run(['/calendar', '/calendar/add', '/chores', '/chores/edit']);
-    expect(stack).toEqual([HOME_ROUTE, '/chores', '/chores/edit']);
-    // back → chores base
-    expect(backTarget(stack)).toBe('/chores');
-    stack = stackAfterBack(stack);
-    // back again → home; the earlier calendar flow is gone
-    expect(backTarget(stack)).toBe(HOME_ROUTE);
-    expect(stackAfterBack(stack)).toEqual([HOME_ROUTE]);
-  });
-});
-
-describe('store: sync + goBack', () => {
+describe('resetToBase', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
-    useNavigationStore.getState().reset();
   });
 
-  it('tracks navigation via sync and walks back through the stack', () => {
-    const { sync } = useNavigationStore.getState();
-    sync('/bills');
-    sync('/bills/add');
-    expect(useNavigationStore.getState().stack).toEqual([HOME_ROUTE, '/bills', '/bills/add']);
+  it('dispatches a RESET to the Tabs navigator with [home, base] history', () => {
+    const { ref, dispatch } = makeRef();
+    registerNavigationRef(ref);
 
-    const moved = useNavigationStore.getState().goBack();
-    expect(moved).toBe(true);
-    // Navigates with the (tabs)-qualified href the app uses.
-    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/bills');
-    expect(useNavigationStore.getState().stack).toEqual([HOME_ROUTE, '/bills']);
+    const ok = resetToBase('calendar/index');
+    expect(ok).toBe(true);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+
+    const action = dispatch.mock.calls[0][0];
+    expect(action.type).toBe('RESET');
+    expect(action.target).toBe('tab-1');
+    expect(action.payload.index).toBe(2); // calendar is routes[2]
+    expect(action.payload.history).toEqual([
+      { type: 'route', key: 'd' },
+      { type: 'route', key: 'c' },
+    ]);
   });
 
-  it('goBack returns false at home and does not navigate', () => {
-    expect(useNavigationStore.getState().stack).toEqual([HOME_ROUTE]);
-    expect(useNavigationStore.getState().goBack()).toBe(false);
+  it('returns false when navigation is not ready', () => {
+    const { ref, dispatch } = makeRef(false);
+    registerNavigationRef(ref);
+    expect(resetToBase('bills/index')).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('returns false for an unknown base route', () => {
+    const { ref, dispatch } = makeRef();
+    registerNavigationRef(ref);
+    expect(resetToBase('nope/index')).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('navigateToBase', () => {
+  beforeEach(() => {
+    mockNavigate.mockClear();
+  });
+
+  it('resets history for a known base', () => {
+    const { ref, dispatch } = makeRef();
+    registerNavigationRef(ref);
+    navigateToBase('/(tabs)/bills');
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch.mock.calls[0][0].payload.index).toBe(1); // bills is routes[1]
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('after goBack, sync to the target is a no-op (no double processing)', () => {
-    const store = useNavigationStore.getState();
-    store.sync('/chores');
-    store.sync('/chores/edit');
-    store.goBack(); // → /chores
-    const before = useNavigationStore.getState().stack;
-    store.sync('/chores'); // pathname settles on the target
-    expect(useNavigationStore.getState().stack).toBe(before);
+  it('falls back to a plain navigate when navigation is not ready', () => {
+    const { ref } = makeRef(false);
+    registerNavigationRef(ref);
+    navigateToBase('/(tabs)/calendar');
+    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/calendar');
+  });
+});
+
+describe('goBack', () => {
+  beforeEach(() => {
+    mockBack.mockClear();
+    mockNavigate.mockClear();
+  });
+
+  it('goes back one level when possible', () => {
+    mockCanGoBack.mockReturnValue(true);
+    expect(goBack()).toBe(true);
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('collapses to home when it cannot go back', () => {
+    mockCanGoBack.mockReturnValue(false);
+    registerNavigationRef(makeRef(false).ref); // not ready → navigateToBase falls back
+    expect(goBack()).toBe(false);
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith(HOME_ROUTE);
   });
 });
