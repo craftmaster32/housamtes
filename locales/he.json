@@ -454,7 +454,6 @@
   },
   "happening": {
     "now": "עכשיו",
-    "coming_up": "בקרוב",
     "shopping_now": "{{name}} עושה קניות עכשיו",
     "parking_now": "{{name}} משתמש בחניה",
     "parking_reserved": "{{name}} הזמין את החניה"

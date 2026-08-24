@@ -381,11 +381,11 @@ export default function DashboardScreen(): React.JSX.Element {
         <DashboardErrorBanner />
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)}>
-          <HappeningNow />
+          <PinnedNote />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <PinnedNote />
+          <HappeningNow />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(140).duration(450)} style={styles.block}>
