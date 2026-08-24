@@ -452,6 +452,13 @@
     "card_on": "בלוח",
     "card_off": "מוסתר"
   },
+  "happening": {
+    "now": "עכשיו",
+    "coming_up": "בקרוב",
+    "shopping_now": "{{name}} עושה קניות עכשיו",
+    "parking_now": "{{name}} משתמש בחניה",
+    "parking_reserved": "{{name}} הזמין את החניה"
+  },
   "bills": {
     "title": "חשבונות",
     "tab_household": "🏠 בית",

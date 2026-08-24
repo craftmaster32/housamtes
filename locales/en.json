@@ -452,6 +452,13 @@
     "card_on": "On dashboard",
     "card_off": "Hidden"
   },
+  "happening": {
+    "now": "Now",
+    "coming_up": "Coming up",
+    "shopping_now": "{{name}} is shopping right now",
+    "parking_now": "{{name}} is using the parking",
+    "parking_reserved": "{{name}} reserved the parking"
+  },
   "bills": {
     "title": "Bills",
     "tab_household": "🏠 Household",

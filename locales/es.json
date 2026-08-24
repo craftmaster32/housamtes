@@ -452,6 +452,13 @@
     "card_on": "En el panel",
     "card_off": "Oculta"
   },
+  "happening": {
+    "now": "Ahora",
+    "coming_up": "Próximamente",
+    "shopping_now": "{{name}} está comprando ahora",
+    "parking_now": "{{name}} está usando el aparcamiento",
+    "parking_reserved": "{{name}} reservó el aparcamiento"
+  },
   "bills": {
     "title": "Gastos",
     "tab_household": "🏠 Hogar",
