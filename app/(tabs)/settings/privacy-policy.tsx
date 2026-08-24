@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -42,7 +42,7 @@ export default function PrivacyPolicyScreen(): React.JSX.Element {
   const headingFont = useHeadingFont('bold');
 
   const handleBack = useCallback((): void => {
-    router.back();
+    goBack();
   }, []);
 
   return (

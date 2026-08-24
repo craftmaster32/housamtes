@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore, type ThemeMode } from '@stores/settingsStore';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -31,7 +31,7 @@ export default function AppearanceSettingsScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
-  const handleBack = useCallback(() => router.back(), []);
+  const handleBack = useCallback(() => goBack(), []);
   const handleSelect = useCallback(
     (mode: ThemeMode) => {
       setThemeMode(mode);

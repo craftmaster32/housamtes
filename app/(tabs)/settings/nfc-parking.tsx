@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
@@ -94,7 +94,7 @@ export default function NfcParkingScreen(): React.JSX.Element {
   }, [userId, t]);
 
   const handleBack = useCallback((): void => {
-    router.back();
+    goBack();
   }, []);
 
   return (

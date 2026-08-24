@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable, TextInput as RNTextInput } fro
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, Link } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { z } from 'zod';
@@ -319,7 +320,7 @@ export default function AddBillScreen(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable onPress={() => goBack()} style={styles.backBtn}>
             <Ionicons
               name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
               size={20}

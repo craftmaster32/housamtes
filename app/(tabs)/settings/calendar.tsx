@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Switch, Pressable, type ViewStyle } from 
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useCalendarSyncStore } from '@stores/calendarSyncStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -81,7 +81,7 @@ export default function CalendarSettingsScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
-  const handleBack = useCallback(() => router.back(), []);
+  const handleBack = useCallback(() => goBack(), []);
   const handleCalendarToggle = useCallback(async (): Promise<void> => {
     setCalLoading(true);
     try {

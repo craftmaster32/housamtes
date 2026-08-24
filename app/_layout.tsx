@@ -4,13 +4,14 @@ import {
   StyleSheet,
   PanResponder,
   AppState,
+  BackHandler,
   InteractionManager,
   Platform,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { initErrorTracking } from '@lib/errorTracking';
-import { Stack, router, useSegments } from 'expo-router';
+import { Stack, router, useSegments, usePathname } from 'expo-router';
 import { supabase } from '@lib/supabase';
 import { PaperProvider, MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
@@ -43,6 +44,7 @@ import { useColors } from '@hooks/useColors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
+import { useNavigationStore } from '@stores/navigationStore';
 import { registerWebPush } from '@lib/webPush';
 
 initErrorTracking();
@@ -242,6 +244,31 @@ export default function RootLayout(): React.JSX.Element | null {
   const segArr = segments as string[];
   const segmentsKey = segArr[0] ?? '';
   const currentScreen = segArr[1] ?? '';
+  const pathname = usePathname();
+
+  // Keep the logical back stack (navigationStore) in sync with the screen we're
+  // actually on. Only tracks routes under (tabs) — auth/onboarding have their
+  // own flow. This is the single source of truth every back action reads from.
+  const inTabsRef = useRef(false);
+  inTabsRef.current = segmentsKey === '(tabs)';
+  useEffect(() => {
+    if (segmentsKey !== '(tabs)') return;
+    useNavigationStore.getState().sync(pathname);
+  }, [pathname, segmentsKey]);
+
+  // Android hardware back — walk the logical stack (base → home) instead of the
+  // raw navigation history. Registered once so it stays *below* any screen-level
+  // handler (e.g. grocery's unsaved-draft guard, which runs first and only falls
+  // through to us when it doesn't intercept). Returning false at home lets the
+  // OS default fire (exit the app).
+  useEffect(() => {
+    const onHardwareBack = (): boolean => {
+      if (!inTabsRef.current) return false;
+      return useNavigationStore.getState().goBack();
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    return (): void => sub.remove();
+  }, []);
 
   const loadHousemates = useHousematesStore((s) => s.load);
   const loadBills = useBillsStore((s) => s.load);
@@ -463,8 +490,9 @@ export default function RootLayout(): React.JSX.Element | null {
         return startX > 22 && startX < 70 && dx > 20 && Math.abs(dx) > Math.abs(dy) * 1.5;
       },
       onPanResponderRelease: (_, { dx }) => {
-        if (dx > 70 && router.canGoBack()) {
-          router.back();
+        // Walk the logical back stack (base → home), not the raw history.
+        if (dx > 70) {
+          useNavigationStore.getState().goBack();
         }
       },
     })

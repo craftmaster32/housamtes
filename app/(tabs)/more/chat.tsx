@@ -13,7 +13,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useChatStore, type ChatMessage } from '@stores/chatStore';
 import { useAuthStore } from '@stores/authStore';
@@ -395,7 +395,7 @@ export default function ChatScreen(): React.JSX.Element {
       <View style={styles.flex}>
         <View style={styles.header}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => goBack()}
             style={styles.backBtn}
             hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
             accessible
