@@ -2,8 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Modal, Platform, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
-import { goBack, navigateToBase } from '@stores/navigationStore';
+import { router } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -205,7 +205,6 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const currentLanguage = useLanguageStore((s) => s.language);
 
-  const { from } = useLocalSearchParams<{ from?: string }>();
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showDebtModal, setShowDebtModal] = useState(false);
   const [showTimezoneModal, setShowTimezoneModal] = useState(false);
@@ -314,7 +313,7 @@ export default function SettingsScreen(): React.JSX.Element {
       <View style={styles.flex}>
         <Pressable
           style={styles.backBtn}
-          onPress={() => (from === 'profile' ? navigateToBase('/(tabs)/profile') : goBack())}
+          onPress={() => navigateToBase('/(tabs)/profile')}
           accessible
           accessibilityRole="button"
           accessibilityLabel={t('common.back')}
