@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -26,6 +26,8 @@ type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 // How many upcoming events/reservations to expand before the 24h filter.
 const LOOKAHEAD = 5;
+// Maximum upcoming entries shown in the strip.
+const DISPLAY_LIMIT = 3;
 
 function todayYMD(): string {
   const d = new Date();
@@ -34,8 +36,12 @@ function todayYMD(): string {
   ).padStart(2, '0')}`;
 }
 
+interface LiveDotProps {
+  color: string;
+}
+
 // A soft pulsing dot — the "this is live right now" cue on happening-now banners.
-function LiveDot({ color }: { color: string }): React.JSX.Element {
+function LiveDot({ color }: LiveDotProps): React.JSX.Element {
   const pulse = useSharedValue(1);
   useEffect(() => {
     pulse.value = withRepeat(
@@ -51,6 +57,16 @@ function LiveDot({ color }: { color: string }): React.JSX.Element {
   return <Animated.View style={[styles.liveDot, { backgroundColor: color }, style]} />;
 }
 
+interface BannerProps {
+  icon: IoniconName;
+  accent: string;
+  eyebrow: string;
+  title: string;
+  live: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}
+
 // ── One banner ────────────────────────────────────────────────────────────────
 // `live` shows the pulsing dot (something happening right now); scheduled items
 // due within 24h use the same prominent style without the dot.
@@ -62,15 +78,7 @@ function Banner({
   live,
   onPress,
   accessibilityLabel,
-}: {
-  icon: IoniconName;
-  accent: string;
-  eyebrow: string;
-  title: string;
-  live: boolean;
-  onPress: () => void;
-  accessibilityLabel: string;
-}): React.JSX.Element {
+}: BannerProps): React.JSX.Element {
   const c = useThemedColors();
   return (
     <Pressable
@@ -80,8 +88,10 @@ function Banner({
         pressed && styles.pressed,
       ]}
       onPress={onPress}
+      accessible={true}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: false }}
     >
       <View style={[styles.bannerIcon, { backgroundColor: accent + '1F' }]}>
         <Ionicons name={icon} size={17} color={accent} />
@@ -123,6 +133,18 @@ export function HappeningNow(): React.JSX.Element {
   const reservations = useParkingStore((s) => s.reservations);
   const today = todayYMD();
 
+  const handleCalendarPress = useCallback((): void => {
+    router.push('/(tabs)/calendar');
+  }, []);
+
+  const handleGroceryPress = useCallback((): void => {
+    router.push('/(tabs)/grocery');
+  }, []);
+
+  const handleParkingPress = useCallback((): void => {
+    router.push('/(tabs)/parking');
+  }, []);
+
   // Upcoming events + approved parking reservations, kept only when they fall
   // within the next 24 hours (or land today), sorted soonest-first.
   const soon = useMemo<ComingEntry[]>(() => {
@@ -134,7 +156,7 @@ export function HappeningNow(): React.JSX.Element {
         date: e.date,
         startTime: e.startTime,
         title: e.title,
-        onPress: () => router.push('/(tabs)/calendar'),
+        onPress: handleCalendarPress,
       })
     );
     const reservationEntries: ComingEntry[] = reservations
@@ -146,15 +168,26 @@ export function HappeningNow(): React.JSX.Element {
         date: r.date,
         startTime: r.startTime,
         title: t('happening.parking_reserved', { name: memberName(r.requestedBy).split(' ')[0] }),
-        onPress: () => router.push('/(tabs)/parking'),
+        onPress: handleParkingPress,
       }));
     return [...eventEntries, ...reservationEntries]
       .filter((item) => isEventImminent({ date: item.date, startTime: item.startTime }))
       .sort((a, b) => {
         if (a.date !== b.date) return a.date < b.date ? -1 : 1;
         return (a.startTime ?? '').localeCompare(b.startTime ?? '');
-      });
-  }, [events, reservations, today, c.primary, c.secondaryForeground, t, memberName]);
+      })
+      .slice(0, DISPLAY_LIMIT);
+  }, [
+    events,
+    reservations,
+    today,
+    c.primary,
+    c.secondaryForeground,
+    t,
+    memberName,
+    handleCalendarPress,
+    handleParkingPress,
+  ]);
 
   const hasLive = !!activeRun || !!parkingCurrent;
   if (!hasLive && soon.length === 0) return <></>;
@@ -171,7 +204,7 @@ export function HappeningNow(): React.JSX.Element {
           eyebrow={nowLabel}
           title={t('happening.shopping_now', { name: activeRun.shopperName.split(' ')[0] })}
           live
-          onPress={() => router.push('/(tabs)/grocery')}
+          onPress={handleGroceryPress}
           accessibilityLabel={t('happening.shopping_now', {
             name: activeRun.shopperName.split(' ')[0],
           })}
@@ -186,7 +219,7 @@ export function HappeningNow(): React.JSX.Element {
             name: memberName(parkingCurrent.occupant).split(' ')[0],
           })}
           live
-          onPress={() => router.push('/(tabs)/parking')}
+          onPress={handleParkingPress}
           accessibilityLabel={t('happening.parking_now', {
             name: memberName(parkingCurrent.occupant).split(' ')[0],
           })}
