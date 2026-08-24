@@ -1,163 +1,127 @@
 /**
  * QA — navigationStore
  *
- * The app is one hidden Tabs navigator; back walks the tab navigator's internal
- * `history`. TabHistoryBridge collapses that history to [home, base] whenever a
- * base (main section) tab becomes focused, so back from any section returns home.
+ * The app is one hidden Tabs navigator; every navigation appends to history, and
+ * back (in-app arrow, edge-swipe, hardware button, or the browser's own back on
+ * web) walks that history. To stop sections accumulating, opening a section
+ * pushes from Home but REPLACES from anywhere else, so history stays
+ * [home, section] and back from any section returns Home.
  *
  * Covers:
- *  • isBaseTab — which route names are base pages vs flows
- *  • computeBaseHistory — the [home] / [home, base] history a base leaves behind
- *  • collapseHistoryForBase — the pure decision the bridge applies (null = leave)
- *  • goBack / navigateToBase — imperative helpers
- *  • end-to-end against the REAL TabRouter: the reported "chores → bills →
- *    calendar → back" retrace now lands on home.
+ *  • setCurrentTab / isOnHome — the focused-tab tracking
+ *  • navigateToBase — push from home, replace otherwise
+ *  • goBack — one level back, home at the root
+ *  • end-to-end against the REAL expo-router tab router (with its REPLACE
+ *    override): "chores → bills → calendar → back" now lands on Home.
  */
 
 import { TabRouter, CommonActions } from '@react-navigation/routers';
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires */
+const { tabRouterOverride } = require('expo-router/build/layouts/TabRouter');
+/* eslint-enable @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires */
+
 import {
-  HOME_TAB_NAME,
-  isBaseTab,
-  computeBaseHistory,
-  collapseHistoryForBase,
+  HOME_ROUTE,
+  isOnHome,
+  setCurrentTab,
   navigateToBase,
   goBack,
 } from '../../stores/navigationStore';
 
-const mockNavigate = jest.fn();
+const mockPush = jest.fn();
+const mockReplace = jest.fn();
 const mockBack = jest.fn();
 const mockCanGoBack = jest.fn();
 jest.mock('expo-router', () => ({
   router: {
-    navigate: (...a: unknown[]): void => mockNavigate(...a),
+    push: (...a: unknown[]): void => mockPush(...a),
+    replace: (...a: unknown[]): void => mockReplace(...a),
     back: (...a: unknown[]): void => mockBack(...a),
     canGoBack: (): boolean => mockCanGoBack(),
   },
 }));
 
-const ROUTES = [
-  { name: 'dashboard/index', key: 'd' },
-  { name: 'chores/index', key: 'ch' },
-  { name: 'bills/index', key: 'b' },
-  { name: 'calendar/index', key: 'c' },
-  { name: 'bills/add', key: 'add' },
-  { name: 'more/settings', key: 'set' },
-];
-const idxOf = (name: string): number => ROUTES.findIndex((r) => r.name === name);
+beforeEach(() => {
+  mockPush.mockClear();
+  mockReplace.mockClear();
+  mockBack.mockClear();
+  setCurrentTab('dashboard/index');
+});
 
-describe('isBaseTab', () => {
-  it('treats feature index screens and the settings hub as bases', () => {
-    ['dashboard/index', 'bills/index', 'calendar/index', 'chores/index', 'more/settings'].forEach(
-      (n) => expect(isBaseTab(n)).toBe(true)
-    );
+describe('isOnHome', () => {
+  it('is true on the home tab and before any tab is known', () => {
+    setCurrentTab('dashboard/index');
+    expect(isOnHome()).toBe(true);
   });
-  it('treats add / edit / detail / sub-settings as flows', () => {
-    ['bills/add', 'bills/[id]', 'settings/language', 'grocery/shop', 'profile/spending'].forEach(
-      (n) => expect(isBaseTab(n)).toBe(false)
-    );
+  it('is false on any other section', () => {
+    setCurrentTab('bills/index');
+    expect(isOnHome()).toBe(false);
   });
 });
 
-describe('computeBaseHistory', () => {
-  it('leaves just [home] for the home tab', () => {
-    expect(computeBaseHistory(HOME_TAB_NAME, 'd', 'd')).toEqual([{ type: 'route', key: 'd' }]);
-  });
-  it('leaves [home, base] for any other base', () => {
-    expect(computeBaseHistory('calendar/index', 'd', 'c')).toEqual([
-      { type: 'route', key: 'd' },
-      { type: 'route', key: 'c' },
-    ]);
-  });
-});
-
-describe('collapseHistoryForBase', () => {
-  it('collapses to [home, base] when a base is focused with accumulated history', () => {
-    // history: dashboard → chores → bills → calendar (focused calendar)
-    const history = [{ key: 'd' }, { key: 'ch' }, { key: 'b' }, { key: 'c' }];
-    expect(collapseHistoryForBase(ROUTES, idxOf('calendar/index'), history)).toEqual([
-      { type: 'route', key: 'd' },
-      { type: 'route', key: 'c' },
-    ]);
+describe('navigateToBase', () => {
+  it('pushes when on Home (keeps Home underneath)', () => {
+    setCurrentTab('dashboard/index');
+    navigateToBase('/(tabs)/chores');
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/chores');
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it('leaves flow pages alone (returns null)', () => {
-    const history = [{ key: 'd' }, { key: 'b' }, { key: 'add' }];
-    expect(collapseHistoryForBase(ROUTES, idxOf('bills/add'), history)).toBeNull();
-  });
-
-  it('is a no-op when a base already sits on [home, base]', () => {
-    const history = [{ key: 'd' }, { key: 'b' }];
-    expect(collapseHistoryForBase(ROUTES, idxOf('bills/index'), history)).toBeNull();
-  });
-
-  it('collapses home itself to [home]', () => {
-    const history = [{ key: 'd' }, { key: 'b' }, { key: 'd' }];
-    expect(collapseHistoryForBase(ROUTES, idxOf('dashboard/index'), history)).toEqual([
-      { type: 'route', key: 'd' },
-    ]);
-  });
-});
-
-describe('imperative helpers', () => {
-  beforeEach(() => {
-    mockNavigate.mockClear();
-    mockBack.mockClear();
-  });
-
-  it('navigateToBase navigates to the href', () => {
+  it('replaces when on another section (sections never stack)', () => {
+    setCurrentTab('chores/index');
     navigateToBase('/(tabs)/bills');
-    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/bills');
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/bills');
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('goBack goes back one level when possible', () => {
+  it('replaces when inside a section flow', () => {
+    setCurrentTab('bills/add');
+    navigateToBase('/(tabs)/calendar');
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/calendar');
+  });
+});
+
+describe('goBack', () => {
+  it('goes back one level when possible', () => {
     mockCanGoBack.mockReturnValue(true);
     expect(goBack()).toBe(true);
     expect(mockBack).toHaveBeenCalledTimes(1);
   });
-
-  it('goBack collapses to home when it cannot go back', () => {
+  it('collapses to home at the root', () => {
     mockCanGoBack.mockReturnValue(false);
     expect(goBack()).toBe(false);
-    expect(mockNavigate).toHaveBeenCalledWith('/(tabs)/dashboard');
+    expect(mockReplace).toHaveBeenCalledWith(HOME_ROUTE);
   });
 });
 
-describe('end-to-end with the real TabRouter', () => {
-  it('chores → bills → calendar → back lands on home (not a retrace)', () => {
+describe('end-to-end with the real expo-router tab router', () => {
+  it('chores → bills → calendar → back lands on Home (no retrace)', () => {
     const routeNames = ['dashboard/index', 'chores/index', 'bills/index', 'calendar/index'];
     const opts = { routeNames, routeParamList: {}, routeGetIdList: {} } as never;
-    const router = TabRouter({ backBehavior: 'history' });
-    const nav = (s: unknown, name: string): unknown =>
-      router.getStateForAction(s as never, CommonActions.navigate({ name }) as never, opts) ?? s;
+    // expo-router wraps the tab router with a REPLACE override; use the real one.
+    const router = tabRouterOverride(TabRouter({ backBehavior: 'history' }));
 
-    // dashboard → chores → bills → calendar
-    let state = router.getInitialState(opts) as {
-      routes: { name: string; key: string }[];
-      index: number;
-      history?: { key: string }[];
-      key: string;
-    };
-    state = nav(state, 'chores/index') as typeof state;
-    state = nav(state, 'bills/index') as typeof state;
-    state = nav(state, 'calendar/index') as typeof state;
+    type S = { routes: { name: string; key: string }[]; index: number; key: string };
+    const push = (s: S, name: string): S =>
+      (router.getStateForAction(s as never, CommonActions.navigate({ name }) as never, opts) ??
+        s) as S;
+    const replace = (s: S, name: string): S =>
+      (router.getStateForAction(
+        s as never,
+        { type: 'REPLACE', target: s.key, payload: { name, params: {} } } as never,
+        opts
+      ) ?? s) as S;
 
-    // The bridge computes the collapse for the focused base (calendar)…
-    const nextHistory = collapseHistoryForBase(state.routes, state.index, state.history);
-    if (!nextHistory) throw new Error('expected a history collapse for a focused base');
+    let s = router.getInitialState(opts) as S;
+    s = push(s, 'chores/index'); // from Home → push
+    s = replace(s, 'bills/index'); // from a section → replace
+    s = replace(s, 'calendar/index'); // from a section → replace
 
-    // …and applies it as a reset.
-    const afterReset = router.getStateForAction(
-      state as never,
-      { ...CommonActions.reset({ ...state, history: nextHistory }), target: state.key } as never,
-      opts
-    ) as typeof state;
-
-    // Back now goes straight home.
     const back = router.getStateForAction(
-      afterReset as never,
+      s as never,
       CommonActions.goBack() as never,
       opts
-    ) as typeof state | null;
+    ) as S | null;
     expect(back && back.routes[back.index].name).toBe('dashboard/index');
   });
 });

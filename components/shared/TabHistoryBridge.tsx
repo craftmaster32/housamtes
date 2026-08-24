@@ -1,23 +1,16 @@
 import { useEffect } from 'react';
-import { CommonActions } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { collapseHistoryForBase } from '@stores/navigationStore';
+import { setCurrentTab } from '@stores/navigationStore';
 
 // Rendered as the Tabs navigator's `tabBar` (see app/(tabs)/_layout.tsx). It
 // draws nothing — the real tab bar is the custom BottomTabBar in the root
-// layout — but living inside the navigator gives it the tab navigator's live
-// `state` and `navigation`. Whenever a base (main section) tab becomes focused,
-// it resets the tab history to [home, base] so that back — from any back
-// mechanism — returns home. Flow tabs are left untouched.
-export function TabHistoryBridge({ state, navigation }: BottomTabBarProps): null {
+// layout — but living inside the navigator lets it read the live focused tab and
+// report it to navigationStore, which uses it to push (from home) vs replace
+// (from another section) so sections never accumulate in history.
+export function TabHistoryBridge({ state }: BottomTabBarProps): null {
+  const focusedName = state.routes[state.index]?.name;
   useEffect(() => {
-    const nextHistory = collapseHistoryForBase(state.routes, state.index, state.history);
-    if (!nextHistory) return;
-    navigation.dispatch({
-      ...CommonActions.reset({ ...state, history: nextHistory }),
-      target: state.key,
-    });
-  }, [state, navigation]);
-
+    if (focusedName) setCurrentTab(focusedName);
+  }, [focusedName]);
   return null;
 }
