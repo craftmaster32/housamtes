@@ -122,77 +122,6 @@ interface ComingEntry {
   onPress: () => void;
 }
 
-interface ComingRowProps {
-  icon: IoniconName;
-  accent: string;
-  date: string;
-  startTime?: string;
-  title: string;
-  onPress: () => void;
-  accessibilityLabel: string;
-}
-
-// Compact row for upcoming entries that are not yet imminent (> 24h away).
-function ComingRow({
-  icon,
-  accent,
-  date,
-  startTime,
-  title,
-  onPress,
-  accessibilityLabel,
-}: ComingRowProps): React.JSX.Element {
-  const c = useThemedColors();
-  const { t } = useTranslation();
-  const today = todayYMD();
-
-  let dayLabel: string;
-  if (date === today) {
-    dayLabel = t('common.today');
-  } else {
-    const now = new Date();
-    const nextDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const tomorrowStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
-    if (date === tomorrowStr) {
-      dayLabel = t('common.tomorrow');
-    } else {
-      const [y, m, d] = date.split('-').map(Number);
-      dayLabel = new Date(y, m - 1, d).toLocaleDateString(undefined, {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-      });
-    }
-  }
-
-  const dateLabel = (startTime ? `${dayLabel} · ${startTime}` : dayLabel).toUpperCase();
-
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.comingRow,
-        { backgroundColor: c.surface, borderColor: c.border },
-        pressed && styles.pressed,
-      ]}
-      onPress={onPress}
-      accessible={true}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled: false }}
-    >
-      <View style={[styles.comingRowIcon, { backgroundColor: accent + '1F' }]}>
-        <Ionicons name={icon} size={14} color={accent} />
-      </View>
-      <Text style={[styles.comingRowTitle, { color: c.textPrimary }]} numberOfLines={1}>
-        {title}
-      </Text>
-      <Text style={[styles.comingRowDate, { color: c.textSecondary }]} numberOfLines={1}>
-        {dateLabel}
-      </Text>
-    </Pressable>
-  );
-}
-
 // ── The strip ─────────────────────────────────────────────────────────────────
 export function HappeningNow(): React.JSX.Element {
   const { t } = useTranslation();
@@ -244,29 +173,33 @@ export function HappeningNow(): React.JSX.Element {
         title: t('happening.parking_reserved', { name: memberName(r.requestedBy).split(' ')[0] }),
         onPress: handleParkingPress,
       }));
-    return [...eventEntries, ...reservationEntries]
-      .filter((item) => {
-        // Exclude same-day items whose start time has already passed.
-        if (item.date === today && item.startTime) {
-          const [hh, mm] = item.startTime.split(':').map(Number);
-          const itemTime = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
-            hh,
-            mm,
-            0,
-            0
-          );
-          return itemTime > now;
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-        return (a.startTime ?? '').localeCompare(b.startTime ?? '');
-      })
-      .slice(0, DISPLAY_LIMIT);
+    return (
+      [...eventEntries, ...reservationEntries]
+        .filter((item) => {
+          // Exclude same-day items whose start time has already passed.
+          if (item.date === today && item.startTime) {
+            const [hh, mm] = item.startTime.split(':').map(Number);
+            const itemTime = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+              hh,
+              mm,
+              0,
+              0
+            );
+            return itemTime > now;
+          }
+          return true;
+        })
+        // Only surface items that are happening today or within the next 24h.
+        .filter((item) => isEventImminent({ date: item.date, startTime: item.startTime }))
+        .sort((a, b) => {
+          if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+          return (a.startTime ?? '').localeCompare(b.startTime ?? '');
+        })
+        .slice(0, DISPLAY_LIMIT)
+    );
   }, [
     events,
     reservations,
@@ -281,33 +214,20 @@ export function HappeningNow(): React.JSX.Element {
 
   const renderSoonItem = useCallback(
     ({ item }: { item: ComingEntry }): React.JSX.Element => {
-      const imminent = isEventImminent({ date: item.date, startTime: item.startTime });
+      // Everything here is within 24h (today or tomorrow), so it always shows as
+      // a prominent banner — no far-out compact rows.
       const isToday = item.date === today;
       const dayLabel = isToday ? t('common.today') : t('common.tomorrow');
       const eyebrow = (item.startTime ? `${dayLabel} · ${item.startTime}` : dayLabel).toUpperCase();
-
-      if (imminent) {
-        return (
-          <Banner
-            icon={item.icon}
-            accent={item.accent}
-            eyebrow={eyebrow}
-            title={item.title}
-            live={false}
-            onPress={item.onPress}
-            accessibilityLabel={`${eyebrow} — ${item.title}`}
-          />
-        );
-      }
       return (
-        <ComingRow
+        <Banner
           icon={item.icon}
           accent={item.accent}
-          date={item.date}
-          startTime={item.startTime}
+          eyebrow={eyebrow}
           title={item.title}
+          live={false}
           onPress={item.onPress}
-          accessibilityLabel={`${item.date} — ${item.title}`}
+          accessibilityLabel={`${eyebrow} — ${item.title}`}
         />
       );
     },
@@ -388,24 +308,4 @@ const styles = StyleSheet.create({
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
   eyebrow: { fontSize: mf(10), ...font.bold, letterSpacing: 0.5, textTransform: 'uppercase' },
   liveDot: { width: ms(7), height: ms(7), borderRadius: ms(4) },
-
-  comingRow: {
-    marginTop: ms(8),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(9),
-    borderWidth: 1,
-    borderRadius: ms(12),
-    paddingVertical: ms(9),
-    paddingHorizontal: ms(12),
-  },
-  comingRowIcon: {
-    width: ms(28),
-    height: ms(28),
-    borderRadius: ms(9),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  comingRowTitle: { flex: 1, fontSize: mf(13.5), ...font.medium },
-  comingRowDate: { fontSize: mf(10), ...font.bold, letterSpacing: 0.4 },
 });
