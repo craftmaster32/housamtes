@@ -37,6 +37,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { Alert } from '@lib/alert';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
+import { BackLink } from '@components/shared/BackLink';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
@@ -1035,6 +1036,7 @@ export default function ParkingScreen(): React.JSX.Element {
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         ListHeaderComponent={
           <View>
+            <BackLink label={t('common.home')} />
             {/* ── Hero card ── */}
             <View style={styles.heroCard}>
               <View style={styles.heroCopy}>

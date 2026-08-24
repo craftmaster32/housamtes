@@ -34,6 +34,7 @@ import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { downloadPhotoToLibrary } from '@utils/downloadPhoto';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { BackLink } from '@components/shared/BackLink';
 import { PhotoViewer } from '@components/photos/PhotoViewer';
 import { getErrorMessage } from '@utils/errors';
 
@@ -63,12 +64,13 @@ const makeStyles = (C: ColorTokens) =>
     root: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    topBackRow: { paddingHorizontal: sizes.lg, paddingTop: sizes.sm },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: sizes.lg,
-      paddingTop: sizes.md,
+      paddingTop: sizes.xs,
       paddingBottom: sizes.sm,
     },
     heading: { fontSize: mf(26), ...font.extrabold, letterSpacing: -0.5, color: C.textPrimary },
@@ -589,6 +591,9 @@ export default function PhotosScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.flex}>
+        <View style={styles.topBackRow}>
+          <BackLink label={t('common.home')} />
+        </View>
         <View style={styles.header}>
           <Text style={[styles.heading, headingFont]}>{t('photos.title')}</Text>
           <View style={styles.headerActions}>

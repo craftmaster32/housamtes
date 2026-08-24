@@ -5,6 +5,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { BackLink } from '@components/shared/BackLink';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -586,6 +587,7 @@ export default function VotingScreen(): React.JSX.Element {
           )}
 
           <View style={styles.pageHeader}>
+            <BackLink label={t('common.home')} />
             <Text style={[styles.heading, headingFont]}>{t('voting.title')}</Text>
             <Text style={styles.headingSub}>{t('voting.subtitle')}</Text>
           </View>

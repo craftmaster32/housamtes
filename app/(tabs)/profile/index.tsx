@@ -11,6 +11,7 @@ import {
   type GestureResponderEvent,
 } from 'react-native';
 import { Entrance } from '@components/shared/Entrance';
+import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -925,6 +926,9 @@ export default function ProfileScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.topBackRow}>
+            <BackLink label={t('common.home')} />
+          </View>
           {/* ── Profile header ──────────────────────────────────────────── */}
           <View style={styles.profileHeader}>
             {/* Cover photo */}
@@ -1225,6 +1229,7 @@ function makeStyles(C: ColorTokens) {
     flex: { flex: 1 },
     container: { flex: 1, backgroundColor: C.background },
     scroll: { paddingBottom: ms(80) },
+    topBackRow: { paddingHorizontal: sizes.md, paddingTop: sizes.sm },
     content: { paddingHorizontal: sizes.md, gap: sizes.md, paddingBottom: sizes.lg },
 
     // Profile header

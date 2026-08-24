@@ -31,6 +31,7 @@ import { isRTL } from '@lib/i18n';
 import { Alert } from '@lib/alert';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
+import { BackLink } from '@components/shared/BackLink';
 import { parseRepeatText } from '@utils/repeatParser';
 import { normalizeInterval, normalizeWeekdays, expandRecurrenceDates } from '@utils/events';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -1110,6 +1111,7 @@ export default function CalendarScreen(): React.JSX.Element {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <BackLink label={t('common.home')} />
           {!!storeError && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorBannerText}>{storeError}</Text>
