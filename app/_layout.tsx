@@ -244,6 +244,12 @@ export default function RootLayout(): React.JSX.Element | null {
   const segmentsKey = segArr[0] ?? '';
   const currentScreen = segArr[1] ?? '';
 
+  // The swipe-back gesture lives at the root and is created once, so it reads
+  // this ref rather than segmentsKey directly — it must only act inside the tabs,
+  // never on auth/onboarding.
+  const inTabsRef = useRef(false);
+  inTabsRef.current = segmentsKey === '(tabs)';
+
   const loadHousemates = useHousematesStore((s) => s.load);
   const loadBills = useBillsStore((s) => s.load);
   const loadRecurringBills = useRecurringBillsStore((s) => s.load);
@@ -464,7 +470,8 @@ export default function RootLayout(): React.JSX.Element | null {
         return startX > 22 && startX < 70 && dx > 20 && Math.abs(dx) > Math.abs(dy) * 1.5;
       },
       onPanResponderRelease: (_, { dx }) => {
-        if (dx > 70) {
+        // Only inside the tabs — never hijack an auth/onboarding swipe.
+        if (inTabsRef.current && dx > 70) {
           goBack();
         }
       },

@@ -97,7 +97,7 @@ export default function GamesScreen(): React.JSX.Element {
       {/* Header */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => goBack()}
+          onPress={goBack}
           style={styles.backBtn}
           accessible
           accessibilityRole="button"

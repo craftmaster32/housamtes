@@ -320,7 +320,7 @@ export default function AddBillScreen(): React.JSX.Element {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => goBack()} style={styles.backBtn}>
+          <Pressable onPress={goBack} style={styles.backBtn}>
             <Ionicons
               name={isRTL(currentLanguage) ? 'chevron-forward' : 'chevron-back'}
               size={20}

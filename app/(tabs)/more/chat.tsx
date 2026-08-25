@@ -395,7 +395,7 @@ export default function ChatScreen(): React.JSX.Element {
       <View style={styles.flex}>
         <View style={styles.header}>
           <Pressable
-            onPress={() => goBack()}
+            onPress={goBack}
             style={styles.backBtn}
             hitSlop={{ top: ms(8), bottom: ms(8), left: ms(8), right: ms(8) }}
             accessible

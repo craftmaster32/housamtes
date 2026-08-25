@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
-import { router, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,9 +51,8 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
 
   const handleBack = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    // Walk the logical back stack (flow → base → home); fall back to home if
-    // we're already at the root.
-    if (!goBack()) router.push('/(tabs)/dashboard');
+    // Walk one step back; goBack already collapses to home when at the root.
+    goBack();
   }, []);
 
   const handleProfilePress = useCallback((): void => {
