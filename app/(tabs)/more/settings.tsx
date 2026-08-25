@@ -2,8 +2,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Modal, Platform, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { navigateToBase } from '@stores/navigationStore';
+import { BackLink } from '@components/shared/BackLink';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -182,6 +183,10 @@ const TIMEZONES: { id: string; label: string; region: string }[] = [
 
 export default function SettingsScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  // Settings is reached from the Profile page (from=profile) or from the home
+  // avatar menu / More list. Back always returns to wherever you came from
+  // (goBack); the label just names that destination.
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const houseName = useHousematesStore((s) => s.houseName);
   const inviteCode = useHousematesStore((s) => s.inviteCode);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -311,17 +316,9 @@ export default function SettingsScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.flex}>
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => navigateToBase('/(tabs)/profile')}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-        >
-          <Text style={styles.backBtnText}>
-            {isRTL(currentLanguage) ? t('settings.back_rtl') : t('settings.back')}
-          </Text>
-        </Pressable>
+        <View style={styles.backRow}>
+          <BackLink label={from === 'profile' ? t('nav.profile') : t('common.home')} />
+        </View>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <Text style={[styles.heading, headingFont]}>{t('settings.title')}</Text>
@@ -732,12 +729,7 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
-    backBtn: {
-      paddingHorizontal: sizes.lg,
-      paddingVertical: sizes.sm,
-      alignSelf: 'flex-start',
-    },
-    backBtnText: { fontSize: mf(16), ...font.semibold, color: C.primary },
+    backRow: { paddingHorizontal: sizes.lg, paddingTop: sizes.sm },
     scroll: { paddingHorizontal: sizes.lg, paddingBottom: ms(60) },
     heading: {
       fontSize: mf(28),
