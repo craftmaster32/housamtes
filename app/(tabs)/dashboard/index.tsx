@@ -15,8 +15,6 @@ import {
   calculateSimplifiedBalancesForUser,
 } from '@stores/billsStore';
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
-import { useEventsStore, type HouseEvent } from '@stores/eventsStore';
-import { isEventImminent, nextOccurrenceOnOrAfter } from '@utils/events';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useMemberName } from '@hooks/useMemberName';
@@ -33,6 +31,7 @@ import { isRTL } from '@lib/i18n';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
 import { DashboardCarousel } from '@components/dashboard/DashboardCarousel';
+import { HappeningNow } from '@components/dashboard/HappeningNow';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useHouseActivity, useActionItems } from '@hooks/useHouseActivity';
@@ -64,11 +63,6 @@ function timeAgo(
   const hours = Math.floor(mins / 60);
   if (hours < 24) return t('common.hours_ago', { n: hours });
   return new Date(iso).toLocaleDateString(localeFor(lang), { month: 'short', day: 'numeric' });
-}
-
-function todayYMD(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ── Header ──────────────────────────────────────────────────────────────────
@@ -174,105 +168,6 @@ function Header(): React.JSX.Element {
         onClose={() => setShowActivity(false)}
       />
     </>
-  );
-}
-
-// ── Today row (next upcoming event) ───────────────────────────────────────────
-function TodayRow(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
-  const events = useEventsStore((s) => s.events);
-  const today = todayYMD();
-
-  // Resolve each event to its next occurrence (expanding weekly/monthly/yearly
-  // repeats), then pick the soonest — so a recurring event whose base date is
-  // in the past still surfaces, matching the reminder push.
-  const next = useMemo<HouseEvent | undefined>(() => {
-    let best: HouseEvent | undefined;
-    for (const e of events) {
-      const occ = nextOccurrenceOnOrAfter(e, today);
-      if (!occ) continue;
-      const candidate = { ...e, date: occ };
-      if (
-        !best ||
-        candidate.date < best.date ||
-        (candidate.date === best.date && (candidate.startTime ?? '') < (best.startTime ?? ''))
-      ) {
-        best = candidate;
-      }
-    }
-    return best;
-  }, [events, today]);
-
-  if (!next) return <></>;
-
-  const isToday = next.date === today;
-
-  // Events happening today or within the next 24h get promoted to a prominent
-  // pinned-style banner (matching the house announcement), so they can't be
-  // missed. Everything further out stays as the compact date row.
-  if (isEventImminent(next)) {
-    const when = isToday ? t('common.today') : t('common.tomorrow');
-    const eyebrow = (next.startTime ? `${when} · ${next.startTime}` : when).toUpperCase();
-    return (
-      <Pressable
-        style={({ pressed }) => [
-          styles.eventBanner,
-          { backgroundColor: c.secondary, borderLeftColor: c.primary },
-          pressed && styles.pressed,
-        ]}
-        onPress={() => navigateToBase('/(tabs)/calendar')}
-        accessibilityRole="button"
-        accessibilityLabel={`${eyebrow} — ${next.title}`}
-      >
-        <View style={[styles.pinnedIcon, { backgroundColor: c.primaryTint }]}>
-          <Ionicons name="calendar" size={16} color={c.primary} />
-        </View>
-        <View style={styles.flex1}>
-          <View style={styles.pinnedTop}>
-            <Text style={[styles.pinnedLabel, { color: c.primary }]} numberOfLines={1}>
-              {eyebrow}
-            </Text>
-          </View>
-          <Text style={[styles.pinnedText, { color: c.textPrimary }]} numberOfLines={2}>
-            {next.title}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  }
-
-  const d = new Date(`${next.date}T12:00:00`);
-  const month = d.toLocaleDateString(localeFor(language), { month: 'short' });
-  const day = d.getDate();
-  const dateLabel = d.toLocaleDateString(localeFor(language), { weekday: 'short' }).toUpperCase();
-  const title = next.startTime ? `${next.title} · ${next.startTime}` : next.title;
-
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.todayRow,
-        { backgroundColor: c.surface, borderColor: c.border, borderLeftColor: c.primary },
-        pressed && styles.pressed,
-      ]}
-      onPress={() => navigateToBase('/(tabs)/calendar')}
-      accessibilityRole="button"
-      accessibilityLabel={`${dateLabel} ${title}`}
-    >
-      <View style={[styles.todayDate, { backgroundColor: c.primaryTint }]}>
-        <Text style={[styles.todayDateM, { color: c.primary }]}>{month}</Text>
-        <Text style={[styles.todayDateN, { color: c.primary }]}>{day}</Text>
-      </View>
-      <View style={styles.flex1}>
-        <Text style={[styles.todayEyebrow, { color: c.primary }]}>{dateLabel}</Text>
-        <Text style={[styles.todayTitle, { color: c.textPrimary }]} numberOfLines={1}>
-          {title}
-        </Text>
-      </View>
-      <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={17} color={c.textTertiary} />
-    </Pressable>
   );
 }
 
@@ -487,11 +382,11 @@ export default function DashboardScreen(): React.JSX.Element {
         <DashboardErrorBanner />
 
         <Animated.View entering={FadeInDown.delay(60).duration(400)}>
-          <TodayRow />
+          <PinnedNote />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <PinnedNote />
+          <HappeningNow />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(140).duration(450)} style={styles.block}>
@@ -564,39 +459,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: ms(3),
   },
   bellBadgeText: { fontSize: mf(10), ...font.bold, color: '#fff' },
-
-  // ── Today row
-  todayRow: {
-    marginTop: ms(14),
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(11),
-    borderWidth: 1,
-    borderLeftWidth: 3,
-    borderRadius: ms(14),
-    padding: ms(11),
-  },
-  todayDate: {
-    width: ms(34),
-    height: ms(34),
-    borderRadius: ms(11),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  todayDateM: { fontSize: mf(9), ...font.bold, textTransform: 'uppercase', lineHeight: mf(11) },
-  todayDateN: { fontSize: mf(15), ...font.extrabold, lineHeight: mf(17) },
-  todayEyebrow: { fontSize: mf(10), ...font.bold, letterSpacing: 0.5, textTransform: 'uppercase' },
-  todayTitle: { fontSize: mf(14), ...font.semibold, marginTop: ms(1) },
-
-  // ── Upcoming event banner (today / within 24h)
-  eventBanner: {
-    marginTop: ms(14),
-    flexDirection: 'row',
-    gap: ms(11),
-    borderRadius: ms(18),
-    borderLeftWidth: 3,
-    padding: ms(14),
-  },
 
   // ── Pinned note
   pinned: {
