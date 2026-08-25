@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -246,9 +246,12 @@ export default function RootLayout(): React.JSX.Element | null {
 
   // The swipe-back gesture lives at the root and is created once, so it reads
   // this ref rather than segmentsKey directly — it must only act inside the tabs,
-  // never on auth/onboarding.
+  // never on auth/onboarding. Updated in a layout effect (after commit) so the
+  // gesture never observes a route from a render that was thrown away.
   const inTabsRef = useRef(false);
-  inTabsRef.current = segmentsKey === '(tabs)';
+  useLayoutEffect((): void => {
+    inTabsRef.current = segmentsKey === '(tabs)';
+  }, [segmentsKey]);
 
   const loadHousemates = useHousematesStore((s) => s.load);
   const loadBills = useBillsStore((s) => s.load);

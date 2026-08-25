@@ -3,7 +3,7 @@ import { CommonActions } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { setCurrentTab, collapseHistoryForBase } from '@stores/navigationStore';
 
-interface TabHistoryBridgeProps {
+interface Props {
   state: BottomTabBarProps['state'];
   navigation: BottomTabBarProps['navigation'];
 }
@@ -16,14 +16,14 @@ interface TabHistoryBridgeProps {
 //  2. on native, resets the tab history to [home, section] when a section is
 //     focused, so back returns home regardless of how it was reached (flow pages
 //     are left untouched).
-export function TabHistoryBridge({ state, navigation }: TabHistoryBridgeProps): null {
+export function TabHistoryBridge({ state, navigation }: Props): null {
   const focusedName = state.routes[state.index]?.name;
 
-  useEffect(() => {
+  useEffect((): void => {
     if (focusedName) setCurrentTab(focusedName);
   }, [focusedName]);
 
-  useEffect(() => {
+  useEffect((): void => {
     const nextHistory = collapseHistoryForBase(state.routes, state.index, state.history);
     if (!nextHistory) return;
     navigation.dispatch({

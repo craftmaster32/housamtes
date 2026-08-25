@@ -31,7 +31,9 @@ export default function AppearanceSettingsScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
-  const handleBack = useCallback(() => goBack(), []);
+  const handleBack = useCallback((): void => {
+    goBack();
+  }, []);
   const handleSelect = useCallback(
     (mode: ThemeMode) => {
       setThemeMode(mode);

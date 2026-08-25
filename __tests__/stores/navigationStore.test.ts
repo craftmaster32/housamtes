@@ -31,7 +31,7 @@ import {
   setCurrentTab,
   navigateToBase,
   goBack,
-} from '../../stores/navigationStore';
+} from '@stores/navigationStore';
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();

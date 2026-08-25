@@ -81,7 +81,9 @@ export default function CalendarSettingsScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
-  const handleBack = useCallback(() => goBack(), []);
+  const handleBack = useCallback((): void => {
+    goBack();
+  }, []);
   const handleCalendarToggle = useCallback(async (): Promise<void> => {
     setCalLoading(true);
     try {

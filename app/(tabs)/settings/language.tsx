@@ -22,7 +22,9 @@ export default function LanguageSettingsScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
-  const handleBack = useCallback(() => goBack(), []);
+  const handleBack = useCallback((): void => {
+    goBack();
+  }, []);
 
   const options: { code: AppLanguage; label: string; flag: string }[] = [
     { code: 'en', label: t('settings.language_en'), flag: '🇬🇧' },

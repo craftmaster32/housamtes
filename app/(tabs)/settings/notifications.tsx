@@ -230,7 +230,9 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
     await handleEnableWebPush();
   }, [user?.id, houseId, webPushStatus, handleEnableWebPush, t]);
 
-  const handleBack = useCallback(() => goBack(), []);
+  const handleBack = useCallback((): void => {
+    goBack();
+  }, []);
   const handleSelectDay = useCallback((d: BillDueDays) => save({ billDueDaysBefore: d }), [save]);
   const handleSelectEventDay = useCallback(
     (d: EventReminderDays) => save({ eventReminderDaysBefore: d }),

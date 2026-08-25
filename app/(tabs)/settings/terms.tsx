@@ -50,7 +50,9 @@ export default function TermsScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
-  const handleBackPress = useCallback(() => goBack(), []);
+  const handleBackPress = useCallback((): void => {
+    goBack();
+  }, []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>

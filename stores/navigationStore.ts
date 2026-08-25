@@ -26,7 +26,10 @@ export const HOME_ROUTE = '/(tabs)/dashboard';
 // The home tab's route name inside the Tabs navigator.
 export const HOME_TAB_NAME = 'dashboard/index';
 
-type HistoryItem = { type: 'route'; key: string };
+interface HistoryItem {
+  type: 'route';
+  key: string;
+}
 interface RouteLite {
   name: string;
   key: string;
