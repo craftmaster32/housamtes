@@ -6,6 +6,7 @@ import {
   Pressable,
   Modal,
   Animated,
+  Platform,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
@@ -683,16 +684,20 @@ export function DashboardCarousel(): React.JSX.Element {
     setWidth(e.nativeEvent.layout.width);
   }, []);
 
-  // In RTL the horizontal scroll offset runs negative (0 at the right, growing
-  // negative toward the left), so flip its sign to get a plain 0→N position.
+  // The horizontal scroll offset's sign in RTL is platform-specific: iOS and web
+  // run it negative (0 at the right, growing negative toward the left), while
+  // Android keeps it positive (0 on the left). Multiplying the raw offset by this
+  // sign always yields a plain 0→N position, and using the same sign to write
+  // (goTo / scrollProgress) keeps read and write consistent. LTR is always +1.
+  const rtlScrollSign = rtl && Platform.OS !== 'android' ? -1 : 1;
   const syncIndex = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>): void => {
       if (stride <= 0) return;
-      const offset = e.nativeEvent.contentOffset.x * (rtl ? -1 : 1);
+      const offset = e.nativeEvent.contentOffset.x * rtlScrollSign;
       const i = Math.max(0, Math.min(Math.round(offset / stride), railKeys.length - 1));
       setIndex((prev) => (prev === i ? prev : i));
     },
-    [stride, railKeys.length, rtl]
+    [stride, railKeys.length, rtlScrollSign]
   );
 
   // Live scroll position drives the smooth dot morph (and web dot tracking).
@@ -707,17 +712,17 @@ export function DashboardCarousel(): React.JSX.Element {
 
   const goTo = useCallback(
     (i: number): void => {
-      scrollRef.current?.scrollTo({ x: i * stride * (rtl ? -1 : 1), animated: true });
+      scrollRef.current?.scrollTo({ x: i * stride * rtlScrollSign, animated: true });
       setIndex(i);
     },
-    [stride, rtl]
+    [stride, rtlScrollSign]
   );
 
-  // The dot morph interpolates on a growing positive position; in RTL the raw
-  // offset is negative, so feed it the flipped value.
+  // The dot morph interpolates on a growing positive position; feed it the
+  // sign-corrected offset so it grows positively on every platform.
   const scrollProgress = useMemo(
-    () => (rtl ? Animated.multiply(scrollX, -1) : scrollX),
-    [rtl, scrollX]
+    () => (rtlScrollSign === 1 ? scrollX : Animated.multiply(scrollX, rtlScrollSign)),
+    [rtlScrollSign, scrollX]
   );
 
   const rail =

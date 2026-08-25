@@ -752,7 +752,7 @@ export default function BillsScreen(): React.JSX.Element {
       <FlatList
         style={styles.flex}
         data={billSections}
-        keyExtractor={(section) => section.title}
+        keyExtractor={(section) => section.key}
         renderItem={renderGroup}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

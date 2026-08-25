@@ -1,4 +1,9 @@
-import { isEventImminent, nextOccurrenceOnOrAfter, expandRecurrenceDates } from '@utils/events';
+import {
+  isEventImminent,
+  nextOccurrenceOnOrAfter,
+  expandRecurrenceDates,
+  expandRecurringSpanDays,
+} from '@utils/events';
 
 describe('isEventImminent', () => {
   // Fixed reference point: Mon 20 Jul 2026, 15:00 local time.
@@ -156,9 +161,9 @@ describe('nextOccurrenceOnOrAfter', () => {
   it('resolves a daily event whose base date is in the very distant past', () => {
     // 1970-01-01 daily needs >20,000 advances to reach 2026-07-20.
     // The old 10,000-iteration guard would return undefined; removing it must fix that.
-    expect(
-      nextOccurrenceOnOrAfter({ date: '1970-01-01', recurrence: 'daily' }, '2026-07-20')
-    ).toBe('2026-07-20');
+    expect(nextOccurrenceOnOrAfter({ date: '1970-01-01', recurrence: 'daily' }, '2026-07-20')).toBe(
+      '2026-07-20'
+    );
   });
 });
 
@@ -248,5 +253,49 @@ describe('expandRecurrenceDates', () => {
     expect(result[0]).toBe('2026-07-06'); // first Monday (base)
     expect(result[1]).toBe('2026-07-09'); // first Thursday
     expect(result[result.length - 1]).toBe('2037-06-18'); // final Thursday
+  });
+});
+
+describe('expandRecurringSpanDays', () => {
+  const d = (s: string): Date => new Date(`${s}T00:00:00`);
+
+  it('de-duplicates overlapping occurrences of a multi-day daily event', () => {
+    // Daily event, each occurrence spans 2 days (spanDays=1): consecutive
+    // occurrences overlap on the shared day.
+    const days = expandRecurringSpanDays(
+      { date: '2026-07-01', recurrence: 'daily' },
+      1,
+      d('2026-07-01'),
+      d('2026-07-05')
+    );
+    expect(new Set(days).size).toBe(days.length); // no duplicate keys
+    expect(days).toEqual(
+      expect.arrayContaining(['2026-07-01', '2026-07-02', '2026-07-03', '2026-07-04', '2026-07-05'])
+    );
+  });
+
+  it('includes the in-window tail of an occurrence that starts before the window', () => {
+    // Monthly on the 1st, each occurrence spans 4 days (spanDays=3). The window is
+    // a single day (the 3rd) that only the 1st-of-month occurrence reaches.
+    const days = expandRecurringSpanDays(
+      { date: '2026-07-01', recurrence: 'monthly' },
+      3,
+      d('2026-07-03'),
+      d('2026-07-03')
+    );
+    expect(days).toContain('2026-07-03');
+  });
+
+  it('does not double-count a day two occurrences both cover', () => {
+    // Weekly on Mon & Thu, each spanning 4 days (spanDays=3). The Monday (06)
+    // occurrence covers 06–09 and the Thursday (09) covers 09–12, overlapping the 9th.
+    const days = expandRecurringSpanDays(
+      { date: '2026-07-06', recurrence: 'weekly', recurrenceDays: [1, 4] },
+      3,
+      d('2026-07-06'),
+      d('2026-07-12')
+    );
+    expect(days.filter((x) => x === '2026-07-09')).toHaveLength(1);
+    expect(new Set(days).size).toBe(days.length);
   });
 });

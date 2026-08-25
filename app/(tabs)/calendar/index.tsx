@@ -33,7 +33,12 @@ import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { BackLink } from '@components/shared/BackLink';
 import { parseRepeatText } from '@utils/repeatParser';
-import { normalizeInterval, normalizeWeekdays, expandRecurrenceDates } from '@utils/events';
+import {
+  normalizeInterval,
+  normalizeWeekdays,
+  expandRecurrenceDates,
+  expandRecurringSpanDays,
+} from '@utils/events';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -875,23 +880,17 @@ export default function CalendarScreen(): React.JSX.Element {
       };
 
       if (e.recurrence) {
-        const dates = expandRecurrenceDates(e, gridStart, expandEnd);
         if (e.endDate && e.endDate > e.date) {
           const spanDays = Math.round(
             (new Date(e.endDate + 'T00:00:00').getTime() -
               new Date(e.date + 'T00:00:00').getTime()) /
               86400000
           );
-          for (const d of dates) {
-            const anchor = new Date(d + 'T00:00:00');
-            for (let offset = 0; offset <= spanDays; offset++) {
-              const cur = new Date(anchor);
-              cur.setDate(anchor.getDate() + offset);
-              list.push({ ...base, id: `ev-${e.id}-${toYMD(cur)}`, date: toYMD(cur) });
-            }
+          for (const day of expandRecurringSpanDays(e, spanDays, gridStart, expandEnd)) {
+            list.push({ ...base, id: `ev-${e.id}-${day}`, date: day });
           }
         } else {
-          for (const d of dates) {
+          for (const d of expandRecurrenceDates(e, gridStart, expandEnd)) {
             list.push({ ...base, id: `ev-${e.id}-${d}`, date: d });
           }
         }
