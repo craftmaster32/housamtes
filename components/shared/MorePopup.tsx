@@ -158,7 +158,7 @@ export function MorePopup(): React.JSX.Element {
   const [panelMounted, setPanelMounted] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
+  useEffect((): void => {
     if (isOpen) {
       setPanelMounted(true);
       skipCloseAnim.current = false;
@@ -188,7 +188,7 @@ export function MorePopup(): React.JSX.Element {
   // cases the menu must be gone instantly — no slide-down, nothing left to
   // replay over the destination. This wipes it unconditionally so back always
   // lands on a clean home page.
-  useEffect(() => {
+  useEffect((): void => {
     skipCloseAnim.current = false;
     anim.setValue(0);
     setPanelMounted(false);

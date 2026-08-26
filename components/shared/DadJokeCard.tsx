@@ -50,7 +50,7 @@ export function DadJokeCard({ animateEntrance = true }: Props): React.JSX.Elemen
         </View>
       </View>
 
-      <Animated.View key={key} entering={animateEntrance ? FadeIn.duration(300) : undefined}>
+      <Animated.View key={key} entering={animateEntrance || key > 0 ? FadeIn.duration(300) : undefined}>
         <Text style={[styles.setup, { color: c.textPrimary }]}>{joke.setup}</Text>
 
         {revealed ? (
