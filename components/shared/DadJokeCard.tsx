@@ -11,7 +11,11 @@ import { sizes } from '@constants/sizes';
 import { getDailyJoke, getRandomJoke, type DadJoke } from '@constants/dadJokes';
 
 import { mf, ms } from '@utils/responsive';
-export function DadJokeCard(): React.JSX.Element {
+interface Props {
+  animateEntrance?: boolean;
+}
+
+export function DadJokeCard({ animateEntrance = true }: Props): React.JSX.Element {
   const c = useThemedColors();
   const { t } = useTranslation();
   const [joke, setJoke] = useState<DadJoke>(getDailyJoke);
@@ -46,7 +50,7 @@ export function DadJokeCard(): React.JSX.Element {
         </View>
       </View>
 
-      <Animated.View key={key} entering={FadeIn.duration(300)}>
+      <Animated.View key={key} entering={animateEntrance ? FadeIn.duration(300) : undefined}>
         <Text style={[styles.setup, { color: c.textPrimary }]}>{joke.setup}</Text>
 
         {revealed ? (

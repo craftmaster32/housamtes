@@ -422,7 +422,7 @@ export default function DashboardScreen(): React.JSX.Element {
           entering={animateEntrance ? FadeInDown.delay(320).duration(450) : undefined}
           style={styles.block}
         >
-          <DadJokeCard />
+          <DadJokeCard animateEntrance={animateEntrance} />
         </Animated.View>
 
         <Animated.View
