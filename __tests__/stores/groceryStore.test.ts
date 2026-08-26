@@ -69,7 +69,12 @@ jest.mock('@lib/supabase', () => ({
 }));
 
 jest.mock('@stores/authStore', () => ({
-  useAuthStore: { getState: (): { houseId: string } => ({ houseId: 'house-1' }) },
+  useAuthStore: {
+    getState: (): { houseId: string; profile: { id: string } } => ({
+      houseId: 'house-1',
+      profile: { id: 'u-groc' },
+    }),
+  },
 }));
 
 jest.mock('@lib/notifyHousemates', () => ({
@@ -202,6 +207,41 @@ describe('toggleItem', () => {
     await useGroceryStore.getState().toggleItem('does-not-exist');
     expect(useGroceryStore.getState().items[0].isChecked).toBe(false);
     expect(mockFrom).not.toHaveBeenCalled();
+  });
+});
+
+// ── updateItem ────────────────────────────────────────────────────────────────
+
+describe('updateItem', () => {
+  it('applies the new name/quantity and stamps who edited it', async () => {
+    seedItems({ name: 'Milk', quantity: '1' });
+    const chain = ok(null);
+    mockFrom.mockReturnValue(chain);
+
+    await useGroceryStore.getState().updateItem('item-1', 'Oat milk', '2');
+
+    const updated = useGroceryStore.getState().items[0];
+    expect(updated.name).toBe('Oat milk');
+    expect(updated.quantity).toBe('2');
+    // Stamped so the edit can surface as "edited a shopping item" in the bell.
+    expect(updated.editedBy).toBe('u-groc');
+    expect(typeof updated.editedAt).toBe('string');
+    // …and the audit fields are sent to the database, not just kept locally.
+    expect(chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ edited_by: 'u-groc', edited_at: expect.any(String) })
+    );
+  });
+
+  it('leaves state unchanged when the DB update fails', async () => {
+    seedItems({ name: 'Milk', quantity: '1' });
+    mockFrom.mockReturnValue(fail('permission denied'));
+
+    await expect(useGroceryStore.getState().updateItem('item-1', 'Oat milk', '2')).rejects.toThrow(
+      'Could not update the item. Please try again.'
+    );
+
+    expect(useGroceryStore.getState().items[0].name).toBe('Milk');
+    expect(useGroceryStore.getState().items[0].editedBy).toBeUndefined();
   });
 });
 

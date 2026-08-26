@@ -17,6 +17,8 @@ export interface Announcement {
   text: string;
   createdAt: string;
   updatedAt: string;
+  editedAt: string | null; // when the note text was last edited (not archived)
+  editedBy: string | null; // user UUID who last edited it
 }
 
 interface AnnouncementsStore {
@@ -38,6 +40,8 @@ function rowToNote(r: Record<string, unknown>): Announcement {
     text: r.text as string,
     createdAt: r.created_at as string,
     updatedAt: (r.updated_at ?? r.created_at) as string,
+    editedAt: (r.edited_at ?? null) as string | null,
+    editedBy: (r.edited_by ?? null) as string | null,
   };
 }
 
@@ -163,9 +167,11 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
       },
       edit: async (id, text): Promise<void> => {
         const parsed = houseNoteSchema.parse({ text });
+        const editedBy = useAuthStore.getState().profile?.id ?? null;
+        const now = new Date().toISOString();
         const { error } = await supabase
           .from('announcements')
-          .update({ text: parsed.text })
+          .update({ text: parsed.text, edited_at: now, edited_by: editedBy })
           .eq('id', id);
         if (error) {
           captureError(error, {
@@ -175,10 +181,9 @@ export const useAnnouncementsStore = create<AnnouncementsStore>()(
           });
           throw new Error('Could not save the note. Please try again.');
         }
-        const now = new Date().toISOString();
         set({
           items: get().items.map((i) =>
-            i.id === id ? { ...i, text: parsed.text, updatedAt: now } : i
+            i.id === id ? { ...i, text: parsed.text, updatedAt: now, editedAt: now, editedBy } : i
           ),
         });
       },

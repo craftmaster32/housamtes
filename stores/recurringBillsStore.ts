@@ -34,6 +34,8 @@ export interface RecurringBill {
   icon: string;
   createdAt: string;
   nextDueDate?: string; // YYYY-MM-DD — used when no payments have been logged yet
+  editedAt: string | null; // when the bill was last edited
+  editedBy: string | null; // user UUID who last edited it
 }
 
 export interface HouseholdPayment {
@@ -41,8 +43,12 @@ export interface HouseholdPayment {
   billId: string;
   amount: number;
   paidAt: string; // YYYY-MM-DD
+  createdAt: string; // when the payment was logged — feeds the activity feed
   note: string;
   splitBetween?: string[]; // user UUIDs sharing the cost; undefined = split among all housemates
+  loggedBy: string | null; // user UUID who logged it (may differ from the bill's assignee)
+  editedAt: string | null; // when the payment was last edited
+  editedBy: string | null; // user UUID who last edited it
 }
 
 interface RecurringBillsStore {
@@ -54,7 +60,7 @@ interface RecurringBillsStore {
   load: (houseId: string) => Promise<void>;
   unsubscribe: () => void;
   addBill: (
-    bill: Omit<RecurringBill, 'id' | 'createdAt'>,
+    bill: Omit<RecurringBill, 'id' | 'createdAt' | 'editedAt' | 'editedBy'>,
     houseId: string
   ) => Promise<RecurringBill>;
   updateBill: (
@@ -62,7 +68,10 @@ interface RecurringBillsStore {
     changes: Pick<RecurringBill, 'name' | 'assignedTo' | 'frequency' | 'typicalAmount' | 'icon'>
   ) => Promise<void>;
   deleteBill: (id: string) => Promise<void>;
-  logPayment: (payment: Omit<HouseholdPayment, 'id'>, houseId: string) => Promise<void>;
+  logPayment: (
+    payment: Omit<HouseholdPayment, 'id' | 'createdAt' | 'loggedBy' | 'editedAt' | 'editedBy'>,
+    houseId: string
+  ) => Promise<void>;
   updatePayment: (
     id: string,
     changes: Pick<HouseholdPayment, 'amount' | 'paidAt' | 'note' | 'splitBetween'>
@@ -118,17 +127,23 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             icon: r.icon ?? 'receipt-outline',
             createdAt: r.created_at,
             nextDueDate: r.next_due_date ?? undefined,
+            editedAt: r.edited_at ?? null,
+            editedBy: r.edited_by ?? null,
           }));
           const payments: HouseholdPayment[] = (paymentsRes.data ?? []).map((r) => ({
             id: r.id,
             billId: r.bill_id,
             amount: Number(r.amount),
             paidAt: r.paid_at,
+            createdAt: r.created_at,
             note: r.note ?? '',
             splitBetween:
               Array.isArray(r.split_between) && r.split_between.length > 0
                 ? (r.split_between as string[])
                 : undefined,
+            loggedBy: r.logged_by ?? null,
+            editedAt: r.edited_at ?? null,
+            editedBy: r.edited_by ?? null,
           }));
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
@@ -214,6 +229,8 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           icon: inserted.icon ?? 'receipt-outline',
           createdAt: inserted.created_at,
           nextDueDate: inserted.next_due_date ?? undefined,
+          editedAt: null,
+          editedBy: null,
         };
         set({ bills: [...get().bills, bill] });
         return bill;
@@ -223,6 +240,8 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         if (!parsed.success) {
           throw new Error('Please check the bill details and try again.');
         }
+        const editedBy = useAuthStore.getState().profile?.id ?? null;
+        const editedAt = new Date().toISOString();
         let updated;
         try {
           const res = await supabase
@@ -233,6 +252,8 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
               frequency: parsed.data.frequency,
               typical_amount: parsed.data.typicalAmount,
               icon: parsed.data.icon,
+              edited_at: editedAt,
+              edited_by: editedBy,
             })
             .eq('id', id)
             .select()
@@ -253,6 +274,8 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
                   frequency: updated.frequency as BillFrequency,
                   typicalAmount: Number(updated.typical_amount),
                   icon: updated.icon ?? 'receipt-outline',
+                  editedAt: updated.edited_at ?? editedAt,
+                  editedBy: updated.edited_by ?? editedBy,
                 }
               : b
           ),
@@ -274,6 +297,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         // NOT NULL, and the load path treats an empty array the same as "all housemates".
         const splitBetween =
           data.splitBetween && data.splitBetween.length > 0 ? data.splitBetween : [];
+        const loggedBy = useAuthStore.getState().profile?.id ?? null;
         const { data: inserted, error } = await supabase
           .from('household_payments')
           .insert({
@@ -283,6 +307,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             paid_at: data.paidAt,
             note: data.note,
             split_between: splitBetween,
+            logged_by: loggedBy,
           })
           .select()
           .single();
@@ -295,11 +320,15 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           billId: inserted.bill_id,
           amount: Number(inserted.amount),
           paidAt: inserted.paid_at,
+          createdAt: inserted.created_at,
           note: inserted.note ?? '',
           splitBetween:
             Array.isArray(inserted.split_between) && inserted.split_between.length > 0
               ? (inserted.split_between as string[])
               : undefined,
+          loggedBy: inserted.logged_by ?? loggedBy,
+          editedAt: null,
+          editedBy: null,
         };
         set({ payments: [payment, ...get().payments] });
       },
@@ -314,6 +343,8 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           parsed.data.splitBetween && parsed.data.splitBetween.length > 0
             ? parsed.data.splitBetween
             : [];
+        const editedBy = useAuthStore.getState().profile?.id ?? null;
+        const editedAt = new Date().toISOString();
         let updated;
         try {
           const res = await supabase
@@ -323,6 +354,8 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
               paid_at: parsed.data.paidAt,
               note: parsed.data.note,
               split_between: splitBetween,
+              edited_at: editedAt,
+              edited_by: editedBy,
             })
             .eq('id', id)
             .select()
@@ -345,6 +378,8 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
                     Array.isArray(updated.split_between) && updated.split_between.length > 0
                       ? (updated.split_between as string[])
                       : undefined,
+                  editedAt: updated.edited_at ?? editedAt,
+                  editedBy: updated.edited_by ?? editedBy,
                 }
               : p
           ),
