@@ -17,6 +17,7 @@ import {
   type EntryType,
   type ConditionEntry,
 } from '@stores/conditionStore';
+import { BackLink } from '@components/shared/BackLink';
 import { DateInput } from '@components/shared/DateInput';
 import { PhotoPicker } from '@components/shared/PhotoPicker';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -620,6 +621,7 @@ export default function ConditionScreen(): React.JSX.Element {
           )}
 
           <View style={styles.pageHeader}>
+            <BackLink label={t('common.home')} />
             <Text style={[styles.heading, headingFont]}>{t('condition.title')}</Text>
             <Text style={styles.headingSub}>{t('condition.subtitle')}</Text>
           </View>

@@ -40,6 +40,14 @@ import { WelcomeTour } from '@components/dashboard/WelcomeTour';
 import { shouldShowTour, markTourSeen } from '@utils/tour';
 
 import { mf, ms } from '@utils/responsive';
+// The dashboard is the app's home base and, in a tabs navigator, can re-mount
+// whenever it's returned to. Its staggered fade-in cascade (delays up to 380ms +
+// ~450ms durations ≈ 0.8s) is a nice touch on the very first load, but replaying
+// it every time you press Back to come home made returning feel slow ("lagging").
+// This module-level flag plays the entrance once per app session; after that,
+// home renders instantly.
+let dashboardEntrancePlayed = false;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function greetingText(name: string, t: (key: string) => string): string {
   const h = new Date().getHours();
@@ -368,6 +376,13 @@ export default function DashboardScreen(): React.JSX.Element {
     markTourSeen();
   }, []);
 
+  // Only animate the entrance the first time home is shown this session; later
+  // returns render instantly so pressing Back to come home feels snappy.
+  const [animateEntrance] = useState(() => !dashboardEntrancePlayed);
+  useEffect(() => {
+    dashboardEntrancePlayed = true;
+  }, []);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <ScrollView
@@ -375,33 +390,45 @@ export default function DashboardScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.View entering={FadeIn.duration(400)}>
+        <Animated.View entering={animateEntrance ? FadeIn.duration(400) : undefined}>
           <Header />
         </Animated.View>
 
         <DashboardErrorBanner />
 
-        <Animated.View entering={FadeInDown.delay(60).duration(400)}>
+        <Animated.View entering={animateEntrance ? FadeInDown.delay(60).duration(400) : undefined}>
           <PinnedNote />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+        <Animated.View entering={animateEntrance ? FadeInDown.delay(100).duration(400) : undefined}>
           <HappeningNow />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(140).duration(450)} style={styles.block}>
+        <Animated.View
+          entering={animateEntrance ? FadeInDown.delay(140).duration(450) : undefined}
+          style={styles.block}
+        >
           <OwedHero />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(200).duration(450)} style={styles.block}>
+        <Animated.View
+          entering={animateEntrance ? FadeInDown.delay(200).duration(450) : undefined}
+          style={styles.block}
+        >
           <DashboardCarousel />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(320).duration(450)} style={styles.block}>
+        <Animated.View
+          entering={animateEntrance ? FadeInDown.delay(320).duration(450) : undefined}
+          style={styles.block}
+        >
           <DadJokeCard />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(380).duration(450)} style={styles.block}>
+        <Animated.View
+          entering={animateEntrance ? FadeInDown.delay(380).duration(450) : undefined}
+          style={styles.block}
+        >
           <GamesButton />
         </Animated.View>
       </ScrollView>

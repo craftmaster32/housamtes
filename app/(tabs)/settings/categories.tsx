@@ -21,6 +21,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { Entrance } from '@components/shared/Entrance';
+import { BackLink } from '@components/shared/BackLink';
 import { sizes } from '@constants/sizes';
 
 import { mf, ms } from '@utils/responsive';
@@ -434,6 +435,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
       >
+        <BackLink label={t('nav.settings')} />
         <Text style={[styles.screenTitle, headingFont]}>{t('categories.title')}</Text>
         <Text style={styles.screenSub}>{t('categories.subtitle')}</Text>
 

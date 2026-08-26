@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAnnouncementsStore, MAX_NOTES, type Announcement } from '@stores/announcementsStore';
 import { useAuthStore } from '@stores/authStore';
 import { NoteCard } from '@components/notes/NoteCard';
+import { BackLink } from '@components/shared/BackLink';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { Alert } from '@lib/alert';
@@ -99,6 +100,7 @@ export default function NotesScreen(): React.JSX.Element {
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           ListHeaderComponent={
             <View>
+              <BackLink label={t('common.home')} />
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>
                   <Text style={[styles.titleHero, headingFont]}>{t('notes.title')}</Text>

@@ -17,19 +17,12 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 
 import { mf, ms } from '@utils/responsive';
-// The redesign gave almost every screen its own header + back button, so the
-// shared TopBar is now only needed on the handful of legacy screens that still
-// lack one. Showing it anywhere else produced a duplicate ("two back buttons").
-// Keep this list in sync as those screens get their own headers.
-const LEGACY_TOPBAR_ROUTES = [
-  '/bills/setup',
-  '/tasks',
-  '/notes',
-  '/condition',
-  '/maintenance',
-  '/settings/members',
-  '/settings/categories',
-];
+// Every screen now renders its own in-page header with a "‹ Home"/"‹ Back"
+// BackLink, so the shared TopBar ("HouseMates" + chevron) is no longer shown on
+// any route — keeping it consistent app-wide and avoiding the two-back-buttons
+// duplicate it used to cause. The list is intentionally empty; add a route here
+// only if a new screen genuinely has no back affordance of its own.
+const LEGACY_TOPBAR_ROUTES: string[] = [];
 
 function needsTopBar(pathname: string): boolean {
   return LEGACY_TOPBAR_ROUTES.some((r) => pathname.endsWith(r) || pathname.includes(`${r}/index`));
