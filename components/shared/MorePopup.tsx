@@ -102,7 +102,15 @@ export function MorePopup(): React.JSX.Element {
   const close = useMorePopupStore((s) => s.close);
   const pathname = usePathname();
 
+  // When true, the next close skips the slide-down and snaps shut instantly.
+  // Used whenever the menu closes because we're navigating away — otherwise the
+  // 200ms close animation gets interrupted by the route change and visibly
+  // "finishes" over the next screen (and again on the way back).
+  const skipCloseAnim = useRef(false);
+
   useEffect(() => {
+    // Any route change means we've navigated — drop the menu immediately.
+    skipCloseAnim.current = true;
     close();
   }, [pathname, close]);
 
@@ -159,12 +167,19 @@ export function MorePopup(): React.JSX.Element {
   useEffect(() => {
     if (isOpen) {
       setPanelMounted(true);
+      skipCloseAnim.current = false;
       Animated.spring(anim, {
         toValue: 1,
         useNativeDriver: true,
         tension: 68,
         friction: 12,
       }).start();
+    } else if (skipCloseAnim.current) {
+      // Navigating away — snap shut with no animation so nothing lingers over
+      // the next screen or replays when coming back.
+      skipCloseAnim.current = false;
+      anim.setValue(0);
+      setPanelMounted(false);
     } else {
       Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start(
         ({ finished }) => {
@@ -192,6 +207,9 @@ export function MorePopup(): React.JSX.Element {
   const handleNav = useCallback(
     (item: NavItem): void => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      // Snap the menu shut instantly (we're navigating) so it doesn't animate
+      // over the destination or reappear when the user comes back home.
+      skipCloseAnim.current = true;
       close();
       const featureToMark = item.badgeKey ?? (item.featureKey as BadgeFeature | undefined);
       if (featureToMark) markSeen(featureToMark).catch(() => {});
