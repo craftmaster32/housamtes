@@ -206,33 +206,27 @@ export function MorePopup(): React.JSX.Element {
     close();
   }, [close]);
 
-  // The route the user tapped, held until the menu has actually left the DOM.
-  // The mobile browser (iOS Safari) saves a picture of this page the moment we
-  // navigate away and replays it during the back-swipe. If we navigated while
-  // the menu was still mounted, that picture would include the menu and you'd
-  // see it flash on the way back. So: close first, and only navigate once the
-  // panel has unmounted — the saved picture is then clean. This affects only
-  // navigation launched from this menu; the back-swipe and tab bar are untouched,
-  // so page transition animations are preserved.
-  const pendingRoute = useRef<string | null>(null);
-  useEffect((): void => {
-    if (!panelMounted && pendingRoute.current) {
-      const route = pendingRoute.current;
-      pendingRoute.current = null;
-      navigateToBase(route);
-    }
-  }, [panelMounted]);
-
   const handleNav = useCallback(
     (item: NavItem): void => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       const featureToMark = item.badgeKey ?? (item.featureKey as BadgeFeature | undefined);
       if (featureToMark) markSeen(featureToMark).catch(() => {});
-      // Queue the route, then snap the menu shut. The effect above navigates once
-      // the panel has unmounted, so the page's saved picture has no menu in it.
-      pendingRoute.current = item.route;
+      // Snap the menu shut instantly, then navigate.
       skipCloseAnim.current = true;
       close();
+      if (process.env.EXPO_OS === 'web') {
+        // The mobile browser (iOS Safari) uses the LAST frame Home actually
+        // painted as the image it replays during the back-swipe. If we navigate
+        // immediately, that last frame still shows the menu (you tapped while it
+        // was up), so you see it on the way back. Wait for two animation frames —
+        // long enough for Home to paint once with the menu gone — before routing,
+        // so the image Safari keeps is a clean home page. ~32ms, imperceptible.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => navigateToBase(item.route));
+        });
+      } else {
+        navigateToBase(item.route);
+      }
     },
     [close, markSeen]
   );
