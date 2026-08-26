@@ -325,6 +325,9 @@ export default function HousematesScreen(): React.JSX.Element {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.root}>
+        <View style={styles.scroll}>
+          <BackLink label={t('common.back')} />
+        </View>
         <View style={styles.centered}>
           <Text style={styles.loadingText}>{t('housemates.loading')}</Text>
         </View>

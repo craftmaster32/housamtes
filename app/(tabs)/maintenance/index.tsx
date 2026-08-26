@@ -89,6 +89,9 @@ export default function MaintenanceScreen(): React.JSX.Element {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.root}>
+        <View style={styles.scroll}>
+          <BackLink label={t('common.home')} />
+        </View>
         <View style={styles.centered}>
           <Text style={styles.emptyText}>{t('common.loading')}</Text>
         </View>
