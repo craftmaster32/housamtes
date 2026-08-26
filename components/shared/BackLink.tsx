@@ -32,7 +32,7 @@ export function BackLink({ label }: BackLinkProps): React.JSX.Element {
       hitSlop={12}
       accessible
       accessibilityRole="button"
-      accessibilityLabel={`${t('common.back')} — ${label}`}
+      accessibilityLabel={label === t('common.back') ? label : `${t('common.back')} — ${label}`}
     >
       <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={20} color={c.primary} />
       <Text style={[styles.text, { color: c.primary }]}>{label}</Text>
