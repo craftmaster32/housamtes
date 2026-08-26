@@ -108,12 +108,6 @@ export function MorePopup(): React.JSX.Element {
   // "finishes" over the next screen (and again on the way back).
   const skipCloseAnim = useRef(false);
 
-  useEffect(() => {
-    // Any route change means we've navigated — drop the menu immediately.
-    skipCloseAnim.current = true;
-    close();
-  }, [pathname, close]);
-
   const settingsFeatures = useSettingsStore((s) => s.features);
   const permissions = useAuthStore((s) => s.permissions);
   const profile = useAuthStore((s) => s.profile);
@@ -188,6 +182,21 @@ export function MorePopup(): React.JSX.Element {
       );
     }
   }, [isOpen, anim]);
+
+  // Hard reset on any route change. A route change always means we navigated
+  // (forward from the menu, or a swipe/back to home), and in every one of those
+  // cases the menu must be gone instantly — no slide-down, nothing left to
+  // replay over the destination. This wipes it unconditionally so back always
+  // lands on a clean home page.
+  useEffect(() => {
+    skipCloseAnim.current = false;
+    anim.setValue(0);
+    setPanelMounted(false);
+    close();
+    // Deliberately only on pathname change — not when the menu opens/closes in
+    // place (that path is handled by the animation effect above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const backdropOpacity = anim.interpolate({
     inputRange: [0, 1],
