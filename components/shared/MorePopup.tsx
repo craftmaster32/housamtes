@@ -213,26 +213,32 @@ export function MorePopup(): React.JSX.Element {
     close();
   }, [close]);
 
+  // A route the user picked from the menu, held until the panel has fully left
+  // the DOM. The mobile browser snapshots this page when we navigate away and
+  // replays that snapshot during a back-swipe; if the menu is still mounted at
+  // navigation time it ends up in the snapshot and you see it on the way back.
+  // So we close first, wait for the unmount, then navigate.
+  const pendingRoute = useRef<string | null>(null);
+
+  useEffect((): void => {
+    if (!panelMounted && pendingRoute.current) {
+      const route = pendingRoute.current;
+      pendingRoute.current = null;
+      navigateToBase(route);
+    }
+  }, [panelMounted]);
+
   const handleNav = useCallback(
     (item: NavItem): void => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      // Snap the menu shut instantly (we're navigating) so it doesn't animate
-      // over the destination or reappear when the user comes back home.
-      skipCloseAnim.current = true;
-      close();
       const featureToMark = item.badgeKey ?? (item.featureKey as BadgeFeature | undefined);
       if (featureToMark) markSeen(featureToMark).catch(() => {});
-      // On web, wait one frame so the menu is actually removed from the page
-      // before the route changes. The browser takes a snapshot of this page when
-      // we navigate away and replays it during a back-swipe; if we navigate in
-      // the same tick the menu is still in that snapshot and you'd see it on the
-      // way back. Native navigates immediately.
-      const go = (): void => navigateToBase(item.route);
-      if (process.env.EXPO_OS === 'web') {
-        requestAnimationFrame(go);
-      } else {
-        go();
-      }
+      // Queue the navigation, then snap the menu shut. The effect above fires the
+      // navigation once the panel is actually unmounted, so the page the browser
+      // snapshots for the back-swipe no longer contains the menu.
+      pendingRoute.current = item.route;
+      skipCloseAnim.current = true;
+      close();
     },
     [close, markSeen]
   );
