@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
@@ -97,7 +97,7 @@ export default function GamesScreen(): React.JSX.Element {
       {/* Header */}
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={goBack}
           style={styles.backBtn}
           accessible
           accessibilityRole="button"

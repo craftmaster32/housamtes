@@ -6,6 +6,7 @@ import {
   Pressable,
   Modal,
   Animated,
+  Platform,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
@@ -22,7 +23,7 @@ import Svg, {
   Rect,
 } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -363,7 +364,7 @@ function GroceriesCard({
     <View style={styles.shell}>
       <Pressable
         style={styles.cardTop}
-        onPress={() => router.push('/(tabs)/grocery')}
+        onPress={() => navigateToBase('/(tabs)/grocery')}
         accessibilityRole="button"
         accessibilityLabel={t('dashboard.grocery_list')}
       >
@@ -428,7 +429,7 @@ function ChoresCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JS
   return (
     <CardShell
       styles={styles}
-      onPress={() => router.push('/(tabs)/tasks')}
+      onPress={() => navigateToBase('/(tabs)/tasks')}
       accessibilityLabel={t('dashboard.x_of_y_done', { done, total })}
     >
       <View style={styles.cardTop}>
@@ -487,7 +488,7 @@ function VotesCard({
   return (
     <CardShell
       styles={styles}
-      onPress={() => router.push('/(tabs)/voting')}
+      onPress={() => navigateToBase('/(tabs)/voting')}
       accessibilityLabel={t('dashboard.votes_label')}
     >
       <View style={styles.cardTop}>
@@ -543,7 +544,7 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
       ? styles.parkArtNarrow
       : styles.parkArt;
   const handleParkingPress = useCallback((): void => {
-    router.push('/(tabs)/parking');
+    navigateToBase('/(tabs)/parking');
   }, []);
   return (
     <Pressable
@@ -605,7 +606,7 @@ function BillsCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX
   return (
     <CardShell
       styles={styles}
-      onPress={() => router.push('/(tabs)/bills')}
+      onPress={() => navigateToBase('/(tabs)/bills')}
       accessibilityLabel={t('dashboard.bills_label')}
     >
       <View style={styles.cardTop}>
@@ -683,16 +684,20 @@ export function DashboardCarousel(): React.JSX.Element {
     setWidth(e.nativeEvent.layout.width);
   }, []);
 
-  // In RTL the horizontal scroll offset runs negative (0 at the right, growing
-  // negative toward the left), so flip its sign to get a plain 0→N position.
+  // The horizontal scroll offset's sign in RTL is platform-specific: iOS and web
+  // run it negative (0 at the right, growing negative toward the left), while
+  // Android keeps it positive (0 on the left). Multiplying the raw offset by this
+  // sign always yields a plain 0→N position, and using the same sign to write
+  // (goTo / scrollProgress) keeps read and write consistent. LTR is always +1.
+  const rtlScrollSign = rtl && Platform.OS !== 'android' ? -1 : 1;
   const syncIndex = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>): void => {
       if (stride <= 0) return;
-      const offset = e.nativeEvent.contentOffset.x * (rtl ? -1 : 1);
+      const offset = e.nativeEvent.contentOffset.x * rtlScrollSign;
       const i = Math.max(0, Math.min(Math.round(offset / stride), railKeys.length - 1));
       setIndex((prev) => (prev === i ? prev : i));
     },
-    [stride, railKeys.length, rtl]
+    [stride, railKeys.length, rtlScrollSign]
   );
 
   // Live scroll position drives the smooth dot morph (and web dot tracking).
@@ -707,17 +712,17 @@ export function DashboardCarousel(): React.JSX.Element {
 
   const goTo = useCallback(
     (i: number): void => {
-      scrollRef.current?.scrollTo({ x: i * stride * (rtl ? -1 : 1), animated: true });
+      scrollRef.current?.scrollTo({ x: i * stride * rtlScrollSign, animated: true });
       setIndex(i);
     },
-    [stride, rtl]
+    [stride, rtlScrollSign]
   );
 
-  // The dot morph interpolates on a growing positive position; in RTL the raw
-  // offset is negative, so feed it the flipped value.
+  // The dot morph interpolates on a growing positive position; feed it the
+  // sign-corrected offset so it grows positively on every platform.
   const scrollProgress = useMemo(
-    () => (rtl ? Animated.multiply(scrollX, -1) : scrollX),
-    [rtl, scrollX]
+    () => (rtlScrollSign === 1 ? scrollX : Animated.multiply(scrollX, rtlScrollSign)),
+    [rtlScrollSign, scrollX]
   );
 
   const rail =

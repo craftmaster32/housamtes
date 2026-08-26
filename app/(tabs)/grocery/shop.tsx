@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import * as Haptics from 'expo-haptics';
 import { Alert } from '@lib/alert';
 import { useGroceryStore, type GroceryItem } from '@stores/groceryStore';
@@ -238,7 +239,7 @@ export default function ShopScreen(): React.JSX.Element {
   }, [newItem, houseId, addItem, myId, t]);
 
   const handleLeave = useCallback((): void => {
-    router.back();
+    goBack();
   }, []);
 
   const handleEndNoExpense = useCallback((): void => {

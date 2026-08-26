@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useLanguageStore } from '@stores/languageStore';
 import type { AppLanguage } from '@lib/i18n';
@@ -22,7 +22,9 @@ export default function LanguageSettingsScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
-  const handleBack = useCallback(() => router.back(), []);
+  const handleBack = useCallback((): void => {
+    goBack();
+  }, []);
 
   const options: { code: AppLanguage; label: string; flag: string }[] = [
     { code: 'en', label: t('settings.language_en'), flag: '🇬🇧' },

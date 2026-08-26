@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { Alert } from '@lib/alert';
 import { useAuthStore } from '@stores/authStore';
 import { useGroceryStore } from '@stores/groceryStore';
@@ -49,7 +50,7 @@ export default function QuickBuyScreen(): React.JSX.Element {
   );
 
   const handleBack = useCallback((): void => {
-    router.back();
+    goBack();
   }, []);
 
   const handleSaved = useCallback(

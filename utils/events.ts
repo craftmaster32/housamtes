@@ -186,6 +186,33 @@ export function expandRecurrenceDates(event: RecurringEventInput, from: Date, to
 }
 
 /**
+ * Every calendar day (YYYY-MM-DD) a RECURRING, multi-day event covers within
+ * [from, to], de-duplicated. Each occurrence starts on a recurrence date and
+ * lasts `spanDays + 1` days. Occurrences that start up to `spanDays` before
+ * `from` are included so their in-window tail is not dropped, and overlapping
+ * occurrences (e.g. a daily event with a multi-day span) collapse to one entry
+ * per day instead of colliding.
+ */
+export function expandRecurringSpanDays(
+  event: RecurringEventInput,
+  spanDays: number,
+  from: Date,
+  to: Date
+): string[] {
+  const span = Math.max(0, spanDays);
+  const searchStart = addDays(from, -span);
+  const covered = new Set<string>();
+  for (const start of expandRecurrenceDates(event, searchStart, to)) {
+    let cur = parseYMD(start);
+    for (let offset = 0; offset <= span; offset++) {
+      covered.add(ymd(cur));
+      cur = addDays(cur, 1);
+    }
+  }
+  return [...covered];
+}
+
+/**
  * An event is "imminent" when it lands on the current calendar day (so all-day
  * and later-today events still surface), or when it starts within the next 24
  * hours. Events whose start has already passed on a future date are never

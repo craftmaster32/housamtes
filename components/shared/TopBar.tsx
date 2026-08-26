@@ -2,11 +2,12 @@ import { useCallback } from 'react';
 import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
-import { router, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { goBack } from '@stores/navigationStore';
 import { useProfilePopupStore } from '@stores/profilePopupStore';
 import { useAuthStore } from '@stores/authStore';
 import { useColors } from '@hooks/useColors';
@@ -50,8 +51,8 @@ export function TopBar({ scrollY }: TopBarProps = {}): React.JSX.Element | null 
 
   const handleBack = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (router.canGoBack()) router.back();
-    else router.push('/(tabs)/dashboard');
+    // Walk one step back; goBack already collapses to home when at the root.
+    goBack();
   }, []);
 
   const handleProfilePress = useCallback((): void => {

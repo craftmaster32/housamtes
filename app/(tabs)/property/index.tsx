@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { BackLink } from '@components/shared/BackLink';
 import { IssuesTab } from '@components/property/IssuesTab';
 import { ConditionTab } from '@components/property/ConditionTab';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -27,6 +28,7 @@ export default function PropertyScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.flex}>
         <View style={styles.header}>
+          <BackLink label={t('common.home')} />
           <Text style={[styles.heading, headingFont]}>{t('nav.property')}</Text>
           <View style={styles.segmented}>
             <Pressable

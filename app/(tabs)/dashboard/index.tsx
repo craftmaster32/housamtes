@@ -6,6 +6,7 @@ import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import {
@@ -190,7 +191,7 @@ function PinnedNote(): React.JSX.Element {
         { backgroundColor: c.secondary },
         pressed && styles.pressed,
       ]}
-      onPress={() => router.push('/(tabs)/notes')}
+      onPress={() => navigateToBase('/(tabs)/notes')}
       accessibilityRole="button"
       accessibilityLabel={t('dashboard.pinned_by', { name: author })}
     >
@@ -247,7 +248,7 @@ function OwedHero(): React.JSX.Element {
   return (
     <Pressable
       style={({ pressed }) => [styles.heroWrap, pressed && styles.pressed]}
-      onPress={() => router.push('/(tabs)/bills')}
+      onPress={() => navigateToBase('/(tabs)/bills')}
       accessibilityRole="button"
       accessibilityLabel={
         settled
@@ -325,7 +326,7 @@ function GamesButton(): React.JSX.Element {
         { backgroundColor: c.surface, borderColor: c.border },
         pressed && styles.pressed,
       ]}
-      onPress={() => router.push('/(tabs)/games')}
+      onPress={() => navigateToBase('/(tabs)/games')}
       accessibilityRole="button"
       accessibilityLabel={t('dashboard.games_fun')}
     >

@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Image } from 'expo-image';
 import { router, usePathname, type Href } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -75,7 +76,8 @@ export function ProfilePopup(): React.JSX.Element {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       close();
       if (item.href) {
-        router.push(item.href);
+        // Both menu destinations (Profile, Settings) are base pages.
+        navigateToBase(item.href as string);
       } else if (item.onPress) {
         Promise.resolve()
           .then(() => item.onPress?.())

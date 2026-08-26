@@ -11,6 +11,7 @@ import {
   type GestureResponderEvent,
 } from 'react-native';
 import { Entrance } from '@components/shared/Entrance';
+import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -18,6 +19,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
@@ -924,6 +926,9 @@ export default function ProfileScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.topBackRow}>
+            <BackLink label={t('common.home')} />
+          </View>
           {/* ── Profile header ──────────────────────────────────────────── */}
           <View style={styles.profileHeader}>
             {/* Cover photo */}
@@ -1159,7 +1164,7 @@ export default function ProfileScreen(): React.JSX.Element {
                     styles.viewMoreBtn,
                     pressed && styles.viewMoreBtnPressed,
                   ]}
-                  onPress={() => router.push('/(tabs)/bills/index')}
+                  onPress={() => navigateToBase('/(tabs)/bills/index')}
                   accessibilityRole="button"
                 >
                   <Text style={styles.viewMoreText}>{t('profile.view_previous_months')}</Text>
@@ -1224,6 +1229,7 @@ function makeStyles(C: ColorTokens) {
     flex: { flex: 1 },
     container: { flex: 1, backgroundColor: C.background },
     scroll: { paddingBottom: ms(80) },
+    topBackRow: { paddingHorizontal: sizes.md, paddingTop: sizes.sm },
     content: { paddingHorizontal: sizes.md, gap: sizes.md, paddingBottom: sizes.lg },
 
     // Profile header

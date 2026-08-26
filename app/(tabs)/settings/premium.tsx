@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '@lib/alert';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -46,7 +47,7 @@ export default function PremiumScreen(): React.JSX.Element {
   }, []);
 
   const handleBack = useCallback((): void => {
-    router.back();
+    goBack();
   }, []);
 
   const handleUpgrade = useCallback((): void => {

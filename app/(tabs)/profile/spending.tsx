@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, SectionList } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect, Link } from 'expo-router';
+import { useFocusEffect, Link } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@stores/authStore';
@@ -544,7 +545,7 @@ export default function SpendingScreen(): React.JSX.Element {
   }, [months, houseId, userName, currency, fetchInsight]);
 
   const handleBack = useCallback(() => {
-    router.back();
+    goBack();
   }, []);
 
   const handleRefreshInsight = useCallback(() => {

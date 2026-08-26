@@ -18,6 +18,9 @@ export type BillRow =
   | { kind: 'payment'; key: string; date: string; payment: RecurringPaymentRow };
 
 export interface BillSection {
+  // Stable unique key (the raw YYYY-MM-DD date, or 'Unknown'). `title` is a
+  // localized label that can repeat across years, so it must not be used as a key.
+  key: string;
   title: string;
   data: BillRow[];
 }
@@ -143,6 +146,7 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
     }
     return Object.entries(groups).map(
       ([date, data]): BillSection => ({
+        key: date,
         title: formatDateLabel(date, i18n.language, t),
         data,
       })

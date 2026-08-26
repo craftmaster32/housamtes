@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
@@ -154,7 +155,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   }, [bill, houseId, isDeleting, isSaving, deleteBill, t]);
 
   const handleBack = useCallback((): void => {
-    router.back();
+    goBack();
   }, []);
   const handleStartEditing = useCallback((): void => {
     setIsEditing(true);

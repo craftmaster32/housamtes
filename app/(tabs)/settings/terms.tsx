@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
@@ -50,7 +50,9 @@ export default function TermsScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
-  const handleBackPress = useCallback(() => router.back(), []);
+  const handleBackPress = useCallback((): void => {
+    goBack();
+  }, []);
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>

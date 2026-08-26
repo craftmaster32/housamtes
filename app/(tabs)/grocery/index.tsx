@@ -35,6 +35,7 @@ import { useThemedColors, darkColors, type ColorTokens } from '@constants/colors
 import { useLanguageStore } from '@stores/languageStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { BackLink } from '@components/shared/BackLink';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import {
@@ -1420,6 +1421,7 @@ export default function GroceryScreen(): React.JSX.Element {
                 SectionSeparatorComponent={SectionSeparator}
                 ListHeaderComponent={
                   <View>
+                    <BackLink label={t('common.home')} />
                     {/* ── Hero card ─────────────────────────────────────────── */}
                     <View style={styles.headerCard}>
                       <View style={styles.headerCopy}>

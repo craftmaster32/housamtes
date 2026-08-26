@@ -37,6 +37,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useThemedColors, darkColors } from '@constants/colors';
 import { formatFull } from '@constants/currencies';
 import { Money } from '@components/shared/Money';
+import { BackLink } from '@components/shared/BackLink';
 import { Pill } from '@components/ui';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
@@ -522,6 +523,7 @@ export default function BillsScreen(): React.JSX.Element {
       entering={entered ? undefined : FadeInDown.duration(400)}
       style={[styles.listHeaderWrap, isWide && styles.listHeaderWrapWide]}
     >
+      <BackLink label={t('common.home')} />
       {/* ── Balance + settle (one merged card) ───────────────────── */}
       <LinearGradient
         colors={isOwed ? c.owedGradient : c.dangerGradient}
@@ -750,7 +752,7 @@ export default function BillsScreen(): React.JSX.Element {
       <FlatList
         style={styles.flex}
         data={billSections}
-        keyExtractor={(section) => section.title}
+        keyExtractor={(section) => section.key}
         renderItem={renderGroup}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

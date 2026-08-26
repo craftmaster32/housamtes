@@ -201,9 +201,13 @@ export const useEventsStore = create<EventsStore>()(
           recurrenceDays,
           recurrenceEnd,
         } = payload;
-        const addValidation = recurrencePayloadSchema.safeParse({ recurrenceInterval, recurrenceDays });
+        const addValidation = recurrencePayloadSchema.safeParse({
+          recurrenceInterval,
+          recurrenceDays,
+        });
         if (!addValidation.success) {
-          const msg = 'Invalid repeat settings: interval must be a whole number ≥ 1 and weekdays must be 0–6.';
+          const msg =
+            'Invalid repeat settings: interval must be a whole number ≥ 1 and weekdays must be 0–6.';
           set({ error: msg });
           throw new Error(msg);
         }
@@ -258,7 +262,8 @@ export const useEventsStore = create<EventsStore>()(
           recurrenceDays: updates.recurrenceDays,
         });
         if (!editValidation.success) {
-          const msg = 'Invalid repeat settings: interval must be a whole number ≥ 1 and weekdays must be 0–6.';
+          const msg =
+            'Invalid repeat settings: interval must be a whole number ≥ 1 and weekdays must be 0–6.';
           set({ error: msg });
           throw new Error(msg);
         }
@@ -280,18 +285,19 @@ export const useEventsStore = create<EventsStore>()(
             dbPayload.recurrence_days = null;
           } else {
             // Process interval and days independently; when recurrence changes, also derive them.
+            // Reached only when recurrence is being set/kept (clearing is handled
+            // above), so the interval always normalizes to a concrete value.
             if ('recurrenceInterval' in updates || 'recurrence' in updates) {
-              dbPayload.recurrence_interval = updates.recurrence
-                ? normalizeInterval(updates.recurrenceInterval)
-                : 'recurrenceInterval' in updates
-                ? normalizeInterval(updates.recurrenceInterval)
-                : undefined;
+              dbPayload.recurrence_interval = normalizeInterval(updates.recurrenceInterval);
             }
             if ('recurrenceDays' in updates || 'recurrence' in updates) {
               const currentEvent = get().events.find((e) => e.id === id);
               const effectiveRecurrence =
                 'recurrence' in updates ? updates.recurrence : currentEvent?.recurrence;
-              dbPayload.recurrence_days = weekdaysPayload(effectiveRecurrence, updates.recurrenceDays);
+              dbPayload.recurrence_days = weekdaysPayload(
+                effectiveRecurrence,
+                updates.recurrenceDays
+              );
             }
           }
           if ('recurrenceEnd' in updates) dbPayload.recurrence_end = updates.recurrenceEnd ?? null;

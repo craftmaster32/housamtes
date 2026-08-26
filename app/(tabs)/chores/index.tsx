@@ -3,6 +3,7 @@ import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
+import { BackLink } from '@components/shared/BackLink';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -298,6 +299,7 @@ export default function ChoresScreen(): React.JSX.Element {
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           ListHeaderComponent={
             <View>
+              <BackLink label={t('common.home')} />
               {/* ── Hero card ──────────────────────────────────────── */}
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>

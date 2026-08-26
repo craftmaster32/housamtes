@@ -1,10 +1,16 @@
 import { Tabs } from 'expo-router';
+import { TabHistoryBridge } from '@components/shared/TabHistoryBridge';
 
 // Tab bar is hidden — navigation is handled by the side DrawerMenu.
 // All screens are registered here so Expo Router can resolve their routes.
 export default function TabsLayout(): React.JSX.Element {
   return (
     <Tabs
+      // The visible tab bar is the custom BottomTabBar in the root layout; here
+      // we render TabHistoryBridge in the tabBar slot instead. It draws nothing
+      // but lets navigationStore reset this navigator's history to [home, base]
+      // when opening a main section (so back from any section returns home).
+      tabBar={(props): React.JSX.Element => <TabHistoryBridge {...props} />}
       // Navigation is driven programmatically across many hidden "tabs", so the
       // default backBehavior ('firstRoute') sent every back action to the first
       // screen (dashboard) instead of the previous one. 'history' makes back

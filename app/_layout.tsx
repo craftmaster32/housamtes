@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -43,6 +43,7 @@ import { useColors } from '@hooks/useColors';
 import { getInitialLanguage, setupI18n, isRTL as getIsRTL } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
+import { goBack } from '@stores/navigationStore';
 import { registerWebPush } from '@lib/webPush';
 
 initErrorTracking();
@@ -242,6 +243,15 @@ export default function RootLayout(): React.JSX.Element | null {
   const segArr = segments as string[];
   const segmentsKey = segArr[0] ?? '';
   const currentScreen = segArr[1] ?? '';
+
+  // The swipe-back gesture lives at the root and is created once, so it reads
+  // this ref rather than segmentsKey directly — it must only act inside the tabs,
+  // never on auth/onboarding. Updated in a layout effect (after commit) so the
+  // gesture never observes a route from a render that was thrown away.
+  const inTabsRef = useRef(false);
+  useLayoutEffect((): void => {
+    inTabsRef.current = segmentsKey === '(tabs)';
+  }, [segmentsKey]);
 
   const loadHousemates = useHousematesStore((s) => s.load);
   const loadBills = useBillsStore((s) => s.load);
@@ -463,8 +473,9 @@ export default function RootLayout(): React.JSX.Element | null {
         return startX > 22 && startX < 70 && dx > 20 && Math.abs(dx) > Math.abs(dy) * 1.5;
       },
       onPanResponderRelease: (_, { dx }) => {
-        if (dx > 70 && router.canGoBack()) {
-          router.back();
+        // Only inside the tabs — never hijack an auth/onboarding swipe.
+        if (inTabsRef.current && dx > 70) {
+          goBack();
         }
       },
     })

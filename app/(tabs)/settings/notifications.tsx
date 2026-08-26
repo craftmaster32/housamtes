@@ -11,7 +11,7 @@ import {
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import {
   useNotificationStore,
@@ -230,7 +230,9 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
     await handleEnableWebPush();
   }, [user?.id, houseId, webPushStatus, handleEnableWebPush, t]);
 
-  const handleBack = useCallback(() => router.back(), []);
+  const handleBack = useCallback((): void => {
+    goBack();
+  }, []);
   const handleSelectDay = useCallback((d: BillDueDays) => save({ billDueDaysBefore: d }), [save]);
   const handleSelectEventDay = useCallback(
     (d: EventReminderDays) => save({ eventReminderDaysBefore: d }),
