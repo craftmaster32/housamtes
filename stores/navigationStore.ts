@@ -109,6 +109,16 @@ export function navigateToBase(href: string): void {
 // One level back. Used by screen back buttons and the edge-swipe. Returns true if
 // it moved; at the root it collapses to home instead.
 export function goBack(): boolean {
+  // From a main section, "back" is meant to return home. Do it the same clean
+  // way the Home tab button does — a fresh replace to home — instead of a
+  // history pop. A pop re-shows the browser's cached snapshot of the home entry,
+  // which can still contain an overlay that was open when you left it (e.g. the
+  // More menu), so you'd see that menu "close" as the swipe finishes. Replacing
+  // renders home fresh, so back from any section always lands on a clean home.
+  if (currentTabName && currentTabName !== HOME_TAB_NAME && isBaseTab(currentTabName)) {
+    router.replace(HOME_ROUTE as Parameters<typeof router.replace>[0]);
+    return false;
+  }
   if (router.canGoBack()) {
     router.back();
     return true;

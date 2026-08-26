@@ -97,6 +97,22 @@ describe('goBack', () => {
     expect(goBack()).toBe(false);
     expect(mockReplace).toHaveBeenCalledWith(HOME_ROUTE);
   });
+  it('from a main section, replaces to home (clean, like the Home button) instead of popping', () => {
+    // A history pop would re-show the browser's cached snapshot of home, which
+    // can still contain an overlay that was open when you left it.
+    setCurrentTab('bills/index');
+    mockCanGoBack.mockReturnValue(true);
+    expect(goBack()).toBe(false);
+    expect(mockReplace).toHaveBeenCalledWith(HOME_ROUTE);
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+  it('from a section flow, still pops one level (back to its section)', () => {
+    setCurrentTab('bills/add');
+    mockCanGoBack.mockReturnValue(true);
+    expect(goBack()).toBe(true);
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
 });
 
 describe('isBaseTab', () => {

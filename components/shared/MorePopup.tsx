@@ -222,7 +222,17 @@ export function MorePopup(): React.JSX.Element {
       close();
       const featureToMark = item.badgeKey ?? (item.featureKey as BadgeFeature | undefined);
       if (featureToMark) markSeen(featureToMark).catch(() => {});
-      navigateToBase(item.route);
+      // On web, wait one frame so the menu is actually removed from the page
+      // before the route changes. The browser takes a snapshot of this page when
+      // we navigate away and replays it during a back-swipe; if we navigate in
+      // the same tick the menu is still in that snapshot and you'd see it on the
+      // way back. Native navigates immediately.
+      const go = (): void => navigateToBase(item.route);
+      if (process.env.EXPO_OS === 'web') {
+        requestAnimationFrame(go);
+      } else {
+        go();
+      }
     },
     [close, markSeen]
   );
