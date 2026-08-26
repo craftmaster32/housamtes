@@ -206,27 +206,29 @@ export function MorePopup(): React.JSX.Element {
     close();
   }, [close]);
 
+  // The route the user picked, navigated once the menu has finished sliding
+  // closed. Letting the menu animate shut first means Home paints several clean
+  // (menu-free) frames before we route away — so the picture iOS Safari keeps of
+  // Home for its back-swipe has no menu in it, and the close still looks smooth
+  // instead of the menu snapping away.
+  const pendingRoute = useRef<string | null>(null);
+  useEffect((): void => {
+    if (!panelMounted && pendingRoute.current) {
+      const route = pendingRoute.current;
+      pendingRoute.current = null;
+      navigateToBase(route);
+    }
+  }, [panelMounted]);
+
   const handleNav = useCallback(
     (item: NavItem): void => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       const featureToMark = item.badgeKey ?? (item.featureKey as BadgeFeature | undefined);
       if (featureToMark) markSeen(featureToMark).catch(() => {});
-      // Snap the menu shut instantly, then navigate.
-      skipCloseAnim.current = true;
+      // Close with the normal slide-down (do NOT skip the animation), and let the
+      // effect above navigate once the panel has fully closed.
+      pendingRoute.current = item.route;
       close();
-      if (process.env.EXPO_OS === 'web') {
-        // The mobile browser (iOS Safari) uses the LAST frame Home actually
-        // painted as the image it replays during the back-swipe. If we navigate
-        // immediately, that last frame still shows the menu (you tapped while it
-        // was up), so you see it on the way back. Wait for two animation frames —
-        // long enough for Home to paint once with the menu gone — before routing,
-        // so the image Safari keeps is a clean home page. ~32ms, imperceptible.
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => navigateToBase(item.route));
-        });
-      } else {
-        navigateToBase(item.route);
-      }
     },
     [close, markSeen]
   );
