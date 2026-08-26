@@ -183,20 +183,13 @@ export function MorePopup(): React.JSX.Element {
     }
   }, [isOpen, anim]);
 
-  // Hard reset on any route change. A route change always means we navigated
-  // (forward from the menu, or a swipe/back to home), and in every one of those
-  // cases the menu must be gone instantly — no slide-down, nothing left to
-  // replay over the destination. This wipes it unconditionally so back always
-  // lands on a clean home page.
+  // If the menu is still open when the route changes (e.g. a back-swipe while
+  // it's up), snap it shut instantly rather than sliding — a slide would play
+  // over the next screen.
   useEffect((): void => {
-    skipCloseAnim.current = false;
-    anim.setValue(0);
-    setPanelMounted(false);
+    skipCloseAnim.current = true;
     close();
-    // Deliberately only on pathname change — not when the menu opens/closes in
-    // place (that path is handled by the animation effect above).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, close]);
 
   const backdropOpacity = anim.interpolate({
     inputRange: [0, 1],
@@ -213,32 +206,16 @@ export function MorePopup(): React.JSX.Element {
     close();
   }, [close]);
 
-  // A route the user picked from the menu, held until the panel has fully left
-  // the DOM. The mobile browser snapshots this page when we navigate away and
-  // replays that snapshot during a back-swipe; if the menu is still mounted at
-  // navigation time it ends up in the snapshot and you see it on the way back.
-  // So we close first, wait for the unmount, then navigate.
-  const pendingRoute = useRef<string | null>(null);
-
-  useEffect((): void => {
-    if (!panelMounted && pendingRoute.current) {
-      const route = pendingRoute.current;
-      pendingRoute.current = null;
-      navigateToBase(route);
-    }
-  }, [panelMounted]);
-
   const handleNav = useCallback(
     (item: NavItem): void => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       const featureToMark = item.badgeKey ?? (item.featureKey as BadgeFeature | undefined);
       if (featureToMark) markSeen(featureToMark).catch(() => {});
-      // Queue the navigation, then snap the menu shut. The effect above fires the
-      // navigation once the panel is actually unmounted, so the page the browser
-      // snapshots for the back-swipe no longer contains the menu.
-      pendingRoute.current = item.route;
+      // Snap the menu shut instantly (no slide-down over the destination), then
+      // navigate normally so the page's own transition animation is preserved.
       skipCloseAnim.current = true;
       close();
+      navigateToBase(item.route);
     },
     [close, markSeen]
   );
