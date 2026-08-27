@@ -510,6 +510,73 @@ describe('billsStore — editBill', () => {
     const { notifyHousemates } = jest.requireMock('@lib/notifyHousemates');
     expect(notifyHousemates).not.toHaveBeenCalled();
   });
+
+  it('persists paidBy / splitBetween / splitAmounts and reflects them in state', async () => {
+    useBillsStore.setState({
+      bills: [
+        bill({ id: 'b1', paidBy: 'Alice', splitBetween: ['Alice', 'Bob'], splitAmounts: null }),
+      ],
+    });
+    const chain = ok();
+    mockFrom.mockReturnValue(chain);
+
+    await useBillsStore.getState().editBill(
+      'b1',
+      {
+        title: 'Rent',
+        amount: 900,
+        date: '2026-04-01',
+        notes: '',
+        category: 'Rent',
+        paidBy: 'Bob',
+        splitBetween: ['Bob', 'Carol'],
+        splitAmounts: { Bob: 600, Carol: 300 },
+      },
+      'house1'
+    );
+
+    // The DB update carries the split columns…
+    expect(chain.update as jest.Mock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paid_by: 'Bob',
+        split_between: ['Bob', 'Carol'],
+        split_amounts: { Bob: 600, Carol: 300 },
+      })
+    );
+    // …and local state mirrors them.
+    const updated = useBillsStore.getState().bills[0];
+    expect(updated.paidBy).toBe('Bob');
+    expect(updated.splitBetween).toEqual(['Bob', 'Carol']);
+    expect(updated.splitAmounts).toEqual({ Bob: 600, Carol: 300 });
+  });
+
+  it('leaves split fields untouched when they are omitted', async () => {
+    useBillsStore.setState({
+      bills: [
+        bill({ id: 'b1', paidBy: 'Alice', splitBetween: ['Alice', 'Bob'], splitAmounts: null }),
+      ],
+    });
+    const chain = ok();
+    mockFrom.mockReturnValue(chain);
+
+    await useBillsStore
+      .getState()
+      .editBill(
+        'b1',
+        { title: 'New title', amount: 900, date: '2026-04-01', notes: '', category: 'Rent' },
+        'house1'
+      );
+
+    // No split columns written when the caller doesn't pass them.
+    const payload = (chain.update as jest.Mock).mock.calls[0][0];
+    expect(payload).not.toHaveProperty('paid_by');
+    expect(payload).not.toHaveProperty('split_between');
+    expect(payload).not.toHaveProperty('split_amounts');
+    // Existing split data is preserved in state.
+    const updated = useBillsStore.getState().bills[0];
+    expect(updated.paidBy).toBe('Alice');
+    expect(updated.splitBetween).toEqual(['Alice', 'Bob']);
+  });
 });
 
 describe('billsStore — load', () => {

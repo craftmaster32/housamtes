@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
@@ -21,14 +20,6 @@ export const CATEGORIES = [
   'Travel',
   'Other',
 ];
-
-export const EditBillSchema = z.object({
-  title: z.string().min(1),
-  amount: z.coerce.number().positive(),
-  date: z.string().min(1),
-  notes: z.string(),
-  category: z.enum(CATEGORIES as [string, ...string[]]),
-});
 
 export interface Bill {
   id: string;
@@ -71,7 +62,16 @@ interface BillsStore {
   ) => Promise<void>;
   editBill: (
     id: string,
-    updates: { title: string; amount: number; date: string; notes: string; category: string },
+    updates: {
+      title: string;
+      amount: number;
+      date: string;
+      notes: string;
+      category: string;
+      paidBy?: string;
+      splitBetween?: string[];
+      splitAmounts?: Record<string, number> | null;
+    },
     houseId: string
   ) => Promise<void>;
   settleBill: (
@@ -220,16 +220,20 @@ export const useBillsStore = create<BillsStore>()(
       },
       editBill: async (id, updates, houseId): Promise<void> => {
         const before = get().bills.find((b) => b.id === id);
-        const { error } = await supabase
-          .from('bills')
-          .update({
-            title: updates.title,
-            amount: updates.amount,
-            date: updates.date,
-            notes: updates.notes,
-            category: updates.category,
-          })
-          .eq('id', id);
+        // Split fields (paidBy / splitBetween / splitAmounts) are optional so
+        // callers that only touch the basic fields can omit them; only the
+        // provided keys are written to the DB and merged into local state.
+        const dbUpdate: Record<string, unknown> = {
+          title: updates.title,
+          amount: updates.amount,
+          date: updates.date,
+          notes: updates.notes,
+          category: updates.category,
+        };
+        if (updates.paidBy !== undefined) dbUpdate.paid_by = updates.paidBy;
+        if (updates.splitBetween !== undefined) dbUpdate.split_between = updates.splitBetween;
+        if (updates.splitAmounts !== undefined) dbUpdate.split_amounts = updates.splitAmounts;
+        const { error } = await supabase.from('bills').update(dbUpdate).eq('id', id);
         if (error) {
           captureError(error, { context: 'edit-bill', billId: id, houseId });
           throw new Error('Could not update the bill. Please try again.');
@@ -244,6 +248,13 @@ export const useBillsStore = create<BillsStore>()(
                   date: updates.date,
                   notes: updates.notes,
                   category: updates.category,
+                  ...(updates.paidBy !== undefined ? { paidBy: updates.paidBy } : {}),
+                  ...(updates.splitBetween !== undefined
+                    ? { splitBetween: updates.splitBetween }
+                    : {}),
+                  ...(updates.splitAmounts !== undefined
+                    ? { splitAmounts: updates.splitAmounts }
+                    : {}),
                 }
               : b
           ),
