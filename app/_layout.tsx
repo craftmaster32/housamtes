@@ -34,6 +34,7 @@ import { MorePopup } from '@components/shared/MorePopup';
 import { ProfilePopup } from '@components/shared/ProfilePopup';
 import { WebAlertHost } from '@components/shared/WebAlertHost';
 import { BottomTabBar } from '@components/shared/BottomTabBar';
+import { RouteTransition } from '@components/shared/RouteTransition';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { ChatFab } from '@components/shared/ChatFab';
 import { AdBanner } from '@components/premium/AdBanner';
@@ -500,7 +501,9 @@ export default function RootLayout(): React.JSX.Element | null {
           >
             {showChrome && <TopBar />}
             <View style={styles.content}>
-              <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
+              <RouteTransition>
+                <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
+              </RouteTransition>
             </View>
             {showChrome && <AdBanner />}
             {showChrome && <ChatFab />}

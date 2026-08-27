@@ -8,6 +8,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useMaintenanceStore } from '@stores/maintenanceStore';
 import { RequestCard } from '@components/maintenance/RequestCard';
 import { AddRequestForm } from '@components/maintenance/AddRequestForm';
+import { BackLink } from '@components/shared/BackLink';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -88,6 +89,9 @@ export default function MaintenanceScreen(): React.JSX.Element {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.root}>
+        <View style={styles.scroll}>
+          <BackLink label={t('common.home')} />
+        </View>
         <View style={styles.centered}>
           <Text style={styles.emptyText}>{t('common.loading')}</Text>
         </View>
@@ -106,6 +110,7 @@ export default function MaintenanceScreen(): React.JSX.Element {
           )}
 
           <View style={styles.pageHeader}>
+            <BackLink label={t('common.home')} />
             <Text style={[styles.heading, headingFont]}>{t('maintenance.title')}</Text>
             <Text style={styles.headingSub}>{t('maintenance.subtitle')}</Text>
           </View>

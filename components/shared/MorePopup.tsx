@@ -102,9 +102,11 @@ export function MorePopup(): React.JSX.Element {
   const close = useMorePopupStore((s) => s.close);
   const pathname = usePathname();
 
-  useEffect(() => {
-    close();
-  }, [pathname, close]);
+  // When true, the next close skips the slide-down and snaps shut instantly.
+  // Used whenever the menu closes because we're navigating away — otherwise the
+  // 200ms close animation gets interrupted by the route change and visibly
+  // "finishes" over the next screen (and again on the way back).
+  const skipCloseAnim = useRef(false);
 
   const settingsFeatures = useSettingsStore((s) => s.features);
   const permissions = useAuthStore((s) => s.permissions);
@@ -156,15 +158,22 @@ export function MorePopup(): React.JSX.Element {
   const [panelMounted, setPanelMounted] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
+  useEffect((): void => {
     if (isOpen) {
       setPanelMounted(true);
+      skipCloseAnim.current = false;
       Animated.spring(anim, {
         toValue: 1,
         useNativeDriver: true,
         tension: 68,
         friction: 12,
       }).start();
+    } else if (skipCloseAnim.current) {
+      // Navigating away — snap shut with no animation so nothing lingers over
+      // the next screen or replays when coming back.
+      skipCloseAnim.current = false;
+      anim.setValue(0);
+      setPanelMounted(false);
     } else {
       Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start(
         ({ finished }) => {
@@ -173,6 +182,14 @@ export function MorePopup(): React.JSX.Element {
       );
     }
   }, [isOpen, anim]);
+
+  // If the menu is still open when the route changes (e.g. a back-swipe while
+  // it's up), snap it shut instantly rather than sliding — a slide would play
+  // over the next screen.
+  useEffect((): void => {
+    skipCloseAnim.current = true;
+    close();
+  }, [pathname, close]);
 
   const backdropOpacity = anim.interpolate({
     inputRange: [0, 1],
@@ -189,13 +206,29 @@ export function MorePopup(): React.JSX.Element {
     close();
   }, [close]);
 
+  // The route the user picked, navigated once the menu has finished sliding
+  // closed. Letting the menu animate shut first means Home paints several clean
+  // (menu-free) frames before we route away — so the picture iOS Safari keeps of
+  // Home for its back-swipe has no menu in it, and the close still looks smooth
+  // instead of the menu snapping away.
+  const pendingRoute = useRef<string | null>(null);
+  useEffect((): void => {
+    if (!panelMounted && pendingRoute.current) {
+      const route = pendingRoute.current;
+      pendingRoute.current = null;
+      navigateToBase(route);
+    }
+  }, [panelMounted]);
+
   const handleNav = useCallback(
     (item: NavItem): void => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      close();
       const featureToMark = item.badgeKey ?? (item.featureKey as BadgeFeature | undefined);
       if (featureToMark) markSeen(featureToMark).catch(() => {});
-      navigateToBase(item.route);
+      // Close with the normal slide-down (do NOT skip the animation), and let the
+      // effect above navigate once the panel has fully closed.
+      pendingRoute.current = item.route;
+      close();
     },
     [close, markSeen]
   );

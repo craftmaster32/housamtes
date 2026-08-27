@@ -3,6 +3,7 @@ import { View, StyleSheet, FlatList, Pressable } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { AnimatedListItem } from '@components/shared/AnimatedListItem';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { BackLink } from '@components/shared/BackLink';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -107,6 +108,7 @@ export default function TasksScreen(): React.JSX.Element {
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           ListHeaderComponent={
             <View>
+              <BackLink label={t('common.home')} />
               <View style={styles.heroCard}>
                 <View style={styles.heroCopy}>
                   <Text style={[styles.titleHero, headingFont]}>{t('tasks.title')}</Text>

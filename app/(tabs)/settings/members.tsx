@@ -14,6 +14,7 @@ import {
   type MemberRole,
 } from '@stores/housematesStore';
 import { Alert } from '@lib/alert';
+import { BackLink } from '@components/shared/BackLink';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
@@ -305,6 +306,7 @@ export default function MembersScreen(): React.JSX.Element {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             <View>
+              <BackLink label={t('nav.settings')} />
               <Text style={[styles.screenTitle, headingFont]}>{t('members.title')}</Text>
               <Text style={styles.screenSub}>{t('members.subtitle')}</Text>
             </View>

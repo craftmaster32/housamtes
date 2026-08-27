@@ -107,7 +107,8 @@ export function navigateToBase(href: string): void {
 }
 
 // One level back. Used by screen back buttons and the edge-swipe. Returns true if
-// it moved; at the root it collapses to home instead.
+// it moved; at the root it collapses to home instead. Keep this a real history
+// pop (router.back) so the browser's smooth back-swipe animation is preserved.
 export function goBack(): boolean {
   if (router.canGoBack()) {
     router.back();

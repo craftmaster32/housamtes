@@ -15,6 +15,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { BackLink } from '@components/shared/BackLink';
 
 import { mf, ms } from '@utils/responsive';
 const makeStyles = (C: ColorTokens) =>
@@ -324,6 +325,9 @@ export default function HousematesScreen(): React.JSX.Element {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.root}>
+        <View style={styles.scroll}>
+          <BackLink label={t('common.back')} />
+        </View>
         <View style={styles.centered}>
           <Text style={styles.loadingText}>{t('housemates.loading')}</Text>
         </View>
@@ -335,6 +339,7 @@ export default function HousematesScreen(): React.JSX.Element {
     <SafeAreaView style={styles.root}>
       <View style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll}>
+          <BackLink label={t('common.back')} />
           <Text style={[styles.heading, headingFont]}>{t('housemates.title')}</Text>
           {!!houseName && <Text style={styles.houseName}>{houseName}</Text>}
 
