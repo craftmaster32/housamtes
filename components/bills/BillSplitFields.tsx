@@ -92,13 +92,21 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
   const customRemaining = totalAmount - getCustomTotal();
   const percentRemaining = 100 - getPercentTotal();
 
-  const equalSplitPreview = useMemo((): number => {
-    if (selectedPeople.length === 0 || totalAmount <= 0) return 0;
+  // Equal split isn't always a single figure: with a leftover cent, some people
+  // pay one cent more than others. Expose both ends so the preview can show the
+  // true range (e.g. "$3.33 – $3.34") instead of rounding everyone up.
+  const equalSplitPreview = useMemo((): { low: number; high: number; hasRange: boolean } => {
+    if (selectedPeople.length === 0 || totalAmount <= 0)
+      return { low: 0, high: 0, hasRange: false };
     const totalCents = Math.round(totalAmount * 100);
     const n = selectedPeople.length;
     const baseCents = Math.floor(totalCents / n);
     const remainderCents = totalCents - baseCents * n;
-    return (baseCents + (remainderCents > 0 ? 1 : 0)) / 100;
+    return {
+      low: baseCents / 100,
+      high: (baseCents + (remainderCents > 0 ? 1 : 0)) / 100,
+      hasRange: remainderCents > 0,
+    };
   }, [totalAmount, selectedPeople]);
 
   const percentPreviewText = useMemo((): string => {
@@ -271,7 +279,13 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
           {splitType === 'equal' && totalAmount > 0 && (
             <View style={styles.previewBox}>
               <Text style={styles.previewText}>
-                {formatFull(equalSplitPreview, currencyCode)} {t('bills.per_person')}
+                {equalSplitPreview.hasRange
+                  ? `${formatFull(equalSplitPreview.low, currencyCode)} – ${formatFull(
+                      equalSplitPreview.high,
+                      currencyCode
+                    )}`
+                  : formatFull(equalSplitPreview.high, currencyCode)}{' '}
+                {t('bills.per_person')}
               </Text>
             </View>
           )}

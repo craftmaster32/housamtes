@@ -516,6 +516,7 @@
     "split_breakdown": "Split breakdown",
     "total": "Total:",
     "custom_split": "Custom split",
+    "percentage_split": "Percentage split",
     "equal_split": "Equal ÷",
     "equal_split_count": "Equal ÷ {{count}}",
     "mark_settled": "Mark as Settled",

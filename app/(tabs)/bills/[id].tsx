@@ -16,7 +16,12 @@ import { useBillsStore, getPersonShare, CATEGORIES } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { parseAndValidateAddBill, parseAmount, type AddBillPayload } from '@utils/validation';
+import {
+  parseAndValidateAddBill,
+  parseAmount,
+  derivePercentAmounts,
+  type AddBillPayload,
+} from '@utils/validation';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
@@ -56,30 +61,6 @@ function formatDisplayDate(iso: string, locale: string): string {
     day: 'numeric',
     year: 'numeric',
   });
-}
-
-/**
- * Rebuild percentage inputs from stored money shares so a percentage-split bill
- * reopens in "% mode". The last person absorbs the rounding remainder so the
- * values sum to exactly 100 and an unchanged re-save passes validation.
- */
-function derivePercentAmounts(
-  ids: string[],
-  splitAmounts: Record<string, number>,
-  total: number
-): Record<string, string> {
-  const result: Record<string, string> = {};
-  let running = 0;
-  ids.forEach((id, i) => {
-    if (i === ids.length - 1) {
-      result[id] = String(Math.round((100 - running) * 10) / 10);
-    } else {
-      const pct = Math.round(((splitAmounts[id] ?? 0) / total) * 100 * 10) / 10;
-      result[id] = String(pct);
-      running += pct;
-    }
-  });
-  return result;
 }
 
 export default function BillDetailScreen(): React.JSX.Element {
@@ -307,7 +288,15 @@ export default function BillDetailScreen(): React.JSX.Element {
     );
   }
 
-  const isCustomSplit = !!bill.splitAmounts;
+  // Prefer the saved method; legacy bills (no split_type) fall back to inferring
+  // custom-vs-equal from whether per-person amounts were stored.
+  const resolvedSplitType: SplitType = bill.splitType ?? (bill.splitAmounts ? 'custom' : 'equal');
+  const splitLabel =
+    resolvedSplitType === 'percentage'
+      ? t('bills.percentage_split')
+      : resolvedSplitType === 'custom'
+        ? t('bills.custom_split')
+        : t('bills.equal_split_count', { count: bill.splitBetween.length });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -533,10 +522,7 @@ export default function BillDetailScreen(): React.JSX.Element {
           <View style={styles.card}>
             <Text style={[styles.sectionTitle, headingFont]}>{t('bills.split_breakdown')}</Text>
             <Text style={styles.splitTotal}>
-              {t('bills.total')} {formatFull(bill.amount, currencyCode)} ·{' '}
-              {isCustomSplit
-                ? t('bills.custom_split')
-                : t('bills.equal_split_count', { count: bill.splitBetween.length })}
+              {t('bills.total')} {formatFull(bill.amount, currencyCode)} · {splitLabel}
             </Text>
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>

@@ -189,6 +189,33 @@ export function parseAndValidateAddBill(input: {
   };
 }
 
+/**
+ * Rebuild percentage inputs from stored money shares so a percentage-split bill
+ * reopens in "% mode". Each non-final share is rounded to 0.1% and clamped to
+ * the percentage still remaining, and the final person takes whatever is left —
+ * so the values always sum to exactly 100 and never go negative (which would
+ * otherwise let a save persist a negative monetary share).
+ */
+export function derivePercentAmounts(
+  ids: string[],
+  splitAmounts: Record<string, number>,
+  total: number
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  let running = 0;
+  ids.forEach((id, i) => {
+    if (i === ids.length - 1) {
+      result[id] = String(Math.round(Math.max(0, 100 - running) * 10) / 10);
+    } else {
+      const roundedPct = Math.round(((splitAmounts[id] ?? 0) / total) * 100 * 10) / 10;
+      const pct = Math.min(roundedPct, Math.max(0, 100 - running));
+      result[id] = String(pct);
+      running += pct;
+    }
+  });
+  return result;
+}
+
 export const houseNoteSchema = z.object({
   text: z.string().trim().min(1, 'Note text is required').max(500),
 });

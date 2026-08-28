@@ -517,6 +517,7 @@
     "split_breakdown": "Desglose de división",
     "total": "Total:",
     "custom_split": "División personalizada",
+    "percentage_split": "División por porcentaje",
     "equal_split": "División igual ÷",
     "equal_split_count": "División igual ÷ {{count}}",
     "mark_settled": "Marcar como liquidado",

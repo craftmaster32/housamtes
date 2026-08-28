@@ -3,6 +3,7 @@ import {
   profileDetailsSchema,
   changePasswordSchema,
   parseAndValidateAddBill,
+  derivePercentAmounts,
 } from '@utils/validation';
 
 describe('profileDetailsSchema', () => {
@@ -151,5 +152,35 @@ describe('parseAndValidateAddBill — split calculation', () => {
     expect(() => parseAndValidateAddBill({ ...base, amount: '', splitType: 'equal' })).toThrow(
       z.ZodError
     );
+  });
+});
+
+describe('derivePercentAmounts', () => {
+  const sum = (obj: Record<string, string>): number =>
+    Object.values(obj).reduce((a, s) => a + parseFloat(s), 0);
+
+  it('rebuilds simple percentages and sums to exactly 100', () => {
+    const out = derivePercentAmounts(['a', 'b'], { a: 75, b: 25 }, 100);
+    expect(out).toEqual({ a: '75', b: '25' });
+    expect(sum(out)).toBe(100);
+  });
+
+  it('never produces a negative share on a rounding-boundary split', () => {
+    // 33.36 / 33.36 / 33.25 / 0.03 rounds to 33.4 / 33.4 / 33.3, which would
+    // overshoot 100 and leave the last person at -0.1 without clamping.
+    const out = derivePercentAmounts(
+      ['a', 'b', 'c', 'd'],
+      { a: 33.36, b: 33.36, c: 33.25, d: 0.03 },
+      100
+    );
+    for (const v of Object.values(out)) {
+      expect(parseFloat(v)).toBeGreaterThanOrEqual(0);
+    }
+    expect(sum(out)).toBeCloseTo(100, 10);
+  });
+
+  it('gives the final person the remainder so the total stays 100', () => {
+    const out = derivePercentAmounts(['a', 'b', 'c'], { a: 33.34, b: 33.33, c: 33.33 }, 100);
+    expect(sum(out)).toBeCloseTo(100, 10);
   });
 });

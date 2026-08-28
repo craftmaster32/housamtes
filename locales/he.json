@@ -517,6 +517,7 @@
     "split_breakdown": "פירוט חלוקה",
     "total": "סה״כ:",
     "custom_split": "חלוקה מותאמת",
+    "percentage_split": "חלוקה לפי אחוזים",
     "equal_split": "חלוקה שווה ÷",
     "equal_split_count": "חלוקה שווה ÷ {{count}}",
     "mark_settled": "סמן כמקוזז",
