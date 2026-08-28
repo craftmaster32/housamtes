@@ -132,6 +132,22 @@ describe('parseAndValidateAddBill — split calculation', () => {
     expect(sum).toBeCloseTo(10, 10);
   });
 
+  it('never assigns a negative share when percentages overshoot within tolerance', () => {
+    // 33.4 + 33.4 + 33.3 + 0 = 100.1 (accepted by the ±0.1 tolerance) would,
+    // without clamping, leave the last person at -0.10. Every share must stay
+    // >= 0 and the shares must still sum to the exact total.
+    const p = parseAndValidateAddBill({
+      ...base,
+      amount: '100',
+      selectedPeople: ['u1', 'u2', 'u3', 'u4'],
+      splitType: 'percentage',
+      percentAmounts: { u1: '33.4', u2: '33.4', u3: '33.3', u4: '0' },
+    });
+    const shares = Object.values(p.splitAmounts ?? {});
+    for (const s of shares) expect(s).toBeGreaterThanOrEqual(0);
+    expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 10);
+  });
+
   it('throws when percentages do not add up to 100', () => {
     expect(() =>
       parseAndValidateAddBill({

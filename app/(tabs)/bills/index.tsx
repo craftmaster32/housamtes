@@ -116,8 +116,9 @@ function BillCard({
   const houseId = useAuthStore((s) => s.houseId) ?? '';
   const deleteBill = useBillsStore((s) => s.deleteBill);
   // Same rule as the detail screen's delete button: only owners/admins can
-  // remove a bill, and settled bills stay locked as permanent history.
-  const canDelete = (role === 'owner' || role === 'admin') && !bill.settled;
+  // remove a bill, and settled bills stay locked as permanent history. A valid
+  // house context is required too, so deletion never fires without one.
+  const canDelete = (role === 'owner' || role === 'admin') && !bill.settled && !!houseId;
   const isDark = c === darkColors;
   const icon = getCategoryIcon(bill.category ?? '');
   const catColor = bill.settled
