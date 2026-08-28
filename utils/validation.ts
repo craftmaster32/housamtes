@@ -214,7 +214,10 @@ export function derivePercentAmounts(
       result[id] = String(Math.round(Math.max(0, 100 - running) * 10) / 10);
     } else {
       const roundedPct = Math.round(((splitAmounts[id] ?? 0) / total) * 100 * 10) / 10;
-      const pct = Math.min(roundedPct, Math.max(0, 100 - running));
+      // Clamp to 0..remaining: the upper bound keeps the total at 100, and the
+      // lower bound guards a legacy bill that stored a negative share (possible
+      // before the split validator clamped them) from reconstructing negatives.
+      const pct = Math.min(Math.max(0, roundedPct), Math.max(0, 100 - running));
       result[id] = String(pct);
       running += pct;
     }

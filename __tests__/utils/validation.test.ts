@@ -199,4 +199,14 @@ describe('derivePercentAmounts', () => {
     const out = derivePercentAmounts(['a', 'b', 'c'], { a: 33.34, b: 33.33, c: 33.33 }, 100);
     expect(sum(out)).toBeCloseTo(100, 10);
   });
+
+  it('clamps a negative stored share to zero (legacy data guard)', () => {
+    // A legacy bill saved before the validator clamp could hold a negative
+    // share; reconstruction must not surface a negative percentage.
+    const out = derivePercentAmounts(['a', 'b', 'c'], { a: 60, b: 45, c: -5 }, 100);
+    for (const v of Object.values(out)) {
+      expect(parseFloat(v)).toBeGreaterThanOrEqual(0);
+    }
+    expect(sum(out)).toBeCloseTo(100, 10);
+  });
 });
