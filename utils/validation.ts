@@ -75,6 +75,7 @@ export interface AddBillPayload {
   paidBy: string;
   splitBetween: string[];
   splitAmounts: Record<string, number> | null;
+  splitType: SplitType;
   category: string;
   date: string;
 }
@@ -182,6 +183,7 @@ export function parseAndValidateAddBill(input: {
     paidBy: parsed.paidBy,
     splitBetween: parsed.selectedPeople,
     splitAmounts,
+    splitType: parsed.splitType,
     category: parsed.category,
     date: parsed.date,
   };

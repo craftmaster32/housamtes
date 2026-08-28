@@ -55,6 +55,7 @@ function bill(overrides: Partial<Bill> = {}): Bill {
     paidBy: 'Alice',
     splitBetween: ['Alice', 'Bob', 'Carol'],
     splitAmounts: null,
+    splitType: null,
     category: 'Rent',
     date: '2026-04-01',
     createdAt: '2026-04-01T00:00:00Z',
@@ -531,6 +532,7 @@ describe('billsStore — editBill', () => {
         paidBy: 'Bob',
         splitBetween: ['Bob', 'Carol'],
         splitAmounts: { Bob: 600, Carol: 300 },
+        splitType: 'percentage',
       },
       'house1'
     );
@@ -541,13 +543,16 @@ describe('billsStore — editBill', () => {
         paid_by: 'Bob',
         split_between: ['Bob', 'Carol'],
         split_amounts: { Bob: 600, Carol: 300 },
+        split_type: 'percentage',
       })
     );
-    // …and local state mirrors them.
+    // …and local state mirrors them (a percentage bill stays 'percentage'
+    // instead of reopening as a custom split).
     const updated = useBillsStore.getState().bills[0];
     expect(updated.paidBy).toBe('Bob');
     expect(updated.splitBetween).toEqual(['Bob', 'Carol']);
     expect(updated.splitAmounts).toEqual({ Bob: 600, Carol: 300 });
+    expect(updated.splitType).toBe('percentage');
   });
 
   it('leaves split fields untouched when they are omitted', async () => {
@@ -572,6 +577,7 @@ describe('billsStore — editBill', () => {
     expect(payload).not.toHaveProperty('paid_by');
     expect(payload).not.toHaveProperty('split_between');
     expect(payload).not.toHaveProperty('split_amounts');
+    expect(payload).not.toHaveProperty('split_type');
     // Existing split data is preserved in state.
     const updated = useBillsStore.getState().bills[0];
     expect(updated.paidBy).toBe('Alice');
@@ -600,6 +606,7 @@ describe('billsStore — load', () => {
       paid_by: 'Bob',
       split_between: ['Alice', 'Bob'],
       split_amounts: null,
+      split_type: 'equal',
       category: 'Internet',
       date: '2026-04-15',
       created_at: '2026-04-15T10:00:00Z',
@@ -616,6 +623,27 @@ describe('billsStore — load', () => {
     expect(b.amount).toBe(45); // Number('45.00') = 45
     expect(b.paidBy).toBe('Bob');
     expect(b.splitBetween).toEqual(['Alice', 'Bob']);
+    expect(b.splitType).toBe('equal');
+  });
+
+  it('maps a missing split_type to null (legacy bills)', async () => {
+    const row = {
+      id: 'b1',
+      title: 'Internet',
+      amount: '45',
+      paid_by: 'Bob',
+      split_between: ['Alice', 'Bob'],
+      split_amounts: null,
+      category: 'Internet',
+      date: '2026-04-15',
+      created_at: '2026-04-15T10:00:00Z',
+      settled: false,
+    };
+    mockFrom.mockReturnValue({ ...ok([row]), order: jest.fn(() => ok([row])) });
+
+    await useBillsStore.getState().load('house-1');
+
+    expect(useBillsStore.getState().bills[0].splitType).toBeNull();
   });
 
   it('maps receipt_url to receiptUrl (and null when absent)', async () => {
@@ -656,6 +684,7 @@ describe('billsStore — addBill (receipt)', () => {
     paidBy: 'u1',
     splitBetween: ['u1', 'u2'],
     splitAmounts: null,
+    splitType: 'equal' as const,
     category: 'Groceries',
     date: '2026-08-13',
   };

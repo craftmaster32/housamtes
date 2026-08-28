@@ -21,6 +21,9 @@ export const CATEGORIES = [
   'Other',
 ];
 
+/** How the payer chose to divide the bill. `null` = legacy bill (pre-split_type). */
+export type BillSplitType = 'equal' | 'custom' | 'percentage';
+
 export interface Bill {
   id: string;
   title: string;
@@ -28,6 +31,7 @@ export interface Bill {
   paidBy: string; // user UUID
   splitBetween: string[]; // user UUIDs
   splitAmounts: Record<string, number> | null; // null = equal split; keys are user UUIDs
+  splitType: BillSplitType | null; // chosen method; null for bills created before this was tracked
   category: string;
   date: string;
   createdAt: string;
@@ -71,6 +75,7 @@ interface BillsStore {
       paidBy?: string;
       splitBetween?: string[];
       splitAmounts?: Record<string, number> | null;
+      splitType?: BillSplitType | null;
     },
     houseId: string
   ) => Promise<void>;
@@ -118,6 +123,7 @@ export const useBillsStore = create<BillsStore>()(
             paidBy: r.paid_by,
             splitBetween: r.split_between ?? [],
             splitAmounts: r.split_amounts ?? null,
+            splitType: r.split_type ?? null,
             category: r.category,
             date: r.date,
             createdAt: r.created_at,
@@ -179,6 +185,7 @@ export const useBillsStore = create<BillsStore>()(
             paid_by: data.paidBy,
             split_between: data.splitBetween,
             split_amounts: data.splitAmounts ?? null,
+            split_type: data.splitType ?? null,
             category: data.category,
             date: data.date,
             notes: data.notes ?? null,
@@ -197,6 +204,7 @@ export const useBillsStore = create<BillsStore>()(
           paidBy: inserted.paid_by,
           splitBetween: inserted.split_between ?? [],
           splitAmounts: inserted.split_amounts ?? null,
+          splitType: inserted.split_type ?? null,
           category: inserted.category,
           date: inserted.date,
           createdAt: inserted.created_at,
@@ -233,6 +241,7 @@ export const useBillsStore = create<BillsStore>()(
         if (updates.paidBy !== undefined) dbUpdate.paid_by = updates.paidBy;
         if (updates.splitBetween !== undefined) dbUpdate.split_between = updates.splitBetween;
         if (updates.splitAmounts !== undefined) dbUpdate.split_amounts = updates.splitAmounts;
+        if (updates.splitType !== undefined) dbUpdate.split_type = updates.splitType;
         const { error } = await supabase.from('bills').update(dbUpdate).eq('id', id);
         if (error) {
           captureError(error, { context: 'edit-bill', billId: id, houseId });
@@ -255,6 +264,7 @@ export const useBillsStore = create<BillsStore>()(
                   ...(updates.splitAmounts !== undefined
                     ? { splitAmounts: updates.splitAmounts }
                     : {}),
+                  ...(updates.splitType !== undefined ? { splitType: updates.splitType } : {}),
                 }
               : b
           ),

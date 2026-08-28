@@ -58,6 +58,30 @@ function formatDisplayDate(iso: string, locale: string): string {
   });
 }
 
+/**
+ * Rebuild percentage inputs from stored money shares so a percentage-split bill
+ * reopens in "% mode". The last person absorbs the rounding remainder so the
+ * values sum to exactly 100 and an unchanged re-save passes validation.
+ */
+function derivePercentAmounts(
+  ids: string[],
+  splitAmounts: Record<string, number>,
+  total: number
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  let running = 0;
+  ids.forEach((id, i) => {
+    if (i === ids.length - 1) {
+      result[id] = String(Math.round((100 - running) * 10) / 10);
+    } else {
+      const pct = Math.round(((splitAmounts[id] ?? 0) / total) * 100 * 10) / 10;
+      result[id] = String(pct);
+      running += pct;
+    }
+  });
+  return result;
+}
+
 export default function BillDetailScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const currentLanguage = useLanguageStore((s) => s.language);
@@ -109,14 +133,24 @@ export default function BillDetailScreen(): React.JSX.Element {
       setCategory(bill.category ?? 'Other');
       setPaidBy(bill.paidBy);
       setSelectedPeople(bill.splitBetween);
-      // A saved custom split seeds the custom inputs; an equal split starts blank.
-      setSplitType(bill.splitAmounts ? 'custom' : 'equal');
+      // Prefer the saved method; older bills (no split_type) fall back to
+      // inferring custom-vs-equal from whether per-person amounts were stored.
+      const resolvedType: SplitType = bill.splitType ?? (bill.splitAmounts ? 'custom' : 'equal');
+      setSplitType(resolvedType);
+      // Custom seeds the amount inputs from the stored shares.
       setCustomAmounts(
         bill.splitAmounts
           ? Object.fromEntries(Object.entries(bill.splitAmounts).map(([id, v]) => [id, String(v)]))
           : {}
       );
-      setPercentAmounts({});
+      // Percentage re-derives each share as a % of the total. The last person
+      // absorbs the rounding remainder so the values still sum to exactly 100,
+      // keeping an untouched re-save valid.
+      setPercentAmounts(
+        resolvedType === 'percentage' && bill.splitAmounts && bill.amount > 0
+          ? derivePercentAmounts(bill.splitBetween, bill.splitAmounts, bill.amount)
+          : {}
+      );
     }
   }, [bill, isEditing]);
 
@@ -193,6 +227,7 @@ export default function BillDetailScreen(): React.JSX.Element {
           paidBy: payload.paidBy,
           splitBetween: payload.splitBetween,
           splitAmounts: payload.splitAmounts,
+          splitType: payload.splitType,
         },
         houseId
       );
