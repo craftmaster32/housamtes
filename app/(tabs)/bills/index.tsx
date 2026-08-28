@@ -197,7 +197,7 @@ function BillCard({
   if (!canDelete) return row;
   return (
     <Swipeable
-      renderRightActions={(_progress, dragX) => {
+      renderRightActions={(_progress, dragX): React.JSX.Element => {
         // Slide the panel in 1:1 with the drag so it stays glued to the row's
         // right edge instead of sitting revealed as a floating box underneath.
         const translateX = dragX.interpolate({
@@ -210,8 +210,10 @@ function BillCard({
             <Pressable
               style={[styles.swipeDelete, { backgroundColor: c.danger }]}
               onPress={handleDelete}
+              accessible
               accessibilityRole="button"
               accessibilityLabel={t('bills.delete_bill_name', { name: bill.title })}
+              accessibilityState={{ disabled: false }}
             >
               <Ionicons name="trash" size={20} color="#fff" />
               <Text style={styles.swipeDeleteText}>{t('common.delete')}</Text>

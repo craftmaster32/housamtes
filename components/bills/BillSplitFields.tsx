@@ -183,7 +183,13 @@ export const BillSplitFields: React.FC<BillSplitFieldsProps> = ({
       <View style={styles.field}>
         <View style={styles.labelRow}>
           <Text style={styles.label}>{t('bills.split_between')}</Text>
-          <Pressable onPress={selectAll} accessibilityRole="button">
+          <Pressable
+            onPress={selectAll}
+            style={styles.selectAllBtn}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('bills.select_all')}
+          >
             <Text style={styles.selectAll}>{t('bills.select_all')}</Text>
           </Pressable>
         </View>
@@ -434,6 +440,7 @@ const makeStyles = (C: ColorTokens) =>
     label: { color: C.textPrimary, ...font.semibold, fontSize: mf(14) },
     labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     selectAll: { color: C.primary, fontSize: mf(13), ...font.semibold },
+    selectAllBtn: { minHeight: ms(44), justifyContent: 'center', paddingHorizontal: ms(4) },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: sizes.xs },
     pChip: {
       flexDirection: 'row',
