@@ -203,7 +203,11 @@ describe('derivePercentAmounts', () => {
   it('clamps a negative stored share to zero (legacy data guard)', () => {
     // A legacy bill saved before the validator clamp could hold a negative
     // share; reconstruction must not surface a negative percentage.
-    const out = derivePercentAmounts(['a', 'b', 'c'], { a: 60, b: 45, c: -5 }, 100);
+    // Negative share on a NON-final participant (b), so the non-final lower
+    // clamp is what must zero it — the final participant already clamps its own
+    // remainder, so putting it last wouldn't exercise this path.
+    const out = derivePercentAmounts(['a', 'b', 'c'], { a: 60, b: -5, c: 45 }, 100);
+    expect(parseFloat(out.b)).toBe(0);
     for (const v of Object.values(out)) {
       expect(parseFloat(v)).toBeGreaterThanOrEqual(0);
     }

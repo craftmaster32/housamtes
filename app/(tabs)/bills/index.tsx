@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, memo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
 import {
   View,
   FlatList,
@@ -129,7 +129,11 @@ function BillCard({
     ? t(`bills.cat_${bill.category.toLowerCase()}`, { defaultValue: bill.category })
     : '';
 
+  // Single-flight guard: a slow delete must not be submitted twice (which would
+  // fire duplicate deletes and notify housemates more than once).
+  const deletingRef = useRef(false);
   const handleDelete = useCallback((): void => {
+    if (deletingRef.current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     // Deleting a bill can't be undone and shifts everyone's balances, so
     // confirm before removing — unlike the throwaway grocery rows.
@@ -139,9 +143,15 @@ function BillCard({
         text: t('common.delete'),
         style: 'destructive',
         onPress: (): void => {
-          deleteBill(bill.id, houseId).catch(() => {
-            Alert.alert(t('bills.failed_delete'));
-          });
+          if (deletingRef.current) return;
+          deletingRef.current = true;
+          deleteBill(bill.id, houseId)
+            .catch(() => {
+              Alert.alert(t('bills.failed_delete'));
+            })
+            .finally(() => {
+              deletingRef.current = false;
+            });
         },
       },
     ]);
