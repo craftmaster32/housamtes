@@ -139,6 +139,16 @@ export default function BillDetailScreen(): React.JSX.Element {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Expo Router can reuse this screen instance when you open a different bill.
+  // If it was left in edit mode, the sync effect above stays gated (it only
+  // repopulates when !isEditing), so the form would keep showing the previous
+  // bill. Dropping edit mode whenever the route id changes forces a clean
+  // re-sync to the newly opened bill.
+  useEffect(() => {
+    setIsEditing(false);
+    setError('');
+  }, [id]);
   const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
   const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
   const handleBackToBills = useCallback((): void => {
