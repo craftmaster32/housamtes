@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text, TextInput } from 'react-native-paper';
@@ -84,15 +84,32 @@ export default function BillDetailScreen(): React.JSX.Element {
   const memberName = useMemberName();
   const markSeen = useBadgeStore((s) => s.markSeen);
 
-  useFocusEffect(
-    useCallback(() => {
-      markSeen('bills').catch(() => {});
-    }, [markSeen])
-  );
-
   const housemates = useHousematesStore((s) => s.housemates);
 
   const [isEditing, setIsEditing] = useState(false);
+  // Set when leaving for the category manager, which is opened from inside the
+  // edit form. That is the one return that must land back in the form with what
+  // was typed still there, so it skips the reset below.
+  const resumeEditOnReturn = useRef(false);
+  const handleManageCategories = useCallback((): void => {
+    resumeEditOnReturn.current = true;
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      markSeen('bills').catch(() => {});
+      // Edit mode is screen state, and every bill shares this one screen — so
+      // without this, leaving mid-edit and opening a bill again would drop you
+      // straight back into the form. Coming back to the screen always starts on
+      // the read-only details.
+      if (resumeEditOnReturn.current) {
+        resumeEditOnReturn.current = false;
+        return;
+      }
+      setIsEditing(false);
+      setError('');
+    }, [markSeen])
+  );
   const [title, setTitle] = useState(bill?.title ?? '');
   const [amount, setAmount] = useState(bill?.amount.toString() ?? '');
   const [date, setDate] = useState(bill?.date ?? '');
@@ -263,8 +280,15 @@ export default function BillDetailScreen(): React.JSX.Element {
   }, [bill, houseId, isDeleting, isSaving, deleteBill, t]);
 
   const handleBack = useCallback((): void => {
+    // Editing is a step of its own: back closes the form and returns to the
+    // bill's details, and only a second back leaves for the Bills list.
+    if (isEditing) {
+      setIsEditing(false);
+      setError('');
+      return;
+    }
     goBack();
-  }, []);
+  }, [isEditing]);
   const handleStartEditing = useCallback((): void => {
     setIsEditing(true);
     setError('');
@@ -441,7 +465,7 @@ export default function BillDetailScreen(): React.JSX.Element {
                     </Pressable>
                   );
                 })}
-                <Link href="/(tabs)/settings/categories" asChild>
+                <Link href="/(tabs)/settings/categories" onPress={handleManageCategories} asChild>
                   <Pressable
                     style={styles.catChipAdd}
                     accessible
