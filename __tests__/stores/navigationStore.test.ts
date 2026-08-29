@@ -26,6 +26,8 @@ import {
   HOME_TAB_NAME,
   isOnHome,
   isBaseTab,
+  isBaseRoute,
+  SETTINGS_TAB_NAME,
   computeBaseHistory,
   collapseHistoryForBase,
   setCurrentTab,
@@ -131,22 +133,54 @@ describe('hrefToTabName', () => {
 });
 
 describe('planBaseNavigation', () => {
+  const H = HOME_TAB_NAME;
   it('pushes from Home so Home stays underneath', () => {
-    expect(planBaseNavigation(null, null, 'bills/index')).toBe('push');
-    expect(planBaseNavigation(HOME_TAB_NAME, HOME_TAB_NAME, 'bills/index')).toBe('push');
+    expect(planBaseNavigation([H], true, 'bills/index')).toEqual({ pops: 0, replace: false });
   });
   it('replaces between sections so they never stack', () => {
-    expect(planBaseNavigation('chores/index', 'chores/index', 'bills/index')).toBe('replace');
+    expect(planBaseNavigation([H, 'chores/index'], true, 'bills/index')).toEqual({
+      pops: 0,
+      replace: true,
+    });
   });
-  it('pops when a flow returns to the section it was opened from', () => {
-    // Bills → bill detail → Bills: the Bills entry is already underneath.
-    expect(planBaseNavigation('bills/[id]', 'bills/index', 'bills/index')).toBe('pop');
-    expect(planBaseNavigation('settings/language', 'more/settings', 'more/settings')).toBe('pop');
+  it('unwinds straight to a target already below the flow', () => {
+    // Bills → bill detail → Bills: one pop lands on the Bills already underneath.
+    expect(planBaseNavigation([H, 'bills/index', 'bills/[id]'], false, 'bills/index')).toEqual({
+      pops: 1,
+      replace: false,
+    });
   });
-  it('pops then replaces when a flow leaves for a different section', () => {
-    expect(planBaseNavigation('bills/[id]', 'bills/index', 'chores/index')).toBe('pop-replace');
-    // A bill opened from Home pops back to Home, then swaps it for Bills.
-    expect(planBaseNavigation('bills/[id]', HOME_TAB_NAME, 'bills/index')).toBe('pop-replace');
+  it('unwinds a deep flow chain in one move', () => {
+    // Bills → bill → a settings sub-page opened from it, then back to Bills.
+    const stack = [H, 'bills/index', 'bills/[id]', 'settings/categories'];
+    expect(planBaseNavigation(stack, false, 'bills/index')).toEqual({ pops: 2, replace: false });
+  });
+  it('unwinds to the section then swaps it when leaving for another', () => {
+    expect(planBaseNavigation([H, 'bills/index', 'bills/[id]'], false, 'chores/index')).toEqual({
+      pops: 1,
+      replace: true,
+    });
+  });
+  it('swaps in place for a flow sitting directly on Home', () => {
+    // A bill opened straight from the dashboard has no section under it.
+    expect(planBaseNavigation([H, 'bills/[id]'], false, 'bills/index')).toEqual({
+      pops: 0,
+      replace: true,
+    });
+  });
+});
+
+describe('isBaseRoute — Settings is a section or a page of Profile', () => {
+  it('is a section when opened from the menu', () => {
+    expect(isBaseRoute(SETTINGS_TAB_NAME)).toBe(true);
+    expect(isBaseRoute(SETTINGS_TAB_NAME, {})).toBe(true);
+  });
+  it('is a page of Profile when opened from there', () => {
+    expect(isBaseRoute(SETTINGS_TAB_NAME, { from: 'profile' })).toBe(false);
+  });
+  it('leaves every other route judged by name alone', () => {
+    expect(isBaseRoute('bills/index')).toBe(true);
+    expect(isBaseRoute('bills/[id]', { from: 'profile' })).toBe(false);
   });
 });
 
@@ -155,30 +189,23 @@ describe('web history never accumulates across repeated rounds', () => {
   // drops it — exactly what the real one does, which is the part the old code
   // got wrong: replace left the section a flow was opened from in place.
   type Sim = { entries: string[] };
-  const apply = (h: Sim, plan: string, target: string): void => {
-    if (plan === 'push') h.entries.push(target);
-    else if (plan === 'replace') h.entries[h.entries.length - 1] = target;
-    else if (plan === 'pop') h.entries.pop();
-    else if (plan === 'pop-replace') {
-      h.entries.pop();
-      h.entries[h.entries.length - 1] = target;
-    }
+  const apply = (h: Sim, action: { pops: number; replace: boolean }, target: string): void => {
+    for (let i = 0; i < action.pops; i++) h.entries.pop();
+    if (action.replace) h.entries[h.entries.length - 1] = target;
+    else if (h.entries[h.entries.length - 1] !== target) h.entries.push(target);
   };
 
   it('bills → bill → bills, three times, still leaves back one step from Home', () => {
     const h: Sim = { entries: [HOME_TAB_NAME] };
-    let current = HOME_TAB_NAME;
-    let lastBase = HOME_TAB_NAME;
+    let isBase = true;
 
     for (let round = 0; round < 3; round++) {
       // …tap Bills in the menu
-      const plan = planBaseNavigation(current, lastBase, 'bills/index');
-      apply(h, plan, 'bills/index');
-      current = 'bills/index';
-      lastBase = 'bills/index';
+      apply(h, planBaseNavigation(h.entries, isBase, 'bills/index'), 'bills/index');
+      isBase = true;
       // …open a bill (a plain push, as the Bills list does)
       h.entries.push('bills/[id]');
-      current = 'bills/[id]';
+      isBase = false;
     }
 
     // The old code produced [home, bills, bills, bills, bill] here — one stale
@@ -190,6 +217,45 @@ describe('web history never accumulates across repeated rounds', () => {
     expect(h.entries[h.entries.length - 1]).toBe('bills/index');
     h.entries.pop();
     expect(h.entries).toEqual([HOME_TAB_NAME]);
+  });
+
+  it('Settings goes back to Home from the menu, and to Profile from Profile', () => {
+    // Opened from the menu it is a section: it sits directly on Home, so one
+    // back reaches Home.
+    const viaMenu: Sim = { entries: [HOME_TAB_NAME] };
+    apply(viaMenu, planBaseNavigation(viaMenu.entries, true, SETTINGS_TAB_NAME), SETTINGS_TAB_NAME);
+    expect(viaMenu.entries).toEqual([HOME_TAB_NAME, SETTINGS_TAB_NAME]);
+    viaMenu.entries.pop();
+    expect(viaMenu.entries[viaMenu.entries.length - 1]).toBe(HOME_TAB_NAME);
+
+    // Opened from Profile it is a page of Profile: pushed on top of it, so back
+    // returns to Profile, and the one after that reaches Home.
+    const viaProfile: Sim = { entries: [HOME_TAB_NAME] };
+    apply(
+      viaProfile,
+      planBaseNavigation(viaProfile.entries, true, 'profile/index'),
+      'profile/index'
+    );
+    viaProfile.entries.push(SETTINGS_TAB_NAME); // a push, because it is a flow here
+    expect(viaProfile.entries).toEqual([HOME_TAB_NAME, 'profile/index', SETTINGS_TAB_NAME]);
+    viaProfile.entries.pop();
+    expect(viaProfile.entries[viaProfile.entries.length - 1]).toBe('profile/index');
+    viaProfile.entries.pop();
+    expect(viaProfile.entries).toEqual([HOME_TAB_NAME]);
+  });
+
+  it('leaving Settings-from-Profile for a section still lands flat', () => {
+    // [home, profile, settings] → tap Bills: unwind both, land on [home, bills].
+    const stack = [HOME_TAB_NAME, 'profile/index', SETTINGS_TAB_NAME];
+    const h: Sim = { entries: [...stack] };
+    // isBase is false here — Settings opened from Profile is a page of Profile.
+    apply(h, planBaseNavigation(h.entries, false, 'bills/index'), 'bills/index');
+    expect(h.entries).toEqual([HOME_TAB_NAME, 'bills/index']);
+
+    // …and tapping Profile from there returns to the Profile already underneath.
+    const back: Sim = { entries: [...stack] };
+    apply(back, planBaseNavigation(back.entries, false, 'profile/index'), 'profile/index');
+    expect(back.entries).toEqual([HOME_TAB_NAME, 'profile/index']);
   });
 
   it('holds for every section, not just bills', () => {
@@ -220,34 +286,30 @@ describe('web history never accumulates across repeated rounds', () => {
     };
 
     const h: Sim = { entries: [HOME_TAB_NAME] };
-    let current = HOME_TAB_NAME;
-    let lastBase = HOME_TAB_NAME;
+    let isBase = true;
 
     for (const section of sections) {
-      apply(h, planBaseNavigation(current, lastBase, section), section);
-      current = section;
-      lastBase = section;
+      apply(h, planBaseNavigation(h.entries, isBase, section), section);
+      isBase = true;
       // A section always sits directly on Home — never on another section.
       expect(h.entries).toEqual([HOME_TAB_NAME, section]);
 
       h.entries.push(flowOf[section]);
-      current = flowOf[section];
+      isBase = false;
       expect(h.entries).toEqual([HOME_TAB_NAME, section, flowOf[section]]);
     }
   });
 
   it('stays flat when flows and sections are mixed', () => {
     const h: Sim = { entries: [HOME_TAB_NAME] };
-    let current = HOME_TAB_NAME;
-    let lastBase = HOME_TAB_NAME;
+    let isBase = true;
     const toBase = (target: string): void => {
-      apply(h, planBaseNavigation(current, lastBase, target), target);
-      current = target;
-      lastBase = target;
+      apply(h, planBaseNavigation(h.entries, isBase, target), target);
+      isBase = true;
     };
     const toFlow = (name: string): void => {
       h.entries.push(name);
-      current = name;
+      isBase = false;
     };
 
     toBase('bills/index');
@@ -304,6 +366,29 @@ describe('collapseHistoryForBase (native reset)', () => {
     const history = [{ key: 'd' }, { key: 'b' }, { key: 'add' }];
     expect(collapseHistoryForBase(routes, idx('bills/add'), history)).toBeNull();
   });
+  it('collapses Settings when it is a section, but not when opened from Profile', () => {
+    const withSettings = [
+      { name: 'dashboard/index', key: 'd' },
+      { name: 'profile/index', key: 'p' },
+      { name: SETTINGS_TAB_NAME, key: 's' },
+    ];
+    const history = [{ key: 'd' }, { key: 'p' }, { key: 's' }];
+    const settingsAt = 2;
+
+    // From the menu it is a section — collapse so back reaches Home.
+    expect(collapseHistoryForBase(withSettings, settingsAt, history)).toEqual([
+      { type: 'route', key: 'd' },
+      { type: 'route', key: 's' },
+    ]);
+
+    // From Profile it is a page of Profile — leave its pushed history alone so
+    // back returns to Profile.
+    const fromProfile = withSettings.map((r) =>
+      r.name === SETTINGS_TAB_NAME ? { ...r, params: { from: 'profile' } } : r
+    );
+    expect(collapseHistoryForBase(fromProfile, settingsAt, history)).toBeNull();
+  });
+
   it('is a no-op when a section already sits on [home, section]', () => {
     expect(
       collapseHistoryForBase(routes, idx('bills/index'), [{ key: 'd' }, { key: 'b' }])
