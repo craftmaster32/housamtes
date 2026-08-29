@@ -3,6 +3,7 @@ import {
   profileDetailsSchema,
   changePasswordSchema,
   parseAndValidateAddBill,
+  derivePercentAmounts,
 } from '@utils/validation';
 
 describe('profileDetailsSchema', () => {
@@ -131,6 +132,22 @@ describe('parseAndValidateAddBill — split calculation', () => {
     expect(sum).toBeCloseTo(10, 10);
   });
 
+  it('never assigns a negative share when percentages overshoot within tolerance', () => {
+    // 33.4 + 33.4 + 33.3 + 0 = 100.1 (accepted by the ±0.1 tolerance) would,
+    // without clamping, leave the last person at -0.10. Every share must stay
+    // >= 0 and the shares must still sum to the exact total.
+    const p = parseAndValidateAddBill({
+      ...base,
+      amount: '100',
+      selectedPeople: ['u1', 'u2', 'u3', 'u4'],
+      splitType: 'percentage',
+      percentAmounts: { u1: '33.4', u2: '33.4', u3: '33.3', u4: '0' },
+    });
+    const shares = Object.values(p.splitAmounts ?? {});
+    for (const s of shares) expect(s).toBeGreaterThanOrEqual(0);
+    expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 10);
+  });
+
   it('throws when percentages do not add up to 100', () => {
     expect(() =>
       parseAndValidateAddBill({
@@ -151,5 +168,49 @@ describe('parseAndValidateAddBill — split calculation', () => {
     expect(() => parseAndValidateAddBill({ ...base, amount: '', splitType: 'equal' })).toThrow(
       z.ZodError
     );
+  });
+});
+
+describe('derivePercentAmounts', () => {
+  const sum = (obj: Record<string, string>): number =>
+    Object.values(obj).reduce((a, s) => a + parseFloat(s), 0);
+
+  it('rebuilds simple percentages and sums to exactly 100', () => {
+    const out = derivePercentAmounts(['a', 'b'], { a: 75, b: 25 }, 100);
+    expect(out).toEqual({ a: '75', b: '25' });
+    expect(sum(out)).toBe(100);
+  });
+
+  it('never produces a negative share on a rounding-boundary split', () => {
+    // 33.36 / 33.36 / 33.25 / 0.03 rounds to 33.4 / 33.4 / 33.3, which would
+    // overshoot 100 and leave the last person at -0.1 without clamping.
+    const out = derivePercentAmounts(
+      ['a', 'b', 'c', 'd'],
+      { a: 33.36, b: 33.36, c: 33.25, d: 0.03 },
+      100
+    );
+    for (const v of Object.values(out)) {
+      expect(parseFloat(v)).toBeGreaterThanOrEqual(0);
+    }
+    expect(sum(out)).toBeCloseTo(100, 10);
+  });
+
+  it('gives the final person the remainder so the total stays 100', () => {
+    const out = derivePercentAmounts(['a', 'b', 'c'], { a: 33.34, b: 33.33, c: 33.33 }, 100);
+    expect(sum(out)).toBeCloseTo(100, 10);
+  });
+
+  it('clamps a negative stored share to zero (legacy data guard)', () => {
+    // A legacy bill saved before the validator clamp could hold a negative
+    // share; reconstruction must not surface a negative percentage.
+    // Negative share on a NON-final participant (b), so the non-final lower
+    // clamp is what must zero it — the final participant already clamps its own
+    // remainder, so putting it last wouldn't exercise this path.
+    const out = derivePercentAmounts(['a', 'b', 'c'], { a: 60, b: -5, c: 45 }, 100);
+    expect(parseFloat(out.b)).toBe(0);
+    for (const v of Object.values(out)) {
+      expect(parseFloat(v)).toBeGreaterThanOrEqual(0);
+    }
+    expect(sum(out)).toBeCloseTo(100, 10);
   });
 });

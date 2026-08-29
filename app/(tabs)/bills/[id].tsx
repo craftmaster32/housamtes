@@ -7,12 +7,21 @@ import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router'
 import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { z } from 'zod';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { BillReceipt } from '@components/bills/BillReceipt';
+import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
 import { UserAvatar } from '@components/shared/UserAvatar';
-import { useBillsStore, getPersonShare, EditBillSchema, CATEGORIES } from '@stores/billsStore';
+import { useBillsStore, getPersonShare, CATEGORIES } from '@stores/billsStore';
 import { useAuthStore } from '@stores/authStore';
+import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
+import {
+  parseAndValidateAddBill,
+  parseAmount,
+  derivePercentAmounts,
+  type AddBillPayload,
+} from '@utils/validation';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
@@ -68,6 +77,8 @@ export default function BillDetailScreen(): React.JSX.Element {
   const deleteBill = useBillsStore((s) => s.deleteBill);
   const houseId = useAuthStore((s) => s.houseId);
   const role = useAuthStore((s) => s.role);
+  const profile = useAuthStore((s) => s.profile);
+  const myId = profile?.id ?? '';
   const canDelete = role === 'owner' || role === 'admin';
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
@@ -79,12 +90,19 @@ export default function BillDetailScreen(): React.JSX.Element {
     }, [markSeen])
   );
 
+  const housemates = useHousematesStore((s) => s.housemates);
+
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(bill?.title ?? '');
   const [amount, setAmount] = useState(bill?.amount.toString() ?? '');
   const [date, setDate] = useState(bill?.date ?? '');
   const [notes, setNotes] = useState(bill?.notes ?? '');
   const [category, setCategory] = useState(bill?.category ?? 'Other');
+  const [paidBy, setPaidBy] = useState(bill?.paidBy ?? '');
+  const [selectedPeople, setSelectedPeople] = useState<string[]>(bill?.splitBetween ?? []);
+  const [splitType, setSplitType] = useState<SplitType>(bill?.splitAmounts ? 'custom' : 'equal');
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
+  const [percentAmounts, setPercentAmounts] = useState<Record<string, string>>({});
 
   // Sync form back to bill data when not editing (covers async load + cancel)
   useEffect(() => {
@@ -94,6 +112,26 @@ export default function BillDetailScreen(): React.JSX.Element {
       setDate(bill.date);
       setNotes(bill.notes ?? '');
       setCategory(bill.category ?? 'Other');
+      setPaidBy(bill.paidBy);
+      setSelectedPeople(bill.splitBetween);
+      // Prefer the saved method; older bills (no split_type) fall back to
+      // inferring custom-vs-equal from whether per-person amounts were stored.
+      const resolvedType: SplitType = bill.splitType ?? (bill.splitAmounts ? 'custom' : 'equal');
+      setSplitType(resolvedType);
+      // Custom seeds the amount inputs from the stored shares.
+      setCustomAmounts(
+        bill.splitAmounts
+          ? Object.fromEntries(Object.entries(bill.splitAmounts).map(([id, v]) => [id, String(v)]))
+          : {}
+      );
+      // Percentage re-derives each share as a % of the total. The last person
+      // absorbs the rounding remainder so the values still sum to exactly 100,
+      // keeping an untouched re-save valid.
+      setPercentAmounts(
+        resolvedType === 'percentage' && bill.splitAmounts && bill.amount > 0
+          ? derivePercentAmounts(bill.splitBetween, bill.splitAmounts, bill.amount)
+          : {}
+      );
     }
   }, [bill, isEditing]);
 
@@ -107,30 +145,73 @@ export default function BillDetailScreen(): React.JSX.Element {
     router.replace('/(tabs)/bills');
   }, []);
 
+  const setPersonAmount = useCallback((id: string, value: string): void => {
+    setCustomAmounts((prev) => ({ ...prev, [id]: value }));
+    setError('');
+  }, []);
+  const setPersonPercent = useCallback((id: string, value: string): void => {
+    setPercentAmounts((prev) => ({ ...prev, [id]: value }));
+    setError('');
+  }, []);
+  const handlePaidByChange = useCallback((id: string): void => {
+    setPaidBy(id);
+    setError('');
+  }, []);
+  const handleSelectedPeopleChange = useCallback((ids: string[]): void => {
+    setSelectedPeople(ids);
+    setError('');
+  }, []);
+  const handleSplitTypeChange = useCallback((type: SplitType): void => {
+    setSplitType(type);
+    setError('');
+  }, []);
+
   const handleSaveEdit = useCallback(async (): Promise<void> => {
     if (isSaving || isDeleting) return;
     if (!bill || !houseId) return;
-    const result = EditBillSchema.safeParse({
-      title: title.trim(),
-      amount: amount.replace(',', '.'),
-      date,
-      notes,
-      category,
-    });
-    if (!result.success) {
-      const path = result.error.issues[0]?.path[0];
-      setError(
-        path === 'title'
-          ? t('bills.title_required')
-          : path === 'amount'
-            ? t('bills.enter_valid_amount')
-            : t('bills.failed_save')
-      );
+    let payload: AddBillPayload;
+    try {
+      payload = parseAndValidateAddBill({
+        title,
+        amount,
+        paidBy,
+        selectedPeople,
+        splitType,
+        customAmounts,
+        percentAmounts,
+        category,
+        date,
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const first = err.errors[0];
+        const params =
+          first.code === 'custom'
+            ? ((first as z.ZodCustomIssue).params as Record<string, string | number>)
+            : undefined;
+        setError(t(first.message, params));
+      } else {
+        setError(t('bills.failed_save'));
+      }
       return;
     }
     try {
       setIsSaving(true);
-      await editBill(bill.id, result.data, houseId);
+      await editBill(
+        bill.id,
+        {
+          title: payload.title,
+          amount: payload.amount,
+          date: payload.date,
+          notes,
+          category: payload.category,
+          paidBy: payload.paidBy,
+          splitBetween: payload.splitBetween,
+          splitAmounts: payload.splitAmounts,
+          splitType: payload.splitType,
+        },
+        houseId
+      );
       setError('');
       setIsEditing(false);
     } catch (err) {
@@ -139,7 +220,24 @@ export default function BillDetailScreen(): React.JSX.Element {
     } finally {
       setIsSaving(false);
     }
-  }, [bill, houseId, title, amount, date, notes, category, editBill, t, isSaving, isDeleting]);
+  }, [
+    bill,
+    houseId,
+    title,
+    amount,
+    date,
+    notes,
+    category,
+    paidBy,
+    selectedPeople,
+    splitType,
+    customAmounts,
+    percentAmounts,
+    editBill,
+    t,
+    isSaving,
+    isDeleting,
+  ]);
 
   const handleDelete = useCallback(async (): Promise<void> => {
     if (!bill || !houseId || isDeleting || isSaving) return;
@@ -190,7 +288,15 @@ export default function BillDetailScreen(): React.JSX.Element {
     );
   }
 
-  const isCustomSplit = !!bill.splitAmounts;
+  // Prefer the saved method; legacy bills (no split_type) fall back to inferring
+  // custom-vs-equal from whether per-person amounts were stored.
+  const resolvedSplitType: SplitType = bill.splitType ?? (bill.splitAmounts ? 'custom' : 'equal');
+  const splitLabel =
+    resolvedSplitType === 'percentage'
+      ? t('bills.percentage_split')
+      : resolvedSplitType === 'custom'
+        ? t('bills.custom_split')
+        : t('bills.equal_split_count', { count: bill.splitBetween.length });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -254,6 +360,22 @@ export default function BillDetailScreen(): React.JSX.Element {
               keyboardType="decimal-pad"
               accessibilityLabel={t('bills.amount_label')}
               accessibilityHint={t('bills.amount_hint')}
+            />
+            <BillSplitFields
+              housemates={housemates}
+              myId={myId}
+              currencyCode={currencyCode}
+              totalAmount={parseAmount(amount)}
+              paidBy={paidBy}
+              onPaidByChange={handlePaidByChange}
+              selectedPeople={selectedPeople}
+              onSelectedPeopleChange={handleSelectedPeopleChange}
+              splitType={splitType}
+              onSplitTypeChange={handleSplitTypeChange}
+              customAmounts={customAmounts}
+              onCustomAmountChange={setPersonAmount}
+              percentAmounts={percentAmounts}
+              onPercentAmountChange={setPersonPercent}
             />
             <View style={styles.dateField}>
               <Text style={styles.dateFieldLabel}>{t('bills.date_label')}</Text>
@@ -400,10 +522,7 @@ export default function BillDetailScreen(): React.JSX.Element {
           <View style={styles.card}>
             <Text style={[styles.sectionTitle, headingFont]}>{t('bills.split_breakdown')}</Text>
             <Text style={styles.splitTotal}>
-              {t('bills.total')} {formatFull(bill.amount, currencyCode)} ·{' '}
-              {isCustomSplit
-                ? t('bills.custom_split')
-                : t('bills.equal_split_count', { count: bill.splitBetween.length })}
+              {t('bills.total')} {formatFull(bill.amount, currencyCode)} · {splitLabel}
             </Text>
             {bill.splitBetween.map((person) => (
               <View key={person} style={styles.splitRow}>

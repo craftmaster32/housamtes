@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, memo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
 import {
   View,
   FlatList,
@@ -8,8 +8,11 @@ import {
   TextInput,
   useWindowDimensions,
   Platform,
+  Animated as RNAnimated,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
@@ -17,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import { Alert } from '@lib/alert';
 import {
   useBillsStore,
   calculateAllNetBalances,
@@ -93,6 +97,10 @@ function getCategoryColor(category: string, fallback: string): string {
   return CATEGORY_COLORS[(category ?? '').toLowerCase()] ?? fallback;
 }
 
+// Width of the swipe-to-delete panel, kept in sync between the reveal animation
+// and its style so the red panel slides in flush with the row edge.
+const SWIPE_DELETE_WIDTH = ms(84);
+
 // ── Bill row card ─────────────────────────────────────────────────────────────
 /** A single one-off expense row: category-coloured tile, title, "category · payer", and total. */
 function BillCard({
@@ -104,6 +112,13 @@ function BillCard({
   const { t } = useTranslation();
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const memberName = useMemberName();
+  const role = useAuthStore((s) => s.role);
+  const houseId = useAuthStore((s) => s.houseId) ?? '';
+  const deleteBill = useBillsStore((s) => s.deleteBill);
+  // Same rule as the detail screen's delete button: only owners/admins can
+  // remove a bill, and settled bills stay locked as permanent history. A valid
+  // house context is required too, so deletion never fires without one.
+  const canDelete = (role === 'owner' || role === 'admin') && !bill.settled && !!houseId;
   const isDark = c === darkColors;
   const icon = getCategoryIcon(bill.category ?? '');
   const catColor = bill.settled
@@ -113,10 +128,42 @@ function BillCard({
   const catLabel = bill.category
     ? t(`bills.cat_${bill.category.toLowerCase()}`, { defaultValue: bill.category })
     : '';
-  return (
+
+  // Single-flight guard: a slow delete must not be submitted twice (which would
+  // fire duplicate deletes and notify housemates more than once).
+  const deletingRef = useRef(false);
+  const handleDelete = useCallback((): void => {
+    if (deletingRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    // Deleting a bill can't be undone and shifts everyone's balances, so
+    // confirm before removing — unlike the throwaway grocery rows.
+    Alert.alert(t('bills.delete_bill_confirm_title'), t('bills.delete_bill_confirm_msg'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: (): void => {
+          if (deletingRef.current) return;
+          deletingRef.current = true;
+          deleteBill(bill.id, houseId)
+            .catch(() => {
+              Alert.alert(t('bills.failed_delete'));
+            })
+            .finally(() => {
+              deletingRef.current = false;
+            });
+        },
+      },
+    ]);
+  }, [bill.id, houseId, deleteBill, t]);
+
+  const row = (
     <Pressable
       style={({ pressed }) => [
         styles.billRow,
+        // Opaque background matches the day card so the red delete lane never
+        // shows through the gaps between rows while swiping.
+        { backgroundColor: isDark ? c.surfaceSecondary : c.surface },
         pressed && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surfaceSecondary },
       ]}
       onPress={() => router.push(`/(tabs)/bills/${bill.id}`)}
@@ -154,6 +201,43 @@ function BillCard({
         </Text>
       </View>
     </Pressable>
+  );
+
+  // Swipe left-to-reveal a red Delete, like a native list. Settled bills and
+  // non-owner/admins can't delete, so they just render the plain row.
+  if (!canDelete) return row;
+  return (
+    <Swipeable
+      renderRightActions={(_progress, dragX): React.JSX.Element => {
+        // Slide the panel in 1:1 with the drag so it stays glued to the row's
+        // right edge instead of sitting revealed as a floating box underneath.
+        const translateX = dragX.interpolate({
+          inputRange: [-SWIPE_DELETE_WIDTH, 0],
+          outputRange: [0, SWIPE_DELETE_WIDTH],
+          extrapolate: 'clamp',
+        });
+        return (
+          <RNAnimated.View style={[styles.swipeDeleteLane, { transform: [{ translateX }] }]}>
+            <Pressable
+              style={[styles.swipeDelete, { backgroundColor: c.danger }]}
+              onPress={handleDelete}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('bills.delete_bill_name', { name: bill.title })}
+              accessibilityState={{ disabled: false }}
+            >
+              <Ionicons name="trash" size={20} color="#fff" />
+              <Text style={styles.swipeDeleteText}>{t('common.delete')}</Text>
+            </Pressable>
+          </RNAnimated.View>
+        );
+      }}
+      overshootRight={false}
+      rightThreshold={40}
+      friction={2}
+    >
+      {row}
+    </Swipeable>
   );
 }
 
@@ -1080,6 +1164,16 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
     fontVariant: ['tabular-nums'],
   },
+
+  // ── Swipe-to-delete lane (danger colour applied inline for theming)
+  swipeDeleteLane: { width: SWIPE_DELETE_WIDTH },
+  swipeDelete: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: ms(3),
+  },
+  swipeDeleteText: { fontSize: mf(12), ...font.bold, color: '#fff' },
 
   // ── Empty state
   emptyWrap: {

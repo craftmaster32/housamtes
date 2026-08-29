@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { supabase } from '@lib/supabase';
@@ -22,13 +21,8 @@ export const CATEGORIES = [
   'Other',
 ];
 
-export const EditBillSchema = z.object({
-  title: z.string().min(1),
-  amount: z.coerce.number().positive(),
-  date: z.string().min(1),
-  notes: z.string(),
-  category: z.enum(CATEGORIES as [string, ...string[]]),
-});
+/** How the payer chose to divide the bill. `null` = legacy bill (pre-split_type). */
+export type BillSplitType = 'equal' | 'custom' | 'percentage';
 
 export interface Bill {
   id: string;
@@ -37,6 +31,7 @@ export interface Bill {
   paidBy: string; // user UUID
   splitBetween: string[]; // user UUIDs
   splitAmounts: Record<string, number> | null; // null = equal split; keys are user UUIDs
+  splitType: BillSplitType | null; // chosen method; null for bills created before this was tracked
   category: string;
   date: string;
   createdAt: string;
@@ -71,7 +66,17 @@ interface BillsStore {
   ) => Promise<void>;
   editBill: (
     id: string,
-    updates: { title: string; amount: number; date: string; notes: string; category: string },
+    updates: {
+      title: string;
+      amount: number;
+      date: string;
+      notes: string;
+      category: string;
+      paidBy?: string;
+      splitBetween?: string[];
+      splitAmounts?: Record<string, number> | null;
+      splitType?: BillSplitType | null;
+    },
     houseId: string
   ) => Promise<void>;
   settleBill: (
@@ -118,6 +123,7 @@ export const useBillsStore = create<BillsStore>()(
             paidBy: r.paid_by,
             splitBetween: r.split_between ?? [],
             splitAmounts: r.split_amounts ?? null,
+            splitType: r.split_type ?? null,
             category: r.category,
             date: r.date,
             createdAt: r.created_at,
@@ -179,6 +185,7 @@ export const useBillsStore = create<BillsStore>()(
             paid_by: data.paidBy,
             split_between: data.splitBetween,
             split_amounts: data.splitAmounts ?? null,
+            split_type: data.splitType ?? null,
             category: data.category,
             date: data.date,
             notes: data.notes ?? null,
@@ -197,6 +204,7 @@ export const useBillsStore = create<BillsStore>()(
           paidBy: inserted.paid_by,
           splitBetween: inserted.split_between ?? [],
           splitAmounts: inserted.split_amounts ?? null,
+          splitType: inserted.split_type ?? null,
           category: inserted.category,
           date: inserted.date,
           createdAt: inserted.created_at,
@@ -220,16 +228,21 @@ export const useBillsStore = create<BillsStore>()(
       },
       editBill: async (id, updates, houseId): Promise<void> => {
         const before = get().bills.find((b) => b.id === id);
-        const { error } = await supabase
-          .from('bills')
-          .update({
-            title: updates.title,
-            amount: updates.amount,
-            date: updates.date,
-            notes: updates.notes,
-            category: updates.category,
-          })
-          .eq('id', id);
+        // Split fields (paidBy / splitBetween / splitAmounts) are optional so
+        // callers that only touch the basic fields can omit them; only the
+        // provided keys are written to the DB and merged into local state.
+        const dbUpdate: Record<string, unknown> = {
+          title: updates.title,
+          amount: updates.amount,
+          date: updates.date,
+          notes: updates.notes,
+          category: updates.category,
+        };
+        if (updates.paidBy !== undefined) dbUpdate.paid_by = updates.paidBy;
+        if (updates.splitBetween !== undefined) dbUpdate.split_between = updates.splitBetween;
+        if (updates.splitAmounts !== undefined) dbUpdate.split_amounts = updates.splitAmounts;
+        if (updates.splitType !== undefined) dbUpdate.split_type = updates.splitType;
+        const { error } = await supabase.from('bills').update(dbUpdate).eq('id', id);
         if (error) {
           captureError(error, { context: 'edit-bill', billId: id, houseId });
           throw new Error('Could not update the bill. Please try again.');
@@ -244,6 +257,14 @@ export const useBillsStore = create<BillsStore>()(
                   date: updates.date,
                   notes: updates.notes,
                   category: updates.category,
+                  ...(updates.paidBy !== undefined ? { paidBy: updates.paidBy } : {}),
+                  ...(updates.splitBetween !== undefined
+                    ? { splitBetween: updates.splitBetween }
+                    : {}),
+                  ...(updates.splitAmounts !== undefined
+                    ? { splitAmounts: updates.splitAmounts }
+                    : {}),
+                  ...(updates.splitType !== undefined ? { splitType: updates.splitType } : {}),
                 }
               : b
           ),
