@@ -192,10 +192,17 @@ function unwind(pops: number, replaceWith: string | null): void {
     return;
   }
   const onPop = (): void => {
+    clearTimeout(timer);
     window.removeEventListener('popstate', onPop);
     finish();
   };
   window.addEventListener('popstate', onPop);
+  // If history.go(-pops) is out of range the browser emits no popstate, so the
+  // listener would hang forever. Land the target anyway after a short timeout.
+  const timer = setTimeout((): void => {
+    window.removeEventListener('popstate', onPop);
+    finish();
+  }, 300);
   window.history.go(-pops);
 }
 
