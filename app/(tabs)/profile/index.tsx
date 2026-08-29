@@ -1126,9 +1126,7 @@ export default function ProfileScreen(): React.JSX.Element {
                   iconName="settings-outline"
                   title="App settings"
                   sub="Notifications, theme and account"
-                  onPress={() =>
-                    router.push({ pathname: '/(tabs)/more/settings', params: { from: 'profile' } })
-                  }
+                  onPress={() => navigateToBase('/(tabs)/more/settings')}
                 />
               </View>
             </View>

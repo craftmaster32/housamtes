@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Modal, Platform, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { navigateToBase } from '@stores/navigationStore';
 import { BackLink } from '@components/shared/BackLink';
 import { useTranslation } from 'react-i18next';
@@ -183,10 +183,9 @@ const TIMEZONES: { id: string; label: string; region: string }[] = [
 
 export default function SettingsScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  // Settings is reached from the Profile page (from=profile) or from the home
-  // avatar menu / More list. Back always returns to wherever you came from
-  // (goBack); the label just names that destination.
-  const { from } = useLocalSearchParams<{ from?: string }>();
+  // Settings is a main section, however it was reached (Profile, the home
+  // avatar menu, the More list). Back from a section always returns Home, so
+  // the label names Home rather than the page you came in from.
   const houseName = useHousematesStore((s) => s.houseName);
   const inviteCode = useHousematesStore((s) => s.inviteCode);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -317,7 +316,7 @@ export default function SettingsScreen(): React.JSX.Element {
     <SafeAreaView style={styles.container}>
       <View style={styles.flex}>
         <View style={styles.backRow}>
-          <BackLink label={from === 'profile' ? t('nav.profile') : t('common.home')} />
+          <BackLink label={t('common.home')} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>

@@ -192,6 +192,50 @@ describe('web history never accumulates across repeated rounds', () => {
     expect(h.entries).toEqual([HOME_TAB_NAME]);
   });
 
+  it('holds for every section, not just bills', () => {
+    // The rule has to be global: whatever section you are on, and whatever flow
+    // you opened inside it, one back reaches the section and the next reaches
+    // Home. Nothing may ever sit between a section and Home.
+    const sections = [
+      'bills/index',
+      'chores/index',
+      'calendar/index',
+      'grocery/index',
+      'parking/index',
+      'tasks/index',
+      'voting/index',
+      'notes/index',
+      'more/settings',
+    ];
+    const flowOf: Record<string, string> = {
+      'bills/index': 'bills/[id]',
+      'chores/index': 'chores/[id]',
+      'calendar/index': 'calendar/[id]',
+      'grocery/index': 'grocery/shop',
+      'parking/index': 'parking/[id]',
+      'tasks/index': 'tasks/[id]',
+      'voting/index': 'voting/[id]',
+      'notes/index': 'notes/[id]',
+      'more/settings': 'settings/language',
+    };
+
+    const h: Sim = { entries: [HOME_TAB_NAME] };
+    let current = HOME_TAB_NAME;
+    let lastBase = HOME_TAB_NAME;
+
+    for (const section of sections) {
+      apply(h, planBaseNavigation(current, lastBase, section), section);
+      current = section;
+      lastBase = section;
+      // A section always sits directly on Home — never on another section.
+      expect(h.entries).toEqual([HOME_TAB_NAME, section]);
+
+      h.entries.push(flowOf[section]);
+      current = flowOf[section];
+      expect(h.entries).toEqual([HOME_TAB_NAME, section, flowOf[section]]);
+    }
+  });
+
   it('stays flat when flows and sections are mixed', () => {
     const h: Sim = { entries: [HOME_TAB_NAME] };
     let current = HOME_TAB_NAME;
