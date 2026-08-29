@@ -189,4 +189,30 @@ describe('end-to-end with the real expo-router tab router', () => {
     ) as S | null;
     expect(back && back.routes[back.index].name).toBe('dashboard/index');
   });
+
+  it('repeated flow round-trips never accumulate history', () => {
+    // Bills → open a flow (edit/add) → real pop back to Bills, three times in a
+    // row — the "edit a bill, back, edit another" pattern. Screens must return
+    // to their section with a real pop (goBack), not router.replace: replace
+    // only swaps what's on top, so replaying this round would leave one more
+    // stale entry behind each time, and back would have to be pressed once per
+    // round before it ever reached Home.
+    let s = router.getInitialState(opts) as S;
+    s = nav(s, 'bills/index');
+    for (let round = 0; round < 3; round++) {
+      s = nav(s, 'bills/add');
+      s = router.getStateForAction(s as never, CommonActions.goBack() as never, opts) as S;
+    }
+    expect(s.routes[s.index].name).toBe('bills/index');
+    expect(s.history).toHaveLength(2);
+
+    // …so one back from here still goes straight Home, no matter how many
+    // rounds were played.
+    const back = router.getStateForAction(
+      s as never,
+      CommonActions.goBack() as never,
+      opts
+    ) as S | null;
+    expect(back && back.routes[back.index].name).toBe('dashboard/index');
+  });
 });

@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router, useFocusEffect, Link } from 'expo-router';
+import { useLocalSearchParams, useFocusEffect, Link } from 'expo-router';
 import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -142,7 +142,7 @@ export default function BillDetailScreen(): React.JSX.Element {
   const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
   const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
   const handleBackToBills = useCallback((): void => {
-    router.replace('/(tabs)/bills');
+    goBack();
   }, []);
 
   const setPersonAmount = useCallback((id: string, value: string): void => {
@@ -244,7 +244,7 @@ export default function BillDetailScreen(): React.JSX.Element {
     try {
       setIsDeleting(true);
       await deleteBill(bill.id, houseId);
-      router.replace('/(tabs)/bills');
+      goBack();
     } catch (err) {
       console.error(err);
       setError(t('bills.failed_delete'));
