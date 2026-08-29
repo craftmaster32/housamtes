@@ -78,6 +78,23 @@ export default function RootLayout(): React.JSX.Element | null {
   const setLanguage = useLanguageStore((s) => s.setLanguage);
   const language = useLanguageStore((s) => s.language);
 
+  // Web: paint the page canvas behind the app with the theme background.
+  // The app root is sized `height: 100%`, which iOS Safari measures against the
+  // viewport with its toolbars showing. Whenever the visual viewport is briefly
+  // taller than that — the toolbar collapsing on scroll, a rubber-band
+  // overscroll, the keyboard closing — the strip below the app is the browser's
+  // own canvas, and an unpainted canvas defaults to white. That reads as a white
+  // band under the page, glaring against the dark theme. Colouring html/body
+  // (and declaring the scheme, so scrollbars and form controls follow) makes
+  // that strip indistinguishable from the app.
+  useEffect((): void => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const isDark = c === darkColors;
+    document.documentElement.style.backgroundColor = c.background;
+    document.body.style.backgroundColor = c.background;
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+  }, [c]);
+
   const paperTheme = useMemo(() => {
     const isDark = c === darkColors;
     const base = isDark ? MD3DarkTheme : MD3LightTheme;
