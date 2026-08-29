@@ -595,6 +595,7 @@ const makeStyles = (C: ColorTokens) =>
     amountCur: { fontSize: mf(26), color: C.textSecondary, ...font.bold },
     amountInput: {
       flex: 1,
+      minWidth: 0,
       fontSize: mf(40),
       color: C.textPrimary,
       letterSpacing: -1,
