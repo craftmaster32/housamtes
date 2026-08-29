@@ -139,6 +139,16 @@ export default function BillDetailScreen(): React.JSX.Element {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Every bill shares this one screen (it is a single tab route), so opening a
+  // different bill swaps the params without remounting. Leaving edit mode on
+  // would keep the previous bill's form values on screen — drop back to the
+  // read-only view whenever the id changes so the new bill loads clean.
+  useEffect(() => {
+    setIsEditing(false);
+    setError('');
+  }, [id]);
+
   const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
   const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
   const handleBackToBills = useCallback((): void => {

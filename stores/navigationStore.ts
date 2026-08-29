@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { router } from 'expo-router';
 
 // The whole app is one hidden Tabs navigator (see app/(tabs)/_layout.tsx): every
@@ -79,13 +80,44 @@ export function collapseHistoryForBase(
   return unchanged ? null : desired;
 }
 
+// The section a flow page belongs to. Settings sub-pages live at 'settings/*'
+// but hang off the Settings hub at 'more/settings'; every other flow hangs off
+// its own feature index ('bills/[id]' and 'bills/add' → 'bills/index').
+export function sectionOfTab(routeName: string): string {
+  if (routeName.startsWith('settings/')) return 'more/settings';
+  return `${routeName.split('/')[0]}/index`;
+}
+
+// The tab route name a base href points at: '/(tabs)/bills' and
+// '/(tabs)/bills/index' → 'bills/index', '/(tabs)/more/settings' → itself.
+export function hrefToTabName(href: string): string {
+  const path = href
+    .replace(/^\/\(tabs\)\/?/, '')
+    .split('?')[0]
+    .replace(/\/$/, '');
+  if (!path) return HOME_TAB_NAME;
+  if (path === 'more/settings' || path.endsWith('/index')) return path;
+  return `${path}/index`;
+}
+
 // The currently focused tab, kept current by TabHistoryBridge. Lets
 // navigateToBase decide push (from home) vs replace (from another section) so the
 // browser history never accumulates on web.
 let currentTabName: string | null = null;
+// The last BASE tab that was focused — i.e. the section a flow page was opened
+// from, so the entry sitting directly under the current flow in the browser
+// history. planBaseNavigation uses it to know what a single pop would land on.
+let lastBaseTabName: string | null = null;
 
 export function setCurrentTab(name: string): void {
   currentTabName = name;
+  if (isBaseTab(name)) lastBaseTabName = name;
+}
+
+// Test seam: reset the module-level tracking between cases.
+export function resetTabTracking(): void {
+  currentTabName = null;
+  lastBaseTabName = null;
 }
 
 // Treat an unknown current tab as "home" so the very first navigation pushes
@@ -94,15 +126,79 @@ export function isOnHome(): boolean {
   return currentTabName === null || currentTabName === HOME_TAB_NAME;
 }
 
-// Navigate to a base (main section). Pushes from Home (keeping Home underneath),
-// replaces otherwise, so the browser history stays [home, section] on web. The
-// bridge fixes the native tab history separately.
+export type BaseNavPlan = 'push' | 'replace' | 'pop' | 'pop-replace';
+
+// How to reach a base section while keeping the web history at exactly
+// [home] | [home, section] | [home, section, flow].
+//
+// The bug this exists to prevent: from a FLOW page, a plain replace swaps only
+// the top entry, so the section the flow was opened from stays in history. Doing
+// section → flow → section repeatedly then leaves one stale section entry per
+// round, and back has to walk every one of them before reaching Home. Popping
+// the flow instead lands directly on the section that is already underneath.
+export function planBaseNavigation(
+  currentTab: string | null,
+  lastBaseTab: string | null,
+  targetTab: string
+): BaseNavPlan {
+  // From Home: push, so Home stays underneath.
+  if (currentTab === null || currentTab === HOME_TAB_NAME) return 'push';
+  // From another section: swap it — sections never stack on each other.
+  if (isBaseTab(currentTab)) return 'replace';
+  // From a flow: one pop lands on the section it was opened from. That is the
+  // target already when returning to its own section; otherwise pop first, then
+  // swap that section for the one we actually want.
+  return lastBaseTab === targetTab ? 'pop' : 'pop-replace';
+}
+
+// Pop the current flow, then swap the section underneath for the target. The
+// replace has to wait for the pop to land — browser history moves are async — so
+// it is driven off the popstate the pop emits rather than fired in the same tick.
+function popThenReplace(target: Parameters<typeof router.replace>[0]): void {
+  if (typeof window === 'undefined' || !router.canGoBack()) {
+    router.replace(target);
+    return;
+  }
+  const onPop = (): void => {
+    window.removeEventListener('popstate', onPop);
+    router.replace(target);
+  };
+  window.addEventListener('popstate', onPop);
+  router.back();
+}
+
+// Navigate to a base (main section), keeping the web history flat.
+//
+// Native needs none of this: TabHistoryBridge resets the tab navigator's own
+// history to [home, section] whenever a section is focused, so push/replace is
+// enough there. Only the browser keeps the entries we have to avoid creating.
 export function navigateToBase(href: string): void {
   const target = href as Parameters<typeof router.replace>[0];
-  if (isOnHome()) {
-    router.push(target);
-  } else {
+  if (Platform.OS !== 'web') {
+    if (isOnHome()) router.push(target);
+    else router.replace(target);
+    return;
+  }
+
+  const plan = planBaseNavigation(currentTabName, lastBaseTabName, hrefToTabName(href));
+  // A flow opened directly (deep link / refreshed URL) has nothing underneath to
+  // pop to, so fall back to replacing in place.
+  if ((plan === 'pop' || plan === 'pop-replace') && !router.canGoBack()) {
     router.replace(target);
+    return;
+  }
+  switch (plan) {
+    case 'push':
+      router.push(target);
+      break;
+    case 'pop':
+      router.back();
+      break;
+    case 'pop-replace':
+      popThenReplace(target);
+      break;
+    default:
+      router.replace(target);
   }
 }
 

@@ -31,6 +31,10 @@ import {
   setCurrentTab,
   navigateToBase,
   goBack,
+  sectionOfTab,
+  hrefToTabName,
+  planBaseNavigation,
+  resetTabTracking,
 } from '@stores/navigationStore';
 
 const mockPush = jest.fn();
@@ -50,6 +54,7 @@ beforeEach(() => {
   mockPush.mockClear();
   mockReplace.mockClear();
   mockBack.mockClear();
+  resetTabTracking();
   setCurrentTab('dashboard/index');
 });
 
@@ -96,6 +101,119 @@ describe('goBack', () => {
     mockCanGoBack.mockReturnValue(false);
     expect(goBack()).toBe(false);
     expect(mockReplace).toHaveBeenCalledWith(HOME_ROUTE);
+  });
+});
+
+describe('sectionOfTab', () => {
+  it('maps a flow to the section it hangs off', () => {
+    expect(sectionOfTab('bills/[id]')).toBe('bills/index');
+    expect(sectionOfTab('bills/add')).toBe('bills/index');
+    expect(sectionOfTab('grocery/shop')).toBe('grocery/index');
+    expect(sectionOfTab('profile/spending')).toBe('profile/index');
+    expect(sectionOfTab('more/chat')).toBe('more/index');
+  });
+  it('hangs settings sub-pages off the Settings hub, not a settings index', () => {
+    expect(sectionOfTab('settings/language')).toBe('more/settings');
+    expect(sectionOfTab('settings/categories')).toBe('more/settings');
+  });
+});
+
+describe('hrefToTabName', () => {
+  it('normalises base hrefs to their tab route name', () => {
+    expect(hrefToTabName('/(tabs)/bills')).toBe('bills/index');
+    expect(hrefToTabName('/(tabs)/bills/index')).toBe('bills/index');
+    expect(hrefToTabName('/(tabs)/more/settings')).toBe('more/settings');
+    expect(hrefToTabName('/(tabs)/dashboard')).toBe(HOME_TAB_NAME);
+  });
+  it('ignores query strings', () => {
+    expect(hrefToTabName('/(tabs)/bills?openRecurring=1')).toBe('bills/index');
+  });
+});
+
+describe('planBaseNavigation', () => {
+  it('pushes from Home so Home stays underneath', () => {
+    expect(planBaseNavigation(null, null, 'bills/index')).toBe('push');
+    expect(planBaseNavigation(HOME_TAB_NAME, HOME_TAB_NAME, 'bills/index')).toBe('push');
+  });
+  it('replaces between sections so they never stack', () => {
+    expect(planBaseNavigation('chores/index', 'chores/index', 'bills/index')).toBe('replace');
+  });
+  it('pops when a flow returns to the section it was opened from', () => {
+    // Bills → bill detail → Bills: the Bills entry is already underneath.
+    expect(planBaseNavigation('bills/[id]', 'bills/index', 'bills/index')).toBe('pop');
+    expect(planBaseNavigation('settings/language', 'more/settings', 'more/settings')).toBe('pop');
+  });
+  it('pops then replaces when a flow leaves for a different section', () => {
+    expect(planBaseNavigation('bills/[id]', 'bills/index', 'chores/index')).toBe('pop-replace');
+    // A bill opened from Home pops back to Home, then swaps it for Bills.
+    expect(planBaseNavigation('bills/[id]', HOME_TAB_NAME, 'bills/index')).toBe('pop-replace');
+  });
+});
+
+describe('web history never accumulates across repeated rounds', () => {
+  // A miniature browser history. push appends, replace swaps the top entry, pop
+  // drops it — exactly what the real one does, which is the part the old code
+  // got wrong: replace left the section a flow was opened from in place.
+  type Sim = { entries: string[] };
+  const apply = (h: Sim, plan: string, target: string): void => {
+    if (plan === 'push') h.entries.push(target);
+    else if (plan === 'replace') h.entries[h.entries.length - 1] = target;
+    else if (plan === 'pop') h.entries.pop();
+    else if (plan === 'pop-replace') {
+      h.entries.pop();
+      h.entries[h.entries.length - 1] = target;
+    }
+  };
+
+  it('bills → bill → bills, three times, still leaves back one step from Home', () => {
+    const h: Sim = { entries: [HOME_TAB_NAME] };
+    let current = HOME_TAB_NAME;
+    let lastBase = HOME_TAB_NAME;
+
+    for (let round = 0; round < 3; round++) {
+      // …tap Bills in the menu
+      const plan = planBaseNavigation(current, lastBase, 'bills/index');
+      apply(h, plan, 'bills/index');
+      current = 'bills/index';
+      lastBase = 'bills/index';
+      // …open a bill (a plain push, as the Bills list does)
+      h.entries.push('bills/[id]');
+      current = 'bills/[id]';
+    }
+
+    // The old code produced [home, bills, bills, bills, bill] here — one stale
+    // Bills per round. The whole point is that this stays flat.
+    expect(h.entries).toEqual([HOME_TAB_NAME, 'bills/index', 'bills/[id]']);
+
+    // Back from the bill lands on Bills, and one more back reaches Home.
+    h.entries.pop();
+    expect(h.entries[h.entries.length - 1]).toBe('bills/index');
+    h.entries.pop();
+    expect(h.entries).toEqual([HOME_TAB_NAME]);
+  });
+
+  it('stays flat when flows and sections are mixed', () => {
+    const h: Sim = { entries: [HOME_TAB_NAME] };
+    let current = HOME_TAB_NAME;
+    let lastBase = HOME_TAB_NAME;
+    const toBase = (target: string): void => {
+      apply(h, planBaseNavigation(current, lastBase, target), target);
+      current = target;
+      lastBase = target;
+    };
+    const toFlow = (name: string): void => {
+      h.entries.push(name);
+      current = name;
+    };
+
+    toBase('bills/index');
+    toFlow('bills/[id]');
+    toBase('chores/index'); // flow → a different section
+    toFlow('grocery/shop');
+    toBase('bills/index');
+    toFlow('bills/[id]');
+
+    expect(h.entries).toEqual([HOME_TAB_NAME, 'bills/index', 'bills/[id]']);
   });
 });
 
