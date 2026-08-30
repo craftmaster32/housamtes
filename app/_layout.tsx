@@ -171,8 +171,12 @@ export default function RootLayout(): React.JSX.Element | null {
           // react-native-paper's outlined/flat TextInput hardcodes `left: 0` on its
           // floating label (placeholderStyle), ignoring I18nManager entirely, so the
           // label sits pinned to the physical left of the field in RTL instead of the
-          // right. Flip it for the label text and its background mask.
-          'html[dir="rtl"] [data-testid$="-label-active"], html[dir="rtl"] [data-testid$="-label-inactive"] { left: auto !important; right: 0 !important; }',
+          // right. Flip it for the label text and its background mask (the small
+          // rectangle that paints over the outline border behind the floated label —
+          // missing this one left the border line visibly cutting through the label
+          // whenever a field was focused, since the text moved right but its masking
+          // cutout stayed pinned left).
+          'html[dir="rtl"] [data-testid$="-label-active"], html[dir="rtl"] [data-testid$="-label-inactive"], html[dir="rtl"] [data-testid$="-label-background"] { left: auto !important; right: 0 !important; }',
         ].join('\n');
       } else if (tag) {
         tag.remove();
