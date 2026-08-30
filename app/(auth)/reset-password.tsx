@@ -112,7 +112,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <View style={[styles.content, isWide && styles.contentWide]}>
         <Pressable
           style={styles.backBtn}
           onPress={() => router.back()}
@@ -202,7 +202,7 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       gap: sizes.md,
     },
     contentWide: {
-      maxWidth: ms(440),
+      maxWidth: 440,
       width: '100%',
       alignSelf: 'center',
     },

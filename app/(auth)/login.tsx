@@ -94,13 +94,18 @@ export default function LoginScreen(): React.JSX.Element {
     }
   }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
+  const toggleShowPassword = useCallback((): void => setShowPassword((v) => !v), []);
+
   // Rendered on the leading side of the field in RTL and the trailing side in
   // LTR, matching react-native-paper's left/right prop (which the app's
   // manual web RTL styling does not mirror automatically).
   const passwordVisibilityIcon = (
     <TextInput.Icon
       icon={showPassword ? 'eye-off' : 'eye'}
-      onPress={() => setShowPassword((v) => !v)}
+      onPress={toggleShowPassword}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ expanded: showPassword }}
       accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
     />
   );
@@ -257,7 +262,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       gap: ms(6),
     },
     headerInnerWide: {
-      maxWidth: ms(440),
+      maxWidth: 440,
       width: '100%',
       alignSelf: 'center',
     },
@@ -313,7 +318,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       borderTopRightRadius: ms(28),
     },
     cardWide: {
-      maxWidth: ms(440),
+      maxWidth: 440,
       width: '100%',
       alignSelf: 'center',
     },

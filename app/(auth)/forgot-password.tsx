@@ -361,7 +361,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       gap: ms(8),
     },
     headerInnerWide: {
-      maxWidth: ms(440),
+      maxWidth: 440,
       width: '100%',
       alignSelf: 'center',
     },
@@ -408,7 +408,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       gap: sizes.md,
     },
     cardWide: {
-      maxWidth: ms(440),
+      maxWidth: 440,
       width: '100%',
       alignSelf: 'center',
     },
