@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -37,6 +37,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const C = useThemedColors();
   const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const { width } = useWindowDimensions();
+  const isWide = width >= 680;
 
   const handleSendCode = useCallback(async (): Promise<void> => {
     if (!email.trim()) {
@@ -103,6 +105,32 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     }
   }, [code, email, password, confirm, signOut, t]);
 
+  // Rendered on the leading side of the field in RTL and the trailing side in
+  // LTR, matching react-native-paper's left/right prop (which the app's
+  // manual web RTL styling does not mirror automatically).
+  const passwordVisibilityIcon = (
+    <TextInput.Icon
+      icon={showPassword ? 'eye-off' : 'eye'}
+      onPress={toggleShowPassword}
+      forceTextInputFocus={false}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ expanded: showPassword }}
+      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+  const confirmVisibilityIcon = (
+    <TextInput.Icon
+      icon={showConfirm ? 'eye-off' : 'eye'}
+      onPress={toggleShowConfirm}
+      forceTextInputFocus={false}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ expanded: showConfirm }}
+      accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+
   if (done) {
     return (
       <View style={styles.root}>
@@ -133,7 +161,10 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <SafeAreaView edges={['top']} style={styles.headerInner}>
+        <SafeAreaView
+          edges={['top']}
+          style={[styles.headerInner, isWide && styles.headerInnerWide]}
+        >
           <Pressable
             style={styles.backBtn}
             onPress={() => {
@@ -176,7 +207,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       </View>
 
       <View style={styles.cardWrapper}>
-        <View style={styles.card}>
+        <View style={[styles.card, isWide && styles.cardWide]}>
           {step === 'email' ? (
             <>
               <TextInput
@@ -251,19 +282,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 accessibilityLabel={t('auth.new_password')}
                 accessibilityHint={t('auth.new_password_hint')}
                 error={!!error}
-                right={
-                  <TextInput.Icon
-                    icon={showPassword ? 'eye-off' : 'eye'}
-                    onPress={toggleShowPassword}
-                    forceTextInputFocus={false}
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: showPassword }}
-                    accessibilityLabel={
-                      showPassword ? t('auth.hide_password') : t('auth.show_password')
-                    }
-                  />
-                }
+                left={rtl ? passwordVisibilityIcon : undefined}
+                right={rtl ? undefined : passwordVisibilityIcon}
               />
 
               <TextInput
@@ -281,19 +301,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 accessibilityLabel={t('auth.confirm_password')}
                 accessibilityHint={t('auth.confirm_password_hint')}
                 error={!!error}
-                right={
-                  <TextInput.Icon
-                    icon={showConfirm ? 'eye-off' : 'eye'}
-                    onPress={toggleShowConfirm}
-                    forceTextInputFocus={false}
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: showConfirm }}
-                    accessibilityLabel={
-                      showConfirm ? t('auth.hide_password') : t('auth.show_password')
-                    }
-                  />
-                }
+                left={rtl ? confirmVisibilityIcon : undefined}
+                right={rtl ? undefined : confirmVisibilityIcon}
               />
 
               {!!error && <Text style={styles.error}>{error}</Text>}
@@ -351,6 +360,11 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     headerInner: {
       gap: ms(8),
     },
+    headerInnerWide: {
+      maxWidth: ms(440),
+      width: '100%',
+      alignSelf: 'center',
+    },
     backBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -392,6 +406,11 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       paddingTop: ms(32),
       paddingBottom: ms(40),
       gap: sizes.md,
+    },
+    cardWide: {
+      maxWidth: ms(440),
+      width: '100%',
+      alignSelf: 'center',
     },
     input: {
       backgroundColor: C.surface,

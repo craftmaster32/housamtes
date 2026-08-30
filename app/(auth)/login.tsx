@@ -6,6 +6,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
@@ -46,6 +47,8 @@ export default function LoginScreen(): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const styles = useMemo(() => makeStyles(C), [C]);
+  const { width } = useWindowDimensions();
+  const isWide = width >= 680;
 
   useEffect(() => {
     return (): void => {
@@ -91,10 +94,24 @@ export default function LoginScreen(): React.JSX.Element {
     }
   }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
+  // Rendered on the leading side of the field in RTL and the trailing side in
+  // LTR, matching react-native-paper's left/right prop (which the app's
+  // manual web RTL styling does not mirror automatically).
+  const passwordVisibilityIcon = (
+    <TextInput.Icon
+      icon={showPassword ? 'eye-off' : 'eye'}
+      onPress={() => setShowPassword((v) => !v)}
+      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <SafeAreaView edges={['top']} style={styles.headerInner}>
+        <SafeAreaView
+          edges={['top']}
+          style={[styles.headerInner, isWide && styles.headerInnerWide]}
+        >
           <Pressable
             style={styles.backBtn}
             onPress={() => router.back()}
@@ -125,7 +142,7 @@ export default function LoginScreen(): React.JSX.Element {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          style={styles.card}
+          style={[styles.card, isWide && styles.cardWide]}
           contentContainerStyle={styles.cardContent}
           keyboardShouldPersistTaps="handled"
         >
@@ -164,15 +181,8 @@ export default function LoginScreen(): React.JSX.Element {
               onSubmitEditing={handleLogin}
               accessibilityLabel={t('auth.password')}
               accessibilityHint={t('auth.password_hint')}
-              right={
-                <TextInput.Icon
-                  icon={showPassword ? 'eye-off' : 'eye'}
-                  onPress={() => setShowPassword((v) => !v)}
-                  accessibilityLabel={
-                    showPassword ? t('auth.hide_password') : t('auth.show_password')
-                  }
-                />
-              }
+              left={rtl ? passwordVisibilityIcon : undefined}
+              right={rtl ? undefined : passwordVisibilityIcon}
               error={!!error}
             />
 
@@ -246,6 +256,11 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     headerInner: {
       gap: ms(6),
     },
+    headerInnerWide: {
+      maxWidth: ms(440),
+      width: '100%',
+      alignSelf: 'center',
+    },
     backBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -296,6 +311,11 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       backgroundColor: C.surface,
       borderTopLeftRadius: ms(28),
       borderTopRightRadius: ms(28),
+    },
+    cardWide: {
+      maxWidth: ms(440),
+      width: '100%',
+      alignSelf: 'center',
     },
     cardContent: {
       flexGrow: 1,

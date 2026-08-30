@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,8 @@ export default function ResetPasswordScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
+  const { width } = useWindowDimensions();
+  const isWide = width >= 680;
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -61,10 +63,36 @@ export default function ResetPasswordScreen(): React.JSX.Element {
     }
   }, [password, confirm, t]);
 
+  // Rendered on the leading side of the field in RTL and the trailing side in
+  // LTR, matching react-native-paper's left/right prop (which the app's
+  // manual web RTL styling does not mirror automatically).
+  const passwordVisibilityIcon = (
+    <TextInput.Icon
+      icon={showPassword ? 'eye-off' : 'eye'}
+      onPress={toggleShowPassword}
+      forceTextInputFocus={false}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ expanded: showPassword }}
+      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+  const confirmVisibilityIcon = (
+    <TextInput.Icon
+      icon={showConfirm ? 'eye-off' : 'eye'}
+      onPress={toggleShowConfirm}
+      forceTextInputFocus={false}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ expanded: showConfirm }}
+      accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+
   if (done) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
+        <View style={[styles.content, isWide && styles.contentWide]}>
           <Text style={[styles.title, headingFont]}>{t('auth.password_updated_title')}</Text>
           <Text style={styles.subtitle}>{t('auth.password_updated_body')}</Text>
           <Button
@@ -115,17 +143,8 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           error={!!error && !confirm}
           accessibilityLabel={t('auth.new_password')}
           accessibilityHint={t('auth.new_password_hint')}
-          right={
-            <TextInput.Icon
-              icon={showPassword ? 'eye-off' : 'eye'}
-              onPress={toggleShowPassword}
-              forceTextInputFocus={false}
-              accessible
-              accessibilityRole="button"
-              accessibilityState={{ expanded: showPassword }}
-              accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
-            />
-          }
+          left={rtl ? passwordVisibilityIcon : undefined}
+          right={rtl ? undefined : passwordVisibilityIcon}
         />
 
         <TextInput
@@ -143,17 +162,8 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           error={!!error}
           accessibilityLabel={t('auth.confirm_password')}
           accessibilityHint={t('auth.confirm_password_hint')}
-          right={
-            <TextInput.Icon
-              icon={showConfirm ? 'eye-off' : 'eye'}
-              onPress={toggleShowConfirm}
-              forceTextInputFocus={false}
-              accessible
-              accessibilityRole="button"
-              accessibilityState={{ expanded: showConfirm }}
-              accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
-            />
-          }
+          left={rtl ? confirmVisibilityIcon : undefined}
+          right={rtl ? undefined : confirmVisibilityIcon}
         />
 
         {!!error && <Text style={styles.error}>{error}</Text>}
@@ -190,6 +200,11 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       paddingHorizontal: sizes.lg,
       paddingTop: sizes.sm,
       gap: sizes.md,
+    },
+    contentWide: {
+      maxWidth: ms(440),
+      width: '100%',
+      alignSelf: 'center',
     },
     backBtn: {
       width: sizes.touchTarget,

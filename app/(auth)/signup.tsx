@@ -6,6 +6,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Entrance } from '@components/shared/Entrance';
 import type { TextInput as RNTextInput } from 'react-native';
@@ -21,6 +22,8 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { getErrorMessage } from '@utils/errors';
 import { markTourPending } from '@utils/tour';
 
@@ -63,6 +66,10 @@ export default function SignupScreen(): React.JSX.Element {
   const C = useThemedColors();
   const headingFont = useHeadingFont();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const { width } = useWindowDimensions();
+  const isWide = width >= 680;
 
   const steps = useMemo(
     () => [
@@ -112,10 +119,31 @@ export default function SignupScreen(): React.JSX.Element {
     }
   }, [name, email, password, confirmPw, selectedColor, agreed, isLoading, signUp, t]);
 
+  // Rendered on the leading side of the field in RTL and the trailing side in
+  // LTR, matching react-native-paper's left/right prop (which the app's
+  // manual web RTL styling does not mirror automatically).
+  const passwordVisibilityIcon = (
+    <TextInput.Icon
+      icon={showPassword ? 'eye-off' : 'eye'}
+      onPress={() => setShowPassword((v) => !v)}
+      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+  const confirmVisibilityIcon = (
+    <TextInput.Icon
+      icon={showConfirm ? 'eye-off' : 'eye'}
+      onPress={() => setShowConfirm((v) => !v)}
+      accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
-        <SafeAreaView edges={['top']} style={styles.headerInner}>
+        <SafeAreaView
+          edges={['top']}
+          style={[styles.headerInner, isWide && styles.headerInnerWide]}
+        >
           <StepProgress steps={steps} currentStep={0} />
         </SafeAreaView>
       </View>
@@ -125,7 +153,7 @@ export default function SignupScreen(): React.JSX.Element {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          style={styles.card}
+          style={[styles.card, isWide && styles.cardWide]}
           contentContainerStyle={styles.cardContent}
           keyboardShouldPersistTaps="handled"
         >
@@ -192,15 +220,8 @@ export default function SignupScreen(): React.JSX.Element {
               onSubmitEditing={() => confirmRef.current?.focus()}
               accessibilityLabel={t('auth.password')}
               accessibilityHint={t('auth.password_hint')}
-              right={
-                <TextInput.Icon
-                  icon={showPassword ? 'eye-off' : 'eye'}
-                  onPress={() => setShowPassword((v) => !v)}
-                  accessibilityLabel={
-                    showPassword ? t('auth.hide_password') : t('auth.show_password')
-                  }
-                />
-              }
+              left={rtl ? passwordVisibilityIcon : undefined}
+              right={rtl ? undefined : passwordVisibilityIcon}
               error={!!passwordError}
             />
             {!!passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
@@ -244,13 +265,8 @@ export default function SignupScreen(): React.JSX.Element {
             onSubmitEditing={handleSignup}
             accessibilityLabel={t('auth.confirm_password')}
             accessibilityHint={t('auth.confirm_password_hint')}
-            right={
-              <TextInput.Icon
-                icon={showConfirm ? 'eye-off' : 'eye'}
-                onPress={() => setShowConfirm((v) => !v)}
-                accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
-              />
-            }
+            left={rtl ? confirmVisibilityIcon : undefined}
+            right={rtl ? undefined : confirmVisibilityIcon}
             error={!!error && error === t('auth.passwords_no_match')}
           />
 
@@ -351,12 +367,22 @@ function makeStyles(C: ColorTokens) {
     headerInner: {
       paddingTop: sizes.xs,
     },
+    headerInnerWide: {
+      maxWidth: ms(440),
+      width: '100%',
+      alignSelf: 'center',
+    },
     cardWrapper: {
       flex: 1,
     },
     card: {
       flex: 1,
       backgroundColor: C.surface,
+    },
+    cardWide: {
+      maxWidth: ms(440),
+      width: '100%',
+      alignSelf: 'center',
     },
     cardContent: {
       flexGrow: 1,
