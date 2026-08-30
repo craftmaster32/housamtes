@@ -32,6 +32,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const [done, setDone] = useState(false);
 
   const signOut = useAuthStore((s) => s.signOut);
+  const clearPasswordRecovery = useAuthStore((s) => s.clearPasswordRecovery);
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const C = useThemedColors();
@@ -89,6 +90,11 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       const { error: updateErr } = await supabase.auth.updateUser({ password });
       if (updateErr) throw updateErr;
 
+      // verifyOtp with type 'recovery' fires Supabase's PASSWORD_RECOVERY event,
+      // which flips isPasswordRecovery on. This screen resets the password on its
+      // own, so clear that flag — otherwise the navigation guard would redirect
+      // the user to the deep-link reset-password screen and trap them there.
+      clearPasswordRecovery();
       await signOut();
       setDone(true);
     } catch (err) {
@@ -101,7 +107,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [code, email, password, confirm, signOut, t]);
+  }, [code, email, password, confirm, signOut, clearPasswordRecovery, t]);
 
   if (done) {
     return (
