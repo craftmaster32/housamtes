@@ -361,7 +361,7 @@ export default function SignupScreen(): React.JSX.Element {
   );
 }
 
-function makeStyles(C: ColorTokens) {
+function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     root: {
       flex: 1,

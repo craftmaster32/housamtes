@@ -70,7 +70,6 @@ export default function ResetPasswordScreen(): React.JSX.Element {
     <TextInput.Icon
       icon={showPassword ? 'eye-off' : 'eye'}
       onPress={toggleShowPassword}
-      forceTextInputFocus={false}
       accessible
       accessibilityRole="button"
       accessibilityState={{ expanded: showPassword }}
@@ -81,7 +80,6 @@ export default function ResetPasswordScreen(): React.JSX.Element {
     <TextInput.Icon
       icon={showConfirm ? 'eye-off' : 'eye'}
       onPress={toggleShowConfirm}
-      forceTextInputFocus={false}
       accessible
       accessibilityRole="button"
       accessibilityState={{ expanded: showConfirm }}
