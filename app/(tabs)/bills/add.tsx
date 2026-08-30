@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect, Link } from 'expo-router';
+import { useFocusEffect, Link } from 'expo-router';
 import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -269,7 +269,7 @@ export default function AddBillScreen(): React.JSX.Element {
       markSeen('bills').catch(() => {});
       // Reset before navigating so stale state never persists on re-entry
       resetForm(allIds, myId);
-      router.replace('/(tabs)/bills');
+      goBack();
     } catch (err) {
       captureError(err, { houseId, userId: myId });
       setError(t('bills.failed_save'));

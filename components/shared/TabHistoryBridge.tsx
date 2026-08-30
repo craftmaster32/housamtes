@@ -17,11 +17,15 @@ interface Props {
 //     focused, so back returns home regardless of how it was reached (flow pages
 //     are left untouched).
 export function TabHistoryBridge({ state, navigation }: Props): null {
-  const focusedName = state.routes[state.index]?.name;
+  const focused = state.routes[state.index];
+  const focusedName = focused?.name;
+  // Settings is a section or a page of Profile depending on how it was opened,
+  // which only its params say — so they travel with the name.
+  const focusedFrom = (focused?.params as { from?: string } | undefined)?.from;
 
   useEffect((): void => {
-    if (focusedName) setCurrentTab(focusedName);
-  }, [focusedName]);
+    if (focusedName) setCurrentTab(focusedName, { from: focusedFrom });
+  }, [focusedName, focusedFrom]);
 
   useEffect((): void => {
     const nextHistory = collapseHistoryForBase(state.routes, state.index, state.history);

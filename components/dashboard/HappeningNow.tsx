@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
@@ -134,15 +134,15 @@ export function HappeningNow(): React.JSX.Element {
   const today = todayYMD();
 
   const handleCalendarPress = useCallback((): void => {
-    router.push('/(tabs)/calendar');
+    navigateToBase('/(tabs)/calendar');
   }, []);
 
   const handleGroceryPress = useCallback((): void => {
-    router.push('/(tabs)/grocery');
+    navigateToBase('/(tabs)/grocery');
   }, []);
 
   const handleParkingPress = useCallback((): void => {
-    router.push('/(tabs)/parking');
+    navigateToBase('/(tabs)/parking');
   }, []);
 
   // Upcoming events + approved parking reservations sorted soonest-first,

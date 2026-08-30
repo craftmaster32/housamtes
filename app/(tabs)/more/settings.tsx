@@ -183,9 +183,10 @@ const TIMEZONES: { id: string; label: string; region: string }[] = [
 
 export default function SettingsScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  // Settings is reached from the Profile page (from=profile) or from the home
-  // avatar menu / More list. Back always returns to wherever you came from
-  // (goBack); the label just names that destination.
+  // Settings is reached either as a main section (home avatar menu / More list)
+  // or as a page of Profile (from=profile). Back follows the same split — Home
+  // in the first case, Profile in the second — and the label names whichever it
+  // actually is.
   const { from } = useLocalSearchParams<{ from?: string }>();
   const houseName = useHousematesStore((s) => s.houseName);
   const inviteCode = useHousematesStore((s) => s.inviteCode);

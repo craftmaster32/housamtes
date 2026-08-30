@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from '@lib/alert';
 import {
@@ -1015,8 +1016,8 @@ export default function GroceryScreen(): React.JSX.Element {
   const handleStayAndShare = useCallback((): void => {
     setShowLeaveModal(false);
     leaveWarningShownRef.current = false;
-    router.push('/(tabs)/grocery');
-  }, [router]);
+    navigateToBase('/(tabs)/grocery');
+  }, []);
 
   // ── Shopping run handlers ──────────────────────────────────────────────────
   const handleStartRun = useCallback((): void => {

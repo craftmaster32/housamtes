@@ -18,6 +18,7 @@ import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { Alert } from '@lib/alert';
@@ -255,7 +256,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
         styles.billRow,
         pressed && { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : c.surfaceSecondary },
       ]}
-      onPress={() => router.push('/(tabs)/bills?openRecurring=1')}
+      onPress={() => navigateToBase('/(tabs)/bills?openRecurring=1')}
       accessibilityRole="button"
       accessibilityLabel={row.title}
     >

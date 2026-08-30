@@ -1126,6 +1126,8 @@ export default function ProfileScreen(): React.JSX.Element {
                   iconName="settings-outline"
                   title="App settings"
                   sub="Notifications, theme and account"
+                  // Opened from Profile, Settings is a page of Profile — pushed
+                  // on top of it, so back returns here rather than Home.
                   onPress={() =>
                     router.push({ pathname: '/(tabs)/more/settings', params: { from: 'profile' } })
                   }
