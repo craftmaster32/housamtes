@@ -786,6 +786,7 @@ const makeStyles = (C: ColorTokens) =>
     amountHeroCur: { fontSize: mf(26), color: C.textSecondary },
     amountHeroInput: {
       flex: 1,
+      minWidth: 0,
       fontSize: mf(44),
       color: C.textPrimary,
       letterSpacing: -1,
