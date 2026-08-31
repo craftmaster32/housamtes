@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
+import { PasswordInput } from '@components/shared/PasswordInput';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -25,8 +26,6 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -57,8 +56,6 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     }
   }, [email, t]);
 
-  const toggleShowPassword = useCallback((): void => setShowPassword((v) => !v), []);
-  const toggleShowConfirm = useCallback((): void => setShowConfirm((v) => !v), []);
 
   // Return to the email step so the user can fix a mistyped address. The email
   // is kept so they can edit it instead of retyping; the code is cleared since a
@@ -151,6 +148,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       </View>
     );
   }
+
 
   return (
     <View style={styles.root}>
@@ -259,7 +257,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 error={!!error}
               />
 
-              <TextInput
+              <PasswordInput
                 label={t('auth.new_password')}
                 value={password}
                 onChangeText={(v) => {
@@ -268,27 +266,13 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 }}
                 mode="outlined"
                 style={styles.input}
-                secureTextEntry={!showPassword}
                 returnKeyType="next"
                 accessibilityLabel={t('auth.new_password')}
                 accessibilityHint={t('auth.new_password_hint')}
                 error={!!error}
-                right={
-                  <TextInput.Icon
-                    icon={showPassword ? 'eye-off' : 'eye'}
-                    onPress={toggleShowPassword}
-                    forceTextInputFocus={false}
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: showPassword }}
-                    accessibilityLabel={
-                      showPassword ? t('auth.hide_password') : t('auth.show_password')
-                    }
-                  />
-                }
               />
 
-              <TextInput
+              <PasswordInput
                 label={t('auth.confirm_password')}
                 value={confirm}
                 onChangeText={(v) => {
@@ -297,25 +281,11 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 }}
                 mode="outlined"
                 style={styles.input}
-                secureTextEntry={!showConfirm}
                 returnKeyType="done"
                 onSubmitEditing={handleReset}
                 accessibilityLabel={t('auth.confirm_password')}
                 accessibilityHint={t('auth.confirm_password_hint')}
                 error={!!error}
-                right={
-                  <TextInput.Icon
-                    icon={showConfirm ? 'eye-off' : 'eye'}
-                    onPress={toggleShowConfirm}
-                    forceTextInputFocus={false}
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: showConfirm }}
-                    accessibilityLabel={
-                      showConfirm ? t('auth.hide_password') : t('auth.show_password')
-                    }
-                  />
-                }
               />
 
               {!!error && <Text style={styles.error}>{error}</Text>}

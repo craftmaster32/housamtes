@@ -23,6 +23,7 @@ import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
 import { getErrorMessage } from '@utils/errors';
 import { markTourPending } from '@utils/tour';
+import { PasswordInput } from '@components/shared/PasswordInput';
 
 import { mf, ms } from '@utils/responsive';
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
@@ -47,8 +48,6 @@ export default function SignupScreen(): React.JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [selectedColor] = useState(AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]);
   const [error, setError] = useState('');
   const [passwordTouched, setPasswordTouched] = useState(false);
@@ -176,7 +175,7 @@ export default function SignupScreen(): React.JSX.Element {
           />
 
           <View style={styles.passwordBlock}>
-            <TextInput
+            <PasswordInput
               ref={passwordRef}
               label={t('auth.password')}
               value={password}
@@ -187,20 +186,10 @@ export default function SignupScreen(): React.JSX.Element {
               onBlur={() => setPasswordTouched(true)}
               mode="outlined"
               style={styles.input}
-              secureTextEntry={!showPassword}
               returnKeyType="next"
               onSubmitEditing={() => confirmRef.current?.focus()}
               accessibilityLabel={t('auth.password')}
               accessibilityHint={t('auth.password_hint')}
-              right={
-                <TextInput.Icon
-                  icon={showPassword ? 'eye-off' : 'eye'}
-                  onPress={() => setShowPassword((v) => !v)}
-                  accessibilityLabel={
-                    showPassword ? t('auth.hide_password') : t('auth.show_password')
-                  }
-                />
-              }
               error={!!passwordError}
             />
             {!!passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
@@ -229,7 +218,7 @@ export default function SignupScreen(): React.JSX.Element {
             )}
           </View>
 
-          <TextInput
+          <PasswordInput
             ref={confirmRef}
             label={t('auth.confirm_password')}
             value={confirmPw}
@@ -239,18 +228,10 @@ export default function SignupScreen(): React.JSX.Element {
             }}
             mode="outlined"
             style={styles.input}
-            secureTextEntry={!showConfirm}
             returnKeyType="go"
             onSubmitEditing={handleSignup}
             accessibilityLabel={t('auth.confirm_password')}
             accessibilityHint={t('auth.confirm_password_hint')}
-            right={
-              <TextInput.Icon
-                icon={showConfirm ? 'eye-off' : 'eye'}
-                onPress={() => setShowConfirm((v) => !v)}
-                accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
-              />
-            }
             error={!!error && error === t('auth.passwords_no_match')}
           />
 
