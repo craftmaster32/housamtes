@@ -66,11 +66,15 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   // session first so the navigation guard cannot redirect to reset-password.
   const handleChangeEmail = useCallback(async (): Promise<void> => {
     clearPasswordRecovery();
-    await signOut();
-    setStep('email');
-    setCode('');
-    setError('');
-  }, [clearPasswordRecovery, signOut]);
+    try {
+      await signOut();
+      setStep('email');
+      setCode('');
+      setError('');
+    } catch {
+      setError(t('auth.something_went_wrong'));
+    }
+  }, [clearPasswordRecovery, signOut, t]);
 
   const handleReset = useCallback(async (): Promise<void> => {
     if (!code.trim()) {
