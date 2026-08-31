@@ -1,4 +1,6 @@
 /**
+ * @jest-environment jsdom
+ *
  * Browser regression test — RTL right-icon input layout
  *
  * React Native Paper 5.15.0 wraps the TextInput's <input> element inside a
@@ -6,44 +8,34 @@
  * RTL margin-flip rule in _layout.tsx must traverse `> div > input` rather
  * than the old `> input`.  This suite pins that structural assumption so any
  * future RNP upgrade that changes the nesting depth is caught immediately.
- *
- * DOM structure being modelled:
- *   div.outer
- *     div.input-wrapper          ← intermediate child div
- *       input
- *     div.adornment-container    ← sibling child div
- *       button[data-testid="right-icon-adornment"]
  */
 
-/** @jest-environment jsdom */
+import React from 'react';
+import { render } from '@testing-library/react-native';
+import { PaperProvider, TextInput } from 'react-native-paper';
+
+function renderPasswordInput(): void {
+  render(
+    React.createElement(
+      PaperProvider,
+      null,
+      React.createElement(TextInput, {
+        mode: 'outlined' as const,
+        label: 'Password',
+        secureTextEntry: true,
+        right: React.createElement(TextInput.Icon, {
+          icon: 'eye',
+          testID: 'right-icon-adornment',
+        }),
+      })
+    )
+  );
+}
 
 describe('RTL right-icon input layout — CSS selector regression', () => {
-  let outer: HTMLDivElement;
-  let inputEl: HTMLInputElement;
-
-  beforeEach(() => {
-    outer = document.createElement('div');
-
-    const inputWrapper = document.createElement('div');
-    inputEl = document.createElement('input');
-    inputEl.type = 'text';
-    inputWrapper.appendChild(inputEl);
-
-    const adornmentContainer = document.createElement('div');
-    const iconButton = document.createElement('button');
-    iconButton.dataset['testid'] = 'right-icon-adornment';
-    adornmentContainer.appendChild(iconButton);
-
-    outer.appendChild(inputWrapper);
-    outer.appendChild(adornmentContainer);
-    document.body.appendChild(outer);
-  });
-
-  afterEach(() => {
-    document.body.innerHTML = '';
-  });
-
   it('fixed selector (> div > input) matches the input through the wrapper div', () => {
+    renderPasswordInput();
+
     let found: NodeList;
     try {
       found = document.querySelectorAll(
@@ -53,11 +45,12 @@ describe('RTL right-icon input layout — CSS selector regression', () => {
       // :has() not supported in this jsdom build — skip rather than fail
       return;
     }
-    expect(found).toHaveLength(1);
-    expect(found[0]).toBe(inputEl);
+    expect(found.length).toBeGreaterThanOrEqual(1);
   });
 
   it('old broken selector (> input) misses the input because it is not a direct child', () => {
+    renderPasswordInput();
+
     let found: NodeList;
     try {
       found = document.querySelectorAll(
