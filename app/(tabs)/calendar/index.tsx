@@ -1733,7 +1733,7 @@ function makeFormStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     },
     // Smart "describe it in words" box
     smartRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
-    smartInput: { flex: 1, marginBottom: 0 },
+    smartInput: { flex: 1, minWidth: 0, marginBottom: 0 },
     smartBtn: {
       flexDirection: 'row',
       alignItems: 'center',

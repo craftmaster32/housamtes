@@ -234,7 +234,7 @@ function makeStyles(C: ColorTokens) {
       textAlignVertical: 'top',
     },
     composeRow: { flexDirection: 'row', gap: ms(10), alignItems: 'flex-start' },
-    composeInput: { flex: 1, backgroundColor: C.surfaceSecondary },
+    composeInput: { flex: 1, minWidth: 0, backgroundColor: C.surfaceSecondary },
     composeAvatar: {
       width: ms(34),
       height: ms(34),

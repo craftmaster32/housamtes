@@ -551,6 +551,7 @@ const makeStyles = (C: ColorTokens) =>
     addRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
     addInput: {
       flex: 1,
+      minWidth: 0,
       backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
