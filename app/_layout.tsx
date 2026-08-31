@@ -180,7 +180,7 @@ export default function RootLayout(): React.JSX.Element | null {
           // the login screen). Move the icon adornment to the mirrored (left) side
           // so it clears the label. Every icon field in the app is `mode="outlined"`
           // with a trailing icon only.
-          'html[dir="rtl"] div:has(> [data-testid="right-icon-adornment"]) { right: auto !important; left: 16px !important; }',
+          'html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) { right: auto !important; left: 16px !important; }',
           // The native input reserves space for that icon with a physical
           // `margin-right` (ADORNMENT_OFFSET + OUTLINED_INPUT_OFFSET = 32). Flip it
           // to the left so the right-aligned text keeps clear of the moved icon.
