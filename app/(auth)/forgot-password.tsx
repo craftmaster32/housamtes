@@ -62,12 +62,15 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
 
   // Return to the email step so the user can fix a mistyped address. The email
   // is kept so they can edit it instead of retyping; the code is cleared since a
-  // code sent to the old address is no longer valid.
-  const handleChangeEmail = useCallback((): void => {
+  // code sent to the old address is no longer valid. Clear any active recovery
+  // session first so the navigation guard cannot redirect to reset-password.
+  const handleChangeEmail = useCallback(async (): Promise<void> => {
+    clearPasswordRecovery();
+    await signOut();
     setStep('email');
     setCode('');
     setError('');
-  }, []);
+  }, [clearPasswordRecovery, signOut]);
 
   const handleReset = useCallback(async (): Promise<void> => {
     if (!code.trim()) {
@@ -349,6 +352,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 onPress={handleChangeEmail}
                 disabled={isLoading}
                 labelStyle={styles.resendLabel}
+                contentStyle={styles.changeEmailContent}
                 textColor={C.textSecondary}
                 accessible
                 accessibilityRole="button"
@@ -445,6 +449,9 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     resendLabel: {
       fontSize: mf(14),
       ...font.medium,
+    },
+    changeEmailContent: {
+      minHeight: 44,
     },
     successContainer: {
       flex: 1,
