@@ -119,17 +119,25 @@ export default function SignupScreen(): React.JSX.Element {
 
   // In RTL the trailing eye icon must sit on the physical left, or it overlaps
   // the right-anchored label. Let Paper place it via the correct side prop.
+  const toggleShowPassword = useCallback(() => setShowPassword((v) => !v), []);
+  const toggleShowConfirm = useCallback(() => setShowConfirm((v) => !v), []);
   const passwordIcon = (
     <TextInput.Icon
       icon={showPassword ? 'eye-off' : 'eye'}
-      onPress={() => setShowPassword((v) => !v)}
+      onPress={toggleShowPassword}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ checked: showPassword }}
       accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
     />
   );
   const confirmIcon = (
     <TextInput.Icon
       icon={showConfirm ? 'eye-off' : 'eye'}
-      onPress={() => setShowConfirm((v) => !v)}
+      onPress={toggleShowConfirm}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ checked: showConfirm }}
       accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
     />
   );

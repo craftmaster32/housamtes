@@ -94,10 +94,14 @@ export default function LoginScreen(): React.JSX.Element {
   // In RTL the trailing icon must sit on the physical left, or it overlaps the
   // right-anchored label. Let Paper place it via the correct side prop rather
   // than nudging it with CSS.
+  const toggleShowPassword = useCallback(() => setShowPassword((v) => !v), []);
   const passwordIcon = (
     <TextInput.Icon
       icon={showPassword ? 'eye-off' : 'eye'}
-      onPress={() => setShowPassword((v) => !v)}
+      onPress={toggleShowPassword}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ checked: showPassword }}
       accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
     />
   );
