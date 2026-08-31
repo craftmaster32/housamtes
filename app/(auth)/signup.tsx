@@ -23,6 +23,8 @@ import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
 import { getErrorMessage } from '@utils/errors';
 import { markTourPending } from '@utils/tour';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 
 import { mf, ms } from '@utils/responsive';
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6'];
@@ -112,6 +114,26 @@ export default function SignupScreen(): React.JSX.Element {
     }
   }, [name, email, password, confirmPw, selectedColor, agreed, isLoading, signUp, t]);
 
+  const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+
+  // In RTL the trailing eye icon must sit on the physical left, or it overlaps
+  // the right-anchored label. Let Paper place it via the correct side prop.
+  const passwordIcon = (
+    <TextInput.Icon
+      icon={showPassword ? 'eye-off' : 'eye'}
+      onPress={() => setShowPassword((v) => !v)}
+      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+  const confirmIcon = (
+    <TextInput.Icon
+      icon={showConfirm ? 'eye-off' : 'eye'}
+      onPress={() => setShowConfirm((v) => !v)}
+      accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -192,15 +214,8 @@ export default function SignupScreen(): React.JSX.Element {
               onSubmitEditing={() => confirmRef.current?.focus()}
               accessibilityLabel={t('auth.password')}
               accessibilityHint={t('auth.password_hint')}
-              right={
-                <TextInput.Icon
-                  icon={showPassword ? 'eye-off' : 'eye'}
-                  onPress={() => setShowPassword((v) => !v)}
-                  accessibilityLabel={
-                    showPassword ? t('auth.hide_password') : t('auth.show_password')
-                  }
-                />
-              }
+              left={rtl ? passwordIcon : undefined}
+              right={rtl ? undefined : passwordIcon}
               error={!!passwordError}
             />
             {!!passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
@@ -244,13 +259,8 @@ export default function SignupScreen(): React.JSX.Element {
             onSubmitEditing={handleSignup}
             accessibilityLabel={t('auth.confirm_password')}
             accessibilityHint={t('auth.confirm_password_hint')}
-            right={
-              <TextInput.Icon
-                icon={showConfirm ? 'eye-off' : 'eye'}
-                onPress={() => setShowConfirm((v) => !v)}
-                accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
-              />
-            }
+            left={rtl ? confirmIcon : undefined}
+            right={rtl ? undefined : confirmIcon}
             error={!!error && error === t('auth.passwords_no_match')}
           />
 

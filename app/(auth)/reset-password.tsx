@@ -82,6 +82,31 @@ export default function ResetPasswordScreen(): React.JSX.Element {
     );
   }
 
+  // In RTL the trailing eye icon must sit on the physical left, or it overlaps
+  // the right-anchored label. Let Paper place it via the correct side prop.
+  const passwordIcon = (
+    <TextInput.Icon
+      icon={showPassword ? 'eye-off' : 'eye'}
+      onPress={toggleShowPassword}
+      forceTextInputFocus={false}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ expanded: showPassword }}
+      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+  const confirmIcon = (
+    <TextInput.Icon
+      icon={showConfirm ? 'eye-off' : 'eye'}
+      onPress={toggleShowConfirm}
+      forceTextInputFocus={false}
+      accessible
+      accessibilityRole="button"
+      accessibilityState={{ expanded: showConfirm }}
+      accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -115,17 +140,8 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           error={!!error && !confirm}
           accessibilityLabel={t('auth.new_password')}
           accessibilityHint={t('auth.new_password_hint')}
-          right={
-            <TextInput.Icon
-              icon={showPassword ? 'eye-off' : 'eye'}
-              onPress={toggleShowPassword}
-              forceTextInputFocus={false}
-              accessible
-              accessibilityRole="button"
-              accessibilityState={{ expanded: showPassword }}
-              accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
-            />
-          }
+          left={rtl ? passwordIcon : undefined}
+          right={rtl ? undefined : passwordIcon}
         />
 
         <TextInput
@@ -143,17 +159,8 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           error={!!error}
           accessibilityLabel={t('auth.confirm_password')}
           accessibilityHint={t('auth.confirm_password_hint')}
-          right={
-            <TextInput.Icon
-              icon={showConfirm ? 'eye-off' : 'eye'}
-              onPress={toggleShowConfirm}
-              forceTextInputFocus={false}
-              accessible
-              accessibilityRole="button"
-              accessibilityState={{ expanded: showConfirm }}
-              accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
-            />
-          }
+          left={rtl ? confirmIcon : undefined}
+          right={rtl ? undefined : confirmIcon}
         />
 
         {!!error && <Text style={styles.error}>{error}</Text>}

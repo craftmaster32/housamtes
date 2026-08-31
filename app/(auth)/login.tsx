@@ -91,6 +91,17 @@ export default function LoginScreen(): React.JSX.Element {
     }
   }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
+  // In RTL the trailing icon must sit on the physical left, or it overlaps the
+  // right-anchored label. Let Paper place it via the correct side prop rather
+  // than nudging it with CSS.
+  const passwordIcon = (
+    <TextInput.Icon
+      icon={showPassword ? 'eye-off' : 'eye'}
+      onPress={() => setShowPassword((v) => !v)}
+      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
+    />
+  );
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -164,15 +175,8 @@ export default function LoginScreen(): React.JSX.Element {
               onSubmitEditing={handleLogin}
               accessibilityLabel={t('auth.password')}
               accessibilityHint={t('auth.password_hint')}
-              right={
-                <TextInput.Icon
-                  icon={showPassword ? 'eye-off' : 'eye'}
-                  onPress={() => setShowPassword((v) => !v)}
-                  accessibilityLabel={
-                    showPassword ? t('auth.hide_password') : t('auth.show_password')
-                  }
-                />
-              }
+              left={rtl ? passwordIcon : undefined}
+              right={rtl ? undefined : passwordIcon}
               error={!!error}
             />
 
