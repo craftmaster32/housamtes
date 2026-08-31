@@ -10,6 +10,7 @@ import {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
 import { initErrorTracking } from '@lib/errorTracking';
+import { RTL_WEB_FIX_CSS } from '@lib/rtlWebFix';
 import { Stack, router, useSegments } from 'expo-router';
 import { supabase } from '@lib/supabase';
 import { PaperProvider, MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
@@ -159,35 +160,7 @@ export default function RootLayout(): React.JSX.Element | null {
           tag.id = STYLE_ID;
           document.head.appendChild(tag);
         }
-        tag.textContent = [
-          'html[dir="rtl"] body, html[dir="rtl"] #root, html[dir="rtl"] #root > div { direction: rtl !important; }',
-          'html[dir="rtl"] input, html[dir="rtl"] textarea, html[dir="rtl"] select { text-align: right; direction: rtl; }',
-          // react-native-paper's Text component hardcodes textAlign: 'left' in its base
-          // style, which silently overrides RNW's RTL-aware default for any Paper <Text>
-          // that doesn't set its own textAlign. No !important here: this rule must lose
-          // to any component-specified textAlign (e.g. explicit `textAlign: 'center'`
-          // styles elsewhere in the app), and only needs to beat Paper's own base style.
-          'html[dir="rtl"] [dir="auto"] { text-align: right; }',
-          // react-native-paper's outlined/flat TextInput hardcodes `left: 0` on its
-          // floating label (placeholderStyle), ignoring I18nManager entirely, so the
-          // label sits pinned to the physical left of the field in RTL instead of the
-          // right. Flip it for the label text and its background mask.
-          'html[dir="rtl"] [data-testid$="-label-active"], html[dir="rtl"] [data-testid$="-label-inactive"] { left: auto !important; right: 0 !important; }',
-          // react-native-paper positions the trailing TextInput icon (e.g. the
-          // password "eye") with a hardcoded physical `right` inline style and
-          // never consults I18nManager, so in RTL it stays pinned to the physical
-          // right — landing on top of the right-anchored label (see screenshot of
-          // the login screen). Move the icon adornment to the mirrored (left) side
-          // so it clears the label. Every icon field in the app is `mode="outlined"`
-          // with a trailing icon only.
-          'html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) { right: auto !important; left: 16px !important; }',
-          // The native input reserves space for that icon with a physical
-          // `margin-right` (ADORNMENT_OFFSET + OUTLINED_INPUT_OFFSET = 32). Flip it
-          // to the left so the right-aligned text keeps clear of the moved icon.
-          // RNP 5.15.0 wraps the input in a child div (sibling to the adornment
-          // container), so we traverse `> div > input` rather than `> input`.
-          'html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) > div > input, html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) > div > textarea { margin-right: 0 !important; margin-left: 32px !important; }',
-        ].join('\n');
+        tag.textContent = RTL_WEB_FIX_CSS;
       } else if (tag) {
         tag.remove();
       }
