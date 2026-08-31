@@ -304,6 +304,18 @@ describe('authStore — signOut', () => {
     expect(mockUnregisterPushToken).toHaveBeenCalledWith('u1', 'h1');
     expect(mockUnregisterWebPush).toHaveBeenCalledWith('u1', 'h1');
   });
+
+  it('clears the password-recovery flag so the user is not trapped on reset-password', async () => {
+    // The forgot-password (OTP) flow triggers a PASSWORD_RECOVERY event, then
+    // resets the password and signs out itself. Sign-out must clear the flag or
+    // the navigation guard force-redirects the user to the reset-password screen.
+    useAuthStore.setState({ user: fakeUser(), session: fakeSession(), isPasswordRecovery: true });
+    mockAuth.signOut.mockResolvedValue({ error: null });
+
+    await useAuthStore.getState().signOut();
+
+    expect(useAuthStore.getState().isPasswordRecovery).toBe(false);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────────────────

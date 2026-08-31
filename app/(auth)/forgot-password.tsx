@@ -32,6 +32,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const [done, setDone] = useState(false);
 
   const signOut = useAuthStore((s) => s.signOut);
+  const clearPasswordRecovery = useAuthStore((s) => s.clearPasswordRecovery);
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const C = useThemedColors();
@@ -58,6 +59,22 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
 
   const toggleShowPassword = useCallback((): void => setShowPassword((v) => !v), []);
   const toggleShowConfirm = useCallback((): void => setShowConfirm((v) => !v), []);
+
+  // Return to the email step so the user can fix a mistyped address. The email
+  // is kept so they can edit it instead of retyping; the code is cleared since a
+  // code sent to the old address is no longer valid. Clear any active recovery
+  // session first so the navigation guard cannot redirect to reset-password.
+  const handleChangeEmail = useCallback(async (): Promise<void> => {
+    clearPasswordRecovery();
+    try {
+      await signOut();
+      setStep('email');
+      setCode('');
+      setError('');
+    } catch {
+      setError(t('auth.something_went_wrong'));
+    }
+  }, [clearPasswordRecovery, signOut, t]);
 
   const handleReset = useCallback(async (): Promise<void> => {
     if (!code.trim()) {
@@ -89,6 +106,11 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       const { error: updateErr } = await supabase.auth.updateUser({ password });
       if (updateErr) throw updateErr;
 
+      // verifyOtp with type 'recovery' fires Supabase's PASSWORD_RECOVERY event,
+      // which flips isPasswordRecovery on. This screen resets the password on its
+      // own, so clear that flag — otherwise the navigation guard would redirect
+      // the user to the deep-link reset-password screen and trap them there.
+      clearPasswordRecovery();
       await signOut();
       setDone(true);
     } catch (err) {
@@ -101,7 +123,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [code, email, password, confirm, signOut, t]);
+  }, [code, email, password, confirm, signOut, clearPasswordRecovery, t]);
 
   if (done) {
     return (
@@ -328,6 +350,21 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
               >
                 {t('auth.resend_code')}
               </Button>
+
+              <Button
+                mode="text"
+                onPress={handleChangeEmail}
+                disabled={isLoading}
+                labelStyle={styles.resendLabel}
+                contentStyle={styles.changeEmailContent}
+                textColor={C.textSecondary}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('auth.change_email')}
+                accessibilityState={{ disabled: isLoading }}
+              >
+                {t('auth.change_email')}
+              </Button>
             </>
           )}
         </View>
@@ -416,6 +453,9 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     resendLabel: {
       fontSize: mf(14),
       ...font.medium,
+    },
+    changeEmailContent: {
+      minHeight: 44,
     },
     successContainer: {
       flex: 1,

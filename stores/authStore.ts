@@ -255,7 +255,10 @@ export const useAuthStore = create<AuthStore>()(
           try {
             if (session?.user) {
               const [profile, memberData, consentOk] = await Promise.all([
-                fetchProfile(session.user.id, session.user.user_metadata as Record<string, unknown>),
+                fetchProfile(
+                  session.user.id,
+                  session.user.user_metadata as Record<string, unknown>
+                ),
                 fetchMemberData(session.user.id),
                 hasCurrentConsent(session.user.id),
               ]);
@@ -544,6 +547,10 @@ export const useAuthStore = create<AuthStore>()(
           role: null,
           permissions: DEFAULT_PERMISSIONS,
           pendingEmail: null,
+          // Signing out ends any in-progress password recovery. Leaving this
+          // flag set would trap the user on the reset-password screen (the
+          // navigation guard force-redirects there while it is true).
+          isPasswordRecovery: false,
         });
       },
 
