@@ -173,6 +173,18 @@ export default function RootLayout(): React.JSX.Element | null {
           // label sits pinned to the physical left of the field in RTL instead of the
           // right. Flip it for the label text and its background mask.
           'html[dir="rtl"] [data-testid$="-label-active"], html[dir="rtl"] [data-testid$="-label-inactive"] { left: auto !important; right: 0 !important; }',
+          // react-native-paper positions the trailing TextInput icon (e.g. the
+          // password "eye") with a hardcoded physical `right` inline style and
+          // never consults I18nManager, so in RTL it stays pinned to the physical
+          // right — landing on top of the right-anchored label (see screenshot of
+          // the login screen). Move the icon adornment to the mirrored (left) side
+          // so it clears the label. Every icon field in the app is `mode="outlined"`
+          // with a trailing icon only.
+          'html[dir="rtl"] div:has(> [data-testid="right-icon-adornment"]) { right: auto !important; left: 16px !important; }',
+          // The native input reserves space for that icon with a physical
+          // `margin-right` (ADORNMENT_OFFSET + OUTLINED_INPUT_OFFSET = 32). Flip it
+          // to the left so the right-aligned text keeps clear of the moved icon.
+          'html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) > input, html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) > textarea { margin-right: 0 !important; margin-left: 32px !important; }',
         ].join('\n');
       } else if (tag) {
         tag.remove();
