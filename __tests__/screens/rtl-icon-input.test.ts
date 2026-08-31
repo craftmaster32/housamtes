@@ -11,26 +11,35 @@
  */
 
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { act } from 'react';
+import { createRoot } from 'react-dom/client';
 import { PaperProvider, TextInput } from 'react-native-paper';
 
 function renderPasswordInput(): void {
-  render(
-    React.createElement(
-      PaperProvider,
-      null,
-      React.createElement(TextInput, {
-        mode: 'outlined' as const,
-        label: 'Password',
-        secureTextEntry: true,
-        right: React.createElement(TextInput.Icon, {
-          icon: 'eye',
-          testID: 'right-icon-adornment',
-        }),
-      })
-    )
-  );
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  act(() => {
+    createRoot(container).render(
+      React.createElement(
+        PaperProvider,
+        null,
+        React.createElement(TextInput, {
+          mode: 'outlined' as const,
+          label: 'Password',
+          secureTextEntry: true,
+          right: React.createElement(TextInput.Icon, {
+            icon: 'eye',
+            testID: 'right-icon-adornment',
+          }),
+        })
+      )
+    );
+  });
 }
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
 
 describe('RTL right-icon input layout — CSS selector regression', () => {
   it('fixed selector (> div > input) matches the input through the wrapper div', () => {
