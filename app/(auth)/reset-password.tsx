@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { Text, TextInput, Button } from 'react-native-paper';
+import { Text, Button } from 'react-native-paper';
+import { PasswordInput } from '@components/shared/PasswordInput';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -25,14 +26,9 @@ export default function ResetPasswordScreen(): React.JSX.Element {
   const rtl = isRTL(language);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
-
-  const toggleShowPassword = useCallback((): void => setShowPassword((v) => !v), []);
-  const toggleShowConfirm = useCallback((): void => setShowConfirm((v) => !v), []);
 
   const handleReset = useCallback(async () => {
     if (!password) {
@@ -82,31 +78,6 @@ export default function ResetPasswordScreen(): React.JSX.Element {
     );
   }
 
-  // In RTL the trailing eye icon must sit on the physical left, or it overlaps
-  // the right-anchored label. Let Paper place it via the correct side prop.
-  const passwordIcon = (
-    <TextInput.Icon
-      icon={showPassword ? 'eye-off' : 'eye'}
-      onPress={toggleShowPassword}
-      forceTextInputFocus={false}
-      accessible
-      accessibilityRole="button"
-      accessibilityState={{ expanded: showPassword }}
-      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
-    />
-  );
-  const confirmIcon = (
-    <TextInput.Icon
-      icon={showConfirm ? 'eye-off' : 'eye'}
-      onPress={toggleShowConfirm}
-      forceTextInputFocus={false}
-      accessible
-      accessibilityRole="button"
-      accessibilityState={{ expanded: showConfirm }}
-      accessibilityLabel={showConfirm ? t('auth.hide_password') : t('auth.show_password')}
-    />
-  );
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -125,7 +96,7 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           <Text style={styles.subtitle}>{t('auth.reset_subtitle')}</Text>
         </View>
 
-        <TextInput
+        <PasswordInput
           label={t('auth.new_password')}
           value={password}
           onChangeText={(v) => {
@@ -134,17 +105,14 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           }}
           mode="outlined"
           style={styles.input}
-          secureTextEntry={!showPassword}
           autoFocus
           returnKeyType="next"
           error={!!error && !confirm}
           accessibilityLabel={t('auth.new_password')}
           accessibilityHint={t('auth.new_password_hint')}
-          left={rtl ? passwordIcon : undefined}
-          right={rtl ? undefined : passwordIcon}
         />
 
-        <TextInput
+        <PasswordInput
           label={t('auth.confirm_password')}
           value={confirm}
           onChangeText={(v) => {
@@ -153,14 +121,11 @@ export default function ResetPasswordScreen(): React.JSX.Element {
           }}
           mode="outlined"
           style={styles.input}
-          secureTextEntry={!showConfirm}
           returnKeyType="done"
           onSubmitEditing={handleReset}
           error={!!error}
           accessibilityLabel={t('auth.confirm_password')}
           accessibilityHint={t('auth.confirm_password_hint')}
-          left={rtl ? confirmIcon : undefined}
-          right={rtl ? undefined : confirmIcon}
         />
 
         {!!error && <Text style={styles.error}>{error}</Text>}

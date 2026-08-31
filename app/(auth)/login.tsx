@@ -22,6 +22,7 @@ import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { Entrance } from '@components/shared/Entrance';
+import { PasswordInput } from '@components/shared/PasswordInput';
 import { getErrorMessage } from '@utils/errors';
 
 import { mf, ms } from '@utils/responsive';
@@ -31,7 +32,6 @@ const LOCKOUT_SECONDS = 30;
 export default function LoginScreen(): React.JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
@@ -91,21 +91,6 @@ export default function LoginScreen(): React.JSX.Element {
     }
   }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
-  // In RTL the trailing icon must sit on the physical left, or it overlaps the
-  // right-anchored label. Let Paper place it via the correct side prop rather
-  // than nudging it with CSS.
-  const toggleShowPassword = useCallback(() => setShowPassword((v) => !v), []);
-  const passwordIcon = (
-    <TextInput.Icon
-      icon={showPassword ? 'eye-off' : 'eye'}
-      onPress={toggleShowPassword}
-      accessible
-      accessibilityRole="button"
-      accessibilityState={{ checked: showPassword }}
-      accessibilityLabel={showPassword ? t('auth.hide_password') : t('auth.show_password')}
-    />
-  );
-
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -164,7 +149,7 @@ export default function LoginScreen(): React.JSX.Element {
               error={!!error}
             />
 
-            <TextInput
+            <PasswordInput
               ref={passwordRef}
               label={t('auth.password')}
               value={password}
@@ -174,13 +159,10 @@ export default function LoginScreen(): React.JSX.Element {
               }}
               mode="outlined"
               style={styles.input}
-              secureTextEntry={!showPassword}
               returnKeyType="go"
               onSubmitEditing={handleLogin}
               accessibilityLabel={t('auth.password')}
               accessibilityHint={t('auth.password_hint')}
-              left={rtl ? passwordIcon : undefined}
-              right={rtl ? undefined : passwordIcon}
               error={!!error}
             />
 

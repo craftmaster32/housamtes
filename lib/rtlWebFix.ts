@@ -22,5 +22,9 @@ export const RTL_WEB_FIX_CSS: string = [
   // floating label (placeholderStyle), ignoring I18nManager entirely, so the
   // label sits pinned to the physical left of the field in RTL instead of the
   // right. Flip it for the label text and its background mask.
-  'html[dir="rtl"] [data-testid$="-label-active"], html[dir="rtl"] [data-testid$="-label-inactive"] { left: auto !important; right: 0 !important; }',
+  'html[dir="rtl"] [data-testid$="-label-active"], html[dir="rtl"] [data-testid$="-label-inactive"] { left: auto !important; right: 0 !important; direction: rtl !important; text-align: right !important; }',
+  // The little background patch that notches the outline behind a floated label
+  // is hardcoded to the physical left (`left: 8`); mirror it so the border is
+  // hidden behind the right-anchored label instead of showing through it.
+  'html[dir="rtl"] [data-testid$="-label-background"] { left: auto !important; right: 8px !important; }',
 ].join('\n');
