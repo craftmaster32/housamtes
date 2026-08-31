@@ -184,7 +184,9 @@ export default function RootLayout(): React.JSX.Element | null {
           // The native input reserves space for that icon with a physical
           // `margin-right` (ADORNMENT_OFFSET + OUTLINED_INPUT_OFFSET = 32). Flip it
           // to the left so the right-aligned text keeps clear of the moved icon.
-          'html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) > input, html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) > textarea { margin-right: 0 !important; margin-left: 32px !important; }',
+          // RNP 5.15.0 wraps the input in a child div (sibling to the adornment
+          // container), so we traverse `> div > input` rather than `> input`.
+          'html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) > div > input, html[dir="rtl"] div:has([data-testid="right-icon-adornment"]) > div > textarea { margin-right: 0 !important; margin-left: 32px !important; }',
         ].join('\n');
       } else if (tag) {
         tag.remove();
