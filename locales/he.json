@@ -138,6 +138,7 @@
     "confirm_password": "אישור סיסמה",
     "update_password": "עדכן סיסמה",
     "resend_code": "שלח קוד שוב",
+    "change_email": "כתובת אימייל שגויה? שנה אותה",
     "enter_code_error": "הכנס את הקוד בן 6 הספרות מהאימייל",
     "enter_password_error": "הכנס סיסמה חדשה",
     "name_required": "יש להזין שם",

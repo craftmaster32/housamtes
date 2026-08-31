@@ -60,6 +60,15 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   const toggleShowPassword = useCallback((): void => setShowPassword((v) => !v), []);
   const toggleShowConfirm = useCallback((): void => setShowConfirm((v) => !v), []);
 
+  // Return to the email step so the user can fix a mistyped address. The email
+  // is kept so they can edit it instead of retyping; the code is cleared since a
+  // code sent to the old address is no longer valid.
+  const handleChangeEmail = useCallback((): void => {
+    setStep('email');
+    setCode('');
+    setError('');
+  }, []);
+
   const handleReset = useCallback(async (): Promise<void> => {
     if (!code.trim()) {
       setError(t('auth.enter_code_error'));
@@ -333,6 +342,20 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
                 accessibilityState={{ disabled: isLoading }}
               >
                 {t('auth.resend_code')}
+              </Button>
+
+              <Button
+                mode="text"
+                onPress={handleChangeEmail}
+                disabled={isLoading}
+                labelStyle={styles.resendLabel}
+                textColor={C.textSecondary}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('auth.change_email')}
+                accessibilityState={{ disabled: isLoading }}
+              >
+                {t('auth.change_email')}
               </Button>
             </>
           )}

@@ -138,6 +138,7 @@
     "confirm_password": "Confirm password",
     "update_password": "Update password",
     "resend_code": "Resend code",
+    "change_email": "Wrong email? Change it",
     "enter_code_error": "Please enter the 6-digit code from your email",
     "enter_password_error": "Please enter a new password",
     "name_required": "Name is required",
