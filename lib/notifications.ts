@@ -71,9 +71,10 @@ export async function registerPushToken(userId: string, houseId: string): Promis
  * "wrong" table is simply a no-op. Best-effort.
  */
 export async function updatePushTokenLanguage(language: AppLanguage): Promise<void> {
+  let userId: string | undefined;
   try {
     const { data } = await supabase.auth.getUser();
-    const userId = data.user?.id;
+    userId = data.user?.id;
     if (!userId) return;
     const stamp = new Date().toISOString();
     const [tokensResult, webResult] = await Promise.all([
@@ -84,11 +85,14 @@ export async function updatePushTokenLanguage(language: AppLanguage): Promise<vo
         .eq('user_id', userId),
     ]);
     if (tokensResult.error)
-      captureError(tokensResult.error, { context: 'updatePushTokenLanguage:push_tokens' });
+      captureError(tokensResult.error, { context: 'updatePushTokenLanguage:push_tokens', userId });
     if (webResult.error)
-      captureError(webResult.error, { context: 'updatePushTokenLanguage:web_push_subscriptions' });
+      captureError(webResult.error, {
+        context: 'updatePushTokenLanguage:web_push_subscriptions',
+        userId,
+      });
   } catch (err) {
-    captureError(err, { context: 'updatePushTokenLanguage' });
+    captureError(err, { context: 'updatePushTokenLanguage', userId });
   }
 }
 
