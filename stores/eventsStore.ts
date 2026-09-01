@@ -27,16 +27,6 @@ function weekdaysPayload(
   return clean.length > 0 ? clean : null;
 }
 
-// Friendly "Sat 15 Aug · 20:00" label for the instant event-added push.
-function eventWhenLabel(date: string, startTime?: string): string {
-  const when = new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
-  return startTime ? `${when} · ${startTime}` : when;
-}
-
 // The recurrence unit; the actual cadence is (recurrenceInterval × unit), so
 // weekly with an interval of 2 is "every 2 weeks". Interval defaults to 1.
 export type EventRecurrence = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -241,11 +231,15 @@ export const useEventsStore = create<EventsStore>()(
           void notifyHousemates({
             houseId,
             excludeUserId: createdBy,
-            title: '📅 New event',
-            body: `${actor?.name ?? 'A housemate'} added "${event.title}" · ${eventWhenLabel(
-              event.date,
-              event.startTime
-            )}`,
+            copyKey: 'event_added',
+            copyParams: {
+              actorName: actor?.name ?? '',
+              eventTitle: event.title,
+              date: event.date,
+              time: event.startTime ?? '',
+              endDate: event.endDate ?? '',
+              endTime: event.endTime ?? '',
+            },
             data: { screen: 'calendar' },
             notificationType: 'event_added',
           });

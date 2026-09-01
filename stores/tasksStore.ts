@@ -70,8 +70,8 @@ function notifyAssignee(houseId: string, assignedTo: string, taskTitle: string):
     houseId,
     excludeUserId: me.id,
     includeUserIds: [assignedTo],
-    title: '📋 New task for you',
-    body: `${me.name ?? 'A housemate'} assigned you "${taskTitle}"`,
+    copyKey: 'task_assigned',
+    copyParams: { actorName: me.name ?? '', taskTitle },
     data: { screen: 'tasks' },
     notificationType: 'task_assigned',
   }).catch((err) => captureError(err, { context: 'notify-task-assigned', houseId }));

@@ -65,21 +65,34 @@ export async function registerPushToken(userId: string, houseId: string): Promis
 }
 
 /**
- * Update the language stored on this user's push tokens so reminder
- * notifications switch language when the user does. Best-effort.
+ * Update the language stored on this user's push tokens (native) and web push
+ * subscriptions (browser) so every notification switches language when the user
+ * does. Each update only touches the rows that exist for this platform, so the
+ * "wrong" table is simply a no-op. Best-effort.
  */
 export async function updatePushTokenLanguage(language: AppLanguage): Promise<void> {
+  let userId: string | undefined;
   try {
-    if (Platform.OS === 'web') return;
     const { data } = await supabase.auth.getUser();
-    const userId = data.user?.id;
+    userId = data.user?.id;
     if (!userId) return;
-    await supabase
-      .from('push_tokens')
-      .update({ language, updated_at: new Date().toISOString() })
-      .eq('user_id', userId);
+    const stamp = new Date().toISOString();
+    const [tokensResult, webResult] = await Promise.all([
+      supabase.from('push_tokens').update({ language, updated_at: stamp }).eq('user_id', userId),
+      supabase
+        .from('web_push_subscriptions')
+        .update({ language, updated_at: stamp })
+        .eq('user_id', userId),
+    ]);
+    if (tokensResult.error)
+      captureError(tokensResult.error, { context: 'updatePushTokenLanguage:push_tokens', userId });
+    if (webResult.error)
+      captureError(webResult.error, {
+        context: 'updatePushTokenLanguage:web_push_subscriptions',
+        userId,
+      });
   } catch (err) {
-    captureError(err, { context: 'updatePushTokenLanguage' });
+    captureError(err, { context: 'updatePushTokenLanguage', userId: userId ?? 'unknown' });
   }
 }
 

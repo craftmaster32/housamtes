@@ -219,8 +219,11 @@ export const useBillsStore = create<BillsStore>()(
           notifyHousemates({
             houseId,
             excludeUserId: userId,
-            title: '💸 New expense dropped',
-            body: `${data.title} — ${useSettingsStore.getState().currency}${data.amount.toFixed(2)}. Time to split! 🤝`,
+            copyKey: 'bill_added',
+            copyParams: {
+              billTitle: data.title,
+              money: `${useSettingsStore.getState().currency}${data.amount.toFixed(2)}`,
+            },
             data: { screen: 'bills' },
             notificationType: 'bill_added',
           });
@@ -280,14 +283,22 @@ export const useBillsStore = create<BillsStore>()(
             const userId = sessionData.session?.user.id ?? '';
             if (userId) {
               const currency = useSettingsStore.getState().currency;
-              const body = amountChanged
-                ? `${updates.title}: ${currency}${before.amount.toFixed(2)} → ${currency}${updates.amount.toFixed(2)}`
-                : `${updates.title} — due date moved to ${updates.date}`;
               notifyHousemates({
                 houseId,
                 excludeUserId: userId,
-                title: '✏️ Bill updated',
-                body,
+                ...(amountChanged
+                  ? {
+                      copyKey: 'bill_edited_amount',
+                      copyParams: {
+                        billTitle: updates.title,
+                        oldMoney: `${currency}${before.amount.toFixed(2)}`,
+                        newMoney: `${currency}${updates.amount.toFixed(2)}`,
+                      },
+                    }
+                  : {
+                      copyKey: 'bill_edited_date',
+                      copyParams: { billTitle: updates.title, date: updates.date },
+                    }),
                 data: { screen: 'bills' },
                 notificationType: 'bill_edited',
               });
@@ -324,8 +335,8 @@ export const useBillsStore = create<BillsStore>()(
           notifyHousemates({
             houseId,
             excludeUserId: settledByUserId,
-            title: '🎉 Money drama resolved!',
-            body: `${bill.title} sorted. ${settledByName} saves the day 🙌`,
+            copyKey: 'bill_settled',
+            copyParams: { billTitle: bill.title, settledByName },
             data: { screen: 'bills' },
             notificationType: 'bill_settled',
           });
@@ -349,8 +360,8 @@ export const useBillsStore = create<BillsStore>()(
             notifyHousemates({
               houseId,
               excludeUserId: userId,
-              title: '🗑️ Bill gone poof',
-              body: `${bill.title} was removed. Pretend it never happened.`,
+              copyKey: 'bill_deleted',
+              copyParams: { billTitle: bill.title },
               data: { screen: 'bills' },
               notificationType: 'bill_deleted',
             });

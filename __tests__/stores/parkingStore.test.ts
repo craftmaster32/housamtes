@@ -666,14 +666,14 @@ describe('parkingStore — voteOnReservation', () => {
     expect(notifyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         includeUserIds: ['u2'],
-        title: '🗳️ A housemate voted!',
+        copyKey: 'parking_voted',
         notificationType: 'parking_reservation',
       })
     );
     expect(notifyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         includeUserIds: ['requester'],
-        title: '🗳️ Vote received!',
+        copyKey: 'parking_vote_progress',
         notificationType: 'parking_reservation',
       })
     );
@@ -715,11 +715,11 @@ describe('parkingStore — voteOnReservation', () => {
     expect(notifyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         includeUserIds: ['requester'],
-        title: '✅ You got the spot!',
+        copyKey: 'parking_approved',
       })
     );
     expect(notifyMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ title: '🗳️ A housemate voted!' })
+      expect.objectContaining({ copyKey: 'parking_voted' })
     );
   });
 
@@ -755,7 +755,7 @@ describe('parkingStore — voteOnReservation', () => {
     expect(notifyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         includeUserIds: ['requester'],
-        title: '❌ Request denied',
+        copyKey: 'parking_rejected',
       })
     );
   });

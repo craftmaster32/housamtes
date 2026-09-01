@@ -19,13 +19,26 @@ type NotificationType =
   | 'event_added'
   | 'event_reminder';
 
+/** Interpolation values for a localized copy key (names, amounts, dates…). */
+export interface CopyParams {
+  [key: string]: string | number | undefined;
+}
+
 interface NotifyParams {
   houseId: string;
   excludeUserId: string;
   /** When provided, only these user IDs receive the notification (overrides excludeUserId). */
   includeUserIds?: string[];
-  title: string;
-  body: string;
+  /**
+   * For notifications with fixed wording, pass copyKey + copyParams instead of
+   * title/body. The server then builds the text for EACH recipient in their own
+   * app language. title/body are only needed for user-authored content (e.g. a
+   * chat message) or as a fallback.
+   */
+  title?: string;
+  body?: string;
+  copyKey?: string;
+  copyParams?: CopyParams;
   data?: Record<string, string>;
   notificationType: NotificationType;
 }
@@ -43,6 +56,8 @@ export async function notifyHousemates({
   includeUserIds,
   title,
   body,
+  copyKey,
+  copyParams,
   data,
   notificationType,
 }: NotifyParams): Promise<void> {
@@ -61,8 +76,10 @@ export async function notifyHousemates({
         house_id: houseId,
         exclude_user_id: excludeUserId,
         ...(includeUserIds ? { include_user_ids: includeUserIds } : {}),
-        title,
-        body,
+        ...(title !== undefined ? { title } : {}),
+        ...(body !== undefined ? { body } : {}),
+        ...(copyKey ? { copy_key: copyKey } : {}),
+        ...(copyParams ? { copy_params: copyParams } : {}),
         data,
         notification_type: notificationType,
       }),

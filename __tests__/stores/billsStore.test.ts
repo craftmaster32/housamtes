@@ -402,7 +402,10 @@ describe('billsStore — settleBill', () => {
 
     expect(notifyHousemates).toHaveBeenCalledTimes(1);
     expect(notifyHousemates).toHaveBeenCalledWith(
-      expect.objectContaining({ title: '🎉 Money drama resolved!' })
+      expect.objectContaining({
+        copyKey: 'bill_settled',
+        copyParams: expect.objectContaining({ billTitle: 'Rent', settledByName: 'Alice' }),
+      })
     );
   });
 });
@@ -491,7 +494,12 @@ describe('billsStore — editBill', () => {
         houseId: 'house1',
         excludeUserId: 'u1',
         notificationType: 'bill_edited',
-        body: expect.stringContaining('900.00'),
+        copyKey: 'bill_edited_amount',
+        copyParams: expect.objectContaining({
+          billTitle: 'Rent',
+          oldMoney: expect.stringContaining('900.00'),
+          newMoney: expect.stringContaining('1000.00'),
+        }),
       })
     );
   });
