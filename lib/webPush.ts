@@ -70,7 +70,7 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
     const auth = json.keys?.auth;
     if (!p256dh || !auth) return;
 
-    await supabase.from('web_push_subscriptions').upsert(
+    const { error: upsertError } = await supabase.from('web_push_subscriptions').upsert(
       {
         user_id: userId,
         house_id: houseId,
@@ -82,6 +82,7 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
       },
       { onConflict: 'user_id,house_id' }
     );
+    if (upsertError) throw upsertError;
   } catch (err) {
     captureError(err, { context: 'subscribeAndSave', userId, houseId });
     throw err;
