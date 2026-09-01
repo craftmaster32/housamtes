@@ -32,55 +32,60 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
   const vapidPublicKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
   if (!vapidPublicKey) return;
 
-  const registration = await navigator.serviceWorker.register('/sw.js');
-  await navigator.serviceWorker.ready;
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
 
-  let existingSub = await registration.pushManager.getSubscription();
+    let existingSub = await registration.pushManager.getSubscription();
 
-  // Safari (and occasionally Chrome) can silently invalidate a subscription — the push
-  // service starts returning 410, send-push deletes the row, but PushManager keeps
-  // handing us back the same stale subscription object. If the DB row for this
-  // (user, house) is missing or points at a different endpoint, treat the local
-  // subscription as dead: unsubscribe and create a fresh one so a new endpoint gets saved.
-  if (existingSub) {
-    const { data: row, error: readError } = await supabase
-      .from('web_push_subscriptions')
-      .select('endpoint')
-      .eq('user_id', userId)
-      .eq('house_id', houseId)
-      .maybeSingle();
-    // Only reconcile when the read actually succeeded — on a network / auth blip,
-    // reuse the local sub rather than churning it based on a phantom "missing row".
-    if (!readError && (!row || row.endpoint !== existingSub.endpoint)) {
-      await existingSub.unsubscribe();
-      existingSub = null;
+    // Safari (and occasionally Chrome) can silently invalidate a subscription — the push
+    // service starts returning 410, send-push deletes the row, but PushManager keeps
+    // handing us back the same stale subscription object. If the DB row for this
+    // (user, house) is missing or points at a different endpoint, treat the local
+    // subscription as dead: unsubscribe and create a fresh one so a new endpoint gets saved.
+    if (existingSub) {
+      const { data: row, error: readError } = await supabase
+        .from('web_push_subscriptions')
+        .select('endpoint')
+        .eq('user_id', userId)
+        .eq('house_id', houseId)
+        .maybeSingle();
+      // Only reconcile when the read actually succeeded — on a network / auth blip,
+      // reuse the local sub rather than churning it based on a phantom "missing row".
+      if (!readError && (!row || row.endpoint !== existingSub.endpoint)) {
+        await existingSub.unsubscribe();
+        existingSub = null;
+      }
     }
+
+    const subscription =
+      existingSub ??
+      (await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as unknown as BufferSource,
+      }));
+
+    const json = subscription.toJSON();
+    const p256dh = json.keys?.p256dh;
+    const auth = json.keys?.auth;
+    if (!p256dh || !auth) return;
+
+    await supabase.from('web_push_subscriptions').upsert(
+      {
+        user_id: userId,
+        house_id: houseId,
+        endpoint: subscription.endpoint,
+        p256dh,
+        auth,
+        language: currentLanguage(),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,house_id' }
+    );
+  } catch (err) {
+    captureError(err, { context: 'subscribeAndSave', userId, houseId });
+    throw err;
   }
-
-  const subscription =
-    existingSub ??
-    (await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as unknown as BufferSource,
-    }));
-
-  const json = subscription.toJSON();
-  const p256dh = json.keys?.p256dh;
-  const auth = json.keys?.auth;
-  if (!p256dh || !auth) return;
-
-  await supabase.from('web_push_subscriptions').upsert(
-    {
-      user_id: userId,
-      house_id: houseId,
-      endpoint: subscription.endpoint,
-      p256dh,
-      auth,
-      language: currentLanguage(),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id,house_id' }
-  );
 }
 
 /** Called on startup — re-subscribes silently if already granted. Never asks for permission. */
@@ -174,6 +179,7 @@ export async function refreshWebPush(
         endpoint: subscription.endpoint,
         p256dh,
         auth,
+        language: currentLanguage(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,house_id' }
