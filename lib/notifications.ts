@@ -76,13 +76,17 @@ export async function updatePushTokenLanguage(language: AppLanguage): Promise<vo
     const userId = data.user?.id;
     if (!userId) return;
     const stamp = new Date().toISOString();
-    await Promise.all([
+    const [tokensResult, webResult] = await Promise.all([
       supabase.from('push_tokens').update({ language, updated_at: stamp }).eq('user_id', userId),
       supabase
         .from('web_push_subscriptions')
         .update({ language, updated_at: stamp })
         .eq('user_id', userId),
     ]);
+    if (tokensResult.error)
+      captureError(tokensResult.error, { context: 'updatePushTokenLanguage:push_tokens' });
+    if (webResult.error)
+      captureError(webResult.error, { context: 'updatePushTokenLanguage:web_push_subscriptions' });
   } catch (err) {
     captureError(err, { context: 'updatePushTokenLanguage' });
   }
