@@ -576,6 +576,32 @@ describe('realtime UPDATE handler', () => {
     capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: false }) });
     expect(useGroceryStore.getState().items[0].isChecked).toBe(false);
   });
+
+  // Perf: the echo of our own optimistic write carries values we already show.
+  // Re-applying it would allocate a new items array and re-render the whole list
+  // for no change — which, when marking several items in a row, reads as lag.
+  // The handler must skip it, keeping the exact same array reference.
+  it('skips an echo that changes nothing (no re-render)', async () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1', isChecked: false })] });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().toggleItem('item-1'); // -> checked (optimistic)
+    const before = useGroceryStore.getState().items;
+
+    // Echo of that write lands with the identical values we already show.
+    capturedHandlers.update!({ new: rawRow({ id: 'item-1', is_checked: true }) });
+
+    // Same array reference — no state update was dispatched.
+    expect(useGroceryStore.getState().items).toBe(before);
+    expect(useGroceryStore.getState().items[0].isChecked).toBe(true);
+  });
+
+  it('ignores an update for a row not in the list', () => {
+    useGroceryStore.setState({ items: [item({ id: 'item-1' })] });
+    const before = useGroceryStore.getState().items;
+    capturedHandlers.update!({ new: rawRow({ id: 'ghost', name: 'Nope' }) });
+    expect(useGroceryStore.getState().items).toBe(before);
+  });
 });
 
 // ── Realtime: DELETE handler ──────────────────────────────────────────────────
