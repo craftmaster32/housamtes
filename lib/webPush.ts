@@ -1,6 +1,13 @@
 import { Platform } from 'react-native';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
+import i18n from '@lib/i18n';
+
+/** This browser's language for push copy — one of the supported app languages. */
+function currentLanguage(): 'en' | 'es' | 'he' {
+  const short = (i18n.language ?? 'en').slice(0, 2);
+  return short === 'es' || short === 'he' ? short : 'en';
+}
 
 export type WebPushStatus = 'granted' | 'denied' | 'default' | 'unavailable';
 
@@ -69,6 +76,7 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
       endpoint: subscription.endpoint,
       p256dh,
       auth,
+      language: currentLanguage(),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id,house_id' }

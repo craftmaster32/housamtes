@@ -391,8 +391,8 @@ export const useParkingStore = create<ParkingStore>()(
           notifyHousemates({
             houseId,
             excludeUserId: userId,
-            title: '🚗 Spot taken!',
-            body: `${displayName} nabbed the parking spot. First come, first parked 🏎️`,
+            copyKey: 'parking_claimed',
+            copyParams: { name: displayName },
             data: { screen: 'parking' },
             notificationType: 'parking_claimed',
           });
@@ -433,10 +433,8 @@ export const useParkingStore = create<ParkingStore>()(
                 return notifyHousemates({
                   houseId,
                   excludeUserId: notifyUserId,
-                  title: "🅿️ Spot's free — go go go!",
-                  body: displayName
-                    ? `${displayName} freed the spot. Quick, claim it! 🏃`
-                    : 'The spot is free — first come, first parked!',
+                  copyKey: 'parking_freed',
+                  copyParams: { name: displayName ?? '' },
                   data: { screen: 'parking' },
                   notificationType: 'parking_claimed',
                 });
@@ -488,14 +486,19 @@ export const useParkingStore = create<ParkingStore>()(
         } else {
           set({ reservations: [r, ...get().reservations] });
         }
-        const timeStr = data.startTime
-          ? ` at ${data.startTime}${data.endTime ? `–${data.endTime}` : ''}`
+        const timeRange = data.startTime
+          ? `${data.startTime}${data.endTime ? `–${data.endTime}` : ''}`
           : '';
         void notifyHousemates({
           houseId,
           excludeUserId: data.requestedBy,
-          title: '🙏 Calling dibs!',
-          body: `${displayName} wants the spot on ${data.date}${timeStr}${data.note ? ` — "${data.note}"` : ''}. Vote!`,
+          copyKey: 'parking_dibs',
+          copyParams: {
+            name: displayName,
+            date: data.date,
+            time: timeRange,
+            note: data.note ?? '',
+          },
           data: { screen: 'parking' },
           notificationType: 'parking_reservation',
         }).catch((notifyErr) => captureError(notifyErr, { context: 'notify-housemates', houseId }));
@@ -606,8 +609,11 @@ export const useParkingStore = create<ParkingStore>()(
                 houseId,
                 excludeUserId: userId,
                 includeUserIds: [localReservation.requestedBy],
-                title: '✅ You got the spot!',
-                body: `Parking confirmed for ${localReservation.date}${localReservation.startTime ? ` at ${localReservation.startTime}` : ''}. You're welcome 🤝`,
+                copyKey: 'parking_approved',
+                copyParams: {
+                  date: localReservation.date,
+                  time: localReservation.startTime ?? '',
+                },
                 data: { screen: 'parking' },
                 notificationType: 'parking_reservation',
               });
@@ -617,8 +623,8 @@ export const useParkingStore = create<ParkingStore>()(
                 houseId,
                 excludeUserId: userId,
                 includeUserIds: [localReservation.requestedBy],
-                title: '❌ Request denied',
-                body: `Your parking request for ${localReservation.date} was voted down.`,
+                copyKey: 'parking_rejected',
+                copyParams: { date: localReservation.date },
                 data: { screen: 'parking' },
                 notificationType: 'parking_reservation',
               });
@@ -634,10 +640,8 @@ export const useParkingStore = create<ParkingStore>()(
                 houseId,
                 excludeUserId: userId,
                 includeUserIds: nonVoterIds,
-                title: '🗳️ A housemate voted!',
-                body: voterName
-                  ? `${voterName} voted on the parking request for ${localReservation.date}. Add your vote too!`
-                  : `Someone voted on the parking request for ${localReservation.date}. Add your vote too!`,
+                copyKey: 'parking_voted',
+                copyParams: { name: voterName, date: localReservation.date },
                 data: { screen: 'parking' },
                 notificationType: 'parking_reservation',
               }).catch((err) =>
@@ -648,8 +652,12 @@ export const useParkingStore = create<ParkingStore>()(
               houseId,
               excludeUserId: userId,
               includeUserIds: [localReservation.requestedBy],
-              title: '🗳️ Vote received!',
-              body: `Your parking request for ${localReservation.date} is still open — ${votes.length}/${voterIds.length} votes in.`,
+              copyKey: 'parking_vote_progress',
+              copyParams: {
+                date: localReservation.date,
+                votesIn: votes.length,
+                votesTotal: voterIds.length,
+              },
               data: { screen: 'parking' },
               notificationType: 'parking_reservation',
             }).catch((err) =>

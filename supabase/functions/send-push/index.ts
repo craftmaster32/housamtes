@@ -7,6 +7,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import webpush from 'npm:web-push';
 import { jwtVerify, createRemoteJWKSet } from 'npm:jose';
+import { instantPushCopy, normalizeLang, type CopyParams } from '../_shared/notificationCopy.ts';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -37,10 +38,21 @@ interface SendPushPayload {
   exclude_user_id: string;
   /** When present, only these users receive the push (overrides exclude_user_id). */
   include_user_ids?: string[];
-  title: string;
-  body: string;
+  /**
+   * title/body are the ready-made text. They are used as-is for notifications
+   * whose wording is the user's own content (e.g. chat messages) and as a
+   * fallback. For notifications with fixed copy, the app sends copy_key +
+   * copy_params instead and each recipient's text is built here in their own
+   * language (see copyFor below).
+   */
+  title?: string;
+  body?: string;
   data?: Record<string, string>;
   notification_type?: string;
+  /** Localization key for fixed-copy notifications (see instantPushCopy). */
+  copy_key?: string;
+  /** Interpolation values for copy_key (names, amounts, dates…). */
+  copy_params?: CopyParams;
 }
 
 Deno.serve(async (req: Request) => {
@@ -79,8 +91,27 @@ Deno.serve(async (req: Request) => {
     return new Response('Invalid JSON', { status: 400, headers: CORS_HEADERS });
   }
 
-  const { house_id, exclude_user_id, include_user_ids, title, body, data, notification_type } =
-    payload;
+  const {
+    house_id,
+    exclude_user_id,
+    include_user_ids,
+    title,
+    body,
+    data,
+    notification_type,
+    copy_key,
+    copy_params,
+  } = payload;
+
+  // Build the per-recipient text in their own device language. Falls back to the
+  // sender-provided title/body when there is no fixed copy for this key.
+  function copyFor(language: string | null | undefined): { title: string; body: string } {
+    if (copy_key) {
+      const localized = instantPushCopy(copy_key, normalizeLang(language), copy_params ?? {});
+      if (localized) return localized;
+    }
+    return { title: title ?? '', body: body ?? '' };
+  }
 
   const { data: membership } = await supabase
     .from('house_members')
@@ -118,10 +149,13 @@ Deno.serve(async (req: Request) => {
   // ── Fetch tokens + subscriptions ─────────────────────────────────────────────
   // When include_user_ids is provided, only send to those specific users.
   // Otherwise send to all house members except the triggering user.
-  const tokenBase = supabase.from('push_tokens').select('token, user_id').eq('house_id', house_id);
+  const tokenBase = supabase
+    .from('push_tokens')
+    .select('token, user_id, language')
+    .eq('house_id', house_id);
   const webBase = supabase
     .from('web_push_subscriptions')
-    .select('endpoint, p256dh, auth, user_id')
+    .select('endpoint, p256dh, auth, user_id, language')
     .eq('house_id', house_id);
   // Distinguish "not provided" (use exclude path) from "explicit list, even empty" (use include path).
   // An empty include_user_ids means send to nobody — don't fall back to broadcasting.
@@ -191,21 +225,24 @@ Deno.serve(async (req: Request) => {
   }
 
   // ── Send Expo push (native) ─────────────────────────────────────────────────
-  const expoTokens = tokenRows
-    .filter((r: { user_id: string; token: string }) => isEnabled(r.user_id))
-    .map((r: { token: string }) => r.token)
-    .filter(Boolean) as string[];
+  const expoRecipients = tokenRows.filter(
+    (r: { user_id: string; token: string }) => isEnabled(r.user_id) && Boolean(r.token)
+  ) as Array<{ token: string; language: string | null }>;
+  const expoTokens = expoRecipients.map((r) => r.token);
 
   let expoSent = 0;
-  if (expoTokens.length > 0) {
-    const messages = expoTokens.map((to) => ({
-      to,
-      title,
-      body,
-      data: data ?? {},
-      sound: 'default',
-      priority: 'high',
-    }));
+  if (expoRecipients.length > 0) {
+    const messages = expoRecipients.map((r) => {
+      const copy = copyFor(r.language);
+      return {
+        to: r.token,
+        title: copy.title,
+        body: copy.body,
+        data: data ?? {},
+        sound: 'default',
+        priority: 'high',
+      };
+    });
     let tickets: Array<{ status: string; details?: { error?: string } }> = [];
     try {
       const expoRes = await fetch(EXPO_PUSH_URL, {
@@ -246,16 +283,23 @@ Deno.serve(async (req: Request) => {
   if (vapidPublicKey && vapidPrivateKey && vapidContact && webSubRows.length > 0) {
     webpush.setVapidDetails(`mailto:${vapidContact}`, vapidPublicKey, vapidPrivateKey);
 
-    const eligibleSubs = webSubRows.filter((r: { user_id: string }) => isEnabled(r.user_id));
-    const webPayload = JSON.stringify({ title, body, data: data ?? {} });
+    const eligibleSubs = webSubRows.filter((r: { user_id: string }) =>
+      isEnabled(r.user_id)
+    ) as Array<{ endpoint: string; p256dh: string; auth: string; language: string | null }>;
 
     const webResults = await Promise.allSettled(
-      eligibleSubs.map((sub: { endpoint: string; p256dh: string; auth: string }) =>
-        webpush.sendNotification(
+      eligibleSubs.map((sub) => {
+        const copy = copyFor(sub.language);
+        const webPayload = JSON.stringify({
+          title: copy.title,
+          body: copy.body,
+          data: data ?? {},
+        });
+        return webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           webPayload
-        )
-      )
+        );
+      })
     );
 
     // Clean up expired subscriptions (HTTP 410 = subscription no longer valid)

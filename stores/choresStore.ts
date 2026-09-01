@@ -151,8 +151,8 @@ export const useChoresStore = create<ChoresStore>()(
           void notifyHousemates({
             houseId,
             excludeUserId: userId,
-            title: '🧹 New chore added',
-            body: `${displayName} added "${name}". Time to pitch in!`,
+            copyKey: 'chore_added',
+            copyParams: { name: displayName, choreName: name },
             data: { screen: 'chores' },
             notificationType: 'chore_overdue',
           }).catch((err) => captureError(err, { context: 'notify-chore-added', houseId }));
@@ -186,8 +186,8 @@ export const useChoresStore = create<ChoresStore>()(
             void notifyHousemates({
               houseId,
               excludeUserId: userId,
-              title: '✅ Chore done!',
-              body: `${displayName} finished "${chore.name}". One less thing to worry about 🎉`,
+              copyKey: 'chore_done',
+              copyParams: { name: displayName, choreName: chore.name },
               data: { screen: 'chores' },
               notificationType: 'chore_overdue',
             }).catch((err) => captureError(err, { context: 'notify-chore-done', houseId }));
