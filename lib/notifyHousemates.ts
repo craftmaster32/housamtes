@@ -20,7 +20,9 @@ type NotificationType =
   | 'event_reminder';
 
 /** Interpolation values for a localized copy key (names, amounts, dates…). */
-export type CopyParams = Record<string, string | number | undefined>;
+export interface CopyParams {
+  [key: string]: string | number | undefined;
+}
 
 interface NotifyParams {
   houseId: string;

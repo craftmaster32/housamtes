@@ -117,7 +117,9 @@ export function eventReminderCopy(
 // own app language — not in whoever happened to trigger the event.
 
 /** Raw params passed from the app. All values arrive as strings/numbers. */
-export type CopyParams = Record<string, string | number | undefined>;
+export interface CopyParams {
+  [key: string]: string | number | undefined;
+}
 
 const LOCALE: Record<Lang, string> = { en: 'en-GB', es: 'es-ES', he: 'he-IL' };
 
