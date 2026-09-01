@@ -321,39 +321,6 @@ function OwedHero(): React.JSX.Element {
   );
 }
 
-// ── Games button ──────────────────────────────────────────────────────────────
-function GamesButton(): React.JSX.Element {
-  const { t } = useTranslation();
-  const c = useThemedColors();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.games,
-        { backgroundColor: c.surface, borderColor: c.border },
-        pressed && styles.pressed,
-      ]}
-      onPress={() => navigateToBase('/(tabs)/games')}
-      accessibilityRole="button"
-      accessibilityLabel={t('dashboard.games_fun')}
-    >
-      <View style={[styles.gamesIcon, { backgroundColor: c.primaryTint }]}>
-        <Ionicons name="game-controller-outline" size={20} color={c.primary} />
-      </View>
-      <View style={styles.flex1}>
-        <Text style={[styles.gamesTitle, { color: c.textPrimary }]}>
-          {t('dashboard.games_fun')}
-        </Text>
-        <Text style={[styles.gamesSub, { color: c.textSecondary }]}>
-          {t('dashboard.games_sub')}
-        </Text>
-      </View>
-      <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={c.textTertiary} />
-    </Pressable>
-  );
-}
-
 // ── Dashboard screen ────────────────────────────────────────────────────────────
 export default function DashboardScreen(): React.JSX.Element {
   const c = useThemedColors();
@@ -423,13 +390,6 @@ export default function DashboardScreen(): React.JSX.Element {
           style={styles.block}
         >
           <DadJokeCard animateEntrance={animateEntrance} />
-        </Animated.View>
-
-        <Animated.View
-          entering={animateEntrance ? FadeInDown.delay(380).duration(450) : undefined}
-          style={styles.block}
-        >
-          <GamesButton />
         </Animated.View>
       </ScrollView>
       <WelcomeTour visible={showTour} onDone={handleTourDone} />
@@ -700,23 +660,4 @@ const styles = StyleSheet.create({
   groceryName: { flex: 1, fontSize: mf(13.5), ...font.medium },
   groceryDone: { textDecorationLine: 'line-through' },
   groceryWho: { fontSize: mf(11), ...font.regular },
-
-  // ── Games
-  games: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(12),
-    borderRadius: ms(18),
-    borderWidth: 1,
-    padding: ms(13),
-  },
-  gamesIcon: {
-    width: ms(40),
-    height: ms(40),
-    borderRadius: ms(13),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gamesTitle: { fontSize: mf(14.5), ...font.bold },
-  gamesSub: { fontSize: mf(12), ...font.regular, marginTop: ms(1) },
 });

@@ -399,8 +399,6 @@
     "chore_next": "{{name}} a continuación",
     "grocery_list": "Lista de compras",
     "n_to_buy": "{{count}} por comprar",
-    "games_fun": "Juegos y diversión",
-    "games_sub": "Sopa de letras, chistes y más",
     "parking_error": "Error de parking",
     "parking_age_hours": "{{h}}h {{m}}m",
     "parking_age_hours_only": "{{h}}h",
