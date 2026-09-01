@@ -425,9 +425,21 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
     case 'event_added': {
       const title = str(p, 'eventTitle');
       const actor = str(p, 'actorName') || (es ? 'Un compañero' : he ? 'שותף/ה' : 'A housemate');
-      const d = shortDate(lang, str(p, 'date'));
-      const time = str(p, 'time');
-      const when = time ? `${d} · ${time}` : d;
+      const startDateStr = str(p, 'date');
+      const d = shortDate(lang, startDateStr);
+      const startTime = str(p, 'time');
+      const endDate = str(p, 'endDate');
+      const endTime = str(p, 'endTime');
+      const startPart = startTime ? `${d} · ${startTime}` : d;
+      const hasEndDate = endDate && endDate !== startDateStr;
+      const endPart = hasEndDate
+        ? endTime
+          ? `${shortDate(lang, endDate)} · ${endTime}`
+          : shortDate(lang, endDate)
+        : endTime
+          ? endTime
+          : '';
+      const when = endPart ? `${startPart} → ${endPart}` : startPart;
       if (es) return { title: '📅 Nuevo evento', body: `${actor} añadió "${title}" · ${when}` };
       if (he) return { title: '📅 אירוע חדש', body: `${actor} הוסיף/ה "${title}" · ${when}` };
       return { title: '📅 New event', body: `${actor} added "${title}" · ${when}` };

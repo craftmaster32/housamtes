@@ -80,3 +80,57 @@ describe('instantPushCopy — pass-through keys', () => {
     expect(instantPushCopy('totally_unknown_key', 'en', {})).toBeNull();
   });
 });
+
+describe('instantPushCopy — event_added range', () => {
+  it('shows start date and time only when no end data is provided', () => {
+    const copy = instantPushCopy('event_added', 'en', {
+      actorName: 'Alice',
+      eventTitle: 'Movie Night',
+      date: '2026-09-05',
+      time: '20:00',
+      endDate: '',
+      endTime: '',
+    });
+    expect(copy).not.toBeNull();
+    expect(copy!.body).toContain('20:00');
+    expect(copy!.body).not.toContain('→');
+  });
+
+  it('shows start → end time when same-day end time is given', () => {
+    const copy = instantPushCopy('event_added', 'en', {
+      actorName: 'Alice',
+      eventTitle: 'Movie Night',
+      date: '2026-09-05',
+      time: '20:00',
+      endDate: '2026-09-05',
+      endTime: '22:00',
+    });
+    expect(copy!.body).toContain('20:00 → 22:00');
+  });
+
+  it('shows multi-day range when endDate differs from date', () => {
+    const copy = instantPushCopy('event_added', 'en', {
+      actorName: 'Alice',
+      eventTitle: 'Trip',
+      date: '2026-09-05',
+      time: '',
+      endDate: '2026-09-07',
+      endTime: '',
+    });
+    expect(copy!.body).toContain('→');
+    expect(copy!.body).toContain('Sep');
+  });
+
+  it('localizes the event_added range in Hebrew', () => {
+    const copy = instantPushCopy('event_added', 'he', {
+      actorName: 'דנה',
+      eventTitle: 'מסיבה',
+      date: '2026-09-05',
+      time: '19:00',
+      endDate: '2026-09-05',
+      endTime: '23:00',
+    });
+    expect(copy!.title).toContain('אירוע');
+    expect(copy!.body).toContain('19:00 → 23:00');
+  });
+});

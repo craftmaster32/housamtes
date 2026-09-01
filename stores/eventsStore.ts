@@ -237,6 +237,8 @@ export const useEventsStore = create<EventsStore>()(
               eventTitle: event.title,
               date: event.date,
               time: event.startTime ?? '',
+              endDate: event.endDate ?? '',
+              endTime: event.endTime ?? '',
             },
             data: { screen: 'calendar' },
             notificationType: 'event_added',
