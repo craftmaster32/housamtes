@@ -392,8 +392,6 @@
     "activity_completed_chore": "completed \"{{name}}\"",
     "expense_btn": "Expense",
     "house_bill_btn": "House Bill",
-    "games_fun": "Games & Fun",
-    "games_sub": "Word Scramble, Dad Jokes & more",
     "pinned_by": "Pinned · {{name}}",
     "no_debts": "Nothing to settle up",
     "chore_next": "{{name}} next",
