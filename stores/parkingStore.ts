@@ -588,7 +588,8 @@ export const useParkingStore = create<ParkingStore>()(
           const votes = ((allVotes ?? []) as { user_id: string; vote: ParkingVoteChoice }[]).map(
             (row) => ({ userId: row.user_id, vote: row.vote })
           );
-          const newStatus = tallyParkingReservationVotes(votes, voterIds).status;
+          const voteTally = tallyParkingReservationVotes(votes, voterIds);
+          const newStatus = voteTally.status;
 
           let statusWasUpdated = false;
           if (newStatus !== 'pending') {
@@ -655,8 +656,8 @@ export const useParkingStore = create<ParkingStore>()(
               copyKey: 'parking_vote_progress',
               copyParams: {
                 date: localReservation.date,
-                votesIn: votes.length,
-                votesTotal: voterIds.length,
+                votesIn: voteTally.votedCount,
+                votesTotal: voteTally.eligibleVoterCount,
               },
               data: { screen: 'parking' },
               notificationType: 'parking_reservation',
