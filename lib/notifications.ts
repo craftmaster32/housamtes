@@ -92,7 +92,7 @@ export async function updatePushTokenLanguage(language: AppLanguage): Promise<vo
         userId,
       });
   } catch (err) {
-    captureError(err, { context: 'updatePushTokenLanguage', userId });
+    captureError(err, { context: 'updatePushTokenLanguage', userId: userId ?? 'unknown' });
   }
 }
 
