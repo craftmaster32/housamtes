@@ -256,6 +256,29 @@ function mapItem(r: Record<string, unknown>): GroceryItem {
   };
 }
 
+/**
+ * True when two items carry identical field values. Used to drop a realtime
+ * UPDATE echo that changes nothing (typically the echo of our own optimistic
+ * write): re-applying it would allocate a fresh items array and re-render the
+ * whole list for no visible change, which — when marking several items in a
+ * row — piles up and reads as lag.
+ */
+function groceryItemsEqual(a: GroceryItem, b: GroceryItem): boolean {
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.quantity === b.quantity &&
+    a.boughtCount === b.boughtCount &&
+    a.addedBy === b.addedBy &&
+    a.isChecked === b.isChecked &&
+    a.createdAt === b.createdAt &&
+    a.isPersonal === b.isPersonal &&
+    a.isDraft === b.isDraft &&
+    a.comment === b.comment &&
+    a.draftExpiresAt === b.draftExpiresAt
+  );
+}
+
 const createSavedListSchema = z.object({
   name: z.string().trim().min(1),
   houseId: z.string().uuid(),
@@ -428,32 +451,42 @@ export const useGroceryStore = create<GroceryStore>()(
               // A late echo for a row we just cleared/deleted — ignore it so it
               // can't re-check or otherwise revive a removed item.
               if (isTombstoned(updated.id)) return;
+              const current = get().items;
+              const idx = current.findIndex((i) => i.id === updated.id);
+              // An update for a row we don't hold — nothing to change locally.
+              if (idx === -1) return;
+              const existing = current[idx];
               const pendingCount = _pendingCounts.get(updated.id);
               const pendingChecked = _pendingChecked.get(updated.id);
-              set({
-                items: get().items.map((i) => {
-                  if (i.id !== updated.id) return i;
-                  let next = updated;
-                  // Guard an in-flight +/- write from its own stale echoes: keep the
-                  // fresher local count/checked until the latest write's echo lands.
-                  if (pendingCount !== undefined) {
-                    if (updated.boughtCount === pendingCount) {
-                      _pendingCounts.delete(updated.id);
-                    } else {
-                      next = { ...next, boughtCount: i.boughtCount, isChecked: i.isChecked };
-                    }
-                  }
-                  // Guard an in-flight check/uncheck from its own stale echoes.
-                  if (pendingChecked !== undefined) {
-                    if (updated.isChecked === pendingChecked) {
-                      _pendingChecked.delete(updated.id);
-                    } else {
-                      next = { ...next, isChecked: i.isChecked };
-                    }
-                  }
-                  return next;
-                }),
-              });
+              let next = updated;
+              // Guard an in-flight +/- write from its own stale echoes: keep the
+              // fresher local count/checked until the latest write's echo lands.
+              if (pendingCount !== undefined) {
+                if (updated.boughtCount === pendingCount) {
+                  _pendingCounts.delete(updated.id);
+                } else {
+                  next = {
+                    ...next,
+                    boughtCount: existing.boughtCount,
+                    isChecked: existing.isChecked,
+                  };
+                }
+              }
+              // Guard an in-flight check/uncheck from its own stale echoes.
+              if (pendingChecked !== undefined) {
+                if (updated.isChecked === pendingChecked) {
+                  _pendingChecked.delete(updated.id);
+                } else {
+                  next = { ...next, isChecked: existing.isChecked };
+                }
+              }
+              // The echo carries the values we already show (e.g. the echo of our
+              // own optimistic write) — re-applying it would re-render the whole
+              // list for no change. Skip it.
+              if (groceryItemsEqual(existing, next)) return;
+              const items = current.slice();
+              items[idx] = next;
+              set({ items });
             }
           )
           .on(
