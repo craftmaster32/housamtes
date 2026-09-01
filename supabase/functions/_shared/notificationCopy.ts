@@ -124,7 +124,9 @@ const LOCALE: Record<Lang, string> = { en: 'en-GB', es: 'es-ES', he: 'he-IL' };
 /** Format a YYYY-MM-DD date into a short, localized label (e.g. "Mon 1 Sep"). */
 function shortDate(lang: Lang, date: string): string {
   try {
-    return new Date(`${date}T12:00:00`).toLocaleDateString(LOCALE[lang], {
+    const parsed = new Date(`${date}T12:00:00`);
+    if (isNaN(parsed.getTime())) return date;
+    return parsed.toLocaleDateString(LOCALE[lang], {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
