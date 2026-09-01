@@ -1,4 +1,4 @@
-import { instantPushCopy, normalizeLang } from '../supabase/functions/_shared/notificationCopy';
+import { instantPushCopy, normalizeLang } from '@/supabase/functions/_shared/notificationCopy';
 
 // These lock in the promise that every housemate reads instant push
 // notifications in their OWN app language — not the sender's. The copy is built
