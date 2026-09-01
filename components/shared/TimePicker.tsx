@@ -372,6 +372,7 @@ const makePickerStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> 
     editRow: { flexDirection: 'row', alignItems: 'center', gap: ms(10) },
     textInput: {
       flex: 1,
+      minWidth: 0,
       paddingHorizontal: ms(20),
       paddingVertical: ms(12),
       borderRadius: ms(14),

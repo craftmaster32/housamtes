@@ -106,6 +106,7 @@ const makeStyles = (C: ColorTokens) =>
     },
     nameInput: {
       flex: 1,
+      minWidth: 0,
       height: ms(46),
       borderRadius: ms(10),
       borderWidth: 1,

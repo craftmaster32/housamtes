@@ -837,6 +837,7 @@ function makeStyles(C: ColorTokens) {
     },
     tzSearchInput: {
       flex: 1,
+      minWidth: 0,
       fontSize: mf(15),
       ...font.medium,
       color: C.textPrimary,

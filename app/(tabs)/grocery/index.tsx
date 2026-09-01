@@ -1936,6 +1936,7 @@ function makeStyles(C: ColorTokens) {
     addRowPersonal: { borderColor: PERSONAL_BORDER, backgroundColor: PERSONAL_BG },
     addInput: {
       flex: 1,
+      minWidth: 0,
       height: '100%',
       paddingHorizontal: ms(10),
       fontSize: mf(15),
@@ -2168,6 +2169,7 @@ function makeStyles(C: ColorTokens) {
 
     editNameInput: {
       flex: 1,
+      minWidth: 0,
       height: ms(44),
       paddingHorizontal: ms(10),
       borderRadius: ms(8),
