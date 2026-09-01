@@ -256,11 +256,13 @@ function mapItem(r: Record<string, unknown>): GroceryItem {
   };
 }
 
-// True when two items carry identical field values. Used to drop a realtime
-// UPDATE echo that changes nothing (typically the echo of our own optimistic
-// write): re-applying it would allocate a fresh items array and re-render the
-// whole list for no visible change, which — when marking several items in a
-// row — piles up and reads as lag.
+/**
+ * True when two items carry identical field values. Used to drop a realtime
+ * UPDATE echo that changes nothing (typically the echo of our own optimistic
+ * write): re-applying it would allocate a fresh items array and re-render the
+ * whole list for no visible change, which — when marking several items in a
+ * row — piles up and reads as lag.
+ */
 function groceryItemsEqual(a: GroceryItem, b: GroceryItem): boolean {
   return (
     a.id === b.id &&
