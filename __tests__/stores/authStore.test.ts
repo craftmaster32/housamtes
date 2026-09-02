@@ -13,6 +13,7 @@
  */
 
 import type { Session, User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ─────────────────────────────────────────────────────────────────────
@@ -343,8 +344,6 @@ describe('authStore — correctPendingEmail', () => {
   });
 
   it('persists the corrected email so a restart restores it rather than the typo (deferred-storage)', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const AsyncStorage = require('@react-native-async-storage/async-storage');
     await AsyncStorage.clear();
 
     useAuthStore.setState({
