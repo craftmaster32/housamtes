@@ -51,30 +51,32 @@ export function NotificationPermissionPrompt({
     let active = true;
 
     const decide = async (): Promise<void> => {
-      if (await hasSeenNotifPrompt()) {
-        if (active) setVisible(false);
-        return;
-      }
+      try {
+        if (await hasSeenNotifPrompt()) {
+          if (active) setVisible(false);
+          return;
+        }
 
-      // Only surface the card when the OS/browser will actually let us ask.
-      const canAsk =
-        Platform.OS === 'web'
-          ? getWebPushStatus() === 'default'
-          : (await getNativeNotificationStatus()) === 'undetermined';
+        // Only surface the card when the OS/browser will actually let us ask.
+        const canAsk =
+          Platform.OS === 'web'
+            ? getWebPushStatus() === 'default'
+            : (await getNativeNotificationStatus()) === 'undetermined';
 
-      if (!canAsk) {
-        // Already granted, hard-blocked, or unsupported — nothing a card can do.
-        await markNotifPromptSeen();
+        if (!canAsk) {
+          // Already granted, hard-blocked, or unsupported — nothing a card can do.
+          await markNotifPromptSeen();
+          if (active) setVisible(false);
+          return;
+        }
+        if (active) setVisible(true);
+      } catch {
+        // Non-fatal — the card stays hidden and the user can enable from Settings.
         if (active) setVisible(false);
-        return;
       }
-      if (active) setVisible(true);
     };
 
-    decide().catch(() => {
-      // Non-fatal — the card stays hidden and the user can enable from Settings.
-      if (active) setVisible(false);
-    });
+    decide();
     return (): void => {
       active = false;
     };
