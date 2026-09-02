@@ -1513,7 +1513,7 @@
   },
   "permissionPrompt": {
     "title": "Activa las notificaciones",
-    "body": "Recibe un aviso cuando se añada una factura, sea tu turno de aparcar o un compañero te necesite. Puedes cambiarlo cuando quieras en Ajustes.",
+    "body": "Recibe un aviso cuando se añada un gasto, sea tu turno de aparcar o un compañero te necesite. Puedes cambiarlo cuando quieras en Ajustes.",
     "enable": "Activar notificaciones",
     "later": "Quizás más tarde"
   },
