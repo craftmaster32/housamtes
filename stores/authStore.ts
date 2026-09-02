@@ -12,12 +12,16 @@ import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
 const CURRENT_TERMS_VERSION = '2026-05-10';
 
+// Serializes all pending-email mutations so concurrent fire-and-forget writes
+// can never restore stale data — the latest call always wins.
+let _pendingEmailSeq: Promise<void> = Promise.resolve();
+
 async function savePendingEmail(email: string): Promise<void> {
-  try {
-    await AsyncStorage.setItem(PENDING_EMAIL_KEY, email);
-  } catch {
-    /* non-fatal */
-  }
+  const write = _pendingEmailSeq.then(() =>
+    AsyncStorage.setItem(PENDING_EMAIL_KEY, email).catch(() => {})
+  );
+  _pendingEmailSeq = write;
+  return write;
 }
 
 async function loadPendingEmail(): Promise<string | null> {
@@ -29,11 +33,11 @@ async function loadPendingEmail(): Promise<string | null> {
 }
 
 async function clearPendingEmail(): Promise<void> {
-  try {
-    await AsyncStorage.removeItem(PENDING_EMAIL_KEY);
-  } catch {
-    /* non-fatal */
-  }
+  const del = _pendingEmailSeq.then(() =>
+    AsyncStorage.removeItem(PENDING_EMAIL_KEY).catch(() => {})
+  );
+  _pendingEmailSeq = del;
+  return del;
 }
 
 // ── Persistent house cache ───────────────────────────────────────────────────────
@@ -426,7 +430,7 @@ export const useAuthStore = create<AuthStore>()(
                 pendingSignupAvatarColor: avatarColor,
                 isLoading: false,
               });
-              savePendingEmail(email).catch(() => {});
+              await savePendingEmail(email);
               return { needsVerification: true };
             }
             // Session exists (email confirmation off) — record consent now that
@@ -466,21 +470,26 @@ export const useAuthStore = create<AuthStore>()(
       // left as an unconfirmed, unclaimed auth account — harmless, but not
       // cleaned up here.
       correctPendingEmail: async (newEmail): Promise<{ needsVerification: boolean }> => {
-        const parsed = signUpSchema.shape.email.safeParse(newEmail);
-        if (!parsed.success) throw new Error('Please enter a valid email address');
-        const { pendingSignupPassword, pendingSignupName, pendingSignupAvatarColor } =
-          useAuthStore.getState();
-        if (!pendingSignupPassword || !pendingSignupName) {
-          throw new Error('Please go back and sign up again.');
+        try {
+          const parsed = signUpSchema.shape.email.safeParse(newEmail);
+          if (!parsed.success) throw new Error('Please enter a valid email address');
+          const { pendingSignupPassword, pendingSignupName, pendingSignupAvatarColor } =
+            useAuthStore.getState();
+          if (!pendingSignupPassword || !pendingSignupName) {
+            throw new Error('Please go back and sign up again.');
+          }
+          return await useAuthStore
+            .getState()
+            .signUp(
+              parsed.data,
+              pendingSignupPassword,
+              pendingSignupName,
+              pendingSignupAvatarColor ?? '#6366f1'
+            );
+        } catch (err) {
+          if (err instanceof Error) throw err;
+          throw new Error('Could not update email. Please try again.');
         }
-        return useAuthStore
-          .getState()
-          .signUp(
-            parsed.data,
-            pendingSignupPassword,
-            pendingSignupName,
-            pendingSignupAvatarColor ?? '#6366f1'
-          );
       },
 
       verifyEmailOtp: async (email, token): Promise<void> => {
