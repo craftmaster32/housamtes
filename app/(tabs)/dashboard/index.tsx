@@ -37,6 +37,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useHouseActivity, useActionItems } from '@hooks/useHouseActivity';
 import { ActivityPopup } from '@components/dashboard/ActivityPopup';
 import { WelcomeTour } from '@components/dashboard/WelcomeTour';
+import { NotificationPermissionPrompt } from '@components/shared/NotificationPermissionPrompt';
 import { shouldShowTour, markTourSeen } from '@utils/tour';
 
 import { mf, ms } from '@utils/responsive';
@@ -393,6 +394,7 @@ export default function DashboardScreen(): React.JSX.Element {
         </Animated.View>
       </ScrollView>
       <WelcomeTour visible={showTour} onDone={handleTourDone} />
+      <NotificationPermissionPrompt blocked={showTour} />
     </SafeAreaView>
   );
 }
