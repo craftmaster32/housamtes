@@ -330,10 +330,12 @@ export default function DashboardScreen(): React.JSX.Element {
 
   // One-time welcome tour for users who just signed up.
   const [showTour, setShowTour] = useState(false);
+  const [tourPending, setTourPending] = useState(true);
   useEffect(() => {
     let active = true;
     shouldShowTour().then((show) => {
       if (active && show) setShowTour(true);
+      if (active) setTourPending(false);
     });
     return (): void => {
       active = false;
@@ -394,7 +396,7 @@ export default function DashboardScreen(): React.JSX.Element {
         </Animated.View>
       </ScrollView>
       <WelcomeTour visible={showTour} onDone={handleTourDone} />
-      <NotificationPermissionPrompt blocked={showTour} />
+      <NotificationPermissionPrompt blocked={showTour || tourPending} />
     </SafeAreaView>
   );
 }
