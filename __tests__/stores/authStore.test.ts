@@ -572,6 +572,35 @@ describe('authStore — signUp success', () => {
       platform: expect.any(String),
     });
   });
+
+  it('does not gate a straight-in signup on the terms it just recorded', async (): Promise<void> => {
+    // Even if the just-written consent row isn't yet readable (read-after-write),
+    // the account that completed the clickwrap must land straight in, not on the
+    // re-accept screen.
+    mockFrom.mockImplementation((table: string) =>
+      table === 'user_consents'
+        ? ok(null) // insert ok; a follow-up read would find nothing yet
+        : ({
+            profiles: ok({
+              id: 'u3',
+              name: 'Cara',
+              avatar_color: '#6366f1',
+              avatar_url: null,
+              cover_url: null,
+            }),
+            house_members: ok([]),
+            houses: ok(null),
+          }[table] ?? ok(null))
+    );
+    mockAuth.signUp.mockResolvedValue({
+      data: { user: fakeUser('u3'), session: fakeSession('u3') },
+      error: null,
+    });
+
+    await useAuthStore.getState().signUp('cara@example.com', 'Password1', 'Cara', '#6366f1');
+
+    expect(useAuthStore.getState().needsTermsAcceptance).toBe(false);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -622,6 +651,43 @@ describe('authStore — verifyEmailOtp', () => {
     expect(s.pendingEmail).toBeNull();
     expect(s.isLoading).toBe(false);
     expect(s.error).toBeNull();
+  });
+
+  it('does not re-prompt a brand-new user for the terms after they verify their email', async (): Promise<void> => {
+    // Regression: at signup the consent row can't be written yet (no session → RLS
+    // blocks it), so the read here finds nothing. A freshly-verified signup must not
+    // be sent to the "please accept the terms" screen — they just ticked the box.
+    const consentChain = ok(null); // no persisted consent row yet
+    mockFrom.mockImplementation((table: string) =>
+      table === 'user_consents'
+        ? consentChain
+        : ({
+            profiles: ok({
+              id: 'u2',
+              name: 'Bob',
+              avatar_color: '#6366f1',
+              avatar_url: null,
+              cover_url: null,
+            }),
+            house_members: ok([]),
+            houses: ok(null),
+          }[table] ?? ok(null))
+    );
+    mockAuth.verifyOtp.mockResolvedValue({
+      data: { user: fakeUser('u2'), session: fakeSession('u2') },
+      error: null,
+    });
+
+    await useAuthStore.getState().verifyEmailOtp('bob@example.com', '123456');
+
+    const s = useAuthStore.getState();
+    expect(s.needsTermsAcceptance).toBe(false);
+    // And the consent is now persisted (a session finally exists for the insert).
+    expect(consentChain.insert).toHaveBeenCalledWith({
+      user_id: 'u2',
+      terms_version: expect.any(String),
+      platform: expect.any(String),
+    });
   });
 
   it('surfaces an invalid-code error and stays signed out when the code is wrong', async (): Promise<void> => {

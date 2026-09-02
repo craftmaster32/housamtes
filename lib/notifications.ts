@@ -107,3 +107,26 @@ export async function unregisterPushToken(userId: string, houseId: string): Prom
     captureError(err, { context: 'unregisterPushToken' });
   }
 }
+
+export type NativeNotificationStatus = 'granted' | 'denied' | 'undetermined' | 'unavailable';
+
+/**
+ * Current notification permission on this native device, without asking.
+ * Used to decide whether the one-time "turn on notifications" card should show.
+ * Returns 'unavailable' on web — web push has its own status check in webPush.ts.
+ */
+export async function getNativeNotificationStatus(): Promise<NativeNotificationStatus> {
+  if (Platform.OS === 'web') return 'unavailable';
+  try {
+    const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+    if (status === 'granted') return 'granted';
+    // Only worth prompting when the OS will actually show its dialog. Once a
+    // user has declined, iOS won't let us ask again from inside the app, so a
+    // card with a button can't help — treat that as denied.
+    if (status === 'undetermined' && canAskAgain) return 'undetermined';
+    return 'denied';
+  } catch (err) {
+    captureError(err, { context: 'getNativeNotificationStatus' });
+    return 'unavailable';
+  }
+}

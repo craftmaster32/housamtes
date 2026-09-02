@@ -74,7 +74,8 @@
     "unknown": "Desconocido",
     "something_went_wrong": "Algo salió mal.",
     "error_boundary_message": "Ocurrió un error inesperado. Intenta de nuevo.",
-    "clear": "Borrar"
+    "clear": "Borrar",
+    "change_language": "Cambiar idioma"
   },
   "nav": {
     "dashboard": "Inicio",
@@ -1510,6 +1511,12 @@
     "title": "Página no encontrada",
     "message": "Esta pantalla no existe. Volvamos al inicio.",
     "go_to_dashboard": "Ir al inicio"
+  },
+  "permissionPrompt": {
+    "title": "Activa las notificaciones",
+    "body": "Recibe un aviso cuando se añada un gasto, sea tu turno de aparcar o un compañero te necesite. Puedes cambiarlo cuando quieras en Ajustes.",
+    "enable": "Activar notificaciones",
+    "later": "Quizás más tarde"
   },
   "categories": {
     "title": "Categorías de gastos",

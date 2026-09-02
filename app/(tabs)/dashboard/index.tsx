@@ -37,6 +37,7 @@ import { useBadgeStore } from '@stores/badgeStore';
 import { useHouseActivity, useActionItems } from '@hooks/useHouseActivity';
 import { ActivityPopup } from '@components/dashboard/ActivityPopup';
 import { WelcomeTour } from '@components/dashboard/WelcomeTour';
+import { NotificationPermissionPrompt } from '@components/shared/NotificationPermissionPrompt';
 import { shouldShowTour, markTourSeen } from '@utils/tour';
 
 import { mf, ms } from '@utils/responsive';
@@ -329,10 +330,12 @@ export default function DashboardScreen(): React.JSX.Element {
 
   // One-time welcome tour for users who just signed up.
   const [showTour, setShowTour] = useState(false);
+  const [tourPending, setTourPending] = useState(true);
   useEffect(() => {
     let active = true;
     shouldShowTour().then((show) => {
       if (active && show) setShowTour(true);
+      if (active) setTourPending(false);
     });
     return (): void => {
       active = false;
@@ -393,6 +396,7 @@ export default function DashboardScreen(): React.JSX.Element {
         </Animated.View>
       </ScrollView>
       <WelcomeTour visible={showTour} onDone={handleTourDone} />
+      <NotificationPermissionPrompt blocked={showTour || tourPending} />
     </SafeAreaView>
   );
 }

@@ -74,7 +74,8 @@
     "unknown": "Unknown",
     "something_went_wrong": "Something went wrong.",
     "error_boundary_message": "An unexpected error occurred. Please try again.",
-    "clear": "Clear"
+    "clear": "Clear",
+    "change_language": "Change language"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -1687,6 +1688,12 @@
     "title": "Page not found",
     "message": "This screen doesn't exist. Let's get you back home.",
     "go_to_dashboard": "Go to Dashboard"
+  },
+  "permissionPrompt": {
+    "title": "Turn on notifications",
+    "body": "Get a heads-up when a bill is added, it's your turn to park, or a housemate needs you. You can change this any time in Settings.",
+    "enable": "Turn on notifications",
+    "later": "Maybe later"
   },
   "categories": {
     "title": "Expense Categories",

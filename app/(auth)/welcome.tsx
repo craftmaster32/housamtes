@@ -12,6 +12,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { HouseSkyline } from '@components/shared/HouseSkyline';
+import { LanguageSwitcher } from '@components/shared/LanguageSwitcher';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
 import { mf, ms } from '@utils/responsive';
@@ -45,6 +46,9 @@ export default function WelcomeScreen(): React.JSX.Element {
           <View style={styles.moonShadow} />
         </View>
         <SafeAreaView edges={['top']} style={styles.topInner}>
+          <View style={styles.langBar}>
+            <LanguageSwitcher />
+          </View>
           <View
             style={styles.iconChip}
             accessible
@@ -127,6 +131,13 @@ function makeStyles(C: ColorTokens) {
       justifyContent: 'center',
       paddingHorizontal: sizes.xl,
       paddingBottom: SKYLINE_HEIGHT,
+    },
+    langBar: {
+      position: 'absolute',
+      top: sizes.sm,
+      left: sizes.lg,
+      right: sizes.lg,
+      alignItems: 'flex-end',
     },
     moon: {
       position: 'absolute',
