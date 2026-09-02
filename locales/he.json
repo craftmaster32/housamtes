@@ -74,7 +74,8 @@
     "unknown": "לא ידוע",
     "something_went_wrong": "משהו השתבש.",
     "error_boundary_message": "אירעה שגיאה בלתי צפויה. נסה שוב.",
-    "clear": "נקה"
+    "clear": "נקה",
+    "change_language": "שינוי שפה"
   },
   "nav": {
     "dashboard": "ראשי",

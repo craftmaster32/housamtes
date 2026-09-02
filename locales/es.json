@@ -74,7 +74,8 @@
     "unknown": "Desconocido",
     "something_went_wrong": "Algo salió mal.",
     "error_boundary_message": "Ocurrió un error inesperado. Intenta de nuevo.",
-    "clear": "Borrar"
+    "clear": "Borrar",
+    "change_language": "Cambiar idioma"
   },
   "nav": {
     "dashboard": "Inicio",
