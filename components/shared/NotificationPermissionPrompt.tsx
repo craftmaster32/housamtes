@@ -40,7 +40,11 @@ export function NotificationPermissionPrompt({
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (blocked || !userId || !houseId) return;
+    if (blocked) {
+      setVisible(false);
+      return;
+    }
+    if (!userId || !houseId) return;
     let active = true;
 
     const decide = async (): Promise<void> => {
@@ -60,7 +64,9 @@ export function NotificationPermissionPrompt({
       if (active) setVisible(true);
     };
 
-    decide();
+    decide().catch(() => {
+      // Non-fatal — the card stays hidden and the user can enable from Settings.
+    });
     return (): void => {
       active = false;
     };
