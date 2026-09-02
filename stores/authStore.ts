@@ -285,6 +285,7 @@ export const useAuthStore = create<AuthStore>()(
                 unregisterPushToken(prev.user.id, prev.houseId);
                 unregisterWebPush(prev.user.id, prev.houseId);
               }
+              recentlyConsentedUserId = null; // don't carry a consent pass across accounts
               clearUser();
               set({
                 user: null,
@@ -397,35 +398,34 @@ export const useAuthStore = create<AuthStore>()(
           });
           if (error) throw error;
           if (data.user) {
-            // Record consent immediately after account creation (clickwrap legal evidence).
-            // Best-effort — failure here must not block account creation.
-            supabase
-              .from('user_consents')
-              .insert({
-                user_id: data.user.id,
-                terms_version: CURRENT_TERMS_VERSION,
-                platform: Platform.OS,
-              })
-              .then(({ error: consentErr }) => {
-                if (consentErr)
-                  captureError(consentErr, {
-                    context: 'record-consent',
-                    userId: data.user?.id ?? '',
-                  });
-              });
+            // The user completed the clickwrap on the signup screen — remember it so
+            // the consent gate never re-prompts them this session (clickwrap already
+            // formed the agreement).
+            recentlyConsentedUserId = data.user.id;
 
-            // If session is null, email confirmation is required.
-            // The handle_new_user trigger already created the profile row — no insert needed here.
+            // If session is null, email confirmation is required. We can't write the
+            // consent row yet — with no session, RLS (user_id = auth.uid()) rejects it —
+            // so it's persisted right after the user verifies, in verifyEmailOtp.
+            // The handle_new_user trigger already created the profile row.
             if (!data.session) {
               set({ pendingEmail: email, isLoading: false });
               savePendingEmail(email).catch(() => {});
               return { needsVerification: true };
             }
+            // Session exists (email confirmation off) — record consent now that
+            // auth.uid() is set, before any auth event re-checks the gate.
+            await persistConsent(data.user.id);
             const profile = await fetchProfile(
               data.user.id,
               data.user.user_metadata as Record<string, unknown>
             );
-            set({ user: data.user, session: data.session, profile, isLoading: false });
+            set({
+              user: data.user,
+              session: data.session,
+              profile,
+              needsTermsAcceptance: false,
+              isLoading: false,
+            });
           }
           return { needsVerification: false };
         } catch (err) {
@@ -451,6 +451,11 @@ export const useAuthStore = create<AuthStore>()(
           });
           if (error) throw error;
           if (data.user && data.session) {
+            // This is a brand-new user verifying their email — they already agreed to
+            // the terms on the signup screen. Mark it so the gate passes, then persist
+            // the consent row now that a session (and auth.uid()) finally exists.
+            recentlyConsentedUserId = data.user.id;
+            await persistConsent(data.user.id);
             const [profile, memberData, consentOk] = await Promise.all([
               fetchProfile(data.user.id, data.user.user_metadata as Record<string, unknown>),
               fetchMemberData(data.user.id),
@@ -535,6 +540,7 @@ export const useAuthStore = create<AuthStore>()(
         // so a pending deferred handler from an earlier event could otherwise
         // overwrite the local sign-out with its stale user/session data.
         ++latestAuthEventId;
+        recentlyConsentedUserId = null; // don't carry a consent pass across accounts
         // Clear local state regardless of whether the Supabase call succeeds
         // (e.g. expired token will cause signOut to fail but user should still be logged out locally)
         await supabase.auth.signOut().catch(() => {});
@@ -788,6 +794,7 @@ export const useAuthStore = create<AuthStore>()(
           set({ isLoading: false });
           throw new Error('Could not record acceptance. Please try again.');
         }
+        recentlyConsentedUserId = user.id;
         set({ needsTermsAcceptance: false, isLoading: false });
       },
 
@@ -827,7 +834,33 @@ async function resolveUploadData(
   return { buffer, contentType: blob.type || mimeType };
 }
 
+// Remembers a user who just completed the signup clickwrap in THIS app session.
+// The user_consents row is written right after they agree, but an auth event can
+// re-check the consent gate before that insert has committed (read-after-write) —
+// or, on the email-verification flow, the insert can't happen until a session
+// exists. Without this guard a brand-new user who already ticked the box would be
+// shown the "please accept the terms" screen a second time. Reset on reload, where
+// the persisted row becomes the source of truth again.
+let recentlyConsentedUserId: string | null = null;
+
+// Persist the clickwrap consent as legal evidence. Best-effort: the user genuinely
+// agreed (recentlyConsentedUserId already guards the gate for this session), so a
+// failed write only means they might be asked to re-accept on a future launch.
+async function persistConsent(userId: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('user_consents')
+      .insert({ user_id: userId, terms_version: CURRENT_TERMS_VERSION, platform: Platform.OS });
+    if (error) throw error;
+  } catch (err) {
+    captureError(err, { context: 'record-consent', userId });
+  }
+}
+
 async function hasCurrentConsent(userId: string): Promise<boolean> {
+  // Someone who just agreed this session passes the gate immediately, without
+  // waiting on the insert to be readable.
+  if (recentlyConsentedUserId === userId) return true;
   try {
     const { data, error } = await supabase
       .from('user_consents')
