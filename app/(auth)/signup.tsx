@@ -44,17 +44,28 @@ function getPasswordStrength(pw: string): { level: PasswordStrength; color: stri
 
 export default function SignupScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPw, setConfirmPw] = useState('');
-  const [selectedColor] = useState(AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]);
-  const [error, setError] = useState('');
-  const [passwordTouched, setPasswordTouched] = useState(false);
-  // Single clickwrap gate: confirms 18+ AND agreement to Terms + Privacy.
-  const [agreed, setAgreed] = useState(false);
   const signUp = useAuthStore((s) => s.signUp);
   const isLoading = useAuthStore((s) => s.isLoading);
+  // Restores an in-progress signup (e.g. the user went back from the verify-email
+  // screen to fix a typo'd address) so they don't have to retype everything —
+  // these are only ever set while a verification is pending, never on a fresh visit.
+  const pendingEmail = useAuthStore((s) => s.pendingEmail);
+  const pendingSignupName = useAuthStore((s) => s.pendingSignupName);
+  const pendingSignupPassword = useAuthStore((s) => s.pendingSignupPassword);
+  const pendingSignupAvatarColor = useAuthStore((s) => s.pendingSignupAvatarColor);
+
+  const [name, setName] = useState(pendingSignupName ?? '');
+  const [email, setEmail] = useState(pendingEmail ?? '');
+  const [password, setPassword] = useState(pendingSignupPassword ?? '');
+  const [confirmPw, setConfirmPw] = useState(pendingSignupPassword ?? '');
+  const [selectedColor] = useState(
+    pendingSignupAvatarColor ?? AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]
+  );
+  const [error, setError] = useState('');
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  // Single clickwrap gate: confirms 18+ AND agreement to Terms + Privacy. Already
+  // ticked once when resuming a pending signup — they agreed moments ago.
+  const [agreed, setAgreed] = useState(!!pendingSignupName);
   const emailRef = useRef<RNTextInput>(null);
   const passwordRef = useRef<RNTextInput>(null);
   const confirmRef = useRef<RNTextInput>(null);

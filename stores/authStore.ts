@@ -6,7 +6,7 @@ import { supabase } from '@lib/supabase';
 import { identifyUser, clearUser, captureError } from '@lib/errorTracking';
 import { registerPushToken, unregisterPushToken } from '@lib/notifications';
 import { registerWebPush, unregisterWebPush } from '@lib/webPush';
-import { emailOtpSchema } from '@utils/validation';
+import { emailOtpSchema, signUpSchema } from '@utils/validation';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
@@ -175,6 +175,13 @@ interface AuthStore {
   isLoading: boolean;
   error: string | null;
   pendingEmail: string | null;
+  // In-memory only (never persisted) — lets a typo'd signup email be corrected
+  // on the verify screen, or the signup form restored, without losing what the
+  // user already typed. Cleared once verification succeeds, on sign-in/out, or
+  // never survives an app restart (that's fine — the fallback is re-entering).
+  pendingSignupPassword: string | null;
+  pendingSignupName: string | null;
+  pendingSignupAvatarColor: string | null;
 
   isPasswordRecovery: boolean;
   needsTermsAcceptance: boolean;
@@ -186,6 +193,7 @@ interface AuthStore {
     avatarColor: string
   ) => Promise<{ needsVerification: boolean }>;
   resendVerification: (email: string) => Promise<void>;
+  correctPendingEmail: (newEmail: string) => Promise<{ needsVerification: boolean }>;
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -226,6 +234,9 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: true,
       error: null,
       pendingEmail: null,
+      pendingSignupPassword: null,
+      pendingSignupName: null,
+      pendingSignupAvatarColor: null,
       isPasswordRecovery: false,
       needsTermsAcceptance: false,
 
@@ -408,7 +419,13 @@ export const useAuthStore = create<AuthStore>()(
             // so it's persisted right after the user verifies, in verifyEmailOtp.
             // The handle_new_user trigger already created the profile row.
             if (!data.session) {
-              set({ pendingEmail: email, isLoading: false });
+              set({
+                pendingEmail: email,
+                pendingSignupPassword: password,
+                pendingSignupName: name,
+                pendingSignupAvatarColor: avatarColor,
+                isLoading: false,
+              });
               savePendingEmail(email).catch(() => {});
               return { needsVerification: true };
             }
@@ -425,6 +442,9 @@ export const useAuthStore = create<AuthStore>()(
               profile,
               needsTermsAcceptance: false,
               isLoading: false,
+              pendingSignupPassword: null,
+              pendingSignupName: null,
+              pendingSignupAvatarColor: null,
             });
           }
           return { needsVerification: false };
@@ -438,6 +458,29 @@ export const useAuthStore = create<AuthStore>()(
       resendVerification: async (email): Promise<void> => {
         const { error } = await supabase.auth.resend({ type: 'signup', email });
         if (error) throw new Error('Could not resend. Please try again.');
+      },
+
+      // Fixes a typo'd signup email without losing the name/password already
+      // entered: re-runs signUp() against the corrected address using what was
+      // remembered from the original submission. The old (mistyped) address is
+      // left as an unconfirmed, unclaimed auth account — harmless, but not
+      // cleaned up here.
+      correctPendingEmail: async (newEmail): Promise<{ needsVerification: boolean }> => {
+        const parsed = signUpSchema.shape.email.safeParse(newEmail);
+        if (!parsed.success) throw new Error('Please enter a valid email address');
+        const { pendingSignupPassword, pendingSignupName, pendingSignupAvatarColor } =
+          useAuthStore.getState();
+        if (!pendingSignupPassword || !pendingSignupName) {
+          throw new Error('Please go back and sign up again.');
+        }
+        return useAuthStore
+          .getState()
+          .signUp(
+            parsed.data,
+            pendingSignupPassword,
+            pendingSignupName,
+            pendingSignupAvatarColor ?? '#6366f1'
+          );
       },
 
       verifyEmailOtp: async (email, token): Promise<void> => {
@@ -472,6 +515,9 @@ export const useAuthStore = create<AuthStore>()(
               needsTermsAcceptance: !consentOk,
               isLoading: false,
               pendingEmail: null,
+              pendingSignupPassword: null,
+              pendingSignupName: null,
+              pendingSignupAvatarColor: null,
             });
             if (memberData.houseId) {
               registerPushToken(data.user.id, memberData.houseId);
@@ -513,6 +559,9 @@ export const useAuthStore = create<AuthStore>()(
               needsTermsAcceptance: !consentOk,
               isLoading: false,
               pendingEmail: null,
+              pendingSignupPassword: null,
+              pendingSignupName: null,
+              pendingSignupAvatarColor: null,
             });
             if (memberData.houseId) {
               registerPushToken(data.user.id, memberData.houseId);
@@ -553,6 +602,9 @@ export const useAuthStore = create<AuthStore>()(
           role: null,
           permissions: DEFAULT_PERMISSIONS,
           pendingEmail: null,
+          pendingSignupPassword: null,
+          pendingSignupName: null,
+          pendingSignupAvatarColor: null,
           // Signing out ends any in-progress password recovery. Leaving this
           // flag set would trap the user on the reset-password screen (the
           // navigation guard force-redirects there while it is true).
