@@ -44,11 +44,17 @@ export function NotificationPermissionPrompt({
       setVisible(false);
       return;
     }
-    if (!userId || !houseId) return;
+    if (!userId || !houseId) {
+      setVisible(false);
+      return;
+    }
     let active = true;
 
     const decide = async (): Promise<void> => {
-      if (await hasSeenNotifPrompt()) return;
+      if (await hasSeenNotifPrompt()) {
+        if (active) setVisible(false);
+        return;
+      }
 
       // Only surface the card when the OS/browser will actually let us ask.
       const canAsk =
@@ -59,6 +65,7 @@ export function NotificationPermissionPrompt({
       if (!canAsk) {
         // Already granted, hard-blocked, or unsupported — nothing a card can do.
         await markNotifPromptSeen();
+        if (active) setVisible(false);
         return;
       }
       if (active) setVisible(true);
@@ -66,6 +73,7 @@ export function NotificationPermissionPrompt({
 
     decide().catch(() => {
       // Non-fatal — the card stays hidden and the user can enable from Settings.
+      if (active) setVisible(false);
     });
     return (): void => {
       active = false;
@@ -75,6 +83,7 @@ export function NotificationPermissionPrompt({
   const handleEnable = useCallback(async (): Promise<void> => {
     if (!userId || !houseId || busy) return;
     setBusy(true);
+    let succeeded = false;
     try {
       if (Platform.OS === 'web') {
         const result = await enableWebPush(userId, houseId);
@@ -88,18 +97,33 @@ export function NotificationPermissionPrompt({
         // Requests the OS permission and registers the device token.
         await registerPushToken(userId, houseId);
       }
+      succeeded = true;
     } catch {
-      // Non-fatal — the user can still enable notifications from Settings.
+      // Transient failure — keep the prompt visible so the user can retry.
     } finally {
-      await markNotifPromptSeen();
-      setBusy(false);
-      setVisible(false);
+      if (succeeded) {
+        try {
+          await markNotifPromptSeen();
+        } catch {
+          // Non-fatal — best effort.
+        } finally {
+          setBusy(false);
+          setVisible(false);
+        }
+      } else {
+        setBusy(false);
+      }
     }
   }, [userId, houseId, busy, t]);
 
   const handleLater = useCallback(async (): Promise<void> => {
-    await markNotifPromptSeen();
-    setVisible(false);
+    try {
+      await markNotifPromptSeen();
+    } catch {
+      // Non-fatal — the user dismissed by choice.
+    } finally {
+      setVisible(false);
+    }
   }, []);
 
   if (!visible) return null;
@@ -139,6 +163,7 @@ export function NotificationPermissionPrompt({
             accessible
             accessibilityRole="button"
             accessibilityLabel={t('permissionPrompt.later')}
+            accessibilityState={{ disabled: busy }}
           >
             <Text style={styles.laterBtnText}>{t('permissionPrompt.later')}</Text>
           </Pressable>
