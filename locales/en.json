@@ -166,6 +166,8 @@
     "name_hint": "Enter your full name",
     "email_hint": "Enter your email address",
     "password_hint": "Enter your password",
+    "did_you_mean": "Did you mean {{email}}?",
+    "use_it": "Use it",
     "no_account": "Don't have an account?",
     "no_account_signup": "Don't have an account? Sign up",
     "sign_up": "Sign up",

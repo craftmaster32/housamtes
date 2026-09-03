@@ -77,3 +77,55 @@ describe('Signup age gate', () => {
     expect(screen.getByTestId('signup-submit').props.accessibilityState?.disabled).toBe(false);
   });
 });
+
+describe('Signup — email typo suggestion', () => {
+  beforeAll(() => setupI18n('en'));
+
+  it("offers a fix for a typo'd domain once the field is blurred, and applies it on tap", () => {
+    renderSignup();
+    const emailInput = screen.getByLabelText('Email');
+    fireEvent.changeText(emailInput, 'alice@gmial.com');
+    fireEvent(emailInput, 'blur');
+
+    expect(screen.getByText('Did you mean alice@gmail.com?')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Use it'));
+
+    expect(screen.getByLabelText('Email').props.value).toBe('alice@gmail.com');
+  });
+
+  it('does not suggest anything for an already-valid domain', () => {
+    renderSignup();
+    const emailInput = screen.getByLabelText('Email');
+    fireEvent.changeText(emailInput, 'alice@gmail.com');
+    fireEvent(emailInput, 'blur');
+
+    expect(screen.queryByText(/Did you mean/)).toBeNull();
+  });
+});
+
+describe('Signup — points at the field that needs fixing', () => {
+  beforeAll(() => setupI18n('en'));
+  beforeEach(() => mockSignUp.mockClear());
+
+  function fillValidFormExcept(overrides: { password?: string; confirm?: string } = {}): void {
+    fireEvent.changeText(screen.getByLabelText('Your name'), 'Alice');
+    fireEvent.changeText(screen.getByLabelText('Email'), 'alice@example.com');
+    fireEvent.changeText(screen.getByLabelText('Password'), overrides.password ?? 'Password1');
+    fireEvent.changeText(
+      screen.getByLabelText('Confirm password'),
+      overrides.confirm ?? overrides.password ?? 'Password1'
+    );
+    fireEvent.press(screen.getByRole('checkbox'));
+  }
+
+  it('blocks submission and surfaces the mismatch message when passwords differ', () => {
+    renderSignup();
+    fillValidFormExcept({ password: 'Password1', confirm: 'Password2' });
+
+    fireEvent.press(screen.getByTestId('signup-submit'));
+
+    expect(mockSignUp).not.toHaveBeenCalled();
+    expect(screen.getByText('Passwords do not match')).toBeTruthy();
+  });
+});
