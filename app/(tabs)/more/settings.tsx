@@ -249,14 +249,32 @@ export default function SettingsScreen(): React.JSX.Element {
       setDebtAmount(owed);
       setShowDebtModal(true);
     } else {
+      setSuccessorId(null);
       setShowLeaveConfirm(true);
     }
   }, [profile, bills]);
 
+  // When an owner leaves they must hand ownership to a fellow manager first, so
+  // the house is never left without an owner.
+  const myMemberUserId = profile?.id ?? '';
+  const iAmOwner = myRole === 'owner';
+  const otherMembers = useMemo(
+    () => housemates.filter((h) => h.id !== myMemberUserId),
+    [housemates, myMemberUserId]
+  );
+  const eligibleSuccessors = useMemo(
+    () => otherMembers.filter((h) => h.role === 'owner' || h.role === 'admin'),
+    [otherMembers]
+  );
+  const mustPickSuccessor = iAmOwner && otherMembers.length > 0;
+  const noEligibleSuccessor = mustPickSuccessor && eligibleSuccessors.length === 0;
+  const [successorId, setSuccessorId] = useState<string | null>(null);
+
   const handleLeaveHouse = useCallback(async (): Promise<void> => {
+    if (mustPickSuccessor && !successorId) return;
     setLeaving(true);
     try {
-      await leaveHouse();
+      await leaveHouse(successorId ?? undefined);
       setShowLeaveConfirm(false);
       router.replace('/(onboarding)/house-setup');
     } catch {
@@ -264,7 +282,7 @@ export default function SettingsScreen(): React.JSX.Element {
     } finally {
       setLeaving(false);
     }
-  }, [leaveHouse, t]);
+  }, [leaveHouse, t, mustPickSuccessor, successorId]);
 
   const handleRequestLeaveVote = useCallback(async (): Promise<void> => {
     if (!profile || !houseId) return;
@@ -484,16 +502,72 @@ export default function SettingsScreen(): React.JSX.Element {
                   name: houseName,
                 })}
               </Text>
-              <Pressable
-                style={[styles.modalBtnDanger, leaving && { opacity: 0.6 }]}
-                onPress={handleLeaveHouse}
-                disabled={leaving}
-                accessibilityRole="button"
-              >
-                <Text style={styles.modalBtnDangerText}>
-                  {leaving ? t('settings.leaving') : t('settings.yes_leave')}
-                </Text>
-              </Pressable>
+
+              {mustPickSuccessor &&
+                (noEligibleSuccessor ? (
+                  <>
+                    <Text style={styles.successorHint}>{t('settings.leave_needs_manager')}</Text>
+                    <Pressable
+                      style={styles.modalBtnSecondary}
+                      onPress={() => {
+                        setShowLeaveConfirm(false);
+                        router.push('/(tabs)/settings/members');
+                      }}
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.modalBtnSecondaryText}>
+                        {t('settings.manage_members')}
+                      </Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <View style={styles.successorWrap}>
+                    <Text style={styles.successorLabel}>{t('settings.choose_successor')}</Text>
+                    {eligibleSuccessors.map((h) => {
+                      const active = successorId === h.id;
+                      return (
+                        <Pressable
+                          key={h.id}
+                          style={[styles.successorRow, active && styles.successorRowActive]}
+                          onPress={() => setSuccessorId(h.id)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: active }}
+                        >
+                          <View style={[styles.successorAvatar, { backgroundColor: h.color }]}>
+                            <Text style={styles.successorAvatarText}>
+                              {h.name[0].toUpperCase()}
+                            </Text>
+                          </View>
+                          <Text style={styles.successorName}>{h.name}</Text>
+                          <Text style={styles.successorRole}>
+                            {h.role === 'owner' ? t('members.owner') : t('members.admin')}
+                          </Text>
+                          <Ionicons
+                            name={active ? 'radio-button-on' : 'radio-button-off'}
+                            size={20}
+                            color={active ? C.primary : C.textSecondary}
+                          />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ))}
+
+              {!noEligibleSuccessor && (
+                <Pressable
+                  style={[
+                    styles.modalBtnDanger,
+                    (leaving || (mustPickSuccessor && !successorId)) && { opacity: 0.6 },
+                  ]}
+                  onPress={handleLeaveHouse}
+                  disabled={leaving || (mustPickSuccessor && !successorId)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.modalBtnDangerText}>
+                    {leaving ? t('settings.leaving') : t('settings.yes_leave')}
+                  </Text>
+                </Pressable>
+              )}
               <Pressable
                 style={styles.modalBtnCancel}
                 onPress={() => setShowLeaveConfirm(false)}
@@ -920,5 +994,40 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
     },
     modalBtnCancelText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
+    successorWrap: { width: '100%', gap: ms(8), marginTop: ms(4) },
+    successorLabel: {
+      fontSize: mf(13),
+      ...font.semibold,
+      color: C.textPrimary,
+      textAlign: 'center',
+    },
+    successorHint: {
+      fontSize: mf(13),
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      lineHeight: mf(19),
+    },
+    successorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: sizes.sm,
+      paddingVertical: ms(10),
+      paddingHorizontal: sizes.md,
+      borderRadius: ms(12),
+      borderWidth: 1.5,
+      borderColor: C.border,
+    },
+    successorRowActive: { borderColor: C.primary, backgroundColor: C.primary + '12' },
+    successorAvatar: {
+      width: ms(32),
+      height: ms(32),
+      borderRadius: ms(16),
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    successorAvatarText: { color: '#fff', fontSize: mf(14), ...font.bold },
+    successorName: { flex: 1, fontSize: mf(14), ...font.semibold, color: C.textPrimary },
+    successorRole: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
   });
 }

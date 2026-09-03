@@ -209,7 +209,7 @@ interface AuthStore {
   removeCover: () => Promise<void>;
   setHouseId: (houseId: string) => void;
   reloadMembership: () => Promise<void>;
-  leaveHouse: () => Promise<void>;
+  leaveHouse: (newOwnerUserId?: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
   acceptUpdatedTerms: () => Promise<void>;
@@ -758,7 +758,7 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
 
-      leaveHouse: async (): Promise<void> => {
+      leaveHouse: async (newOwnerUserId?: string): Promise<void> => {
         const { user, houseId, profile } = useAuthStore.getState();
         if (!user || !houseId) return;
         // Snapshot the departing member so the house can still show
@@ -794,7 +794,9 @@ export const useAuthStore = create<AuthStore>()(
           // Leave through the RPC so ownership is transferred (or the empty
           // house removed) atomically — a bare delete could leave the house
           // with no owner, or orphan it entirely.
-          const { error: leaveError } = await supabase.rpc('leave_house');
+          const { error: leaveError } = await supabase.rpc('leave_house', {
+            p_new_owner: newOwnerUserId ?? null,
+          });
           if (leaveError) throw leaveError;
         } catch (leaveErr) {
           captureError(leaveErr, { context: 'leave-house', houseId, userId: user.id });

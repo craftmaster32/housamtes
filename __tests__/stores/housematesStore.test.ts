@@ -12,10 +12,12 @@ import { ok } from '../__helpers__/supabaseMock';
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock('@lib/supabase', () => ({
   supabase: {
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc: (...a: unknown[]): unknown => mockRpc(...a),
     channel: jest.fn(() => ({ on: jest.fn().mockReturnThis(), subscribe: jest.fn() })),
     removeChannel: jest.fn(),
     storage: { from: jest.fn(() => ({ createSignedUrl: jest.fn() })) },
@@ -38,6 +40,7 @@ beforeEach(() => {
     error: null,
   });
   jest.clearAllMocks();
+  mockRpc.mockResolvedValue({ data: null, error: null });
 });
 
 describe('housematesStore — load error state', () => {
@@ -83,6 +86,84 @@ describe('housematesStore — load error state', () => {
     expect(s.error).toBeNull();
     expect(s.isLoading).toBe(false);
     expect(mockFrom).not.toHaveBeenCalled();
+  });
+});
+
+describe('housematesStore — updateRole', () => {
+  it('changes a role through the owner-safe RPC and updates local state', async () => {
+    useHousematesStore.setState({
+      housemates: [
+        {
+          id: 'u2',
+          memberId: 'm2',
+          name: 'Bob',
+          color: '#222',
+          role: 'member',
+          permissions: {} as never,
+          joinedAt: null,
+        },
+      ],
+    });
+
+    await useHousematesStore.getState().updateRole('m2', 'owner');
+
+    expect(mockRpc).toHaveBeenCalledWith('set_member_role', {
+      p_member_id: 'm2',
+      p_role: 'owner',
+    });
+    expect(useHousematesStore.getState().housemates[0].role).toBe('owner');
+  });
+
+  it('throws a plain-English error and leaves state unchanged when the RPC fails', async () => {
+    mockRpc.mockResolvedValue({
+      data: null,
+      error: new Error('The house must keep at least one owner'),
+    });
+    useHousematesStore.setState({
+      housemates: [
+        {
+          id: 'u2',
+          memberId: 'm2',
+          name: 'Bob',
+          color: '#222',
+          role: 'admin',
+          permissions: {} as never,
+          joinedAt: null,
+        },
+      ],
+    });
+
+    await expect(useHousematesStore.getState().updateRole('m2', 'member')).rejects.toThrow(
+      'Could not update role. Please try again.'
+    );
+    expect(useHousematesStore.getState().housemates[0].role).toBe('admin');
+  });
+});
+
+describe('housematesStore — updatePermissions', () => {
+  it('updates permissions through the RPC and updates local state', async () => {
+    const perms = { bills: false } as never;
+    useHousematesStore.setState({
+      housemates: [
+        {
+          id: 'u2',
+          memberId: 'm2',
+          name: 'Bob',
+          color: '#222',
+          role: 'member',
+          permissions: {} as never,
+          joinedAt: null,
+        },
+      ],
+    });
+
+    await useHousematesStore.getState().updatePermissions('m2', perms);
+
+    expect(mockRpc).toHaveBeenCalledWith('set_member_permissions', {
+      p_member_id: 'm2',
+      p_permissions: perms,
+    });
+    expect(useHousematesStore.getState().housemates[0].permissions).toBe(perms);
   });
 });
 

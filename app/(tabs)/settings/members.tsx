@@ -125,12 +125,14 @@ function MemberCard({
   member,
   isMe,
   canEdit,
+  iAmOwner,
   onTogglePermission,
   onChangeRole,
 }: {
   member: Housemate;
   isMe: boolean;
   canEdit: boolean;
+  iAmOwner: boolean;
   onTogglePermission: (memberId: string, key: keyof MemberPermissions, value: boolean) => void;
   onChangeRole: (member: Housemate) => void;
 }): React.JSX.Element {
@@ -185,7 +187,7 @@ function MemberCard({
           </View>
           {joinedLabel && <Text style={styles.memberJoined}>{joinedLabel}</Text>}
         </View>
-        {canEdit && !isMe && member.role !== 'owner' && (
+        {canEdit && !isMe && (member.role !== 'owner' || iAmOwner) && (
           <Pressable
             style={styles.changeRoleBtn}
             onPress={() => onChangeRole(member)}
@@ -266,7 +268,11 @@ export default function MembersScreen(): React.JSX.Element {
 
   const handleChangeRole = useCallback(
     (member: Housemate) => {
-      const options: MemberRole[] = member.role === 'admin' ? ['member'] : ['admin', 'member'];
+      // Owners can grant/revoke ownership (a real co-owner); admins can only
+      // move members between admin and member. The current role is never offered.
+      const assignable: MemberRole[] =
+        myRole === 'owner' ? ['owner', 'admin', 'member'] : ['admin', 'member'];
+      const options: MemberRole[] = assignable.filter((r) => r !== member.role);
       const labels: Record<MemberRole, string> = {
         owner: t('members.owner'),
         admin: t('members.admin'),
@@ -291,7 +297,7 @@ export default function MembersScreen(): React.JSX.Element {
         ]
       );
     },
-    [updateRole, t]
+    [updateRole, myRole, t]
   );
 
   const canEdit = myRole === 'owner' || myRole === 'admin';
@@ -316,6 +322,7 @@ export default function MembersScreen(): React.JSX.Element {
               member={item}
               isMe={item.id === myUserId}
               canEdit={canEdit}
+              iAmOwner={myRole === 'owner'}
               onTogglePermission={handleToggle}
               onChangeRole={handleChangeRole}
             />

@@ -520,7 +520,7 @@ describe('authStore — leaveHouse', () => {
 
     // Membership removal goes through the RPC so ownership transfer / empty-house
     // cleanup happens atomically server-side.
-    expect(mockRpc).toHaveBeenCalledWith('leave_house');
+    expect(mockRpc).toHaveBeenCalledWith('leave_house', { p_new_owner: null });
     expect(mockUnregisterPushToken).toHaveBeenCalledWith('u1', 'h1');
     expect(mockUnregisterWebPush).toHaveBeenCalledWith('u1', 'h1');
     const s = useAuthStore.getState();

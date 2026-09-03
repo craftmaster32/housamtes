@@ -11,10 +11,15 @@
 -- Fix: a SECURITY DEFINER RPC that removes the caller's membership and then,
 -- atomically:
 --   - if no members remain, deletes the house (FK cascades clean up its data);
---   - else, if the leaver was the only owner, promotes a replacement —
---     preferring an existing admin, otherwise the longest-standing member.
+--   - else, if the leaver was the only owner, hands ownership to a replacement.
+--     A leaving owner may name their successor (p_new_owner, a fellow member);
+--     otherwise one is chosen automatically — an existing admin first, else the
+--     longest-standing member.
 
-CREATE OR REPLACE FUNCTION public.leave_house()
+DROP FUNCTION IF EXISTS public.leave_house();
+DROP FUNCTION IF EXISTS public.leave_house(uuid);
+
+CREATE OR REPLACE FUNCTION public.leave_house(p_new_owner uuid DEFAULT NULL)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -41,6 +46,20 @@ BEGIN
 
   IF v_house_id IS NULL THEN
     RETURN; -- not in a house; nothing to do
+  END IF;
+
+  -- A leaving owner may hand ownership to a chosen fellow member up front.
+  IF v_role = 'owner'
+     AND p_new_owner IS NOT NULL
+     AND p_new_owner <> v_uid
+     AND EXISTS (
+       SELECT 1 FROM house_members
+        WHERE house_id = v_house_id AND user_id = p_new_owner
+     )
+  THEN
+    UPDATE house_members
+       SET role = 'owner'
+     WHERE house_id = v_house_id AND user_id = p_new_owner;
   END IF;
 
   -- Remove the caller's membership.
@@ -82,5 +101,5 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.leave_house() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.leave_house() TO authenticated;
+REVOKE ALL ON FUNCTION public.leave_house(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.leave_house(uuid) TO authenticated;
