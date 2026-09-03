@@ -13,6 +13,7 @@
  */
 
 import type { Session, User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ─────────────────────────────────────────────────────────────────────
@@ -340,6 +341,39 @@ describe('authStore — correctPendingEmail', () => {
       'Please go back and sign up again.'
     );
     expect(mockAuth.signUp).not.toHaveBeenCalled();
+  });
+
+  it('persists the corrected email so a restart restores it rather than the typo (deferred-storage)', async () => {
+    await AsyncStorage.clear();
+
+    useAuthStore.setState({
+      pendingEmail: 'alise@example.com',
+      pendingSignupPassword: 'Password1',
+      pendingSignupName: 'Alice',
+      pendingSignupAvatarColor: '#fff',
+    });
+    mockAuth.signUp.mockResolvedValue({
+      data: { user: fakeUser(), session: null },
+      error: null,
+    });
+
+    // Correct the typo — savePendingEmail is now awaited, so the write completes
+    // before correctPendingEmail resolves. A second out-of-order write cannot win.
+    await useAuthStore.getState().correctPendingEmail('alice@example.com');
+    expect(useAuthStore.getState().pendingEmail).toBe('alice@example.com');
+
+    // Simulate a restart: wipe in-memory state and run initialize() so it reads
+    // pendingEmail back from AsyncStorage.
+    resetStore();
+    mockAuth.onAuthStateChange.mockReturnValue({
+      data: { subscription: { unsubscribe: jest.fn() } },
+    });
+    mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    await useAuthStore.getState().initialize();
+
+    // The corrected email must survive the restart — not the original typo.
+    expect(useAuthStore.getState().pendingEmail).toBe('alice@example.com');
   });
 });
 

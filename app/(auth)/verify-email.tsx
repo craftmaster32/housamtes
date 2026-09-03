@@ -216,6 +216,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
                   accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('auth.wrong_email_correct')}
+                  accessibilityState={{ disabled: !pendingEmail }}
                   style={styles.goBackLink}
                 >
                   <Text style={styles.goBackText}>{t('auth.wrong_email_correct')}</Text>
@@ -247,6 +248,7 @@ export default function VerifyEmailScreen(): React.JSX.Element {
                 label={t('auth.email')}
                 disabled={isCorrectingEmail}
                 accessibilityLabel={t('auth.email')}
+                accessibilityHint={t('auth.email_hint')}
               />
 
               {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -260,6 +262,10 @@ export default function VerifyEmailScreen(): React.JSX.Element {
                   contentStyle={styles.buttonContent}
                   labelStyle={[styles.buttonLabel, { color: C.textPrimary }]}
                   textColor={C.textPrimary}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.cancel')}
+                  accessibilityState={{ disabled: isCorrectingEmail }}
                 >
                   {t('common.cancel')}
                 </Button>
@@ -274,6 +280,10 @@ export default function VerifyEmailScreen(): React.JSX.Element {
                   accessible
                   accessibilityRole="button"
                   accessibilityLabel={t('auth.correct_email_button')}
+                  accessibilityState={{
+                    disabled: isCorrectingEmail || !newEmail.trim(),
+                    busy: isCorrectingEmail,
+                  }}
                 >
                   {t('auth.correct_email_button')}
                 </Button>
