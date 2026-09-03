@@ -19,10 +19,14 @@ import {
   type EventReminderDays,
 } from '@stores/notificationStore';
 import { useAuthStore } from '@stores/authStore';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
 import { Alert } from '@lib/alert';
-import { enableWebPush, getWebPushStatus, refreshWebPush, type WebPushStatus } from '@lib/webPush';
+import {
+  enableWebPush,
+  getWebPushStatus,
+  unregisterWebPush,
+  hasActiveWebPushSubscription,
+  type WebPushStatus,
+} from '@lib/webPush';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -77,7 +81,6 @@ const makeStyles = (C: ColorTokens) =>
       gap: sizes.md,
     },
     rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border },
-    rowPressed: { backgroundColor: C.background },
     rowText: { flex: 1 },
     rowLabel: { fontSize: mf(15), ...font.medium, color: C.textPrimary },
     rowDesc: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(2) },
@@ -96,7 +99,6 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    pushOn: { color: C.positive, ...font.semibold, fontSize: mf(13) },
 
     daysRow: {
       paddingHorizontal: sizes.md,
@@ -176,15 +178,20 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
   const updatePrefs = useNotificationStore((s) => s.update);
   const user = useAuthStore((s) => s.user);
   const houseId = useAuthStore((s) => s.houseId);
-  const currentLanguage = useLanguageStore((s) => s.language);
 
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
   const [webPushStatus, setWebPushStatus] = useState<WebPushStatus>('unavailable');
+  // Whether push is actually ON (a live subscription exists), not just permitted.
+  const [webPushOn, setWebPushOn] = useState(false);
   useEffect(() => {
-    if (Platform.OS === 'web') setWebPushStatus(getWebPushStatus());
+    if (Platform.OS !== 'web') return;
+    setWebPushStatus(getWebPushStatus());
+    hasActiveWebPushSubscription()
+      .then(setWebPushOn)
+      .catch(() => setWebPushOn(false));
   }, []);
 
   const save = useCallback(
@@ -195,40 +202,44 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
     [user, houseId, updatePrefs]
   );
 
-  const handleEnableWebPush = useCallback(async (): Promise<void> => {
-    if (!user?.id || !houseId) return;
-    try {
-      const result = await enableWebPush(user.id, houseId);
-      if (result === 'unavailable') {
-        Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
+  // Master on/off for browser push. Turning off unsubscribes this device so it
+  // stops receiving notifications entirely (the per-type toggles below only
+  // choose which ones); turning on (re)subscribes.
+  const handleToggleWebPush = useCallback(
+    async (next: boolean): Promise<void> => {
+      if (!user?.id || !houseId) return;
+      if (next) {
+        try {
+          const result = await enableWebPush(user.id, houseId);
+          setWebPushStatus(result);
+          if (result === 'granted') {
+            setWebPushOn(true);
+          } else if (result === 'denied') {
+            setWebPushOn(false);
+            Alert.alert(
+              t('settings.notifications_blocked_title'),
+              t('settings.notifications_blocked_body')
+            );
+          } else {
+            // 'default' (prompt dismissed) or 'unavailable' — nothing enabled.
+            setWebPushOn(false);
+          }
+        } catch {
+          setWebPushOn(false);
+          Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
+        }
       } else {
-        setWebPushStatus(result);
-        if (result === 'denied') {
-          Alert.alert(
-            t('settings.notifications_blocked_title'),
-            t('settings.notifications_blocked_body')
-          );
+        try {
+          await unregisterWebPush(user.id, houseId);
+        } catch {
+          // Best-effort — the local toggle still reflects "off".
+        } finally {
+          setWebPushOn(false);
         }
       }
-    } catch {
-      Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
-    }
-  }, [user?.id, houseId, t]);
-
-  const handleRefreshOrEnableWebPush = useCallback(async (): Promise<void> => {
-    if (!user?.id || !houseId) return;
-    if (webPushStatus === 'granted') {
-      const result = await refreshWebPush(user.id, houseId);
-      setWebPushStatus(getWebPushStatus());
-      if (result.ok) {
-        Alert.alert(t('common.done'), t('settings.push_refresh_success'));
-      } else {
-        Alert.alert(t('settings.push_refresh_failed_title'), result.reason ?? '');
-      }
-      return;
-    }
-    await handleEnableWebPush();
-  }, [user?.id, houseId, webPushStatus, handleEnableWebPush, t]);
+    },
+    [user?.id, houseId, t]
+  );
 
   const handleBack = useCallback((): void => {
     goBack();
@@ -267,40 +278,34 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
 
           {webPushStatus !== 'unavailable' && (
             <View style={styles.card}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.pushRow,
-                  webPushStatus !== 'denied' && pressed && styles.rowPressed,
-                ]}
-                onPress={webPushStatus === 'denied' ? undefined : handleRefreshOrEnableWebPush}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('settings.browser_notifications')}
-              >
+              <View style={styles.pushRow}>
                 <View style={styles.pushIcon}>
                   <Ionicons name="notifications-outline" size={18} color={C.primary} />
                 </View>
                 <View style={styles.rowText}>
                   <Text style={styles.rowLabel}>{t('settings.browser_notifications')}</Text>
                   <Text style={styles.rowDesc}>
-                    {webPushStatus === 'granted'
-                      ? t('settings.notifications_enabled')
-                      : webPushStatus === 'denied'
-                        ? t('settings.notifications_blocked')
+                    {webPushStatus === 'denied'
+                      ? t('settings.notifications_blocked')
+                      : webPushOn
+                        ? t('settings.notifications_enabled')
                         : t('settings.notifications_tap_enable')}
                   </Text>
                 </View>
-                {webPushStatus === 'granted' && (
-                  <Text style={styles.pushOn}>{t('settings.notifications_on')}</Text>
-                )}
-                {webPushStatus !== 'denied' && (
-                  <Ionicons
-                    name={isRTL(currentLanguage) ? 'chevron-back' : 'chevron-forward'}
-                    size={18}
-                    color={C.textTertiary}
-                  />
-                )}
-              </Pressable>
+                <Switch
+                  value={webPushOn}
+                  onValueChange={handleToggleWebPush}
+                  disabled={webPushStatus === 'denied'}
+                  accessible
+                  accessibilityRole="switch"
+                  accessibilityLabel={t('settings.browser_notifications')}
+                  accessibilityState={{ checked: webPushOn, disabled: webPushStatus === 'denied' }}
+                  trackColor={{ false: C.border, true: C.primary + '80' }}
+                  thumbColor={webPushOn ? C.primary : C.surface}
+                  activeThumbColor={C.primary}
+                  style={styles.switchLtr}
+                />
+              </View>
             </View>
           )}
 

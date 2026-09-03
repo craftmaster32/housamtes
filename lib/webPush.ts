@@ -203,6 +203,25 @@ export function getWebPushStatus(): WebPushStatus {
   return Notification.permission as WebPushStatus;
 }
 
+/**
+ * Whether this browser currently has a live push subscription — i.e. push is
+ * really ON, not just permission-granted. After unregisterWebPush the browser
+ * permission stays 'granted' but the subscription is gone, so the settings
+ * toggle must read the subscription, not the permission, to show on/off.
+ */
+export async function hasActiveWebPushSubscription(): Promise<boolean> {
+  if (!isWebPushSupported()) return false;
+  if (Notification.permission !== 'granted') return false;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+    const sub = await registration?.pushManager.getSubscription();
+    return !!sub;
+  } catch (err) {
+    captureError(err, { context: 'hasActiveWebPushSubscription' });
+    return false;
+  }
+}
+
 export async function unregisterWebPush(userId: string, houseId: string): Promise<void> {
   if (Platform.OS !== 'web') return;
   if (typeof window === 'undefined') return;
