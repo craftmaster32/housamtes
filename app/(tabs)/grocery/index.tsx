@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -509,6 +510,7 @@ interface SectionData {
 }
 
 export default function GroceryScreen(): React.JSX.Element {
+  useFeatureGuard('grocery');
   const { t } = useTranslation();
   const router = useRouter();
 

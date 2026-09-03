@@ -791,13 +791,13 @@ export const useAuthStore = create<AuthStore>()(
           captureError(snapErr, { context: 'snapshot-former-member', houseId, userId: user.id });
         }
         try {
-          await supabase
-            .from('house_members')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('house_id', houseId);
-        } catch {
-          /* non-fatal */
+          // Leave through the RPC so ownership is transferred (or the empty
+          // house removed) atomically — a bare delete could leave the house
+          // with no owner, or orphan it entirely.
+          const { error: leaveError } = await supabase.rpc('leave_house');
+          if (leaveError) throw leaveError;
+        } catch (leaveErr) {
+          captureError(leaveErr, { context: 'leave-house', houseId, userId: user.id });
         }
         // Unregister push tokens so ex-housemates don't receive stale notifications
         unregisterPushToken(user.id, houseId);

@@ -7,7 +7,7 @@
  *   signOut        — local state is cleared even when the server call fails,
  *                    and push tokens are unregistered first
  *   changePassword — re-authenticates, enforces password policy, signs out other devices
- *   leaveHouse     — deletes membership and clears house state + push tokens
+ *   leaveHouse     — leaves via the owner-safe RPC and clears house state + push tokens
  *   deleteAccount  — irreversible: guards when signed out, preserves state on server
  *                    failure, clears everything on success
  */
@@ -19,6 +19,7 @@ import { ok, fail } from '../__helpers__/supabaseMock';
 // ── Module mocks ─────────────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 const mockAuth = {
   signInWithPassword: jest.fn(),
   signUp: jest.fn(),
@@ -48,6 +49,7 @@ jest.mock('@lib/supabase', () => ({
   supabase: {
     supabaseUrl: 'https://unit-test.supabase.co',
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc: (...a: unknown[]): unknown => mockRpc(...a),
     // Delegate lazily — jest hoists this factory above the const declarations,
     // so referencing mockAuth directly here would capture undefined.
     auth: {
@@ -157,6 +159,7 @@ beforeEach(() => {
   resetStore();
   jest.clearAllMocks();
   mockTables({});
+  mockRpc.mockResolvedValue({ data: null, error: null });
 });
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -504,18 +507,20 @@ describe('authStore — leaveHouse', () => {
     expect(mockUnregisterPushToken).not.toHaveBeenCalled();
   });
 
-  it('deletes the membership row and clears house state + push tokens', async () => {
+  it('leaves via the RPC (owner-safe) and clears house state + push tokens', async () => {
     useAuthStore.setState({
       user: fakeUser(),
       houseId: 'h1',
       role: 'member',
       permissions: { ...DEFAULT_PERMISSIONS, bills: false },
     });
-    mockTables({ house_members: ok(null) });
+    mockTables({ former_members: ok(null) });
 
     await useAuthStore.getState().leaveHouse();
 
-    expect(mockFrom).toHaveBeenCalledWith('house_members');
+    // Membership removal goes through the RPC so ownership transfer / empty-house
+    // cleanup happens atomically server-side.
+    expect(mockRpc).toHaveBeenCalledWith('leave_house');
     expect(mockUnregisterPushToken).toHaveBeenCalledWith('u1', 'h1');
     expect(mockUnregisterWebPush).toHaveBeenCalledWith('u1', 'h1');
     const s = useAuthStore.getState();

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable, Platform, Alert, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -231,6 +232,7 @@ const makeStyles = (C: ColorTokens) =>
   });
 
 export default function HousematesScreen(): React.JSX.Element {
+  useFeatureGuard('bills');
   const { t } = useTranslation();
   const housemates = useHousematesStore((s) => s.housemates);
   const formerMembers = useHousematesStore((s) => s.formerMembers);

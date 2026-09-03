@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -752,6 +753,7 @@ type FlatItem =
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function ParkingScreen(): React.JSX.Element {
+  useFeatureGuard('parking');
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);

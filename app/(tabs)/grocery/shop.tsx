@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -135,6 +136,7 @@ const ShopItemRow = memo(function ShopItemRow({
 });
 
 export default function ShopScreen(): React.JSX.Element {
+  useFeatureGuard('grocery');
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);

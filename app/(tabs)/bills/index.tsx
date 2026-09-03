@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import {
   View,
   FlatList,
@@ -404,6 +405,7 @@ const CategoryChip = memo(function CategoryChip({
  * history grouped into day sections.
  */
 export default function BillsScreen(): React.JSX.Element {
+  useFeatureGuard('bills');
   const c = useThemedColors();
   const { t, i18n } = useTranslation();
   const headingFont = useHeadingFont();

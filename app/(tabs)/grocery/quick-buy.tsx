@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -25,6 +26,7 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import { mf, ms } from '@utils/responsive';
 
 export default function QuickBuyScreen(): React.JSX.Element {
+  useFeatureGuard('grocery');
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);

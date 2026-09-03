@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -226,6 +227,7 @@ const makeStyles = (C: ColorTokens) =>
   });
 
 export default function PhotosScreen(): React.JSX.Element {
+  useFeatureGuard('photos');
   const { t, i18n } = useTranslation();
   const photos = usePhotoStore((s) => s.photos);
   const isLoading = usePhotoStore((s) => s.isLoading);

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import { captureError } from '@lib/errorTracking';
 import {
   View,
@@ -314,6 +315,7 @@ function DateSeparator({ label }: { label: string }): React.JSX.Element {
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function ChatScreen(): React.JSX.Element {
+  useFeatureGuard('chat');
   const { t } = useTranslation();
   const messages = useChatStore((state) => state.messages);
   const isLoading = useChatStore((state) => state.isLoading);

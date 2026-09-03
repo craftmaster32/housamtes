@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,6 +71,7 @@ const makeStyles = (C: ColorTokens) =>
   });
 
 export default function MaintenanceScreen(): React.JSX.Element {
+  useFeatureGuard('maintenance');
   const { t } = useTranslation();
   const requests = useMaintenanceStore((s) => s.requests);
   const isLoading = useMaintenanceStore((s) => s.isLoading);

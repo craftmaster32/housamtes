@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useFeatureGuard } from '@hooks/useFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text, TextInput } from 'react-native-paper';
@@ -64,6 +65,7 @@ function formatDisplayDate(iso: string, locale: string): string {
 }
 
 export default function BillDetailScreen(): React.JSX.Element {
+  useFeatureGuard('bills');
   const { t, i18n } = useTranslation();
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
