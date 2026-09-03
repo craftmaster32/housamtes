@@ -240,11 +240,12 @@ export async function unregisterWebPush(userId: string, houseId: string): Promis
 
   let serverSuccess = true;
   try {
-    await supabase
+    const { error: deleteError } = await supabase
       .from('web_push_subscriptions')
       .delete()
       .eq('user_id', userId)
       .eq('house_id', houseId);
+    if (deleteError) throw deleteError;
   } catch (err) {
     captureError(err, { context: 'unregisterWebPush:server', userId, houseId });
     serverSuccess = false;
