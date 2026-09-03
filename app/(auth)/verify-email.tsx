@@ -19,11 +19,15 @@ export default function VerifyEmailScreen(): React.JSX.Element {
   const pendingEmail = useAuthStore((s) => s.pendingEmail);
   const resendVerification = useAuthStore((s) => s.resendVerification);
   const verifyEmailOtp = useAuthStore((s) => s.verifyEmailOtp);
+  const correctPendingEmail = useAuthStore((s) => s.correctPendingEmail);
   const [code, setCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [resent, setResent] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [error, setError] = useState('');
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [isCorrectingEmail, setIsCorrectingEmail] = useState(false);
 
   const C = useThemedColors();
   const headingFont = useHeadingFont();
@@ -85,6 +89,36 @@ export default function VerifyEmailScreen(): React.JSX.Element {
     router.replace('/(auth)/signup');
   }, []);
 
+  const handleStartEditEmail = useCallback((): void => {
+    setNewEmail(pendingEmail ?? '');
+    setError('');
+    setIsEditingEmail(true);
+  }, [pendingEmail]);
+
+  const handleCancelEditEmail = useCallback((): void => {
+    setIsEditingEmail(false);
+    setNewEmail('');
+    setError('');
+  }, []);
+
+  const handleCorrectEmail = useCallback(async (): Promise<void> => {
+    const trimmed = newEmail.trim();
+    if (!trimmed) return;
+    try {
+      setIsCorrectingEmail(true);
+      setError('');
+      await correctPendingEmail(trimmed);
+      setIsEditingEmail(false);
+      setNewEmail('');
+      setCode('');
+      setResent(true);
+    } catch (err) {
+      setError(getErrorMessage(err, t('auth.something_went_wrong')));
+    } finally {
+      setIsCorrectingEmail(false);
+    }
+  }, [newEmail, correctPendingEmail, t]);
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
@@ -110,75 +144,152 @@ export default function VerifyEmailScreen(): React.JSX.Element {
               </Text>
             )}
             {!pendingEmail && <Text style={styles.errorText}>{t('auth.no_pending_email')}</Text>}
+            {!!pendingEmail && (
+              <Text style={styles.hintText}>{t('auth.check_inbox_gate_note')}</Text>
+            )}
           </View>
 
-          <TextInput
-            mode="outlined"
-            value={code}
-            onChangeText={handleCodeChange}
-            keyboardType="number-pad"
-            maxLength={6}
-            autoFocus
-            style={styles.codeInput}
-            label={t('auth.code_from_email')}
-            disabled={!pendingEmail || isVerifying || isResending}
-            accessibilityLabel={t('auth.verification_code_label')}
-            accessibilityHint={t('auth.verification_code_hint')}
-          />
+          {!isEditingEmail && (
+            <>
+              <TextInput
+                mode="outlined"
+                value={code}
+                onChangeText={handleCodeChange}
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+                style={styles.codeInput}
+                label={t('auth.code_from_email')}
+                disabled={!pendingEmail || isVerifying || isResending}
+                accessibilityLabel={t('auth.verification_code_label')}
+                accessibilityHint={t('auth.verification_code_hint')}
+              />
 
-          {!!error && <Text style={styles.errorText}>{error}</Text>}
+              {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-          {resent && (
-            <View style={styles.resentBanner}>
-              <Ionicons name="checkmark-circle" size={16} color={C.success} />
-              <Text style={styles.resentText}>{t('auth.email_sent')}</Text>
-            </View>
+              {resent && (
+                <View style={styles.resentBanner}>
+                  <Ionicons name="checkmark-circle" size={16} color={C.success} />
+                  <Text style={styles.resentText}>{t('auth.email_sent')}</Text>
+                </View>
+              )}
+
+              <Button
+                mode="contained"
+                onPress={handleVerify}
+                loading={isVerifying}
+                disabled={isVerifying || isResending || !pendingEmail || code.trim().length < 6}
+                style={styles.verifyButton}
+                contentStyle={styles.buttonContent}
+                labelStyle={styles.buttonLabel}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('auth.verify_button')}
+                accessibilityState={{
+                  disabled: isVerifying || isResending || !pendingEmail || code.trim().length < 6,
+                  busy: isVerifying,
+                }}
+              >
+                {isVerifying ? t('auth.verifying') : t('auth.verify_button')}
+              </Button>
+
+              <Button
+                mode="outlined"
+                onPress={handleResend}
+                loading={isResending}
+                disabled={isResending || isVerifying || !pendingEmail}
+                style={styles.ghostButton}
+                contentStyle={styles.buttonContent}
+                labelStyle={[styles.buttonLabel, { color: C.textPrimary }]}
+                textColor={C.textPrimary}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('auth.resend_email_short')}
+              >
+                {isResending ? t('auth.sending') : t('auth.resend_email_short')}
+              </Button>
+
+              <View style={styles.linksRow}>
+                <Pressable
+                  onPress={handleStartEditEmail}
+                  disabled={!pendingEmail}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('auth.wrong_email_correct')}
+                  accessibilityState={{ disabled: !pendingEmail }}
+                  style={styles.goBackLink}
+                >
+                  <Text style={styles.goBackText}>{t('auth.wrong_email_correct')}</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleGoBack}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('auth.wrong_email_go_back')}
+                  style={styles.goBackLink}
+                >
+                  <Text style={styles.goBackTextMuted}>{t('auth.wrong_email_go_back')}</Text>
+                </Pressable>
+              </View>
+            </>
           )}
 
-          <Button
-            mode="contained"
-            onPress={handleVerify}
-            loading={isVerifying}
-            disabled={isVerifying || isResending || !pendingEmail || code.trim().length < 6}
-            style={styles.verifyButton}
-            contentStyle={styles.buttonContent}
-            labelStyle={styles.buttonLabel}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.verify_button')}
-            accessibilityState={{
-              disabled: isVerifying || isResending || !pendingEmail || code.trim().length < 6,
-              busy: isVerifying,
-            }}
-          >
-            {isVerifying ? t('auth.verifying') : t('auth.verify_button')}
-          </Button>
+          {isEditingEmail && (
+            <View style={styles.editEmailBlock}>
+              <TextInput
+                mode="outlined"
+                value={newEmail}
+                onChangeText={setNewEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoFocus
+                style={styles.codeInput}
+                label={t('auth.email')}
+                disabled={isCorrectingEmail}
+                accessibilityLabel={t('auth.email')}
+                accessibilityHint={t('auth.email_hint')}
+              />
 
-          <Button
-            mode="outlined"
-            onPress={handleResend}
-            loading={isResending}
-            disabled={isResending || isVerifying || !pendingEmail}
-            style={styles.ghostButton}
-            contentStyle={styles.buttonContent}
-            labelStyle={[styles.buttonLabel, { color: C.textPrimary }]}
-            textColor={C.textPrimary}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.resend_email_short')}
-          >
-            {isResending ? t('auth.sending') : t('auth.resend_email_short')}
-          </Button>
+              {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-          <Pressable
-            onPress={handleGoBack}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.wrong_email_go_back')}
-            style={styles.goBackLink}
-          >
-            <Text style={styles.goBackText}>{t('auth.wrong_email_go_back')}</Text>
-          </Pressable>
+              <View style={styles.editEmailButtons}>
+                <Button
+                  mode="outlined"
+                  onPress={handleCancelEditEmail}
+                  disabled={isCorrectingEmail}
+                  style={[styles.ghostButton, styles.editEmailCancel]}
+                  contentStyle={styles.buttonContent}
+                  labelStyle={[styles.buttonLabel, { color: C.textPrimary }]}
+                  textColor={C.textPrimary}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.cancel')}
+                  accessibilityState={{ disabled: isCorrectingEmail }}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleCorrectEmail}
+                  loading={isCorrectingEmail}
+                  disabled={isCorrectingEmail || !newEmail.trim()}
+                  style={[styles.verifyButton, styles.editEmailSave]}
+                  contentStyle={styles.buttonContent}
+                  labelStyle={styles.buttonLabel}
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel={t('auth.correct_email_button')}
+                  accessibilityState={{
+                    disabled: isCorrectingEmail || !newEmail.trim(),
+                    busy: isCorrectingEmail,
+                  }}
+                >
+                  {t('auth.correct_email_button')}
+                </Button>
+              </View>
+            </View>
+          )}
         </View>
       </View>
     </View>
@@ -295,6 +406,12 @@ function makeStyles(C: ColorTokens) {
       ...font.semibold,
       letterSpacing: 0.1,
     },
+    linksRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: sizes.md,
+    },
     goBackLink: {
       paddingVertical: sizes.sm,
       minHeight: sizes.touchTarget,
@@ -305,6 +422,26 @@ function makeStyles(C: ColorTokens) {
       ...font.medium,
       color: C.primary,
       textAlign: 'center',
+    },
+    goBackTextMuted: {
+      fontSize: sizes.fontSm,
+      ...font.medium,
+      color: C.textSecondary,
+      textAlign: 'center',
+    },
+    editEmailBlock: {
+      width: '100%',
+      gap: ms(12),
+    },
+    editEmailButtons: {
+      flexDirection: 'row',
+      gap: sizes.sm,
+    },
+    editEmailCancel: {
+      flex: 1,
+    },
+    editEmailSave: {
+      flex: 1,
     },
   });
 }

@@ -16,6 +16,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
 import { signUpSchema, mapZodError } from '@utils/validation';
+import { suggestEmailCorrection } from '@utils/emailSuggest';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
@@ -44,17 +45,36 @@ function getPasswordStrength(pw: string): { level: PasswordStrength; color: stri
 
 export default function SignupScreen(): React.JSX.Element {
   const { t } = useTranslation();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPw, setConfirmPw] = useState('');
-  const [selectedColor] = useState(AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]);
-  const [error, setError] = useState('');
-  const [passwordTouched, setPasswordTouched] = useState(false);
-  // Single clickwrap gate: confirms 18+ AND agreement to Terms + Privacy.
-  const [agreed, setAgreed] = useState(false);
   const signUp = useAuthStore((s) => s.signUp);
   const isLoading = useAuthStore((s) => s.isLoading);
+  // Restores an in-progress signup (e.g. the user went back from the verify-email
+  // screen to fix a typo'd address) so they don't have to retype everything —
+  // these are only ever set while a verification is pending, never on a fresh visit.
+  const pendingEmail = useAuthStore((s) => s.pendingEmail);
+  const pendingSignupName = useAuthStore((s) => s.pendingSignupName);
+  const pendingSignupPassword = useAuthStore((s) => s.pendingSignupPassword);
+  const pendingSignupAvatarColor = useAuthStore((s) => s.pendingSignupAvatarColor);
+
+  const [name, setName] = useState(pendingSignupName ?? '');
+  const [email, setEmail] = useState(pendingEmail ?? '');
+  const [password, setPassword] = useState(pendingSignupPassword ?? '');
+  const [confirmPw, setConfirmPw] = useState(pendingSignupPassword ?? '');
+  const [selectedColor] = useState(
+    pendingSignupAvatarColor ?? AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]
+  );
+  const [error, setError] = useState('');
+  // Which field the current error belongs to, so that field gets the red
+  // outline and the keyboard jumps straight to it instead of leaving the
+  // user to hunt for what's wrong.
+  const [fieldError, setFieldError] = useState<'name' | 'email' | 'password' | 'confirm' | null>(
+    null
+  );
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  // Single clickwrap gate: confirms 18+ AND agreement to Terms + Privacy. Already
+  // ticked once when resuming a pending signup — they agreed moments ago.
+  const [agreed, setAgreed] = useState(!!pendingSignupName);
+  const nameRef = useRef<RNTextInput>(null);
   const emailRef = useRef<RNTextInput>(null);
   const passwordRef = useRef<RNTextInput>(null);
   const confirmRef = useRef<RNTextInput>(null);
@@ -77,6 +97,28 @@ export default function SignupScreen(): React.JSX.Element {
     passwordTouched && password.length > 0 && password.length < 8
       ? t('auth.password_min_length')
       : null;
+  const emailSuggestion = useMemo(() => suggestEmailCorrection(email), [email]);
+
+  const handleEmailChange = useCallback((v: string): void => {
+    setEmail(v);
+    setError('');
+    setFieldError(null);
+  }, []);
+
+  const handleApplySuggestion = useCallback((): void => {
+    if (!emailSuggestion) return;
+    setEmail(emailSuggestion);
+    setError('');
+    setFieldError(null);
+  }, [emailSuggestion]);
+
+  const focusField = useCallback((field: 'name' | 'email' | 'password' | 'confirm'): void => {
+    setFieldError(field);
+    const ref = { name: nameRef, email: emailRef, password: passwordRef, confirm: confirmRef }[
+      field
+    ];
+    ref.current?.focus();
+  }, []);
 
   const handleSignup = useCallback(async (): Promise<void> => {
     if (isLoading) return;
@@ -86,15 +128,22 @@ export default function SignupScreen(): React.JSX.Element {
     }
     if (password !== confirmPw) {
       setError(t('auth.passwords_no_match'));
+      focusField('confirm');
       return;
     }
     const result = signUpSchema.safeParse({ name, email, password });
     if (!result.success) {
-      setError(mapZodError(result.error.errors[0].message, t));
+      const issue = result.error.errors[0];
+      setError(mapZodError(issue.message, t));
+      const field = issue.path[0];
+      if (field === 'name' || field === 'email' || field === 'password') {
+        focusField(field);
+      }
       return;
     }
     try {
       setError('');
+      setFieldError(null);
       const { needsVerification } = await signUp(
         result.data.email,
         result.data.password,
@@ -107,9 +156,21 @@ export default function SignupScreen(): React.JSX.Element {
         router.replace('/(auth)/verify-email');
       }
     } catch (err) {
-      setError(getErrorMessage(err, t('auth.something_went_wrong')));
+      const message = getErrorMessage(err, t('auth.something_went_wrong'));
+      setError(message);
+      // Map the sanitized error text back to the field it's actually about
+      // (e.g. "An account with this email already exists") so the user's
+      // attention goes straight there instead of a generic banner.
+      const lower = message.toLowerCase();
+      if (lower.includes('email')) {
+        focusField('email');
+      } else if (lower.includes('password')) {
+        focusField('password');
+      } else {
+        setFieldError(null);
+      }
     }
-  }, [name, email, password, confirmPw, selectedColor, agreed, isLoading, signUp, t]);
+  }, [name, email, password, confirmPw, selectedColor, agreed, isLoading, signUp, t, focusField]);
 
   return (
     <View style={styles.root}>
@@ -141,11 +202,13 @@ export default function SignupScreen(): React.JSX.Element {
           </Entrance>
 
           <TextInput
+            ref={nameRef}
             label={t('auth.your_name')}
             value={name}
             onChangeText={(v) => {
               setName(v);
               setError('');
+              setFieldError(null);
             }}
             mode="outlined"
             style={styles.input}
@@ -154,16 +217,15 @@ export default function SignupScreen(): React.JSX.Element {
             onSubmitEditing={() => emailRef.current?.focus()}
             accessibilityLabel={t('auth.your_name')}
             accessibilityHint={t('auth.name_hint')}
+            error={fieldError === 'name'}
           />
 
           <TextInput
             ref={emailRef}
             label={t('auth.email')}
             value={email}
-            onChangeText={(v) => {
-              setEmail(v);
-              setError('');
-            }}
+            onChangeText={handleEmailChange}
+            onBlur={() => setEmailTouched(true)}
             mode="outlined"
             style={styles.input}
             keyboardType="email-address"
@@ -172,7 +234,25 @@ export default function SignupScreen(): React.JSX.Element {
             onSubmitEditing={() => passwordRef.current?.focus()}
             accessibilityLabel={t('auth.email')}
             accessibilityHint={t('auth.email_hint')}
+            error={fieldError === 'email'}
           />
+          {emailTouched && !!emailSuggestion && (
+            <View style={styles.suggestionRow}>
+              <Text style={styles.suggestionText}>
+                {t('auth.did_you_mean', { email: emailSuggestion })}
+              </Text>
+              <Pressable
+                onPress={handleApplySuggestion}
+                hitSlop={8}
+                style={styles.suggestionAction}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={`${t('auth.did_you_mean', { email: emailSuggestion })} ${t('auth.use_it')}`}
+              >
+                <Text style={styles.suggestionLink}>{t('auth.use_it')}</Text>
+              </Pressable>
+            </View>
+          )}
 
           <View style={styles.passwordBlock}>
             <PasswordInput
@@ -182,6 +262,7 @@ export default function SignupScreen(): React.JSX.Element {
               onChangeText={(v) => {
                 setPassword(v);
                 setError('');
+                setFieldError(null);
               }}
               onBlur={() => setPasswordTouched(true)}
               mode="outlined"
@@ -190,7 +271,7 @@ export default function SignupScreen(): React.JSX.Element {
               onSubmitEditing={() => confirmRef.current?.focus()}
               accessibilityLabel={t('auth.password')}
               accessibilityHint={t('auth.password_hint')}
-              error={!!passwordError}
+              error={!!passwordError || fieldError === 'password'}
             />
             {!!passwordError && <Text style={styles.fieldError}>{passwordError}</Text>}
             {strength && (
@@ -225,6 +306,7 @@ export default function SignupScreen(): React.JSX.Element {
             onChangeText={(v) => {
               setConfirmPw(v);
               setError('');
+              setFieldError(null);
             }}
             mode="outlined"
             style={styles.input}
@@ -232,7 +314,7 @@ export default function SignupScreen(): React.JSX.Element {
             onSubmitEditing={handleSignup}
             accessibilityLabel={t('auth.confirm_password')}
             accessibilityHint={t('auth.confirm_password_hint')}
-            error={!!error && error === t('auth.passwords_no_match')}
+            error={fieldError === 'confirm'}
           />
 
           <View style={styles.agreeRow}>
@@ -381,6 +463,30 @@ function makeStyles(C: ColorTokens) {
     },
     input: {
       backgroundColor: C.surface,
+    },
+    suggestionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: ms(6),
+      marginTop: -sizes.sm,
+      marginStart: ms(4),
+    },
+    suggestionText: {
+      fontSize: mf(13),
+      ...font.regular,
+      color: C.textSecondary,
+    },
+    suggestionAction: {
+      minWidth: sizes.touchTarget,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center' as const,
+    },
+    suggestionLink: {
+      fontSize: mf(13),
+      ...font.semibold,
+      color: C.primary,
+      textDecorationLine: 'underline',
     },
     passwordBlock: {
       gap: ms(6),

@@ -13,6 +13,7 @@
  */
 
 import type { Session, User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ok, fail } from '../__helpers__/supabaseMock';
 
 // ── Module mocks ─────────────────────────────────────────────────────────────────────
@@ -144,6 +145,9 @@ function resetStore(): void {
     isLoading: false,
     error: null,
     pendingEmail: null,
+    pendingSignupPassword: null,
+    pendingSignupName: null,
+    pendingSignupAvatarColor: null,
     isPasswordRecovery: false,
     needsTermsAcceptance: false,
   });
@@ -255,6 +259,121 @@ describe('authStore — signUp', () => {
     expect(s.pendingEmail).toBe('alice@example.com');
     expect(s.user).toBeNull(); // not signed in until verified
     expect(s.isLoading).toBe(false);
+  });
+
+  it('remembers the name, password and avatar colour so a typo can be corrected without retyping them', async () => {
+    mockAuth.signUp.mockResolvedValue({
+      data: { user: fakeUser(), session: null },
+      error: null,
+    });
+
+    await useAuthStore.getState().signUp('alise@example.com', 'Password1', 'Alice', '#fff');
+
+    const s = useAuthStore.getState();
+    expect(s.pendingSignupPassword).toBe('Password1');
+    expect(s.pendingSignupName).toBe('Alice');
+    expect(s.pendingSignupAvatarColor).toBe('#fff');
+  });
+
+  it('clears the remembered signup details once no verification is needed', async () => {
+    useAuthStore.setState({
+      pendingSignupPassword: 'Stale1',
+      pendingSignupName: 'Stale',
+      pendingSignupAvatarColor: '#000',
+    });
+    mockMemberOfHouse();
+    mockAuth.signUp.mockResolvedValue({
+      data: { user: fakeUser(), session: fakeSession() },
+      error: null,
+    });
+
+    await useAuthStore.getState().signUp('alice@example.com', 'Password1', 'Alice', '#6366f1');
+
+    const s = useAuthStore.getState();
+    expect(s.pendingSignupPassword).toBeNull();
+    expect(s.pendingSignupName).toBeNull();
+    expect(s.pendingSignupAvatarColor).toBeNull();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────────
+// correctPendingEmail
+// ────────────────────────────────────────────────────────────────────────────────
+
+describe('authStore — correctPendingEmail', () => {
+  it('re-submits signUp against the corrected address using the remembered name and password', async () => {
+    useAuthStore.setState({
+      pendingEmail: 'alise@example.com',
+      pendingSignupPassword: 'Password1',
+      pendingSignupName: 'Alice',
+      pendingSignupAvatarColor: '#fff',
+    });
+    mockAuth.signUp.mockResolvedValue({
+      data: { user: fakeUser(), session: null },
+      error: null,
+    });
+
+    const result = await useAuthStore.getState().correctPendingEmail('alice@example.com');
+
+    expect(result).toEqual({ needsVerification: true });
+    expect(mockAuth.signUp).toHaveBeenCalledWith({
+      email: 'alice@example.com',
+      password: 'Password1',
+      options: { data: { name: 'Alice', avatar_color: '#fff' } },
+    });
+    expect(useAuthStore.getState().pendingEmail).toBe('alice@example.com');
+  });
+
+  it('rejects a malformed email before calling Supabase', async () => {
+    useAuthStore.setState({
+      pendingSignupPassword: 'Password1',
+      pendingSignupName: 'Alice',
+    });
+
+    await expect(useAuthStore.getState().correctPendingEmail('not-an-email')).rejects.toThrow();
+    expect(mockAuth.signUp).not.toHaveBeenCalled();
+  });
+
+  it('refuses to run when the original name/password were never remembered (e.g. app restart)', async () => {
+    useAuthStore.setState({ pendingSignupPassword: null, pendingSignupName: null });
+
+    await expect(useAuthStore.getState().correctPendingEmail('alice@example.com')).rejects.toThrow(
+      'Please go back and sign up again.'
+    );
+    expect(mockAuth.signUp).not.toHaveBeenCalled();
+  });
+
+  it('persists the corrected email so a restart restores it rather than the typo (deferred-storage)', async () => {
+    await AsyncStorage.clear();
+
+    useAuthStore.setState({
+      pendingEmail: 'alise@example.com',
+      pendingSignupPassword: 'Password1',
+      pendingSignupName: 'Alice',
+      pendingSignupAvatarColor: '#fff',
+    });
+    mockAuth.signUp.mockResolvedValue({
+      data: { user: fakeUser(), session: null },
+      error: null,
+    });
+
+    // Correct the typo — savePendingEmail is now awaited, so the write completes
+    // before correctPendingEmail resolves. A second out-of-order write cannot win.
+    await useAuthStore.getState().correctPendingEmail('alice@example.com');
+    expect(useAuthStore.getState().pendingEmail).toBe('alice@example.com');
+
+    // Simulate a restart: wipe in-memory state and run initialize() so it reads
+    // pendingEmail back from AsyncStorage.
+    resetStore();
+    mockAuth.onAuthStateChange.mockReturnValue({
+      data: { subscription: { unsubscribe: jest.fn() } },
+    });
+    mockAuth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    await useAuthStore.getState().initialize();
+
+    // The corrected email must survive the restart — not the original typo.
+    expect(useAuthStore.getState().pendingEmail).toBe('alice@example.com');
   });
 });
 
@@ -636,7 +755,12 @@ describe('authStore — verifyEmailOtp', () => {
       data: { user: fakeUser(), session: fakeSession() },
       error: null,
     });
-    useAuthStore.setState({ pendingEmail: 'alice@example.com' });
+    useAuthStore.setState({
+      pendingEmail: 'alice@example.com',
+      pendingSignupPassword: 'Password1',
+      pendingSignupName: 'Alice',
+      pendingSignupAvatarColor: '#fff',
+    });
 
     await useAuthStore.getState().verifyEmailOtp('alice@example.com', '123456');
 
@@ -649,6 +773,9 @@ describe('authStore — verifyEmailOtp', () => {
     expect(s.user?.id).toBe('u1');
     expect(s.session).not.toBeNull();
     expect(s.pendingEmail).toBeNull();
+    expect(s.pendingSignupPassword).toBeNull();
+    expect(s.pendingSignupName).toBeNull();
+    expect(s.pendingSignupAvatarColor).toBeNull();
     expect(s.isLoading).toBe(false);
     expect(s.error).toBeNull();
   });
