@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   Switch,
   Pressable,
-  Platform,
   type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -19,18 +18,11 @@ import {
   type EventReminderDays,
 } from '@stores/notificationStore';
 import { useAuthStore } from '@stores/authStore';
-import { Alert } from '@lib/alert';
-import {
-  enableWebPush,
-  getWebPushStatus,
-  unregisterWebPush,
-  hasActiveWebPushSubscription,
-  type WebPushStatus,
-} from '@lib/webPush';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useWebPushToggle } from '@hooks/useWebPushToggle';
 
 import { mf, ms } from '@utils/responsive';
 const DAYS_OPTIONS: BillDueDays[] = [1, 2, 3, 7];
@@ -183,16 +175,7 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont('bold');
 
-  const [webPushStatus, setWebPushStatus] = useState<WebPushStatus>('unavailable');
-  // Whether push is actually ON (a live subscription exists), not just permitted.
-  const [webPushOn, setWebPushOn] = useState(false);
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-    setWebPushStatus(getWebPushStatus());
-    hasActiveWebPushSubscription()
-      .then(setWebPushOn)
-      .catch(() => setWebPushOn(false));
-  }, []);
+  const { webPushOn, webPushStatus, handleToggleWebPush } = useWebPushToggle();
 
   const save = useCallback(
     (changes: Parameters<typeof updatePrefs>[2]) => {
@@ -200,45 +183,6 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
       updatePrefs(user.id, houseId, changes);
     },
     [user, houseId, updatePrefs]
-  );
-
-  // Master on/off for browser push. Turning off unsubscribes this device so it
-  // stops receiving notifications entirely (the per-type toggles below only
-  // choose which ones); turning on (re)subscribes.
-  const handleToggleWebPush = useCallback(
-    async (next: boolean): Promise<void> => {
-      if (!user?.id || !houseId) return;
-      if (next) {
-        try {
-          const result = await enableWebPush(user.id, houseId);
-          setWebPushStatus(result);
-          if (result === 'granted') {
-            setWebPushOn(true);
-          } else if (result === 'denied') {
-            setWebPushOn(false);
-            Alert.alert(
-              t('settings.notifications_blocked_title'),
-              t('settings.notifications_blocked_body')
-            );
-          } else {
-            // 'default' (prompt dismissed) or 'unavailable' — nothing enabled.
-            setWebPushOn(false);
-          }
-        } catch {
-          setWebPushOn(false);
-          Alert.alert(t('common.error'), t('settings.notifications_enable_failed'));
-        }
-      } else {
-        try {
-          await unregisterWebPush(user.id, houseId);
-        } catch {
-          // Best-effort — the local toggle still reflects "off".
-        } finally {
-          setWebPushOn(false);
-        }
-      }
-    },
-    [user?.id, houseId, t]
   );
 
   const handleBack = useCallback((): void => {
