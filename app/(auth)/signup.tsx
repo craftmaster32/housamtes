@@ -99,6 +99,19 @@ export default function SignupScreen(): React.JSX.Element {
       : null;
   const emailSuggestion = useMemo(() => suggestEmailCorrection(email), [email]);
 
+  const handleEmailChange = useCallback((v: string): void => {
+    setEmail(v);
+    setError('');
+    setFieldError(null);
+  }, []);
+
+  const handleApplySuggestion = useCallback((): void => {
+    if (!emailSuggestion) return;
+    setEmail(emailSuggestion);
+    setError('');
+    setFieldError(null);
+  }, [emailSuggestion]);
+
   const focusField = useCallback((field: 'name' | 'email' | 'password' | 'confirm'): void => {
     setFieldError(field);
     const ref = { name: nameRef, email: emailRef, password: passwordRef, confirm: confirmRef }[
@@ -211,11 +224,7 @@ export default function SignupScreen(): React.JSX.Element {
             ref={emailRef}
             label={t('auth.email')}
             value={email}
-            onChangeText={(v) => {
-              setEmail(v);
-              setError('');
-              setFieldError(null);
-            }}
+            onChangeText={handleEmailChange}
             onBlur={() => setEmailTouched(true)}
             mode="outlined"
             style={styles.input}
@@ -233,8 +242,9 @@ export default function SignupScreen(): React.JSX.Element {
                 {t('auth.did_you_mean', { email: emailSuggestion })}
               </Text>
               <Pressable
-                onPress={() => setEmail(emailSuggestion)}
+                onPress={handleApplySuggestion}
                 hitSlop={8}
+                style={styles.suggestionAction}
                 accessible
                 accessibilityRole="button"
                 accessibilityLabel={`${t('auth.did_you_mean', { email: emailSuggestion })} ${t('auth.use_it')}`}
@@ -466,6 +476,11 @@ function makeStyles(C: ColorTokens) {
       fontSize: mf(13),
       ...font.regular,
       color: C.textSecondary,
+    },
+    suggestionAction: {
+      minWidth: sizes.touchTarget,
+      minHeight: sizes.touchTarget,
+      justifyContent: 'center' as const,
     },
     suggestionLink: {
       fontSize: mf(13),
