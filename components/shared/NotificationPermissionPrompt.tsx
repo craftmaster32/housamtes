@@ -7,7 +7,11 @@ import { useAuthStore } from '@stores/authStore';
 import { registerPushToken, getNativeNotificationStatus } from '@lib/notifications';
 import { enableWebPush, getWebPushStatus } from '@lib/webPush';
 import { Alert } from '@lib/alert';
-import { hasSeenNotifPrompt, markNotifPromptSeen } from '@utils/permissionPrompt';
+import {
+  hasSeenNotifPrompt,
+  markNotifPromptSeen,
+  decideNotifPrompt,
+} from '@utils/permissionPrompt';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -57,19 +61,16 @@ export function NotificationPermissionPrompt({
           return;
         }
 
-        // Only surface the card when the OS/browser will actually let us ask.
-        const canAsk =
-          Platform.OS === 'web'
-            ? getWebPushStatus() === 'default'
-            : (await getNativeNotificationStatus()) === 'undetermined';
+        const status =
+          Platform.OS === 'web' ? getWebPushStatus() : await getNativeNotificationStatus();
+        const decision = decideNotifPrompt(status);
 
-        if (!canAsk) {
-          // Already granted, hard-blocked, or unsupported — nothing a card can do.
-          await markNotifPromptSeen();
-          if (active) setVisible(false);
-          return;
-        }
-        if (active) setVisible(true);
+        // Only remember for good on a real answer (already on, or the OS/browser
+        // said no). When it's merely unavailable here — e.g. an iOS website in a
+        // Safari tab, before it's added to the Home Screen — hide without
+        // remembering, so we can still ask once notifications become possible.
+        if (decision === 'hide-and-remember') await markNotifPromptSeen();
+        if (active) setVisible(decision === 'show');
       } catch {
         // Non-fatal — the card stays hidden and the user can enable from Settings.
         if (active) setVisible(false);
