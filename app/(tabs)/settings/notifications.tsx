@@ -243,6 +243,11 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
                   accessible
                   accessibilityRole="switch"
                   accessibilityLabel={t('settings.browser_notifications')}
+                  accessibilityHint={
+                    webPushOn
+                      ? t('settings.notifications_hint_disable')
+                      : t('settings.notifications_hint_enable')
+                  }
                   accessibilityState={{ checked: webPushOn, disabled: webPushStatus === 'denied' }}
                   trackColor={{ false: C.border, true: C.primary + '80' }}
                   thumbColor={webPushOn ? C.primary : C.surface}
