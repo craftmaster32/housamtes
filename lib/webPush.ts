@@ -212,7 +212,7 @@ export function getWebPushStatus(): WebPushStatus {
 export async function hasActiveWebPushSubscription(
   userId?: string,
   houseId?: string
-): Promise<boolean> {
+): Promise<boolean | null> {
   if (!isWebPushSupported()) return false;
   if (Notification.permission !== 'granted') return false;
   try {
@@ -220,8 +220,12 @@ export async function hasActiveWebPushSubscription(
     const sub = await registration?.pushManager.getSubscription();
     return !!sub;
   } catch (err) {
-    captureError(err, { context: 'hasActiveWebPushSubscription', userId, houseId });
-    return false;
+    captureError(err, {
+      context: 'hasActiveWebPushSubscription',
+      ...(userId !== undefined && { userId }),
+      ...(houseId !== undefined && { houseId }),
+    });
+    return null;
   }
 }
 

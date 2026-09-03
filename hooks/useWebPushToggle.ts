@@ -39,7 +39,8 @@ export function useWebPushToggle(): UseWebPushToggleResult {
     const gen = ++lookupGen.current;
     hasActiveWebPushSubscription(user?.id, houseId ?? undefined)
       .then((active): void => {
-        if (lookupGen.current === gen) setWebPushOn(active);
+        // null = indeterminate (lookup failed) — leave the default false state
+        if (lookupGen.current === gen && active !== null) setWebPushOn(active);
       })
       .catch((): void => {
         if (lookupGen.current === gen) setWebPushOn(false);
@@ -76,8 +77,14 @@ export function useWebPushToggle(): UseWebPushToggleResult {
         await unregisterWebPush(user.id, houseId);
         // Read the confirmed subscription state so the toggle reflects reality,
         // even if the server-side delete failed while the browser unsubscribed.
-        const isStillOn = await hasActiveWebPushSubscription(user.id, houseId);
-        setWebPushOn(isStillOn);
+        const subscriptionState = await hasActiveWebPushSubscription(user.id, houseId);
+        if (subscriptionState === null) {
+          // Lookup failed — preserve the prior enabled state and surface the error
+          setWebPushOn(true);
+          Alert.alert(t('common.error'), t('settings.notifications_disable_failed'));
+        } else {
+          setWebPushOn(subscriptionState);
+        }
       }
     },
     [user?.id, houseId, t]
