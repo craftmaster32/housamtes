@@ -36,6 +36,10 @@ BEGIN
     RAISE EXCEPTION 'Member not found';
   END IF;
 
+  -- Serialize role changes for this house so two concurrent demotions can't
+  -- both pass the last-owner check on a stale count.
+  PERFORM 1 FROM houses WHERE id = v_house_id FOR UPDATE;
+
   -- The caller must manage this house.
   SELECT role INTO v_caller_role
     FROM house_members

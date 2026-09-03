@@ -790,16 +790,17 @@ export const useAuthStore = create<AuthStore>()(
           // thrown network/client failure should still be visible in Sentry.
           captureError(snapErr, { context: 'snapshot-former-member', houseId, userId: user.id });
         }
-        try {
-          // Leave through the RPC so ownership is transferred (or the empty
-          // house removed) atomically — a bare delete could leave the house
-          // with no owner, or orphan it entirely.
-          const { error: leaveError } = await supabase.rpc('leave_house', {
-            p_new_owner: newOwnerUserId ?? null,
-          });
-          if (leaveError) throw leaveError;
-        } catch (leaveErr) {
-          captureError(leaveErr, { context: 'leave-house', houseId, userId: user.id });
+        // Leave through the RPC so ownership is transferred (or the empty
+        // house removed) atomically — a bare delete could leave the house
+        // with no owner, or orphan it entirely. If it fails, surface the error
+        // and leave local state intact: the user is still in the house, so we
+        // must not clear it or unregister their notifications.
+        const { error: leaveError } = await supabase.rpc('leave_house', {
+          p_new_owner: newOwnerUserId ?? null,
+        });
+        if (leaveError) {
+          captureError(leaveError, { context: 'leave-house', houseId, userId: user.id });
+          throw new Error('Could not leave the house. Please try again.');
         }
         // Unregister push tokens so ex-housemates don't receive stale notifications
         unregisterPushToken(user.id, houseId);

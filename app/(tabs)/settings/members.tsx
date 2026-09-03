@@ -121,6 +121,15 @@ const makeStyles = (C: ColorTokens) =>
   });
 
 // ── Member card ───────────────────────────────────────────────────────────────
+interface MemberCardProps {
+  member: Housemate;
+  isMe: boolean;
+  canEdit: boolean;
+  iAmOwner: boolean;
+  onTogglePermission: (memberId: string, key: keyof MemberPermissions, value: boolean) => void;
+  onChangeRole: (member: Housemate) => void;
+}
+
 function MemberCard({
   member,
   isMe,
@@ -128,14 +137,7 @@ function MemberCard({
   iAmOwner,
   onTogglePermission,
   onChangeRole,
-}: {
-  member: Housemate;
-  isMe: boolean;
-  canEdit: boolean;
-  iAmOwner: boolean;
-  onTogglePermission: (memberId: string, key: keyof MemberPermissions, value: boolean) => void;
-  onChangeRole: (member: Housemate) => void;
-}): React.JSX.Element {
+}: MemberCardProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);

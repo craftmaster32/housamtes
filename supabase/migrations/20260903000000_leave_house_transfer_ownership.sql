@@ -48,6 +48,11 @@ BEGIN
     RETURN; -- not in a house; nothing to do
   END IF;
 
+  -- Serialize concurrent leaves/role changes for this house so two owners
+  -- leaving at once can't both pass the "keep an owner" reasoning on a stale
+  -- view of the membership.
+  PERFORM 1 FROM houses WHERE id = v_house_id FOR UPDATE;
+
   -- A leaving owner may hand ownership to a chosen fellow member up front.
   IF v_role = 'owner'
      AND p_new_owner IS NOT NULL

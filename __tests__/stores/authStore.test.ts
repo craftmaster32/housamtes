@@ -544,6 +544,27 @@ describe('authStore — leaveHouse', () => {
 
     expect(mockFrom).toHaveBeenCalledWith('former_members');
   });
+
+  it('surfaces the error and keeps house state when the leave RPC fails', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      houseId: 'h1',
+      role: 'owner',
+      permissions: { ...DEFAULT_PERMISSIONS },
+    });
+    mockTables({ former_members: ok(null) });
+    mockRpc.mockResolvedValue({ data: null, error: new Error('network down') });
+
+    await expect(useAuthStore.getState().leaveHouse()).rejects.toThrow(
+      'Could not leave the house. Please try again.'
+    );
+
+    // Still in the house — nothing cleared, no push unregistration.
+    const s = useAuthStore.getState();
+    expect(s.houseId).toBe('h1');
+    expect(s.role).toBe('owner');
+    expect(mockUnregisterPushToken).not.toHaveBeenCalled();
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────────────────
