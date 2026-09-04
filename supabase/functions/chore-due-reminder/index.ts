@@ -185,7 +185,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
         language?: string | null;
       }>;
       const webList = (webRowsData ?? []) as WebPushSub[];
-      if (tokensError) continue;
+      // Skip only when both channels have nothing to deliver. A native-token
+      // query failure must not discard valid web subscriptions: continue with
+      // web-only delivery when webList is non-empty.
+      if (tokensError && webList.length === 0) continue;
       if (tokenList.length === 0 && webList.length === 0) continue;
 
       // Fail closed: if preferences cannot be loaded we must not notify anyone
