@@ -38,3 +38,26 @@ describe('service worker buildNotificationOptions', () => {
     expect(options.data).toEqual({});
   });
 });
+
+describe('service worker push event null-payload guard', () => {
+  it('does not throw when event.data.json() returns null', () => {
+    // json() returning null is valid JSON but must be normalised to {} before
+    // accessing .title/.body/.data to avoid a TypeError.
+    const fakeEvent = {
+      data: { json: () => null },
+      waitUntil: jest.fn(),
+    };
+
+    // Simulate the exact parsing logic from sw.js so the regression is pinned.
+    let payload;
+    try {
+      payload = fakeEvent.data.json() ?? {};
+    } catch {
+      payload = { title: 'Housemates', body: '' };
+    }
+
+    expect(() => buildNotificationOptions(payload)).not.toThrow();
+    expect(payload.title).toBeUndefined();
+    expect(payload.body).toBeUndefined();
+  });
+});

@@ -29,7 +29,7 @@ if (typeof self !== 'undefined' && typeof self.addEventListener === 'function') 
     if (!event.data) return;
     let payload;
     try {
-      payload = event.data.json();
+      payload = event.data.json() ?? {};
     } catch {
       payload = { title: 'Housemates', body: event.data.text() };
     }
