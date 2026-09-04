@@ -7,6 +7,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { billDueCopy, normalizeLang } from '../_shared/notificationCopy.ts';
 import { assertCronAuthorized } from '../_shared/cronAuth.ts';
+import { sendWebPush, type WebPushSub } from '../_shared/webPush.ts';
+import { dedupeUserIds } from '../_shared/webPushCore.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -60,21 +62,33 @@ Deno.serve(async (req: Request) => {
   }
 
   let totalSent = 0;
+  let totalWebSent = 0;
 
   for (const bill of bills) {
     // How many days until this bill is due?
     const daysUntilDue = checkDays.find((d) => dateInDays(d) === bill.date);
     if (daysUntilDue === undefined) continue;
 
-    // Fetch push tokens and preferences for this house in one query
-    const { data: tokenRows } = await supabase
-      .from('push_tokens')
-      .select('token, user_id, language')
-      .eq('house_id', bill.house_id);
+    // Fetch native tokens and web subscriptions for this house. Web subscribers
+    // are gathered independently so a member who only uses the installed web app
+    // (no native token) still gets the reminder.
+    const [{ data: tokenRows }, { data: webRowsData }] = await Promise.all([
+      supabase.from('push_tokens').select('token, user_id, language').eq('house_id', bill.house_id),
+      supabase
+        .from('web_push_subscriptions')
+        .select('endpoint, p256dh, auth, user_id, language')
+        .eq('house_id', bill.house_id),
+    ]);
 
-    if (!tokenRows || tokenRows.length === 0) continue;
+    const tokens = (tokenRows ?? []) as Array<{
+      token: string;
+      user_id: string;
+      language?: string | null;
+    }>;
+    const webRows = (webRowsData ?? []) as WebPushSub[];
+    if (tokens.length === 0 && webRows.length === 0) continue;
 
-    const userIds = tokenRows.map((r: { user_id: string }) => r.user_id);
+    const userIds = dedupeUserIds(tokens, webRows);
 
     const { data: prefRows } = await supabase
       .from('notification_preferences')
@@ -87,51 +101,58 @@ Deno.serve(async (req: Request) => {
       prefMap.set(row.user_id, row);
     }
 
-    // Only send to users whose preference matches today's reminder window
-    const eligible = tokenRows
-      .filter((r: { user_id: string }) => {
-        const prefs = prefMap.get(r.user_id);
-        if (!prefs) {
-          // No preference row → use defaults: notify_bill_due = true, days_before = 2
-          return daysUntilDue === 2;
-        }
-        return prefs.notify_bill_due !== false && prefs.bill_due_days_before === daysUntilDue;
-      })
-      .map((r: { token: string; language?: string }) => ({
-        token: r.token,
-        language: normalizeLang(r.language),
-      }))
-      .filter((r: { token: string }) => Boolean(r.token));
+    // A user is due a reminder today when their preference window matches. No
+    // preference row → defaults: notify_bill_due = true, days_before = 2.
+    function isDue(userId: string): boolean {
+      const prefs = prefMap.get(userId);
+      if (!prefs) return daysUntilDue === 2;
+      return prefs.notify_bill_due !== false && prefs.bill_due_days_before === daysUntilDue;
+    }
 
-    if (eligible.length === 0) continue;
+    const eligibleExpo = tokens
+      .filter((r) => isDue(r.user_id) && Boolean(r.token))
+      .map((r) => ({ token: r.token, language: normalizeLang(r.language) }));
+    const eligibleWebSubs = webRows.filter((r) => isDue(r.user_id));
+
+    if (eligibleExpo.length === 0 && eligibleWebSubs.length === 0) continue;
 
     const currency = houseCurrency.get(bill.house_id) ?? '₪';
-    const messages = eligible.map(({ token, language }) => {
-      const copy = billDueCopy(language, {
+    const copyFor = (language: string | null | undefined): { title: string; body: string } =>
+      billDueCopy(normalizeLang(language), {
         title: bill.title,
         amount: Number(bill.amount).toFixed(2),
         currency,
         daysUntil: daysUntilDue,
       });
-      return {
-        to: token,
-        title: copy.title,
-        body: copy.body,
-        sound: 'default',
-        data: { screen: 'bills' },
-      };
-    });
 
-    await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(messages),
-    });
+    if (eligibleExpo.length > 0) {
+      const messages = eligibleExpo.map(({ token, language }) => {
+        const copy = copyFor(language);
+        return {
+          to: token,
+          title: copy.title,
+          body: copy.body,
+          sound: 'default',
+          priority: 'high',
+          data: { screen: 'bills' },
+        };
+      });
 
-    totalSent += eligible.length;
+      await fetch(EXPO_PUSH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(messages),
+      });
+
+      totalSent += eligibleExpo.length;
+    }
+
+    if (eligibleWebSubs.length > 0) {
+      totalWebSent += await sendWebPush(supabase, eligibleWebSubs, copyFor, { screen: 'bills' });
+    }
   }
 
-  return new Response(JSON.stringify({ sent: totalSent, bills: bills.length }), {
+  return new Response(JSON.stringify({ sent: totalSent, web: totalWebSent, bills: bills.length }), {
     headers: { 'Content-Type': 'application/json' },
   });
 });

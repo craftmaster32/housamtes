@@ -10,6 +10,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { eventReminderCopy, normalizeLang } from '../_shared/notificationCopy.ts';
 import { assertCronAuthorized } from '../_shared/cronAuth.ts';
+import { sendWebPush, type WebPushSub } from '../_shared/webPush.ts';
+import { dedupeUserIds } from '../_shared/webPushCore.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const LEAD_DAYS = [0, 1, 2, 3, 7] as const;
@@ -127,30 +129,54 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Cache per-house recipients so we fetch tokens + prefs once per house.
-  interface Recipient {
+  // Cache per-house recipients so we fetch tokens + subs + prefs once per house.
+  interface ExpoRecipient {
     token: string;
     language: string;
     notify: boolean;
     daysBefore: number;
   }
-  const houseRecipients = new Map<string, Recipient[]>();
+  interface WebRecipient {
+    sub: WebPushSub;
+    notify: boolean;
+    daysBefore: number;
+  }
+  interface HouseRecipients {
+    expo: ExpoRecipient[];
+    web: WebRecipient[];
+  }
+  const houseRecipients = new Map<string, HouseRecipients>();
 
-  async function recipientsFor(houseId: string): Promise<Recipient[]> {
+  async function recipientsFor(houseId: string): Promise<HouseRecipients> {
     const cached = houseRecipients.get(houseId);
     if (cached) return cached;
 
-    const { data: tokenRows } = await supabase
-      .from('push_tokens')
-      .select('token, user_id, language')
-      .eq('house_id', houseId);
+    const [{ data: tokenRows }, { data: allWebRows }] = await Promise.all([
+      supabase.from('push_tokens').select('token, user_id, language').eq('house_id', houseId),
+      // Web push subscribers must be gathered independently: a member who uses
+      // the installed web app has a subscription but no native token, so keying
+      // off push_tokens alone would silently exclude them (the original bug).
+      supabase
+        .from('web_push_subscriptions')
+        .select('endpoint, p256dh, auth, user_id, language')
+        .eq('house_id', houseId),
+    ]);
 
-    if (!tokenRows || tokenRows.length === 0) {
-      houseRecipients.set(houseId, []);
-      return [];
+    const tokens = (tokenRows ?? []) as Array<{
+      token: string;
+      user_id: string;
+      language?: string | null;
+    }>;
+    const webRows = (allWebRows ?? []) as WebPushSub[];
+
+    // Prefs for the union of native-token users and web-sub users.
+    const userIds = dedupeUserIds(tokens, webRows);
+    if (userIds.length === 0) {
+      const empty = { expo: [], web: [] };
+      houseRecipients.set(houseId, empty);
+      return empty;
     }
 
-    const userIds = tokenRows.map((r: { user_id: string }) => r.user_id);
     const { data: prefRows } = await supabase
       .from('notification_preferences')
       .select('user_id, notify_event_reminder, event_reminder_days_before')
@@ -163,59 +189,83 @@ Deno.serve(async (req: Request) => {
     >();
     for (const row of prefRows ?? []) prefMap.set(row.user_id, row);
 
-    const recipients: Recipient[] = tokenRows
-      .filter((r: { token: string }) => Boolean(r.token))
-      .map((r: { token: string; user_id: string; language?: string }) => {
-        const prefs = prefMap.get(r.user_id);
-        return {
-          token: r.token,
-          language: normalizeLang(r.language),
-          // No pref row → app defaults (reminder on, 1 day before).
-          notify: prefs ? prefs.notify_event_reminder !== false : true,
-          daysBefore: prefs ? prefs.event_reminder_days_before : 1,
-        };
-      });
+    // No pref row → app defaults (reminder on, 1 day before).
+    function prefFor(userId: string): { notify: boolean; daysBefore: number } {
+      const prefs = prefMap.get(userId);
+      return {
+        notify: prefs ? prefs.notify_event_reminder !== false : true,
+        daysBefore: prefs ? prefs.event_reminder_days_before : 1,
+      };
+    }
 
-    houseRecipients.set(houseId, recipients);
-    return recipients;
+    const expo: ExpoRecipient[] = tokens
+      .filter((r) => Boolean(r.token))
+      .map((r) => ({ token: r.token, language: normalizeLang(r.language), ...prefFor(r.user_id) }));
+
+    const web: WebRecipient[] = webRows.map((sub) => ({ sub, ...prefFor(sub.user_id) }));
+
+    const result = { expo, web };
+    houseRecipients.set(houseId, result);
+    return result;
   }
 
   let totalSent = 0;
+  let totalWebSent = 0;
 
   for (const event of events as EventRow[]) {
     for (const lead of LEAD_DAYS) {
       if (!occursOn(event, targetFor.get(lead)!)) continue;
 
-      const recipients = await recipientsFor(event.house_id);
-      const eligible = recipients.filter((r) => r.notify && r.daysBefore === lead);
-      if (eligible.length === 0) continue;
+      const { expo, web } = await recipientsFor(event.house_id);
+      const eligibleExpo = expo.filter((r) => r.notify && r.daysBefore === lead);
+      const eligibleWeb = web.filter((r) => r.notify && r.daysBefore === lead);
+      if (eligibleExpo.length === 0 && eligibleWeb.length === 0) continue;
 
-      const messages = eligible.map((r) => {
-        const copy = eventReminderCopy(r.language as 'en' | 'es' | 'he', {
+      // Same copy for both channels, localized per recipient device language.
+      const copyFor = (language: string | null | undefined): { title: string; body: string } =>
+        eventReminderCopy(normalizeLang(language) as 'en' | 'es' | 'he', {
           title: event.title,
           startTime: event.start_time ?? undefined,
           daysUntil: lead,
         });
-        return {
-          to: r.token,
-          title: copy.title,
-          body: copy.body,
-          sound: 'default',
-          data: { screen: 'calendar' },
-        };
-      });
 
-      await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messages),
-      });
+      if (eligibleExpo.length > 0) {
+        const messages = eligibleExpo.map((r) => {
+          const copy = copyFor(r.language);
+          return {
+            to: r.token,
+            title: copy.title,
+            body: copy.body,
+            sound: 'default',
+            priority: 'high',
+            data: { screen: 'calendar' },
+          };
+        });
 
-      totalSent += eligible.length;
+        await fetch(EXPO_PUSH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(messages),
+        });
+
+        totalSent += eligibleExpo.length;
+      }
+
+      if (eligibleWeb.length > 0) {
+        totalWebSent += await sendWebPush(
+          supabase,
+          eligibleWeb.map((r) => r.sub),
+          copyFor,
+          { screen: 'calendar' }
+        );
+      }
     }
   }
 
-  return new Response(JSON.stringify({ sent: totalSent, events: events.length }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  return new Response(
+    JSON.stringify({ sent: totalSent, web: totalWebSent, events: events.length }),
+    {
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
 });

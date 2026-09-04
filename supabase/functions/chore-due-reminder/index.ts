@@ -11,6 +11,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { choreDueCopy, normalizeLang } from '../_shared/notificationCopy.ts';
 import { assertCronAuthorized } from '../_shared/cronAuth.ts';
+import { sendWebPush, type WebPushSub } from '../_shared/webPush.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -152,6 +153,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     let totalSent = 0;
+    let totalWebSent = 0;
     // Global per-user cap across every house in this run — a user in two
     // houses must still get at most MAX_REMINDERS_PER_USER reminders per day.
     const remindersPerUser = new Map<string, number>();
@@ -162,12 +164,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       const assigneeIds = [...new Set(houseChores.map((c) => c.assigned_to as string))];
 
-      const { data: tokenRows, error: tokensError } = await supabase
-        .from('push_tokens')
-        .select('token, user_id, language')
-        .eq('house_id', houseId)
-        .in('user_id', assigneeIds);
-      if (tokensError || !tokenRows || tokenRows.length === 0) continue;
+      // Native tokens and web subscriptions for the assignees. Web subscribers
+      // are gathered independently so an assignee who only uses the installed
+      // web app (no native token) is still reminded.
+      const [{ data: tokenRows, error: tokensError }, { data: webRowsData }] = await Promise.all([
+        supabase
+          .from('push_tokens')
+          .select('token, user_id, language')
+          .eq('house_id', houseId)
+          .in('user_id', assigneeIds),
+        supabase
+          .from('web_push_subscriptions')
+          .select('endpoint, p256dh, auth, user_id, language')
+          .eq('house_id', houseId)
+          .in('user_id', assigneeIds),
+      ]);
+      const tokenList = (tokenRows ?? []) as Array<{
+        token: string;
+        user_id: string;
+        language?: string | null;
+      }>;
+      const webList = (webRowsData ?? []) as WebPushSub[];
+      if (tokensError) continue;
+      if (tokenList.length === 0 && webList.length === 0) continue;
 
       // Fail closed: if preferences cannot be loaded we must not notify anyone
       // in this house — a user who muted chores must never get pinged anyway.
@@ -184,19 +203,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
 
       const messages: Array<Record<string, unknown>> = [];
+      const webJobs: Array<{ subs: WebPushSub[]; title: string }> = [];
       for (const chore of houseChores) {
         const assignee = chore.assigned_to as string;
         if (optedOut.has(assignee)) continue;
         const count = remindersPerUser.get(assignee) ?? 0;
         if (count >= MAX_REMINDERS_PER_USER) continue;
-        const tokens = tokenRows
-          .filter((r: { user_id: string }) => r.user_id === assignee)
-          .map((r: { token: string; language?: string }) => ({
-            token: r.token,
-            language: normalizeLang(r.language),
-          }))
-          .filter((r: { token: string }) => Boolean(r.token));
-        if (tokens.length === 0) continue;
+        const tokens = tokenList
+          .filter((r) => r.user_id === assignee)
+          .map((r) => ({ token: r.token, language: normalizeLang(r.language) }))
+          .filter((r) => Boolean(r.token));
+        const subs = webList.filter((r) => r.user_id === assignee);
+        // Nothing to deliver on either channel → don't spend a cap slot.
+        if (tokens.length === 0 && subs.length === 0) continue;
         remindersPerUser.set(assignee, count + 1);
         for (const { token, language } of tokens) {
           const copy = choreDueCopy(language, { title: chore.title as string });
@@ -205,22 +224,36 @@ Deno.serve(async (req: Request): Promise<Response> => {
             title: copy.title,
             body: copy.body,
             sound: 'default',
+            priority: 'high',
             data: { screen: 'chores' },
           });
         }
+        if (subs.length > 0) webJobs.push({ subs, title: chore.title as string });
       }
 
-      if (messages.length === 0) continue;
+      if (messages.length > 0) {
+        const delivered = await sendExpoPush(messages);
+        if (delivered) {
+          totalSent += messages.length;
+        }
+      }
 
-      const delivered = await sendExpoPush(messages);
-      if (delivered) {
-        totalSent += messages.length;
+      for (const job of webJobs) {
+        totalWebSent += await sendWebPush(
+          supabase,
+          job.subs,
+          (language) => choreDueCopy(normalizeLang(language), { title: job.title }),
+          { screen: 'chores' }
+        );
       }
     }
 
-    return new Response(JSON.stringify({ sent: totalSent, due: dueChores.length }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ sent: totalSent, web: totalWebSent, due: dueChores.length }),
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error';
     return new Response(JSON.stringify({ error: message }), { status: 500 });
