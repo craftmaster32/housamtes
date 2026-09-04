@@ -30,17 +30,21 @@ Nothing in this file is being built yet. It's a parking lot for good ideas.
 
 ## Ideas From Owner
 
-- **TWA (Trusted Web Activity) — reliable Android notifications.** Wrap the
+- **TWA (Trusted Web Activity) — improved Android notifications.** Wrap the
   existing PWA as a real Android app (via Bubblewrap) and publish it on the
-  Google Play Store. Because a TWA owns its own Android notification channels,
-  we could set them to **high importance** and get consistent floating
-  (heads-up) notifications on every phone — solving the "sometimes silent,
-  sometimes floating" problem that varies by manufacturer. Trade-offs: needs a
-  Google Play developer account ($25 one-time), Play Store publishing, a small
-  site-verification step, and some native plumbing to forward web push into a
-  native channel. Android only (iOS can't do this). Worth revisiting if push
-  notifications become truly critical after the lightweight service-worker fix
-  isn't enough on its own.
+  Google Play Store. A TWA can delegate notifications through a custom
+  `TrustedWebActivityService` that creates an `IMPORTANCE_HIGH` channel,
+  improving the likelihood of heads-up (floating) delivery — the default
+  service uses `IMPORTANCE_DEFAULT` (sound only, no heads-up). Note that
+  delivery still depends on Android permissions being granted (required on
+  Android 13+), per-channel user settings, Do Not Disturb mode, browser
+  support, and OEM behaviour, so heads-up display is not guaranteed. This
+  partially addresses the "sometimes silent, sometimes floating" problem.
+  Trade-offs: needs a Google Play developer account ($25 one-time), Play Store
+  publishing, a small site-verification step, and some native plumbing to
+  forward web push into a native channel. Android only (iOS can't do this).
+  Worth revisiting if push notifications become truly critical after the
+  lightweight service-worker fix isn't enough on its own.
 
 ---
 
