@@ -262,7 +262,9 @@
     "demo_water": "Agua",
     "back": "Atrás",
     "explore_title": "Y hay mucho más",
-    "explore_body": "Parking, tareas, chat y votaciones están en Más. Tócalo cuando quieras para explorar."
+    "explore_body": "Parking, tareas, chat y votaciones están en Más. Tócalo cuando quieras para explorar.",
+    "profile_title": "Tu perfil y ajustes",
+    "profile_body": "Toca tu foto en la esquina superior para abrir este menú: ahí están los Ajustes, tu perfil y cerrar sesión."
   },
   "house_setup": {
     "title": "Configura tu hogar",

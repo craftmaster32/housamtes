@@ -413,6 +413,84 @@ export function MoreMenuScreen({ C, t }: ScreenProps): React.JSX.Element {
   );
 }
 
+// ── Profile — the header avatar tapped, with its dropdown menu open ───────────
+// Teaches that tapping the profile icon (top of every screen) opens a small
+// menu where Settings lives. The avatar is the spotlight; the dropdown below
+// is shown at full opacity so people can read the Settings row.
+export function ProfileMenuScreen({ C, t }: ScreenProps): React.JSX.Element {
+  const rows: Array<{
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    danger?: boolean;
+    emphasise?: boolean;
+  }> = [
+    { icon: 'person-outline', label: t('nav.profile') },
+    { icon: 'settings-outline', label: t('nav.settings'), emphasise: true },
+    { icon: 'log-out-outline', label: t('profile.sign_out'), danger: true },
+  ];
+  return (
+    <View style={styles.body}>
+      {/* Mock dashboard header — the avatar on the leading edge is the target */}
+      <View style={styles.profHeader}>
+        <Highlight C={C} radius={21} circle>
+          <View style={[styles.profAvatar, { backgroundColor: C.primary }]}>
+            <Text style={styles.profAvatarText}>S</Text>
+          </View>
+        </Highlight>
+        <View style={[styles.profHeaderText, { opacity: DIM }]}>
+          <View style={[styles.profLine, { backgroundColor: C.border, width: '55%' }]} />
+          <View
+            style={[styles.profLine, { backgroundColor: C.border, width: '80%', height: 12 }]}
+          />
+        </View>
+        <View
+          style={[
+            styles.profBell,
+            { backgroundColor: C.surface, borderColor: C.border, opacity: DIM },
+          ]}
+        >
+          <Ionicons name="notifications-outline" size={20} color={C.textSecondary} />
+        </View>
+      </View>
+
+      {/* The profile popup, dropped just under the avatar */}
+      <View style={[styles.profPanel, { backgroundColor: C.surface, borderColor: C.border }]}>
+        <View style={[styles.profPanelHead, { borderBottomColor: C.border }]}>
+          <View style={[styles.profPanelAvatar, { backgroundColor: C.primary }]}>
+            <Text style={styles.profPanelAvatarText}>S</Text>
+          </View>
+          <View style={styles.profPanelMeta}>
+            <Text style={[styles.profPanelName, { color: C.textPrimary }]}>{t('common.you')}</Text>
+            <Text style={[styles.profPanelEmail, { color: C.textSecondary }]}>you@house.app</Text>
+          </View>
+        </View>
+        {rows.map((r) => (
+          <View
+            key={r.label}
+            style={[styles.profRow, r.emphasise && { backgroundColor: C.primary + '18' }]}
+          >
+            <Ionicons
+              name={r.icon}
+              size={18}
+              color={r.danger ? C.negative : r.emphasise ? C.primary : C.textSecondary}
+              style={styles.profRowIcon}
+            />
+            <Text
+              style={[
+                styles.profRowLabel,
+                { color: r.danger ? C.negative : r.emphasise ? C.primary : C.textPrimary },
+                r.emphasise && font.bold,
+              ]}
+            >
+              {r.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export function TourScreen({
   id,
   C,
@@ -469,6 +547,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   menuLbl: { fontSize: 11, ...font.semibold },
+  // Profile menu (avatar → dropdown)
+  profHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 4 },
+  profAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profAvatarText: { fontSize: 17, ...font.bold, color: '#fff' },
+  profHeaderText: { flex: 1, gap: 6 },
+  profLine: { height: 9, borderRadius: 5 },
+  profBell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profPanel: {
+    alignSelf: 'flex-start',
+    width: 232,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingVertical: 6,
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  profPanelHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 4,
+  },
+  profPanelAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profPanelAvatarText: { fontSize: 15, ...font.bold, color: '#fff' },
+  profPanelMeta: { flex: 1 },
+  profPanelName: { fontSize: 14, ...font.semibold },
+  profPanelEmail: { fontSize: 12, ...font.regular, marginTop: 1 },
+  profRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  profRowIcon: { width: 20, textAlign: 'center' },
+  profRowLabel: { flex: 1, fontSize: 14, ...font.medium },
   // Bills rows
   rows: { gap: 10 },
   card: {

@@ -16,18 +16,30 @@ interface LanguageOption {
   flag: string;
 }
 
+// 'onColor' — white chip for a coloured header (welcome, login). 'onSurface' —
+// bordered chip that reads on a light/surface background (signup, verify, tour).
+export type LanguageSwitcherVariant = 'onColor' | 'onSurface';
+
+interface LanguageSwitcherProps {
+  variant?: LanguageSwitcherVariant;
+}
+
 // A compact "globe + current language" chip that opens a small menu to switch the
-// whole app language on the spot. Dropped onto the pre-login flow (welcome/signup)
-// so people can pick the language they want the signup, tour and terms in — even
-// when it differs from their phone's language. The choice is global and persisted,
-// so it carries through the rest of the flow.
-export function LanguageSwitcher(): React.JSX.Element {
+// whole app language on the spot. Dropped across the pre-login flow (welcome,
+// signup, verify, login, onboarding) and the welcome tour so people can pick the
+// language they want everything in — even when it differs from their phone's
+// language. The choice is global and persisted, so it carries through the rest
+// of the flow.
+export function LanguageSwitcher({
+  variant = 'onColor',
+}: LanguageSwitcherProps): React.JSX.Element {
   const { t } = useTranslation();
   const currentLanguage = useLanguageStore((s) => s.language);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
 
   const C = useThemedColors();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const styles = useMemo(() => makeStyles(C, variant), [C, variant]);
+  const onColor = variant === 'onColor';
   const [open, setOpen] = useState(false);
 
   const options: LanguageOption[] = useMemo(
@@ -59,9 +71,13 @@ export function LanguageSwitcher(): React.JSX.Element {
         accessibilityLabel={t('common.change_language')}
         accessibilityValue={{ text: current.label }}
       >
-        <Ionicons name="language" size={ms(16)} color="#fff" />
+        <Ionicons name="language" size={ms(16)} color={onColor ? '#fff' : C.primary} />
         <Text style={styles.chipText}>{current.label}</Text>
-        <Ionicons name="chevron-down" size={ms(14)} color="rgba(255,255,255,0.85)" />
+        <Ionicons
+          name="chevron-down"
+          size={ms(14)}
+          color={onColor ? 'rgba(255,255,255,0.85)' : C.textSecondary}
+        />
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -103,7 +119,11 @@ export function LanguageSwitcher(): React.JSX.Element {
   );
 }
 
-function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
+function makeStyles(
+  C: ColorTokens,
+  variant: LanguageSwitcherVariant
+): ReturnType<typeof StyleSheet.create> {
+  const onColor = variant === 'onColor';
   return StyleSheet.create({
     chip: {
       flexDirection: 'row',
@@ -112,11 +132,19 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       paddingVertical: ms(8),
       paddingHorizontal: sizes.md,
       borderRadius: sizes.borderRadiusFull,
-      backgroundColor: 'rgba(255,255,255,0.18)',
+      backgroundColor: onColor ? 'rgba(255,255,255,0.18)' : C.surfaceSecondary,
+      borderWidth: onColor ? 0 : StyleSheet.hairlineWidth,
+      borderColor: C.border,
       minHeight: ms(36),
     },
-    chipPressed: { backgroundColor: 'rgba(255,255,255,0.28)' },
-    chipText: { fontSize: mf(14), ...font.semibold, color: '#fff' },
+    chipPressed: {
+      backgroundColor: onColor ? 'rgba(255,255,255,0.28)' : C.border,
+    },
+    chipText: {
+      fontSize: mf(14),
+      ...font.semibold,
+      color: onColor ? '#fff' : C.textPrimary,
+    },
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
     centerer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: ms(24) },
     menu: {

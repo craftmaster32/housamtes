@@ -14,6 +14,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { FlowLanguageBar } from '@components/shared/FlowLanguageBar';
 import { getErrorMessage } from '@utils/errors';
 
 import { mf, ms } from '@utils/responsive';
@@ -55,7 +56,6 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       setIsLoading(false);
     }
   }, [email, t]);
-
 
   // Return to the email step so the user can fix a mistyped address. The email
   // is kept so they can edit it instead of retyping; the code is cleared since a
@@ -149,11 +149,11 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
     );
   }
 
-
   return (
     <View style={styles.root}>
       <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
+          <FlowLanguageBar variant="onColor" />
           <Pressable
             style={styles.backBtn}
             onPress={() => {
