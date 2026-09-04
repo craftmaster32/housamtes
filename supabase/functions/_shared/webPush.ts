@@ -10,7 +10,7 @@
 
 import webpush from 'npm:web-push';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { selectExpiredEndpoints } from './webPushCore.ts';
+import { selectExpiredEndpoints, retryWithBackoff, isTransientWebPushError } from './webPushCore.ts';
 
 export interface WebPushSub {
   endpoint: string;
@@ -68,18 +68,27 @@ export async function sendWebPush(
   if (!vapid) return 0;
 
   if (!vapidConfigured) {
-    webpush.setVapidDetails(`mailto:${vapid.contact}`, vapid.publicKey, vapid.privateKey);
-    vapidConfigured = true;
+    try {
+      webpush.setVapidDetails(`mailto:${vapid.contact}`, vapid.publicKey, vapid.privateKey);
+      vapidConfigured = true;
+    } catch (_err) {
+      console.error('[webPush] VAPID setup failed');
+      return 0;
+    }
   }
 
   const results = await Promise.allSettled(
     subs.map((sub) => {
       const copy = buildCopy(sub.language);
       const payload = JSON.stringify({ title: copy.title, body: copy.body, data });
-      return webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload,
-        { urgency: 'high', TTL: 86400 }
+      return retryWithBackoff(
+        () =>
+          webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            payload,
+            { urgency: 'high', TTL: 86400 }
+          ),
+        { isRetryable: isTransientWebPushError }
       );
     })
   );

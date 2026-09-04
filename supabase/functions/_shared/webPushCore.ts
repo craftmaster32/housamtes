@@ -40,3 +40,43 @@ export function selectExpiredEndpoints<T extends { endpoint: string }>(
   });
   return expired;
 }
+
+/**
+ * Returns true when a web-push error is transient and safe to retry.
+ * HTTP 410 (Gone) means the subscription is permanently invalid — do not retry.
+ */
+export function isTransientWebPushError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return true;
+  const statusCode = (err as { statusCode?: number }).statusCode;
+  return statusCode !== 410;
+}
+
+/**
+ * Attempt `send` up to `maxAttempts` times with exponential back-off
+ * (500 ms × 2^(attempt−1)). If `isRetryable` returns false for a thrown
+ * error the error is re-thrown immediately without further attempts.
+ * Pass a custom `delay` in tests to avoid real timers.
+ */
+export async function retryWithBackoff(
+  send: () => Promise<unknown>,
+  opts?: {
+    maxAttempts?: number;
+    isRetryable?: (err: unknown) => boolean;
+    delay?: (ms: number) => Promise<void>;
+  }
+): Promise<void> {
+  const maxAttempts = opts?.maxAttempts ?? 3;
+  const isRetryable = opts?.isRetryable ?? ((_err: unknown): boolean => true);
+  const delay =
+    opts?.delay ??
+    ((ms: number): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await send();
+      return;
+    } catch (err) {
+      if (!isRetryable(err) || attempt >= maxAttempts) throw err;
+      await delay(500 * 2 ** (attempt - 1));
+    }
+  }
+}
