@@ -60,9 +60,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // them instead of the "free" notice silently going missing.
   async function releaseClaims(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
+    // Restore is_active so the row matches the next run's claim query
+    // (is_active = true AND done_notified = false) and can actually be retried.
     const { error } = await supabase
       .from('appliance_sessions')
-      .update({ is_active: false, done_notified: false })
+      .update({ is_active: true, done_notified: false })
       .in('id', ids);
     if (error) console.error('Failed to release appliance claims for retry', error.message);
   }

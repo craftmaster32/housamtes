@@ -8,7 +8,7 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { mf, ms } from '@utils/responsive';
 import type { ApplianceKind, AppliancePreset } from '@stores/appliancesStore';
-import { MACHINE_META, DEFAULT_PRESET_MINUTES, formatDuration } from './meta';
+import { MACHINE_META, DEFAULT_PRESET_MINUTES, formatDuration } from '@components/machines/meta';
 
 interface StartSheetProps {
   kind: ApplianceKind | null;
@@ -45,7 +45,8 @@ function StartSheetComponent({
   const [saveAsPreset, setSaveAsPreset] = useState(false);
 
   const meta = kind ? MACHINE_META[kind] : null;
-  const customMinutes = clampInt(hours, 24) * 60 + clampInt(minutes, 59);
+  // Cap at 24h (1440 min) to match the store/DB limit — 24h + 59m would exceed it.
+  const customMinutes = Math.min(1440, clampInt(hours, 24) * 60 + clampInt(minutes, 59));
 
   const reset = useCallback((): void => {
     setHours('1');
@@ -117,7 +118,7 @@ function StartSheetComponent({
                       <Pressable
                         style={styles.presetDelete}
                         onPress={() => onDeletePreset(p.id)}
-                        hitSlop={8}
+                        hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
                         accessibilityRole="button"
                         accessibilityLabel={t('machines.delete_preset', { name: p.name })}
                       >
@@ -150,6 +151,7 @@ function StartSheetComponent({
                   keyboardType="number-pad"
                   maxLength={2}
                   accessibilityLabel={t('machines.hours')}
+                  accessibilityHint={t('machines.hours_hint')}
                 />
                 <Text style={styles.timeUnit}>{t('machines.hours')}</Text>
               </View>
@@ -161,6 +163,7 @@ function StartSheetComponent({
                   keyboardType="number-pad"
                   maxLength={2}
                   accessibilityLabel={t('machines.minutes')}
+                  accessibilityHint={t('machines.minutes_hint')}
                 />
                 <Text style={styles.timeUnit}>{t('machines.minutes')}</Text>
               </View>
@@ -174,6 +177,7 @@ function StartSheetComponent({
               placeholderTextColor={c.textTertiary}
               maxLength={40}
               accessibilityLabel={t('machines.name_placeholder')}
+              accessibilityHint={t('machines.name_hint')}
             />
 
             <Pressable
@@ -265,6 +269,7 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     presetWrap: { position: 'relative' },
     chip: {
       minWidth: ms(74),
+      minHeight: sizes.touchTarget,
       paddingHorizontal: ms(14),
       paddingVertical: ms(10),
       borderRadius: ms(13),
@@ -272,6 +277,7 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       borderColor: c.border,
       backgroundColor: c.surface,
       alignItems: 'center',
+      justifyContent: 'center',
       gap: ms(1),
     },
     chipName: { fontSize: mf(13.5), ...font.semibold, color: c.textPrimary, maxWidth: ms(120) },
@@ -316,7 +322,13 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       ...font.regular,
       color: c.textPrimary,
     },
-    saveRow: { flexDirection: 'row', alignItems: 'center', gap: ms(9), marginTop: ms(14) },
+    saveRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(9),
+      marginTop: ms(14),
+      minHeight: sizes.touchTarget,
+    },
     checkbox: {
       width: ms(20),
       height: ms(20),

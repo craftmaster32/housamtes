@@ -3,12 +3,15 @@ import type { ApplianceKind } from '@stores/appliancesStore';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
+export interface MachineMeta {
+  icon: IoniconName;
+  labelKey: string;
+  color: string;
+}
+
 // One place for each machine's icon, accent colour, and i18n label key so the
 // machines page, the start sheet, and the dashboard cards all stay in sync.
-export const MACHINE_META: Record<
-  ApplianceKind,
-  { icon: IoniconName; labelKey: string; color: string }
-> = {
+export const MACHINE_META: Record<ApplianceKind, MachineMeta> = {
   washer: { icon: 'shirt-outline', labelKey: 'machines.washer', color: '#3B6FBF' },
   dryer: { icon: 'flame-outline', labelKey: 'machines.dryer', color: '#E8892B' },
   dishwasher: { icon: 'restaurant-outline', labelKey: 'machines.dishwasher', color: '#2FA37A' },

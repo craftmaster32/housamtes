@@ -1,4 +1,8 @@
-import { instantPushCopy, normalizeLang } from '@/supabase/functions/_shared/notificationCopy';
+import {
+  instantPushCopy,
+  normalizeLang,
+  applianceDoneCopy,
+} from '@/supabase/functions/_shared/notificationCopy';
 
 // These lock in the promise that every housemate reads instant push
 // notifications in their OWN app language — not the sender's. The copy is built
@@ -132,5 +136,33 @@ describe('instantPushCopy — event_added range', () => {
     });
     expect(copy!.title).toContain('אירוע');
     expect(copy!.body).toContain('19:00 → 23:00');
+  });
+});
+
+describe('appliance copy — Spanish articles agree with the noun', () => {
+  it('uses "El" for the masculine lavavajillas', () => {
+    const copy = applianceDoneCopy('es', { appliance: 'dishwasher' });
+    expect(copy.body.startsWith('El lavavajillas')).toBe(true);
+  });
+
+  it('uses "La" for the feminine lavadora / secadora', () => {
+    expect(applianceDoneCopy('es', { appliance: 'washer' }).body.startsWith('La lavadora')).toBe(
+      true
+    );
+    expect(applianceDoneCopy('es', { appliance: 'dryer' }).body.startsWith('La secadora')).toBe(
+      true
+    );
+  });
+
+  it('agrees on the instant start/free copy too', () => {
+    const started = instantPushCopy('appliance_started', 'es', {
+      appliance: 'dishwasher',
+      name: 'Alex',
+      minutes: 90,
+    });
+    expect(started!.body).toContain('el lavavajillas');
+    const free = instantPushCopy('appliance_free', 'es', { appliance: 'dishwasher' });
+    expect(free!.body).toContain('El lavavajillas');
+    expect(free!.body).toContain('¡a por él!');
   });
 });

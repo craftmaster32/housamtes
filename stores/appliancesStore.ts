@@ -205,6 +205,9 @@ export const useAppliancesStore = create<AppliancesStore>()(
           _channel = null;
           _channelHouseId = null;
         }
+        // Drop the previous house's sessions/presets so a member who switches
+        // houses can't glimpse the old house's machines before the next load.
+        set({ sessions: emptySessions(), presets: [], isLoading: true, error: null });
       },
 
       start: async ({
@@ -221,6 +224,10 @@ export const useAppliancesStore = create<AppliancesStore>()(
         if (get().isLoading) throw new Error('Still loading machines, please try again');
         if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
           throw new Error('Please choose how long the cycle runs');
+        }
+        // Cap at 24h so a mis-entered time can't block the machine for days.
+        if (durationMinutes > 1440) {
+          throw new Error('A cycle can run at most 24 hours');
         }
         if (get().sessions[appliance]) throw new Error('This machine is already running');
 

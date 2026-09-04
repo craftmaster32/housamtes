@@ -1882,6 +1882,9 @@
     "stop_confirm": "Mark it as free and let the house know it's available.",
     "failed_start": "Could not start the machine. Please try again.",
     "failed_stop": "Could not free the machine. Please try again.",
-    "failed_preset": "Could not save the preset. Please try again."
+    "failed_preset": "Could not save the preset. Please try again.",
+    "hours_hint": "Hours the cycle runs",
+    "minutes_hint": "Minutes the cycle runs",
+    "name_hint": "Optional label for this load"
   }
 }

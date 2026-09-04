@@ -8,7 +8,7 @@ import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { mf, ms } from '@utils/responsive';
 import { remainingMs, type ApplianceKind, type ApplianceSession } from '@stores/appliancesStore';
-import { MACHINE_META, formatRemaining } from './meta';
+import { MACHINE_META, formatRemaining } from '@components/machines/meta';
 
 interface MachineCardProps {
   kind: ApplianceKind;
@@ -189,6 +189,7 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       justifyContent: 'center',
       gap: ms(7),
       paddingVertical: ms(12),
+      minHeight: sizes.touchTarget,
       borderRadius: ms(13),
     },
     startText: { fontSize: mf(14.5), ...font.bold, color: '#fff' },
@@ -198,6 +199,7 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       justifyContent: 'center',
       gap: ms(7),
       paddingVertical: ms(11),
+      minHeight: sizes.touchTarget,
       borderRadius: ms(13),
       borderWidth: 1,
     },

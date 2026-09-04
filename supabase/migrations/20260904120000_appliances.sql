@@ -54,39 +54,68 @@ ALTER TABLE notification_preferences
   ADD COLUMN IF NOT EXISTS notify_appliance_done boolean NOT NULL DEFAULT true;
 
 -- ── RLS: appliance_sessions ───────────────────────────────────────────────────
+-- Policies are dropped first so a replay of this migration re-creates them
+-- cleanly rather than failing on the existing policy.
 ALTER TABLE appliance_sessions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "house members can read appliance sessions" ON appliance_sessions;
 CREATE POLICY "house members can read appliance sessions" ON appliance_sessions FOR SELECT
   USING (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "house members can insert appliance sessions" ON appliance_sessions;
 CREATE POLICY "house members can insert appliance sessions" ON appliance_sessions FOR INSERT
   WITH CHECK (
     started_by = auth.uid()
     AND house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "house members can update appliance sessions" ON appliance_sessions;
 CREATE POLICY "house members can update appliance sessions" ON appliance_sessions FOR UPDATE
   USING (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()))
   WITH CHECK (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "house members can delete appliance sessions" ON appliance_sessions;
 CREATE POLICY "house members can delete appliance sessions" ON appliance_sessions FOR DELETE
   USING (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()));
 
 -- ── RLS: appliance_presets ────────────────────────────────────────────────────
 ALTER TABLE appliance_presets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "house members can read appliance presets" ON appliance_presets;
 CREATE POLICY "house members can read appliance presets" ON appliance_presets FOR SELECT
   USING (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "house members can insert appliance presets" ON appliance_presets;
 CREATE POLICY "house members can insert appliance presets" ON appliance_presets FOR INSERT
   WITH CHECK (
     created_by = auth.uid()
     AND house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "house members can update appliance presets" ON appliance_presets;
+CREATE POLICY "house members can update appliance presets" ON appliance_presets FOR UPDATE
+  USING (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()))
+  WITH CHECK (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "house members can delete appliance presets" ON appliance_presets;
 CREATE POLICY "house members can delete appliance presets" ON appliance_presets FOR DELETE
   USING (house_id IN (SELECT house_id FROM house_members WHERE user_id = auth.uid()));
 
 -- ── Realtime ──────────────────────────────────────────────────────────────────
-ALTER PUBLICATION supabase_realtime ADD TABLE appliance_sessions;
-ALTER PUBLICATION supabase_realtime ADD TABLE appliance_presets;
+-- Guard the publication adds so a replay doesn't abort on an already-published
+-- table (ALTER PUBLICATION ... ADD TABLE has no IF NOT EXISTS form).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'appliance_sessions'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE appliance_sessions;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'appliance_presets'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE appliance_presets;
+  END IF;
+END $$;

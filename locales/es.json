@@ -1882,6 +1882,9 @@
     "stop_confirm": "Márcala como libre y avisa a la casa de que está disponible.",
     "failed_start": "No se pudo iniciar la máquina. Inténtalo de nuevo.",
     "failed_stop": "No se pudo liberar la máquina. Inténtalo de nuevo.",
-    "failed_preset": "No se pudo guardar el preajuste. Inténtalo de nuevo."
+    "failed_preset": "No se pudo guardar el preajuste. Inténtalo de nuevo.",
+    "hours_hint": "Horas que dura el ciclo",
+    "minutes_hint": "Minutos que dura el ciclo",
+    "name_hint": "Etiqueta opcional para esta carga"
   }
 }

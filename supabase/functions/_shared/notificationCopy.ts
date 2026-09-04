@@ -165,6 +165,19 @@ function applianceLabel(lang: Lang, kind: string): string {
   return table[kind as ApplianceKind] ?? kind;
 }
 
+// Spanish gender per machine — "lavavajillas" is masculine ("el"), the others
+// feminine ("la"). Used so the article agrees with the noun.
+const ES_ARTICLE: Record<ApplianceKind, string> = {
+  washer: 'la',
+  dryer: 'la',
+  dishwasher: 'el',
+};
+
+function esArticle(kind: string, capitalized = false): string {
+  const art = ES_ARTICLE[kind as ApplianceKind] ?? 'la';
+  return capitalized ? art.charAt(0).toUpperCase() + art.slice(1) : art;
+}
+
 /** "1h 30m" / "45m" — a compact, language-neutral duration from minutes. */
 function durationLabel(minutes: number): string {
   const total = Math.max(1, Math.round(minutes));
@@ -185,7 +198,7 @@ export function applianceDoneCopy(lang: Lang, p: { appliance: string }): PushCop
   if (lang === 'es') {
     return {
       title: '✅ ¡Ciclo terminado!',
-      body: `La ${name} ya terminó — recoge tu ropa y déjala libre 🧺`,
+      body: `${esArticle(p.appliance, true)} ${name} ya terminó — recoge tu ropa y déjala libre 🧺`,
     };
   }
   if (lang === 'he') {
@@ -489,16 +502,18 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
     }
 
     case 'appliance_started': {
-      const name = applianceLabel(lang, str(p, 'appliance'));
+      const kind = str(p, 'appliance');
+      const name = applianceLabel(lang, kind);
       const who = str(p, 'name') || (es ? 'Alguien' : he ? 'מישהו' : 'Someone');
       const minutes = typeof p['minutes'] === 'number' ? (p['minutes'] as number) : 0;
       const dur = minutes > 0 ? durationLabel(minutes) : '';
       if (es) {
+        const art = esArticle(kind);
         return {
           title: '🌀 Máquina en marcha',
           body: dur
-            ? `${who} puso la ${name} — libre en ~${dur}`
-            : `${who} puso la ${name} en marcha`,
+            ? `${who} puso ${art} ${name} — libre en ~${dur}`
+            : `${who} puso ${art} ${name} en marcha`,
         };
       }
       if (he) {
@@ -516,9 +531,16 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
     }
 
     case 'appliance_free': {
-      const name = applianceLabel(lang, str(p, 'appliance'));
+      const kind = str(p, 'appliance');
+      const name = applianceLabel(lang, kind);
       const Cap = name.charAt(0).toUpperCase() + name.slice(1);
-      if (es) return { title: '🧺 Máquina libre', body: `La ${name} ya está libre — ¡a por ella!` };
+      if (es) {
+        const pron = esArticle(kind) === 'el' ? 'él' : 'ella';
+        return {
+          title: '🧺 Máquina libre',
+          body: `${esArticle(kind, true)} ${name} ya está libre — ¡a por ${pron}!`,
+        };
+      }
       if (he) return { title: '🧺 המכונה פנויה', body: `${Cap} פנוי/ה עכשיו — קדימה!` };
       return { title: '🧺 Machine free', body: `${Cap} is free now — go for it!` };
     }
