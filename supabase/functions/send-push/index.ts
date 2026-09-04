@@ -297,7 +297,12 @@ Deno.serve(async (req: Request) => {
         });
         return webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          webPayload
+          webPayload,
+          // urgency 'high' asks the push service to deliver promptly rather than
+          // batching for battery; combined with the service worker's heads-up
+          // options this is what makes browser/PWA notifications float instead
+          // of arriving silently. TTL keeps the message deliverable for 1 day.
+          { urgency: 'high', TTL: 86400 }
         );
       })
     );
