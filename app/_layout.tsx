@@ -93,7 +93,7 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
     // correct height on that first paint, and the listeners below keep it in
     // sync as the toolbars move — the same tracking 100dvh was there to provide.
     style.textContent =
-      '@supports (height: 100dvh) { html, body, #root { height: var(--nestiq-app-height, 100dvh); } }';
+      '@supports (height: 100dvh) { html, body, #root { height: var(--nestiq-app-height, 100dvh); min-height: var(--nestiq-app-height, 100dvh); } }';
     document.head.appendChild(style);
   }
 
