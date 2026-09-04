@@ -19,20 +19,31 @@
     <meta name="apple-mobile-web-app-title" content="HouseMates" />
 
     <style>
+      /*
+        App height = the actually-visible viewport, measured in JS by the inline
+        <head> script below and published as --app-height.
+
+        History: this used to be plain `height: 100%`, which iOS Safari resolves
+        correctly and worked fine. It was later switched to `100dvh` so the app
+        would track the screen edge as the toolbars move — but iOS Safari
+        miscomputes dvh/vh on the FIRST paint of a freshly opened page and, with
+        nothing to scroll on the welcome screen, never recalculates it, so the
+        app came up short and the dark page background showed as a band under the
+        card until you refreshed.
+
+        The JS measurement gives a correct pixel height from the very first frame
+        and keeps tracking the screen as the toolbars move — the tracking dvh was
+        meant to provide, without its first-paint bug. dvh is deliberately not
+        used anywhere here: the fallback is `100%` (the proven-good value), so if
+        the script somehow never runs the app still fills the screen the old way.
+      */
       html, body, #root {
-        height: 100%;
-        min-height: 100%;
+        height: var(--app-height, 100%);
+        min-height: var(--app-height, 100%);
         width: 100%;
         margin: 0;
         padding: 0;
         overflow: hidden;
-      }
-
-      @supports (height: 100dvh) {
-        html, body, #root {
-          height: 100dvh;
-          min-height: 100dvh;
-        }
       }
 
       [data-testid="bottom-tab-bar"] {
@@ -51,6 +62,34 @@
         background-color: #F8F6F3;
       }
     </style>
+
+    <script>
+      // Keep --app-height in sync with the actually-visible viewport. Runs here
+      // in <head>, before the app bundle, so #root has a correct pixel height on
+      // the very first paint — fixing iOS Safari's first-load 100dvh bug (see
+      // the note in the <style> above). visualViewport reports the area left
+      // once the toolbars/keyboard are on screen; innerHeight is the fallback.
+      (function () {
+        function setAppHeight() {
+          var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+          if (h > 0) {
+            document.documentElement.style.setProperty('--app-height', Math.round(h) + 'px');
+          }
+        }
+        setAppHeight();
+        // Re-measure as the browser settles on a cold load (the URL bar animates
+        // over the first few hundred ms) and on every later viewport change.
+        window.requestAnimationFrame(setAppHeight);
+        window.setTimeout(setAppHeight, 300);
+        window.addEventListener('resize', setAppHeight);
+        window.addEventListener('orientationchange', setAppHeight);
+        window.addEventListener('pageshow', setAppHeight);
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', setAppHeight);
+          window.visualViewport.addEventListener('scroll', setAppHeight);
+        }
+      })();
+    </script>
 
     <%- helmet.title %>
     <%- helmet.meta %>

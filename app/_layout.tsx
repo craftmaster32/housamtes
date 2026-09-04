@@ -72,22 +72,12 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
     document.head.appendChild(meta);
   }
 
-  // Size the app to the viewport that is actually visible.
-  //
-  // Expo's web template sizes html/body/#root with `height: 100%`, which iOS
-  // Safari measures against a fixed viewport that ignores whether its toolbars
-  // are on screen. As the toolbars hide and show, the visible area changes but
-  // that 100% does not, leaving the app short of the bottom of the screen — the
-  // strip below the page. `100dvh` is the *dynamic* viewport height: it tracks
-  // the visible area as the toolbars move, so the app always ends exactly where
-  // the screen does. Left as a @supports override so browsers without dvh
-  // (iOS < 15.4) keep the 100% the template already sets.
-  if (!document.getElementById('nestiq-viewport-fit')) {
-    const style = document.createElement('style');
-    style.id = 'nestiq-viewport-fit';
-    style.textContent = '@supports (height: 100dvh) { html, body, #root { height: 100dvh; } }';
-    document.head.appendChild(style);
-  }
+  // Note: sizing html/body/#root to the visible viewport is handled in the
+  // static web template (web/index.html) — it measures the viewport in an inline
+  // <head> script and publishes it as the --app-height CSS variable before this
+  // bundle even loads, so the app fills the screen on the very first paint.
+  // Injecting a competing height rule here would land after that template rule
+  // in the <head> and override it, so it is intentionally not done.
 }
 
 export default function RootLayout(): React.JSX.Element | null {
