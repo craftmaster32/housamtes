@@ -24,12 +24,13 @@ import {
   TourBottomBar,
   WelcomeBg,
   MoreMenuScreen,
+  ProfileMenuScreen,
   type TourScreenId,
   type BarHighlight,
 } from './TourScreens';
 
 interface Step {
-  id: 'welcome' | 'explore' | TourScreenId;
+  id: 'welcome' | 'explore' | 'profile' | TourScreenId;
   screen?: TourScreenId;
 }
 
@@ -40,6 +41,7 @@ const STEPS: Step[] = [
   { id: 'grocery', screen: 'grocery' },
   { id: 'calendar', screen: 'calendar' },
   { id: 'explore' },
+  { id: 'profile' },
 ];
 
 interface WelcomeTourProps {
@@ -168,6 +170,8 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
                 <TourScreen id={step.screen} C={C} t={t} currency={currency} />
               ) : step.id === 'explore' ? (
                 <MoreMenuScreen C={C} t={t} currency={currency} />
+              ) : step.id === 'profile' ? (
+                <ProfileMenuScreen C={C} t={t} currency={currency} />
               ) : (
                 <WelcomeBg C={C} t={t} currency={currency} />
               )}
