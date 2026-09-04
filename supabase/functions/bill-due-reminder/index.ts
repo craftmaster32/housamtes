@@ -63,6 +63,8 @@ Deno.serve(async (req: Request) => {
 
   let totalSent = 0;
   let totalWebSent = 0;
+  const MAX_REMINDERS_PER_USER = 3;
+  const remindersPerUser = new Map<string, number>();
 
   for (const bill of bills) {
     // How many days until this bill is due?
@@ -109,10 +111,21 @@ Deno.serve(async (req: Request) => {
       return prefs.notify_bill_due !== false && prefs.bill_due_days_before === daysUntilDue;
     }
 
-    const eligibleExpo = tokens
-      .filter((r) => isDue(r.user_id) && Boolean(r.token))
+    const dueTokens = tokens.filter((r) => isDue(r.user_id) && Boolean(r.token));
+    const dueWebSubs = webRows.filter((r) => isDue(r.user_id));
+
+    const allDueUserIds = dedupeUserIds(dueTokens, dueWebSubs);
+    const cappedUserIds = new Set(
+      allDueUserIds.filter((id) => (remindersPerUser.get(id) ?? 0) < MAX_REMINDERS_PER_USER)
+    );
+    for (const id of cappedUserIds) {
+      remindersPerUser.set(id, (remindersPerUser.get(id) ?? 0) + 1);
+    }
+
+    const eligibleExpo = dueTokens
+      .filter((r) => cappedUserIds.has(r.user_id))
       .map((r) => ({ token: r.token, language: normalizeLang(r.language) }));
-    const eligibleWebSubs = webRows.filter((r) => isDue(r.user_id));
+    const eligibleWebSubs = dueWebSubs.filter((r) => cappedUserIds.has(r.user_id));
 
     if (eligibleExpo.length === 0 && eligibleWebSubs.length === 0) continue;
 
@@ -138,13 +151,19 @@ Deno.serve(async (req: Request) => {
         };
       });
 
-      await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messages),
-      });
-
-      totalSent += eligibleExpo.length;
+      try {
+        await fetch(EXPO_PUSH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(messages),
+        });
+        totalSent += eligibleExpo.length;
+      } catch (err) {
+        console.error(
+          '[bill-due-reminder] Expo push failed:',
+          err instanceof Error ? err.message : 'unknown'
+        );
+      }
     }
 
     if (eligibleWebSubs.length > 0) {
