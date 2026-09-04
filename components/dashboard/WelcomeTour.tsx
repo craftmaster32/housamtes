@@ -19,6 +19,7 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { isRTL } from '@lib/i18n';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
+import { LanguageSwitcher } from '@components/shared/LanguageSwitcher';
 import {
   TourScreen,
   TourBottomBar,
@@ -208,7 +209,10 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ visible, onDone }) => 
           />
         </Pressable>
 
-        <SafeAreaView edges={['top']} style={styles.skipWrap} pointerEvents="box-none">
+        <SafeAreaView edges={['top']} style={styles.topBar} pointerEvents="box-none">
+          <View style={styles.langWrap}>
+            <LanguageSwitcher variant="onSurface" />
+          </View>
           <Pressable
             onPress={onDone}
             style={styles.skipBtn}
@@ -322,8 +326,17 @@ function makeStyles(C: ColorTokens, rtl: boolean, topPad: number) {
     cta: { borderRadius: 12 },
     ctaContent: { height: 42, paddingHorizontal: sizes.xs },
     ctaLabel: { fontSize: 14.5, ...font.semibold },
-    // Skip
-    skipWrap: { position: 'absolute', top: 0, right: 0, left: 0, alignItems: 'flex-end' },
+    // Top bar (language switcher + skip)
+    topBar: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      left: 0,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+    },
+    langWrap: { margin: sizes.md },
     skipBtn: {
       margin: sizes.md,
       paddingVertical: 7,
