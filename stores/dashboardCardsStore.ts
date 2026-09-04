@@ -4,7 +4,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureError } from '@lib/errorTracking';
 
 // Cards that can appear in the dashboard carousel, in their canonical order.
-export type DashboardCardKey = 'parking' | 'groceries' | 'chores' | 'votes' | 'bills';
+export type DashboardCardKey =
+  | 'parking'
+  | 'groceries'
+  | 'chores'
+  | 'votes'
+  | 'bills'
+  | 'washer'
+  | 'dryer'
+  | 'dishwasher';
 
 export const ALL_DASHBOARD_CARDS: DashboardCardKey[] = [
   'parking',
@@ -12,6 +20,9 @@ export const ALL_DASHBOARD_CARDS: DashboardCardKey[] = [
   'chores',
   'votes',
   'bills',
+  'washer',
+  'dryer',
+  'dishwasher',
 ];
 
 const DEFAULT_ENABLED: DashboardCardKey[] = ['parking', 'groceries', 'chores', 'votes'];

@@ -1,12 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Switch,
-  Pressable,
-  type ViewStyle,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, Switch, Pressable, type ViewStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -329,6 +322,20 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
               description={t('settings.notify_parking_reservation_sub')}
               value={prefs.notifyParkingReservation}
               onToggle={(v) => save({ notifyParkingReservation: v })}
+              isLast
+            />
+          </View>
+
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="sync-outline" size={15} color={C.textSecondary} />
+            <Text style={styles.sectionTitle}>{t('nav.machines')}</Text>
+          </View>
+          <View style={styles.card}>
+            <ToggleRow
+              label={t('settings.notify_appliance_done')}
+              description={t('settings.notify_appliance_done_sub')}
+              value={prefs.notifyApplianceDone}
+              onToggle={(v) => save({ notifyApplianceDone: v })}
               isLast
             />
           </View>

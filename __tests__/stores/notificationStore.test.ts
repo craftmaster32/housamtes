@@ -42,6 +42,7 @@ const DEFAULT_PREFS = {
   notifyEventReminder: true,
   eventReminderDaysBefore: 1 as 0 | 1 | 2 | 3 | 7,
   notifyDailyJoke: true,
+  notifyApplianceDone: true,
 };
 
 beforeEach(() => {

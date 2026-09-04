@@ -21,6 +21,7 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useParkingStore } from '@stores/parkingStore';
+import { useAppliancesStore } from '@stores/appliancesStore';
 import { useGroceryStore } from '@stores/groceryStore';
 import { useChoresStore } from '@stores/choresStore';
 import { useEventsStore } from '@stores/eventsStore';
@@ -269,6 +270,7 @@ export default function RootLayout(): React.JSX.Element | null {
   const loadBills = useBillsStore((s) => s.load);
   const loadRecurringBills = useRecurringBillsStore((s) => s.load);
   const loadParking = useParkingStore((s) => s.load);
+  const loadAppliances = useAppliancesStore((s) => s.load);
   const loadGrocery = useGroceryStore((s) => s.load);
   const loadChores = useChoresStore((s) => s.load);
   const loadEvents = useEventsStore((s) => s.load);
@@ -369,6 +371,7 @@ export default function RootLayout(): React.JSX.Element | null {
 
     const deferred = InteractionManager.runAfterInteractions(() => {
       loadParking(houseId);
+      loadAppliances(houseId);
       loadGrocery(houseId);
       loadChores(houseId);
       loadEvents(houseId);
@@ -388,6 +391,7 @@ export default function RootLayout(): React.JSX.Element | null {
       useBillsStore.getState().unsubscribe();
       useRecurringBillsStore.getState().unsubscribe();
       useParkingStore.getState().unsubscribe();
+      useAppliancesStore.getState().unsubscribe();
       useGroceryStore.getState().unsubscribe();
       useChoresStore.getState().unsubscribe();
       useEventsStore.getState().unsubscribe();
@@ -404,6 +408,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadBills,
     loadRecurringBills,
     loadParking,
+    loadAppliances,
     loadGrocery,
     loadChores,
     loadEvents,
@@ -441,6 +446,7 @@ export default function RootLayout(): React.JSX.Element | null {
         foregroundDeferred.current?.cancel();
         foregroundDeferred.current = InteractionManager.runAfterInteractions(() => {
           loadParking(houseId);
+          loadAppliances(houseId);
           loadGrocery(houseId);
           loadChores(houseId);
           loadEvents(houseId);
@@ -465,6 +471,7 @@ export default function RootLayout(): React.JSX.Element | null {
     loadBills,
     loadRecurringBills,
     loadParking,
+    loadAppliances,
     loadGrocery,
     loadChores,
     loadEvents,
