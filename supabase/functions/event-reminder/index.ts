@@ -135,6 +135,7 @@ Deno.serve(async (req: Request) => {
     language: string;
     notify: boolean;
     daysBefore: number;
+    user_id: string;
   }
   interface WebRecipient {
     sub: WebPushSub;
@@ -200,7 +201,12 @@ Deno.serve(async (req: Request) => {
 
     const expo: ExpoRecipient[] = tokens
       .filter((r) => Boolean(r.token))
-      .map((r) => ({ token: r.token, language: normalizeLang(r.language), ...prefFor(r.user_id) }));
+      .map((r) => ({
+        token: r.token,
+        language: normalizeLang(r.language),
+        user_id: r.user_id,
+        ...prefFor(r.user_id),
+      }));
 
     const web: WebRecipient[] = webRows.map((sub) => ({ sub, ...prefFor(sub.user_id) }));
 
@@ -211,6 +217,8 @@ Deno.serve(async (req: Request) => {
 
   let totalSent = 0;
   let totalWebSent = 0;
+  const MAX_REMINDERS_PER_USER = 3;
+  const remindersPerUser = new Map<string, number>();
 
   for (const event of events as EventRow[]) {
     for (const lead of LEAD_DAYS) {
@@ -221,6 +229,24 @@ Deno.serve(async (req: Request) => {
       const eligibleWeb = web.filter((r) => r.notify && r.daysBefore === lead);
       if (eligibleExpo.length === 0 && eligibleWeb.length === 0) continue;
 
+      // Apply per-user daily cap before sending through either channel.
+      const allDueUserIds = [
+        ...new Set([
+          ...eligibleExpo.map((r) => r.user_id),
+          ...eligibleWeb.map((r) => r.sub.user_id),
+        ]),
+      ];
+      const cappedUserIds = new Set(
+        allDueUserIds.filter((id) => (remindersPerUser.get(id) ?? 0) < MAX_REMINDERS_PER_USER)
+      );
+      for (const id of cappedUserIds) {
+        remindersPerUser.set(id, (remindersPerUser.get(id) ?? 0) + 1);
+      }
+
+      const cappedExpo = eligibleExpo.filter((r) => cappedUserIds.has(r.user_id));
+      const cappedWeb = eligibleWeb.filter((r) => cappedUserIds.has(r.sub.user_id));
+      if (cappedExpo.length === 0 && cappedWeb.length === 0) continue;
+
       // Same copy for both channels, localized per recipient device language.
       const copyFor = (language: string | null | undefined): { title: string; body: string } =>
         eventReminderCopy(normalizeLang(language) as 'en' | 'es' | 'he', {
@@ -229,8 +255,8 @@ Deno.serve(async (req: Request) => {
           daysUntil: lead,
         });
 
-      if (eligibleExpo.length > 0) {
-        const messages = eligibleExpo.map((r) => {
+      if (cappedExpo.length > 0) {
+        const messages = cappedExpo.map((r) => {
           const copy = copyFor(r.language);
           return {
             to: r.token,
@@ -242,19 +268,25 @@ Deno.serve(async (req: Request) => {
           };
         });
 
-        await fetch(EXPO_PUSH_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(messages),
-        });
-
-        totalSent += eligibleExpo.length;
+        try {
+          await fetch(EXPO_PUSH_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(messages),
+          });
+          totalSent += cappedExpo.length;
+        } catch (err) {
+          console.error(
+            '[event-reminder] Expo push failed:',
+            err instanceof Error ? err.message : 'unknown'
+          );
+        }
       }
 
-      if (eligibleWeb.length > 0) {
+      if (cappedWeb.length > 0) {
         totalWebSent += await sendWebPush(
           supabase,
-          eligibleWeb.map((r) => r.sub),
+          cappedWeb.map((r) => r.sub),
           copyFor,
           { screen: 'calendar' }
         );
