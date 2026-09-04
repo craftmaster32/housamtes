@@ -72,49 +72,12 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
     document.head.appendChild(meta);
   }
 
-  // Size the app to the viewport that is actually visible.
-  //
-  // Expo's web template sizes html/body/#root with `height: 100%`, which iOS
-  // Safari measures against a fixed viewport that ignores whether its toolbars
-  // are on screen. As the toolbars hide and show, the visible area changes but
-  // that 100% does not, leaving the app short of the bottom of the screen — the
-  // strip below the page. `100dvh` is the *dynamic* viewport height: it tracks
-  // the visible area as the toolbars move, so the app always ends exactly where
-  // the screen does. Left as a @supports override so browsers without dvh
-  // (iOS < 15.4) keep the 100% the template already sets.
-  if (!document.getElementById('nestiq-viewport-fit')) {
-    const style = document.createElement('style');
-    style.id = 'nestiq-viewport-fit';
-    // Prefer a JS-measured pixel height (--nestiq-app-height) and fall back to
-    // 100dvh. iOS Safari miscomputes dvh/vh on the *first* paint of a freshly
-    // opened page — it only settles after a resize, scroll, or reload — which
-    // left the app short of the bottom of the screen (a dark band under the
-    // page) until you refreshed. Measuring the visible viewport in JS gives a
-    // correct height on that first paint, and the listeners below keep it in
-    // sync as the toolbars move — the same tracking 100dvh was there to provide.
-    style.textContent =
-      '@supports (height: 100dvh) { html, body, #root { height: var(--nestiq-app-height, 100dvh); min-height: var(--nestiq-app-height, 100dvh); } }';
-    document.head.appendChild(style);
-  }
-
-  // Publish the actually-visible viewport height as --nestiq-app-height.
-  // visualViewport reports the area left once the toolbars/keyboard are on
-  // screen; innerHeight is the fallback where it is unavailable.
-  const syncAppHeight = (): void => {
-    const h = window.visualViewport?.height ?? window.innerHeight;
-    if (h > 0) {
-      document.documentElement.style.setProperty('--nestiq-app-height', `${Math.round(h)}px`);
-    }
-  };
-  syncAppHeight();
-  // Re-measure while the browser settles: on a cold load the URL bar animates
-  // over the first few hundred ms and each frame reports a different height.
-  requestAnimationFrame(syncAppHeight);
-  window.setTimeout(syncAppHeight, 300);
-  window.addEventListener('resize', syncAppHeight);
-  window.addEventListener('orientationchange', syncAppHeight);
-  window.visualViewport?.addEventListener('resize', syncAppHeight);
-  window.visualViewport?.addEventListener('scroll', syncAppHeight);
+  // Note: sizing html/body/#root to the visible viewport is handled in the
+  // static web template (web/index.html) — it measures the viewport in an inline
+  // <head> script and publishes it as the --app-height CSS variable before this
+  // bundle even loads, so the app fills the screen on the very first paint.
+  // Injecting a competing height rule here would land after that template rule
+  // in the <head> and override it, so it is intentionally not done.
 }
 
 export default function RootLayout(): React.JSX.Element | null {

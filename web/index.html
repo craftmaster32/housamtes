@@ -35,6 +35,23 @@
         }
       }
 
+      /*
+        JS-measured exact viewport height (set by the inline script below).
+        iOS Safari miscomputes 100dvh/100vh on the FIRST paint of a freshly
+        opened page and — with nothing to scroll here — never recalculates it,
+        so the app came up short of the screen with the dark body colour showing
+        as a band under the card until you refreshed. Measuring the visible
+        viewport in JS gives a correct height from the first frame; this rule
+        wins over the dvh rule above (same specificity, declared later) and
+        falls back to 100dvh before the script runs / where --app-height is
+        unset. On browsers without dvh the fallback is invalid, so the 100%
+        rule above still applies.
+      */
+      html, body, #root {
+        height: var(--app-height, 100dvh);
+        min-height: var(--app-height, 100dvh);
+      }
+
       [data-testid="bottom-tab-bar"] {
         position: fixed !important;
         left: 0 !important;
@@ -51,6 +68,34 @@
         background-color: #F8F6F3;
       }
     </style>
+
+    <script>
+      // Keep --app-height in sync with the actually-visible viewport. Runs here
+      // in <head>, before the app bundle, so #root has a correct pixel height on
+      // the very first paint — fixing iOS Safari's first-load 100dvh bug (see
+      // the note in the <style> above). visualViewport reports the area left
+      // once the toolbars/keyboard are on screen; innerHeight is the fallback.
+      (function () {
+        function setAppHeight() {
+          var h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+          if (h > 0) {
+            document.documentElement.style.setProperty('--app-height', Math.round(h) + 'px');
+          }
+        }
+        setAppHeight();
+        // Re-measure as the browser settles on a cold load (the URL bar animates
+        // over the first few hundred ms) and on every later viewport change.
+        window.requestAnimationFrame(setAppHeight);
+        window.setTimeout(setAppHeight, 300);
+        window.addEventListener('resize', setAppHeight);
+        window.addEventListener('orientationchange', setAppHeight);
+        window.addEventListener('pageshow', setAppHeight);
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', setAppHeight);
+          window.visualViewport.addEventListener('scroll', setAppHeight);
+        }
+      })();
+    </script>
 
     <%- helmet.title %>
     <%- helmet.meta %>
