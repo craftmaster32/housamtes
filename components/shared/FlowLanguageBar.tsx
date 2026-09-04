@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { LanguageSwitcher, type LanguageSwitcherVariant } from './LanguageSwitcher';
+import { LanguageSwitcher, type LanguageSwitcherVariant } from '@components/shared/LanguageSwitcher';
 import { ms } from '@utils/responsive';
 
 interface FlowLanguageBarProps {
