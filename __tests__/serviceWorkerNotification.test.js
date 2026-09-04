@@ -40,24 +40,48 @@ describe('service worker buildNotificationOptions', () => {
 });
 
 describe('service worker push event null-payload guard', () => {
-  it('does not throw when event.data.json() returns null', () => {
-    // json() returning null is valid JSON but must be normalised to {} before
-    // accessing .title/.body/.data to avoid a TypeError.
+  let pushHandler;
+  let showNotification;
+
+  beforeAll(() => {
+    showNotification = jest.fn().mockResolvedValue(undefined);
+    const listeners = {};
+
+    global.self = {
+      addEventListener: (event, handler) => {
+        listeners[event] = handler;
+      },
+      registration: { showNotification },
+    };
+
+    // Re-load sw.js in isolation so it registers its listeners against the mock self.
+    jest.isolateModules(() => {
+      require('../public/sw');
+    });
+
+    delete global.self;
+    pushHandler = listeners.push;
+  });
+
+  afterEach(() => {
+    showNotification.mockClear();
+  });
+
+  it('invokes the production push listener without throwing when event.data.json() returns null', async () => {
+    // json() returning null is valid JSON; the ?? {} guard in sw.js normalises it
+    // before accessing .title / .body / .data.
     const fakeEvent = {
       data: { json: () => null },
       waitUntil: jest.fn(),
     };
 
-    // Simulate the exact parsing logic from sw.js so the regression is pinned.
-    let payload;
-    try {
-      payload = fakeEvent.data.json() ?? {};
-    } catch {
-      payload = { title: 'Housemates', body: '' };
-    }
+    pushHandler(fakeEvent);
 
-    expect(() => buildNotificationOptions(payload)).not.toThrow();
-    expect(payload.title).toBeUndefined();
-    expect(payload.body).toBeUndefined();
+    expect(fakeEvent.waitUntil).toHaveBeenCalled();
+    await fakeEvent.waitUntil.mock.calls[0][0];
+    expect(showNotification).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ silent: false, requireInteraction: true })
+    );
   });
 });
