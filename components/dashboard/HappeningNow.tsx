@@ -129,7 +129,6 @@ export function HappeningNow(): React.JSX.Element {
   const memberName = useMemberName();
   const events = useEventsStore((s) => s.events);
   const activeRun = useGroceryStore((s) => s.activeRun);
-  const parkingCurrent = useParkingStore((s) => s.current);
   const reservations = useParkingStore((s) => s.reservations);
   const today = todayYMD();
 
@@ -234,7 +233,7 @@ export function HappeningNow(): React.JSX.Element {
     [today, t]
   );
 
-  const hasLive = !!activeRun || !!parkingCurrent;
+  const hasLive = !!activeRun;
   if (!hasLive && soon.length === 0) return <></>;
 
   const nowLabel = t('happening.now').toUpperCase();
@@ -255,21 +254,8 @@ export function HappeningNow(): React.JSX.Element {
           })}
         />
       )}
-      {parkingCurrent && (
-        <Banner
-          icon="car"
-          accent={c.primary}
-          eyebrow={nowLabel}
-          title={t('happening.parking_now', {
-            name: memberName(parkingCurrent.occupant).split(' ')[0],
-          })}
-          live
-          onPress={handleParkingPress}
-          accessibilityLabel={t('happening.parking_now', {
-            name: memberName(parkingCurrent.occupant).split(' ')[0],
-          })}
-        />
-      )}
+      {/* Parking "now" is intentionally not surfaced here — the dashboard parking
+          card already shows live parking status. Only the grocery run stays live. */}
 
       {/* ── Upcoming: imminent entries as banners, later entries as compact rows ── */}
       <FlatList
