@@ -114,6 +114,7 @@ export function BottomTabBar(): React.JSX.Element {
     lastSeen.bills
   );
   const reservations = useParkingStore((s) => s.reservations);
+  const parkingCurrent = useParkingStore((s) => s.current);
   const claimParking = useParkingStore((s) => s.claim);
   const releaseParking = useParkingStore((s) => s.release);
   const items = useGroceryStore((s) => s.items);
@@ -177,9 +178,15 @@ export function BottomTabBar(): React.JSX.Element {
           Alert.alert(t('parking.could_not_free'), t('parking.spot_changed'));
           return;
         }
-        releaseParking(hId, uname).catch(() => {
-          Alert.alert(t('parking.could_not_free'), t('parking.failed_release'));
-        });
+        if (parkingBusyRef.current) return;
+        parkingBusyRef.current = true;
+        releaseParking(hId, uname)
+          .catch(() => {
+            Alert.alert(t('parking.could_not_free'), t('parking.failed_release'));
+          })
+          .finally(() => {
+            parkingBusyRef.current = false;
+          });
       };
       if (Platform.OS === 'web') {
         if (window.confirm(t('parking.evict_confirm', { name: occupantName }))) doRelease();
@@ -308,15 +315,27 @@ export function BottomTabBar(): React.JSX.Element {
       {TABS.slice(2).map((tab) => {
         const active = isActive(tab.id);
         const badge = tab.id === 'parking' ? parkingBadge : tab.id === 'more' ? moreBadge : 0;
+        const isParking = tab.id === 'parking';
+        const parkingA11yLabel =
+          parkingCurrent?.occupant === myId
+            ? t('parking.a11y_release', 'Release parking spot')
+            : t('parking.a11y_claim', 'Claim parking spot');
         return (
           <Pressable
             key={tab.id}
             style={styles.tab}
             onPress={() => handleTab(tab)}
             accessible={true}
-            accessibilityRole="tab"
-            accessibilityLabel={tabLabels[tab.id]}
-            accessibilityState={{ selected: active }}
+            accessibilityRole={isParking ? 'button' : 'tab'}
+            accessibilityLabel={isParking ? parkingA11yLabel : tabLabels[tab.id]}
+            accessibilityHint={
+              isParking
+                ? t('parking.a11y_hint', 'Toggles your parking reservation')
+                : undefined
+            }
+            accessibilityState={
+              isParking ? { disabled: parkingBusyRef.current } : { selected: active }
+            }
           >
             <View style={styles.tabIconWrap}>
               <AnimatedIcon
