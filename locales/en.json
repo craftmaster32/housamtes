@@ -262,7 +262,9 @@
     "demo_water": "Water",
     "back": "Back",
     "explore_title": "There's even more",
-    "explore_body": "Parking, chores, chat and voting all live under More — give it a tap to explore."
+    "explore_body": "Parking, chores, chat and voting all live under More — give it a tap to explore.",
+    "profile_title": "Your profile & settings",
+    "profile_body": "Tap your photo in the top corner to open this menu — that's where Settings, your profile and sign out live."
   },
   "house_setup": {
     "title": "Set up your home",
