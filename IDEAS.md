@@ -7,37 +7,47 @@ Nothing in this file is being built yet. It's a parking lot for good ideas.
 
 ## Suggested for Phase 8+ (Post Public Launch)
 
-| Idea | Why It's Interesting |
-|---|---|
+| Idea                         | Why It's Interesting                             |
+| ---------------------------- | ------------------------------------------------ |
 | Shared subscriptions tracker | Netflix, Spotify split — nobody tracks this well |
-| Maintenance request log | "Tap is broken" → assign → track fix |
-| House rules / agreement page | Written rules all members acknowledge |
-| Quiet hours setting | House-wide quiet time visible to all |
-| Guest overnight log | Transparency about who's having guests |
-| Polls / house votes | "Should we get a new couch?" — democratic |
-| Utility usage charts | See electricity cost over time, month by month |
-| Move-in / move-out checklist | For when housemates change |
-| Landlord contact card | One place for emergency contacts |
-| WiFi QR code generator | Auto-generate shareable QR from saved password |
-| Temperature log | If you have a smart thermostat — record disputes |
-| Multi-language support | For international expansion |
-| Web dashboard | Browser access for managing house from laptop |
-| Android version | After iOS is stable |
-| Premium: PDF reports | Export expense history as professional PDF |
-| Premium: custom themes | House colors, dark mode customization |
+| Maintenance request log      | "Tap is broken" → assign → track fix             |
+| House rules / agreement page | Written rules all members acknowledge            |
+| Quiet hours setting          | House-wide quiet time visible to all             |
+| Guest overnight log          | Transparency about who's having guests           |
+| Polls / house votes          | "Should we get a new couch?" — democratic        |
+| Utility usage charts         | See electricity cost over time, month by month   |
+| Move-in / move-out checklist | For when housemates change                       |
+| Landlord contact card        | One place for emergency contacts                 |
+| WiFi QR code generator       | Auto-generate shareable QR from saved password   |
+| Temperature log              | If you have a smart thermostat — record disputes |
+| Multi-language support       | For international expansion                      |
+| Web dashboard                | Browser access for managing house from laptop    |
+| Android version              | After iOS is stable                              |
+| Premium: PDF reports         | Export expense history as professional PDF       |
+| Premium: custom themes       | House colors, dark mode customization            |
 
 ---
 
 ## Ideas From Owner
 
-(Add ideas here as they come up during building)
+- **TWA (Trusted Web Activity) — reliable Android notifications.** Wrap the
+  existing PWA as a real Android app (via Bubblewrap) and publish it on the
+  Google Play Store. Because a TWA owns its own Android notification channels,
+  we could set them to **high importance** and get consistent floating
+  (heads-up) notifications on every phone — solving the "sometimes silent,
+  sometimes floating" problem that varies by manufacturer. Trade-offs: needs a
+  Google Play developer account ($25 one-time), Play Store publishing, a small
+  site-verification step, and some native plumbing to forward web push into a
+  native channel. Android only (iOS can't do this). Worth revisiting if push
+  notifications become truly critical after the lightweight service-worker fix
+  isn't enough on its own.
 
 ---
 
 ## Rejected Ideas (and Why)
 
-| Idea | Why We're Not Building It |
-|---|---|
+| Idea                           | Why We're Not Building It                                 |
+| ------------------------------ | --------------------------------------------------------- |
 | In-app payments (Venmo/PayPal) | Too complex, legal liability, Splitwise already does this |
-| Roommate matching | Different product entirely |
-| Smart home device control | Out of scope — different market |
+| Roommate matching              | Different product entirely                                |
+| Smart home device control      | Out of scope — different market                           |
