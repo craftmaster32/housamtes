@@ -39,12 +39,17 @@ describe('hasFeatureAccess', () => {
     );
   });
 
-  it('falls back to allowed when permissions are not yet loaded', () => {
-    expect(hasFeatureAccess('chores', enabled(['chores']), null)).toBe(true);
-    expect(hasFeatureAccess('chores', enabled(['chores']), undefined)).toBe(true);
+  it('denies a tracked feature while permissions are unavailable', () => {
+    // Mid-refresh (or before load) a tracked feature must not leak — deny until
+    // a permission record is present.
+    expect(hasFeatureAccess('chores', enabled(['chores']), null)).toBe(false);
+    expect(hasFeatureAccess('chores', enabled(['chores']), undefined)).toBe(false);
   });
 
   it('ignores keys that are not tracked permissions', () => {
+    // Structural routes stay reachable even with no permission record.
     expect(hasFeatureAccess('dashboard', [], ALL_TRUE)).toBe(true);
+    expect(hasFeatureAccess('dashboard', [], null)).toBe(true);
+    expect(hasFeatureAccess('more', [], undefined)).toBe(true);
   });
 });

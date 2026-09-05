@@ -262,12 +262,11 @@ export default function SettingsScreen(): React.JSX.Element {
     () => housemates.filter((h) => h.id !== myMemberUserId),
     [housemates, myMemberUserId]
   );
-  const eligibleSuccessors = useMemo(
-    () => otherMembers.filter((h) => h.role === 'owner' || h.role === 'admin'),
-    [otherMembers]
-  );
+  // leave_house can promote any remaining member (an admin first, else the
+  // longest-standing member), so every fellow member is a valid successor —
+  // not only owners/admins.
+  const eligibleSuccessors = otherMembers;
   const mustPickSuccessor = iAmOwner && otherMembers.length > 0;
-  const noEligibleSuccessor = mustPickSuccessor && eligibleSuccessors.length === 0;
   const [successorId, setSuccessorId] = useState<string | null>(null);
 
   const handleLeaveHouse = useCallback(async (): Promise<void> => {
@@ -503,71 +502,54 @@ export default function SettingsScreen(): React.JSX.Element {
                 })}
               </Text>
 
-              {mustPickSuccessor &&
-                (noEligibleSuccessor ? (
-                  <>
-                    <Text style={styles.successorHint}>{t('settings.leave_needs_manager')}</Text>
-                    <Pressable
-                      style={styles.modalBtnSecondary}
-                      onPress={() => {
-                        setShowLeaveConfirm(false);
-                        router.push('/(tabs)/settings/members');
-                      }}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.modalBtnSecondaryText}>
-                        {t('settings.manage_members')}
-                      </Text>
-                    </Pressable>
-                  </>
-                ) : (
-                  <View style={styles.successorWrap}>
-                    <Text style={styles.successorLabel}>{t('settings.choose_successor')}</Text>
-                    {eligibleSuccessors.map((h) => {
-                      const active = successorId === h.id;
-                      return (
-                        <Pressable
-                          key={h.id}
-                          style={[styles.successorRow, active && styles.successorRowActive]}
-                          onPress={() => setSuccessorId(h.id)}
-                          accessibilityRole="radio"
-                          accessibilityState={{ selected: active }}
-                        >
-                          <View style={[styles.successorAvatar, { backgroundColor: h.color }]}>
-                            <Text style={styles.successorAvatarText}>
-                              {h.name[0].toUpperCase()}
-                            </Text>
-                          </View>
-                          <Text style={styles.successorName}>{h.name}</Text>
-                          <Text style={styles.successorRole}>
-                            {h.role === 'owner' ? t('members.owner') : t('members.admin')}
-                          </Text>
-                          <Ionicons
-                            name={active ? 'radio-button-on' : 'radio-button-off'}
-                            size={20}
-                            color={active ? C.primary : C.textSecondary}
-                          />
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ))}
-
-              {!noEligibleSuccessor && (
-                <Pressable
-                  style={[
-                    styles.modalBtnDanger,
-                    (leaving || (mustPickSuccessor && !successorId)) && { opacity: 0.6 },
-                  ]}
-                  onPress={handleLeaveHouse}
-                  disabled={leaving || (mustPickSuccessor && !successorId)}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.modalBtnDangerText}>
-                    {leaving ? t('settings.leaving') : t('settings.yes_leave')}
-                  </Text>
-                </Pressable>
+              {mustPickSuccessor && (
+                <View style={styles.successorWrap}>
+                  <Text style={styles.successorLabel}>{t('settings.choose_successor')}</Text>
+                  {eligibleSuccessors.map((h) => {
+                    const active = successorId === h.id;
+                    const roleLabel =
+                      h.role === 'owner'
+                        ? t('members.owner')
+                        : h.role === 'admin'
+                          ? t('members.admin')
+                          : t('members.member');
+                    return (
+                      <Pressable
+                        key={h.id}
+                        style={[styles.successorRow, active && styles.successorRowActive]}
+                        onPress={() => setSuccessorId(h.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: active }}
+                      >
+                        <View style={[styles.successorAvatar, { backgroundColor: h.color }]}>
+                          <Text style={styles.successorAvatarText}>{h.name[0].toUpperCase()}</Text>
+                        </View>
+                        <Text style={styles.successorName}>{h.name}</Text>
+                        <Text style={styles.successorRole}>{roleLabel}</Text>
+                        <Ionicons
+                          name={active ? 'radio-button-on' : 'radio-button-off'}
+                          size={20}
+                          color={active ? C.primary : C.textSecondary}
+                        />
+                      </Pressable>
+                    );
+                  })}
+                </View>
               )}
+
+              <Pressable
+                style={[
+                  styles.modalBtnDanger,
+                  (leaving || (mustPickSuccessor && !successorId)) && { opacity: 0.6 },
+                ]}
+                onPress={handleLeaveHouse}
+                disabled={leaving || (mustPickSuccessor && !successorId)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.modalBtnDangerText}>
+                  {leaving ? t('settings.leaving') : t('settings.yes_leave')}
+                </Text>
+              </Pressable>
               <Pressable
                 style={styles.modalBtnCancel}
                 onPress={() => setShowLeaveConfirm(false)}
@@ -1000,13 +982,6 @@ function makeStyles(C: ColorTokens) {
       ...font.semibold,
       color: C.textPrimary,
       textAlign: 'center',
-    },
-    successorHint: {
-      fontSize: mf(13),
-      ...font.regular,
-      color: C.textSecondary,
-      textAlign: 'center',
-      lineHeight: mf(19),
     },
     successorRow: {
       flexDirection: 'row',

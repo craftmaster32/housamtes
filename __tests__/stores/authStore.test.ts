@@ -520,7 +520,7 @@ describe('authStore — leaveHouse', () => {
 
     // Membership removal goes through the RPC so ownership transfer / empty-house
     // cleanup happens atomically server-side.
-    expect(mockRpc).toHaveBeenCalledWith('leave_house', { p_new_owner: null });
+    expect(mockRpc).toHaveBeenCalledWith('leave_house', { p_house_id: 'h1', p_new_owner: null });
     expect(mockUnregisterPushToken).toHaveBeenCalledWith('u1', 'h1');
     expect(mockUnregisterWebPush).toHaveBeenCalledWith('u1', 'h1');
     const s = useAuthStore.getState();
@@ -559,11 +559,54 @@ describe('authStore — leaveHouse', () => {
       'Could not leave the house. Please try again.'
     );
 
-    // Still in the house — nothing cleared, no push unregistration.
+    // Still in the house — nothing cleared, no push unregistration on either path.
     const s = useAuthStore.getState();
     expect(s.houseId).toBe('h1');
     expect(s.role).toBe('owner');
     expect(mockUnregisterPushToken).not.toHaveBeenCalled();
+    expect(mockUnregisterWebPush).not.toHaveBeenCalled();
+    // The "left" snapshot must not be written when the leave itself failed.
+    expect(mockFrom).not.toHaveBeenCalledWith('former_members');
+  });
+
+  it('surfaces the error and keeps house state when the leave RPC rejects', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      houseId: 'h1',
+      role: 'owner',
+      permissions: { ...DEFAULT_PERMISSIONS },
+    });
+    mockTables({ former_members: ok(null) });
+    // A rejected promise (not just an { error } result) must be caught too.
+    mockRpc.mockRejectedValue(new Error('connection reset'));
+
+    await expect(useAuthStore.getState().leaveHouse()).rejects.toThrow(
+      'Could not leave the house. Please try again.'
+    );
+
+    const s = useAuthStore.getState();
+    expect(s.houseId).toBe('h1');
+    expect(s.role).toBe('owner');
+    expect(mockUnregisterPushToken).not.toHaveBeenCalled();
+    expect(mockUnregisterWebPush).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalledWith('former_members');
+  });
+
+  it('validates a chosen successor before calling the RPC', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      houseId: 'h1',
+      role: 'owner',
+      permissions: { ...DEFAULT_PERMISSIONS },
+    });
+
+    await expect(useAuthStore.getState().leaveHouse('not-a-uuid')).rejects.toThrow(
+      'Please choose a valid housemate to take over.'
+    );
+
+    // Never reached the database with malformed input.
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().houseId).toBe('h1');
   });
 });
 

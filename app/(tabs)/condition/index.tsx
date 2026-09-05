@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useFeatureGuard } from '@hooks/useFeatureGuard';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
@@ -563,8 +563,7 @@ function AddEntryForm({
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
-export default function ConditionScreen(): React.JSX.Element {
-  useFeatureGuard('condition');
+function ConditionScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const entries = useConditionStore((s) => s.entries);
   const isLoading = useConditionStore((s) => s.isLoading);
@@ -726,3 +725,5 @@ export default function ConditionScreen(): React.JSX.Element {
     </SafeAreaView>
   );
 }
+
+export default withFeatureGuard('condition', ConditionScreen);

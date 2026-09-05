@@ -377,7 +377,7 @@ export default function RootLayout(): React.JSX.Element | null {
   // only read at login — so a promotion, a revoked feature, or being removed from
   // the house wouldn't take effect until a restart. Re-read my membership whenever
   // any row in my house changes.
-  useEffect(() => {
+  useEffect((): void | (() => void) => {
     if (!houseId) return;
     const channel = supabase
       .channel(`my-membership:${houseId}`)

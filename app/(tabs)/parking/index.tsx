@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useFeatureGuard } from '@hooks/useFeatureGuard';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -752,8 +752,7 @@ type FlatItem =
   | { _k: 'hist-header'; count: number };
 
 // ── Main screen ────────────────────────────────────────────────────────────────
-export default function ParkingScreen(): React.JSX.Element {
-  useFeatureGuard('parking');
+function ParkingScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -1601,3 +1600,5 @@ const makeStyles = (C: ColorTokens) =>
     },
     clearAllBtnText: { fontSize: mf(11), ...font.semibold, color: C.danger },
   });
+
+export default withFeatureGuard('parking', ParkingScreen);

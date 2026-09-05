@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useFeatureGuard } from '@hooks/useFeatureGuard';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { View, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -147,8 +147,7 @@ function ChoreRow({
   );
 }
 
-export default function ChoresScreen(): React.JSX.Element {
-  useFeatureGuard('chores');
+function ChoresScreen(): React.JSX.Element {
   const { t } = useTranslation();
 
   const markSeen = useBadgeStore((s) => s.markSeen);
@@ -759,3 +758,5 @@ function makeStyles(C: ColorTokens) {
     errorText: { fontSize: mf(13), ...font.regular, color: C.danger, flex: 1 },
   });
 }
+
+export default withFeatureGuard('chores', ChoresScreen);

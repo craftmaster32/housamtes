@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useFeatureGuard } from '@hooks/useFeatureGuard';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -25,8 +25,7 @@ import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { mf, ms } from '@utils/responsive';
 
-export default function QuickBuyScreen(): React.JSX.Element {
-  useFeatureGuard('grocery');
+function QuickBuyScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -139,3 +138,5 @@ const makeStyles = (C: ColorTokens) =>
     headerSub: { fontSize: mf(13), ...font.medium, color: C.textSecondary, marginTop: ms(1) },
     content: { padding: sizes.lg, paddingBottom: ms(40) },
   });
+
+export default withFeatureGuard('grocery', QuickBuyScreen);

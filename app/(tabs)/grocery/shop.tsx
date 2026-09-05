@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
-import { useFeatureGuard } from '@hooks/useFeatureGuard';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -135,8 +135,7 @@ const ShopItemRow = memo(function ShopItemRow({
   );
 });
 
-export default function ShopScreen(): React.JSX.Element {
-  useFeatureGuard('grocery');
+function ShopScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
@@ -626,3 +625,5 @@ const makeStyles = (C: ColorTokens) =>
     modalTitle: { fontSize: mf(20), color: C.textPrimary },
     modalContent: { padding: sizes.lg, paddingBottom: ms(40) },
   });
+
+export default withFeatureGuard('grocery', ShopScreen);

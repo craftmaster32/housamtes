@@ -18,8 +18,9 @@
 
 DROP FUNCTION IF EXISTS public.leave_house();
 DROP FUNCTION IF EXISTS public.leave_house(uuid);
+DROP FUNCTION IF EXISTS public.leave_house(uuid, uuid);
 
-CREATE OR REPLACE FUNCTION public.leave_house(p_new_owner uuid DEFAULT NULL)
+CREATE OR REPLACE FUNCTION public.leave_house(p_house_id uuid, p_new_owner uuid DEFAULT NULL)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -27,7 +28,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_uid       uuid := auth.uid();
-  v_house_id  uuid;
+  v_house_id  uuid := p_house_id;
   v_role      text;
   v_remaining integer;
   v_new_owner uuid;
@@ -36,22 +37,27 @@ BEGIN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
-  -- The member's current house (most recently joined wins, matching the client).
-  SELECT house_id, role
-    INTO v_house_id, v_role
-    FROM house_members
-   WHERE user_id = v_uid
-   ORDER BY joined_at DESC
-   LIMIT 1;
-
   IF v_house_id IS NULL THEN
-    RETURN; -- not in a house; nothing to do
+    RAISE EXCEPTION 'A house id is required';
   END IF;
 
   -- Serialize concurrent leaves/role changes for this house so two owners
   -- leaving at once can't both pass the "keep an owner" reasoning on a stale
-  -- view of the membership.
+  -- view of the membership. Taken before we read the membership below.
   PERFORM 1 FROM houses WHERE id = v_house_id FOR UPDATE;
+
+  -- The caller's role *in the house they asked to leave*. A user can belong to
+  -- several houses, so we scope strictly to p_house_id rather than guessing the
+  -- "current" one — otherwise leaving from Settings could act on the wrong house.
+  SELECT role
+    INTO v_role
+    FROM house_members
+   WHERE user_id = v_uid
+     AND house_id = v_house_id;
+
+  IF NOT FOUND THEN
+    RETURN; -- not a member of this house; nothing to do
+  END IF;
 
   -- A leaving owner may hand ownership to a chosen fellow member up front.
   IF v_role = 'owner'
@@ -106,5 +112,5 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.leave_house(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.leave_house(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.leave_house(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.leave_house(uuid, uuid) TO authenticated;
