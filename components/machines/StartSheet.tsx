@@ -77,6 +77,24 @@ function StartSheetComponent({
     [onStart, reset]
   );
 
+  const handleHoursChange = useCallback((v: string): void => {
+    const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+    if (digits === '') {
+      setHours('');
+      return;
+    }
+    setHours(Math.min(parseInt(digits, 10), 24).toString());
+  }, []);
+
+  const handleMinutesChange = useCallback((v: string): void => {
+    const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+    if (digits === '') {
+      setMinutes('');
+      return;
+    }
+    setMinutes(Math.min(parseInt(digits, 10), 59).toString());
+  }, []);
+
   return (
     <Modal visible={kind !== null} transparent animationType="slide" onRequestClose={handleClose}>
       <Pressable style={styles.backdrop} onPress={handleClose}>
@@ -149,7 +167,7 @@ function StartSheetComponent({
                 <TextInput
                   style={styles.timeInput}
                   value={hours}
-                  onChangeText={(v) => setHours(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  onChangeText={handleHoursChange}
                   keyboardType="number-pad"
                   maxLength={2}
                   accessibilityLabel={t('machines.hours_full')}
@@ -162,7 +180,7 @@ function StartSheetComponent({
                 <TextInput
                   style={styles.timeInput}
                   value={minutes}
-                  onChangeText={(v) => setMinutes(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  onChangeText={handleMinutesChange}
                   keyboardType="number-pad"
                   maxLength={2}
                   accessibilityLabel={t('machines.minutes_full')}
