@@ -101,7 +101,8 @@
     "more": "עוד",
     "calendar": "לוח שנה",
     "house_section": "בית",
-    "me_section": "אני"
+    "me_section": "אני",
+    "machines": "מכונות"
   },
   "property": {
     "tab_issues": "תקלות",
@@ -1641,7 +1642,9 @@
     "timezone_none": "אין אזורי זמן שתואמים לחיפוש.",
     "fun_section": "כיף",
     "notify_daily_joke": "בדיחת אבא יומית",
-    "notify_daily_joke_sub": "בדיחה אחת מביכה כל יום. אמרנו לכם."
+    "notify_daily_joke_sub": "בדיחה אחת מביכה כל יום. אמרנו לכם.",
+    "notify_appliance_done": "המכונה סיימה",
+    "notify_appliance_done_sub": "כשמחזור של כביסה, מייבש או מדיח מסתיים"
   },
   "members": {
     "title": "הרשאות חברים",
@@ -1845,5 +1848,43 @@
     "ad_label": "מקום שמור לפרסומת — פרימיום מסיר אותה",
     "photo_limit_title": "הגעתם למגבלת התמונות בחינם",
     "photo_limit_body": "התוכנית החינמית מכילה עד {{count}} תמונות. פרימיום מסיר את המגבלה."
+  },
+  "machines": {
+    "title": "מכונות",
+    "subtitle": "מכונת כביסה, מייבש ומדיח — ראו מה פנוי והפעילו טיימר.",
+    "washer": "מכונת כביסה",
+    "dryer": "מייבש",
+    "dishwasher": "מדיח כלים",
+    "free": "פנוי",
+    "free_pill": "פנוי",
+    "running_pill": "פועל",
+    "in_use_by": "בשימוש ע״י {{name}}",
+    "finished": "הרגע הסתיים",
+    "ready_to_unload": "מוכן לפינוי",
+    "time_left": "נותרו {{time}}",
+    "mark_free": "סמן כפנוי",
+    "stop": "עצור",
+    "start": "הפעל",
+    "start_machine": "הפעלת {{name}}",
+    "start_title": "הפעלת {{name}}",
+    "quick_start": "הפעלה מהירה",
+    "start_preset": "הפעל {{name}}, {{time}}",
+    "delete_preset": "מחק הגדרה {{name}}",
+    "start_for": "הפעל ל-{{time}}",
+    "custom_time": "זמן מותאם",
+    "hours": "שע'",
+    "minutes": "דק'",
+    "name_placeholder": "שם (רשות) — למשל אקו",
+    "save_as_preset": "שמור כהגדרה קבועה",
+    "tap_to_start": "הקישו הפעלה כדי להתחיל מחזור",
+    "notify_hint": "כשמחזור מסתיים, כולם מקבלים התראה שהמכונה פנויה.",
+    "stop_title": "לפנות את המכונה?",
+    "stop_confirm": "סמנו אותה כפנויה והודיעו לבית שהיא זמינה.",
+    "failed_start": "לא ניתן להפעיל את המכונה. נסו שוב.",
+    "failed_stop": "לא ניתן לפנות את המכונה. נסו שוב.",
+    "failed_preset": "לא ניתן לשמור את ההגדרה. נסו שוב.",
+    "hours_hint": "שעות שהמחזור פועל",
+    "minutes_hint": "דקות שהמחזור פועל",
+    "name_hint": "תווית לא חובה למחזור הזה"
   }
 }

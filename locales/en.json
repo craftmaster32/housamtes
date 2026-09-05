@@ -101,7 +101,8 @@
     "settings": "Settings",
     "house_section": "HOUSE",
     "me_section": "ME",
-    "more": "More"
+    "more": "More",
+    "machines": "Machines"
   },
   "property": {
     "tab_issues": "Issues",
@@ -1641,7 +1642,9 @@
     "currency_pick": "Choose currency",
     "fun_section": "Fun",
     "notify_daily_joke": "Daily dad joke",
-    "notify_daily_joke_sub": "One groan-worthy joke a day. You've been warned."
+    "notify_daily_joke_sub": "One groan-worthy joke a day. You've been warned.",
+    "notify_appliance_done": "Machine finished",
+    "notify_appliance_done_sub": "When a washer, dryer or dishwasher cycle ends"
   },
   "members": {
     "title": "Member Permissions",
@@ -1845,5 +1848,43 @@
     "ad_label": "Ad placeholder — Premium removes this",
     "photo_limit_title": "You've reached the free photo limit",
     "photo_limit_body": "The free plan holds up to {{count}} photos. Premium removes the limit."
+  },
+  "machines": {
+    "title": "Machines",
+    "subtitle": "Washer, dryer & dishwasher — see what's free and start a timer.",
+    "washer": "Washing machine",
+    "dryer": "Dryer",
+    "dishwasher": "Dishwasher",
+    "free": "Free",
+    "free_pill": "FREE",
+    "running_pill": "RUNNING",
+    "in_use_by": "In use by {{name}}",
+    "finished": "Just finished",
+    "ready_to_unload": "Ready to unload",
+    "time_left": "{{time}} left",
+    "mark_free": "Mark as free",
+    "stop": "Stop",
+    "start": "Start",
+    "start_machine": "Start {{name}}",
+    "start_title": "Start {{name}}",
+    "quick_start": "Quick start",
+    "start_preset": "Start {{name}}, {{time}}",
+    "delete_preset": "Delete preset {{name}}",
+    "start_for": "Start for {{time}}",
+    "custom_time": "Custom time",
+    "hours": "hrs",
+    "minutes": "min",
+    "name_placeholder": "Name (optional) — e.g. Eco wash",
+    "save_as_preset": "Save as a preset",
+    "tap_to_start": "Tap start to run a cycle",
+    "notify_hint": "When a cycle finishes, everyone gets a heads-up that the machine is free.",
+    "stop_title": "Free up this machine?",
+    "stop_confirm": "Mark it as free and let the house know it's available.",
+    "failed_start": "Could not start the machine. Please try again.",
+    "failed_stop": "Could not free the machine. Please try again.",
+    "failed_preset": "Could not save the preset. Please try again.",
+    "hours_hint": "Hours the cycle runs",
+    "minutes_hint": "Minutes the cycle runs",
+    "name_hint": "Optional label for this load"
   }
 }

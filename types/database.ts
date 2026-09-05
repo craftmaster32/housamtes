@@ -25,3 +25,20 @@ export interface ExpenseCategoryRow {
   is_default: boolean;
   sort_order: number;
 }
+
+export interface ApplianceSessionRow {
+  id: string;
+  appliance: string;
+  started_by: string;
+  label: string | null;
+  started_at: string;
+  ends_at: string;
+}
+
+export interface AppliancePresetRow {
+  id: string;
+  appliance: string;
+  name: string;
+  duration_minutes: number;
+  created_by: string;
+}

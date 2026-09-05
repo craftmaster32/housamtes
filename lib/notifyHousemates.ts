@@ -17,7 +17,8 @@ type NotificationType =
   | 'grocery_shared'
   | 'task_assigned'
   | 'event_added'
-  | 'event_reminder';
+  | 'event_reminder'
+  | 'appliance';
 
 /** Interpolation values for a localized copy key (names, amounts, dates…). */
 export interface CopyParams {

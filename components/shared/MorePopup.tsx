@@ -47,6 +47,13 @@ const POPUP_NAV: NavItem[] = [
     featureKey: 'grocery',
   },
   {
+    icon: 'sync-outline',
+    iconActive: 'sync',
+    labelKey: 'nav.machines',
+    route: '/(tabs)/machines',
+    color: '#3B6FBF',
+  },
+  {
     icon: 'calendar-outline',
     iconActive: 'calendar',
     labelKey: 'nav.calendar',

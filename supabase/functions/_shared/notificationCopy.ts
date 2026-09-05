@@ -151,6 +151,62 @@ function str(p: CopyParams, key: string): string {
   return v === undefined || v === null ? '' : String(v);
 }
 
+// ── Appliances ────────────────────────────────────────────────────────────────
+type ApplianceKind = 'washer' | 'dryer' | 'dishwasher';
+
+const APPLIANCE_LABEL: Record<Lang, Record<ApplianceKind, string>> = {
+  en: { washer: 'washing machine', dryer: 'dryer', dishwasher: 'dishwasher' },
+  es: { washer: 'lavadora', dryer: 'secadora', dishwasher: 'lavavajillas' },
+  he: { washer: 'מכונת הכביסה', dryer: 'המייבש', dishwasher: 'מדיח הכלים' },
+};
+
+function applianceLabel(lang: Lang, kind: string): string {
+  const table = APPLIANCE_LABEL[lang];
+  return table[kind as ApplianceKind] ?? kind;
+}
+
+// Spanish gender per machine — "lavavajillas" is masculine ("el"), the others
+// feminine ("la"). Used so the article agrees with the noun.
+const ES_ARTICLE: Record<ApplianceKind, string> = {
+  washer: 'la',
+  dryer: 'la',
+  dishwasher: 'el',
+};
+
+function esArticle(kind: string, capitalized = false): string {
+  const art = ES_ARTICLE[kind as ApplianceKind] ?? 'la';
+  return capitalized ? art.charAt(0).toUpperCase() + art.slice(1) : art;
+}
+
+/** "1h 30m" / "45m" — a compact, language-neutral duration from minutes. */
+function durationLabel(minutes: number): string {
+  const total = Math.max(1, Math.round(minutes));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+/**
+ * Cron-sent copy when a machine's cycle finishes — the house is told it's free.
+ * The finished machine's name is capitalized to open the sentence naturally.
+ */
+export function applianceDoneCopy(lang: Lang, p: { appliance: string }): PushCopy {
+  const name = applianceLabel(lang, p.appliance);
+  const Cap = name.charAt(0).toUpperCase() + name.slice(1);
+  if (lang === 'es') {
+    return {
+      title: '✅ ¡Ciclo terminado!',
+      body: `${esArticle(p.appliance, true)} ${name} ya terminó — recoge tu ropa y déjala libre 🧺`,
+    };
+  }
+  if (lang === 'he') {
+    return { title: '✅ המחזור הסתיים!', body: `${Cap} סיים/ה — פנו אותו/ה לשותפים 🧺` };
+  }
+  return { title: '✅ Cycle finished!', body: `${Cap} is done — grab your load and free it up 🧺` };
+}
+
 /**
  * Build the localized title + body for an instant notification.
  * Returns null for keys with no fixed copy (e.g. chat messages, whose text is
@@ -443,6 +499,50 @@ export function instantPushCopy(key: string, lang: Lang, p: CopyParams): PushCop
       if (es) return { title: '📅 Nuevo evento', body: `${actor} añadió "${title}" · ${when}` };
       if (he) return { title: '📅 אירוע חדש', body: `${actor} הוסיף/ה "${title}" · ${when}` };
       return { title: '📅 New event', body: `${actor} added "${title}" · ${when}` };
+    }
+
+    case 'appliance_started': {
+      const kind = str(p, 'appliance');
+      const name = applianceLabel(lang, kind);
+      const who = str(p, 'name') || (es ? 'Alguien' : he ? 'מישהו' : 'Someone');
+      const minutes = typeof p['minutes'] === 'number' ? (p['minutes'] as number) : 0;
+      const dur = minutes > 0 ? durationLabel(minutes) : '';
+      if (es) {
+        const art = esArticle(kind);
+        return {
+          title: '🌀 Máquina en marcha',
+          body: dur
+            ? `${who} puso ${art} ${name} — libre en ~${dur}`
+            : `${who} puso ${art} ${name} en marcha`,
+        };
+      }
+      if (he) {
+        return {
+          title: '🌀 מכונה פועלת',
+          body: dur
+            ? `${who} הפעיל/ה את ${name} — תתפנה בעוד ~${dur}`
+            : `${who} הפעיל/ה את ${name}`,
+        };
+      }
+      return {
+        title: '🌀 Machine running',
+        body: dur ? `${who} started the ${name} — free in ~${dur}` : `${who} started the ${name}`,
+      };
+    }
+
+    case 'appliance_free': {
+      const kind = str(p, 'appliance');
+      const name = applianceLabel(lang, kind);
+      const Cap = name.charAt(0).toUpperCase() + name.slice(1);
+      if (es) {
+        const pron = esArticle(kind) === 'el' ? 'él' : 'ella';
+        return {
+          title: '🧺 Máquina libre',
+          body: `${esArticle(kind, true)} ${name} ya está libre — ¡a por ${pron}!`,
+        };
+      }
+      if (he) return { title: '🧺 המכונה פנויה', body: `${Cap} פנוי/ה עכשיו — קדימה!` };
+      return { title: '🧺 Machine free', body: `${Cap} is free now — go for it!` };
     }
 
     default:

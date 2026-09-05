@@ -33,6 +33,8 @@ import { useGroceryStore } from '@stores/groceryStore';
 import { useTasksStore } from '@stores/tasksStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useParkingStore } from '@stores/parkingStore';
+import { useAppliancesStore, type ApplianceKind } from '@stores/appliancesStore';
+import { MACHINE_META, formatRemaining } from '@components/machines/meta';
 import { useBillsStore } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
@@ -66,6 +68,9 @@ const CARD_ICON: Record<DashboardCardKey, IoniconName> = {
   votes: 'people-outline',
   parking: 'car-outline',
   bills: 'card-outline',
+  washer: MACHINE_META.washer.icon,
+  dryer: MACHINE_META.dryer.icon,
+  dishwasher: MACHINE_META.dishwasher.icon,
 };
 const CARD_LABEL_KEY: Record<DashboardCardKey, string> = {
   groceries: 'dashboard.grocery_list',
@@ -73,6 +78,9 @@ const CARD_LABEL_KEY: Record<DashboardCardKey, string> = {
   votes: 'dashboard.votes_label',
   parking: 'dashboard.parking_label',
   bills: 'dashboard.bills_label',
+  washer: MACHINE_META.washer.labelKey,
+  dryer: MACHINE_META.dryer.labelKey,
+  dishwasher: MACHINE_META.dishwasher.labelKey,
 };
 
 const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
@@ -718,6 +726,57 @@ function BillsCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX
   );
 }
 
+interface ApplianceCardProps {
+  styles: Styles;
+  kind: ApplianceKind;
+}
+
+function ApplianceCard({ styles, kind }: ApplianceCardProps): React.JSX.Element {
+  const { t } = useTranslation();
+  const session = useAppliancesStore((s) => s.sessions[kind]);
+  const housemates = useHousematesStore((s) => s.housemates);
+  const meta = MACHINE_META[kind];
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  // Tick the countdown only while this machine is actually running.
+  useEffect(() => {
+    if (!session) return;
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return (): void => clearInterval(id);
+  }, [session]);
+
+  const left = session ? Math.max(0, new Date(session.endsAt).getTime() - nowMs) : 0;
+  const running = session !== null && left > 0;
+  const who = session ? resolveName(session.startedBy, housemates, t('common.unknown')) : '';
+
+  return (
+    <CardShell
+      styles={styles}
+      onPress={() => navigateToBase('/(tabs)/machines')}
+      accessibilityLabel={t(meta.labelKey)}
+    >
+      <View style={styles.cardTop}>
+        <IconChip styles={styles} icon={meta.icon} tint={meta.color + '22'} color={meta.color} />
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {t(meta.labelKey)}
+        </Text>
+      </View>
+      <View>
+        <Text style={[styles.bigStat, session ? { color: meta.color } : undefined]}>
+          {!session ? t('machines.free') : running ? formatRemaining(left) : t('machines.finished')}
+        </Text>
+        <Text style={styles.cardSub} numberOfLines={1}>
+          {!session
+            ? t('machines.tap_to_start')
+            : running
+              ? t('machines.in_use_by', { name: who })
+              : t('machines.ready_to_unload')}
+        </Text>
+      </View>
+    </CardShell>
+  );
+}
+
 function renderCard(
   key: DashboardCardKey,
   styles: Styles,
@@ -735,6 +794,10 @@ function renderCard(
       return <ParkingCard styles={styles} />;
     case 'bills':
       return <BillsCard styles={styles} c={c} />;
+    case 'washer':
+    case 'dryer':
+    case 'dishwasher':
+      return <ApplianceCard styles={styles} kind={key} />;
   }
 }
 

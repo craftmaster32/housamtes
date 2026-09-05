@@ -248,3 +248,28 @@ export const maintenanceRequestSchema = z.object({
   reportedBy: z.string().min(1),
   houseId: z.string().min(1),
 });
+
+const applianceKindSchema = z.enum(['washer', 'dryer', 'dishwasher']);
+
+// A machine cycle: which appliance, how long (1 min–24 h), and an optional label.
+// The duration cap keeps a mistyped time from blocking a machine for days.
+export const applianceStartSchema = z.object({
+  appliance: applianceKindSchema,
+  durationMinutes: z
+    .number()
+    .int()
+    .min(1, 'Please choose how long the cycle runs')
+    .max(1440, 'A cycle can run at most 24 hours'),
+  label: z.string().trim().max(40),
+});
+
+// A saved reusable preset for a machine (e.g. "Eco", 150 minutes).
+export const appliancePresetSchema = z.object({
+  appliance: applianceKindSchema,
+  name: z.string().trim().min(1, 'Give the preset a name').max(40, 'Preset name is too long'),
+  durationMinutes: z
+    .number()
+    .int()
+    .min(1, 'Choose a duration between 1 minute and 24 hours')
+    .max(1440, 'Choose a duration between 1 minute and 24 hours'),
+});

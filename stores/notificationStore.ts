@@ -21,6 +21,7 @@ export interface NotificationPrefs {
   notifyEventReminder: boolean;
   eventReminderDaysBefore: EventReminderDays;
   notifyDailyJoke: boolean;
+  notifyApplianceDone: boolean;
 }
 
 const DEFAULT_PREFS: NotificationPrefs = {
@@ -38,6 +39,7 @@ const DEFAULT_PREFS: NotificationPrefs = {
   notifyEventReminder: true,
   eventReminderDaysBefore: 1,
   notifyDailyJoke: true,
+  notifyApplianceDone: true,
 };
 
 interface NotificationStore {
@@ -65,6 +67,7 @@ function rowToPrefs(row: Record<string, unknown>): NotificationPrefs {
     notifyEventReminder: (row.notify_event_reminder ?? true) as boolean,
     eventReminderDaysBefore: (row.event_reminder_days_before ?? 1) as EventReminderDays,
     notifyDailyJoke: (row.notify_daily_joke ?? true) as boolean,
+    notifyApplianceDone: (row.notify_appliance_done ?? true) as boolean,
   };
 }
 
@@ -89,6 +92,8 @@ function prefsToRow(prefs: Partial<NotificationPrefs>): Record<string, unknown> 
   if (prefs.eventReminderDaysBefore !== undefined)
     row.event_reminder_days_before = prefs.eventReminderDaysBefore;
   if (prefs.notifyDailyJoke !== undefined) row.notify_daily_joke = prefs.notifyDailyJoke;
+  if (prefs.notifyApplianceDone !== undefined)
+    row.notify_appliance_done = prefs.notifyApplianceDone;
   return row;
 }
 

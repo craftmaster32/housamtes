@@ -101,7 +101,8 @@
     "house_section": "CASA",
     "me_section": "YO",
     "more": "Más",
-    "calendar": "Calendario"
+    "calendar": "Calendario",
+    "machines": "Máquinas"
   },
   "property": {
     "tab_issues": "Problemas",
@@ -1673,7 +1674,9 @@
     "timezone_none": "Ninguna zona horaria coincide.",
     "fun_section": "Diversión",
     "notify_daily_joke": "Chiste malo del día",
-    "notify_daily_joke_sub": "Un chiste para poner los ojos en blanco, cada día. Avisado quedas."
+    "notify_daily_joke_sub": "Un chiste para poner los ojos en blanco, cada día. Avisado quedas.",
+    "notify_appliance_done": "Máquina terminada",
+    "notify_appliance_done_sub": "Cuando termina un ciclo de lavadora, secadora o lavavajillas"
   },
   "members": {
     "title": "Permisos de miembros",
@@ -1845,5 +1848,43 @@
     "ad_label": "Espacio de anuncio — Premium lo elimina",
     "photo_limit_title": "Alcanzaste el límite de fotos gratis",
     "photo_limit_body": "El plan gratis permite hasta {{count}} fotos. Premium elimina el límite."
+  },
+  "machines": {
+    "title": "Máquinas",
+    "subtitle": "Lavadora, secadora y lavavajillas: mira qué está libre y pon un temporizador.",
+    "washer": "Lavadora",
+    "dryer": "Secadora",
+    "dishwasher": "Lavavajillas",
+    "free": "Libre",
+    "free_pill": "LIBRE",
+    "running_pill": "EN MARCHA",
+    "in_use_by": "En uso por {{name}}",
+    "finished": "Recién terminado",
+    "ready_to_unload": "Lista para vaciar",
+    "time_left": "Quedan {{time}}",
+    "mark_free": "Marcar libre",
+    "stop": "Parar",
+    "start": "Iniciar",
+    "start_machine": "Iniciar {{name}}",
+    "start_title": "Iniciar {{name}}",
+    "quick_start": "Inicio rápido",
+    "start_preset": "Iniciar {{name}}, {{time}}",
+    "delete_preset": "Eliminar preajuste {{name}}",
+    "start_for": "Iniciar por {{time}}",
+    "custom_time": "Tiempo personalizado",
+    "hours": "h",
+    "minutes": "min",
+    "name_placeholder": "Nombre (opcional) — p. ej. Eco",
+    "save_as_preset": "Guardar como preajuste",
+    "tap_to_start": "Toca iniciar para un ciclo",
+    "notify_hint": "Cuando termina un ciclo, todos reciben aviso de que la máquina está libre.",
+    "stop_title": "¿Liberar esta máquina?",
+    "stop_confirm": "Márcala como libre y avisa a la casa de que está disponible.",
+    "failed_start": "No se pudo iniciar la máquina. Inténtalo de nuevo.",
+    "failed_stop": "No se pudo liberar la máquina. Inténtalo de nuevo.",
+    "failed_preset": "No se pudo guardar el preajuste. Inténtalo de nuevo.",
+    "hours_hint": "Horas que dura el ciclo",
+    "minutes_hint": "Minutos que dura el ciclo",
+    "name_hint": "Etiqueta opcional para esta carga"
   }
 }
