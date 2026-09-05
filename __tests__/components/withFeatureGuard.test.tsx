@@ -16,7 +16,7 @@ jest.mock('@hooks/useFeatureGuard', () => ({
   useFeatureGuard: (key: string): boolean => mockGuard(key),
 }));
 
-import { withFeatureGuard } from '../../components/shared/withFeatureGuard';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 
 describe('withFeatureGuard', () => {
   beforeEach(() => mockGuard.mockReset());
