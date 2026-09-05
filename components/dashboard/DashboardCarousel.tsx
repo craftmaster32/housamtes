@@ -23,6 +23,7 @@ import Svg, {
   Rect,
 } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -562,6 +563,8 @@ export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
   // mirroring the parking page's gate. The full page is reached from the bottom
   // bar's car icon.
   const handleParkingPress = useCallback((): void => {
+    // Immediate tactile ack so the toggle feels instant, not delayed.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     const uid = myId ?? '';
     const uname = myName ?? '';
     const hId = houseId ?? '';
@@ -633,7 +636,10 @@ export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
     : t('parking.a11y_hint', 'Toggles your parking reservation');
   return (
     <Pressable
-      style={({ pressed }) => [styles.parkShell, pressed && { opacity: 0.9 }]}
+      style={({ pressed }) => [
+        styles.parkShell,
+        pressed && { opacity: 0.92, transform: [{ scale: 0.97 }] },
+      ]}
       onPress={handleParkingPress}
       onLayout={onLayout}
       disabled={isBusy}
