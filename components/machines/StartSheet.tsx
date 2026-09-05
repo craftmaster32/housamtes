@@ -77,6 +77,24 @@ function StartSheetComponent({
     [onStart, reset]
   );
 
+  const handleHoursChange = useCallback((v: string): void => {
+    const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+    if (digits === '') {
+      setHours('');
+      return;
+    }
+    setHours(Math.min(parseInt(digits, 10), 24).toString());
+  }, []);
+
+  const handleMinutesChange = useCallback((v: string): void => {
+    const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
+    if (digits === '') {
+      setMinutes('');
+      return;
+    }
+    setMinutes(Math.min(parseInt(digits, 10), 59).toString());
+  }, []);
+
   return (
     <Modal visible={kind !== null} transparent animationType="slide" onRequestClose={handleClose}>
       <Pressable style={styles.backdrop} onPress={handleClose}>
@@ -140,32 +158,34 @@ function StartSheetComponent({
                   ))}
             </View>
 
-            {/* Custom duration */}
+            {/* Custom duration — a caption over each box makes it unmistakable
+                which is hours and which is minutes, with a colon reading HH:MM. */}
             <Text style={styles.sectionLabel}>{t('machines.custom_time')}</Text>
             <View style={styles.timeRow}>
               <View style={styles.timeField}>
+                <Text style={styles.timeCaption}>{t('machines.hours_full')}</Text>
                 <TextInput
                   style={styles.timeInput}
                   value={hours}
-                  onChangeText={(v) => setHours(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  onChangeText={handleHoursChange}
                   keyboardType="number-pad"
                   maxLength={2}
-                  accessibilityLabel={t('machines.hours')}
+                  accessibilityLabel={t('machines.hours_full')}
                   accessibilityHint={t('machines.hours_hint')}
                 />
-                <Text style={styles.timeUnit}>{t('machines.hours')}</Text>
               </View>
+              <Text style={styles.timeColon}>:</Text>
               <View style={styles.timeField}>
+                <Text style={styles.timeCaption}>{t('machines.minutes_full')}</Text>
                 <TextInput
                   style={styles.timeInput}
                   value={minutes}
-                  onChangeText={(v) => setMinutes(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                  onChangeText={handleMinutesChange}
                   keyboardType="number-pad"
                   maxLength={2}
-                  accessibilityLabel={t('machines.minutes')}
+                  accessibilityLabel={t('machines.minutes_full')}
                   accessibilityHint={t('machines.minutes_hint')}
                 />
-                <Text style={styles.timeUnit}>{t('machines.minutes')}</Text>
               </View>
             </View>
 
@@ -289,27 +309,31 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       backgroundColor: c.background,
       borderRadius: ms(9),
     },
-    timeRow: { flexDirection: 'row', gap: ms(12) },
-    timeField: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
+    timeRow: { flexDirection: 'row', gap: ms(10), alignItems: 'flex-end' },
+    timeField: { flex: 1, gap: ms(6) },
+    timeCaption: {
+      fontSize: mf(12.5),
+      ...font.semibold,
+      color: c.textSecondary,
+      textAlign: 'center',
+    },
+    timeInput: {
       backgroundColor: c.surface,
       borderRadius: ms(13),
       borderWidth: 1,
       borderColor: c.border,
-      paddingHorizontal: ms(12),
-    },
-    timeInput: {
-      flex: 1,
-      paddingVertical: ms(12),
-      fontSize: mf(20),
+      paddingVertical: ms(14),
+      fontSize: mf(22),
       ...font.bold,
       color: c.textPrimary,
       textAlign: 'center',
     },
-    timeUnit: { fontSize: mf(13), ...font.medium, color: c.textSecondary },
+    timeColon: {
+      fontSize: mf(22),
+      ...font.bold,
+      color: c.textSecondary,
+      paddingBottom: ms(12),
+    },
     nameInput: {
       marginTop: ms(12),
       backgroundColor: c.surface,
