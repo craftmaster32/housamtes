@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { useCallback, useEffect } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import Animated, {
   FadeIn,
   useAnimatedStyle,
@@ -22,10 +22,6 @@ import { useGroceryStore } from '@stores/groceryStore';
 import { useChoresStore } from '@stores/choresStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useAuthStore } from '@stores/authStore';
-import { useHousematesStore } from '@stores/housematesStore';
-import { resolveName } from '@utils/housemates';
-import { getErrorMessage } from '@utils/errors';
-import { Alert } from '@lib/alert';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 
@@ -114,16 +110,10 @@ export function BottomTabBar(): React.JSX.Element {
     lastSeen.bills
   );
   const reservations = useParkingStore((s) => s.reservations);
-  const parkingCurrent = useParkingStore((s) => s.current);
-  const claimParking = useParkingStore((s) => s.claim);
-  const releaseParking = useParkingStore((s) => s.release);
   const items = useGroceryStore((s) => s.items);
   const chores = useChoresStore((s) => s.chores);
   const proposals = useVotingStore((s) => s.proposals);
   const myId = useAuthStore((s) => s.profile?.id);
-  const myName = useAuthStore((s) => s.profile?.name);
-  const houseId = useAuthStore((s) => s.houseId);
-  const housemates = useHousematesStore((s) => s.housemates);
   const parkingBadge = myId
     ? reservations.filter(
         (r) =>
@@ -159,70 +149,6 @@ export function BottomTabBar(): React.JSX.Element {
     [isMoreOpen, pathname]
   );
 
-  // Tapping the parking tab acts as a quick catch/release toggle instead of
-  // navigating — the full parking page is reached from the dashboard card.
-  // A tap on a spot held by a housemate is gated behind the same "free someone
-  // else's spot" confirmation the parking page uses.
-  const parkingBusyRef = useRef(false);
-  const handleParkingToggle = useCallback((): void => {
-    const uid = myId ?? '';
-    const uname = myName ?? '';
-    const hId = houseId ?? '';
-    const current = useParkingStore.getState().current;
-
-    if (current && current.occupant !== uid) {
-      const occupantName = resolveName(current.occupant, housemates, t('common.unknown'));
-      const pinnedId = current.id;
-      const doRelease = (): void => {
-        if (useParkingStore.getState().current?.id !== pinnedId) {
-          Alert.alert(t('parking.could_not_free'), t('parking.spot_changed'));
-          return;
-        }
-        if (parkingBusyRef.current) return;
-        parkingBusyRef.current = true;
-        releaseParking(hId, uname)
-          .catch(() => {
-            Alert.alert(t('parking.could_not_free'), t('parking.failed_release'));
-          })
-          .finally(() => {
-            parkingBusyRef.current = false;
-          });
-      };
-      if (Platform.OS === 'web') {
-        if (window.confirm(t('parking.evict_confirm', { name: occupantName }))) doRelease();
-      } else {
-        Alert.alert(
-          t('parking.kick_out_title', { name: occupantName }),
-          t('parking.kick_out_body'),
-          [
-            { text: t('parking.leave_it'), style: 'cancel' },
-            { text: t('parking.free_it_anyway'), style: 'destructive', onPress: doRelease },
-          ]
-        );
-      }
-      return;
-    }
-
-    if (parkingBusyRef.current) return;
-    parkingBusyRef.current = true;
-    const done = (): void => {
-      parkingBusyRef.current = false;
-    };
-    if (current && current.occupant === uid) {
-      releaseParking(hId, uname)
-        .catch((err) =>
-          Alert.alert(t('parking.title'), getErrorMessage(err, t('parking.failed_release')))
-        )
-        .finally(done);
-    } else {
-      claimParking(uid, uname, hId)
-        .catch((err) =>
-          Alert.alert(t('parking.title'), getErrorMessage(err, t('parking.failed_claim')))
-        )
-        .finally(done);
-    }
-  }, [myId, myName, houseId, housemates, claimParking, releaseParking, t]);
-
   const handleTab = useCallback(
     (tab: TabItem): void => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -230,13 +156,11 @@ export function BottomTabBar(): React.JSX.Element {
       closeProfile();
       if (tab.id === 'more') {
         openMore();
-      } else if (tab.id === 'parking') {
-        handleParkingToggle();
       } else {
         navigateToBase(tab.route);
       }
     },
-    [openMore, closeMore, closeProfile, handleParkingToggle]
+    [openMore, closeMore, closeProfile]
   );
 
   const handleAdd = useCallback((): void => {
@@ -315,27 +239,15 @@ export function BottomTabBar(): React.JSX.Element {
       {TABS.slice(2).map((tab) => {
         const active = isActive(tab.id);
         const badge = tab.id === 'parking' ? parkingBadge : tab.id === 'more' ? moreBadge : 0;
-        const isParking = tab.id === 'parking';
-        const parkingA11yLabel =
-          parkingCurrent?.occupant === myId
-            ? t('parking.a11y_release', 'Release parking spot')
-            : t('parking.a11y_claim', 'Claim parking spot');
         return (
           <Pressable
             key={tab.id}
             style={styles.tab}
             onPress={() => handleTab(tab)}
             accessible={true}
-            accessibilityRole={isParking ? 'button' : 'tab'}
-            accessibilityLabel={isParking ? parkingA11yLabel : tabLabels[tab.id]}
-            accessibilityHint={
-              isParking
-                ? t('parking.a11y_hint', 'Toggles your parking reservation')
-                : undefined
-            }
-            accessibilityState={
-              isParking ? { disabled: parkingBusyRef.current } : { selected: active }
-            }
+            accessibilityRole="tab"
+            accessibilityLabel={tabLabels[tab.id]}
+            accessibilityState={{ selected: active }}
           >
             <View style={styles.tabIconWrap}>
               <AnimatedIcon
