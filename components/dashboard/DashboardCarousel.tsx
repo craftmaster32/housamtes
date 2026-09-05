@@ -202,13 +202,6 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       color: 'rgba(255,255,255,0.7)',
       marginTop: ms(2),
     },
-    parkNavBtn: {
-      position: 'absolute',
-      top: ms(10),
-      end: ms(10),
-      padding: ms(4),
-    },
-
     dots: {
       flexDirection: 'row',
       justifyContent: 'center',
@@ -695,19 +688,6 @@ export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
           </Text>
         )}
       </View>
-      {/* Separate navigation affordance so the full parking page remains
-          reachable from the dashboard card even though the card press toggles
-          claim/release. */}
-      <Pressable
-        style={styles.parkNavBtn}
-        onPress={() => navigateToBase('/(tabs)/parking')}
-        accessible={true}
-        accessibilityRole="button"
-        accessibilityLabel={t('parking.nav_to_page', 'View parking details')}
-        hitSlop={ms(10)}
-      >
-        <Ionicons name="open-outline" size={ms(15)} color="rgba(255,255,255,0.55)" />
-      </Pressable>
     </Pressable>
   );
 }
