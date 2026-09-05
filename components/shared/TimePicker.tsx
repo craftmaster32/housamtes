@@ -406,7 +406,10 @@ const makePickerStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> 
       borderRadius: ms(14),
       opacity: 0.07,
     },
-    columnsRow: { flexDirection: 'row', alignItems: 'center' },
+    // Time always reads HH:MM (hours left, minutes right). Pin to LTR so the
+    // columns keep that order even under a RTL layout (e.g. Hebrew on web,
+    // where the document dir='rtl' would otherwise reverse this flex row).
+    columnsRow: { flexDirection: 'row', alignItems: 'center', direction: 'ltr' },
     colon: {
       fontSize: mf(30),
       ...font.bold,
