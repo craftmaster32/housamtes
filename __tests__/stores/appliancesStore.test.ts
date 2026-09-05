@@ -14,9 +14,9 @@ import {
   isFinished,
   useAppliancesStore,
   type ApplianceSession,
-} from '../../stores/appliancesStore';
+} from '@stores/appliancesStore';
 import { ok, fail } from '../__helpers__/supabaseMock';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuthStore } from '@stores/authStore';
 
 const mockFrom = jest.fn();
 

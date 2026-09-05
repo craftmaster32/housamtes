@@ -62,6 +62,7 @@ export default function MachinesScreen(): React.JSX.Element {
   );
 
   const handleOpenStart = useCallback((kind: ApplianceKind): void => setStartKind(kind), []);
+  const handleCloseStart = useCallback((): void => setStartKind(null), []);
 
   const handleStart = useCallback(
     async ({
@@ -188,7 +189,7 @@ export default function MachinesScreen(): React.JSX.Element {
         kind={startKind}
         presets={sheetPresets}
         busy={busy}
-        onClose={() => setStartKind(null)}
+        onClose={handleCloseStart}
         onStart={handleStart}
         onSavePreset={handleSavePreset}
         onDeletePreset={handleDeletePreset}

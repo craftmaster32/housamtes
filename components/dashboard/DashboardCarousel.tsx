@@ -633,13 +633,12 @@ function BillsCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX
   );
 }
 
-function ApplianceCard({
-  styles,
-  kind,
-}: {
+interface ApplianceCardProps {
   styles: Styles;
   kind: ApplianceKind;
-}): React.JSX.Element {
+}
+
+function ApplianceCard({ styles, kind }: ApplianceCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const session = useAppliancesStore((s) => s.sessions[kind]);
   const housemates = useHousematesStore((s) => s.housemates);

@@ -1,9 +1,18 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { z } from 'zod';
 import { supabase } from '@lib/supabase';
 import { notifyHousemates } from '@lib/notifyHousemates';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
+import { applianceStartSchema, appliancePresetSchema } from '@utils/validation';
+import type { ApplianceSessionRow, AppliancePresetRow } from '@/types/database';
+
+// Turns a ZodError into the first plain-English message; rethrows anything else.
+function firstZodMessage(err: unknown, fallback: string): never {
+  if (err instanceof z.ZodError) throw new Error(err.issues[0]?.message ?? fallback);
+  throw err;
+}
 
 // The three shared machines. Order is the canonical display order.
 export type ApplianceKind = 'washer' | 'dryer' | 'dishwasher';
@@ -79,16 +88,7 @@ export function isFinished(session: ApplianceSession | null, now: Date = new Dat
   return session !== null && remainingMs(session, now) === 0;
 }
 
-interface SessionRow {
-  id: string;
-  appliance: string;
-  started_by: string;
-  label: string | null;
-  started_at: string;
-  ends_at: string;
-}
-
-function rowToSession(row: SessionRow): ApplianceSession {
+function rowToSession(row: ApplianceSessionRow): ApplianceSession {
   return {
     id: row.id,
     appliance: row.appliance as ApplianceKind,
@@ -132,28 +132,22 @@ export const useAppliancesStore = create<AppliancesStore>()(
           if (presetRes.error) throw presetRes.error;
 
           const sessions = emptySessions();
-          for (const row of (sessionRes.data ?? []) as SessionRow[]) {
+          for (const row of (sessionRes.data ?? []) as ApplianceSessionRow[]) {
             const session = rowToSession(row);
             // Guard against an unexpected value slipping past the DB CHECK.
             if (APPLIANCE_KINDS.includes(session.appliance)) {
               sessions[session.appliance] = session;
             }
           }
-          const presets: AppliancePreset[] = (
-            (presetRes.data ?? []) as Array<{
-              id: string;
-              appliance: string;
-              name: string;
-              duration_minutes: number;
-              created_by: string;
-            }>
-          ).map((p) => ({
-            id: p.id,
-            appliance: p.appliance as ApplianceKind,
-            name: p.name,
-            durationMinutes: p.duration_minutes,
-            createdBy: p.created_by,
-          }));
+          const presets: AppliancePreset[] = ((presetRes.data ?? []) as AppliancePresetRow[]).map(
+            (p) => ({
+              id: p.id,
+              appliance: p.appliance as ApplianceKind,
+              name: p.name,
+              durationMinutes: p.duration_minutes,
+              createdBy: p.created_by,
+            })
+          );
 
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
@@ -222,22 +216,24 @@ export const useAppliancesStore = create<AppliancesStore>()(
           throw new Error('Please wait while your profile loads before starting a machine.');
         }
         if (get().isLoading) throw new Error('Still loading machines, please try again');
-        if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
-          throw new Error('Please choose how long the cycle runs');
-        }
-        // Cap at 24h so a mis-entered time can't block the machine for days.
-        if (durationMinutes > 1440) {
-          throw new Error('A cycle can run at most 24 hours');
-        }
         if (get().sessions[appliance]) throw new Error('This machine is already running');
 
+        // Validate the payload (appliance enum, 1–1440 min, label length) before
+        // any optimistic state change or DB write.
+        let parsed: z.infer<typeof applianceStartSchema>;
+        try {
+          parsed = applianceStartSchema.parse({ appliance, durationMinutes, label });
+        } catch (err) {
+          firstZodMessage(err, 'Please check the cycle details.');
+        }
+
         const startedAt = new Date();
-        const endsAt = new Date(startedAt.getTime() + durationMinutes * 60_000);
+        const endsAt = new Date(startedAt.getTime() + parsed.durationMinutes * 60_000);
         const optimistic: ApplianceSession = {
           id: 'optimistic',
           appliance,
           startedBy: userId,
-          label,
+          label: parsed.label,
           startedAt: startedAt.toISOString(),
           endsAt: endsAt.toISOString(),
         };
@@ -250,7 +246,7 @@ export const useAppliancesStore = create<AppliancesStore>()(
               house_id: houseId,
               appliance,
               started_by: userId,
-              label,
+              label: parsed.label,
               ends_at: endsAt.toISOString(),
             })
             .select('id, appliance, started_by, label, started_at, ends_at')
@@ -315,10 +311,11 @@ export const useAppliancesStore = create<AppliancesStore>()(
 
       addPreset: async ({ appliance, name, durationMinutes, userId, houseId }): Promise<void> => {
         if (!userId || !houseId) throw new Error('Please wait while your profile loads.');
-        const trimmed = name.trim();
-        if (!trimmed) throw new Error('Give the preset a name');
-        if (!Number.isFinite(durationMinutes) || durationMinutes <= 0 || durationMinutes > 1440) {
-          throw new Error('Choose a duration between 1 minute and 24 hours');
+        let parsed: z.infer<typeof appliancePresetSchema>;
+        try {
+          parsed = appliancePresetSchema.parse({ appliance, name, durationMinutes });
+        } catch (err) {
+          firstZodMessage(err, 'Please check the preset details.');
         }
         try {
           const { data, error } = await supabase
@@ -326,8 +323,8 @@ export const useAppliancesStore = create<AppliancesStore>()(
             .insert({
               house_id: houseId,
               appliance,
-              name: trimmed,
-              duration_minutes: Math.round(durationMinutes),
+              name: parsed.name,
+              duration_minutes: parsed.durationMinutes,
               created_by: userId,
             })
             .select('id, appliance, name, duration_minutes, created_by')
