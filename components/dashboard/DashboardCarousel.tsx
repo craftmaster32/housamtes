@@ -513,7 +513,11 @@ function VotesCard({
   );
 }
 
-export function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
+interface ParkingCardProps {
+  styles: Styles;
+}
+
+export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
@@ -525,6 +529,7 @@ export function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
   const myName = useAuthStore((s) => s.profile?.name);
   const houseId = useAuthStore((s) => s.houseId);
   const busyRef = useRef(false);
+  const [isBusy, setIsBusy] = useState(false);
   const [cardW, setCardW] = useState(0);
   const onLayout = useCallback((e: LayoutChangeEvent): void => {
     setCardW(e.nativeEvent.layout.width);
@@ -572,10 +577,12 @@ export function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         }
         if (busyRef.current) return;
         busyRef.current = true;
+        setIsBusy(true);
         releaseParking(hId, uname)
           .catch(() => Alert.alert(t('parking.could_not_free'), t('parking.failed_release')))
           .finally(() => {
             busyRef.current = false;
+            setIsBusy(false);
           });
       };
       if (Platform.OS === 'web') {
@@ -595,8 +602,10 @@ export function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
 
     if (busyRef.current) return;
     busyRef.current = true;
+    setIsBusy(true);
     const done = (): void => {
       busyRef.current = false;
+      setIsBusy(false);
     };
     if (cur && cur.occupant === uid) {
       releaseParking(hId, uname)
@@ -612,18 +621,26 @@ export function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
         .finally(done);
     }
   }, [myId, myName, houseId, housemates, claimParking, releaseParking, t]);
+  const isHousemate = !!current && current.occupant !== myId;
   const parkingA11yLabel =
     current?.occupant === myId
       ? t('parking.a11y_release', 'Release parking spot')
-      : t('parking.a11y_claim', 'Claim parking spot');
+      : isHousemate
+        ? t('parking.a11y_release_housemate', "Free housemate's parking spot")
+        : t('parking.a11y_claim', 'Claim parking spot');
+  const parkingA11yHint = isHousemate
+    ? t('parking.a11y_hint_housemate', "Frees the housemate's reservation")
+    : t('parking.a11y_hint', 'Toggles your parking reservation');
   return (
     <Pressable
       style={({ pressed }) => [styles.parkShell, pressed && { opacity: 0.9 }]}
       onPress={handleParkingPress}
       onLayout={onLayout}
+      disabled={isBusy}
       accessibilityRole="button"
       accessibilityLabel={parkingA11yLabel}
-      accessibilityHint={t('parking.a11y_hint', 'Toggles your parking reservation')}
+      accessibilityHint={parkingA11yHint}
+      accessibilityState={{ disabled: isBusy }}
     >
       <LinearGradient
         colors={PARK_GRADIENT}
