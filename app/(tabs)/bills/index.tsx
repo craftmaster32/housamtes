@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef, memo } from 'react';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
   FlatList,
@@ -403,7 +404,7 @@ const CategoryChip = memo(function CategoryChip({
  * and — for one-off expenses — a search box, category chips, and the expense
  * history grouped into day sections.
  */
-export default function BillsScreen(): React.JSX.Element {
+function BillsScreen(): React.JSX.Element {
   const c = useThemedColors();
   const { t, i18n } = useTranslation();
   const headingFont = useHeadingFont();
@@ -1194,3 +1195,5 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: mf(16), ...font.bold },
   emptyText: { fontSize: mf(14), ...font.regular, textAlign: 'center', lineHeight: mf(20) },
 });
+
+export default withFeatureGuard('bills', BillsScreen);

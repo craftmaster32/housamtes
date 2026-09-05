@@ -22,6 +22,8 @@ import { useGroceryStore } from '@stores/groceryStore';
 import { useChoresStore } from '@stores/choresStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useAuthStore } from '@stores/authStore';
+import { useSettingsStore } from '@stores/settingsStore';
+import { hasFeatureAccess } from '@utils/featureAccess';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
 
@@ -170,6 +172,20 @@ export function BottomTabBar(): React.JSX.Element {
     router.push('/(tabs)/bills/add');
   }, [closeMore, closeProfile]);
 
+  const permissions = useAuthStore((s) => s.permissions);
+  const features = useSettingsStore((s) => s.features);
+  // A tab is shown only when the member may use that feature. Home and More are
+  // structural and always shown; Bills and Parking respect the house switch and
+  // the member's permission so a revoked feature never appears in the bar.
+  const canUse = useCallback(
+    (id: string): boolean => {
+      if (id === 'dashboard' || id === 'more') return true;
+      return hasFeatureAccess(id, features, permissions);
+    },
+    [features, permissions]
+  );
+  const canAddBill = canUse('bills');
+
   const bg = c.background;
   const borderColor = c.border;
   const bottomInset = Math.max(insets.bottom, 12);
@@ -183,96 +199,103 @@ export function BottomTabBar(): React.JSX.Element {
       testID="bottom-tab-bar"
     >
       {/* Left two tabs */}
-      {TABS.slice(0, 2).map((tab) => {
-        const active = isActive(tab.id);
-        const badge = tab.id === 'bills' ? billBadge : 0;
-        return (
-          <Pressable
-            key={tab.id}
-            style={styles.tab}
-            onPress={() => handleTab(tab)}
-            accessible={true}
-            accessibilityRole="tab"
-            accessibilityLabel={tabLabels[tab.id]}
-            accessibilityState={{ selected: active }}
-          >
-            <View style={styles.tabIconWrap}>
-              <AnimatedIcon
-                active={active}
-                name={active ? tab.iconActive : tab.icon}
-                size={27}
-                color={active ? c.primary : c.textSecondary}
-              />
-              {badge > 0 && (
-                <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
-                  <Text style={[styles.badgeText, { color: c.white }]}>
-                    {badge > 9 ? '9+' : String(badge)}
-                  </Text>
-                </View>
+      {TABS.slice(0, 2)
+        .filter((tab) => canUse(tab.id))
+        .map((tab) => {
+          const active = isActive(tab.id);
+          const badge = tab.id === 'bills' ? billBadge : 0;
+          return (
+            <Pressable
+              key={tab.id}
+              style={styles.tab}
+              onPress={() => handleTab(tab)}
+              accessible={true}
+              accessibilityRole="tab"
+              accessibilityLabel={tabLabels[tab.id]}
+              accessibilityState={{ selected: active }}
+            >
+              <View style={styles.tabIconWrap}>
+                <AnimatedIcon
+                  active={active}
+                  name={active ? tab.iconActive : tab.icon}
+                  size={27}
+                  color={active ? c.primary : c.textSecondary}
+                />
+                {badge > 0 && (
+                  <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
+                    <Text style={[styles.badgeText, { color: c.white }]}>
+                      {badge > 9 ? '9+' : String(badge)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              {active && (
+                <Animated.View
+                  entering={FadeIn.duration(200)}
+                  style={[styles.activeDot, { backgroundColor: c.primary }]}
+                />
               )}
-            </View>
-            {active && (
-              <Animated.View
-                entering={FadeIn.duration(200)}
-                style={[styles.activeDot, { backgroundColor: c.primary }]}
-              />
-            )}
-          </Pressable>
-        );
-      })}
+            </Pressable>
+          );
+        })}
 
-      {/* Center + button */}
+      {/* Center + button — only for members who can add a bill; the wrapper
+          stays as a spacer either way so the bar keeps its balance. */}
       <View style={styles.centerWrap}>
-        <Pressable
-          style={[styles.addBtn, { backgroundColor: c.surface }]}
-          onPress={handleAdd}
-          accessible={true}
-          accessibilityRole="button"
-          accessibilityLabel={t('dashboard.add_expense_btn')}
-          accessibilityState={{ disabled: false }}
-        >
-          <Ionicons name="add" size={28} color={c.primary} />
-        </Pressable>
+        {canAddBill && (
+          <Pressable
+            style={[styles.addBtn, { backgroundColor: c.surface }]}
+            onPress={handleAdd}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={t('dashboard.add_expense_btn')}
+            accessibilityState={{ disabled: false }}
+          >
+            <Ionicons name="add" size={28} color={c.primary} />
+          </Pressable>
+        )}
       </View>
 
       {/* Right two tabs */}
-      {TABS.slice(2).map((tab) => {
-        const active = isActive(tab.id);
-        const badge = tab.id === 'parking' ? parkingBadge : tab.id === 'more' ? moreBadge : 0;
-        return (
-          <Pressable
-            key={tab.id}
-            style={styles.tab}
-            onPress={() => handleTab(tab)}
-            accessible={true}
-            accessibilityRole="tab"
-            accessibilityLabel={tabLabels[tab.id]}
-            accessibilityState={{ selected: active }}
-          >
-            <View style={styles.tabIconWrap}>
-              <AnimatedIcon
-                active={active}
-                name={active ? tab.iconActive : tab.icon}
-                size={27}
-                color={active ? c.primary : c.textSecondary}
-              />
-              {badge > 0 && (
-                <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
-                  <Text style={[styles.badgeText, { color: c.white }]}>
-                    {badge > 9 ? '9+' : String(badge)}
-                  </Text>
-                </View>
+      {TABS.slice(2)
+        .filter((tab) => canUse(tab.id))
+        .map((tab) => {
+          const active = isActive(tab.id);
+          const badge = tab.id === 'parking' ? parkingBadge : tab.id === 'more' ? moreBadge : 0;
+          return (
+            <Pressable
+              key={tab.id}
+              style={styles.tab}
+              onPress={() => handleTab(tab)}
+              accessible={true}
+              accessibilityRole="tab"
+              accessibilityLabel={tabLabels[tab.id]}
+              accessibilityState={{ selected: active }}
+            >
+              <View style={styles.tabIconWrap}>
+                <AnimatedIcon
+                  active={active}
+                  name={active ? tab.iconActive : tab.icon}
+                  size={27}
+                  color={active ? c.primary : c.textSecondary}
+                />
+                {badge > 0 && (
+                  <View style={[styles.badge, { backgroundColor: c.danger, borderColor: bg }]}>
+                    <Text style={[styles.badgeText, { color: c.white }]}>
+                      {badge > 9 ? '9+' : String(badge)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              {active && (
+                <Animated.View
+                  entering={FadeIn.duration(200)}
+                  style={[styles.activeDot, { backgroundColor: c.primary }]}
+                />
               )}
-            </View>
-            {active && (
-              <Animated.View
-                entering={FadeIn.duration(200)}
-                style={[styles.activeDot, { backgroundColor: c.primary }]}
-              />
-            )}
-          </Pressable>
-        );
-      })}
+            </Pressable>
+          );
+        })}
     </View>
   );
 }

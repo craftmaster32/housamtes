@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable, TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -61,7 +62,7 @@ function formatDisplayDate(iso: string, locale: string): string {
   });
 }
 
-export default function AddBillScreen(): React.JSX.Element {
+function AddBillScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
@@ -952,3 +953,5 @@ const makeStyles = (C: ColorTokens) =>
 
     saveBtn: { marginTop: sizes.sm },
   });
+
+export default withFeatureGuard('bills', AddBillScreen);

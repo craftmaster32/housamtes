@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Image } from 'expo-image';
@@ -540,7 +541,7 @@ function AddProposalForm({
   );
 }
 
-export default function VotingScreen(): React.JSX.Element {
+function VotingScreen(): React.JSX.Element {
   const { t } = useTranslation();
 
   const proposals = useVotingStore((s) => s.proposals);
@@ -647,3 +648,5 @@ export default function VotingScreen(): React.JSX.Element {
     </SafeAreaView>
   );
 }
+
+export default withFeatureGuard('voting', VotingScreen);

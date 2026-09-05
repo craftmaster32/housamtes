@@ -7,7 +7,7 @@
  *   signOut        — local state is cleared even when the server call fails,
  *                    and push tokens are unregistered first
  *   changePassword — re-authenticates, enforces password policy, signs out other devices
- *   leaveHouse     — deletes membership and clears house state + push tokens
+ *   leaveHouse     — leaves via the owner-safe RPC and clears house state + push tokens
  *   deleteAccount  — irreversible: guards when signed out, preserves state on server
  *                    failure, clears everything on success
  */
@@ -19,6 +19,7 @@ import { ok, fail } from '../__helpers__/supabaseMock';
 // ── Module mocks ─────────────────────────────────────────────────────────────────────
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 const mockAuth = {
   signInWithPassword: jest.fn(),
   signUp: jest.fn(),
@@ -48,6 +49,7 @@ jest.mock('@lib/supabase', () => ({
   supabase: {
     supabaseUrl: 'https://unit-test.supabase.co',
     from: (...a: unknown[]): unknown => mockFrom(...a),
+    rpc: (...a: unknown[]): unknown => mockRpc(...a),
     // Delegate lazily — jest hoists this factory above the const declarations,
     // so referencing mockAuth directly here would capture undefined.
     auth: {
@@ -157,6 +159,7 @@ beforeEach(() => {
   resetStore();
   jest.clearAllMocks();
   mockTables({});
+  mockRpc.mockResolvedValue({ data: null, error: null });
 });
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -504,18 +507,20 @@ describe('authStore — leaveHouse', () => {
     expect(mockUnregisterPushToken).not.toHaveBeenCalled();
   });
 
-  it('deletes the membership row and clears house state + push tokens', async () => {
+  it('leaves via the RPC (owner-safe) and clears house state + push tokens', async () => {
     useAuthStore.setState({
       user: fakeUser(),
       houseId: 'h1',
       role: 'member',
       permissions: { ...DEFAULT_PERMISSIONS, bills: false },
     });
-    mockTables({ house_members: ok(null) });
+    mockTables({ former_members: ok(null) });
 
     await useAuthStore.getState().leaveHouse();
 
-    expect(mockFrom).toHaveBeenCalledWith('house_members');
+    // Membership removal goes through the RPC so ownership transfer / empty-house
+    // cleanup happens atomically server-side.
+    expect(mockRpc).toHaveBeenCalledWith('leave_house', { p_house_id: 'h1', p_new_owner: null });
     expect(mockUnregisterPushToken).toHaveBeenCalledWith('u1', 'h1');
     expect(mockUnregisterWebPush).toHaveBeenCalledWith('u1', 'h1');
     const s = useAuthStore.getState();
@@ -538,6 +543,70 @@ describe('authStore — leaveHouse', () => {
     await useAuthStore.getState().leaveHouse();
 
     expect(mockFrom).toHaveBeenCalledWith('former_members');
+  });
+
+  it('surfaces the error and keeps house state when the leave RPC fails', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      houseId: 'h1',
+      role: 'owner',
+      permissions: { ...DEFAULT_PERMISSIONS },
+    });
+    mockTables({ former_members: ok(null) });
+    mockRpc.mockResolvedValue({ data: null, error: new Error('network down') });
+
+    await expect(useAuthStore.getState().leaveHouse()).rejects.toThrow(
+      'Could not leave the house. Please try again.'
+    );
+
+    // Still in the house — nothing cleared, no push unregistration on either path.
+    const s = useAuthStore.getState();
+    expect(s.houseId).toBe('h1');
+    expect(s.role).toBe('owner');
+    expect(mockUnregisterPushToken).not.toHaveBeenCalled();
+    expect(mockUnregisterWebPush).not.toHaveBeenCalled();
+    // The "left" snapshot must not be written when the leave itself failed.
+    expect(mockFrom).not.toHaveBeenCalledWith('former_members');
+  });
+
+  it('surfaces the error and keeps house state when the leave RPC rejects', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      houseId: 'h1',
+      role: 'owner',
+      permissions: { ...DEFAULT_PERMISSIONS },
+    });
+    mockTables({ former_members: ok(null) });
+    // A rejected promise (not just an { error } result) must be caught too.
+    mockRpc.mockRejectedValue(new Error('connection reset'));
+
+    await expect(useAuthStore.getState().leaveHouse()).rejects.toThrow(
+      'Could not leave the house. Please try again.'
+    );
+
+    const s = useAuthStore.getState();
+    expect(s.houseId).toBe('h1');
+    expect(s.role).toBe('owner');
+    expect(mockUnregisterPushToken).not.toHaveBeenCalled();
+    expect(mockUnregisterWebPush).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalledWith('former_members');
+  });
+
+  it('validates a chosen successor before calling the RPC', async () => {
+    useAuthStore.setState({
+      user: fakeUser(),
+      houseId: 'h1',
+      role: 'owner',
+      permissions: { ...DEFAULT_PERMISSIONS },
+    });
+
+    await expect(useAuthStore.getState().leaveHouse('not-a-uuid')).rejects.toThrow(
+      'Please choose a valid housemate to take over.'
+    );
+
+    // Never reached the database with malformed input.
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().houseId).toBe('h1');
   });
 });
 

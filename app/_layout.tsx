@@ -241,6 +241,7 @@ export default function RootLayout(): React.JSX.Element | null {
   }, [fontsLoaded]);
 
   const initialize = useAuthStore((s) => s.initialize);
+  const reloadMembership = useAuthStore((s) => s.reloadMembership);
   const user = useAuthStore((s) => s.user);
   const houseId = useAuthStore((s) => s.houseId);
   const isLoading = useAuthStore((s) => s.isLoading);
@@ -362,6 +363,28 @@ export default function RootLayout(): React.JSX.Element | null {
     isPasswordRecovery,
     needsTermsAcceptance,
   ]);
+
+  // Keep the current user's own role and permissions live. The housemates roster
+  // already re-fetches on membership changes, but my own role/permissions were
+  // only read at login — so a promotion, a revoked feature, or being removed from
+  // the house wouldn't take effect until a restart. Re-read my membership whenever
+  // any row in my house changes.
+  useEffect((): void | (() => void) => {
+    if (!houseId) return;
+    const channel = supabase
+      .channel(`my-membership:${houseId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'house_members', filter: `house_id=eq.${houseId}` },
+        () => {
+          reloadMembership();
+        }
+      )
+      .subscribe();
+    return (): void => {
+      supabase.removeChannel(channel);
+    };
+  }, [houseId, reloadMembership]);
 
   useEffect(() => {
     if (!houseId) return;

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,7 +70,7 @@ const makeStyles = (C: ColorTokens) =>
     errorBannerText: { fontSize: sizes.fontSm, ...font.regular, color: C.danger },
   });
 
-export default function MaintenanceScreen(): React.JSX.Element {
+function MaintenanceScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const requests = useMaintenanceStore((s) => s.requests);
   const isLoading = useMaintenanceStore((s) => s.isLoading);
@@ -174,3 +175,5 @@ export default function MaintenanceScreen(): React.JSX.Element {
     </SafeAreaView>
   );
 }
+
+export default withFeatureGuard('maintenance', MaintenanceScreen);
