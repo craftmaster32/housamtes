@@ -1874,6 +1874,8 @@
     "custom_time": "Custom time",
     "hours": "hrs",
     "minutes": "min",
+    "hours_full": "Hours",
+    "minutes_full": "Minutes",
     "name_placeholder": "Name (optional) — e.g. Eco wash",
     "save_as_preset": "Save as a preset",
     "tap_to_start": "Tap start to run a cycle",

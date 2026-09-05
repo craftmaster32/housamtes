@@ -35,7 +35,6 @@ import { useVotingStore } from '@stores/votingStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useAppliancesStore, type ApplianceKind } from '@stores/appliancesStore';
 import { MACHINE_META, formatRemaining } from '@components/machines/meta';
-import { useBillsStore } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useLanguageStore } from '@stores/languageStore';
@@ -67,7 +66,6 @@ const CARD_ICON: Record<DashboardCardKey, IoniconName> = {
   chores: 'checkmark-done-outline',
   votes: 'people-outline',
   parking: 'car-outline',
-  bills: 'card-outline',
   washer: MACHINE_META.washer.icon,
   dryer: MACHINE_META.dryer.icon,
   dishwasher: MACHINE_META.dishwasher.icon,
@@ -77,7 +75,6 @@ const CARD_LABEL_KEY: Record<DashboardCardKey, string> = {
   chores: 'dashboard.tasks_label',
   votes: 'dashboard.votes_label',
   parking: 'dashboard.parking_label',
-  bills: 'dashboard.bills_label',
   washer: MACHINE_META.washer.labelKey,
   dryer: MACHINE_META.dryer.labelKey,
   dishwasher: MACHINE_META.dishwasher.labelKey,
@@ -700,32 +697,6 @@ export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
   );
 }
 
-function BillsCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX.Element {
-  const { t } = useTranslation();
-  const bills = useBillsStore((s) => s.bills);
-  const unsettled = bills.filter((b) => !b.settled).length;
-  return (
-    <CardShell
-      styles={styles}
-      onPress={() => navigateToBase('/(tabs)/bills')}
-      accessibilityLabel={t('dashboard.bills_label')}
-    >
-      <View style={styles.cardTop}>
-        <IconChip styles={styles} icon="card-outline" tint={c.primaryTint} color={c.primary} />
-        <Text style={styles.cardTitle}>{t('dashboard.bills_label')}</Text>
-      </View>
-      <View>
-        <Text style={styles.bigStat}>{unsettled}</Text>
-        <Text style={styles.cardSub}>
-          {unsettled > 0
-            ? t('dashboard.bills_unsettled', { count: unsettled })
-            : t('dashboard.bills_settled')}
-        </Text>
-      </View>
-    </CardShell>
-  );
-}
-
 interface ApplianceCardProps {
   styles: Styles;
   kind: ApplianceKind;
@@ -792,8 +763,6 @@ function renderCard(
       return <VotesCard styles={styles} c={c} compact={compact} />;
     case 'parking':
       return <ParkingCard styles={styles} />;
-    case 'bills':
-      return <BillsCard styles={styles} c={c} />;
     case 'washer':
     case 'dryer':
     case 'dishwasher':
