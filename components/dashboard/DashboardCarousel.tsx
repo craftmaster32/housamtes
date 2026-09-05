@@ -23,6 +23,7 @@ import Svg, {
   Rect,
 } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -34,9 +35,12 @@ import { useVotingStore } from '@stores/votingStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useBillsStore } from '@stores/billsStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useAuthStore } from '@stores/authStore';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { resolveName } from '@utils/housemates';
+import { getErrorMessage } from '@utils/errors';
+import { Alert } from '@lib/alert';
 import { mf, ms } from '@utils/responsive';
 import {
   useDashboardCardsStore,
@@ -198,7 +202,6 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       color: 'rgba(255,255,255,0.7)',
       marginTop: ms(2),
     },
-
     dots: {
       flexDirection: 'row',
       justifyContent: 'center',
@@ -510,12 +513,23 @@ function VotesCard({
   );
 }
 
-function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
+interface ParkingCardProps {
+  styles: Styles;
+}
+
+export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const current = useParkingStore((s) => s.current);
+  const claimParking = useParkingStore((s) => s.claim);
+  const releaseParking = useParkingStore((s) => s.release);
   const housemates = useHousematesStore((s) => s.housemates);
+  const myId = useAuthStore((s) => s.profile?.id);
+  const myName = useAuthStore((s) => s.profile?.name);
+  const houseId = useAuthStore((s) => s.houseId);
+  const busyRef = useRef(false);
+  const [isBusy, setIsBusy] = useState(false);
   const [cardW, setCardW] = useState(0);
   const onLayout = useCallback((e: LayoutChangeEvent): void => {
     setCardW(e.nativeEvent.layout.width);
@@ -543,16 +557,95 @@ function ParkingCard({ styles }: { styles: Styles }): React.JSX.Element {
     : narrow
       ? styles.parkArtNarrow
       : styles.parkArt;
+  // Tapping the card is a quick catch/release toggle — claim the free spot,
+  // release your own, or (when a housemate holds it) confirm before freeing it,
+  // mirroring the parking page's gate. The full page is reached from the bottom
+  // bar's car icon.
   const handleParkingPress = useCallback((): void => {
-    navigateToBase('/(tabs)/parking');
-  }, []);
+    // Immediate tactile ack so the toggle feels instant, not delayed.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    const uid = myId ?? '';
+    const uname = myName ?? '';
+    const hId = houseId ?? '';
+    const cur = useParkingStore.getState().current;
+
+    if (cur && cur.occupant !== uid) {
+      const occupantName = resolveName(cur.occupant, housemates, t('common.unknown'));
+      const pinnedId = cur.id;
+      const doRelease = (): void => {
+        if (useParkingStore.getState().current?.id !== pinnedId) {
+          Alert.alert(t('parking.could_not_free'), t('parking.spot_changed'));
+          return;
+        }
+        if (busyRef.current) return;
+        busyRef.current = true;
+        setIsBusy(true);
+        releaseParking(hId, uname)
+          .catch(() => Alert.alert(t('parking.could_not_free'), t('parking.failed_release')))
+          .finally(() => {
+            busyRef.current = false;
+            setIsBusy(false);
+          });
+      };
+      if (Platform.OS === 'web') {
+        if (window.confirm(t('parking.evict_confirm', { name: occupantName }))) doRelease();
+      } else {
+        Alert.alert(
+          t('parking.kick_out_title', { name: occupantName }),
+          t('parking.kick_out_body'),
+          [
+            { text: t('parking.leave_it'), style: 'cancel' },
+            { text: t('parking.free_it_anyway'), style: 'destructive', onPress: doRelease },
+          ]
+        );
+      }
+      return;
+    }
+
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setIsBusy(true);
+    const done = (): void => {
+      busyRef.current = false;
+      setIsBusy(false);
+    };
+    if (cur && cur.occupant === uid) {
+      releaseParking(hId, uname)
+        .catch((err) =>
+          Alert.alert(t('parking.title'), getErrorMessage(err, t('parking.failed_release')))
+        )
+        .finally(done);
+    } else {
+      claimParking(uid, uname, hId)
+        .catch((err) =>
+          Alert.alert(t('parking.title'), getErrorMessage(err, t('parking.failed_claim')))
+        )
+        .finally(done);
+    }
+  }, [myId, myName, houseId, housemates, claimParking, releaseParking, t]);
+  const isHousemate = !!current && current.occupant !== myId;
+  const parkingA11yLabel =
+    current?.occupant === myId
+      ? t('parking.a11y_release', 'Release parking spot')
+      : isHousemate
+        ? t('parking.a11y_release_housemate', "Free housemate's parking spot")
+        : t('parking.a11y_claim', 'Claim parking spot');
+  const parkingA11yHint = isHousemate
+    ? t('parking.a11y_hint_housemate', "Frees the housemate's reservation")
+    : t('parking.a11y_hint', 'Toggles your parking reservation');
   return (
     <Pressable
-      style={({ pressed }) => [styles.parkShell, pressed && { opacity: 0.9 }]}
+      style={({ pressed }) => [
+        styles.parkShell,
+        pressed && { opacity: 0.92, transform: [{ scale: 0.97 }] },
+      ]}
       onPress={handleParkingPress}
       onLayout={onLayout}
+      disabled={isBusy}
       accessibilityRole="button"
-      accessibilityLabel={t('dashboard.parking_label')}
+      accessibilityLabel={parkingA11yLabel}
+      accessibilityHint={parkingA11yHint}
+      accessibilityState={{ disabled: isBusy }}
     >
       <LinearGradient
         colors={PARK_GRADIENT}
