@@ -8,9 +8,10 @@
  */
 
 import { render, screen, fireEvent } from '@testing-library/react-native';
-import { ParkingCard } from '../../components/dashboard/DashboardCarousel';
+import { ParkingCard } from '@components/dashboard/DashboardCarousel';
 import { navigateToBase } from '@stores/navigationStore';
 import { useParkingStore } from '@stores/parkingStore';
+import { Alert } from '@lib/alert';
 
 // Native-only deps rendered as nothing.
 jest.mock('react-native-svg', () => {
@@ -98,8 +99,16 @@ describe('ParkingCard — tap to toggle', () => {
   it('gates a housemate-held spot behind a confirmation (no immediate release)', () => {
     parking.__set({ current: { id: 's2', occupant: 'other', startTime: '' } });
     render(<ParkingCard styles={styles} />);
-    fireEvent.press(screen.getByLabelText('Claim parking spot'));
+    fireEvent.press(screen.getByLabelText("Free housemate's parking spot"));
     expect(parking.getState().release).not.toHaveBeenCalled();
     expect(navigateToBase).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledTimes(1);
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2] as Array<{
+      style?: string;
+      onPress?: () => void;
+    }>;
+    const confirmBtn = buttons.find((b) => b.style === 'destructive');
+    confirmBtn?.onPress?.();
+    expect(parking.getState().release).toHaveBeenCalledTimes(1);
   });
 });
