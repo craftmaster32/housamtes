@@ -10,7 +10,7 @@
  *                  fix in the stabilization pass)
  */
 
-import { ok, fail } from '../__helpers__/supabaseMock';
+import { ok, fail, dbResult } from '../__helpers__/supabaseMock';
 
 const mockFrom = jest.fn();
 
@@ -30,6 +30,7 @@ jest.mock('@stores/authStore', () => ({
 
 import {
   useExpenseCategoriesStore,
+  DUPLICATE_CATEGORY,
   type ExpenseCategory,
 } from '../../stores/expenseCategoriesStore';
 
@@ -77,12 +78,26 @@ describe('expenseCategoriesStore — remove', () => {
 });
 
 describe('expenseCategoriesStore — add', () => {
-  it('throws a plain-English error and leaves state unchanged on DB failure', async () => {
+  it('surfaces the real DB reason and leaves state unchanged on a generic failure', async () => {
+    // A generic failure (no known code) surfaces the database message so a
+    // stubborn error is diagnosable instead of hidden behind a generic string.
     mockFrom.mockReturnValue(fail('insert error'));
 
     await expect(
       useExpenseCategoriesStore.getState().add({ name: 'Pets', icon: '🐕', color: '#10B981' }, 'h1')
-    ).rejects.toThrow('Could not save the category. Please try again.');
+    ).rejects.toThrow('insert error');
+
+    expect(useExpenseCategoriesStore.getState().categories).toHaveLength(0);
+  });
+
+  it('maps a unique-violation to the DUPLICATE_CATEGORY sentinel', async () => {
+    mockFrom.mockReturnValue(
+      dbResult({ data: null, error: { code: '23505', message: 'duplicate key value' } })
+    );
+
+    await expect(
+      useExpenseCategoriesStore.getState().add({ name: 'Rent', icon: '🏠', color: '#8B5CF6' }, 'h1')
+    ).rejects.toThrow(DUPLICATE_CATEGORY);
 
     expect(useExpenseCategoriesStore.getState().categories).toHaveLength(0);
   });
@@ -203,7 +218,7 @@ describe('expenseCategoriesStore — update', () => {
       useExpenseCategoriesStore
         .getState()
         .update('c2', { name: 'Takeaway', icon: '🍔', color: '#F59E0B' })
-    ).rejects.toThrow('Could not update the category. Please try again.');
+    ).rejects.toThrow('db down');
     expect(useExpenseCategoriesStore.getState().categories[0].name).toBe('Food');
   });
 });

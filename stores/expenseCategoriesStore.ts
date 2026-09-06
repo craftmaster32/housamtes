@@ -167,6 +167,24 @@ const DEFAULTS: Omit<ExpenseCategory, 'id'>[] = [
   { name: 'Other', icon: 'cube-outline', color: '#8D8F8F', isDefault: true, sortOrder: 99 },
 ];
 
+// Postgres unique_violation — a category with this (house_id, name) already
+// exists. The screen maps this stable code to a friendly, translated message.
+export const DUPLICATE_CATEGORY = 'CATEGORY_DUPLICATE';
+
+interface SupabaseErrorLike {
+  code?: string;
+  message?: string;
+}
+
+// Turn a Supabase write error into an Error the UI can act on: a duplicate name
+// becomes the stable DUPLICATE_CATEGORY sentinel; anything else carries the real
+// database reason so a stubborn failure is visible instead of hidden behind a
+// generic "please try again".
+function toWriteError(error: SupabaseErrorLike, fallback: string): Error {
+  if (error?.code === '23505') return new Error(DUPLICATE_CATEGORY);
+  return new Error(error?.message ? error.message : fallback);
+}
+
 function toCategory(r: ExpenseCategoryRow): ExpenseCategory {
   return {
     id: r.id,
@@ -275,7 +293,7 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           .single();
         if (error) {
           captureError(error, { context: 'add-category', houseId });
-          throw new Error('Could not save the category. Please try again.');
+          throw toWriteError(error, 'Could not save the category. Please try again.');
         }
         set({ categories: [...get().categories, toCategory(data)] });
       },
@@ -287,7 +305,7 @@ export const useExpenseCategoriesStore = create<ExpenseCategoriesStore>()(
           .eq('id', id);
         if (error) {
           captureError(error, { context: 'update-category', categoryId: id });
-          throw new Error('Could not update the category. Please try again.');
+          throw toWriteError(error, 'Could not update the category. Please try again.');
         }
         set({
           categories: get().categories.map((c) => (c.id === id ? { ...c, ...changes } : c)),

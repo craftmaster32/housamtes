@@ -12,9 +12,11 @@ import {
   PRESET_COLORS,
   CATEGORY_PICKER_ICONS,
   DEFAULT_CATEGORY_ICON,
+  DUPLICATE_CATEGORY,
   resolveCategoryIcon,
   type ExpenseCategory,
 } from '@stores/expenseCategoriesStore';
+import type { TFunction } from 'i18next';
 import { Alert } from '@lib/alert';
 import { localizeCategoryName } from '@utils/categoryName';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -166,6 +168,18 @@ const makeStyles = (C: ColorTokens) =>
   });
 
 const PICKER_ICONS = CATEGORY_PICKER_ICONS;
+
+/**
+ * Builds the alert message for a failed category save/update. A duplicate name
+ * gets a clear, translated message; any other failure surfaces the real reason
+ * from the database instead of a generic "please try again", so a stubborn
+ * error is actually diagnosable.
+ */
+function categorySaveMessage(err: unknown, name: string, t: TFunction): string {
+  const reason = err instanceof Error ? err.message : '';
+  if (reason === DUPLICATE_CATEGORY) return t('categories.already_exists', { name });
+  return reason ? t('categories.save_failed_reason', { reason }) : t('categories.could_not_save');
+}
 
 // ── Add / Edit form ────────────────────────────────────────────────────────────
 interface FormState {
@@ -373,7 +387,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
         Sentry.captureException(err, { extra: { houseId, userId } });
-        Alert.alert(t('common.error'), t('categories.could_not_save'));
+        Alert.alert(t('common.error'), categorySaveMessage(err, form.name.trim(), t));
       } finally {
         setSaving(false);
       }
@@ -395,7 +409,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
         Sentry.captureException(err, { extra: { houseId, userId, categoryId: editCat.id } });
-        Alert.alert(t('common.error'), t('categories.could_not_update'));
+        Alert.alert(t('common.error'), categorySaveMessage(err, form.name.trim(), t));
       } finally {
         setSaving(false);
       }

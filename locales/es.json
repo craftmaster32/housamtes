@@ -1542,6 +1542,8 @@
     "could_not_save": "No se pudo guardar la categoría. Intenta de nuevo.",
     "could_not_update": "No se pudo actualizar la categoría. Intenta de nuevo.",
     "could_not_delete": "No se pudo eliminar la categoría. Intenta de nuevo.",
+    "already_exists": "Ya existe una categoría llamada \"{{name}}\". Elige otro nombre.",
+    "save_failed_reason": "No se pudo guardar la categoría. Motivo: {{reason}}",
     "no_categories": "Sin categorías aún. Toca \"+ Agregar categoría\" para crear una.",
     "icon_option": "icono de {{name}}"
   },
