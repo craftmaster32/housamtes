@@ -177,12 +177,11 @@ interface SupabaseErrorLike {
 }
 
 // Turn a Supabase write error into an Error the UI can act on: a duplicate name
-// becomes the stable DUPLICATE_CATEGORY sentinel; anything else carries the real
-// database reason so a stubborn failure is visible instead of hidden behind a
-// generic "please try again".
+// becomes the stable DUPLICATE_CATEGORY sentinel; anything else returns the
+// provided fallback (the real DB error is captured to Sentry at the call site).
 function toWriteError(error: SupabaseErrorLike, fallback: string): Error {
   if (error?.code === '23505') return new Error(DUPLICATE_CATEGORY);
-  return new Error(error?.message ? error.message : fallback);
+  return new Error(fallback);
 }
 
 function toCategory(r: ExpenseCategoryRow): ExpenseCategory {
