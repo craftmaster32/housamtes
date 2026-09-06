@@ -434,6 +434,9 @@ function BillsScreen(): React.JSX.Element {
   useEffect((): void => {
     if (houseId) loadCategories(houseId);
   }, [houseId, loadCategories]);
+  const handleRetryCategories = useCallback((): void => {
+    if (houseId) loadCategories(houseId);
+  }, [houseId, loadCategories]);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
   // Search state lives here; category state is owned by the hook.
@@ -801,9 +804,7 @@ function BillsScreen(): React.JSX.Element {
               mode="error"
               title={categoriesError}
               actionLabel={t('bills.retry')}
-              onAction={(): void => {
-                if (houseId) loadCategories(houseId);
-              }}
+              onAction={handleRetryCategories}
             />
           ) : presentCategories.length > 0 ? (
             <ScrollView
