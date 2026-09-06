@@ -76,6 +76,8 @@ function BillDetailScreen(): React.JSX.Element {
   const housemates = useHousematesStore((s) => s.housemates);
   const categories = useExpenseCategoriesStore((s) => s.categories);
   const loadCategories = useExpenseCategoriesStore((s) => s.load);
+  const categoriesIsLoading = useExpenseCategoriesStore((s) => s.isLoading);
+  const categoriesError = useExpenseCategoriesStore((s) => s.error);
 
   // Categories are DB-backed and shared with the settings manager, so one added
   // there appears in the picker below without a hardcoded list.
@@ -444,12 +446,33 @@ function BillDetailScreen(): React.JSX.Element {
             />
             <View style={styles.categoryField}>
               <Text style={styles.categoryFieldLabel}>{t('bills.category')}</Text>
-              <BillCategoryPicker
-                categories={categories}
-                selected={category}
-                onSelect={setCategory}
-                onManage={handleManageCategories}
-              />
+              {categoriesIsLoading ? (
+                <EmptyState mode="loading" title={t('common.loading')} />
+              ) : categoriesError ? (
+                <EmptyState
+                  mode="error"
+                  title={categoriesError}
+                  actionLabel={t('bills.retry')}
+                  onAction={(): void => {
+                    if (houseId) loadCategories(houseId);
+                  }}
+                />
+              ) : categories.length === 0 ? (
+                <EmptyState
+                  mode="empty"
+                  icon="pricetag-outline"
+                  title={t('bills.no_categories_hint', {
+                    defaultValue: 'No categories yet. Add one in Settings.',
+                  })}
+                />
+              ) : (
+                <BillCategoryPicker
+                  categories={categories}
+                  selected={category}
+                  onSelect={setCategory}
+                  onManage={handleManageCategories}
+                />
+              )}
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
             <View style={styles.editButtons}>

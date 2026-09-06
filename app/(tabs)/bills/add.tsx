@@ -64,6 +64,8 @@ function AddBillScreen(): React.JSX.Element {
   const markSeen = useBadgeStore((s) => s.markSeen);
   const categories = useExpenseCategoriesStore((s) => s.categories);
   const loadCategories = useExpenseCategoriesStore((s) => s.load);
+  const categoriesIsLoading = useExpenseCategoriesStore((s) => s.isLoading);
+  const categoriesError = useExpenseCategoriesStore((s) => s.error);
   const curSymbol = useMemo(() => splitMoney(0, currencyCode).symbol, [currencyCode]);
 
   const myId = profile?.id ?? '';
@@ -677,12 +679,33 @@ function AddBillScreen(): React.JSX.Element {
         {/* Category */}
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.category')}</Text>
-          <BillCategoryPicker
-            categories={categories}
-            selected={category}
-            onSelect={setCategory}
-            onManage={handleManageCategories}
-          />
+          {categoriesIsLoading ? (
+            <EmptyState mode="loading" title={t('common.loading')} />
+          ) : categoriesError ? (
+            <EmptyState
+              mode="error"
+              title={categoriesError}
+              actionLabel={t('bills.retry')}
+              onAction={(): void => {
+                if (houseId) loadCategories(houseId);
+              }}
+            />
+          ) : categories.length === 0 ? (
+            <EmptyState
+              mode="empty"
+              icon="pricetag-outline"
+              title={t('bills.no_categories_hint', {
+                defaultValue: 'No categories yet. Add one in Settings.',
+              })}
+            />
+          ) : (
+            <BillCategoryPicker
+              categories={categories}
+              selected={category}
+              onSelect={setCategory}
+              onManage={handleManageCategories}
+            />
+          )}
         </View>
 
         {/* Date */}
