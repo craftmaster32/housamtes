@@ -262,6 +262,7 @@ export function SideNav(): React.JSX.Element {
           source={require('../../assets/icon.png')}
           style={styles.brandMark}
           contentFit="contain"
+          accessibilityLabel="HouseMates"
         />
         <Text style={[styles.brandName, { color: c.primary }]} numberOfLines={1}>
           HouseMates
@@ -349,6 +350,7 @@ export function SideNav(): React.JSX.Element {
                 source={{ uri: profile.avatarUrl }}
                 style={styles.avatarImg}
                 contentFit="cover"
+                accessibilityLabel={profile?.name ?? t('dashboard.open_profile')}
               />
             ) : (
               <Text style={styles.avatarText}>{initial}</Text>
