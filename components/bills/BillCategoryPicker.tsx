@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { StyleSheet, ScrollView, Pressable } from 'react-native';
+import { StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,12 +28,12 @@ export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
 }) => {
   const C = useThemedColors();
   const { t } = useTranslation();
-  const styles = useMemo(() => makeStyles(C), [C]);
+  const styles = useMemo((): BillCategoryPickerStyles => makeStyles(C), [C]);
 
   // Always show the currently-selected category as a chip, even if it was
   // deleted from the managed list or predates it — otherwise the user loses
   // sight of their own selection.
-  const items = useMemo<ExpenseCategory[]>(() => {
+  const items = useMemo<ExpenseCategory[]>((): ExpenseCategory[] => {
     const list = [...categories];
     if (selected && !list.some((c) => c.name === selected)) {
       list.unshift({
@@ -54,14 +54,14 @@ export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.categoryScroll}
     >
-      {items.map((cat) => {
+      {items.map((cat): React.JSX.Element => {
         const isSelected = selected === cat.name;
         const label = localizeCategoryName(cat.name, t);
         return (
           <Pressable
             key={cat.id}
             style={[styles.catChip, isSelected && styles.catChipSelected]}
-            onPress={() => onSelect(cat.name)}
+            onPress={(): void => { onSelect(cat.name); }}
             accessible
             accessibilityRole="radio"
             accessibilityLabel={label}
@@ -93,7 +93,17 @@ export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
   );
 };
 
-const makeStyles = (C: ColorTokens) =>
+type BillCategoryPickerStyles = {
+  categoryScroll: ViewStyle;
+  catChip: ViewStyle;
+  catChipSelected: ViewStyle;
+  catChipText: TextStyle;
+  catChipTextSelected: TextStyle;
+  catChipAdd: ViewStyle;
+  catChipAddText: TextStyle;
+};
+
+const makeStyles = (C: ColorTokens): BillCategoryPickerStyles =>
   StyleSheet.create({
     categoryScroll: { gap: sizes.xs, paddingVertical: ms(2) },
     catChip: {
