@@ -426,6 +426,8 @@ function BillsScreen(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId) ?? '';
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const loadCategories = useExpenseCategoriesStore((s) => s.load);
+  const categoriesIsLoading = useExpenseCategoriesStore((s) => s.isLoading);
+  const categoriesError = useExpenseCategoriesStore((s) => s.error);
 
   // Load managed categories so presentCategories in useOneOffBillHistory
   // uses the configured order on the first visit to this screen.
@@ -794,7 +796,16 @@ function BillsScreen(): React.JSX.Element {
             )}
           </View>
 
-          {presentCategories.length > 0 && (
+          {categoriesError && !categoriesIsLoading ? (
+            <EmptyState
+              mode="error"
+              title={categoriesError}
+              actionLabel={t('bills.retry')}
+              onAction={(): void => {
+                if (houseId) loadCategories(houseId);
+              }}
+            />
+          ) : presentCategories.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -811,7 +822,7 @@ function BillsScreen(): React.JSX.Element {
                 />
               ))}
             </ScrollView>
-          )}
+          ) : null}
 
           <View style={styles.listCountRow}>
             <Text style={[styles.eyebrow, { color: c.textSecondary }]}>
