@@ -34,6 +34,7 @@ import {
   calculateFairness,
   resolveBillIcon,
 } from '@stores/recurringBillsStore';
+import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -426,6 +427,13 @@ function BillsScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId) ?? '';
   const currencyCode = useSettingsStore((s) => s.currencyCode);
+  const loadCategories = useExpenseCategoriesStore((s) => s.load);
+
+  // Load managed categories so presentCategories in useOneOffBillHistory
+  // uses the configured order on the first visit to this screen.
+  useEffect((): void => {
+    if (houseId) loadCategories(houseId);
+  }, [houseId, loadCategories]);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
   // Search state lives here; category state is owned by the hook.
