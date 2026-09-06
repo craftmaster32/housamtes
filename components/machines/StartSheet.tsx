@@ -16,7 +16,7 @@ interface StartSheetProps {
   busy: boolean;
   onClose: () => void;
   onStart: (params: { durationMinutes: number; label: string }) => void;
-  onSavePreset: (params: { name: string; durationMinutes: number }) => void;
+  onSavePreset: (params: { name: string; durationMinutes: number }) => Promise<void>;
   onDeletePreset: (id: string) => void;
 }
 
@@ -42,6 +42,7 @@ function StartSheetComponent({
   const [hours, setHours] = useState('1');
   const [minutes, setMinutes] = useState('0');
   const [name, setName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const meta = kind ? MACHINE_META[kind] : null;
   // Cap at 24h (1440 min) to match the store/DB limit — 24h + 59m would exceed it.
@@ -74,10 +75,15 @@ function StartSheetComponent({
     setName(label);
   }, []);
 
-  const handleSavePreset = useCallback((): void => {
-    if (!canSavePreset) return;
-    onSavePreset({ name: name.trim(), durationMinutes: customMinutes });
-  }, [canSavePreset, name, customMinutes, onSavePreset]);
+  const handleSavePreset = useCallback(async (): Promise<void> => {
+    if (!canSavePreset || isSaving) return;
+    setIsSaving(true);
+    try {
+      await onSavePreset({ name: name.trim(), durationMinutes: customMinutes });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [canSavePreset, isSaving, name, customMinutes, onSavePreset]);
 
   const handleHoursChange = useCallback((v: string): void => {
     const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
@@ -208,12 +214,14 @@ function StartSheetComponent({
               style={({ pressed }) => [
                 styles.saveBtn,
                 { borderColor: c.border },
-                !canSavePreset && styles.disabled,
+                (!canSavePreset || isSaving) && styles.disabled,
                 pressed && styles.pressed,
               ]}
               onPress={handleSavePreset}
-              disabled={!canSavePreset}
+              disabled={!canSavePreset || isSaving}
+              accessible
               accessibilityRole="button"
+              accessibilityState={{ disabled: !canSavePreset || isSaving }}
               accessibilityLabel={t('machines.save_as_preset')}
             >
               <Ionicons name="bookmark-outline" size={16} color={c.textPrimary} />
@@ -232,7 +240,9 @@ function StartSheetComponent({
               ]}
               onPress={handleStartCustom}
               disabled={busy || customMinutes <= 0}
+              accessible
               accessibilityRole="button"
+              accessibilityState={{ disabled: busy || customMinutes <= 0 }}
               accessibilityLabel={t('machines.start')}
             >
               <Ionicons name="play" size={16} color="#fff" />
