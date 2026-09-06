@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -508,7 +509,7 @@ interface SectionData {
   withReminder?: boolean;
 }
 
-export default function GroceryScreen(): React.JSX.Element {
+function GroceryScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -2311,3 +2312,5 @@ function makeStyles(C: ColorTokens) {
     bottomPad: { height: sizes.bottomTabContentPadding },
   });
 }
+
+export default withFeatureGuard('grocery', GroceryScreen);

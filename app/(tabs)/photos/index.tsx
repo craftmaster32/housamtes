@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
   StyleSheet,
@@ -225,7 +226,7 @@ const makeStyles = (C: ColorTokens) =>
     uploadText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
   });
 
-export default function PhotosScreen(): React.JSX.Element {
+function PhotosScreen(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const photos = usePhotoStore((s) => s.photos);
   const isLoading = usePhotoStore((s) => s.isLoading);
@@ -742,3 +743,5 @@ export default function PhotosScreen(): React.JSX.Element {
     </SafeAreaView>
   );
 }
+
+export default withFeatureGuard('photos', PhotosScreen);

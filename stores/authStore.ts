@@ -6,7 +6,7 @@ import { supabase } from '@lib/supabase';
 import { identifyUser, clearUser, captureError } from '@lib/errorTracking';
 import { registerPushToken, unregisterPushToken } from '@lib/notifications';
 import { registerWebPush, unregisterWebPush } from '@lib/webPush';
-import { emailOtpSchema, signUpSchema } from '@utils/validation';
+import { emailOtpSchema, signUpSchema, uuidSchema } from '@utils/validation';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 const PENDING_EMAIL_KEY = 'housemates_pending_email_v1';
@@ -209,7 +209,7 @@ interface AuthStore {
   removeCover: () => Promise<void>;
   setHouseId: (houseId: string) => void;
   reloadMembership: () => Promise<void>;
-  leaveHouse: () => Promise<void>;
+  leaveHouse: (newOwnerUserId?: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
   acceptUpdatedTerms: () => Promise<void>;
@@ -758,12 +758,45 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
 
-      leaveHouse: async (): Promise<void> => {
+      leaveHouse: async (newOwnerUserId?: string): Promise<void> => {
         const { user, houseId, profile } = useAuthStore.getState();
         if (!user || !houseId) return;
-        // Snapshot the departing member so the house can still show
-        // "Alex (left)" on their past bills and messages. Best-effort — a
-        // failure here must not block the person from leaving.
+
+        // A chosen successor is user input headed for a `uuid` RPC parameter —
+        // validate it first so malformed input fails here with a clear message
+        // instead of as an opaque database error.
+        let successor: string | null = null;
+        if (newOwnerUserId != null) {
+          const parsed = uuidSchema.safeParse(newOwnerUserId);
+          if (!parsed.success) {
+            throw new Error('Please choose a valid housemate to take over.');
+          }
+          successor = parsed.data;
+        }
+
+        // Leave through the RPC so ownership is transferred (or the empty house
+        // removed) atomically — a bare delete could leave the house with no
+        // owner, or orphan it entirely. Scope it to the active house so a member
+        // of several houses always leaves the right one. If it fails (including
+        // a rejected promise), surface the error and leave local state intact:
+        // the user is still in the house, so we must not clear it or unregister
+        // their notifications.
+        try {
+          const { error: leaveError } = await supabase.rpc('leave_house', {
+            p_house_id: houseId,
+            p_new_owner: successor,
+          });
+          if (leaveError) throw leaveError;
+        } catch (leaveErr) {
+          captureError(leaveErr, { context: 'leave-house', houseId, userId: user.id });
+          throw new Error('Could not leave the house. Please try again.');
+        }
+
+        // Only now that the leave has succeeded, snapshot the departing member
+        // so the house can still show "Alex (left)" on their past bills and
+        // messages. Best-effort — a failure here must not undo a successful
+        // leave. If the house was empty it is now deleted, so this upsert simply
+        // no-ops against the cascade; that is expected and harmless.
         try {
           const now = new Date().toISOString();
           const { error: snapshotError } = await supabase.from('former_members').upsert(
@@ -786,19 +819,11 @@ export const useAuthStore = create<AuthStore>()(
             });
           }
         } catch (snapErr) {
-          // Non-fatal — leaving must not be blocked by the snapshot — but a
-          // thrown network/client failure should still be visible in Sentry.
+          // Non-fatal — a thrown network/client failure should still be visible
+          // in Sentry, but the leave already succeeded.
           captureError(snapErr, { context: 'snapshot-former-member', houseId, userId: user.id });
         }
-        try {
-          await supabase
-            .from('house_members')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('house_id', houseId);
-        } catch {
-          /* non-fatal */
-        }
+
         // Unregister push tokens so ex-housemates don't receive stale notifications
         unregisterPushToken(user.id, houseId);
         unregisterWebPush(user.id, houseId);

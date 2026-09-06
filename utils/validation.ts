@@ -17,6 +17,10 @@ export function mapZodError(message: string, t: TFunction): string {
   return key ? t(key) : message;
 }
 
+// Reusable guard for any value that must be a real UUID before it reaches a
+// Supabase `uuid` RPC/column — e.g. a user-chosen successor id.
+export const uuidSchema = z.string().uuid();
+
 export const signUpSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or less'),
   email: z
