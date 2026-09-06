@@ -5,6 +5,8 @@ import {
   APP_MAX_WIDTH,
   contentWidthForWindow,
   isLargeScreen,
+  isDesktop,
+  DESKTOP_MIN_WIDTH,
 } from '@utils/responsive';
 
 // Every current + recent iPhone logical width (points), smallest to largest,
@@ -80,5 +82,25 @@ describe('large-screen framing', () => {
     expect(contentWidthForWindow(-100)).toBe(APP_MAX_WIDTH);
     expect(contentWidthForWindow(NaN)).toBe(APP_MAX_WIDTH);
     expect(isLargeScreen(NaN)).toBe(false);
+  });
+});
+
+describe('desktop shell breakpoint', () => {
+  it('is not desktop on phone or tablet widths', () => {
+    for (const w of [320, 402, 440, 768, 1000, DESKTOP_MIN_WIDTH - 1]) {
+      expect(isDesktop(w)).toBe(false);
+    }
+  });
+
+  it('is desktop at and above the desktop breakpoint', () => {
+    for (const w of [DESKTOP_MIN_WIDTH, 1280, 1440, 1920, 3840]) {
+      expect(isDesktop(w)).toBe(true);
+    }
+  });
+
+  it('never flags desktop on a bogus width', () => {
+    expect(isDesktop(NaN)).toBe(false);
+    expect(isDesktop(0)).toBe(false);
+    expect(isDesktop(-1)).toBe(false);
   });
 });

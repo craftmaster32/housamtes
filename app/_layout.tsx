@@ -49,7 +49,13 @@ import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { goBack } from '@stores/navigationStore';
 import { registerWebPush } from '@lib/webPush';
-import { contentWidthForWindow, isLargeScreen } from '@utils/responsive';
+import {
+  contentWidthForWindow,
+  isLargeScreen,
+  isDesktop,
+  DESKTOP_CONTENT_MAX_WIDTH,
+} from '@utils/responsive';
+import { SideNav } from '@components/shared/SideNav';
 
 initErrorTracking();
 
@@ -92,7 +98,10 @@ export default function RootLayout(): React.JSX.Element | null {
   // and none of this is visible. Live window width keeps it correct through
   // rotation and browser-window resizing.
   const { width: windowWidth } = useWindowDimensions();
-  const largeScreen = isLargeScreen(windowWidth);
+  const desktop = isDesktop(windowWidth);
+  // Below desktop, wide windows (small tablets, iPad portrait) still use the
+  // centred phone frame; only true computer widths switch to the sidebar shell.
+  const largeScreen = isLargeScreen(windowWidth) && !desktop;
   const frameWidth = contentWidthForWindow(windowWidth);
   const [i18nReady, setI18nReady] = useState(false);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
@@ -113,11 +122,11 @@ export default function RootLayout(): React.JSX.Element | null {
     // On large screens the canvas around the centred frame is the backdrop, so
     // any overscroll band matches it; on a phone the frame fills the window and
     // the band should stay the app background.
-    const canvas = largeScreen ? c.appBackdrop : c.background;
+    const canvas = largeScreen || desktop ? c.appBackdrop : c.background;
     document.documentElement.style.backgroundColor = canvas;
     document.body.style.backgroundColor = canvas;
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  }, [c, largeScreen]);
+  }, [c, largeScreen, desktop]);
 
   const paperTheme = useMemo(() => {
     const isDark = c === darkColors;
@@ -543,47 +552,88 @@ export default function RootLayout(): React.JSX.Element | null {
   // Block render until i18n is initialised — avoids untranslated flash
   if (!i18nReady) return null;
 
+  // The routed screen — identical in every layout mode.
+  const stackContent = (
+    <RouteTransition>
+      <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
+    </RouteTransition>
+  );
+
+  // Overlays shared by every layout: the floating chat button, the two popups,
+  // the web alert host, and the loading splash.
+  const overlays = (
+    <>
+      {showChrome && <ChatFab />}
+      {showChrome && <MorePopup />}
+      {showChrome && <ProfilePopup />}
+      <WebAlertHost />
+      {(isLoading || !fontsLoaded) && (
+        <View style={styles.splash}>
+          <LoadingSpinner size={140} color={darkColors.primary} />
+        </View>
+      )}
+    </>
+  );
+
   // Stack must always render — navigation happens via useEffect above
   return (
     <GestureHandlerRootView
       style={[
         styles.gestureRoot,
-        { backgroundColor: largeScreen ? c.appBackdrop : c.background, direction: rootDirection },
+        {
+          backgroundColor: largeScreen || desktop ? c.appBackdrop : c.background,
+          direction: rootDirection,
+        },
       ]}
     >
       <PaperProvider theme={paperTheme}>
         <StatusBar style="light" />
         <ErrorBoundary>
-          <View
-            style={[styles.stage, { backgroundColor: largeScreen ? c.appBackdrop : c.background }]}
-          >
+          {desktop ? (
+            // ── Desktop shell: left sidebar + centred content column ──────────
             <View
               style={[
-                styles.root,
-                { backgroundColor: c.background, direction: rootDirection, width: frameWidth },
-                largeScreen && { borderColor: c.border, ...styles.frameChrome },
+                styles.desktopShell,
+                { backgroundColor: c.appBackdrop, direction: rootDirection },
               ]}
-              {...backSwipe.panHandlers}
             >
-              {showChrome && <TopBar />}
-              <View style={styles.content}>
-                <RouteTransition>
-                  <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
-                </RouteTransition>
-              </View>
-              {showChrome && <AdBanner />}
-              {showChrome && <ChatFab />}
-              {showChrome && <BottomTabBar />}
-              {showChrome && <MorePopup />}
-              {showChrome && <ProfilePopup />}
-              <WebAlertHost />
-              {(isLoading || !fontsLoaded) && (
-                <View style={styles.splash}>
-                  <LoadingSpinner size={140} color={darkColors.primary} />
+              {showChrome && <SideNav />}
+              <View style={styles.desktopMain}>
+                <View
+                  style={[
+                    styles.desktopContent,
+                    { backgroundColor: c.background, borderColor: c.border },
+                  ]}
+                >
+                  {stackContent}
                 </View>
-              )}
+              </View>
+              {overlays}
             </View>
-          </View>
+          ) : (
+            // ── Phone / tablet: full-width phone or centred phone frame ───────
+            <View
+              style={[
+                styles.stage,
+                { backgroundColor: largeScreen ? c.appBackdrop : c.background },
+              ]}
+            >
+              <View
+                style={[
+                  styles.root,
+                  { backgroundColor: c.background, direction: rootDirection, width: frameWidth },
+                  largeScreen && { borderColor: c.border, ...styles.frameChrome },
+                ]}
+                {...backSwipe.panHandlers}
+              >
+                {showChrome && <TopBar />}
+                <View style={styles.content}>{stackContent}</View>
+                {showChrome && <AdBanner />}
+                {showChrome && <BottomTabBar />}
+                {overlays}
+              </View>
+            </View>
+          )}
         </ErrorBoundary>
       </PaperProvider>
     </GestureHandlerRootView>
@@ -611,6 +661,25 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   content: { flex: 1, minHeight: 0 },
+  // Desktop (≥1024px): a persistent left sidebar next to a centred content
+  // column, on the backdrop canvas. Phones and tablets never hit this branch.
+  desktopShell: { flex: 1, flexDirection: 'row', position: 'relative' },
+  desktopMain: { flex: 1, alignItems: 'center', minHeight: 0 },
+  desktopContent: {
+    flex: 1,
+    width: '100%',
+    maxWidth: DESKTOP_CONTENT_MAX_WIDTH,
+    minHeight: 0,
+    overflow: 'hidden',
+    position: 'relative',
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
+    elevation: 12,
+  },
   splash: {
     position: 'absolute',
     top: 0,
