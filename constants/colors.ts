@@ -23,6 +23,9 @@ export interface ColorPalette {
   white: string;
   black: string;
   background: string;
+  // The canvas behind the app frame on large screens (desktop / iPad / wide web).
+  // On phones the frame fills the window and this is never seen.
+  appBackdrop: string;
   surface: string;
   surfaceSecondary: string;
   border: string;
@@ -68,6 +71,7 @@ export const lightColors: ColorPalette = {
   white: '#FFFFFF',
   black: '#000000',
   background: '#F6F2EA',
+  appBackdrop: '#E7E1D4',
   surface: '#FFFFFF',
   surfaceSecondary: '#F1ECE3',
   border: 'rgba(20,24,32,0.08)',
@@ -120,6 +124,7 @@ export const darkColors: ColorPalette = {
   white: '#FFFFFF',
   black: '#000000',
   background: '#0A0F1B',
+  appBackdrop: '#05070E',
   surface: '#151D2E',
   surfaceSecondary: '#1F2940',
   border: 'rgba(255,255,255,0.08)',

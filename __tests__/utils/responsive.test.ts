@@ -1,4 +1,11 @@
-import { BASE_WIDTH, scaleForWidth, moderateScaleForWidth } from '@utils/responsive';
+import {
+  BASE_WIDTH,
+  scaleForWidth,
+  moderateScaleForWidth,
+  APP_MAX_WIDTH,
+  contentWidthForWindow,
+  isLargeScreen,
+} from '@utils/responsive';
 
 // Every current + recent iPhone logical width (points), smallest to largest,
 // plus tablet / desktop-web widths the deployed web build can land on.
@@ -50,5 +57,28 @@ describe('responsive scaling', () => {
     expect(() => moderateScaleForWidth(16, 0)).not.toThrow();
     expect(moderateScaleForWidth(16, 0)).toBeGreaterThan(0);
     expect(moderateScaleForWidth(16, NaN)).toBeGreaterThan(0);
+  });
+});
+
+describe('large-screen framing', () => {
+  it('fills the window on phone widths (never wider than the window)', () => {
+    for (const w of [320, 375, 390, 402, 428, 440, APP_MAX_WIDTH]) {
+      expect(contentWidthForWindow(w)).toBe(w);
+      expect(isLargeScreen(w)).toBe(false);
+    }
+  });
+
+  it('caps the frame and flags large once the window exceeds the max width', () => {
+    for (const w of [APP_MAX_WIDTH + 1, 768, 1024, 1440, 3840]) {
+      expect(contentWidthForWindow(w)).toBe(APP_MAX_WIDTH);
+      expect(isLargeScreen(w)).toBe(true);
+    }
+  });
+
+  it('never returns a broken frame width on a bogus window width', () => {
+    expect(contentWidthForWindow(0)).toBe(APP_MAX_WIDTH);
+    expect(contentWidthForWindow(-100)).toBe(APP_MAX_WIDTH);
+    expect(contentWidthForWindow(NaN)).toBe(APP_MAX_WIDTH);
+    expect(isLargeScreen(NaN)).toBe(false);
   });
 });

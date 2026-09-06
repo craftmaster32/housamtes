@@ -6,6 +6,7 @@ import {
   AppState,
   InteractionManager,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
@@ -48,6 +49,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { goBack } from '@stores/navigationStore';
 import { registerWebPush } from '@lib/webPush';
+import { contentWidthForWindow, isLargeScreen } from '@utils/responsive';
 
 initErrorTracking();
 
@@ -83,6 +85,15 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 
 export default function RootLayout(): React.JSX.Element | null {
   const c = useColors();
+
+  // Large-screen framing: on anything wider than a phone (desktop web, iPad,
+  // wide monitor) cap the app to a centred phone-width column and paint the
+  // surrounding canvas with `appBackdrop`. On a phone the frame fills the window
+  // and none of this is visible. Live window width keeps it correct through
+  // rotation and browser-window resizing.
+  const { width: windowWidth } = useWindowDimensions();
+  const largeScreen = isLargeScreen(windowWidth);
+  const frameWidth = contentWidthForWindow(windowWidth);
   const [i18nReady, setI18nReady] = useState(false);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
   const language = useLanguageStore((s) => s.language);
@@ -99,10 +110,14 @@ export default function RootLayout(): React.JSX.Element | null {
   useEffect((): void => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const isDark = c === darkColors;
-    document.documentElement.style.backgroundColor = c.background;
-    document.body.style.backgroundColor = c.background;
+    // On large screens the canvas around the centred frame is the backdrop, so
+    // any overscroll band matches it; on a phone the frame fills the window and
+    // the band should stay the app background.
+    const canvas = largeScreen ? c.appBackdrop : c.background;
+    document.documentElement.style.backgroundColor = canvas;
+    document.body.style.backgroundColor = canvas;
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  }, [c]);
+  }, [c, largeScreen]);
 
   const paperTheme = useMemo(() => {
     const isDark = c === darkColors;
@@ -531,32 +546,43 @@ export default function RootLayout(): React.JSX.Element | null {
   // Stack must always render — navigation happens via useEffect above
   return (
     <GestureHandlerRootView
-      style={[styles.gestureRoot, { backgroundColor: c.background, direction: rootDirection }]}
+      style={[
+        styles.gestureRoot,
+        { backgroundColor: largeScreen ? c.appBackdrop : c.background, direction: rootDirection },
+      ]}
     >
       <PaperProvider theme={paperTheme}>
         <StatusBar style="light" />
         <ErrorBoundary>
           <View
-            style={[styles.root, { backgroundColor: c.background, direction: rootDirection }]}
-            {...backSwipe.panHandlers}
+            style={[styles.stage, { backgroundColor: largeScreen ? c.appBackdrop : c.background }]}
           >
-            {showChrome && <TopBar />}
-            <View style={styles.content}>
-              <RouteTransition>
-                <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
-              </RouteTransition>
-            </View>
-            {showChrome && <AdBanner />}
-            {showChrome && <ChatFab />}
-            {showChrome && <BottomTabBar />}
-            {showChrome && <MorePopup />}
-            {showChrome && <ProfilePopup />}
-            <WebAlertHost />
-            {(isLoading || !fontsLoaded) && (
-              <View style={styles.splash}>
-                <LoadingSpinner size={140} color={darkColors.primary} />
+            <View
+              style={[
+                styles.root,
+                { backgroundColor: c.background, direction: rootDirection, width: frameWidth },
+                largeScreen && { borderColor: c.border, ...styles.frameChrome },
+              ]}
+              {...backSwipe.panHandlers}
+            >
+              {showChrome && <TopBar />}
+              <View style={styles.content}>
+                <RouteTransition>
+                  <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
+                </RouteTransition>
               </View>
-            )}
+              {showChrome && <AdBanner />}
+              {showChrome && <ChatFab />}
+              {showChrome && <BottomTabBar />}
+              {showChrome && <MorePopup />}
+              {showChrome && <ProfilePopup />}
+              <WebAlertHost />
+              {(isLoading || !fontsLoaded) && (
+                <View style={styles.splash}>
+                  <LoadingSpinner size={140} color={darkColors.primary} />
+                </View>
+              )}
+            </View>
           </View>
         </ErrorBoundary>
       </PaperProvider>
@@ -566,7 +592,24 @@ export default function RootLayout(): React.JSX.Element | null {
 
 const styles = StyleSheet.create({
   gestureRoot: { flex: 1 },
-  root: { flex: 1, overflow: 'hidden' },
+  // Full-window canvas that centres the app frame on large screens. On a phone
+  // the frame is as wide as the window, so centring is a no-op.
+  stage: { flex: 1, alignItems: 'center' },
+  // `position: relative` makes the frame the containing block for the app's
+  // absolutely-positioned chrome (ChatFab, popups) so they stay inside the
+  // centred column on web instead of anchoring to the viewport edge.
+  root: { flex: 1, overflow: 'hidden', position: 'relative' },
+  // Side borders + a soft shadow shown only on large screens, so the phone
+  // frame reads as a distinct surface floating on the backdrop.
+  frameChrome: {
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
+  },
   content: { flex: 1, minHeight: 0 },
   splash: {
     position: 'absolute',
