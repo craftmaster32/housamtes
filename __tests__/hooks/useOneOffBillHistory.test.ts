@@ -14,7 +14,7 @@ import type { Bill } from '@stores/billsStore';
 import type { ExpenseCategory } from '@stores/expenseCategoriesStore';
 
 let mockBillsState: { bills: Bill[] };
-let mockCategoriesState: { categories: ExpenseCategory[] };
+let mockCategoriesState: { categories: ExpenseCategory[]; load: () => void };
 
 jest.mock('react-i18next', () => ({
   useTranslation: (): { t: (k: string) => string; i18n: { language: string } } => ({
@@ -80,6 +80,7 @@ describe('useOneOffBillHistory — presentCategories', () => {
   it('orders managed categories by their configured order and appends custom ones', () => {
     mockCategoriesState = {
       categories: [cat('Rent', 0), cat('Groceries', 4), cat('Other', 99)],
+      load: (): void => {},
     };
     mockBillsState = {
       // Bills reference Groceries + Rent (managed) and PetCare (custom, unmanaged).
@@ -99,6 +100,7 @@ describe('useOneOffBillHistory — presentCategories', () => {
   it('surfaces only categories that appear on a bill', () => {
     mockCategoriesState = {
       categories: [cat('Rent', 0), cat('Groceries', 4), cat('Health', 8)],
+      load: (): void => {},
     };
     mockBillsState = { bills: [bill({ category: 'Groceries' })] };
 

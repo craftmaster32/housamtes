@@ -4,6 +4,7 @@ import { useBillsStore, type Bill } from '@stores/billsStore';
 import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useAuthStore } from '@stores/authStore';
 
 export interface RecurringPaymentRow {
   id: string;
@@ -70,6 +71,14 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
   const housemates = useHousematesStore((s) => s.housemates);
   const memberIds = useMemo((): string[] => housemates.map((h) => h.id), [housemates]);
   const expenseCategories = useExpenseCategoriesStore((s) => s.categories);
+  const loadExpenseCategories = useExpenseCategoriesStore((s) => s.load);
+  const houseId = useAuthStore((s) => s.houseId);
+
+  // Ensure managed categories are loaded so presentCategories uses the
+  // configured order on first visit, even if the parent screen loads them too.
+  useEffect((): void => {
+    if (houseId) loadExpenseCategories(houseId);
+  }, [houseId, loadExpenseCategories]);
 
   const [category, setCategory] = useState('all');
 
