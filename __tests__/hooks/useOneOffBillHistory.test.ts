@@ -10,8 +10,8 @@
  */
 
 import { renderHook } from '@testing-library/react-native';
-import type { Bill } from '../../stores/billsStore';
-import type { ExpenseCategory } from '../../stores/expenseCategoriesStore';
+import type { Bill } from '@stores/billsStore';
+import type { ExpenseCategory } from '@stores/expenseCategoriesStore';
 
 let mockBillsState: { bills: Bill[] };
 let mockCategoriesState: { categories: ExpenseCategory[] };
@@ -23,28 +23,33 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-jest.mock('../../stores/billsStore', () => ({
+jest.mock('@stores/billsStore', () => ({
   useBillsStore: (selector: (s: typeof mockBillsState) => unknown): unknown =>
     selector(mockBillsState),
 }));
 
-jest.mock('../../stores/expenseCategoriesStore', () => ({
+jest.mock('@stores/expenseCategoriesStore', () => ({
   useExpenseCategoriesStore: (selector: (s: typeof mockCategoriesState) => unknown): unknown =>
     selector(mockCategoriesState),
 }));
 
-jest.mock('../../stores/recurringBillsStore', () => ({
+jest.mock('@stores/recurringBillsStore', () => ({
   useRecurringBillsStore: (
     selector: (s: { bills: unknown[]; payments: unknown[] }) => unknown
   ): unknown => selector({ bills: [], payments: [] }),
 }));
 
-jest.mock('../../stores/housematesStore', () => ({
+jest.mock('@stores/housematesStore', () => ({
   useHousematesStore: (selector: (s: { housemates: unknown[] }) => unknown): unknown =>
     selector({ housemates: [{ id: 'u1', name: 'Ann' }] }),
 }));
 
-import { useOneOffBillHistory } from '../../hooks/useOneOffBillHistory';
+jest.mock('@stores/authStore', () => ({
+  useAuthStore: (selector: (s: { houseId: string | null }) => unknown): unknown =>
+    selector({ houseId: 'house-1' }),
+}));
+
+import { useOneOffBillHistory } from '@hooks/useOneOffBillHistory';
 
 function bill(overrides: Partial<Bill> = {}): Bill {
   return {
