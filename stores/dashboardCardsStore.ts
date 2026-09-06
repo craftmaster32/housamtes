@@ -9,7 +9,6 @@ export type DashboardCardKey =
   | 'groceries'
   | 'chores'
   | 'votes'
-  | 'bills'
   | 'washer'
   | 'dryer'
   | 'dishwasher';
@@ -19,7 +18,6 @@ export const ALL_DASHBOARD_CARDS: DashboardCardKey[] = [
   'groceries',
   'chores',
   'votes',
-  'bills',
   'washer',
   'dryer',
   'dishwasher',

@@ -117,17 +117,19 @@ export default function MachinesScreen(): React.JSX.Element {
   );
 
   const handleSavePreset = useCallback(
-    ({ name, durationMinutes }: { name: string; durationMinutes: number }): void => {
+    async ({ name, durationMinutes }: { name: string; durationMinutes: number }): Promise<void> => {
       if (!startKind) return;
-      addPreset({
-        appliance: startKind,
-        name,
-        durationMinutes,
-        userId: myId,
-        houseId: houseId ?? '',
-      }).catch((err) =>
-        Alert.alert(t('common.error'), getErrorMessage(err, t('machines.failed_preset')))
-      );
+      try {
+        await addPreset({
+          appliance: startKind,
+          name,
+          durationMinutes,
+          userId: myId,
+          houseId: houseId ?? '',
+        });
+      } catch {
+        Alert.alert(t('common.error'), t('machines.failed_preset'));
+      }
     },
     [startKind, addPreset, myId, houseId, t]
   );
