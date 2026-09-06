@@ -80,7 +80,9 @@ function AddBillScreen(): React.JSX.Element {
   // Keep the latest categories reachable from the stable reset callback below
   // without making them a dependency (which would re-fire it and wipe a draft).
   const categoriesRef = useRef(categories);
-  categoriesRef.current = categories;
+  useEffect((): void => {
+    categoriesRef.current = categories;
+  }, [categories]);
 
   // Refs keep the latest values accessible inside the stable useFocusEffect
   // callback without making allIds/myId part of its dependency array — which
