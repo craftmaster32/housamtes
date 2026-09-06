@@ -73,7 +73,7 @@ function AddBillScreen(): React.JSX.Element {
 
   // The category list is DB-backed and shared with the settings manager, so a
   // category added there shows up here without a hardcoded list.
-  useEffect(() => {
+  useEffect((): void => {
     if (houseId) loadCategories(houseId);
   }, [houseId, loadCategories]);
 
@@ -151,7 +151,7 @@ function AddBillScreen(): React.JSX.Element {
 
   // If categories finish loading after this screen is already focused (so the
   // reset ran with an empty list), seed the first one as the default selection.
-  useEffect(() => {
+  useEffect((): void => {
     if (categories.length > 0 && !category) {
       setCategory(categories[0].name);
     }

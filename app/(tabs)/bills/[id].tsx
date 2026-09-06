@@ -14,7 +14,11 @@ import { BillReceipt } from '@components/bills/BillReceipt';
 import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { useBillsStore, getPersonShare } from '@stores/billsStore';
-import { useExpenseCategoriesStore, resolveCategoryIcon } from '@stores/expenseCategoriesStore';
+import {
+  useExpenseCategoriesStore,
+  resolveCategoryIcon,
+  type ExpenseCategory,
+} from '@stores/expenseCategoriesStore';
 import { BillCategoryPicker } from '@components/bills/BillCategoryPicker';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -81,14 +85,14 @@ function BillDetailScreen(): React.JSX.Element {
 
   // Categories are DB-backed and shared with the settings manager, so one added
   // there appears in the picker below without a hardcoded list.
-  useEffect(() => {
+  useEffect((): void => {
     if (houseId) loadCategories(houseId);
   }, [houseId, loadCategories]);
 
   // The read-only view resolves its icon/colour from the matching category
   // record, so custom categories render with their own icon and colour.
   const billCategory = useMemo(
-    () => categories.find((c) => c.name === bill?.category),
+    (): ExpenseCategory | undefined => categories.find((c) => c.name === bill?.category),
     [categories, bill?.category]
   );
 
