@@ -169,16 +169,17 @@ const makeStyles = (C: ColorTokens) =>
 
 const PICKER_ICONS = CATEGORY_PICKER_ICONS;
 
-/**
- * Builds the alert message for a failed category save/update. A duplicate name
- * gets a clear, translated message; any other failure surfaces the real reason
- * from the database instead of a generic "please try again", so a stubborn
- * error is actually diagnosable.
- */
-function categorySaveMessage(err: unknown, name: string, t: TFunction): string {
+// Builds the alert message for a failed category save. A duplicate name gets a
+// clear translated message; create vs update failures use distinct keys.
+function categorySaveMessage(
+  err: unknown,
+  name: string,
+  operation: 'add' | 'update',
+  t: TFunction
+): string {
   const reason = err instanceof Error ? err.message : '';
   if (reason === DUPLICATE_CATEGORY) return t('categories.already_exists', { name });
-  return reason ? t('categories.save_failed_reason', { reason }) : t('categories.could_not_save');
+  return operation === 'update' ? t('categories.could_not_update') : t('categories.could_not_save');
 }
 
 // ── Add / Edit form ────────────────────────────────────────────────────────────
@@ -387,7 +388,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
         Sentry.captureException(err, { extra: { houseId, userId } });
-        Alert.alert(t('common.error'), categorySaveMessage(err, form.name.trim(), t));
+        Alert.alert(t('common.error'), categorySaveMessage(err, form.name.trim(), 'add', t));
       } finally {
         setSaving(false);
       }
@@ -409,7 +410,7 @@ export default function CategoriesScreen(): React.JSX.Element {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (err) {
         Sentry.captureException(err, { extra: { houseId, userId, categoryId: editCat.id } });
-        Alert.alert(t('common.error'), categorySaveMessage(err, form.name.trim(), t));
+        Alert.alert(t('common.error'), categorySaveMessage(err, form.name.trim(), 'update', t));
       } finally {
         setSaving(false);
       }
