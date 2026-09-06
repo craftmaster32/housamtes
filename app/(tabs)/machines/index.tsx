@@ -127,8 +127,8 @@ export default function MachinesScreen(): React.JSX.Element {
           userId: myId,
           houseId: houseId ?? '',
         });
-      } catch (err) {
-        Alert.alert(t('common.error'), getErrorMessage(err, t('machines.failed_preset')));
+      } catch {
+        Alert.alert(t('common.error'), t('machines.failed_preset'));
       }
     },
     [startKind, addPreset, myId, houseId, t]
