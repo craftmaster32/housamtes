@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { useCallback, memo, useMemo } from 'react';
+import { View, StyleSheet, Pressable, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'react-native-paper';
 import { router, usePathname } from 'expo-router';
@@ -125,6 +125,66 @@ const HOUSE: NavEntry[] = [
   },
 ];
 
+type NavListItem = NavEntry | { id: '__divider__'; isDivider: true };
+
+interface NavRowProps {
+  entry: NavEntry;
+  isActive: boolean;
+  badgeCount: number;
+  onPress: (route: string) => void;
+  label: string;
+  colors: ReturnType<typeof useColors>;
+}
+
+const NavRow = memo(function NavRow({
+  entry,
+  isActive,
+  badgeCount,
+  onPress,
+  label,
+  colors,
+}: NavRowProps): React.JSX.Element {
+  const handlePress = useCallback((): void => {
+    onPress(entry.route);
+  }, [onPress, entry.route]);
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      accessible
+      accessibilityRole="tab"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: isActive }}
+      style={({ pressed }) => [
+        styles.item,
+        isActive && { backgroundColor: colors.primaryTint },
+        pressed && !isActive && { backgroundColor: colors.borderLight },
+      ]}
+    >
+      <View style={styles.itemIcon}>
+        <Ionicons
+          name={isActive ? entry.iconActive : entry.icon}
+          size={22}
+          color={isActive ? colors.primary : colors.textSecondary}
+        />
+        {badgeCount > 0 && (
+          <View style={[styles.badge, { backgroundColor: colors.danger, borderColor: colors.surface }]}>
+            <Text style={[styles.badgeText, { color: colors.white }]}>
+              {badgeCount > 9 ? '9+' : String(badgeCount)}
+            </Text>
+          </View>
+        )}
+      </View>
+      <Text
+        style={[styles.itemLabel, { color: isActive ? colors.primary : colors.textPrimary }]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+});
+
 /**
  * The desktop-only left navigation rail. Rendered by the root layout in place of
  * the bottom tab bar once the window is wide enough (see isDesktop). It surfaces
@@ -212,47 +272,32 @@ export function SideNav(): React.JSX.Element {
   const initial = profile?.name ? profile.name[0].toUpperCase() : '?';
   const settingsActive = pathname.includes('/settings');
 
-  const renderItem = (entry: NavEntry): React.JSX.Element | null => {
-    if (!canShow(entry)) return null;
-    const active = isActive(entry.id);
-    const count = badges[entry.id] ?? 0;
-    return (
-      <Pressable
-        key={entry.id}
-        onPress={() => handleNav(entry.route)}
-        accessible
-        accessibilityRole="tab"
-        accessibilityLabel={t(entry.labelKey)}
-        accessibilityState={{ selected: active }}
-        style={({ pressed }) => [
-          styles.item,
-          active && { backgroundColor: c.primaryTint },
-          pressed && !active && { backgroundColor: c.borderLight },
-        ]}
-      >
-        <View style={styles.itemIcon}>
-          <Ionicons
-            name={active ? entry.iconActive : entry.icon}
-            size={22}
-            color={active ? c.primary : c.textSecondary}
-          />
-          {count > 0 && (
-            <View style={[styles.badge, { backgroundColor: c.danger, borderColor: c.surface }]}>
-              <Text style={[styles.badgeText, { color: c.white }]}>
-                {count > 9 ? '9+' : String(count)}
-              </Text>
-            </View>
-          )}
-        </View>
-        <Text
-          style={[styles.itemLabel, { color: active ? c.primary : c.textPrimary }]}
-          numberOfLines={1}
-        >
-          {t(entry.labelKey)}
-        </Text>
-      </Pressable>
-    );
-  };
+  const navData = useMemo((): NavListItem[] => {
+    const primary = PRIMARY.filter(canShow);
+    const house = HOUSE.filter(canShow);
+    return [...primary, { id: '__divider__', isDivider: true }, ...house];
+  }, [canShow]);
+
+  const renderNavItem = useCallback(
+    ({ item }: { item: NavListItem }): React.JSX.Element => {
+      if ('isDivider' in item) {
+        return <View style={[styles.divider, { backgroundColor: c.border }]} />;
+      }
+      return (
+        <NavRow
+          entry={item}
+          isActive={isActive(item.id)}
+          badgeCount={badges[item.id] ?? 0}
+          onPress={handleNav}
+          label={t(item.labelKey)}
+          colors={c}
+        />
+      );
+    },
+    [c, isActive, badges, handleNav, t]
+  );
+
+  const keyExtractor = useCallback((item: NavListItem): string => item.id, []);
 
   return (
     <View style={[styles.rail, { backgroundColor: c.surface, borderRightColor: c.border }]}>
@@ -289,15 +334,14 @@ export function SideNav(): React.JSX.Element {
         </Pressable>
       )}
 
-      <ScrollView
+      <FlatList
+        data={navData}
+        renderItem={renderNavItem}
+        keyExtractor={keyExtractor}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-      >
-        {PRIMARY.map(renderItem)}
-        <View style={[styles.divider, { backgroundColor: c.border }]} />
-        {HOUSE.map(renderItem)}
-      </ScrollView>
+      />
 
       {/* Footer: settings + profile */}
       <View style={[styles.footer, { borderTopColor: c.border }]}>
