@@ -1528,6 +1528,7 @@
     "title": "Categorías de gastos",
     "subtitle": "Estas categorías aparecen al agregar gastos. También agrupan tus gastos en la página de perfil.",
     "add_category": "+ Agregar categoría",
+    "new_category": "Nueva categoría",
     "all_categories": "TODAS LAS CATEGORÍAS",
     "choose_icon": "Elegir icono",
     "category_name": "Nombre de la categoría",

@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { resolveCategoryIcon, type ExpenseCategory } from '@stores/expenseCategoriesStore';
@@ -15,16 +14,16 @@ interface BillCategoryPickerProps {
   categories: ExpenseCategory[];
   selected: string; // the category name currently chosen
   onSelect: (name: string) => void;
-  // Fired just before navigating to the category manager, so the screen can flag
-  // that the in-progress form must be kept when the user returns.
-  onManage: () => void;
+  // Opens the quick-add-category popup. It stays on the bill form (no
+  // navigation), so the in-progress bill is never lost.
+  onAddCategory: () => void;
 }
 
 export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
   categories,
   selected,
   onSelect,
-  onManage,
+  onAddCategory,
 }) => {
   const C = useThemedColors();
   const { t } = useTranslation();
@@ -61,7 +60,9 @@ export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
           <Pressable
             key={cat.id}
             style={[styles.catChip, isSelected && styles.catChipSelected]}
-            onPress={(): void => { onSelect(cat.name); }}
+            onPress={(): void => {
+              onSelect(cat.name);
+            }}
             accessible
             accessibilityRole="radio"
             accessibilityLabel={label}
@@ -78,17 +79,16 @@ export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
           </Pressable>
         );
       })}
-      <Link href="/(tabs)/settings/categories" onPress={onManage} asChild>
-        <Pressable
-          style={styles.catChipAdd}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('bills.add_category')}
-        >
-          <Ionicons name="add" size={15} color={C.primary} />
-          <Text style={styles.catChipAddText}>{t('bills.add_category')}</Text>
-        </Pressable>
-      </Link>
+      <Pressable
+        style={styles.catChipAdd}
+        onPress={onAddCategory}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={t('bills.add_category')}
+      >
+        <Ionicons name="add" size={15} color={C.primary} />
+        <Text style={styles.catChipAddText}>{t('bills.add_category')}</Text>
+      </Pressable>
     </ScrollView>
   );
 };

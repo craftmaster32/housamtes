@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +20,7 @@ import {
   type ExpenseCategory,
 } from '@stores/expenseCategoriesStore';
 import { BillCategoryPicker } from '@components/bills/BillCategoryPicker';
+import { QuickAddCategoryModal } from '@components/bills/QuickAddCategoryModal';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -97,13 +98,11 @@ function BillDetailScreen(): React.JSX.Element {
   );
 
   const [isEditing, setIsEditing] = useState(false);
-  // Set when leaving for the category manager, which is opened from inside the
-  // edit form. That is the one return that must land back in the form with what
-  // was typed still there, so it skips the reset below.
-  const resumeEditOnReturn = useRef(false);
-  const handleManageCategories = useCallback((): void => {
-    resumeEditOnReturn.current = true;
-  }, []);
+  // Adding a category happens in a popup on this screen (no navigation), so the
+  // edit form and its in-progress changes stay put while it's open.
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const openAddCategory = useCallback((): void => setShowAddCategory(true), []);
+  const closeAddCategory = useCallback((): void => setShowAddCategory(false), []);
 
   useFocusEffect(
     useCallback(() => {
@@ -112,10 +111,6 @@ function BillDetailScreen(): React.JSX.Element {
       // without this, leaving mid-edit and opening a bill again would drop you
       // straight back into the form. Coming back to the screen always starts on
       // the read-only details.
-      if (resumeEditOnReturn.current) {
-        resumeEditOnReturn.current = false;
-        return;
-      }
       setIsEditing(false);
       setError('');
     }, [markSeen])
@@ -125,6 +120,10 @@ function BillDetailScreen(): React.JSX.Element {
   const [date, setDate] = useState(bill?.date ?? '');
   const [notes, setNotes] = useState(bill?.notes ?? '');
   const [category, setCategory] = useState(bill?.category ?? 'Other');
+  const handleCategoryCreated = useCallback((newName: string): void => {
+    setCategory(newName);
+    setShowAddCategory(false);
+  }, []);
   const [paidBy, setPaidBy] = useState(bill?.paidBy ?? '');
   const [selectedPeople, setSelectedPeople] = useState<string[]>(bill?.splitBetween ?? []);
   const [splitType, setSplitType] = useState<SplitType>(bill?.splitAmounts ? 'custom' : 'equal');
@@ -468,13 +467,15 @@ function BillDetailScreen(): React.JSX.Element {
                   title={t('bills.no_categories_hint', {
                     defaultValue: 'No categories yet. Add one in Settings.',
                   })}
+                  actionLabel={t('bills.add_category')}
+                  onAction={openAddCategory}
                 />
               ) : (
                 <BillCategoryPicker
                   categories={categories}
                   selected={category}
                   onSelect={setCategory}
-                  onManage={handleManageCategories}
+                  onAddCategory={openAddCategory}
                 />
               )}
             </View>
@@ -596,6 +597,12 @@ function BillDetailScreen(): React.JSX.Element {
         value={date}
         onSelect={setDate}
         onClose={closeDatePicker}
+      />
+
+      <QuickAddCategoryModal
+        visible={showAddCategory}
+        onClose={closeAddCategory}
+        onCreated={handleCategoryCreated}
       />
     </SafeAreaView>
   );

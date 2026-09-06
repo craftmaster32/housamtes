@@ -78,14 +78,14 @@ describe('expenseCategoriesStore — remove', () => {
 });
 
 describe('expenseCategoriesStore — add', () => {
-  it('surfaces the real DB reason and leaves state unchanged on a generic failure', async () => {
-    // A generic failure (no known code) surfaces the database message so a
-    // stubborn error is diagnosable instead of hidden behind a generic string.
+  it('throws a plain-English error and leaves state unchanged on a generic failure', async () => {
+    // A generic failure (no known code) throws the friendly fallback; the real
+    // database reason is captured to Sentry at the call site.
     mockFrom.mockReturnValue(fail('insert error'));
 
     await expect(
       useExpenseCategoriesStore.getState().add({ name: 'Pets', icon: '🐕', color: '#10B981' }, 'h1')
-    ).rejects.toThrow('insert error');
+    ).rejects.toThrow('Could not save the category. Please try again.');
 
     expect(useExpenseCategoriesStore.getState().categories).toHaveLength(0);
   });
@@ -218,7 +218,7 @@ describe('expenseCategoriesStore — update', () => {
       useExpenseCategoriesStore
         .getState()
         .update('c2', { name: 'Takeaway', icon: '🍔', color: '#F59E0B' })
-    ).rejects.toThrow('db down');
+    ).rejects.toThrow('Could not update the category. Please try again.');
     expect(useExpenseCategoriesStore.getState().categories[0].name).toBe('Food');
   });
 });

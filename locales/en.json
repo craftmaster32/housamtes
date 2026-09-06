@@ -1710,6 +1710,7 @@
     "title": "Expense Categories",
     "subtitle": "These categories appear when adding bills. They also group your spending on the profile page.",
     "add_category": "+ Add Category",
+    "new_category": "New Category",
     "all_categories": "ALL CATEGORIES",
     "choose_icon": "Choose icon",
     "category_name": "Category name",

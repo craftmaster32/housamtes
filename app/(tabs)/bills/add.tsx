@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { useBillsStore } from '@stores/billsStore';
 import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import { BillCategoryPicker } from '@components/bills/BillCategoryPicker';
+import { QuickAddCategoryModal } from '@components/bills/QuickAddCategoryModal';
 import { captureError } from '@lib/errorTracking';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
@@ -131,20 +132,18 @@ function AddBillScreen(): React.JSX.Element {
     setError('');
   }, []);
 
-  // Set when leaving for the category manager (opened from the category picker).
-  // That is the one return that must land back on the form with what was typed
-  // still there, so it skips the reset below.
-  const resumeOnReturn = useRef(false);
-  const handleManageCategories = useCallback((): void => {
-    resumeOnReturn.current = true;
+  // Adding a category happens in a popup on this screen (no navigation), so the
+  // in-progress bill is never lost and the new category appears immediately.
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const openAddCategory = useCallback((): void => setShowAddCategory(true), []);
+  const closeAddCategory = useCallback((): void => setShowAddCategory(false), []);
+  const handleCategoryCreated = useCallback((newName: string): void => {
+    setCategory(newName);
+    setShowAddCategory(false);
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (resumeOnReturn.current) {
-        resumeOnReturn.current = false;
-        return;
-      }
       resetForm(allIdsRef.current, myIdRef.current);
     }, [resetForm])
   );
@@ -699,13 +698,15 @@ function AddBillScreen(): React.JSX.Element {
               title={t('bills.no_categories_hint', {
                 defaultValue: 'No categories yet. Add one in Settings.',
               })}
+              actionLabel={t('bills.add_category')}
+              onAction={openAddCategory}
             />
           ) : (
             <BillCategoryPicker
               categories={categories}
               selected={category}
               onSelect={setCategory}
-              onManage={handleManageCategories}
+              onAddCategory={openAddCategory}
             />
           )}
         </View>
@@ -751,6 +752,12 @@ function AddBillScreen(): React.JSX.Element {
         value={date}
         onSelect={setDate}
         onClose={closeDatePicker}
+      />
+
+      <QuickAddCategoryModal
+        visible={showAddCategory}
+        onClose={closeAddCategory}
+        onCreated={handleCategoryCreated}
       />
     </SafeAreaView>
   );
