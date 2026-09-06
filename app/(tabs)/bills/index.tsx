@@ -129,9 +129,7 @@ function BillCard({
     ? c.textSecondary
     : getCategoryColor(bill.category ?? '', c.primary);
   const payer = memberName(bill.paidBy).split(' ')[0];
-  const catLabel = bill.category
-    ? t(`bills.cat_${bill.category.toLowerCase()}`, { defaultValue: bill.category })
-    : '';
+  const catLabel = bill.category ? localizeCategoryName(bill.category, t) : '';
 
   // Single-flight guard: a slow delete must not be submitted twice (which would
   // fire duplicate deletes and notify housemates more than once).
