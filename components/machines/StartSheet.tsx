@@ -42,17 +42,17 @@ function StartSheetComponent({
   const [hours, setHours] = useState('1');
   const [minutes, setMinutes] = useState('0');
   const [name, setName] = useState('');
-  const [saveAsPreset, setSaveAsPreset] = useState(false);
 
   const meta = kind ? MACHINE_META[kind] : null;
   // Cap at 24h (1440 min) to match the store/DB limit — 24h + 59m would exceed it.
   const customMinutes = Math.min(1440, clampInt(hours, 24) * 60 + clampInt(minutes, 59));
+  // A preset can only be saved once the time is set and it has a name to find it by.
+  const canSavePreset = customMinutes > 0 && name.trim().length > 0;
 
   const reset = useCallback((): void => {
     setHours('1');
     setMinutes('0');
     setName('');
-    setSaveAsPreset(false);
   }, []);
 
   const handleClose = useCallback((): void => {
@@ -62,20 +62,22 @@ function StartSheetComponent({
 
   const handleStartCustom = useCallback((): void => {
     if (customMinutes <= 0 || !meta) return;
-    if (saveAsPreset && name.trim()) {
-      onSavePreset({ name: name.trim(), durationMinutes: customMinutes });
-    }
     onStart({ durationMinutes: customMinutes, label: name.trim() });
     reset();
-  }, [customMinutes, meta, saveAsPreset, name, onSavePreset, onStart, reset]);
+  }, [customMinutes, meta, name, onStart, reset]);
 
-  const handleQuick = useCallback(
-    (durationMinutes: number, label: string): void => {
-      onStart({ durationMinutes, label });
-      reset();
-    },
-    [onStart, reset]
-  );
+  // Tapping a preset loads its time (and name) into the fields below — it does
+  // NOT start the machine. The member reviews it and presses Start themselves.
+  const handleUsePreset = useCallback((durationMinutes: number, label: string): void => {
+    setHours(String(Math.floor(durationMinutes / 60)));
+    setMinutes(String(durationMinutes % 60));
+    setName(label);
+  }, []);
+
+  const handleSavePreset = useCallback((): void => {
+    if (!canSavePreset) return;
+    onSavePreset({ name: name.trim(), durationMinutes: customMinutes });
+  }, [canSavePreset, name, customMinutes, onSavePreset]);
 
   const handleHoursChange = useCallback((v: string): void => {
     const digits = v.replace(/[^0-9]/g, '').slice(0, 2);
@@ -112,18 +114,19 @@ function StartSheetComponent({
           )}
 
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            {/* Saved / default presets — tap to start straight away */}
-            <Text style={styles.sectionLabel}>{t('machines.quick_start')}</Text>
+            {/* Saved / default presets — tap one to load its time below, then
+                the member presses Start. Tapping no longer starts on its own. */}
+            <Text style={styles.sectionLabel}>{t('machines.presets_label')}</Text>
+            <Text style={styles.presetHint}>{t('machines.preset_tap_hint')}</Text>
             <View style={styles.chips}>
               {presets.length > 0
                 ? presets.map((p) => (
                     <View key={p.id} style={styles.presetWrap}>
                       <Pressable
                         style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-                        onPress={() => handleQuick(p.durationMinutes, p.name)}
-                        disabled={busy}
+                        onPress={() => handleUsePreset(p.durationMinutes, p.name)}
                         accessibilityRole="button"
-                        accessibilityLabel={t('machines.start_preset', {
+                        accessibilityLabel={t('machines.use_preset', {
                           name: p.name,
                           time: formatDuration(p.durationMinutes),
                         })}
@@ -148,10 +151,9 @@ function StartSheetComponent({
                     <Pressable
                       key={min}
                       style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
-                      onPress={() => handleQuick(min, '')}
-                      disabled={busy}
+                      onPress={() => handleUsePreset(min, '')}
                       accessibilityRole="button"
-                      accessibilityLabel={t('machines.start_for', { time: formatDuration(min) })}
+                      accessibilityLabel={t('machines.use_time', { time: formatDuration(min) })}
                     >
                       <Text style={styles.chipTime}>{formatDuration(min)}</Text>
                     </Pressable>
@@ -200,35 +202,36 @@ function StartSheetComponent({
               accessibilityHint={t('machines.name_hint')}
             />
 
+            {/* Explicit save — tapping this actually stores the preset (it shows
+                up as a chip above), separate from starting the machine. */}
             <Pressable
-              style={styles.saveRow}
-              onPress={() => setSaveAsPreset((v) => !v)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: saveAsPreset }}
+              style={({ pressed }) => [
+                styles.saveBtn,
+                { borderColor: c.border },
+                !canSavePreset && styles.disabled,
+                pressed && styles.pressed,
+              ]}
+              onPress={handleSavePreset}
+              disabled={!canSavePreset}
+              accessibilityRole="button"
               accessibilityLabel={t('machines.save_as_preset')}
             >
-              <View
-                style={[
-                  styles.checkbox,
-                  saveAsPreset
-                    ? { backgroundColor: c.primary, borderColor: c.primary }
-                    : { borderColor: c.border },
-                ]}
-              >
-                {saveAsPreset && <Ionicons name="checkmark" size={13} color="#fff" />}
-              </View>
-              <Text style={styles.saveText}>{t('machines.save_as_preset')}</Text>
+              <Ionicons name="bookmark-outline" size={16} color={c.textPrimary} />
+              <Text style={styles.saveBtnText}>{t('machines.save_as_preset')}</Text>
             </Pressable>
+            {customMinutes > 0 && !name.trim() && (
+              <Text style={styles.saveHint}>{t('machines.save_needs_name')}</Text>
+            )}
 
             <Pressable
               style={({ pressed }) => [
                 styles.startBtn,
                 { backgroundColor: meta?.color ?? c.primary },
-                (busy || customMinutes <= 0 || (saveAsPreset && !name.trim())) && styles.disabled,
+                (busy || customMinutes <= 0) && styles.disabled,
                 pressed && styles.pressed,
               ]}
               onPress={handleStartCustom}
-              disabled={busy || customMinutes <= 0 || (saveAsPreset && !name.trim())}
+              disabled={busy || customMinutes <= 0}
               accessibilityRole="button"
               accessibilityLabel={t('machines.start')}
             >
@@ -284,6 +287,13 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       color: c.textSecondary,
       marginBottom: ms(9),
       marginTop: ms(6),
+    },
+    presetHint: {
+      fontSize: mf(12.5),
+      ...font.regular,
+      color: c.textSecondary,
+      marginTop: ms(-4),
+      marginBottom: ms(10),
     },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(9) },
     presetWrap: { position: 'relative' },
@@ -346,22 +356,25 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       ...font.regular,
       color: c.textPrimary,
     },
-    saveRow: {
+    saveBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: ms(9),
-      marginTop: ms(14),
+      justifyContent: 'center',
+      gap: ms(8),
+      paddingVertical: ms(13),
+      borderRadius: ms(14),
+      borderWidth: 1,
+      marginTop: ms(16),
       minHeight: sizes.touchTarget,
     },
-    checkbox: {
-      width: ms(20),
-      height: ms(20),
-      borderRadius: ms(6),
-      borderWidth: 1.5,
-      alignItems: 'center',
-      justifyContent: 'center',
+    saveBtnText: { fontSize: mf(14.5), ...font.semibold, color: c.textPrimary },
+    saveHint: {
+      fontSize: mf(12),
+      ...font.regular,
+      color: c.textTertiary,
+      textAlign: 'center',
+      marginTop: ms(7),
     },
-    saveText: { fontSize: mf(14), ...font.medium, color: c.textPrimary },
     startBtn: {
       flexDirection: 'row',
       alignItems: 'center',
