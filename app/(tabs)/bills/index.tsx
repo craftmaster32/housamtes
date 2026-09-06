@@ -38,6 +38,7 @@ import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
+import { localizeCategoryName } from '@utils/categoryName';
 import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useThemedColors, darkColors } from '@constants/colors';
@@ -798,7 +799,7 @@ function BillsScreen(): React.JSX.Element {
                   key={key}
                   chipKey={key}
                   selected={category === key}
-                  label={key === 'all' ? t('bills.filter_all') : t(`bills.cat_${key}`)}
+                  label={key === 'all' ? t('bills.filter_all') : localizeCategoryName(key, t)}
                   icon={key === 'all' ? 'apps-outline' : getCategoryIcon(key)}
                   setCategory={setCategory}
                 />

@@ -3,12 +3,14 @@ import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable, TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, Link } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { z } from 'zod';
-import { useBillsStore, CATEGORIES } from '@stores/billsStore';
+import { useBillsStore } from '@stores/billsStore';
+import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
+import { BillCategoryPicker } from '@components/bills/BillCategoryPicker';
 import { captureError } from '@lib/errorTracking';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
@@ -28,21 +30,6 @@ import { parseAndValidateAddBill, parseAmount, type AddBillPayload } from '@util
 
 import { mf, ms } from '@utils/responsive';
 type SplitType = 'equal' | 'custom' | 'percentage';
-
-const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
-  rent: 'home-outline',
-  groceries: 'cart-outline',
-  food: 'fast-food-outline',
-  transport: 'car-outline',
-  utilities: 'flash-outline',
-  internet: 'wifi-outline',
-  phone: 'phone-portrait-outline',
-  entertainment: 'musical-notes-outline',
-  health: 'medkit-outline',
-  shopping: 'bag-outline',
-  travel: 'airplane-outline',
-  other: 'receipt-outline',
-};
 
 function todayString(): string {
   const d = new Date();
@@ -75,10 +62,23 @@ function AddBillScreen(): React.JSX.Element {
   const houseId = useAuthStore((s) => s.houseId);
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const markSeen = useBadgeStore((s) => s.markSeen);
+  const categories = useExpenseCategoriesStore((s) => s.categories);
+  const loadCategories = useExpenseCategoriesStore((s) => s.load);
   const curSymbol = useMemo(() => splitMoney(0, currencyCode).symbol, [currencyCode]);
 
   const myId = profile?.id ?? '';
   const allIds = useMemo(() => housemates.map((h) => h.id), [housemates]);
+
+  // The category list is DB-backed and shared with the settings manager, so a
+  // category added there shows up here without a hardcoded list.
+  useEffect(() => {
+    if (houseId) loadCategories(houseId);
+  }, [houseId, loadCategories]);
+
+  // Keep the latest categories reachable from the stable reset callback below
+  // without making them a dependency (which would re-fire it and wipe a draft).
+  const categoriesRef = useRef(categories);
+  categoriesRef.current = categories;
 
   // Refs keep the latest values accessible inside the stable useFocusEffect
   // callback without making allIds/myId part of its dependency array — which
@@ -103,7 +103,7 @@ function AddBillScreen(): React.JSX.Element {
     // Only run when allIds changes; the other values are just guards
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allIds]);
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState('');
   const [date, setDate] = useState(todayString);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
@@ -118,7 +118,7 @@ function AddBillScreen(): React.JSX.Element {
     setAmount('');
     setPaidBy(userId || ids[0] || '');
     setSelectedPeople(ids.length > 0 ? ids : []);
-    setCategory(CATEGORIES[0]);
+    setCategory(categoriesRef.current[0]?.name ?? '');
     setDate(todayString());
     setSplitType('equal');
     setCustomAmounts({});
@@ -127,11 +127,31 @@ function AddBillScreen(): React.JSX.Element {
     setError('');
   }, []);
 
+  // Set when leaving for the category manager (opened from the category picker).
+  // That is the one return that must land back on the form with what was typed
+  // still there, so it skips the reset below.
+  const resumeOnReturn = useRef(false);
+  const handleManageCategories = useCallback((): void => {
+    resumeOnReturn.current = true;
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
+      if (resumeOnReturn.current) {
+        resumeOnReturn.current = false;
+        return;
+      }
       resetForm(allIdsRef.current, myIdRef.current);
     }, [resetForm])
   );
+
+  // If categories finish loading after this screen is already focused (so the
+  // reset ran with an empty list), seed the first one as the default selection.
+  useEffect(() => {
+    if (categories.length > 0 && !category) {
+      setCategory(categories[0].name);
+    }
+  }, [categories, category]);
 
   const togglePerson = useCallback((id: string) => {
     setSelectedPeople((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
@@ -657,43 +677,12 @@ function AddBillScreen(): React.JSX.Element {
         {/* Category */}
         <View style={styles.field}>
           <Text style={styles.label}>{t('bills.category')}</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
-          >
-            {CATEGORIES.map((cat) => {
-              const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
-              const selected = category === cat;
-              return (
-                <Pressable
-                  key={cat}
-                  style={[styles.catChip, selected && styles.catChipSelected]}
-                  onPress={() => setCategory(cat)}
-                  accessible
-                  accessibilityRole="radio"
-                  accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
-                  accessibilityState={{ selected }}
-                >
-                  <Ionicons name={icon} size={15} color={selected ? C.white : C.primary} />
-                  <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
-                    {t(`bills.cat_${cat.toLowerCase()}`)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-            <Link href="/(tabs)/settings/categories" asChild>
-              <Pressable
-                style={styles.catChipAdd}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={t('bills.add_category')}
-              >
-                <Ionicons name="add" size={15} color={C.primary} />
-                <Text style={styles.catChipAddText}>{t('bills.add_category')}</Text>
-              </Pressable>
-            </Link>
-          </ScrollView>
+          <BillCategoryPicker
+            categories={categories}
+            selected={category}
+            onSelect={setCategory}
+            onManage={handleManageCategories}
+          />
         </View>
 
         {/* Date */}
@@ -898,37 +887,6 @@ const makeStyles = (C: ColorTokens) =>
       minHeight: ms(44),
     },
     fillBtnText: { color: C.primary, fontSize: mf(13), ...font.semibold },
-
-    categoryScroll: { gap: sizes.xs, paddingVertical: ms(2) },
-    catChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(5),
-      paddingVertical: ms(10),
-      paddingHorizontal: ms(12),
-      minHeight: ms(44),
-      borderRadius: sizes.borderRadiusFull,
-      borderWidth: 1.5,
-      borderColor: C.primary + '55',
-      backgroundColor: C.primary + '08',
-    },
-    catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-    catChipText: { color: C.primary, fontSize: mf(13), ...font.semibold },
-    catChipTextSelected: { color: C.white },
-    catChipAdd: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(5),
-      paddingVertical: ms(10),
-      paddingHorizontal: ms(12),
-      minHeight: ms(44),
-      borderRadius: sizes.borderRadiusFull,
-      borderWidth: 1.5,
-      borderStyle: 'dashed' as const,
-      borderColor: C.primary + '55',
-      backgroundColor: 'transparent',
-    },
-    catChipAddText: { color: C.primary, fontSize: mf(13), ...font.semibold },
 
     dateTrigger: {
       flexDirection: 'row',

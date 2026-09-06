@@ -4,7 +4,7 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useFocusEffect, Link } from 'expo-router';
+import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { goBack } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +13,9 @@ import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { BillReceipt } from '@components/bills/BillReceipt';
 import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
 import { UserAvatar } from '@components/shared/UserAvatar';
-import { useBillsStore, getPersonShare, CATEGORIES } from '@stores/billsStore';
+import { useBillsStore, getPersonShare } from '@stores/billsStore';
+import { useExpenseCategoriesStore, resolveCategoryIcon } from '@stores/expenseCategoriesStore';
+import { BillCategoryPicker } from '@components/bills/BillCategoryPicker';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -37,20 +39,6 @@ import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 
 import { mf, ms } from '@utils/responsive';
-const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
-  rent: 'home-outline',
-  groceries: 'cart-outline',
-  food: 'fast-food-outline',
-  transport: 'car-outline',
-  utilities: 'flash-outline',
-  internet: 'wifi-outline',
-  phone: 'phone-portrait-outline',
-  entertainment: 'musical-notes-outline',
-  health: 'medkit-outline',
-  shopping: 'bag-outline',
-  travel: 'airplane-outline',
-  other: 'receipt-outline',
-};
 
 function formatDisplayDate(iso: string, locale: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -86,6 +74,21 @@ function BillDetailScreen(): React.JSX.Element {
   const markSeen = useBadgeStore((s) => s.markSeen);
 
   const housemates = useHousematesStore((s) => s.housemates);
+  const categories = useExpenseCategoriesStore((s) => s.categories);
+  const loadCategories = useExpenseCategoriesStore((s) => s.load);
+
+  // Categories are DB-backed and shared with the settings manager, so one added
+  // there appears in the picker below without a hardcoded list.
+  useEffect(() => {
+    if (houseId) loadCategories(houseId);
+  }, [houseId, loadCategories]);
+
+  // The read-only view resolves its icon/colour from the matching category
+  // record, so custom categories render with their own icon and colour.
+  const billCategory = useMemo(
+    () => categories.find((c) => c.name === bill?.category),
+    [categories, bill?.category]
+  );
 
   const [isEditing, setIsEditing] = useState(false);
   // Set when leaving for the category manager, which is opened from inside the
@@ -441,43 +444,12 @@ function BillDetailScreen(): React.JSX.Element {
             />
             <View style={styles.categoryField}>
               <Text style={styles.categoryFieldLabel}>{t('bills.category')}</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryScroll}
-              >
-                {CATEGORIES.map((cat) => {
-                  const icon = CATEGORY_ICONS[cat.toLowerCase()] ?? 'receipt-outline';
-                  const selected = category === cat;
-                  return (
-                    <Pressable
-                      key={cat}
-                      style={[styles.catChip, selected && styles.catChipSelected]}
-                      onPress={() => setCategory(cat)}
-                      accessible
-                      accessibilityRole="radio"
-                      accessibilityLabel={t(`bills.cat_${cat.toLowerCase()}`)}
-                      accessibilityState={{ selected }}
-                    >
-                      <Ionicons name={icon} size={15} color={selected ? C.white : C.primary} />
-                      <Text style={[styles.catChipText, selected && styles.catChipTextSelected]}>
-                        {t(`bills.cat_${cat.toLowerCase()}`)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-                <Link href="/(tabs)/settings/categories" onPress={handleManageCategories} asChild>
-                  <Pressable
-                    style={styles.catChipAdd}
-                    accessible
-                    accessibilityRole="button"
-                    accessibilityLabel={t('bills.add_category')}
-                  >
-                    <Ionicons name="add" size={15} color={C.primary} />
-                    <Text style={styles.catChipAddText}>{t('bills.add_category')}</Text>
-                  </Pressable>
-                </Link>
-              </ScrollView>
+              <BillCategoryPicker
+                categories={categories}
+                selected={category}
+                onSelect={setCategory}
+                onManage={handleManageCategories}
+              />
             </View>
             {!!error && <Text style={styles.error}>{error}</Text>}
             <View style={styles.editButtons}>
@@ -521,7 +493,7 @@ function BillDetailScreen(): React.JSX.Element {
                 <View style={styles.metaValueRow}>
                   <View style={styles.catPill}>
                     <Ionicons
-                      name={CATEGORY_ICONS[bill.category?.toLowerCase() ?? ''] ?? 'receipt-outline'}
+                      name={resolveCategoryIcon(billCategory?.icon)}
                       size={16}
                       color={C.primary}
                     />
@@ -723,36 +695,6 @@ const makeStyles = (C: ColorTokens) =>
       color: C.textSecondary,
       marginStart: ms(4),
     },
-    categoryScroll: { gap: sizes.xs, paddingVertical: ms(2) },
-    catChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(5),
-      paddingVertical: ms(10),
-      paddingHorizontal: ms(12),
-      minHeight: ms(44),
-      borderRadius: sizes.borderRadiusFull,
-      borderWidth: 1.5,
-      borderColor: C.primary + '55',
-      backgroundColor: C.primary + '08',
-    },
-    catChipSelected: { backgroundColor: C.primary, borderColor: C.primary },
-    catChipText: { color: C.primary, fontSize: mf(13), ...font.semibold },
-    catChipTextSelected: { color: C.white },
-    catChipAdd: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(5),
-      paddingVertical: ms(10),
-      paddingHorizontal: ms(12),
-      minHeight: ms(44),
-      borderRadius: sizes.borderRadiusFull,
-      borderWidth: 1.5,
-      borderStyle: 'dashed' as const,
-      borderColor: C.primary + '55',
-      backgroundColor: 'transparent',
-    },
-    catChipAddText: { color: C.primary, fontSize: mf(13), ...font.semibold },
   });
 
 export default withFeatureGuard('bills', BillDetailScreen);
