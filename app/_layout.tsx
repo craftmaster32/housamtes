@@ -98,7 +98,7 @@ export default function RootLayout(): React.JSX.Element | null {
   // and none of this is visible. Live window width keeps it correct through
   // rotation and browser-window resizing.
   const { width: windowWidth } = useWindowDimensions();
-  const desktop = isDesktop(windowWidth);
+  const desktop = Platform.OS === 'web' && isDesktop(windowWidth);
   // Below desktop, wide windows (small tablets, iPad portrait) still use the
   // centred phone frame; only true computer widths switch to the sidebar shell.
   const largeScreen = isLargeScreen(windowWidth) && !desktop;
