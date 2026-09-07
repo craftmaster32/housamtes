@@ -538,7 +538,7 @@ export default function RootLayout(): React.JSX.Element | null {
   // The desktop sidebar shell only makes sense inside the app (chrome shown).
   // Auth/onboarding screens fall through to the centred phone frame so they
   // don't stretch across the wide content column.
-  const useDesktopShell = desktopViewport && showChrome;
+  const useDesktopShell = desktopViewport && showChrome && segmentsKey === '(tabs)';
   // Centre the phone frame whenever the window is wider than a phone and we're
   // not using the desktop shell — that covers tablets and the desktop
   // auth/onboarding screens.
