@@ -348,14 +348,16 @@ export function SideNav(): React.JSX.Element {
 
   return (
     <View style={[styles.rail, { backgroundColor: c.surface, borderRightColor: c.border }]}>
-      {/* Brand */}
+      {/* Brand — the house mark in a chip, matching the login header */}
       <View style={styles.brand}>
-        <Image
-          source={require('../../assets/icon.png')}
-          style={styles.brandMark}
-          contentFit="contain"
+        <View
+          style={[styles.brandMark, { backgroundColor: c.primary }]}
+          accessible
+          accessibilityRole="image"
           accessibilityLabel="HouseMates"
-        />
+        >
+          <Ionicons name="home" size={20} color={c.white} />
+        </View>
         <Text style={[styles.brandName, { color: c.primary }]} numberOfLines={1}>
           HouseMates
         </Text>
@@ -472,7 +474,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.sm,
     marginBottom: sizes.lg,
   },
-  brandMark: { width: 32, height: 32, borderRadius: sizes.borderRadiusSm },
+  brandMark: {
+    width: 34,
+    height: 34,
+    borderRadius: sizes.borderRadiusSm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   brandName: { fontSize: sizes.fontXl, ...font.extrabold, letterSpacing: -0.6, flexShrink: 1 },
   addBtn: {
     flexDirection: 'row',

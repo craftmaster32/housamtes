@@ -14,15 +14,7 @@ import { initErrorTracking } from '@lib/errorTracking';
 import { RTL_WEB_FIX_CSS } from '@lib/rtlWebFix';
 import { Stack, router, useSegments } from 'expo-router';
 import { supabase } from '@lib/supabase';
-import {
-  PaperProvider,
-  MD3LightTheme,
-  MD3DarkTheme,
-  configureFonts,
-  Text,
-} from 'react-native-paper';
-import { Image } from 'expo-image';
-import { useTranslation } from 'react-i18next';
+import { PaperProvider, MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { useAuthStore } from '@stores/authStore';
@@ -62,10 +54,8 @@ import {
   isLargeScreen,
   isDesktop,
   DESKTOP_CONTENT_MAX_WIDTH,
-  AUTH_CARD_WIDTH,
 } from '@utils/responsive';
 import { SideNav } from '@components/shared/SideNav';
-import { font } from '@constants/typography';
 
 initErrorTracking();
 
@@ -101,8 +91,6 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 
 export default function RootLayout(): React.JSX.Element | null {
   const c = useColors();
-  const { t } = useTranslation();
-  const authTagline = t('welcome.tagline');
 
   // Large-screen framing: on anything wider than a phone (desktop web, iPad,
   // wide monitor) cap the app to a centred phone-width column and paint the
@@ -631,30 +619,12 @@ export default function RootLayout(): React.JSX.Element | null {
               {overlays}
             </View>
           ) : desktopViewport ? (
-            // ── Desktop auth/onboarding: brand panel + centred form card ───────
-            <View
-              style={[
-                styles.desktopShell,
-                { backgroundColor: c.background, direction: rootDirection },
-              ]}
-            >
-              <View style={[styles.authBrand, { backgroundColor: c.primary }]}>
-                <Image
-                  source={require('../assets/icon.png')}
-                  style={styles.authBrandMark}
-                  contentFit="contain"
-                  accessibilityLabel="HouseMates"
-                />
-                <Text style={styles.authBrandName}>HouseMates</Text>
-                <Text style={styles.authBrandTagline}>{authTagline}</Text>
-              </View>
-              <View style={[styles.authMain, { backgroundColor: c.background }]}>
-                <View
-                  style={[styles.authCard, { backgroundColor: c.surface, borderColor: c.border }]}
-                >
-                  {stackContent}
-                </View>
-              </View>
+            // ── Desktop auth/onboarding ───────────────────────────────────────
+            // Rendered full-bleed: the auth screens carry their own branding and
+            // lay themselves out as a two-pane on wide screens, so no extra
+            // frame or brand panel is added here (that duplicated the hero).
+            <View style={[styles.desktopAuth, { direction: rootDirection }]}>
+              {stackContent}
               {overlays}
             </View>
           ) : (
@@ -720,34 +690,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
   },
-  // Desktop signed-out split: a branded panel + the auth screen in a card.
-  authBrand: {
-    width: '42%',
-    maxWidth: 560,
-    minWidth: 320,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 48,
-    gap: 16,
-  },
-  authBrandMark: { width: 96, height: 96, borderRadius: 24 },
-  authBrandName: { color: '#FFFFFF', fontSize: 40, ...font.extrabold, letterSpacing: -1 },
-  authBrandTagline: { color: 'rgba(255,255,255,0.9)', fontSize: 18, textAlign: 'center' },
-  authMain: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, minHeight: 0 },
-  authCard: {
-    width: '100%',
-    maxWidth: AUTH_CARD_WIDTH,
-    height: '100%',
-    maxHeight: 760,
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18,
-    shadowRadius: 32,
-    elevation: 16,
-  },
+  // Desktop signed-out flow: full-bleed; the auth screen lays itself out.
+  desktopAuth: { flex: 1, position: 'relative' },
   splash: {
     position: 'absolute',
     top: 0,

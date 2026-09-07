@@ -6,6 +6,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
@@ -45,6 +46,10 @@ export default function LoginScreen(): React.JSX.Element {
   const headingFont = useHeadingFont();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
+  const { width } = useWindowDimensions();
+  // On a computer the screen splits into two panes: the branded hero beside the
+  // form, instead of hero-on-top-of-form. Web only, so native is untouched.
+  const wide = Platform.OS === 'web' && width >= 900;
   const styles = useMemo(() => makeStyles(C), [C]);
 
   useEffect(() => {
@@ -92,9 +97,9 @@ export default function LoginScreen(): React.JSX.Element {
   }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
   return (
-    <View style={styles.root}>
-      <View style={styles.header}>
-        <SafeAreaView edges={['top']} style={styles.headerInner}>
+    <View style={[styles.root, wide && styles.rootWide]}>
+      <View style={[styles.header, wide && styles.headerWide]}>
+        <SafeAreaView edges={['top']} style={[styles.headerInner, wide && styles.headerInnerWide]}>
           <Pressable
             style={styles.backBtn}
             onPress={() => router.back()}
@@ -121,11 +126,11 @@ export default function LoginScreen(): React.JSX.Element {
       </View>
 
       <KeyboardAvoidingView
-        style={styles.cardWrapper}
+        style={[styles.cardWrapper, wide && styles.cardWrapperWide]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          style={styles.card}
+          style={[styles.card, wide && styles.cardWide]}
           contentContainerStyle={styles.cardContent}
           keyboardShouldPersistTaps="handled"
         >
@@ -228,13 +233,29 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       flex: 1,
       backgroundColor: C.primary,
     },
+    // Desktop: hero pane beside the form pane instead of stacked.
+    rootWide: {
+      flexDirection: 'row',
+    },
     header: {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
       paddingBottom: ms(28),
     },
+    headerWide: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingBottom: 0,
+      paddingHorizontal: 56,
+    },
     headerInner: {
       gap: ms(6),
+    },
+    headerInnerWide: {
+      gap: 16,
+      maxWidth: 420,
+      alignSelf: 'center',
+      width: '100%',
     },
     backBtn: {
       flexDirection: 'row',
@@ -281,11 +302,24 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       flex: 1,
       backgroundColor: C.primary,
     },
+    cardWrapperWide: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 40,
+      backgroundColor: C.background,
+    },
     card: {
       flex: 1,
       backgroundColor: C.surface,
       borderTopLeftRadius: ms(28),
       borderTopRightRadius: ms(28),
+    },
+    cardWide: {
+      flex: 0,
+      width: '100%',
+      maxWidth: 440,
+      maxHeight: 620,
+      borderRadius: 28,
     },
     cardContent: {
       flexGrow: 1,

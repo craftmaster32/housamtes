@@ -106,11 +106,6 @@ export const SIDENAV_WIDTH = 264;
 // (same surface colour) rather than empty gaps.
 export const DESKTOP_CONTENT_MAX_WIDTH = 1120;
 
-// The signed-out flow (welcome / login / signup / …) shows on desktop as a
-// two-pane split: a branded panel filling the space and the actual auth screen
-// in a fixed card this wide on the other side.
-export const AUTH_CARD_WIDTH = 460;
-
 /**
  * True when the app should use the desktop shell (sidebar + content column)
  * instead of the phone frame. Pure + exported for testing.
