@@ -6,21 +6,6 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 
-export const CATEGORIES = [
-  'Rent',
-  'Groceries',
-  'Food',
-  'Transport',
-  'Utilities',
-  'Internet',
-  'Phone',
-  'Entertainment',
-  'Health',
-  'Shopping',
-  'Travel',
-  'Other',
-];
-
 /** How the payer chose to divide the bill. `null` = legacy bill (pre-split_type). */
 export type BillSplitType = 'equal' | 'custom' | 'percentage';
 

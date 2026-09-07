@@ -1,8 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useBillsStore, CATEGORIES, type Bill } from '@stores/billsStore';
+import { useBillsStore, type Bill } from '@stores/billsStore';
+import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import { useRecurringBillsStore } from '@stores/recurringBillsStore';
 import { useHousematesStore } from '@stores/housematesStore';
+import { useAuthStore } from '@stores/authStore';
 
 export interface RecurringPaymentRow {
   id: string;
@@ -68,19 +70,43 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
   const payments = useRecurringBillsStore((s) => s.payments);
   const housemates = useHousematesStore((s) => s.housemates);
   const memberIds = useMemo((): string[] => housemates.map((h) => h.id), [housemates]);
+  const expenseCategories = useExpenseCategoriesStore((s) => s.categories);
+  const loadExpenseCategories = useExpenseCategoriesStore((s) => s.load);
+  const houseId = useAuthStore((s) => s.houseId);
+
+  // Ensure managed categories are loaded so presentCategories uses the
+  // configured order on first visit, even if the parent screen loads them too.
+  useEffect((): void => {
+    if (houseId) loadExpenseCategories(houseId);
+  }, [houseId, loadExpenseCategories]);
 
   const [category, setCategory] = useState('all');
 
   // Only surface category chips for categories that actually appear in the
-  // current one-off bills, kept in the canonical CATEGORIES order.
+  // current one-off bills. Managed categories keep their configured order;
+  // anything else a bill uses (a category since deleted, or one predating the
+  // managed list) is appended so those bills stay filterable.
   const presentCategories = useMemo((): string[] => {
     const seen = new Set(
       bills.map((b): string => (b.category ?? '').toLowerCase()).filter(Boolean)
     );
-    return CATEGORIES.filter((cat): boolean => seen.has(cat.toLowerCase())).map((cat): string =>
-      cat.toLowerCase()
-    );
-  }, [bills]);
+    const ordered: string[] = [];
+    const pushed = new Set<string>();
+    for (const cat of expenseCategories) {
+      const key = cat.name.toLowerCase();
+      if (seen.has(key) && !pushed.has(key)) {
+        ordered.push(key);
+        pushed.add(key);
+      }
+    }
+    for (const key of seen) {
+      if (!pushed.has(key)) {
+        ordered.push(key);
+        pushed.add(key);
+      }
+    }
+    return ordered;
+  }, [bills, expenseCategories]);
 
   // If the selected category disappears (last bill of that kind deleted/settled
   // away), fall back to "All" so the list can't get stuck showing nothing.

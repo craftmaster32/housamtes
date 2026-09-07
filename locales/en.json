@@ -1710,6 +1710,7 @@
     "title": "Expense Categories",
     "subtitle": "These categories appear when adding bills. They also group your spending on the profile page.",
     "add_category": "+ Add Category",
+    "new_category": "New Category",
     "all_categories": "ALL CATEGORIES",
     "choose_icon": "Choose icon",
     "category_name": "Category name",
@@ -1724,6 +1725,8 @@
     "could_not_save": "Could not save the category. Please try again.",
     "could_not_update": "Could not update the category. Please try again.",
     "could_not_delete": "Could not delete the category. Please try again.",
+    "already_exists": "A category called \"{{name}}\" already exists. Pick a different name.",
+    "save_failed_reason": "Couldn't save the category. Reason: {{reason}}",
     "no_categories": "No categories yet. Tap \"+ Add Category\" to create one.",
     "icon_option": "{{name}} icon"
   },

@@ -34,10 +34,12 @@ import {
   calculateFairness,
   resolveBillIcon,
 } from '@stores/recurringBillsStore';
+import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import { useAuthStore } from '@stores/authStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useMemberName } from '@hooks/useMemberName';
+import { localizeCategoryName } from '@utils/categoryName';
 import { HouseholdTab } from '@components/bills/HouseholdTab';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useThemedColors, darkColors } from '@constants/colors';
@@ -127,9 +129,7 @@ function BillCard({
     ? c.textSecondary
     : getCategoryColor(bill.category ?? '', c.primary);
   const payer = memberName(bill.paidBy).split(' ')[0];
-  const catLabel = bill.category
-    ? t(`bills.cat_${bill.category.toLowerCase()}`, { defaultValue: bill.category })
-    : '';
+  const catLabel = bill.category ? localizeCategoryName(bill.category, t) : '';
 
   // Single-flight guard: a slow delete must not be submitted twice (which would
   // fire duplicate deletes and notify housemates more than once).
@@ -425,6 +425,18 @@ function BillsScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId) ?? '';
   const currencyCode = useSettingsStore((s) => s.currencyCode);
+  const loadCategories = useExpenseCategoriesStore((s) => s.load);
+  const categoriesIsLoading = useExpenseCategoriesStore((s) => s.isLoading);
+  const categoriesError = useExpenseCategoriesStore((s) => s.error);
+
+  // Load managed categories so presentCategories in useOneOffBillHistory
+  // uses the configured order on the first visit to this screen.
+  useEffect((): void => {
+    if (houseId) loadCategories(houseId);
+  }, [houseId, loadCategories]);
+  const handleRetryCategories = useCallback((): void => {
+    if (houseId) loadCategories(houseId);
+  }, [houseId, loadCategories]);
 
   const [filter, setFilter] = useState<BillFilter>('one-off');
   // Search state lives here; category state is owned by the hook.
@@ -787,7 +799,14 @@ function BillsScreen(): React.JSX.Element {
             )}
           </View>
 
-          {presentCategories.length > 0 && (
+          {categoriesError && !categoriesIsLoading ? (
+            <EmptyState
+              mode="error"
+              title={categoriesError}
+              actionLabel={t('bills.retry')}
+              onAction={handleRetryCategories}
+            />
+          ) : presentCategories.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -798,13 +817,13 @@ function BillsScreen(): React.JSX.Element {
                   key={key}
                   chipKey={key}
                   selected={category === key}
-                  label={key === 'all' ? t('bills.filter_all') : t(`bills.cat_${key}`)}
+                  label={key === 'all' ? t('bills.filter_all') : localizeCategoryName(key, t)}
                   icon={key === 'all' ? 'apps-outline' : getCategoryIcon(key)}
                   setCategory={setCategory}
                 />
               ))}
             </ScrollView>
-          )}
+          ) : null}
 
           <View style={styles.listCountRow}>
             <Text style={[styles.eyebrow, { color: c.textSecondary }]}>

@@ -10,7 +10,7 @@
  *                  fix in the stabilization pass)
  */
 
-import { ok, fail } from '../__helpers__/supabaseMock';
+import { ok, fail, dbResult } from '../__helpers__/supabaseMock';
 
 const mockFrom = jest.fn();
 
@@ -30,6 +30,7 @@ jest.mock('@stores/authStore', () => ({
 
 import {
   useExpenseCategoriesStore,
+  DUPLICATE_CATEGORY,
   type ExpenseCategory,
 } from '../../stores/expenseCategoriesStore';
 
@@ -77,12 +78,26 @@ describe('expenseCategoriesStore — remove', () => {
 });
 
 describe('expenseCategoriesStore — add', () => {
-  it('throws a plain-English error and leaves state unchanged on DB failure', async () => {
+  it('throws a plain-English error and leaves state unchanged on a generic failure', async () => {
+    // A generic failure (no known code) throws the friendly fallback; the real
+    // database reason is captured to Sentry at the call site.
     mockFrom.mockReturnValue(fail('insert error'));
 
     await expect(
       useExpenseCategoriesStore.getState().add({ name: 'Pets', icon: '🐕', color: '#10B981' }, 'h1')
     ).rejects.toThrow('Could not save the category. Please try again.');
+
+    expect(useExpenseCategoriesStore.getState().categories).toHaveLength(0);
+  });
+
+  it('maps a unique-violation to the DUPLICATE_CATEGORY sentinel', async () => {
+    mockFrom.mockReturnValue(
+      dbResult({ data: null, error: { code: '23505', message: 'duplicate key value' } })
+    );
+
+    await expect(
+      useExpenseCategoriesStore.getState().add({ name: 'Rent', icon: '🏠', color: '#8B5CF6' }, 'h1')
+    ).rejects.toThrow(DUPLICATE_CATEGORY);
 
     expect(useExpenseCategoriesStore.getState().categories).toHaveLength(0);
   });
