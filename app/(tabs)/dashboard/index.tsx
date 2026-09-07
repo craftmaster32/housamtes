@@ -31,6 +31,7 @@ import { isRTL } from '@lib/i18n';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
 import { DashboardCarousel } from '@components/dashboard/DashboardCarousel';
+import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { HappeningNow } from '@components/dashboard/HappeningNow';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useBadgeStore } from '@stores/badgeStore';
@@ -323,10 +324,44 @@ function OwedHero(): React.JSX.Element {
 }
 
 // ── Dashboard screen ────────────────────────────────────────────────────────────
+// ── Calendar widget (desktop side panel) ──────────────────────────────────────
+function CalendarCard(): React.JSX.Element {
+  const { t } = useTranslation();
+  const c = useThemedColors();
+  const now = new Date();
+  const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate()
+  ).padStart(2, '0')}`;
+  const [selected, setSelected] = useState(todayYMD);
+  const handleChange = useCallback((d: string): void => {
+    setSelected(d);
+    navigateToBase('/(tabs)/calendar');
+  }, []);
+  return (
+    <View style={[styles.calCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <Pressable
+        style={styles.calHeader}
+        onPress={() => navigateToBase('/(tabs)/calendar')}
+        accessibilityRole="button"
+        accessibilityLabel={t('nav.calendar')}
+      >
+        <Ionicons name="calendar-outline" size={18} color={c.primary} />
+        <Text style={[styles.calTitle, { color: c.textPrimary }]}>{t('nav.calendar')}</Text>
+        <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
+      </Pressable>
+      <CalendarPicker value={selected} onChange={handleChange} />
+    </View>
+  );
+}
+
 export default function DashboardScreen(): React.JSX.Element {
   const c = useThemedColors();
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
+  // At desktop width the dashboard becomes two columns: the main content and a
+  // right-hand panel (announcement + a lighter widget), instead of one long
+  // scroll. Only reachable inside the desktop shell (phones/tablets stay capped).
+  const twoCol = width >= 900;
 
   // One-time welcome tour for users who just signed up.
   const [showTour, setShowTour] = useState(false);
@@ -356,7 +391,11 @@ export default function DashboardScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <ScrollView
-        contentContainerStyle={[styles.scroll, isWide && styles.scrollWide]}
+        contentContainerStyle={[
+          styles.scroll,
+          isWide && styles.scrollWide,
+          twoCol && styles.scrollDesktop,
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -366,34 +405,57 @@ export default function DashboardScreen(): React.JSX.Element {
 
         <DashboardErrorBanner />
 
-        <Animated.View entering={animateEntrance ? FadeInDown.delay(60).duration(400) : undefined}>
-          <PinnedNote />
-        </Animated.View>
+        {twoCol ? (
+          // ── Desktop: two columns ──────────────────────────────────────────
+          <View style={styles.desktopGrid}>
+            <View style={styles.mainCol}>
+              <HappeningNow />
+              <OwedHero />
+              <DashboardCarousel grid />
+            </View>
+            <View style={styles.sideCol}>
+              <CalendarCard />
+              <PinnedNote />
+              <DadJokeCard animateEntrance={false} />
+            </View>
+          </View>
+        ) : (
+          // ── Phone / tablet: single column ─────────────────────────────────
+          <>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(60).duration(400) : undefined}
+            >
+              <PinnedNote />
+            </Animated.View>
 
-        <Animated.View entering={animateEntrance ? FadeInDown.delay(100).duration(400) : undefined}>
-          <HappeningNow />
-        </Animated.View>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(100).duration(400) : undefined}
+            >
+              <HappeningNow />
+            </Animated.View>
 
-        <Animated.View
-          entering={animateEntrance ? FadeInDown.delay(140).duration(450) : undefined}
-          style={styles.block}
-        >
-          <OwedHero />
-        </Animated.View>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(140).duration(450) : undefined}
+              style={styles.block}
+            >
+              <OwedHero />
+            </Animated.View>
 
-        <Animated.View
-          entering={animateEntrance ? FadeInDown.delay(200).duration(450) : undefined}
-          style={styles.block}
-        >
-          <DashboardCarousel />
-        </Animated.View>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(200).duration(450) : undefined}
+              style={styles.block}
+            >
+              <DashboardCarousel />
+            </Animated.View>
 
-        <Animated.View
-          entering={animateEntrance ? FadeInDown.delay(320).duration(450) : undefined}
-          style={styles.block}
-        >
-          <DadJokeCard animateEntrance={animateEntrance} />
-        </Animated.View>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(320).duration(450) : undefined}
+              style={styles.block}
+            >
+              <DadJokeCard animateEntrance={animateEntrance} />
+            </Animated.View>
+          </>
+        )}
       </ScrollView>
       <WelcomeTour visible={showTour} onDone={handleTourDone} />
       <NotificationPermissionPrompt blocked={showTour || tourPending} />
@@ -410,6 +472,14 @@ const styles = StyleSheet.create({
     paddingBottom: sizes.bottomTabContentPadding,
   },
   scrollWide: { paddingHorizontal: ms(24), maxWidth: ms(640), width: '100%', alignSelf: 'center' },
+  // Desktop: use the full content column and lay out two columns below the header.
+  scrollDesktop: { maxWidth: 1120 },
+  desktopGrid: { flexDirection: 'row', gap: ms(18), alignItems: 'flex-start', marginTop: ms(14) },
+  mainCol: { flex: 1, minWidth: 0, gap: ms(14) },
+  sideCol: { width: ms(340), gap: ms(14) },
+  calCard: { borderRadius: sizes.borderRadiusLg, borderWidth: 1, padding: ms(12), gap: ms(8) },
+  calHeader: { flexDirection: 'row', alignItems: 'center', gap: ms(8), paddingBottom: ms(4) },
+  calTitle: { flex: 1, fontSize: mf(15), ...font.bold },
   flex1: { flex: 1, minWidth: 0 },
   block: { marginTop: ms(14) },
   pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },

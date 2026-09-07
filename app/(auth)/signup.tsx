@@ -6,6 +6,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Entrance } from '@components/shared/Entrance';
 import type { TextInput as RNTextInput } from 'react-native';
@@ -81,6 +82,10 @@ export default function SignupScreen(): React.JSX.Element {
 
   const C = useThemedColors();
   const headingFont = useHeadingFont();
+  const { width } = useWindowDimensions();
+  // On a computer, centre the form in a readable column instead of letting the
+  // fields stretch across the whole screen. Web only.
+  const wide = Platform.OS === 'web' && width >= 900;
   const styles = useMemo(() => makeStyles(C), [C]);
 
   const steps = useMemo(
@@ -173,9 +178,9 @@ export default function SignupScreen(): React.JSX.Element {
   }, [name, email, password, confirmPw, selectedColor, agreed, isLoading, signUp, t, focusField]);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, wide && styles.rootWide]}>
       <View style={styles.header}>
-        <SafeAreaView edges={['top']} style={styles.headerInner}>
+        <SafeAreaView edges={['top']} style={[styles.headerInner, wide && styles.centeredColumn]}>
           <StepProgress steps={steps} currentStep={0} />
         </SafeAreaView>
       </View>
@@ -186,7 +191,7 @@ export default function SignupScreen(): React.JSX.Element {
       >
         <ScrollView
           style={styles.card}
-          contentContainerStyle={styles.cardContent}
+          contentContainerStyle={[styles.cardContent, wide && styles.centeredColumn]}
           keyboardShouldPersistTaps="handled"
         >
           <Entrance style={styles.brandRow}>
@@ -404,6 +409,16 @@ function makeStyles(C: ColorTokens) {
     root: {
       flex: 1,
       backgroundColor: C.surface,
+    },
+    // Desktop: neutral canvas so the centred form column reads as intentional.
+    rootWide: {
+      backgroundColor: C.background,
+    },
+    // Caps and centres the header + form content on desktop.
+    centeredColumn: {
+      width: '100%',
+      maxWidth: 560,
+      alignSelf: 'center',
     },
     header: {
       backgroundColor: C.surface,

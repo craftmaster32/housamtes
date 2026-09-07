@@ -6,6 +6,7 @@ import {
   AppState,
   InteractionManager,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Linking from 'expo-linking';
@@ -48,6 +49,13 @@ import { useLanguageStore } from '@stores/languageStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { goBack } from '@stores/navigationStore';
 import { registerWebPush } from '@lib/webPush';
+import {
+  contentWidthForWindow,
+  isLargeScreen,
+  isDesktop,
+  DESKTOP_CONTENT_MAX_WIDTH,
+} from '@utils/responsive';
+import { SideNav } from '@components/shared/SideNav';
 
 initErrorTracking();
 
@@ -83,6 +91,22 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 
 export default function RootLayout(): React.JSX.Element | null {
   const c = useColors();
+
+  // Large-screen framing: on anything wider than a phone (desktop web, iPad,
+  // wide monitor) cap the app to a centred phone-width column and paint the
+  // surrounding canvas with `appBackdrop`. On a phone the frame fills the window
+  // and none of this is visible. Live window width keeps it correct through
+  // rotation and browser-window resizing.
+  const { width: windowWidth } = useWindowDimensions();
+  // Wider than a phone → the app is framed rather than full-bleed.
+  const isWide = isLargeScreen(windowWidth);
+  // A true computer-width web viewport can host the desktop sidebar shell — but
+  // only once the app chrome is shown (i.e. signed in). The auth/onboarding
+  // screens have no sidebar, so they stay in the centred phone frame instead of
+  // stretching across the wide content column. `useDesktopShell` below applies
+  // that extra gate once showChrome is known.
+  const desktopViewport = Platform.OS === 'web' && isDesktop(windowWidth);
+  const frameWidth = contentWidthForWindow(windowWidth);
   const [i18nReady, setI18nReady] = useState(false);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
   const language = useLanguageStore((s) => s.language);
@@ -99,10 +123,14 @@ export default function RootLayout(): React.JSX.Element | null {
   useEffect((): void => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const isDark = c === darkColors;
-    document.documentElement.style.backgroundColor = c.background;
-    document.body.style.backgroundColor = c.background;
+    // On large screens the canvas around the centred frame is the backdrop, so
+    // any overscroll band matches it; on a phone the frame fills the window and
+    // the band should stay the app background.
+    const canvas = isWide ? c.appBackdrop : c.background;
+    document.documentElement.style.backgroundColor = canvas;
+    document.body.style.backgroundColor = canvas;
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  }, [c]);
+  }, [c, isWide]);
 
   const paperTheme = useMemo(() => {
     const isDark = c === darkColors;
@@ -507,6 +535,15 @@ export default function RootLayout(): React.JSX.Element | null {
 
   const showChrome = !!user && !!houseId && !needsTermsAcceptance;
 
+  // The desktop sidebar shell only makes sense inside the app (chrome shown).
+  // Auth/onboarding screens fall through to the centred phone frame so they
+  // don't stretch across the wide content column.
+  const useDesktopShell = desktopViewport && showChrome && segmentsKey === '(tabs)';
+  // Centre the phone frame whenever the window is wider than a phone and we're
+  // not using the desktop shell — that covers tablets and the desktop
+  // auth/onboarding screens.
+  const framed = isWide && !useDesktopShell;
+
   // Swipe-back gesture: zone starts from 22–70 px from left edge (distinct from drawer open zone at 0–22 px)
   const backSwipe = useRef(
     PanResponder.create({
@@ -528,36 +565,89 @@ export default function RootLayout(): React.JSX.Element | null {
   // Block render until i18n is initialised — avoids untranslated flash
   if (!i18nReady) return null;
 
+  // The routed screen — identical in every layout mode.
+  const stackContent = (
+    <RouteTransition>
+      <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
+    </RouteTransition>
+  );
+
+  // Overlays shared by every layout: the floating chat button, the two popups,
+  // the web alert host, and the loading splash.
+  const overlays = (
+    <>
+      {/* On desktop the chat lives in the sidebar, so the floating button (which
+          overlapped content) is only shown in the phone/tablet layout. */}
+      {showChrome && !useDesktopShell && <ChatFab />}
+      {showChrome && <MorePopup />}
+      {showChrome && <ProfilePopup />}
+      <WebAlertHost />
+      {(isLoading || !fontsLoaded) && (
+        <View style={styles.splash}>
+          <LoadingSpinner size={140} color={darkColors.primary} />
+        </View>
+      )}
+    </>
+  );
+
   // Stack must always render — navigation happens via useEffect above
   return (
     <GestureHandlerRootView
-      style={[styles.gestureRoot, { backgroundColor: c.background, direction: rootDirection }]}
+      style={[
+        styles.gestureRoot,
+        {
+          backgroundColor: isWide ? c.appBackdrop : c.background,
+          direction: rootDirection,
+        },
+      ]}
     >
       <PaperProvider theme={paperTheme}>
         <StatusBar style="light" />
         <ErrorBoundary>
-          <View
-            style={[styles.root, { backgroundColor: c.background, direction: rootDirection }]}
-            {...backSwipe.panHandlers}
-          >
-            {showChrome && <TopBar />}
-            <View style={styles.content}>
-              <RouteTransition>
-                <Stack screenOptions={{ headerShown: false, gestureEnabled: true }} />
-              </RouteTransition>
-            </View>
-            {showChrome && <AdBanner />}
-            {showChrome && <ChatFab />}
-            {showChrome && <BottomTabBar />}
-            {showChrome && <MorePopup />}
-            {showChrome && <ProfilePopup />}
-            <WebAlertHost />
-            {(isLoading || !fontsLoaded) && (
-              <View style={styles.splash}>
-                <LoadingSpinner size={140} color={darkColors.primary} />
+          {useDesktopShell ? (
+            // ── Desktop shell: left sidebar + content that fills the screen ────
+            <View
+              style={[
+                styles.desktopShell,
+                { backgroundColor: c.background, direction: rootDirection },
+              ]}
+            >
+              {showChrome && <SideNav />}
+              <View style={[styles.desktopMain, { backgroundColor: c.background }]}>
+                <View style={styles.desktopContent}>{stackContent}</View>
               </View>
-            )}
-          </View>
+              {overlays}
+            </View>
+          ) : desktopViewport ? (
+            // ── Desktop auth/onboarding ───────────────────────────────────────
+            // Rendered full-bleed: the auth screens carry their own branding and
+            // lay themselves out as a two-pane on wide screens, so no extra
+            // frame or brand panel is added here (that duplicated the hero).
+            <View style={[styles.desktopAuth, { direction: rootDirection }]}>
+              {stackContent}
+              {overlays}
+            </View>
+          ) : (
+            // ── Phone / tablet: full-width phone or centred phone frame ───────
+            <View
+              style={[styles.stage, { backgroundColor: framed ? c.appBackdrop : c.background }]}
+            >
+              <View
+                style={[
+                  styles.root,
+                  { backgroundColor: c.background, direction: rootDirection, width: frameWidth },
+                  framed && { borderColor: c.border, ...styles.frameChrome },
+                ]}
+                {...backSwipe.panHandlers}
+              >
+                {showChrome && <TopBar />}
+                <View style={styles.content}>{stackContent}</View>
+                {showChrome && <AdBanner />}
+                {showChrome && <BottomTabBar />}
+                {overlays}
+              </View>
+            </View>
+          )}
         </ErrorBoundary>
       </PaperProvider>
     </GestureHandlerRootView>
@@ -566,8 +656,42 @@ export default function RootLayout(): React.JSX.Element | null {
 
 const styles = StyleSheet.create({
   gestureRoot: { flex: 1 },
-  root: { flex: 1, overflow: 'hidden' },
+  // Full-window canvas that centres the app frame on large screens. On a phone
+  // the frame is as wide as the window, so centring is a no-op.
+  stage: { flex: 1, alignItems: 'center' },
+  // `position: relative` makes the frame the containing block for the app's
+  // absolutely-positioned chrome (ChatFab, popups) so they stay inside the
+  // centred column on web instead of anchoring to the viewport edge.
+  root: { flex: 1, overflow: 'hidden', position: 'relative' },
+  // Side borders + a soft shadow shown only on large screens, so the phone
+  // frame reads as a distinct surface floating on the backdrop.
+  frameChrome: {
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 12,
+  },
   content: { flex: 1, minHeight: 0 },
+  // Desktop (≥1024px): a persistent left sidebar next to a centred content
+  // column, on the backdrop canvas. Phones and tablets never hit this branch.
+  desktopShell: { flex: 1, flexDirection: 'row', position: 'relative' },
+  // The content area fills the space beside the sidebar; the screen itself is
+  // centred in a comfortable column. The side margins are the same surface as
+  // the content, so they read as padding rather than empty gaps.
+  desktopMain: { flex: 1, alignItems: 'center', minHeight: 0 },
+  desktopContent: {
+    flex: 1,
+    width: '100%',
+    maxWidth: DESKTOP_CONTENT_MAX_WIDTH,
+    minHeight: 0,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  // Desktop signed-out flow: full-bleed; the auth screen lays itself out.
+  desktopAuth: { flex: 1, position: 'relative' },
   splash: {
     position: 'absolute',
     top: 0,
