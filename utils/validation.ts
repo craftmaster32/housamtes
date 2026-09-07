@@ -277,3 +277,7 @@ export const appliancePresetSchema = z.object({
     .min(1, 'Choose a duration between 1 minute and 24 hours')
     .max(1440, 'Choose a duration between 1 minute and 24 hours'),
 });
+
+export const inviteCodeSchema = z.object({
+  code: z.string().length(6, 'Invite code must be 6 characters').toUpperCase(),
+});
