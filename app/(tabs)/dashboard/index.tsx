@@ -327,6 +327,10 @@ export default function DashboardScreen(): React.JSX.Element {
   const c = useThemedColors();
   const { width } = useWindowDimensions();
   const isWide = width >= 680;
+  // At desktop width the dashboard becomes two columns: the main content and a
+  // right-hand panel (announcement + a lighter widget), instead of one long
+  // scroll. Only reachable inside the desktop shell (phones/tablets stay capped).
+  const twoCol = width >= 900;
 
   // One-time welcome tour for users who just signed up.
   const [showTour, setShowTour] = useState(false);
@@ -356,7 +360,11 @@ export default function DashboardScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
       <ScrollView
-        contentContainerStyle={[styles.scroll, isWide && styles.scrollWide]}
+        contentContainerStyle={[
+          styles.scroll,
+          isWide && styles.scrollWide,
+          twoCol && styles.scrollDesktop,
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -366,34 +374,56 @@ export default function DashboardScreen(): React.JSX.Element {
 
         <DashboardErrorBanner />
 
-        <Animated.View entering={animateEntrance ? FadeInDown.delay(60).duration(400) : undefined}>
-          <PinnedNote />
-        </Animated.View>
+        {twoCol ? (
+          // ── Desktop: two columns ──────────────────────────────────────────
+          <View style={styles.desktopGrid}>
+            <View style={styles.mainCol}>
+              <HappeningNow />
+              <OwedHero />
+              <DashboardCarousel />
+            </View>
+            <View style={styles.sideCol}>
+              <PinnedNote />
+              <DadJokeCard animateEntrance={false} />
+            </View>
+          </View>
+        ) : (
+          // ── Phone / tablet: single column ─────────────────────────────────
+          <>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(60).duration(400) : undefined}
+            >
+              <PinnedNote />
+            </Animated.View>
 
-        <Animated.View entering={animateEntrance ? FadeInDown.delay(100).duration(400) : undefined}>
-          <HappeningNow />
-        </Animated.View>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(100).duration(400) : undefined}
+            >
+              <HappeningNow />
+            </Animated.View>
 
-        <Animated.View
-          entering={animateEntrance ? FadeInDown.delay(140).duration(450) : undefined}
-          style={styles.block}
-        >
-          <OwedHero />
-        </Animated.View>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(140).duration(450) : undefined}
+              style={styles.block}
+            >
+              <OwedHero />
+            </Animated.View>
 
-        <Animated.View
-          entering={animateEntrance ? FadeInDown.delay(200).duration(450) : undefined}
-          style={styles.block}
-        >
-          <DashboardCarousel />
-        </Animated.View>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(200).duration(450) : undefined}
+              style={styles.block}
+            >
+              <DashboardCarousel />
+            </Animated.View>
 
-        <Animated.View
-          entering={animateEntrance ? FadeInDown.delay(320).duration(450) : undefined}
-          style={styles.block}
-        >
-          <DadJokeCard animateEntrance={animateEntrance} />
-        </Animated.View>
+            <Animated.View
+              entering={animateEntrance ? FadeInDown.delay(320).duration(450) : undefined}
+              style={styles.block}
+            >
+              <DadJokeCard animateEntrance={animateEntrance} />
+            </Animated.View>
+          </>
+        )}
       </ScrollView>
       <WelcomeTour visible={showTour} onDone={handleTourDone} />
       <NotificationPermissionPrompt blocked={showTour || tourPending} />
@@ -410,6 +440,11 @@ const styles = StyleSheet.create({
     paddingBottom: sizes.bottomTabContentPadding,
   },
   scrollWide: { paddingHorizontal: ms(24), maxWidth: ms(640), width: '100%', alignSelf: 'center' },
+  // Desktop: use the full content column and lay out two columns below the header.
+  scrollDesktop: { maxWidth: 1120 },
+  desktopGrid: { flexDirection: 'row', gap: ms(18), alignItems: 'flex-start', marginTop: ms(14) },
+  mainCol: { flex: 1, minWidth: 0, gap: ms(14) },
+  sideCol: { width: ms(340), gap: ms(14) },
   flex1: { flex: 1, minWidth: 0 },
   block: { marginTop: ms(14) },
   pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
