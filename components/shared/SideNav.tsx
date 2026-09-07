@@ -15,6 +15,7 @@ import { useGroceryStore } from '@stores/groceryStore';
 import { useVotingStore } from '@stores/votingStore';
 import { useMaintenanceStore } from '@stores/maintenanceStore';
 import { useBadgeStore, countNew, countNewSimple } from '@stores/badgeStore';
+import { useChatStore } from '@stores/chatStore';
 import { hasFeatureAccess } from '@utils/featureAccess';
 import { useColors } from '@hooks/useColors';
 import { sizes } from '@constants/sizes';
@@ -29,12 +30,18 @@ interface NavEntry {
   iconActive: IoniconName;
   labelKey: string;
   route: string;
+  // Each section's accent colour — mirrors the phone's coloured "More" grid so
+  // the sidebar is easy to scan instead of a wall of grey icons.
+  color: string;
   // The house-wide feature key gating this item, when it has one. Structural
   // items (Home) have none and are always shown.
   featureKey?: string;
+  // Flow pages (chat) are pushed rather than reset to a base section.
+  isFlow?: boolean;
 }
 
-// Primary sections — the same three the phone's bottom bar shows.
+// Primary sections — the same the phone's bottom bar shows, plus chat (which on
+// the phone is the floating button).
 const PRIMARY: NavEntry[] = [
   {
     id: 'dashboard',
@@ -42,6 +49,7 @@ const PRIMARY: NavEntry[] = [
     iconActive: 'home',
     labelKey: 'nav.dashboard',
     route: '/(tabs)/dashboard',
+    color: '#3B6FBF',
   },
   {
     id: 'bills',
@@ -49,6 +57,7 @@ const PRIMARY: NavEntry[] = [
     iconActive: 'card',
     labelKey: 'nav.bills',
     route: '/(tabs)/bills',
+    color: '#2FA37A',
     featureKey: 'bills',
   },
   {
@@ -57,7 +66,18 @@ const PRIMARY: NavEntry[] = [
     iconActive: 'car',
     labelKey: 'nav.parking',
     route: '/(tabs)/parking',
+    color: '#5B8DEF',
     featureKey: 'parking',
+  },
+  {
+    id: 'chat',
+    icon: 'chatbubbles-outline',
+    iconActive: 'chatbubbles',
+    labelKey: 'nav.chat',
+    route: '/(tabs)/more/chat',
+    color: '#12A594',
+    featureKey: 'chat',
+    isFlow: true,
   },
 ];
 
@@ -70,6 +90,7 @@ const HOUSE: NavEntry[] = [
     iconActive: 'cart',
     labelKey: 'nav.grocery',
     route: '/(tabs)/grocery',
+    color: '#E8892B',
     featureKey: 'grocery',
   },
   {
@@ -78,6 +99,7 @@ const HOUSE: NavEntry[] = [
     iconActive: 'sync',
     labelKey: 'nav.machines',
     route: '/(tabs)/machines',
+    color: '#3B6FBF',
   },
   {
     id: 'calendar',
@@ -85,6 +107,7 @@ const HOUSE: NavEntry[] = [
     iconActive: 'calendar',
     labelKey: 'nav.calendar',
     route: '/(tabs)/calendar',
+    color: '#5A78D0',
   },
   {
     id: 'photos',
@@ -92,6 +115,7 @@ const HOUSE: NavEntry[] = [
     iconActive: 'images',
     labelKey: 'nav.photos',
     route: '/(tabs)/photos',
+    color: '#AF52DE',
   },
   {
     id: 'tasks',
@@ -99,6 +123,7 @@ const HOUSE: NavEntry[] = [
     iconActive: 'list',
     labelKey: 'nav.tasks',
     route: '/(tabs)/tasks',
+    color: '#2FA37A',
   },
   {
     id: 'notes',
@@ -106,6 +131,7 @@ const HOUSE: NavEntry[] = [
     iconActive: 'clipboard',
     labelKey: 'nav.notes',
     route: '/(tabs)/notes',
+    color: '#D9A414',
   },
   {
     id: 'voting',
@@ -113,6 +139,7 @@ const HOUSE: NavEntry[] = [
     iconActive: 'hand-left',
     labelKey: 'nav.votes',
     route: '/(tabs)/voting',
+    color: '#EC5A8D',
     featureKey: 'voting',
   },
   {
@@ -121,6 +148,7 @@ const HOUSE: NavEntry[] = [
     iconActive: 'construct',
     labelKey: 'nav.property',
     route: '/(tabs)/property',
+    color: '#12A594',
     featureKey: 'maintenance',
   },
 ];
@@ -131,7 +159,7 @@ interface NavRowProps {
   entry: NavEntry;
   isActive: boolean;
   badgeCount: number;
-  onPress: (route: string) => void;
+  onPress: (entry: NavEntry) => void;
   label: string;
   colors: ReturnType<typeof useColors>;
 }
@@ -145,9 +173,12 @@ const NavRow = memo(function NavRow({
   colors,
 }: NavRowProps): React.JSX.Element {
   const handlePress = useCallback((): void => {
-    onPress(entry.route);
-  }, [onPress, entry.route]);
+    onPress(entry);
+  }, [onPress, entry]);
 
+  // Icons carry their section's accent colour; the active row gets a soft tint
+  // of that same colour plus a leading accent bar so the current page reads
+  // clearly without turning every icon grey.
   return (
     <Pressable
       onPress={handlePress}
@@ -157,18 +188,19 @@ const NavRow = memo(function NavRow({
       accessibilityState={{ selected: isActive }}
       style={({ pressed }) => [
         styles.item,
-        isActive && { backgroundColor: colors.primaryTint },
+        isActive && { backgroundColor: entry.color + '1F' },
         pressed && !isActive && { backgroundColor: colors.borderLight },
       ]}
     >
+      <View
+        style={[styles.activeBar, { backgroundColor: isActive ? entry.color : 'transparent' }]}
+      />
       <View style={styles.itemIcon}>
-        <Ionicons
-          name={isActive ? entry.iconActive : entry.icon}
-          size={22}
-          color={isActive ? colors.primary : colors.textSecondary}
-        />
+        <Ionicons name={isActive ? entry.iconActive : entry.icon} size={22} color={entry.color} />
         {badgeCount > 0 && (
-          <View style={[styles.badge, { backgroundColor: colors.danger, borderColor: colors.surface }]}>
+          <View
+            style={[styles.badge, { backgroundColor: colors.danger, borderColor: colors.surface }]}
+          >
             <Text style={[styles.badgeText, { color: colors.white }]}>
               {badgeCount > 9 ? '9+' : String(badgeCount)}
             </Text>
@@ -176,7 +208,11 @@ const NavRow = memo(function NavRow({
         )}
       </View>
       <Text
-        style={[styles.itemLabel, { color: isActive ? colors.primary : colors.textPrimary }]}
+        style={[
+          styles.itemLabel,
+          { color: colors.textPrimary },
+          isActive && styles.itemLabelActive,
+        ]}
         numberOfLines={1}
       >
         {label}
@@ -211,38 +247,43 @@ export function SideNav(): React.JSX.Element {
   const groceryItems = useGroceryStore((s) => s.items);
   const proposals = useVotingStore((s) => s.proposals);
   const maintenanceItems = useMaintenanceStore((s) => s.requests);
+  const chatUnread = useChatStore((s) => s.unreadCount);
 
-  const badges: Record<string, number> = {
-    bills: countNewSimple(
-      bills.filter((b) => !b.settled),
-      lastSeen.bills
-    ),
-    parking: myId
-      ? reservations.filter(
-          (r) =>
-            r.status === 'pending' &&
-            r.requestedBy !== myId &&
-            !r.votes.some((v) => v.userId === myId)
-        ).length
-      : 0,
-    grocery: myId
-      ? countNew(
-          groceryItems.filter((i) => !i.isChecked && !i.isDraft),
-          lastSeen.grocery,
-          myId,
-          'addedBy'
-        )
-      : 0,
-    voting: myId
-      ? proposals.filter(
-          (p) => p.isOpen && p.createdBy !== myId && !p.votes.some((v) => v.person === myId)
-        ).length
-      : 0,
-    property: countNewSimple(
-      maintenanceItems.filter((m) => m.status === 'open'),
-      lastSeen.maintenance
-    ),
-  };
+  const badges = useMemo(
+    (): Record<string, number> => ({
+      chat: chatUnread,
+      bills: countNewSimple(
+        bills.filter((b) => !b.settled),
+        lastSeen.bills
+      ),
+      parking: myId
+        ? reservations.filter(
+            (r) =>
+              r.status === 'pending' &&
+              r.requestedBy !== myId &&
+              !r.votes.some((v) => v.userId === myId)
+          ).length
+        : 0,
+      grocery: myId
+        ? countNew(
+            groceryItems.filter((i) => !i.isChecked && !i.isDraft),
+            lastSeen.grocery,
+            myId,
+            'addedBy'
+          )
+        : 0,
+      voting: myId
+        ? proposals.filter(
+            (p) => p.isOpen && p.createdBy !== myId && !p.votes.some((v) => v.person === myId)
+          ).length
+        : 0,
+      property: countNewSimple(
+        maintenanceItems.filter((m) => m.status === 'open'),
+        lastSeen.maintenance
+      ),
+    }),
+    [chatUnread, bills, lastSeen, myId, reservations, groceryItems, proposals, maintenanceItems]
+  );
 
   const canShow = useCallback(
     (entry: NavEntry): boolean =>
@@ -252,8 +293,14 @@ export function SideNav(): React.JSX.Element {
 
   const isActive = useCallback((id: string): boolean => pathname.includes(`/${id}`), [pathname]);
 
-  const handleNav = useCallback((route: string): void => {
-    navigateToBase(route);
+  const handleNav = useCallback((entry: NavEntry): void => {
+    // Chat is a flow page, not a base section, so it's pushed onto the stack
+    // like the phone's floating chat button does.
+    if (entry.isFlow) {
+      router.push('/(tabs)/more/chat');
+      return;
+    }
+    navigateToBase(entry.route);
   }, []);
 
   const handleAdd = useCallback((): void => {
@@ -447,9 +494,20 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: sizes.sm,
     borderRadius: sizes.borderRadius,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  activeBar: {
+    position: 'absolute',
+    top: 8,
+    bottom: 8,
+    start: 0,
+    width: 3,
+    borderRadius: 2,
   },
   itemIcon: { width: 24, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   itemLabel: { fontSize: sizes.fontMd, ...font.semibold, flexShrink: 1 },
+  itemLabelActive: { ...font.bold },
   divider: {
     height: StyleSheet.hairlineWidth,
     marginVertical: sizes.sm,

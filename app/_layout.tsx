@@ -14,7 +14,15 @@ import { initErrorTracking } from '@lib/errorTracking';
 import { RTL_WEB_FIX_CSS } from '@lib/rtlWebFix';
 import { Stack, router, useSegments } from 'expo-router';
 import { supabase } from '@lib/supabase';
-import { PaperProvider, MD3LightTheme, MD3DarkTheme, configureFonts } from 'react-native-paper';
+import {
+  PaperProvider,
+  MD3LightTheme,
+  MD3DarkTheme,
+  configureFonts,
+  Text,
+} from 'react-native-paper';
+import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { useAuthStore } from '@stores/authStore';
@@ -54,8 +62,10 @@ import {
   isLargeScreen,
   isDesktop,
   DESKTOP_CONTENT_MAX_WIDTH,
+  AUTH_CARD_WIDTH,
 } from '@utils/responsive';
 import { SideNav } from '@components/shared/SideNav';
+import { font } from '@constants/typography';
 
 initErrorTracking();
 
@@ -91,6 +101,8 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 
 export default function RootLayout(): React.JSX.Element | null {
   const c = useColors();
+  const { t } = useTranslation();
+  const authTagline = t('welcome.tagline');
 
   // Large-screen framing: on anything wider than a phone (desktop web, iPad,
   // wide monitor) cap the app to a centred phone-width column and paint the
@@ -576,7 +588,9 @@ export default function RootLayout(): React.JSX.Element | null {
   // the web alert host, and the loading splash.
   const overlays = (
     <>
-      {showChrome && <ChatFab />}
+      {/* On desktop the chat lives in the sidebar, so the floating button (which
+          overlapped content) is only shown in the phone/tablet layout. */}
+      {showChrome && !useDesktopShell && <ChatFab />}
       {showChrome && <MorePopup />}
       {showChrome && <ProfilePopup />}
       <WebAlertHost />
@@ -603,20 +617,40 @@ export default function RootLayout(): React.JSX.Element | null {
         <StatusBar style="light" />
         <ErrorBoundary>
           {useDesktopShell ? (
-            // ── Desktop shell: left sidebar + centred content column ──────────
+            // ── Desktop shell: left sidebar + content that fills the screen ────
             <View
               style={[
                 styles.desktopShell,
-                { backgroundColor: c.appBackdrop, direction: rootDirection },
+                { backgroundColor: c.background, direction: rootDirection },
               ]}
             >
               {showChrome && <SideNav />}
-              <View style={styles.desktopMain}>
+              <View style={[styles.desktopMain, { backgroundColor: c.background }]}>
+                <View style={styles.desktopContent}>{stackContent}</View>
+              </View>
+              {overlays}
+            </View>
+          ) : desktopViewport ? (
+            // ── Desktop auth/onboarding: brand panel + centred form card ───────
+            <View
+              style={[
+                styles.desktopShell,
+                { backgroundColor: c.background, direction: rootDirection },
+              ]}
+            >
+              <View style={[styles.authBrand, { backgroundColor: c.primary }]}>
+                <Image
+                  source={require('../assets/icon.png')}
+                  style={styles.authBrandMark}
+                  contentFit="contain"
+                  accessibilityLabel="HouseMates"
+                />
+                <Text style={styles.authBrandName}>HouseMates</Text>
+                <Text style={styles.authBrandTagline}>{authTagline}</Text>
+              </View>
+              <View style={[styles.authMain, { backgroundColor: c.background }]}>
                 <View
-                  style={[
-                    styles.desktopContent,
-                    { backgroundColor: c.background, borderColor: c.border },
-                  ]}
+                  style={[styles.authCard, { backgroundColor: c.surface, borderColor: c.border }]}
                 >
                   {stackContent}
                 </View>
@@ -674,6 +708,9 @@ const styles = StyleSheet.create({
   // Desktop (≥1024px): a persistent left sidebar next to a centred content
   // column, on the backdrop canvas. Phones and tablets never hit this branch.
   desktopShell: { flex: 1, flexDirection: 'row', position: 'relative' },
+  // The content area fills the space beside the sidebar; the screen itself is
+  // centred in a comfortable column. The side margins are the same surface as
+  // the content, so they read as padding rather than empty gaps.
   desktopMain: { flex: 1, alignItems: 'center', minHeight: 0 },
   desktopContent: {
     flex: 1,
@@ -682,13 +719,34 @@ const styles = StyleSheet.create({
     minHeight: 0,
     overflow: 'hidden',
     position: 'relative',
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderRightWidth: StyleSheet.hairlineWidth,
+  },
+  // Desktop signed-out split: a branded panel + the auth screen in a card.
+  authBrand: {
+    width: '42%',
+    maxWidth: 560,
+    minWidth: 320,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 48,
+    gap: 16,
+  },
+  authBrandMark: { width: 96, height: 96, borderRadius: 24 },
+  authBrandName: { color: '#FFFFFF', fontSize: 40, ...font.extrabold, letterSpacing: -1 },
+  authBrandTagline: { color: 'rgba(255,255,255,0.9)', fontSize: 18, textAlign: 'center' },
+  authMain: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, minHeight: 0 },
+  authCard: {
+    width: '100%',
+    maxWidth: AUTH_CARD_WIDTH,
+    height: '100%',
+    maxHeight: 760,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.16,
-    shadowRadius: 28,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 32,
+    elevation: 16,
   },
   splash: {
     position: 'absolute',

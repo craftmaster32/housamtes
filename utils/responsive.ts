@@ -100,10 +100,16 @@ export const DESKTOP_MIN_WIDTH = 1024;
 // The fixed width of the desktop left navigation rail.
 export const SIDENAV_WIDTH = 264;
 
-// The screens were designed at ~402pt and read best in a narrow column, so on
-// desktop the content sits in a centred column of this width beside the sidebar
-// rather than stretching across the whole monitor.
-export const DESKTOP_CONTENT_MAX_WIDTH = 760;
+// On desktop the content sits in a column beside the sidebar. It's capped so
+// phone-designed screens don't stretch absurdly wide on a large monitor, but
+// wide enough to use the space and keep the side margins reading as padding
+// (same surface colour) rather than empty gaps.
+export const DESKTOP_CONTENT_MAX_WIDTH = 1120;
+
+// The signed-out flow (welcome / login / signup / …) shows on desktop as a
+// two-pane split: a branded panel filling the space and the actual auth screen
+// in a fixed card this wide on the other side.
+export const AUTH_CARD_WIDTH = 460;
 
 /**
  * True when the app should use the desktop shell (sidebar + content column)
