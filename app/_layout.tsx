@@ -98,10 +98,14 @@ export default function RootLayout(): React.JSX.Element | null {
   // and none of this is visible. Live window width keeps it correct through
   // rotation and browser-window resizing.
   const { width: windowWidth } = useWindowDimensions();
-  const desktop = Platform.OS === 'web' && isDesktop(windowWidth);
-  // Below desktop, wide windows (small tablets, iPad portrait) still use the
-  // centred phone frame; only true computer widths switch to the sidebar shell.
-  const largeScreen = isLargeScreen(windowWidth) && !desktop;
+  // Wider than a phone → the app is framed rather than full-bleed.
+  const isWide = isLargeScreen(windowWidth);
+  // A true computer-width web viewport can host the desktop sidebar shell — but
+  // only once the app chrome is shown (i.e. signed in). The auth/onboarding
+  // screens have no sidebar, so they stay in the centred phone frame instead of
+  // stretching across the wide content column. `useDesktopShell` below applies
+  // that extra gate once showChrome is known.
+  const desktopViewport = Platform.OS === 'web' && isDesktop(windowWidth);
   const frameWidth = contentWidthForWindow(windowWidth);
   const [i18nReady, setI18nReady] = useState(false);
   const setLanguage = useLanguageStore((s) => s.setLanguage);
@@ -122,11 +126,11 @@ export default function RootLayout(): React.JSX.Element | null {
     // On large screens the canvas around the centred frame is the backdrop, so
     // any overscroll band matches it; on a phone the frame fills the window and
     // the band should stay the app background.
-    const canvas = largeScreen || desktop ? c.appBackdrop : c.background;
+    const canvas = isWide ? c.appBackdrop : c.background;
     document.documentElement.style.backgroundColor = canvas;
     document.body.style.backgroundColor = canvas;
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  }, [c, largeScreen, desktop]);
+  }, [c, isWide]);
 
   const paperTheme = useMemo(() => {
     const isDark = c === darkColors;
@@ -531,6 +535,15 @@ export default function RootLayout(): React.JSX.Element | null {
 
   const showChrome = !!user && !!houseId && !needsTermsAcceptance;
 
+  // The desktop sidebar shell only makes sense inside the app (chrome shown).
+  // Auth/onboarding screens fall through to the centred phone frame so they
+  // don't stretch across the wide content column.
+  const useDesktopShell = desktopViewport && showChrome;
+  // Centre the phone frame whenever the window is wider than a phone and we're
+  // not using the desktop shell — that covers tablets and the desktop
+  // auth/onboarding screens.
+  const framed = isWide && !useDesktopShell;
+
   // Swipe-back gesture: zone starts from 22–70 px from left edge (distinct from drawer open zone at 0–22 px)
   const backSwipe = useRef(
     PanResponder.create({
@@ -581,7 +594,7 @@ export default function RootLayout(): React.JSX.Element | null {
       style={[
         styles.gestureRoot,
         {
-          backgroundColor: largeScreen || desktop ? c.appBackdrop : c.background,
+          backgroundColor: isWide ? c.appBackdrop : c.background,
           direction: rootDirection,
         },
       ]}
@@ -589,7 +602,7 @@ export default function RootLayout(): React.JSX.Element | null {
       <PaperProvider theme={paperTheme}>
         <StatusBar style="light" />
         <ErrorBoundary>
-          {desktop ? (
+          {useDesktopShell ? (
             // ── Desktop shell: left sidebar + centred content column ──────────
             <View
               style={[
@@ -613,16 +626,13 @@ export default function RootLayout(): React.JSX.Element | null {
           ) : (
             // ── Phone / tablet: full-width phone or centred phone frame ───────
             <View
-              style={[
-                styles.stage,
-                { backgroundColor: largeScreen ? c.appBackdrop : c.background },
-              ]}
+              style={[styles.stage, { backgroundColor: framed ? c.appBackdrop : c.background }]}
             >
               <View
                 style={[
                   styles.root,
                   { backgroundColor: c.background, direction: rootDirection, width: frameWidth },
-                  largeScreen && { borderColor: c.border, ...styles.frameChrome },
+                  framed && { borderColor: c.border, ...styles.frameChrome },
                 ]}
                 {...backSwipe.panHandlers}
               >
