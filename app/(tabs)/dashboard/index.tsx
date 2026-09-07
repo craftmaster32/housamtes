@@ -31,6 +31,7 @@ import { isRTL } from '@lib/i18n';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
 import { DashboardErrorBanner } from '@components/dashboard/DashboardErrorBanner';
 import { DashboardCarousel } from '@components/dashboard/DashboardCarousel';
+import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { HappeningNow } from '@components/dashboard/HappeningNow';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useBadgeStore } from '@stores/badgeStore';
@@ -323,6 +324,36 @@ function OwedHero(): React.JSX.Element {
 }
 
 // ── Dashboard screen ────────────────────────────────────────────────────────────
+// ── Calendar widget (desktop side panel) ──────────────────────────────────────
+function CalendarCard(): React.JSX.Element {
+  const { t } = useTranslation();
+  const c = useThemedColors();
+  const now = new Date();
+  const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate()
+  ).padStart(2, '0')}`;
+  const [selected, setSelected] = useState(todayYMD);
+  const handleChange = useCallback((d: string): void => {
+    setSelected(d);
+    navigateToBase('/(tabs)/calendar');
+  }, []);
+  return (
+    <View style={[styles.calCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <Pressable
+        style={styles.calHeader}
+        onPress={() => navigateToBase('/(tabs)/calendar')}
+        accessibilityRole="button"
+        accessibilityLabel={t('nav.calendar')}
+      >
+        <Ionicons name="calendar-outline" size={18} color={c.primary} />
+        <Text style={[styles.calTitle, { color: c.textPrimary }]}>{t('nav.calendar')}</Text>
+        <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
+      </Pressable>
+      <CalendarPicker value={selected} onChange={handleChange} />
+    </View>
+  );
+}
+
 export default function DashboardScreen(): React.JSX.Element {
   const c = useThemedColors();
   const { width } = useWindowDimensions();
@@ -380,9 +411,10 @@ export default function DashboardScreen(): React.JSX.Element {
             <View style={styles.mainCol}>
               <HappeningNow />
               <OwedHero />
-              <DashboardCarousel />
+              <DashboardCarousel grid />
             </View>
             <View style={styles.sideCol}>
+              <CalendarCard />
               <PinnedNote />
               <DadJokeCard animateEntrance={false} />
             </View>
@@ -445,6 +477,9 @@ const styles = StyleSheet.create({
   desktopGrid: { flexDirection: 'row', gap: ms(18), alignItems: 'flex-start', marginTop: ms(14) },
   mainCol: { flex: 1, minWidth: 0, gap: ms(14) },
   sideCol: { width: ms(340), gap: ms(14) },
+  calCard: { borderRadius: sizes.borderRadiusLg, borderWidth: 1, padding: ms(12), gap: ms(8) },
+  calHeader: { flexDirection: 'row', alignItems: 'center', gap: ms(8), paddingBottom: ms(4) },
+  calTitle: { flex: 1, fontSize: mf(15), ...font.bold },
   flex1: { flex: 1, minWidth: 0 },
   block: { marginTop: ms(14) },
   pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },

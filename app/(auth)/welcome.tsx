@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { View, StyleSheet, Pressable, useWindowDimensions, Platform } from 'react-native';
 import { Text, Button } from 'react-native-paper';
+import { Image } from 'expo-image';
 import { router, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -59,7 +60,13 @@ export default function WelcomeScreen(): React.JSX.Element {
             accessibilityRole="image"
             accessibilityLabel={t('welcome.logo_label')}
           >
-            <Ionicons name="home" size={32} color={C.primary} />
+            <Image
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              source={require('../../assets/brand/housemates-icon.png')}
+              style={styles.logoImg}
+              contentFit="contain"
+              accessibilityLabel={t('welcome.logo_label')}
+            />
           </View>
 
           <Text style={[styles.appName, headingFont]}>HouseMates</Text>
@@ -180,6 +187,7 @@ function makeStyles(C: ColorTokens) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    logoImg: { width: ms(48), height: ms(48) },
     appName: {
       fontSize: mf(34),
       ...font.extrabold,

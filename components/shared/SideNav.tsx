@@ -348,16 +348,15 @@ export function SideNav(): React.JSX.Element {
 
   return (
     <View style={[styles.rail, { backgroundColor: c.surface, borderRightColor: c.border }]}>
-      {/* Brand — the house mark in a chip, matching the login header */}
+      {/* Brand — the real HouseMates logo */}
       <View style={styles.brand}>
-        <View
-          style={[styles.brandMark, { backgroundColor: c.primary }]}
-          accessible
-          accessibilityRole="image"
+        <Image
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          source={require('../../assets/brand/housemates-icon.png')}
+          style={styles.brandMark}
+          contentFit="contain"
           accessibilityLabel="HouseMates"
-        >
-          <Ionicons name="home" size={20} color={c.white} />
-        </View>
+        />
         <Text style={[styles.brandName, { color: c.primary }]} numberOfLines={1}>
           HouseMates
         </Text>
@@ -477,9 +476,6 @@ const styles = StyleSheet.create({
   brandMark: {
     width: 34,
     height: 34,
-    borderRadius: sizes.borderRadiusSm,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   brandName: { fontSize: sizes.fontXl, ...font.extrabold, letterSpacing: -0.6, flexShrink: 1 },
   addBtn: {

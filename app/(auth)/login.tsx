@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -119,7 +120,13 @@ export default function LoginScreen(): React.JSX.Element {
 
           <View style={[styles.brandRow, wide && styles.brandRowWide]}>
             <View style={[styles.logoChip, wide && styles.logoChipWide]}>
-              <Ionicons name="home" size={wide ? 34 : 20} color={C.primary} />
+              <Image
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
+                source={require('../../assets/brand/housemates-icon.png')}
+                style={{ width: wide ? 48 : ms(24), height: wide ? 48 : ms(24) }}
+                contentFit="contain"
+                accessibilityLabel="HouseMates"
+              />
             </View>
             <Text style={[styles.brandName, headingFont, wide && styles.brandNameWide]}>
               HouseMates
