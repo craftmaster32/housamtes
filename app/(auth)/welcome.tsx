@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, useWindowDimensions, Platform } from 'react-native';
 import { Text, Button } from 'react-native-paper';
 import { router, Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,10 @@ export default function WelcomeScreen(): React.JSX.Element {
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
   const headingFont = useHeadingFont();
+  const { width } = useWindowDimensions();
+  // On desktop, keep the bottom card's content in a centred column so the
+  // button and text don't stretch across the whole screen.
+  const wide = Platform.OS === 'web' && width >= 900;
 
   const handleGetStarted = useCallback(async (): Promise<void> => {
     try {
@@ -71,44 +75,46 @@ export default function WelcomeScreen(): React.JSX.Element {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={[styles.cardHeading, headingFont]}>{t('welcome.card_heading')}</Text>
-        <Text style={styles.cardBody}>{t('welcome.card_body')}</Text>
+      <View style={[styles.card, wide && styles.cardWide]}>
+        <View style={wide ? styles.cardInnerWide : undefined}>
+          <Text style={[styles.cardHeading, headingFont]}>{t('welcome.card_heading')}</Text>
+          <Text style={styles.cardBody}>{t('welcome.card_body')}</Text>
 
-        <Button
-          mode="contained"
-          buttonColor={C.primary}
-          textColor="#fff"
-          onPress={handleGetStarted}
-          style={styles.primaryButton}
-          contentStyle={styles.primaryButtonContent}
-          labelStyle={styles.primaryButtonLabel}
-          icon={({ color }) => (
-            <Ionicons
-              name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-forward'}
-              size={18}
-              color={color}
-            />
-          )}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={t('welcome.get_started')}
-        >
-          {t('welcome.get_started')}
-        </Button>
-
-        <Link href="/(auth)/login" asChild>
-          <Pressable
-            style={styles.loginLink}
+          <Button
+            mode="contained"
+            buttonColor={C.primary}
+            textColor="#fff"
+            onPress={handleGetStarted}
+            style={styles.primaryButton}
+            contentStyle={styles.primaryButtonContent}
+            labelStyle={styles.primaryButtonLabel}
+            icon={({ color }) => (
+              <Ionicons
+                name={isRTL(currentLanguage) ? 'arrow-back' : 'arrow-forward'}
+                size={18}
+                color={color}
+              />
+            )}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={t('welcome.log_in')}
+            accessibilityLabel={t('welcome.get_started')}
           >
-            <Text style={styles.loginLinkText}>{t('welcome.log_in')}</Text>
-          </Pressable>
-        </Link>
+            {t('welcome.get_started')}
+          </Button>
 
-        <Text style={styles.terms}>{t('auth.by_continuing')}</Text>
+          <Link href="/(auth)/login" asChild>
+            <Pressable
+              style={styles.loginLink}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('welcome.log_in')}
+            >
+              <Text style={styles.loginLinkText}>{t('welcome.log_in')}</Text>
+            </Pressable>
+          </Link>
+
+          <Text style={styles.terms}>{t('auth.by_continuing')}</Text>
+        </View>
       </View>
     </View>
   );
@@ -195,6 +201,15 @@ function makeStyles(C: ColorTokens) {
       borderTopRightRadius: ms(28),
       padding: sizes.xl,
       paddingBottom: ms(40),
+      gap: ms(16),
+    },
+    cardWide: {
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    cardInnerWide: {
+      width: '100%',
+      maxWidth: 460,
       gap: ms(16),
     },
     cardHeading: {

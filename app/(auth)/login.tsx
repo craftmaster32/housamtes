@@ -100,28 +100,34 @@ export default function LoginScreen(): React.JSX.Element {
     <View style={[styles.root, wide && styles.rootWide]}>
       <View style={[styles.header, wide && styles.headerWide]}>
         <SafeAreaView edges={['top']} style={[styles.headerInner, wide && styles.headerInnerWide]}>
-          <Pressable
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <Ionicons
-              name={rtl ? 'chevron-forward' : 'chevron-back'}
-              size={20}
-              color="rgba(255,255,255,0.85)"
-            />
-            <Text style={styles.backText}>{t('common.back')}</Text>
-          </Pressable>
+          {!wide && (
+            <Pressable
+              style={styles.backBtn}
+              onPress={() => router.back()}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+            >
+              <Ionicons
+                name={rtl ? 'chevron-forward' : 'chevron-back'}
+                size={20}
+                color="rgba(255,255,255,0.85)"
+              />
+              <Text style={styles.backText}>{t('common.back')}</Text>
+            </Pressable>
+          )}
 
-          <View style={styles.brandRow}>
-            <View style={styles.logoChip}>
-              <Ionicons name="home" size={20} color={C.primary} />
+          <View style={[styles.brandRow, wide && styles.brandRowWide]}>
+            <View style={[styles.logoChip, wide && styles.logoChipWide]}>
+              <Ionicons name="home" size={wide ? 34 : 20} color={C.primary} />
             </View>
-            <Text style={[styles.brandName, headingFont]}>HouseMates</Text>
+            <Text style={[styles.brandName, headingFont, wide && styles.brandNameWide]}>
+              HouseMates
+            </Text>
           </View>
-          <Text style={styles.headerTagline}>{t('welcome.tagline')}</Text>
+          <Text style={[styles.headerTagline, wide && styles.headerTaglineWide]}>
+            {t('welcome.tagline')}
+          </Text>
         </SafeAreaView>
       </View>
 
@@ -131,7 +137,7 @@ export default function LoginScreen(): React.JSX.Element {
       >
         <ScrollView
           style={[styles.card, wide && styles.cardWide]}
-          contentContainerStyle={styles.cardContent}
+          contentContainerStyle={[styles.cardContent, wide && styles.cardContentWide]}
           keyboardShouldPersistTaps="handled"
         >
           <Entrance style={styles.cardInner}>
@@ -245,6 +251,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
     headerWide: {
       flex: 1,
       justifyContent: 'center',
+      alignItems: 'center',
       paddingBottom: 0,
       paddingHorizontal: 56,
     },
@@ -252,10 +259,30 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       gap: ms(6),
     },
     headerInnerWide: {
-      gap: 16,
-      maxWidth: 420,
+      gap: 20,
+      maxWidth: 380,
+      alignItems: 'center',
       alignSelf: 'center',
       width: '100%',
+    },
+    brandRowWide: {
+      flexDirection: 'column',
+      gap: 16,
+      alignItems: 'center',
+    },
+    logoChipWide: {
+      width: 72,
+      height: 72,
+      borderRadius: 20,
+    },
+    brandNameWide: {
+      fontSize: 40,
+      letterSpacing: -1,
+    },
+    headerTaglineWide: {
+      fontSize: 18,
+      textAlign: 'center',
+      color: 'rgba(255,255,255,0.85)',
     },
     backBtn: {
       flexDirection: 'row',
@@ -306,7 +333,7 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       alignItems: 'center',
       justifyContent: 'center',
       padding: 40,
-      backgroundColor: C.background,
+      backgroundColor: C.surface,
     },
     card: {
       flex: 1,
@@ -315,11 +342,16 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       borderTopRightRadius: ms(28),
     },
     cardWide: {
-      flex: 0,
       width: '100%',
-      maxWidth: 440,
-      maxHeight: 620,
-      borderRadius: 28,
+      maxWidth: 380,
+      alignSelf: 'center',
+      backgroundColor: 'transparent',
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+    },
+    cardContentWide: {
+      justifyContent: 'center',
+      paddingVertical: 40,
     },
     cardContent: {
       flexGrow: 1,
