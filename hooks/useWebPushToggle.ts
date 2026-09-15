@@ -6,6 +6,7 @@ import {
   enableWebPush,
   getWebPushStatus,
   hasActiveWebPushSubscription,
+  syncWebPushSubscription,
   unregisterWebPush,
   type WebPushStatus,
 } from '@lib/webPush';
@@ -37,7 +38,14 @@ export function useWebPushToggle(): UseWebPushToggleResult {
     if (Platform.OS !== 'web') return;
     setWebPushStatus(getWebPushStatus());
     const gen = ++lookupGen.current;
-    hasActiveWebPushSubscription(user?.id, houseId ?? undefined)
+    // With a user + house we reconcile against the server row (repairs a stale
+    // Safari subscription and reflects whether push is truly deliverable). Without
+    // them we can only read the local browser subscription.
+    const lookup =
+      user?.id && houseId
+        ? syncWebPushSubscription(user.id, houseId)
+        : hasActiveWebPushSubscription(user?.id, houseId ?? undefined);
+    lookup
       .then((active): void => {
         // null = indeterminate (lookup failed) — leave the default false state
         if (lookupGen.current === gen && active !== null) setWebPushOn(active);

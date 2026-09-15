@@ -204,6 +204,38 @@ export function getWebPushStatus(): WebPushStatus {
 }
 
 /**
+ * Reconcile the browser subscription with the saved server row and report
+ * whether push is genuinely deliverable — not just whether a subscription
+ * object lingers in the browser.
+ *
+ * A stale Safari subscription is the classic silent failure: the browser still
+ * hands back a PushSubscription (so the toggle looks "On"), but the matching
+ * server row was deleted after the push service returned 410, so nothing is
+ * ever sent. This runs the same repair path as startup (re-subscribe + re-save
+ * a fresh endpoint) and then confirms a live subscription exists, so the
+ * settings toggle reflects real delivery. Permission must already be granted;
+ * it never prompts. Returns null when the state can't be determined (e.g. a
+ * transient network/auth blip), so callers can leave the prior state untouched.
+ */
+export async function syncWebPushSubscription(
+  userId: string,
+  houseId: string
+): Promise<boolean | null> {
+  if (!isWebPushSupported()) return false;
+  if (Notification.permission !== 'granted') return false;
+  try {
+    // Reconciles a stale/missing server row and saves the current endpoint.
+    await subscribeAndSave(userId, houseId);
+    const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+    const sub = await registration?.pushManager.getSubscription();
+    return !!sub;
+  } catch (err) {
+    captureError(err, { context: 'syncWebPushSubscription', userId, houseId });
+    return null;
+  }
+}
+
+/**
  * Whether this browser currently has a live push subscription — i.e. push is
  * really ON, not just permission-granted. After unregisterWebPush the browser
  * permission stays 'granted' but the subscription is gone, so the settings
