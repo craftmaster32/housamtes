@@ -28,9 +28,9 @@ function isWebPushSupported(): boolean {
   );
 }
 
-async function subscribeAndSave(userId: string, houseId: string): Promise<void> {
+async function subscribeAndSave(userId: string, houseId: string): Promise<boolean> {
   const vapidPublicKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!vapidPublicKey) return;
+  if (!vapidPublicKey) return false;
 
   try {
     const registration = await navigator.serviceWorker.register('/sw.js');
@@ -68,7 +68,7 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
     const json = subscription.toJSON();
     const p256dh = json.keys?.p256dh;
     const auth = json.keys?.auth;
-    if (!p256dh || !auth) return;
+    if (!p256dh || !auth) return false;
 
     const { error: upsertError } = await supabase.from('web_push_subscriptions').upsert(
       {
@@ -83,6 +83,7 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
       { onConflict: 'user_id,house_id' }
     );
     if (upsertError) throw upsertError;
+    return true;
   } catch (err) {
     captureError(err, { context: 'subscribeAndSave', userId, houseId });
     throw err;
@@ -225,7 +226,10 @@ export async function syncWebPushSubscription(
   if (Notification.permission !== 'granted') return false;
   try {
     // Reconciles a stale/missing server row and saves the current endpoint.
-    await subscribeAndSave(userId, houseId);
+    // Returns false when persistence was skipped (e.g. missing VAPID key) — in
+    // that case we cannot confirm deliverability, so propagate null to the caller.
+    const persisted = await subscribeAndSave(userId, houseId);
+    if (!persisted) return null;
     const registration = await navigator.serviceWorker.getRegistration('/sw.js');
     const sub = await registration?.pushManager.getSubscription();
     return !!sub;
