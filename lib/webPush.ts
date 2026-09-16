@@ -28,9 +28,9 @@ function isWebPushSupported(): boolean {
   );
 }
 
-async function subscribeAndSave(userId: string, houseId: string): Promise<void> {
+async function subscribeAndSave(userId: string, houseId: string): Promise<boolean> {
   const vapidPublicKey = process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!vapidPublicKey) return;
+  if (!vapidPublicKey) return false;
 
   try {
     const registration = await navigator.serviceWorker.register('/sw.js');
@@ -68,7 +68,7 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
     const json = subscription.toJSON();
     const p256dh = json.keys?.p256dh;
     const auth = json.keys?.auth;
-    if (!p256dh || !auth) return;
+    if (!p256dh || !auth) return false;
 
     const { error: upsertError } = await supabase.from('web_push_subscriptions').upsert(
       {
@@ -83,6 +83,7 @@ async function subscribeAndSave(userId: string, houseId: string): Promise<void> 
       { onConflict: 'user_id,house_id' }
     );
     if (upsertError) throw upsertError;
+    return true;
   } catch (err) {
     captureError(err, { context: 'subscribeAndSave', userId, houseId });
     throw err;
@@ -201,6 +202,41 @@ export async function refreshWebPush(
 export function getWebPushStatus(): WebPushStatus {
   if (!isWebPushSupported()) return 'unavailable';
   return Notification.permission as WebPushStatus;
+}
+
+/**
+ * Reconcile the browser subscription with the saved server row and report
+ * whether push is genuinely deliverable — not just whether a subscription
+ * object lingers in the browser.
+ *
+ * A stale Safari subscription is the classic silent failure: the browser still
+ * hands back a PushSubscription (so the toggle looks "On"), but the matching
+ * server row was deleted after the push service returned 410, so nothing is
+ * ever sent. This runs the same repair path as startup (re-subscribe + re-save
+ * a fresh endpoint) and then confirms a live subscription exists, so the
+ * settings toggle reflects real delivery. Permission must already be granted;
+ * it never prompts. Returns null when the state can't be determined (e.g. a
+ * transient network/auth blip), so callers can leave the prior state untouched.
+ */
+export async function syncWebPushSubscription(
+  userId: string,
+  houseId: string
+): Promise<boolean | null> {
+  if (!isWebPushSupported()) return false;
+  if (Notification.permission !== 'granted') return false;
+  try {
+    // Reconciles a stale/missing server row and saves the current endpoint.
+    // Returns false when persistence was skipped (e.g. missing VAPID key) — in
+    // that case we cannot confirm deliverability, so propagate null to the caller.
+    const persisted = await subscribeAndSave(userId, houseId);
+    if (!persisted) return null;
+    const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+    const sub = await registration?.pushManager.getSubscription();
+    return !!sub;
+  } catch (err) {
+    captureError(err, { context: 'syncWebPushSubscription', userId, houseId });
+    return null;
+  }
 }
 
 /**
