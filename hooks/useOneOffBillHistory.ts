@@ -2,9 +2,15 @@ import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBillsStore, type Bill } from '@stores/billsStore';
 import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
-import { useRecurringBillsStore } from '@stores/recurringBillsStore';
+import {
+  useRecurringBillsStore,
+  getCoveredMonths,
+  formatCoverage,
+  type BillFrequency,
+} from '@stores/recurringBillsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
+import { toAppLocale } from '@utils/dates';
 
 export interface RecurringPaymentRow {
   id: string;
@@ -13,6 +19,7 @@ export interface RecurringPaymentRow {
   amount: number;
   paidBy: string;
   splitBetween: string[];
+  coverage: string; // localized covered month(s), e.g. "Sep 2026"
 }
 
 export type BillRow =
@@ -33,7 +40,7 @@ export interface BillSection {
  */
 function formatDateLabel(dateStr: string, locale: string, t: (key: string) => string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return t('common.unknown');
-  const appLocale = locale === 'he' ? 'he-IL' : locale === 'es' ? 'es-ES' : 'en-GB';
+  const appLocale = toAppLocale(locale);
   const today = new Date();
   const pad = (n: number): string => String(n).padStart(2, '0');
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
@@ -117,11 +124,19 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
   const billSections = useMemo((): BillSection[] => {
     // Merge one-off bills and logged recurring payments into one date-grouped history.
     const billMeta = new Map(
-      householdBills.map((b): [string, { name: string; icon: string; assignedTo: string }] => [
-        b.id,
-        { name: b.name, icon: b.icon, assignedTo: b.assignedTo },
-      ])
+      householdBills.map(
+        (
+          b
+        ): [
+          string,
+          { name: string; icon: string; assignedTo: string; frequency: BillFrequency },
+        ] => [
+          b.id,
+          { name: b.name, icon: b.icon, assignedTo: b.assignedTo, frequency: b.frequency },
+        ]
+      )
     );
+    const appLocale = toAppLocale(i18n.language);
     const rows: BillRow[] = [
       ...bills.map(
         (bill): Extract<BillRow, { kind: 'bill' }> => ({
@@ -144,6 +159,7 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
             amount: p.amount,
             paidBy: meta?.assignedTo ?? '',
             splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
+            coverage: formatCoverage(getCoveredMonths(p, meta?.frequency ?? 'monthly'), appLocale),
           },
         };
       }),

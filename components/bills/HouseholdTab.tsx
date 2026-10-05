@@ -8,8 +8,13 @@ import {
   calculateFairness,
   getLastPayment,
   getNextDueDate,
+  getCoveredMonths,
+  formatCoverage,
+  suggestCoversFrom,
+  monthStart,
   BILL_ICONS,
   resolveBillIcon,
+  DeleteNotAllowedError,
   type RecurringBill,
   type HouseholdPayment,
   type BillFrequency,
@@ -19,11 +24,12 @@ import { useHousematesStore } from '@stores/housematesStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { useSettingsStore } from '@stores/settingsStore';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
+import { CoverageMonthPicker } from '@components/bills/CoverageMonthPicker';
 import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { getErrorMessage } from '@utils/errors';
-import { formatDateDDMMYYYY } from '@utils/dates';
+import { formatDateDDMMYYYY, toAppLocale } from '@utils/dates';
 
 import { mf, ms } from '@utils/responsive';
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
@@ -134,16 +140,18 @@ interface HousemateOption {
 /** One logged payment in a bill's history — read-only row; pencil or long-press opens an edit popup. */
 function PaymentHistoryRow({
   payment,
+  frequency,
   housemates,
   currency,
   onDelete,
 }: {
   payment: HouseholdPayment;
+  frequency: BillFrequency;
   housemates: HousemateOption[];
   currency: string;
   onDelete: (id: string) => void;
 }): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const c = useThemedColors();
   const updatePayment = useRecurringBillsStore((s) => s.updatePayment);
 
@@ -152,10 +160,15 @@ function PaymentHistoryRow({
   const [amount, setAmount] = useState(String(payment.amount));
   const [date, setDate] = useState(payment.paidAt);
   const [note, setNote] = useState(payment.note);
+  const [coversFrom, setCoversFrom] = useState(payment.coversFrom ?? monthStart(payment.paidAt));
   const [splitWith, setSplitWith] = useState<string[]>(
     payment.splitBetween && payment.splitBetween.length > 0 ? payment.splitBetween : memberIds
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const coverageLabel = formatCoverage(
+    getCoveredMonths(payment, frequency),
+    toAppLocale(i18n.language)
+  );
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -168,12 +181,20 @@ function PaymentHistoryRow({
     setAmount(String(payment.amount));
     setDate(payment.paidAt);
     setNote(payment.note);
+    setCoversFrom(payment.coversFrom ?? monthStart(payment.paidAt));
     setSplitWith(
       payment.splitBetween && payment.splitBetween.length > 0 ? payment.splitBetween : memberIds
     );
     setError('');
     setEditing(true);
-  }, [payment.amount, payment.paidAt, payment.note, payment.splitBetween, memberIds]);
+  }, [
+    payment.amount,
+    payment.paidAt,
+    payment.note,
+    payment.coversFrom,
+    payment.splitBetween,
+    memberIds,
+  ]);
 
   const cancelEditing = useCallback((): void => {
     if (saving) return;
@@ -210,6 +231,7 @@ function PaymentHistoryRow({
         paidAt: date,
         note,
         splitBetween: splitWith,
+        coversFrom,
       });
       setEditing(false);
     } catch {
@@ -217,7 +239,7 @@ function PaymentHistoryRow({
     } finally {
       setSaving(false);
     }
-  }, [saving, amount, date, note, splitWith, updatePayment, payment.id, t]);
+  }, [saving, amount, date, note, splitWith, coversFrom, updatePayment, payment.id, t]);
 
   const handleDelete = useCallback((): void => onDelete(payment.id), [onDelete, payment.id]);
 
@@ -237,18 +259,19 @@ function PaymentHistoryRow({
         delayLongPress={250}
       >
         <View style={styles.historyMain}>
-          <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
-            {currency}
-            {payment.amount.toFixed(0)}
-          </Text>
-          <Text style={[styles.historyDate, { color: c.textSecondary }]}>
-            {formatDateDDMMYYYY(payment.paidAt)}
-          </Text>
-          {payment.note ? (
-            <Text style={[styles.historyNote, { color: c.textSecondary }]} numberOfLines={1}>
-              {payment.note}
+          <View style={styles.historyTopLine}>
+            <Text style={[styles.historyPeriod, { color: c.textPrimary }]} numberOfLines={1}>
+              {coverageLabel}
             </Text>
-          ) : null}
+            <Text style={[styles.historyAmount, { color: c.textPrimary }]}>
+              {currency}
+              {payment.amount.toFixed(0)}
+            </Text>
+          </View>
+          <Text style={[styles.historyDate, { color: c.textSecondary }]} numberOfLines={1}>
+            {t('bills.household_paid_on', { date: formatDateDDMMYYYY(payment.paidAt) })}
+            {payment.note ? ` · ${payment.note}` : ''}
+          </Text>
         </View>
         <Pressable
           onPress={startEditing}
@@ -340,6 +363,15 @@ function PaymentHistoryRow({
                   {formatDateDDMMYYYY(date)}
                 </Text>
               </Pressable>
+
+              <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+                {t('bills.household_covers')}
+              </Text>
+              <CoverageMonthPicker
+                value={coversFrom}
+                frequency={frequency}
+                onChange={setCoversFrom}
+              />
 
               <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
                 {t('bills.household_note')}
@@ -445,7 +477,7 @@ function PaymentHistoryRow({
 // ── Bill card ─────────────────────────────────────────────────────────────────
 
 function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const c = useThemedColors();
   const payments = useRecurringBillsStore((s) => s.payments);
   const logPayment = useRecurringBillsStore((s) => s.logPayment);
@@ -478,6 +510,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const [amount, setAmount] = useState(String(bill.typicalAmount));
   const [date, setDate] = useState(todayStr);
   const [note, setNote] = useState('');
+  const [coversFrom, setCoversFrom] = useState(() => monthStart(todayStr));
   const [splitWith, setSplitWith] = useState<string[]>([]);
   const [cardError, setCardError] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -496,6 +529,14 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const billPayments = payments
     .filter((p) => p.billId === bill.id)
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+  // Latest month any logged payment pays for — "Paid through Sep 2026".
+  const paidThrough = billPayments
+    .flatMap((p) => getCoveredMonths(p, bill.frequency))
+    .sort()
+    .pop();
+  const paidThroughLabel = paidThrough
+    ? formatCoverage([paidThrough], toAppLocale(i18n.language))
+    : '';
   const parsedLogAmount = parseFloat(amount.replace(',', '.'));
   const isLogDisabled =
     !houseId ||
@@ -525,7 +566,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       setIsSubmittingLog(true);
       setCardError('');
       await logPayment(
-        { billId: bill.id, amount: parsed, paidAt: date, note, splitBetween: split },
+        { billId: bill.id, amount: parsed, paidAt: date, note, splitBetween: split, coversFrom },
         houseId
       );
       setLogging(false);
@@ -541,6 +582,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     amount,
     date,
     note,
+    coversFrom,
     splitWith,
     memberIds,
     bill.id,
@@ -556,8 +598,12 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     try {
       setCardError('');
       await deleteBill(bill.id);
-    } catch {
-      setCardError(t('bills.failed_delete'));
+    } catch (err) {
+      setCardError(
+        err instanceof DeleteNotAllowedError
+          ? t('bills.household_delete_admin_only')
+          : t('bills.failed_delete')
+      );
     }
   }, [deleteBill, bill.id, t]);
 
@@ -566,8 +612,12 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       try {
         setCardError('');
         await deletePayment(paymentId);
-      } catch {
-        setCardError(t('bills.failed_delete'));
+      } catch (err) {
+        setCardError(
+          err instanceof DeleteNotAllowedError
+            ? t('bills.household_delete_admin_only')
+            : t('bills.failed_delete')
+        );
       }
     },
     [deletePayment, t]
@@ -575,9 +625,13 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const toggleLogging = useCallback((): void => {
     if (isSubmittingLog) return;
     setLogging((v) => !v);
-    // Default the split to everyone whenever the form opens.
-    if (!logging) setSplitWith(memberIds);
-  }, [isSubmittingLog, logging, memberIds]);
+    // Default the split to everyone, and the covered period to the one right
+    // after the latest paid period, whenever the form opens.
+    if (!logging) {
+      setSplitWith(memberIds);
+      setCoversFrom(suggestCoversFrom(bill, payments, date));
+    }
+  }, [isSubmittingLog, logging, memberIds, bill, payments, date]);
   const toggleSplitMember = useCallback((id: string): void => {
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
@@ -648,10 +702,15 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           {/* Last payment + due date */}
           <View style={styles.billStatus}>
             {last ? (
-              <Text style={[styles.lastPaid, { color: c.textSecondary }]}>
-                {t('bills.household_last_paid')} {formatDateDDMMYYYY(last.paidAt)} · {currency}
-                {last.amount.toFixed(0)}
-              </Text>
+              <View style={styles.lastPaid}>
+                <Text style={[styles.paidThrough, { color: c.textPrimary }]}>
+                  {t('bills.household_paid_through', { period: paidThroughLabel })}
+                </Text>
+                <Text style={[styles.lastPaidText, { color: c.textSecondary }]}>
+                  {t('bills.household_last_paid')} {formatDateDDMMYYYY(last.paidAt)} · {currency}
+                  {last.amount.toFixed(0)}
+                </Text>
+              </View>
             ) : (
               <Text style={[styles.neverPaid, { color: c.textDisabled }]}>
                 {t('bills.household_no_payments')}
@@ -735,6 +794,14 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
                   </Text>
                 </Pressable>
               </View>
+              <Text style={[styles.splitLabel, { color: c.textSecondary }]}>
+                {t('bills.household_covers')}
+              </Text>
+              <CoverageMonthPicker
+                value={coversFrom}
+                frequency={bill.frequency}
+                onChange={setCoversFrom}
+              />
               <DatePickerModal
                 visible={showLogDatePicker}
                 value={date}
@@ -813,6 +880,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
                 <PaymentHistoryRow
                   key={p.id}
                   payment={p}
+                  frequency={bill.frequency}
                   housemates={housemates}
                   currency={currency}
                   onDelete={handleDeletePayment}
@@ -1435,7 +1503,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   billStatus: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
-  lastPaid: { fontSize: sizes.fontSm, flex: 1 },
+  lastPaid: { flex: 1, gap: ms(2) },
+  paidThrough: { fontSize: sizes.fontSm, ...font.semibold },
+  lastPaidText: { fontSize: sizes.fontXs },
   neverPaid: { fontSize: sizes.fontSm, flex: 1 },
   dueBadge: {
     borderRadius: sizes.borderRadiusFull,
@@ -1497,10 +1567,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: sizes.sm,
     minHeight: ms(44),
   },
-  historyMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-  historyDate: { fontSize: sizes.fontSm },
-  historyAmount: { fontSize: sizes.fontMd, ...font.bold, minWidth: ms(56) },
-  historyNote: { flex: 1, fontSize: sizes.fontSm, fontStyle: 'italic' },
+  historyMain: { flex: 1, gap: ms(2) },
+  historyTopLine: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
+  historyPeriod: { flex: 1, fontSize: sizes.fontMd, ...font.semibold },
+  historyDate: { fontSize: sizes.fontXs },
+  historyAmount: { fontSize: sizes.fontMd, ...font.bold },
   historyIconBtn: {
     minWidth: ms(44),
     minHeight: ms(44),

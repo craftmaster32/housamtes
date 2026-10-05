@@ -23,7 +23,23 @@ const paymentChangesSchema = z.object({
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string(),
   splitBetween: z.array(z.string().min(1)).optional(),
+  coversFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-01$/)
+    .optional(),
 });
+
+/**
+ * Thrown when a delete is rejected by the database's permission rules (only the
+ * house owner/admin may delete recurring bills and their payments). Supabase
+ * reports this as "0 rows deleted" rather than an error, so we detect it ourselves.
+ */
+export class DeleteNotAllowedError extends Error {
+  constructor() {
+    super('Only the house owner or an admin can delete this.');
+    this.name = 'DeleteNotAllowedError';
+  }
+}
 
 export interface RecurringBill {
   id: string;
@@ -43,6 +59,7 @@ export interface HouseholdPayment {
   paidAt: string; // YYYY-MM-DD
   note: string;
   splitBetween?: string[]; // user UUIDs sharing the cost; undefined = split among all housemates
+  coversFrom?: string; // YYYY-MM-01 — first month this payment covers; undefined = month of paidAt
 }
 
 interface RecurringBillsStore {
@@ -65,9 +82,54 @@ interface RecurringBillsStore {
   logPayment: (payment: Omit<HouseholdPayment, 'id'>, houseId: string) => Promise<void>;
   updatePayment: (
     id: string,
-    changes: Pick<HouseholdPayment, 'amount' | 'paidAt' | 'note' | 'splitBetween'>
+    changes: Pick<HouseholdPayment, 'amount' | 'paidAt' | 'note' | 'splitBetween' | 'coversFrom'>
   ) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
+}
+
+interface PaymentRow {
+  id: string;
+  bill_id: string;
+  amount: number | string;
+  paid_at: string;
+  note: string | null;
+  split_between: unknown;
+  covers_from?: string | null;
+}
+
+function rowToPayment(r: PaymentRow): HouseholdPayment {
+  return {
+    id: r.id,
+    billId: r.bill_id,
+    amount: Number(r.amount),
+    paidAt: r.paid_at,
+    note: r.note ?? '',
+    splitBetween:
+      Array.isArray(r.split_between) && r.split_between.length > 0
+        ? (r.split_between as string[])
+        : undefined,
+    coversFrom: r.covers_from ?? undefined,
+  };
+}
+
+/**
+ * Deletes one row and reports whether it is actually gone. Row-level security
+ * silently skips rows the user may not delete (no error, zero rows), so a
+ * "successful" delete that removed nothing must not be treated as done —
+ * otherwise the row disappears locally and comes back on the next reload.
+ * Returns true when the row is gone (deleted now, or already deleted by someone
+ * else) and false when it still exists because the delete was not permitted.
+ */
+async function deleteRow(
+  table: 'recurring_bills' | 'household_payments',
+  id: string
+): Promise<boolean> {
+  const { data, error } = await supabase.from(table).delete().eq('id', id).select('id');
+  if (error) throw error;
+  if (Array.isArray(data) && data.length > 0) return true;
+  const check = await supabase.from(table).select('id').eq('id', id).maybeSingle();
+  if (check.error) throw check.error;
+  return !check.data;
 }
 
 let _channel: ReturnType<typeof supabase.channel> | null = null;
@@ -119,17 +181,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             createdAt: r.created_at,
             nextDueDate: r.next_due_date ?? undefined,
           }));
-          const payments: HouseholdPayment[] = (paymentsRes.data ?? []).map((r) => ({
-            id: r.id,
-            billId: r.bill_id,
-            amount: Number(r.amount),
-            paidAt: r.paid_at,
-            note: r.note ?? '',
-            splitBetween:
-              Array.isArray(r.split_between) && r.split_between.length > 0
-                ? (r.split_between as string[])
-                : undefined,
-          }));
+          const payments: HouseholdPayment[] = (paymentsRes.data ?? []).map(rowToPayment);
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
           set({ bills, payments, isLoading: false, error: null });
@@ -259,11 +311,14 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         });
       },
       deleteBill: async (id): Promise<void> => {
-        const { error } = await supabase.from('recurring_bills').delete().eq('id', id);
-        if (error) {
-          captureError(error, { context: 'delete-recurring-bill', billId: id });
+        let removed: boolean;
+        try {
+          removed = await deleteRow('recurring_bills', id);
+        } catch (err) {
+          captureError(err, { context: 'delete-recurring-bill', billId: id });
           throw new Error('Could not delete the bill. Please try again.');
         }
+        if (!removed) throw new DeleteNotAllowedError();
         set({
           bills: get().bills.filter((b) => b.id !== id),
           payments: get().payments.filter((p) => p.billId !== id),
@@ -283,6 +338,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             paid_at: data.paidAt,
             note: data.note,
             split_between: splitBetween,
+            covers_from: data.coversFrom ?? null,
           })
           .select()
           .single();
@@ -290,18 +346,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           captureError(error, { context: 'log-payment', houseId });
           throw new Error('Could not log the payment. Please try again.');
         }
-        const payment: HouseholdPayment = {
-          id: inserted.id,
-          billId: inserted.bill_id,
-          amount: Number(inserted.amount),
-          paidAt: inserted.paid_at,
-          note: inserted.note ?? '',
-          splitBetween:
-            Array.isArray(inserted.split_between) && inserted.split_between.length > 0
-              ? (inserted.split_between as string[])
-              : undefined,
-        };
-        set({ payments: [payment, ...get().payments] });
+        set({ payments: [rowToPayment(inserted), ...get().payments] });
       },
       updatePayment: async (id, changes): Promise<void> => {
         const parsed = paymentChangesSchema.safeParse(changes);
@@ -323,6 +368,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
               paid_at: parsed.data.paidAt,
               note: parsed.data.note,
               split_between: splitBetween,
+              covers_from: parsed.data.coversFrom ?? null,
             })
             .eq('id', id)
             .select()
@@ -334,28 +380,18 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
           throw new Error('Could not update the payment. Please try again.');
         }
         set({
-          payments: get().payments.map((p) =>
-            p.id === id
-              ? {
-                  ...p,
-                  amount: Number(updated.amount),
-                  paidAt: updated.paid_at,
-                  note: updated.note ?? '',
-                  splitBetween:
-                    Array.isArray(updated.split_between) && updated.split_between.length > 0
-                      ? (updated.split_between as string[])
-                      : undefined,
-                }
-              : p
-          ),
+          payments: get().payments.map((p) => (p.id === id ? rowToPayment(updated) : p)),
         });
       },
       deletePayment: async (id): Promise<void> => {
-        const { error } = await supabase.from('household_payments').delete().eq('id', id);
-        if (error) {
-          captureError(error, { context: 'delete-payment', paymentId: id });
+        let removed: boolean;
+        try {
+          removed = await deleteRow('household_payments', id);
+        } catch (err) {
+          captureError(err, { context: 'delete-payment', paymentId: id });
           throw new Error('Could not delete the payment. Please try again.');
         }
+        if (!removed) throw new DeleteNotAllowedError();
         set({ payments: get().payments.filter((p) => p.id !== id) });
       },
     }),
@@ -419,6 +455,67 @@ export function getLastPayment(
       .filter((p) => p.billId === billId)
       .sort((a, b) => b.paidAt.localeCompare(a.paidAt))[0] ?? null
   );
+}
+
+/** First day of the month a date falls in: "2026-09-24" → "2026-09-01". */
+export function monthStart(dateStr: string): string {
+  return `${dateStr.slice(0, 7)}-01`;
+}
+
+/** Shift a YYYY-MM-01 month by `n` months (negative goes back). */
+export function shiftMonth(monthStr: string, n: number): string {
+  return format(addMonths(parseISO(monthStr), n), 'yyyy-MM-01');
+}
+
+/** The months one billing period starting at `start` (YYYY-MM-01) spans. */
+export function periodMonths(start: string, frequency: BillFrequency): string[] {
+  return Array.from({ length: FREQUENCY_MONTHS[frequency] }, (_, i) => shiftMonth(start, i));
+}
+
+/**
+ * The months a payment pays for, as YYYY-MM-01 strings. A monthly bill covers one
+ * month, bimonthly two and quarterly three, starting at `coversFrom` — or, for
+ * payments logged before coverage was recorded, the month the payment was made.
+ */
+export function getCoveredMonths(payment: HouseholdPayment, frequency: BillFrequency): string[] {
+  return periodMonths(payment.coversFrom ?? monthStart(payment.paidAt), frequency);
+}
+
+/**
+ * Which month(s) a new payment for this bill should cover by default: the period
+ * right after the latest one already paid, or the payment's own month when the
+ * bill has no payments yet.
+ */
+export function suggestCoversFrom(
+  bill: RecurringBill,
+  payments: HouseholdPayment[],
+  paidAt: string
+): string {
+  const covered = payments
+    .filter((p) => p.billId === bill.id)
+    .flatMap((p) => getCoveredMonths(p, bill.frequency))
+    .sort();
+  const latest = covered[covered.length - 1];
+  return latest ? shiftMonth(latest, 1) : monthStart(paidAt);
+}
+
+/**
+ * Human label for a run of covered months, e.g. "Sep 2026", "Sep – Oct 2026",
+ * or "Dec 2026 – Feb 2027" when the period crosses a year.
+ */
+export function formatCoverage(months: string[], locale: string): string {
+  if (months.length === 0) return '';
+  const toDate = (m: string): Date => new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1);
+  const first = toDate(months[0]);
+  const last = toDate(months[months.length - 1]);
+  const monthYear = (d: Date): string =>
+    d.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
+  if (months.length === 1) return monthYear(first);
+  const firstLabel =
+    first.getFullYear() === last.getFullYear()
+      ? first.toLocaleDateString(locale, { month: 'short' })
+      : monthYear(first);
+  return `${firstLabel} – ${monthYear(last)}`;
 }
 
 export function getNextDueDate(bill: RecurringBill, payments: HouseholdPayment[]): string | null {

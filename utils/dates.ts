@@ -26,3 +26,8 @@ export function localizedMonthLabel(monthKey: string, locale: string): string {
     year: 'numeric',
   });
 }
+
+/** App language code → the locale used for date labels ("he" → "he-IL"). */
+export function toAppLocale(language: string): string {
+  return language === 'he' ? 'he-IL' : language === 'es' ? 'es-ES' : 'en-GB';
+}
