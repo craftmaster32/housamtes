@@ -104,7 +104,9 @@ describe('HouseholdTab — delete confirmation', () => {
 
     fireEvent.press(screen.getByLabelText('bills.delete_bill'));
     const buttons = alertMock.mock.calls[0][2] as AlertButton[];
-    buttons.find((b) => b.style === 'cancel')?.onPress?.();
+    const cancelButton = buttons.find((b) => b.text === 'common.cancel' && b.style === 'cancel');
+    expect(cancelButton).toBeDefined();
+    cancelButton?.onPress?.();
 
     expect(deleteBill).not.toHaveBeenCalled();
   });
