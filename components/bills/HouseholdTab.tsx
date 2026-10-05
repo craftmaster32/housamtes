@@ -25,6 +25,9 @@ import { useMemberName } from '@hooks/useMemberName';
 import { useSettingsStore } from '@stores/settingsStore';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { CoverageMonthPicker } from '@components/bills/CoverageMonthPicker';
+import { BillChangeLog } from '@components/bills/BillChangeLog';
+import { DeletedBillsList } from '@components/bills/DeletedBillsList';
+import { buildHistory, type HistoryItem } from '@utils/recurringHistory';
 import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
@@ -33,6 +36,8 @@ import { formatDateDDMMYYYY, toAppLocale } from '@utils/dates';
 
 import { mf, ms } from '@utils/responsive';
 const FREQUENCIES: BillFrequency[] = ['monthly', 'bimonthly', 'quarterly'];
+const MAX_DELETED_BILLS = 10;
+const NO_CHANGES: HistoryItem[] = [];
 
 // icon name → i18n key, so the picker labels localize with the rest of the app.
 const BILL_ICON_LABEL_KEYS: Record<string, string> = {
@@ -243,7 +248,8 @@ function PaymentHistoryRow({
         paidAt: date,
         note,
         splitBetween: splitWith,
-        coversFrom,
+        // Untouched coverage on an older payment stays implied by its date.
+        coversFrom: coverageTouched ? coversFrom : undefined,
       });
       setEditing(false);
     } catch {
@@ -251,7 +257,18 @@ function PaymentHistoryRow({
     } finally {
       setSaving(false);
     }
-  }, [saving, amount, date, note, splitWith, coversFrom, updatePayment, payment.id, t]);
+  }, [
+    saving,
+    amount,
+    date,
+    note,
+    splitWith,
+    coversFrom,
+    coverageTouched,
+    updatePayment,
+    payment.id,
+    t,
+  ]);
 
   const handleDelete = useCallback((): void => onDelete(payment.id), [onDelete, payment.id]);
 
@@ -488,7 +505,13 @@ function PaymentHistoryRow({
 
 // ── Bill card ─────────────────────────────────────────────────────────────────
 
-function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
+function BillCard({
+  bill,
+  changes,
+}: {
+  bill: RecurringBill;
+  changes: HistoryItem[];
+}): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const c = useThemedColors();
   const payments = useRecurringBillsStore((s) => s.payments);
@@ -616,7 +639,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     } catch (err) {
       setCardError(
         err instanceof DeleteNotAllowedError
-          ? t('bills.household_delete_admin_only')
+          ? t('bills.household_delete_not_allowed')
           : t('bills.failed_delete')
       );
     }
@@ -630,7 +653,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
       } catch (err) {
         setCardError(
           err instanceof DeleteNotAllowedError
-            ? t('bills.household_delete_admin_only')
+            ? t('bills.household_delete_not_allowed')
             : t('bills.failed_delete')
         );
       }
@@ -652,6 +675,8 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     setSplitWith((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }, []);
   const toggleShowHistory = useCallback((): void => setShowHistory((v) => !v), []);
+  const [showChanges, setShowChanges] = useState(false);
+  const toggleShowChanges = useCallback((): void => setShowChanges((v) => !v), []);
   const startEditing = useCallback((): void => {
     setLogging(false);
     setEditing(true);
@@ -776,6 +801,21 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
                   {showHistory
                     ? t('bills.household_hide_history')
                     : `${t('bills.household_history')} (${billPayments.length})`}
+                </Text>
+              </Pressable>
+            )}
+            {changes.length > 0 && (
+              <Pressable
+                onPress={toggleShowChanges}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('bills.history_title')}
+                accessibilityState={{ expanded: showChanges }}
+              >
+                <Text style={[styles.historyLink, { color: c.textSecondary }]}>
+                  {showChanges
+                    ? t('bills.history_hide')
+                    : `${t('bills.history_show')} (${changes.length})`}
                 </Text>
               </Pressable>
             )}
@@ -911,6 +951,11 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
                 />
               ))}
             </View>
+          )}
+
+          {/* Who changed or deleted what */}
+          {showChanges && (
+            <BillChangeLog items={changes} frequency={bill.frequency} currency={currency} />
           )}
         </>
       )}
@@ -1434,9 +1479,29 @@ export function HouseholdTab(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const bills = useRecurringBillsStore((s) => s.bills);
+  const payments = useRecurringBillsStore((s) => s.payments);
+  const history = useRecurringBillsStore((s) => s.history);
+  const currency = useSettingsStore((s) => s.currency);
   const profile = useAuthStore((s) => s.profile);
   const housemates = useHousematesStore((s) => s.housemates);
   const [showAddForm, setShowAddForm] = useState(false);
+
+  // Change history, grouped per bill; deleted bills are listed on their own.
+  const { changesByBill, deletedBills } = useMemo(() => {
+    const items = buildHistory(history, bills, payments);
+    const byBill = new Map<string, HistoryItem[]>();
+    const deleted: HistoryItem[] = [];
+    for (const item of items) {
+      if (item.kind === 'bill_delete') {
+        deleted.push(item);
+        continue;
+      }
+      const list = byBill.get(item.billId) ?? [];
+      list.push(item);
+      byBill.set(item.billId, list);
+    }
+    return { changesByBill: byBill, deletedBills: deleted.slice(0, MAX_DELETED_BILLS) };
+  }, [history, bills, payments]);
 
   const openAddForm = useCallback((): void => setShowAddForm(true), []);
   const closeAddForm = useCallback((): void => setShowAddForm(false), []);
@@ -1464,8 +1529,10 @@ export function HouseholdTab(): React.JSX.Element {
       )}
 
       {bills.map((bill) => (
-        <BillCard key={bill.id} bill={bill} />
+        <BillCard key={bill.id} bill={bill} changes={changesByBill.get(bill.id) ?? NO_CHANGES} />
       ))}
+
+      {deletedBills.length > 0 && <DeletedBillsList items={deletedBills} currency={currency} />}
 
       {showAddForm ? (
         <AddBillForm people={allPeople} onClose={closeAddForm} />

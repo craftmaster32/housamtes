@@ -234,6 +234,18 @@ describe('load', () => {
             split_between: [],
           },
         ])
+      )
+      .mockReturnValueOnce(
+        ok([
+          {
+            id: 'a1',
+            table_name: 'household_payments_update',
+            record_id: 'p1',
+            actor_id: 'bob',
+            old_data: { amount: 300 },
+            created_at: '2026-06-02T10:00:00Z',
+          },
+        ])
       );
 
     await useRecurringBillsStore.getState().load('house-1');
@@ -262,6 +274,29 @@ describe('load', () => {
       note: '',
       splitBetween: undefined,
     });
+    expect(s.history).toEqual([
+      {
+        id: 'a1',
+        kind: 'payment_edit',
+        recordId: 'p1',
+        actorId: 'bob',
+        at: '2026-06-02T10:00:00Z',
+        oldData: { amount: 300 },
+      },
+    ]);
+  });
+
+  it('still shows bills when the change history fails to load', async () => {
+    mockFrom
+      .mockReturnValueOnce(ok([]))
+      .mockReturnValueOnce(ok([]))
+      .mockReturnValueOnce(fail('audit unavailable'));
+
+    await useRecurringBillsStore.getState().load('house-1');
+
+    const s = useRecurringBillsStore.getState();
+    expect(s.error).toBeNull();
+    expect(s.history).toEqual([]);
   });
 
   it('sets a user-facing error and stops loading when the query fails', async () => {
@@ -686,7 +721,10 @@ describe('realtime subscription lifecycle', () => {
       },
     ]);
     const payments = deferredOk([]);
-    mockFrom.mockReturnValueOnce(bills.chain).mockReturnValueOnce(payments.chain);
+    mockFrom
+      .mockReturnValueOnce(bills.chain)
+      .mockReturnValueOnce(payments.chain)
+      .mockReturnValueOnce(ok([]));
 
     const inFlight = useRecurringBillsStore.getState().load('house-1');
     useRecurringBillsStore.getState().unsubscribe(); // user leaves the screen
@@ -712,7 +750,10 @@ describe('realtime subscription lifecycle', () => {
       },
     ]);
     const stalePayments = deferredOk([]);
-    mockFrom.mockReturnValueOnce(staleBills.chain).mockReturnValueOnce(stalePayments.chain);
+    mockFrom
+      .mockReturnValueOnce(staleBills.chain)
+      .mockReturnValueOnce(stalePayments.chain)
+      .mockReturnValueOnce(ok([]));
     const stale = useRecurringBillsStore.getState().load('house-1');
 
     mockFrom
@@ -730,6 +771,7 @@ describe('realtime subscription lifecycle', () => {
           },
         ])
       )
+      .mockReturnValueOnce(ok([]))
       .mockReturnValueOnce(ok([]));
     await useRecurringBillsStore.getState().load('house-1');
 

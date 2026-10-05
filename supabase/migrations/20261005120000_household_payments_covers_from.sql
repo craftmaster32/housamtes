@@ -10,7 +10,9 @@ ALTER TABLE household_payments
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'household_payments_covers_from_check'
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'household_payments_covers_from_check'
+      AND conrelid = 'public.household_payments'::regclass
   ) THEN
     ALTER TABLE household_payments
       ADD CONSTRAINT household_payments_covers_from_check

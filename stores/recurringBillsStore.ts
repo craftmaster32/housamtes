@@ -30,13 +30,12 @@ const paymentChangesSchema = z.object({
 });
 
 /**
- * Thrown when a delete is rejected by the database's permission rules (only the
- * house owner/admin may delete recurring bills and their payments). Supabase
+ * Thrown when a delete is rejected by the database's permission rules. Supabase
  * reports this as "0 rows deleted" rather than an error, so we detect it ourselves.
  */
 export class DeleteNotAllowedError extends Error {
   constructor() {
-    super('Only the house owner or an admin can delete this.');
+    super('You do not have permission to delete this.');
     this.name = 'DeleteNotAllowedError';
   }
 }
@@ -62,9 +61,35 @@ export interface HouseholdPayment {
   coversFrom?: string; // YYYY-MM-01 — first month this payment covers; undefined = month of paidAt
 }
 
+export type HistoryKind = 'bill_edit' | 'bill_delete' | 'payment_edit' | 'payment_delete';
+
+/**
+ * One audit-log entry for a recurring bill or payment. The database stores the
+ * row as it was *before* the edit or delete (`oldData`), plus who did it.
+ */
+export interface HistoryEntry {
+  id: string;
+  kind: HistoryKind;
+  recordId: string;
+  actorId: string | null;
+  at: string; // ISO timestamp
+  oldData: Record<string, unknown>;
+}
+
+const HISTORY_TABLES: Record<string, HistoryKind> = {
+  recurring_bills_update: 'bill_edit',
+  recurring_bills: 'bill_delete',
+  household_payments_update: 'payment_edit',
+  household_payments: 'payment_delete',
+};
+
+// Newest entries are the useful ones; older history stays in the database.
+const HISTORY_LIMIT = 300;
+
 interface RecurringBillsStore {
   bills: RecurringBill[];
   payments: HouseholdPayment[];
+  history: HistoryEntry[];
   isLoading: boolean;
   error: string | null;
   clearError: () => void;
@@ -144,6 +169,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
     (set, get) => ({
       bills: [],
       payments: [],
+      history: [],
       isLoading: true,
       error: null,
       clearError: (): void => set({ error: null }),
@@ -155,7 +181,7 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         }
         const seq = ++_loadSeq;
         try {
-          const [billsRes, paymentsRes] = await Promise.all([
+          const [billsRes, paymentsRes, historyRes] = await Promise.all([
             supabase
               .from('recurring_bills')
               .select('*')
@@ -166,6 +192,13 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
               .select('*')
               .eq('house_id', houseId)
               .order('paid_at', { ascending: false }),
+            supabase
+              .from('audit_log')
+              .select('id, table_name, record_id, actor_id, old_data, created_at')
+              .eq('house_id', houseId)
+              .in('table_name', Object.keys(HISTORY_TABLES))
+              .order('created_at', { ascending: false })
+              .limit(HISTORY_LIMIT),
           ]);
           // supabase-js resolves (not rejects) on query errors, so surface them
           // explicitly — otherwise a failed fetch would silently blank the lists.
@@ -182,9 +215,23 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             nextDueDate: r.next_due_date ?? undefined,
           }));
           const payments: HouseholdPayment[] = (paymentsRes.data ?? []).map(rowToPayment);
+          // History is a nice-to-have: if it fails to load, still show the bills.
+          if (historyRes.error) {
+            captureError(historyRes.error, { store: 'recurring-bills-history', houseId });
+          }
+          const history: HistoryEntry[] = (historyRes.error ? [] : (historyRes.data ?? [])).map(
+            (r): HistoryEntry => ({
+              id: r.id,
+              kind: HISTORY_TABLES[r.table_name],
+              recordId: r.record_id,
+              actorId: r.actor_id ?? null,
+              at: r.created_at,
+              oldData: (r.old_data ?? {}) as Record<string, unknown>,
+            })
+          );
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
-          set({ bills, payments, isLoading: false, error: null });
+          set({ bills, payments, history, isLoading: false, error: null });
         } catch (err) {
           captureError(err, { store: 'recurring-bills', houseId });
           // A newer load (or unsubscribe) superseded this one — drop its result.
