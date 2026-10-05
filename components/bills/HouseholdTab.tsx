@@ -20,6 +20,7 @@ import {
   type BillFrequency,
 } from '@stores/recurringBillsStore';
 import { useAuthStore } from '@stores/authStore';
+import { Alert } from '@lib/alert';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { useSettingsStore } from '@stores/settingsStore';
@@ -660,6 +661,46 @@ function BillCard({
     },
     [deletePayment, t]
   );
+
+  // Deleting is open to every housemate, so ask first — one stray tap
+  // shouldn't wipe a bill (and its payment history) for the whole house.
+  const confirmDeleteBill = useCallback((): void => {
+    Alert.alert(
+      t('bills.household_delete_bill_title', { name: bill.name }),
+      t('bills.household_delete_bill_body'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: handleDeleteBill },
+      ]
+    );
+  }, [bill.name, handleDeleteBill, t]);
+
+  const confirmDeletePayment = useCallback(
+    (paymentId: string): void => {
+      const payment = payments.find((p) => p.id === paymentId);
+      const period = payment
+        ? formatCoverage(getCoveredMonths(payment, bill.frequency), toAppLocale(i18n.language))
+        : '';
+      Alert.alert(
+        t('bills.household_delete_payment_title'),
+        t('bills.household_delete_payment_body', {
+          amount: payment ? `${currency}${payment.amount.toFixed(0)}` : '',
+          period,
+        }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: (): void => {
+              handleDeletePayment(paymentId);
+            },
+          },
+        ]
+      );
+    },
+    [payments, bill.frequency, i18n.language, currency, handleDeletePayment, t]
+  );
   const toggleLogging = useCallback((): void => {
     if (isSubmittingLog) return;
     setLogging((v) => !v);
@@ -734,7 +775,7 @@ function BillCard({
           <Ionicons name="pencil" size={16} color={c.textSecondary} />
         </Pressable>
         <Pressable
-          onPress={handleDeleteBill}
+          onPress={confirmDeleteBill}
           style={styles.deleteBtn}
           accessibilityRole="button"
           accessibilityLabel={t('bills.delete_bill')}
@@ -947,7 +988,7 @@ function BillCard({
                   frequency={bill.frequency}
                   housemates={housemates}
                   currency={currency}
-                  onDelete={handleDeletePayment}
+                  onDelete={confirmDeletePayment}
                 />
               ))}
             </View>
