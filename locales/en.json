@@ -559,7 +559,7 @@
     "household_covers_previous": "Previous period",
     "household_covers_next": "Next period",
     "household_paid_on": "Paid {{date}}",
-    "household_paid_through": "Paid through {{period}}",
+    "household_latest_covered": "Latest month paid: {{period}}",
     "household_for_period": "for {{period}}",
     "household_delete_admin_only": "Only the house owner or an admin can delete this.",
     "household_no_payments": "No payments logged yet",

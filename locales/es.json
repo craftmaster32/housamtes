@@ -560,7 +560,7 @@
     "household_covers_previous": "Periodo anterior",
     "household_covers_next": "Periodo siguiente",
     "household_paid_on": "Pagado el {{date}}",
-    "household_paid_through": "Pagado hasta {{period}}",
+    "household_latest_covered": "Último mes pagado: {{period}}",
     "household_for_period": "de {{period}}",
     "household_delete_admin_only": "Solo el propietario o un administrador de la casa puede eliminar esto.",
     "household_no_payments": "Sin pagos registrados aún",

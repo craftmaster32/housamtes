@@ -560,7 +560,7 @@
     "household_covers_previous": "התקופה הקודמת",
     "household_covers_next": "התקופה הבאה",
     "household_paid_on": "שולם {{date}}",
-    "household_paid_through": "שולם עד {{period}}",
+    "household_latest_covered": "החודש האחרון ששולם: {{period}}",
     "household_for_period": "עבור {{period}}",
     "household_delete_admin_only": "רק בעל/ת הבית או מנהל/ת יכולים למחוק את זה.",
     "household_no_payments": "אין תשלומים מתועדים",

@@ -161,6 +161,9 @@ function PaymentHistoryRow({
   const [date, setDate] = useState(payment.paidAt);
   const [note, setNote] = useState(payment.note);
   const [coversFrom, setCoversFrom] = useState(payment.coversFrom ?? monthStart(payment.paidAt));
+  // Older payments have no saved coverage — it's implied by the payment date, so
+  // it follows date edits until the user picks a covered month themselves.
+  const [coverageTouched, setCoverageTouched] = useState(payment.coversFrom !== undefined);
   const [splitWith, setSplitWith] = useState<string[]>(
     payment.splitBetween && payment.splitBetween.length > 0 ? payment.splitBetween : memberIds
   );
@@ -182,6 +185,7 @@ function PaymentHistoryRow({
     setDate(payment.paidAt);
     setNote(payment.note);
     setCoversFrom(payment.coversFrom ?? monthStart(payment.paidAt));
+    setCoverageTouched(payment.coversFrom !== undefined);
     setSplitWith(
       payment.splitBetween && payment.splitBetween.length > 0 ? payment.splitBetween : memberIds
     );
@@ -207,9 +211,17 @@ function PaymentHistoryRow({
 
   const openDatePicker = useCallback((): void => setShowDatePicker(true), []);
   const closeDatePicker = useCallback((): void => setShowDatePicker(false), []);
-  const handleDateSelect = useCallback((val: string): void => {
-    setDate(val);
-    setShowDatePicker(false);
+  const handleDateSelect = useCallback(
+    (val: string): void => {
+      setDate(val);
+      if (!coverageTouched) setCoversFrom(monthStart(val));
+      setShowDatePicker(false);
+    },
+    [coverageTouched]
+  );
+  const handleCoverageChange = useCallback((val: string): void => {
+    setCoversFrom(val);
+    setCoverageTouched(true);
   }, []);
 
   const handleSave = useCallback(async (): Promise<void> => {
@@ -370,7 +382,7 @@ function PaymentHistoryRow({
               <CoverageMonthPicker
                 value={coversFrom}
                 frequency={frequency}
-                onChange={setCoversFrom}
+                onChange={handleCoverageChange}
               />
 
               <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
@@ -511,6 +523,8 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const [date, setDate] = useState(todayStr);
   const [note, setNote] = useState('');
   const [coversFrom, setCoversFrom] = useState(() => monthStart(todayStr));
+  // The suggested coverage follows the payment date until the user picks one.
+  const [coverageTouched, setCoverageTouched] = useState(false);
   const [splitWith, setSplitWith] = useState<string[]>([]);
   const [cardError, setCardError] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -529,13 +543,14 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const billPayments = payments
     .filter((p) => p.billId === bill.id)
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
-  // Latest month any logged payment pays for — "Paid through Sep 2026".
-  const paidThrough = billPayments
+  // Latest month any logged payment pays for. Labelled "latest paid month" rather
+  // than "paid through", since earlier months may have gaps.
+  const latestCovered = billPayments
     .flatMap((p) => getCoveredMonths(p, bill.frequency))
     .sort()
     .pop();
-  const paidThroughLabel = paidThrough
-    ? formatCoverage([paidThrough], toAppLocale(i18n.language))
+  const latestCoveredLabel = latestCovered
+    ? formatCoverage([latestCovered], toAppLocale(i18n.language))
     : '';
   const parsedLogAmount = parseFloat(amount.replace(',', '.'));
   const isLogDisabled =
@@ -630,6 +645,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
     if (!logging) {
       setSplitWith(memberIds);
       setCoversFrom(suggestCoversFrom(bill, payments, date));
+      setCoverageTouched(false);
     }
   }, [isSubmittingLog, logging, memberIds, bill, payments, date]);
   const toggleSplitMember = useCallback((id: string): void => {
@@ -643,9 +659,17 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
   const stopEditing = useCallback((): void => setEditing(false), []);
   const openLogDatePicker = useCallback((): void => setShowLogDatePicker(true), []);
   const closeLogDatePicker = useCallback((): void => setShowLogDatePicker(false), []);
-  const handleLogDateSelect = useCallback((val: string): void => {
-    setDate(val);
-    setShowLogDatePicker(false);
+  const handleLogDateSelect = useCallback(
+    (val: string): void => {
+      setDate(val);
+      if (!coverageTouched) setCoversFrom(suggestCoversFrom(bill, payments, val));
+      setShowLogDatePicker(false);
+    },
+    [coverageTouched, bill, payments]
+  );
+  const handleLogCoverageChange = useCallback((val: string): void => {
+    setCoversFrom(val);
+    setCoverageTouched(true);
   }, []);
 
   return (
@@ -703,8 +727,8 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
           <View style={styles.billStatus}>
             {last ? (
               <View style={styles.lastPaid}>
-                <Text style={[styles.paidThrough, { color: c.textPrimary }]}>
-                  {t('bills.household_paid_through', { period: paidThroughLabel })}
+                <Text style={[styles.latestCovered, { color: c.textPrimary }]}>
+                  {t('bills.household_latest_covered', { period: latestCoveredLabel })}
                 </Text>
                 <Text style={[styles.lastPaidText, { color: c.textSecondary }]}>
                   {t('bills.household_last_paid')} {formatDateDDMMYYYY(last.paidAt)} · {currency}
@@ -800,7 +824,7 @@ function BillCard({ bill }: { bill: RecurringBill }): React.JSX.Element {
               <CoverageMonthPicker
                 value={coversFrom}
                 frequency={bill.frequency}
-                onChange={setCoversFrom}
+                onChange={handleLogCoverageChange}
               />
               <DatePickerModal
                 visible={showLogDatePicker}
@@ -1504,7 +1528,7 @@ const styles = StyleSheet.create({
   },
   billStatus: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm, flexWrap: 'wrap' },
   lastPaid: { flex: 1, gap: ms(2) },
-  paidThrough: { fontSize: sizes.fontSm, ...font.semibold },
+  latestCovered: { fontSize: sizes.fontSm, ...font.semibold },
   lastPaidText: { fontSize: sizes.fontXs },
   neverPaid: { fontSize: sizes.fontSm, flex: 1 },
   dueBadge: {
