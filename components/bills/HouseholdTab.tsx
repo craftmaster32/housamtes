@@ -1645,7 +1645,13 @@ const styles = StyleSheet.create({
     paddingVertical: ms(3),
   },
   dueBadgeText: { fontSize: sizes.fontXs, ...font.bold },
-  billActions: { flexDirection: 'row', alignItems: 'center', gap: sizes.md },
+  billActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: sizes.md,
+    rowGap: sizes.xs,
+  },
   logBtn: {
     borderRadius: sizes.borderRadiusFull,
     paddingHorizontal: sizes.md,
