@@ -275,6 +275,7 @@ function RecurringPaymentCard({ row }: { row: RecurringPaymentRow }): React.JSX.
         </Text>
         <Text style={[styles.billMeta, { color: c.textSecondary }]} numberOfLines={1}>
           {t('bills.paid_by_name', { name: memberName(row.paidBy).split(' ')[0] })}
+          {row.coverage ? ` · ${t('bills.household_for_period', { period: row.coverage })}` : ''}
         </Text>
       </View>
       <View style={styles.billRight}>

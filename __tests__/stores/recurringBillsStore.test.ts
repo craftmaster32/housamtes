@@ -9,6 +9,8 @@
  *  2. Store actions (money CRUD): load, addBill, deleteBill, logPayment,
  *     deletePayment — happy path and failure path for each.
  *  3. Due-date helpers: getLastPayment, getNextDueDate.
+ *  4. Coverage helpers: which month(s) each payment pays for.
+ *  5. Deletes blocked by permissions are reported, not faked locally.
  */
 
 const mockFrom = jest.fn();
@@ -32,6 +34,10 @@ import {
   calculateFairness,
   getLastPayment,
   getNextDueDate,
+  getCoveredMonths,
+  suggestCoversFrom,
+  formatCoverage,
+  DeleteNotAllowedError,
   useRecurringBillsStore,
   type RecurringBill,
   type HouseholdPayment,
@@ -163,6 +169,39 @@ describe('getNextDueDate', () => {
   });
 });
 
+describe('coverage helpers', () => {
+  it('defaults a payment to the month it was paid in', () => {
+    const p = { ...payment('b1', 80), paidAt: '2026-09-24' };
+    expect(getCoveredMonths(p, 'monthly')).toEqual(['2026-09-01']);
+  });
+
+  it('covers several months from coversFrom for bimonthly and quarterly bills', () => {
+    const p = { ...payment('b1', 80), paidAt: '2026-12-05', coversFrom: '2026-11-01' };
+    expect(getCoveredMonths(p, 'bimonthly')).toEqual(['2026-11-01', '2026-12-01']);
+    expect(getCoveredMonths(p, 'quarterly')).toEqual(['2026-11-01', '2026-12-01', '2027-01-01']);
+  });
+
+  it('suggests the period right after the latest one already paid', () => {
+    const b: RecurringBill = { ...bill('b1', 'alice'), frequency: 'bimonthly' };
+    const payments = [
+      { ...payment('b1', 80), id: 'a', paidAt: '2026-07-03', coversFrom: '2026-07-01' },
+      { ...payment('b1', 80), id: 'b', paidAt: '2026-09-02', coversFrom: '2026-09-01' },
+      { ...payment('b2', 80), id: 'c', paidAt: '2027-05-01' }, // another bill — ignored
+    ];
+    expect(suggestCoversFrom(b, payments, '2026-10-05')).toBe('2026-11-01');
+  });
+
+  it('suggests the payment month when the bill has no payments yet', () => {
+    expect(suggestCoversFrom(bill('b1', 'alice'), [], '2026-10-05')).toBe('2026-10-01');
+  });
+
+  it('formats single months and ranges, including across a year', () => {
+    expect(formatCoverage(['2026-09-01'], 'en-GB')).toBe('Sept 2026');
+    expect(formatCoverage(['2026-09-01', '2026-10-01'], 'en-GB')).toBe('Sept – Oct 2026');
+    expect(formatCoverage(['2026-12-01', '2027-01-01'], 'en-GB')).toBe('Dec 2026 – Jan 2027');
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Store actions
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,6 +234,18 @@ describe('load', () => {
             split_between: [],
           },
         ])
+      )
+      .mockReturnValueOnce(
+        ok([
+          {
+            id: 'a1',
+            table_name: 'household_payments_update',
+            record_id: 'p1',
+            actor_id: 'bob',
+            old_data: { amount: 300 },
+            created_at: '2026-06-02T10:00:00Z',
+          },
+        ])
       );
 
     await useRecurringBillsStore.getState().load('house-1');
@@ -223,6 +274,29 @@ describe('load', () => {
       note: '',
       splitBetween: undefined,
     });
+    expect(s.history).toEqual([
+      {
+        id: 'a1',
+        kind: 'payment_edit',
+        recordId: 'p1',
+        actorId: 'bob',
+        at: '2026-06-02T10:00:00Z',
+        oldData: { amount: 300 },
+      },
+    ]);
+  });
+
+  it('still shows bills when the change history fails to load', async () => {
+    mockFrom
+      .mockReturnValueOnce(ok([]))
+      .mockReturnValueOnce(ok([]))
+      .mockReturnValueOnce(fail('audit unavailable'));
+
+    await useRecurringBillsStore.getState().load('house-1');
+
+    const s = useRecurringBillsStore.getState();
+    expect(s.error).toBeNull();
+    expect(s.history).toEqual([]);
   });
 
   it('sets a user-facing error and stops loading when the query fails', async () => {
@@ -356,7 +430,7 @@ describe('deleteBill', () => {
       bills: [bill('b1', 'alice'), bill('b2', 'bob')],
       payments: [payment('b1', 100), payment('b2', 50)],
     });
-    mockFrom.mockReturnValueOnce(ok());
+    mockFrom.mockReturnValueOnce(ok([{ id: 'b1' }]));
 
     await useRecurringBillsStore.getState().deleteBill('b1');
 
@@ -374,6 +448,21 @@ describe('deleteBill', () => {
 
     await expect(useRecurringBillsStore.getState().deleteBill('b1')).rejects.toThrow(
       'Could not delete the bill. Please try again.'
+    );
+    expect(useRecurringBillsStore.getState().bills).toHaveLength(1);
+    expect(useRecurringBillsStore.getState().payments).toHaveLength(1);
+  });
+
+  it('reports a permission error and keeps the bill when nothing was deleted', async () => {
+    useRecurringBillsStore.setState({
+      bills: [bill('b1', 'alice')],
+      payments: [payment('b1', 100)],
+    });
+    // RLS skips the row (0 rows deleted), and the bill is still there afterwards.
+    mockFrom.mockReturnValueOnce(ok([])).mockReturnValueOnce(ok({ id: 'b1' }));
+
+    await expect(useRecurringBillsStore.getState().deleteBill('b1')).rejects.toBeInstanceOf(
+      DeleteNotAllowedError
     );
     expect(useRecurringBillsStore.getState().bills).toHaveLength(1);
     expect(useRecurringBillsStore.getState().payments).toHaveLength(1);
@@ -415,6 +504,31 @@ describe('logPayment', () => {
       note: 'June bill',
       splitBetween: ['alice', 'bob'],
     });
+  });
+
+  it('saves which month the payment covers', async () => {
+    const chain = ok({
+      id: 'p9',
+      bill_id: 'b1',
+      amount: '80',
+      paid_at: '2026-10-02',
+      note: '',
+      split_between: [],
+      covers_from: '2026-09-01',
+    });
+    mockFrom.mockReturnValueOnce(chain);
+
+    await useRecurringBillsStore
+      .getState()
+      .logPayment(
+        { billId: 'b1', amount: 80, paidAt: '2026-10-02', note: '', coversFrom: '2026-09-01' },
+        'house-1'
+      );
+
+    expect(chain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ paid_at: '2026-10-02', covers_from: '2026-09-01' })
+    );
+    expect(useRecurringBillsStore.getState().payments[0].coversFrom).toBe('2026-09-01');
   });
 
   it('throws a plain-English error and adds nothing when the insert fails', async () => {
@@ -503,11 +617,32 @@ describe('deletePayment', () => {
     const p1 = { ...payment('b1', 100), id: 'p1' };
     const p2 = { ...payment('b1', 200), id: 'p2' };
     useRecurringBillsStore.setState({ payments: [p1, p2] });
-    mockFrom.mockReturnValueOnce(ok());
+    mockFrom.mockReturnValueOnce(ok([{ id: 'p1' }]));
 
     await useRecurringBillsStore.getState().deletePayment('p1');
 
     expect(useRecurringBillsStore.getState().payments.map((p) => p.id)).toEqual(['p2']);
+  });
+
+  it('reports a permission error and keeps the payment when nothing was deleted', async () => {
+    useRecurringBillsStore.setState({ payments: [{ ...payment('b1', 100), id: 'p1' }] });
+    // RLS skips the row (0 rows deleted), and the payment is still there afterwards —
+    // so it must stay in both the recurring history and the general expense list.
+    mockFrom.mockReturnValueOnce(ok([])).mockReturnValueOnce(ok({ id: 'p1' }));
+
+    await expect(useRecurringBillsStore.getState().deletePayment('p1')).rejects.toBeInstanceOf(
+      DeleteNotAllowedError
+    );
+    expect(useRecurringBillsStore.getState().payments).toHaveLength(1);
+  });
+
+  it('removes the payment locally when someone else already deleted it', async () => {
+    useRecurringBillsStore.setState({ payments: [{ ...payment('b1', 100), id: 'p1' }] });
+    mockFrom.mockReturnValueOnce(ok([])).mockReturnValueOnce(ok(null));
+
+    await useRecurringBillsStore.getState().deletePayment('p1');
+
+    expect(useRecurringBillsStore.getState().payments).toHaveLength(0);
   });
 
   it('keeps the payment when the delete fails', async () => {
@@ -586,7 +721,10 @@ describe('realtime subscription lifecycle', () => {
       },
     ]);
     const payments = deferredOk([]);
-    mockFrom.mockReturnValueOnce(bills.chain).mockReturnValueOnce(payments.chain);
+    mockFrom
+      .mockReturnValueOnce(bills.chain)
+      .mockReturnValueOnce(payments.chain)
+      .mockReturnValueOnce(ok([]));
 
     const inFlight = useRecurringBillsStore.getState().load('house-1');
     useRecurringBillsStore.getState().unsubscribe(); // user leaves the screen
@@ -612,7 +750,10 @@ describe('realtime subscription lifecycle', () => {
       },
     ]);
     const stalePayments = deferredOk([]);
-    mockFrom.mockReturnValueOnce(staleBills.chain).mockReturnValueOnce(stalePayments.chain);
+    mockFrom
+      .mockReturnValueOnce(staleBills.chain)
+      .mockReturnValueOnce(stalePayments.chain)
+      .mockReturnValueOnce(ok([]));
     const stale = useRecurringBillsStore.getState().load('house-1');
 
     mockFrom
@@ -630,6 +771,7 @@ describe('realtime subscription lifecycle', () => {
           },
         ])
       )
+      .mockReturnValueOnce(ok([]))
       .mockReturnValueOnce(ok([]));
     await useRecurringBillsStore.getState().load('house-1');
 
