@@ -6,9 +6,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import type { TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -45,6 +47,10 @@ export default function LoginScreen(): React.JSX.Element {
   const headingFont = useHeadingFont();
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
+  const { width } = useWindowDimensions();
+  // On a computer the screen splits into two panes: the branded hero beside the
+  // form, instead of hero-on-top-of-form. Web only, so native is untouched.
+  const wide = Platform.OS === 'web' && width >= 900;
   const styles = useMemo(() => makeStyles(C), [C]);
 
   useEffect(() => {
@@ -92,41 +98,53 @@ export default function LoginScreen(): React.JSX.Element {
   }, [email, password, signIn, isLoading, failedAttempts, lockoutRemaining, startLockout, t]);
 
   return (
-    <View style={styles.root}>
-      <View style={styles.header}>
-        <SafeAreaView edges={['top']} style={styles.headerInner}>
-          <Pressable
-            style={styles.backBtn}
-            onPress={() => router.back()}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-          >
-            <Ionicons
-              name={rtl ? 'chevron-forward' : 'chevron-back'}
-              size={20}
-              color="rgba(255,255,255,0.85)"
-            />
-            <Text style={styles.backText}>{t('common.back')}</Text>
-          </Pressable>
+    <View style={[styles.root, wide && styles.rootWide]}>
+      <View style={[styles.header, wide && styles.headerWide]}>
+        <SafeAreaView edges={['top']} style={[styles.headerInner, wide && styles.headerInnerWide]}>
+          {!wide && (
+            <Pressable
+              style={styles.backBtn}
+              onPress={() => router.back()}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+            >
+              <Ionicons
+                name={rtl ? 'chevron-forward' : 'chevron-back'}
+                size={20}
+                color="rgba(255,255,255,0.85)"
+              />
+              <Text style={styles.backText}>{t('common.back')}</Text>
+            </Pressable>
+          )}
 
-          <View style={styles.brandRow}>
-            <View style={styles.logoChip}>
-              <Ionicons name="home" size={20} color={C.primary} />
+          <View style={[styles.brandRow, wide && styles.brandRowWide]}>
+            <View style={[styles.logoChip, wide && styles.logoChipWide]}>
+              <Image
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
+                source={require('../../assets/brand/housemates-icon.png')}
+                style={{ width: wide ? 48 : ms(24), height: wide ? 48 : ms(24) }}
+                contentFit="contain"
+                accessibilityLabel="HouseMates"
+              />
             </View>
-            <Text style={[styles.brandName, headingFont]}>HouseMates</Text>
+            <Text style={[styles.brandName, headingFont, wide && styles.brandNameWide]}>
+              HouseMates
+            </Text>
           </View>
-          <Text style={styles.headerTagline}>{t('welcome.tagline')}</Text>
+          <Text style={[styles.headerTagline, wide && styles.headerTaglineWide]}>
+            {t('welcome.tagline')}
+          </Text>
         </SafeAreaView>
       </View>
 
       <KeyboardAvoidingView
-        style={styles.cardWrapper}
+        style={[styles.cardWrapper, wide && styles.cardWrapperWide]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          style={styles.card}
-          contentContainerStyle={styles.cardContent}
+          style={[styles.card, wide && styles.cardWide]}
+          contentContainerStyle={[styles.cardContent, wide && styles.cardContentWide]}
           keyboardShouldPersistTaps="handled"
         >
           <Entrance style={styles.cardInner}>
@@ -228,13 +246,50 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       flex: 1,
       backgroundColor: C.primary,
     },
+    // Desktop: hero pane beside the form pane instead of stacked.
+    rootWide: {
+      flexDirection: 'row',
+    },
     header: {
       backgroundColor: C.primary,
       paddingHorizontal: sizes.lg,
       paddingBottom: ms(28),
     },
+    headerWide: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingBottom: 0,
+      paddingHorizontal: 56,
+    },
     headerInner: {
       gap: ms(6),
+    },
+    headerInnerWide: {
+      gap: 20,
+      maxWidth: 380,
+      alignItems: 'center',
+      alignSelf: 'center',
+      width: '100%',
+    },
+    brandRowWide: {
+      flexDirection: 'column',
+      gap: 16,
+      alignItems: 'center',
+    },
+    logoChipWide: {
+      width: 72,
+      height: 72,
+      borderRadius: 20,
+    },
+    brandNameWide: {
+      fontSize: 40,
+      letterSpacing: -1,
+    },
+    headerTaglineWide: {
+      fontSize: 18,
+      textAlign: 'center',
+      color: 'rgba(255,255,255,0.85)',
     },
     backBtn: {
       flexDirection: 'row',
@@ -281,11 +336,29 @@ function makeStyles(C: ColorTokens): ReturnType<typeof StyleSheet.create> {
       flex: 1,
       backgroundColor: C.primary,
     },
+    cardWrapperWide: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 40,
+      backgroundColor: C.surface,
+    },
     card: {
       flex: 1,
       backgroundColor: C.surface,
       borderTopLeftRadius: ms(28),
       borderTopRightRadius: ms(28),
+    },
+    cardWide: {
+      width: '100%',
+      maxWidth: 380,
+      alignSelf: 'center',
+      backgroundColor: 'transparent',
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+    },
+    cardContentWide: {
+      justifyContent: 'center',
+      paddingVertical: 40,
     },
     cardContent: {
       flexGrow: 1,
