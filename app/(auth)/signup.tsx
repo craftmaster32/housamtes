@@ -22,6 +22,7 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { StepProgress } from '@components/shared/StepProgress';
+import { FlowLanguageBar } from '@components/shared/FlowLanguageBar';
 import { getErrorMessage } from '@utils/errors';
 import { markTourPending } from '@utils/tour';
 import { PasswordInput } from '@components/shared/PasswordInput';
@@ -176,6 +177,7 @@ export default function SignupScreen(): React.JSX.Element {
     <View style={styles.root}>
       <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
+          <FlowLanguageBar variant="onSurface" />
           <StepProgress steps={steps} currentStep={0} />
         </SafeAreaView>
       </View>

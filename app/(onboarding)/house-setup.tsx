@@ -23,6 +23,7 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
+import { FlowLanguageBar } from '@components/shared/FlowLanguageBar';
 import { getErrorMessage } from '@utils/errors';
 
 import { mf, ms } from '@utils/responsive';
@@ -225,6 +226,7 @@ export default function HouseSetupScreen(): React.JSX.Element {
     <View style={styles.root}>
       {/* Blue inner header */}
       <SafeAreaView edges={['top']} style={styles.header}>
+        <FlowLanguageBar variant="onColor" />
         <Pressable
           style={styles.backBtn}
           onPress={() => signOut()}

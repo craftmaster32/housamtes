@@ -11,6 +11,7 @@ import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { LanguageSwitcher } from '@components/shared/LanguageSwitcher';
 
 import { mf, ms } from '@utils/responsive';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -93,18 +94,21 @@ export default function IntroScreen(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.flex}>
-        {/* Skip button */}
-        {!isLast && (
-          <Pressable
-            onPress={handleSkip}
-            style={styles.skipBtn}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('onboarding.skip')}
-          >
-            <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
-          </Pressable>
-        )}
+        {/* Top row: language switcher (leading) + skip (trailing) */}
+        <View style={styles.topRow}>
+          <LanguageSwitcher variant="onSurface" />
+          {!isLast ? (
+            <Pressable
+              onPress={handleSkip}
+              style={styles.skipBtn}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('onboarding.skip')}
+            >
+              <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         {/* Slides */}
         <FlatList
@@ -157,8 +161,14 @@ function makeStyles(C: ColorTokens) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: C.surface },
     flex: { flex: 1 },
+    topRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingStart: sizes.lg,
+      paddingTop: sizes.sm,
+    },
     skipBtn: {
-      alignSelf: 'flex-end',
       paddingHorizontal: sizes.lg,
       paddingVertical: sizes.md,
     },
