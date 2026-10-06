@@ -30,6 +30,27 @@
     {
       "files": ["scripts/**"],
       "env": { "node": true }
+    },
+    {
+      "files": ["public/sw.js"],
+      "env": {
+        "serviceworker": true,
+        "browser": true
+      },
+      "globals": {
+        "module": "readonly"
+      }
+    },
+    {
+      "files": ["__tests__/serviceWorkerNotification.test.js"],
+      "env": {
+        "jest": true,
+        "node": true,
+        "commonjs": true
+      },
+      "rules": {
+        "@typescript-eslint/no-var-requires": "off"
+      }
     }
   ]
 }
