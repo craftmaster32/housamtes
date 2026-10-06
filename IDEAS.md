@@ -7,24 +7,24 @@ Nothing in this file is being built yet. It's a parking lot for good ideas.
 
 ## Suggested for Phase 8+ (Post Public Launch)
 
-| Idea | Why It's Interesting |
-|---|---|
+| Idea                         | Why It's Interesting                             |
+| ---------------------------- | ------------------------------------------------ |
 | Shared subscriptions tracker | Netflix, Spotify split — nobody tracks this well |
-| Maintenance request log | "Tap is broken" → assign → track fix |
-| House rules / agreement page | Written rules all members acknowledge |
-| Quiet hours setting | House-wide quiet time visible to all |
-| Guest overnight log | Transparency about who's having guests |
-| Polls / house votes | "Should we get a new couch?" — democratic |
-| Utility usage charts | See electricity cost over time, month by month |
-| Move-in / move-out checklist | For when housemates change |
-| Landlord contact card | One place for emergency contacts |
-| WiFi QR code generator | Auto-generate shareable QR from saved password |
-| Temperature log | If you have a smart thermostat — record disputes |
-| Multi-language support | For international expansion |
-| Web dashboard | Browser access for managing house from laptop |
-| Android version | After iOS is stable |
-| Premium: PDF reports | Export expense history as professional PDF |
-| Premium: custom themes | House colors, dark mode customization |
+| Maintenance request log      | "Tap is broken" → assign → track fix             |
+| House rules / agreement page | Written rules all members acknowledge            |
+| Quiet hours setting          | House-wide quiet time visible to all             |
+| Guest overnight log          | Transparency about who's having guests           |
+| Polls / house votes          | "Should we get a new couch?" — democratic        |
+| Utility usage charts         | See electricity cost over time, month by month   |
+| Move-in / move-out checklist | For when housemates change                       |
+| Landlord contact card        | One place for emergency contacts                 |
+| WiFi QR code generator       | Auto-generate shareable QR from saved password   |
+| Temperature log              | If you have a smart thermostat — record disputes |
+| Multi-language support       | For international expansion                      |
+| Web dashboard                | Browser access for managing house from laptop    |
+| Android version              | After iOS is stable                              |
+| Premium: PDF reports         | Export expense history as professional PDF       |
+| Premium: custom themes       | House colors, dark mode customization            |
 
 ---
 
@@ -34,10 +34,22 @@ Nothing in this file is being built yet. It's a parking lot for good ideas.
 
 ---
 
+## Before Public Launch (parked — needs a domain first)
+
+| To-do                                      | Why / What it unlocks                                                                                                                                                                                                                                  | Blocked on                   |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| Custom email sender (SMTP)                 | Verification emails come **from "HouseMates"** instead of Supabase's shared address, with improved deliverability (a verified domain may reduce spam-folder placement, though inbox delivery is never guaranteed). Foundation for the two items below. See `supabase/email-templates/README.md` step 3 (Resend + SMTP, ~20–30 min). | Owning a domain (~$10–15/yr) |
+| Multi-language verification emails (ES/HE) | Today the confirm-signup email is English only; the app is EN/ES/HE. Sending the email in the user's language needs the custom SMTP setup above.                                                                                                       | Custom SMTP                  |
+| Real logo + custom font in emails          | Swap the 🏡 emoji for the real HouseMates logo image and the app typeface. Needs the logo hosted at a public URL.                                                                                                                                      | Custom SMTP / hosted asset   |
+
+_Not urgent while testing with 3 housemates — the built-in Supabase sender is fine for that. Do this before real users sign up from the App Store._
+
+---
+
 ## Rejected Ideas (and Why)
 
-| Idea | Why We're Not Building It |
-|---|---|
+| Idea                           | Why We're Not Building It                                 |
+| ------------------------------ | --------------------------------------------------------- |
 | In-app payments (Venmo/PayPal) | Too complex, legal liability, Splitwise already does this |
-| Roommate matching | Different product entirely |
-| Smart home device control | Out of scope — different market |
+| Roommate matching              | Different product entirely                                |
+| Smart home device control      | Out of scope — different market                           |
