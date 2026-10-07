@@ -40,10 +40,10 @@ export function BillStatusRow({
   const badge = !status
     ? null
     : status.isOverdue
-      ? t('bills.recurring_overdue_days', { n: -status.daysUntil })
+      ? t('bills.recurring_overdue_days', { count: -status.daysUntil })
       : status.daysUntil === 0
         ? t('bills.recurring_due_today')
-        : t('bills.recurring_in_days', { n: status.daysUntil });
+        : t('bills.recurring_in_days', { count: status.daysUntil });
   const overdue = status?.isOverdue ?? false;
 
   return (

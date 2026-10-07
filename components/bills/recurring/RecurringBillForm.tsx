@@ -48,6 +48,9 @@ export function RecurringBillForm({
   const [icon, setIcon] = useState(bill ? resolveBillIcon(bill.icon) : BILL_ICONS[0]);
   const [lastPaidDate, setLastPaidDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  // Set once the new bill is saved, so a retry after a failed first payment
+  // only logs the payment instead of creating the bill a second time.
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -66,12 +69,16 @@ export function RecurringBillForm({
       if (bill) {
         await updateBill(bill.id, fields);
       } else {
-        const created = await addBill(fields, houseId);
+        let billId = createdId;
+        if (!billId) {
+          billId = (await addBill(fields, houseId)).id;
+          setCreatedId(billId);
+        }
         if (lastPaidDate) {
           // The last payment covers the billing period starting the month it was paid.
           await logPayment(
             {
-              billId: created.id,
+              billId,
               amount,
               paidAt: lastPaidDate,
               note: '',
@@ -101,6 +108,7 @@ export function RecurringBillForm({
     updateBill,
     addBill,
     lastPaidDate,
+    createdId,
     logPayment,
     onClose,
     t,

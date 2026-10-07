@@ -12,6 +12,7 @@ import { font } from '@constants/typography';
 import { formatDateDDMMYYYY } from '@utils/dates';
 import { formatPeriod } from '@utils/recurringCoverage';
 import { mf, ms } from '@utils/responsive';
+import { formatMoney } from './money';
 import { PeriodStepper } from './PeriodStepper';
 import { SheetHeader } from './SheetHeader';
 import { ChoiceChips, type ChoiceOption } from './ChoiceChips';
@@ -62,18 +63,22 @@ export function PaymentSheet({
 
   const confirmDelete = useCallback((): void => {
     if (!payment) return;
+    // A legacy payment's period is only a guess — name it like its history row does.
+    const period = form.periodKnown
+      ? formatPeriod(form.period, i18n.language)
+      : payment.note || formatDateDDMMYYYY(payment.paidAt);
     Alert.alert(
       t('bills.household_delete_payment_title'),
       t('bills.household_delete_payment_body', {
-        amount: `${currency}${payment.amount.toFixed(0)}`,
-        period: formatPeriod(form.period, i18n.language),
+        amount: formatMoney(currency, payment.amount),
+        period,
       }),
       [
         { text: t('common.cancel'), style: 'cancel' },
         { text: t('common.delete'), style: 'destructive', onPress: (): void => void remove() },
       ]
     );
-  }, [payment, currency, form.period, i18n.language, remove, t]);
+  }, [payment, currency, form.period, form.periodKnown, i18n.language, remove, t]);
 
   const inputStyle = [styles.input, { borderColor: p.border, color: p.text }];
 

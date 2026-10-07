@@ -135,13 +135,13 @@ describe('recurring bill cards', () => {
     // ארנונה: paid Jul–Aug → Sep–Oct is due since 1 Sep, 36 days overdue.
     expect(screen.getByText('bills.recurring_covered_through {"month":"Aug 2026"}')).toBeTruthy();
     expect(screen.getByText('bills.recurring_not_paid_yet {"period":"Sep–Oct 2026"}')).toBeTruthy();
-    expect(screen.getByText('bills.recurring_overdue_days {"n":36}')).toBeTruthy();
+    expect(screen.getByText('bills.recurring_overdue_days {"count":36}')).toBeTruthy();
     expect(screen.getByText('bills.recurring_log_period {"period":"Sep–Oct"}')).toBeTruthy();
 
     // ועד בית: paid Oct–Dec → next due 1 Jan, in 86 days.
     expect(screen.getByText('bills.recurring_covered_through {"month":"Dec 2026"}')).toBeTruthy();
     expect(screen.getByText('bills.recurring_next_due {"date":"1 Jan"}')).toBeTruthy();
-    expect(screen.getByText('bills.recurring_in_days {"n":86}')).toBeTruthy();
+    expect(screen.getByText('bills.recurring_in_days {"count":86}')).toBeTruthy();
   });
 
   it('shows amount, frequency and payer on one line', () => {
@@ -202,6 +202,21 @@ describe('recurring bill cards', () => {
     fireEvent.press(screen.getByText('bills.recurring_history'));
     expect(screen.getByText('רבעון')).toBeTruthy();
     expect(screen.getByText('bills.recurring_paid_on_date {"date":"2 Apr"}')).toBeTruthy();
+  });
+
+  it('names a legacy payment by its note, not a guessed period, when confirming delete', () => {
+    useRecurringBillsStore.setState({
+      payments: [{ id: 'old', billId: 'vaad', amount: 450.5, paidAt: '2026-04-02', note: 'רבעון' }],
+    });
+    render(<HouseholdTab />);
+
+    fireEvent.press(screen.getByText('bills.recurring_history'));
+    fireEvent.press(screen.getByText('רבעון'));
+    fireEvent.press(screen.getByText('bills.delete_payment'));
+
+    expect(alertMock.mock.calls[0][1]).toBe(
+      'bills.household_delete_payment_body {"amount":"₪450.50","period":"רבעון"}'
+    );
   });
 });
 
