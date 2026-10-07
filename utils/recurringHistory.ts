@@ -5,18 +5,15 @@ import type {
   HouseholdPayment,
   RecurringBill,
 } from '@stores/recurringBillsStore';
-
-/** First day of the month a date falls in: "2026-09-24" → "2026-09-01". */
-function monthStart(dateStr: string): string {
-  return `${dateStr.slice(0, 7)}-01`;
-}
+import { paymentPeriod, type CoveragePeriod } from '@utils/recurringCoverage';
 
 /** The parts of a payment the change history compares. */
 export interface PaymentSnapshot {
   billId: string;
   amount: number;
   paidAt: string; // YYYY-MM-DD
-  coversFrom: string; // YYYY-MM-01 — explicit, or implied by paidAt
+  coverage: CoveragePeriod | null; // null = not recorded (legacy note)
+  paidBy: string; // '' = the bill's assigned payer
   note: string;
   splitBetween: string[]; // empty = everyone
 }
@@ -32,7 +29,8 @@ export interface BillSnapshot {
 export type HistoryChange =
   | { field: 'amount'; from: number; to: number }
   | { field: 'paidAt'; from: string; to: string }
-  | { field: 'coversFrom'; from: string; to: string }
+  | { field: 'coverage'; from: CoveragePeriod; to: CoveragePeriod | null }
+  | { field: 'paidBy'; from: string; to: string }
   | { field: 'note'; from: string; to: string }
   | { field: 'split'; from: string[]; to: string[] }
   | { field: 'name'; from: string; to: string }
@@ -71,13 +69,15 @@ function isFrequency(v: unknown): v is BillFrequency {
 
 /** Payment snapshot from an audit-log row (snake_case, as stored). */
 export function paymentFromRow(row: Record<string, unknown>): PaymentSnapshot {
-  const paidAt = str(row.paid_at);
-  const coversFrom = str(row.covers_from);
+  // Rows logged before 2026-10-07 call the start month `covers_from`.
+  const start = str(row.coverage_start) || str(row.covers_from);
+  const months = num(row.coverage_months);
   return {
     billId: str(row.bill_id),
     amount: num(row.amount),
-    paidAt,
-    coversFrom: coversFrom || (paidAt ? monthStart(paidAt) : ''),
+    paidAt: str(row.paid_at),
+    coverage: start ? { start, months: months > 0 ? months : 1 } : null,
+    paidBy: str(row.paid_by),
     note: str(row.note),
     splitBetween: strArray(row.split_between),
   };
@@ -89,7 +89,8 @@ export function paymentFromLive(p: HouseholdPayment): PaymentSnapshot {
     billId: p.billId,
     amount: p.amount,
     paidAt: p.paidAt,
-    coversFrom: p.coversFrom ?? monthStart(p.paidAt),
+    coverage: paymentPeriod(p),
+    paidBy: p.paidBy ?? '',
     note: p.note,
     splitBetween: p.splitBetween ?? [],
   };
@@ -127,8 +128,17 @@ export function diffPayments(before: PaymentSnapshot, after: PaymentSnapshot): H
   if (before.paidAt !== after.paidAt) {
     changes.push({ field: 'paidAt', from: before.paidAt, to: after.paidAt });
   }
-  if (before.coversFrom !== after.coversFrom) {
-    changes.push({ field: 'coversFrom', from: before.coversFrom, to: after.coversFrom });
+  // Unrecorded coverage before the edit can't be compared: older rows left it to
+  // the note, and the 2026-10-07 backfill filled it in without being an edit.
+  if (
+    before.coverage &&
+    (before.coverage.start !== after.coverage?.start ||
+      before.coverage.months !== after.coverage?.months)
+  ) {
+    changes.push({ field: 'coverage', from: before.coverage, to: after.coverage });
+  }
+  if (before.paidBy !== after.paidBy) {
+    changes.push({ field: 'paidBy', from: before.paidBy, to: after.paidBy });
   }
   if (before.note !== after.note) {
     changes.push({ field: 'note', from: before.note, to: after.note });

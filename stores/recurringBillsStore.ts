@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { parseISO, addMonths, format } from 'date-fns';
 import { z } from 'zod';
 import { supabase } from '@lib/supabase';
 import { captureError } from '@lib/errorTracking';
 import { useAuthStore } from '@stores/authStore';
 import type { IoniconName } from '@/types/icons';
+import { getDueStatus, todayISO } from '@utils/recurringCoverage';
 
 export type BillFrequency = 'monthly' | 'bimonthly' | 'quarterly';
 
@@ -23,10 +23,12 @@ const paymentChangesSchema = z.object({
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string(),
   splitBetween: z.array(z.string().min(1)).optional(),
-  coversFrom: z
+  coverageStart: z
     .string()
     .regex(/^\d{4}-\d{2}-01$/)
     .optional(),
+  coverageMonths: z.number().int().min(1).max(12).optional(),
+  paidBy: z.string().min(1).optional(),
 });
 
 /**
@@ -58,8 +60,16 @@ export interface HouseholdPayment {
   paidAt: string; // YYYY-MM-DD
   note: string;
   splitBetween?: string[]; // user UUIDs sharing the cost; undefined = split among all housemates
-  coversFrom?: string; // YYYY-MM-01 — first month this payment covers; undefined = month of paidAt
+  coverageStart?: string; // YYYY-MM-01 — first month covered; undefined = unknown (legacy note)
+  coverageMonths?: number; // how many months it covers; set whenever coverageStart is
+  paidBy?: string; // user UUID who paid; undefined = the bill's assigned payer
 }
+
+/** Payment fields a member can edit. */
+export type PaymentChanges = Pick<
+  HouseholdPayment,
+  'amount' | 'paidAt' | 'note' | 'splitBetween' | 'coverageStart' | 'coverageMonths' | 'paidBy'
+>;
 
 export type HistoryKind = 'bill_edit' | 'bill_delete' | 'payment_edit' | 'payment_delete';
 
@@ -105,10 +115,7 @@ interface RecurringBillsStore {
   ) => Promise<void>;
   deleteBill: (id: string) => Promise<void>;
   logPayment: (payment: Omit<HouseholdPayment, 'id'>, houseId: string) => Promise<void>;
-  updatePayment: (
-    id: string,
-    changes: Pick<HouseholdPayment, 'amount' | 'paidAt' | 'note' | 'splitBetween' | 'coversFrom'>
-  ) => Promise<void>;
+  updatePayment: (id: string, changes: PaymentChanges) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
 }
 
@@ -119,7 +126,9 @@ interface PaymentRow {
   paid_at: string;
   note: string | null;
   split_between: unknown;
-  covers_from?: string | null;
+  coverage_start?: string | null;
+  coverage_months?: number | null;
+  paid_by?: string | null;
 }
 
 function rowToPayment(r: PaymentRow): HouseholdPayment {
@@ -133,7 +142,9 @@ function rowToPayment(r: PaymentRow): HouseholdPayment {
       Array.isArray(r.split_between) && r.split_between.length > 0
         ? (r.split_between as string[])
         : undefined,
-    coversFrom: r.covers_from ?? undefined,
+    coverageStart: r.coverage_start ?? undefined,
+    coverageMonths: r.coverage_months ?? undefined,
+    paidBy: r.paid_by ?? undefined,
   };
 }
 
@@ -372,6 +383,9 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
         });
       },
       logPayment: async (data, houseId): Promise<void> => {
+        if (!paymentChangesSchema.safeParse(data).success) {
+          throw new Error('Please check the payment details and try again.');
+        }
         // Empty array (not null) is the "split among everyone" sentinel — the column is
         // NOT NULL, and the load path treats an empty array the same as "all housemates".
         const splitBetween =
@@ -385,7 +399,9 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
             paid_at: data.paidAt,
             note: data.note,
             split_between: splitBetween,
-            covers_from: data.coversFrom ?? null,
+            coverage_start: data.coverageStart ?? null,
+            coverage_months: data.coverageStart ? (data.coverageMonths ?? null) : null,
+            paid_by: data.paidBy ?? null,
           })
           .select()
           .single();
@@ -415,7 +431,11 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
               paid_at: parsed.data.paidAt,
               note: parsed.data.note,
               split_between: splitBetween,
-              covers_from: parsed.data.coversFrom ?? null,
+              coverage_start: parsed.data.coverageStart ?? null,
+              coverage_months: parsed.data.coverageStart
+                ? (parsed.data.coverageMonths ?? null)
+                : null,
+              paid_by: parsed.data.paidBy ?? null,
             })
             .eq('id', id)
             .select()
@@ -447,12 +467,6 @@ export const useRecurringBillsStore = create<RecurringBillsStore>()(
 );
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-const FREQUENCY_MONTHS: Record<BillFrequency, number> = {
-  monthly: 1,
-  bimonthly: 2,
-  quarterly: 3,
-};
 
 // Ionicon names offered in the bill-icon picker (new bills store these).
 export const BILL_ICONS: IoniconName[] = [
@@ -504,86 +518,29 @@ export function getLastPayment(
   );
 }
 
-/** First day of the month a date falls in: "2026-09-24" → "2026-09-01". */
-export function monthStart(dateStr: string): string {
-  return `${dateStr.slice(0, 7)}-01`;
-}
-
-/** Shift a YYYY-MM-01 month by `n` months (negative goes back). */
-export function shiftMonth(monthStr: string, n: number): string {
-  return format(addMonths(parseISO(monthStr), n), 'yyyy-MM-01');
-}
-
-/** The months one billing period starting at `start` (YYYY-MM-01) spans. */
-export function periodMonths(start: string, frequency: BillFrequency): string[] {
-  return Array.from({ length: FREQUENCY_MONTHS[frequency] }, (_, i) => shiftMonth(start, i));
-}
-
 /**
- * The months a payment pays for, as YYYY-MM-01 strings. A monthly bill covers one
- * month, bimonthly two and quarterly three, starting at `coversFrom` — or, for
- * payments logged before coverage was recorded, the month the payment was made.
+ * When the bill is next due, from what its payments cover (see getDueStatus).
+ * Null for a bill with no payments and no due date set.
  */
-export function getCoveredMonths(payment: HouseholdPayment, frequency: BillFrequency): string[] {
-  return periodMonths(payment.coversFrom ?? monthStart(payment.paidAt), frequency);
-}
-
-/**
- * Which month(s) a new payment for this bill should cover by default: the period
- * right after the latest one already paid, or the payment's own month when the
- * bill has no payments yet.
- */
-export function suggestCoversFrom(
+export function getNextDueDate(
   bill: RecurringBill,
   payments: HouseholdPayment[],
-  paidAt: string
-): string {
-  const covered = payments
-    .filter((p) => p.billId === bill.id)
-    .flatMap((p) => getCoveredMonths(p, bill.frequency))
-    .sort();
-  const latest = covered[covered.length - 1];
-  return latest ? shiftMonth(latest, 1) : monthStart(paidAt);
-}
-
-/**
- * Human label for a run of covered months, e.g. "Sep 2026", "Sep – Oct 2026",
- * or "Dec 2026 – Feb 2027" when the period crosses a year.
- */
-export function formatCoverage(months: string[], locale: string): string {
-  if (months.length === 0) return '';
-  const toDate = (m: string): Date => new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1);
-  const first = toDate(months[0]);
-  const last = toDate(months[months.length - 1]);
-  const monthYear = (d: Date): string =>
-    d.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
-  if (months.length === 1) return monthYear(first);
-  const firstLabel =
-    first.getFullYear() === last.getFullYear()
-      ? first.toLocaleDateString(locale, { month: 'short' })
-      : monthYear(first);
-  return `${firstLabel} – ${monthYear(last)}`;
-}
-
-export function getNextDueDate(bill: RecurringBill, payments: HouseholdPayment[]): string | null {
-  const last = getLastPayment(bill.id, payments);
-  if (last) {
-    return format(addMonths(parseISO(last.paidAt), FREQUENCY_MONTHS[bill.frequency]), 'yyyy-MM-dd');
-  }
-  return bill.nextDueDate ?? null;
+  today: string = todayISO()
+): string | null {
+  return getDueStatus(bill, payments, today)?.dueDate ?? null;
 }
 
 export interface FairnessEntry {
   person: string;
-  total: number; // amount this person has actually paid (as the bill's assignee)
+  total: number; // amount this person has actually paid
   balance: number; // paid minus their fair share of what they're split into (feeds Settle Up)
 }
 
 /**
  * Net contribution model for recurring household bills.
  *
- * Every logged payment is credited to the person the bill is assigned to (the payer),
- * and its cost is shared equally among the people in `splitBetween`. When a payment has
+ * Every logged payment is credited to whoever paid it (`paidBy`, or the bill's assignee
+ * for payments logged before the payer was recorded), and its cost is shared equally among the people in `splitBetween`. When a payment has
  * no explicit split, it is shared among all current housemates (`memberIds`). Each
  * person's balance = what they paid − their share of everything, so positive means they
  * are owed money and negative means they owe. Balances always sum to ~0, so they feed
@@ -601,7 +558,7 @@ export function calculateFairness(
   for (const p of payments) {
     const bill = bills.find((b) => b.id === p.billId);
     if (!bill) continue;
-    const payer = bill.assignedTo;
+    const payer = p.paidBy ?? bill.assignedTo;
     people.add(payer);
     paid.set(payer, (paid.get(payer) ?? 0) + p.amount);
 

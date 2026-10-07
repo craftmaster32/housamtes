@@ -4,13 +4,13 @@ import { useBillsStore, type Bill } from '@stores/billsStore';
 import { useExpenseCategoriesStore } from '@stores/expenseCategoriesStore';
 import {
   useRecurringBillsStore,
-  getCoveredMonths,
-  formatCoverage,
   type BillFrequency,
+  type HouseholdPayment,
 } from '@stores/recurringBillsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useAuthStore } from '@stores/authStore';
 import { toAppLocale } from '@utils/dates';
+import { formatPeriod, paymentPeriod } from '@utils/recurringCoverage';
 
 export interface RecurringPaymentRow {
   id: string;
@@ -20,6 +20,12 @@ export interface RecurringPaymentRow {
   paidBy: string;
   splitBetween: string[];
   coverage: string; // localized covered month(s), e.g. "Sep 2026"
+}
+
+/** "Jul–Aug 2026", or '' for legacy payments whose coverage wasn't recorded. */
+function coverageLabel(payment: HouseholdPayment, language: string): string {
+  const period = paymentPeriod(payment);
+  return period ? formatPeriod(period, language) : '';
 }
 
 export type BillRow =
@@ -136,7 +142,6 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
         ]
       )
     );
-    const appLocale = toAppLocale(i18n.language);
     const rows: BillRow[] = [
       ...bills.map(
         (bill): Extract<BillRow, { kind: 'bill' }> => ({
@@ -157,9 +162,9 @@ export function useOneOffBillHistory(search: string): UseOneOffBillHistoryResult
             title: meta?.name ?? '',
             icon: meta?.icon ?? 'receipt-outline',
             amount: p.amount,
-            paidBy: meta?.assignedTo ?? '',
+            paidBy: p.paidBy ?? meta?.assignedTo ?? '',
             splitBetween: p.splitBetween && p.splitBetween.length > 0 ? p.splitBetween : memberIds,
-            coverage: formatCoverage(getCoveredMonths(p, meta?.frequency ?? 'monthly'), appLocale),
+            coverage: coverageLabel(p, i18n.language),
           },
         };
       }),

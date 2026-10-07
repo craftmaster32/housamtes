@@ -24,7 +24,8 @@ const livePayment: HouseholdPayment = {
   amount: 90,
   paidAt: '2026-09-25',
   note: '',
-  coversFrom: '2026-09-01',
+  coverageStart: '2026-09-01',
+  coverageMonths: 1,
 };
 
 const paymentRow = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -34,7 +35,9 @@ const paymentRow = (over: Record<string, unknown> = {}): Record<string, unknown>
   paid_at: '2026-09-24',
   note: null,
   split_between: [],
-  covers_from: null,
+  coverage_start: null,
+  coverage_months: null,
+  paid_by: null,
   ...over,
 });
 
@@ -79,8 +82,8 @@ describe('buildHistory', () => {
     ]);
   });
 
-  it('treats an unset covered month as the payment month when comparing', () => {
-    // Old row has no covers_from (implied Sept); live row says Sept explicitly — no change.
+  it('ignores coverage that was not recorded before the edit (backfilled later)', () => {
+    // Old row has no coverage; the live row has it from the backfill — not an edit.
     const items = buildHistory(
       [entry({ oldData: paymentRow({ amount: 90, paid_at: '2026-09-25' }) })],
       [bill],
@@ -99,8 +102,34 @@ describe('buildHistory', () => {
     expect(items[0]).toMatchObject({
       kind: 'payment_delete',
       billId: 'b1',
-      payment: { amount: 80, coversFrom: '2026-08-01' },
+      payment: { amount: 80, coverage: { start: '2026-08-01', months: 1 } },
     });
+  });
+
+  it('shows coverage and payer changes', () => {
+    const items = buildHistory(
+      [
+        entry({
+          oldData: paymentRow({
+            amount: 90,
+            paid_at: '2026-09-25',
+            coverage_start: '2026-08-01',
+            coverage_months: 1,
+            paid_by: 'alice',
+          }),
+        }),
+      ],
+      [bill],
+      [{ ...livePayment, paidBy: 'bob' }]
+    );
+    expect(items[0].changes).toEqual([
+      {
+        field: 'coverage',
+        from: { start: '2026-08-01', months: 1 },
+        to: { start: '2026-09-01', months: 1 },
+      },
+      { field: 'paidBy', from: 'alice', to: 'bob' },
+    ]);
   });
 
   it('shows a bill edit against the live bill and a deleted bill with its details', () => {
