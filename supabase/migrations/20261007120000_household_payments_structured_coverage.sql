@@ -231,7 +231,11 @@ BEGIN
   END IF;
 
   IF NEW.paid_by IS NOT NULL
-     AND (TG_OP = 'INSERT' OR NEW.paid_by IS DISTINCT FROM OLD.paid_by)
+     AND (
+       TG_OP = 'INSERT'
+       OR NEW.paid_by IS DISTINCT FROM OLD.paid_by
+       OR NEW.house_id IS DISTINCT FROM OLD.house_id
+     )
      AND NOT EXISTS (
        SELECT 1 FROM house_members
        WHERE house_id = NEW.house_id AND user_id = NEW.paid_by
