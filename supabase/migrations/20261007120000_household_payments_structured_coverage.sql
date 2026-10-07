@@ -70,64 +70,74 @@ LANGUAGE sql IMMUTABLE AS $$
   FROM (SELECT word AS w) x;
 $$;
 
-CREATE OR REPLACE FUNCTION pg_temp.note_months(note text) RETURNS int[]
-LANGUAGE plpgsql IMMUTABLE AS $$
-DECLARE
-  tok text;
-  m int;
-  found int[] := '{}';
-BEGIN
-  IF note IS NULL THEN
-    RETURN found;
-  END IF;
-  -- Words are runs of Hebrew letters; dashes, geresh, digits etc. separate them.
-  FOREACH tok IN ARRAY regexp_split_to_array(note, '[^א-ת]+') LOOP
-    CONTINUE WHEN tok = '';
-    m := pg_temp.hebrew_month(tok);
-    IF m IS NULL AND left(tok, 1) = 'ו' THEN
-      m := pg_temp.hebrew_month(substr(tok, 2));
-    END IF;
-    IF m IS NOT NULL THEN
-      found := found || m;
-    END IF;
-  END LOOP;
-  RETURN found;
-END;
-$$;
-
--- Months named in the note → (start date, month count). The year is the one
--- that puts the first covered month closest to the payment date, so a
--- "נוב-דצמ" payment made in January lands on the previous November.
+-- Months named in the note → (start date, month count). A four-digit year
+-- written in the note ("דצמ 2025-ינו 2026", "דצמ-ינו 2026") belongs to the
+-- month it follows and is used as-is. Without one, the year is the one that
+-- puts the first covered month closest to the payment date, so a "נוב-דצמ"
+-- payment made in January lands on the previous November.
 CREATE OR REPLACE FUNCTION pg_temp.parse_coverage(
   note text, paid_at date, freq_months int,
   OUT start_month date, OUT months int
 )
 LANGUAGE plpgsql IMMUTABLE AS $$
 DECLARE
-  found int[] := pg_temp.note_months(note);
+  tok text;
+  m int;
+  found int[] := '{}';
+  years int[] := '{}'; -- years[i] = year written after found[i], or NULL
   first_m int;
   last_m int;
+  n int;
   paid_month date := date_trunc('month', paid_at)::date;
   candidate date;
   k int;
 BEGIN
-  IF array_length(found, 1) IS NULL THEN
+  IF note IS NULL THEN
+    RETURN;
+  END IF;
+  -- Words are runs of Hebrew letters or digits; dashes, geresh etc. separate them.
+  FOREACH tok IN ARRAY regexp_split_to_array(note, '[^א-ת0-9]+') LOOP
+    CONTINUE WHEN tok = '';
+    IF tok ~ '^20[0-9]{2}$' THEN
+      n := array_length(found, 1);
+      IF n IS NOT NULL AND years[n] IS NULL THEN
+        years[n] := tok::int;
+      END IF;
+      CONTINUE;
+    END IF;
+    m := pg_temp.hebrew_month(tok);
+    IF m IS NULL AND left(tok, 1) = 'ו' THEN
+      m := pg_temp.hebrew_month(substr(tok, 2));
+    END IF;
+    IF m IS NOT NULL THEN
+      found := found || m;
+      years := years || NULL::int;
+    END IF;
+  END LOOP;
+
+  n := array_length(found, 1);
+  IF n IS NULL THEN
     RETURN;
   END IF;
   first_m := found[1];
-  last_m := found[array_length(found, 1)];
+  last_m := found[n];
   -- A single month name marks where the period starts; a range gives its length.
-  months := CASE
-    WHEN array_length(found, 1) = 1 THEN freq_months
-    ELSE ((last_m - first_m + 12) % 12) + 1
-  END;
-  FOR k IN -1..1 LOOP
-    candidate := make_date(extract(year FROM paid_at)::int + k, first_m, 1);
-    IF start_month IS NULL
-       OR abs(candidate - paid_month) < abs(start_month - paid_month) THEN
-      start_month := candidate;
-    END IF;
-  END LOOP;
+  months := CASE WHEN n = 1 THEN freq_months ELSE ((last_m - first_m + 12) % 12) + 1 END;
+
+  IF years[1] IS NOT NULL THEN
+    start_month := make_date(years[1], first_m, 1);
+  ELSIF years[n] IS NOT NULL THEN
+    -- Only the end has a year: a range that wraps past December started the year before.
+    start_month := make_date(years[n] - CASE WHEN last_m < first_m THEN 1 ELSE 0 END, first_m, 1);
+  ELSE
+    FOR k IN -1..1 LOOP
+      candidate := make_date(extract(year FROM paid_at)::int + k, first_m, 1);
+      IF start_month IS NULL
+         OR abs(candidate - paid_month) < abs(start_month - paid_month) THEN
+        start_month := candidate;
+      END IF;
+    END LOOP;
+  END IF;
 END;
 $$;
 
