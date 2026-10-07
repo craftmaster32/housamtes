@@ -73,6 +73,8 @@ export function RecurringBillForm({
         if (!billId) {
           billId = (await addBill(fields, houseId)).id;
           setCreatedId(billId);
+        } else {
+          await updateBill(billId, fields);
         }
         if (lastPaidDate) {
           // The last payment covers the billing period starting the month it was paid.
