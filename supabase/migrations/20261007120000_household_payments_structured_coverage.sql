@@ -95,9 +95,16 @@ BEGIN
 END;
 $$;
 
--- Months named in the note → (start date, month count). The year is the one
--- that puts the first covered month closest to the payment date, so a
--- "נוב-דצמ" payment made in January lands on the previous November.
+-- Extract a 4-digit year explicitly stated in the note (e.g. "דצמ 2026" → 2026).
+CREATE OR REPLACE FUNCTION pg_temp.note_year(note text) RETURNS int
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT (regexp_match(note, '\m(20[0-9]{2})\M'))[1]::int;
+$$;
+
+-- Months named in the note → (start date, month count). When the note contains
+-- an explicit year that year is used directly; otherwise the year that puts the
+-- first covered month closest to the payment date is chosen, so a "נוב-דצמ"
+-- payment made in January lands on the previous November.
 CREATE OR REPLACE FUNCTION pg_temp.parse_coverage(
   note text, paid_at date, freq_months int,
   OUT start_month date, OUT months int
@@ -105,6 +112,7 @@ CREATE OR REPLACE FUNCTION pg_temp.parse_coverage(
 LANGUAGE plpgsql IMMUTABLE AS $$
 DECLARE
   found int[] := pg_temp.note_months(note);
+  explicit_year int := pg_temp.note_year(note);
   first_m int;
   last_m int;
   paid_month date := date_trunc('month', paid_at)::date;
@@ -121,13 +129,19 @@ BEGIN
     WHEN array_length(found, 1) = 1 THEN freq_months
     ELSE ((last_m - first_m + 12) % 12) + 1
   END;
-  FOR k IN -1..1 LOOP
-    candidate := make_date(extract(year FROM paid_at)::int + k, first_m, 1);
-    IF start_month IS NULL
-       OR abs(candidate - paid_month) < abs(start_month - paid_month) THEN
-      start_month := candidate;
-    END IF;
-  END LOOP;
+  IF explicit_year IS NOT NULL THEN
+    -- Note contains an explicit year — use it directly.
+    start_month := make_date(explicit_year, first_m, 1);
+  ELSE
+    -- No year in note — pick candidate year closest to the payment date.
+    FOR k IN -1..1 LOOP
+      candidate := make_date(extract(year FROM paid_at)::int + k, first_m, 1);
+      IF start_month IS NULL
+         OR abs(candidate - paid_month) < abs(start_month - paid_month) THEN
+        start_month := candidate;
+      END IF;
+    END LOOP;
+  END IF;
 END;
 $$;
 
