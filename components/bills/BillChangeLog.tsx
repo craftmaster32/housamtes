@@ -3,18 +3,17 @@ import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
-import { formatCoverage, periodMonths, type BillFrequency } from '@stores/recurringBillsStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { useThemedColors } from '@constants/colors';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
-import { formatDateDDMMYYYY, toAppLocale } from '@utils/dates';
-import type { HistoryChange, HistoryItem } from '@utils/recurringHistory';
+import { formatDateDDMMYYYY } from '@utils/dates';
+import { formatPeriod, type CoveragePeriod } from '@utils/recurringCoverage';
+import type { HistoryChange, HistoryItem, PaymentSnapshot } from '@utils/recurringHistory';
 import { ms } from '@utils/responsive';
 
 interface BillChangeLogProps {
   items: HistoryItem[]; // newest first, all for one bill
-  frequency: BillFrequency;
   currency: string;
 }
 
@@ -22,20 +21,13 @@ interface BillChangeLogProps {
  * A bill's change history: every edit or deletion of the bill and its payments,
  * with who made it and when, so changes anyone in the house makes stay visible.
  */
-export function BillChangeLog({
-  items,
-  frequency,
-  currency,
-}: BillChangeLogProps): React.JSX.Element {
+export function BillChangeLog({ items, currency }: BillChangeLogProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const c = useThemedColors();
   const memberName = useMemberName();
-  const locale = toAppLocale(i18n.language);
-
   const period = useCallback(
-    (month: string): string =>
-      month ? formatCoverage(periodMonths(month, frequency), locale) : '',
-    [frequency, locale]
+    (p: CoveragePeriod | null): string => (p ? formatPeriod(p, i18n.language) : '—'),
+    [i18n.language]
   );
   const people = useCallback(
     (ids: string[]): string =>
@@ -63,10 +55,15 @@ export function BillChangeLog({
             from: formatDateDDMMYYYY(change.from),
             to: formatDateDDMMYYYY(change.to),
           });
-        case 'coversFrom':
+        case 'coverage':
           return t('bills.history_change_covers', {
             from: period(change.from),
             to: period(change.to),
+          });
+        case 'paidBy':
+          return t('bills.history_change_paid_by', {
+            from: change.from ? memberName(change.from) : '—',
+            to: change.to ? memberName(change.to) : '—',
           });
         case 'note':
           return t('bills.history_change_note', { from: text(change.from), to: text(change.to) });
@@ -92,20 +89,27 @@ export function BillChangeLog({
     [currency, memberName, people, period, t]
   );
 
+  // Payments with unrecorded coverage are named by the day they were paid.
+  const paymentLabel = useCallback(
+    (p: PaymentSnapshot): string =>
+      p.coverage ? period(p.coverage) : p.paidAt ? formatDateDDMMYYYY(p.paidAt) : '—',
+    [period]
+  );
+
   const summary = useCallback(
     (item: HistoryItem): string => {
       if (item.kind === 'payment_delete' && item.payment) {
         return t('bills.history_payment_deleted', {
           amount: `${currency}${item.payment.amount.toFixed(0)}`,
-          period: period(item.payment.coversFrom),
+          period: paymentLabel(item.payment),
         });
       }
       if (item.kind === 'payment_edit' && item.payment) {
-        return t('bills.history_payment_edited', { period: period(item.payment.coversFrom) });
+        return t('bills.history_payment_edited', { period: paymentLabel(item.payment) });
       }
       return t('bills.history_bill_edited');
     },
-    [currency, period, t]
+    [currency, paymentLabel, t]
   );
 
   return (

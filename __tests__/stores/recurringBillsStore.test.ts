@@ -34,9 +34,6 @@ import {
   calculateFairness,
   getLastPayment,
   getNextDueDate,
-  getCoveredMonths,
-  suggestCoversFrom,
-  formatCoverage,
   DeleteNotAllowedError,
   useRecurringBillsStore,
   type RecurringBill,
@@ -112,6 +109,16 @@ describe('calculateFairness', () => {
     expect(carol).toBeUndefined(); // not involved, no balance
   });
 
+  it('credits whoever paid the payment, not the bill assignee', () => {
+    const bills = [bill('b1', 'alice')];
+    const payments = [{ ...payment('b1', 90), paidBy: 'bob' }];
+    const result = calculateFairness(bills, payments, ['alice', 'bob', 'carol']);
+
+    expect(result.find((r) => r.person === 'bob')?.total).toBe(90);
+    expect(result.find((r) => r.person === 'bob')?.balance).toBeCloseTo(60, 5);
+    expect(result.find((r) => r.person === 'alice')?.balance).toBeCloseTo(-30, 5);
+  });
+
   it('returns nothing when there are no payments', () => {
     expect(calculateFairness([bill('b1', 'alice')], [], ['alice', 'bob'])).toEqual([]);
   });
@@ -146,59 +153,33 @@ describe('getLastPayment', () => {
 });
 
 describe('getNextDueDate', () => {
-  it('advances one month from the last payment for a monthly bill', () => {
-    const b = bill('b1', 'alice');
-    const payments = [{ ...payment('b1', 100), paidAt: '2026-07-15' }];
-    expect(getNextDueDate(b, payments)).toBe('2026-08-15');
+  it('is the first day of the month after the coverage ends', () => {
+    const b: RecurringBill = { ...bill('b1', 'alice'), frequency: 'bimonthly' };
+    const payments = [
+      {
+        ...payment('b1', 100),
+        paidAt: '2026-09-20',
+        coverageStart: '2026-07-01',
+        coverageMonths: 2,
+      },
+    ];
+    expect(getNextDueDate(b, payments, '2026-10-07')).toBe('2026-09-01');
   });
 
-  it('advances three months for a quarterly bill', () => {
+  it('falls back to one period after the last payment when coverage is unknown', () => {
     const b: RecurringBill = { ...bill('b1', 'alice'), frequency: 'quarterly' };
     const payments = [{ ...payment('b1', 100), paidAt: '2026-01-31' }];
     // date-fns addMonths clamps to the end of the shorter month.
-    expect(getNextDueDate(b, payments)).toBe('2026-04-30');
+    expect(getNextDueDate(b, payments, '2026-02-01')).toBe('2026-04-30');
   });
 
   it('falls back to the bill nextDueDate when nothing was paid yet', () => {
     const b: RecurringBill = { ...bill('b1', 'alice'), nextDueDate: '2026-09-01' };
-    expect(getNextDueDate(b, [])).toBe('2026-09-01');
+    expect(getNextDueDate(b, [], '2026-08-01')).toBe('2026-09-01');
   });
 
   it('returns null with no payments and no nextDueDate', () => {
-    expect(getNextDueDate(bill('b1', 'alice'), [])).toBeNull();
-  });
-});
-
-describe('coverage helpers', () => {
-  it('defaults a payment to the month it was paid in', () => {
-    const p = { ...payment('b1', 80), paidAt: '2026-09-24' };
-    expect(getCoveredMonths(p, 'monthly')).toEqual(['2026-09-01']);
-  });
-
-  it('covers several months from coversFrom for bimonthly and quarterly bills', () => {
-    const p = { ...payment('b1', 80), paidAt: '2026-12-05', coversFrom: '2026-11-01' };
-    expect(getCoveredMonths(p, 'bimonthly')).toEqual(['2026-11-01', '2026-12-01']);
-    expect(getCoveredMonths(p, 'quarterly')).toEqual(['2026-11-01', '2026-12-01', '2027-01-01']);
-  });
-
-  it('suggests the period right after the latest one already paid', () => {
-    const b: RecurringBill = { ...bill('b1', 'alice'), frequency: 'bimonthly' };
-    const payments = [
-      { ...payment('b1', 80), id: 'a', paidAt: '2026-07-03', coversFrom: '2026-07-01' },
-      { ...payment('b1', 80), id: 'b', paidAt: '2026-09-02', coversFrom: '2026-09-01' },
-      { ...payment('b2', 80), id: 'c', paidAt: '2027-05-01' }, // another bill — ignored
-    ];
-    expect(suggestCoversFrom(b, payments, '2026-10-05')).toBe('2026-11-01');
-  });
-
-  it('suggests the payment month when the bill has no payments yet', () => {
-    expect(suggestCoversFrom(bill('b1', 'alice'), [], '2026-10-05')).toBe('2026-10-01');
-  });
-
-  it('formats single months and ranges, including across a year', () => {
-    expect(formatCoverage(['2026-09-01'], 'en-GB')).toBe('Sept 2026');
-    expect(formatCoverage(['2026-09-01', '2026-10-01'], 'en-GB')).toBe('Sept – Oct 2026');
-    expect(formatCoverage(['2026-12-01', '2027-01-01'], 'en-GB')).toBe('Dec 2026 – Jan 2027');
+    expect(getNextDueDate(bill('b1', 'alice'), [], '2026-08-01')).toBeNull();
   });
 });
 
@@ -514,21 +495,38 @@ describe('logPayment', () => {
       paid_at: '2026-10-02',
       note: '',
       split_between: [],
-      covers_from: '2026-09-01',
+      coverage_start: '2026-09-01',
+      coverage_months: 2,
+      paid_by: 'bob',
     });
     mockFrom.mockReturnValueOnce(chain);
 
-    await useRecurringBillsStore
-      .getState()
-      .logPayment(
-        { billId: 'b1', amount: 80, paidAt: '2026-10-02', note: '', coversFrom: '2026-09-01' },
-        'house-1'
-      );
+    await useRecurringBillsStore.getState().logPayment(
+      {
+        billId: 'b1',
+        amount: 80,
+        paidAt: '2026-10-02',
+        note: '',
+        coverageStart: '2026-09-01',
+        coverageMonths: 2,
+        paidBy: 'bob',
+      },
+      'house-1'
+    );
 
     expect(chain.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ paid_at: '2026-10-02', covers_from: '2026-09-01' })
+      expect.objectContaining({
+        paid_at: '2026-10-02',
+        coverage_start: '2026-09-01',
+        coverage_months: 2,
+        paid_by: 'bob',
+      })
     );
-    expect(useRecurringBillsStore.getState().payments[0].coversFrom).toBe('2026-09-01');
+    expect(useRecurringBillsStore.getState().payments[0]).toMatchObject({
+      coverageStart: '2026-09-01',
+      coverageMonths: 2,
+      paidBy: 'bob',
+    });
   });
 
   it('throws a plain-English error and adds nothing when the insert fails', async () => {
