@@ -69,6 +69,7 @@ interface MenuItemProps {
   onSelect: (action: BillMenuAction) => void;
 }
 
+/** One row of the ⋯ menu; the delete row is tinted as destructive. */
 function MenuItem({ action, icon, label, onSelect }: MenuItemProps): React.JSX.Element {
   const p = useRecurringPalette();
   const handlePress = useCallback((): void => onSelect(action), [onSelect, action]);

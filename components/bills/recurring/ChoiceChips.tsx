@@ -52,6 +52,7 @@ interface ChipProps {
   onToggle: (id: string) => void;
 }
 
+/** A single selectable chip, announced as a radio or checkbox. */
 function Chip({ option, isSelected, mode, onToggle }: ChipProps): React.JSX.Element {
   const p = useRecurringPalette();
   const handlePress = useCallback((): void => onToggle(option.id), [onToggle, option.id]);

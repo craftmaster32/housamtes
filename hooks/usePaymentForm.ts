@@ -45,6 +45,7 @@ export interface PaymentForm {
   remove: () => Promise<void>;
 }
 
+/** "12,5" or "12.5" → 12.5; NaN when it isn't a number. */
 function parseAmount(text: string): number {
   return parseFloat(text.replace(',', '.'));
 }

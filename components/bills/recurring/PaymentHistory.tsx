@@ -54,6 +54,7 @@ interface HistoryRowProps {
   onSelect: (payment: HouseholdPayment) => void;
 }
 
+/** One logged payment: its period (or note), when and who paid, and the amount. */
 function HistoryRow({
   payment,
   isDuplicate,

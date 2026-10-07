@@ -70,7 +70,10 @@ export function RecurringBillForm({
         await updateBill(bill.id, fields);
       } else {
         let billId = createdId;
-        if (!billId) {
+        if (billId) {
+          // Retrying after the first payment failed: keep the bill in step with any edits.
+          await updateBill(billId, fields);
+        } else {
           billId = (await addBill(fields, houseId)).id;
           setCreatedId(billId);
         }

@@ -36,6 +36,7 @@ const light: RecurringPalette = {
   shadow: 'rgba(23,33,58,0.06)',
 };
 
+/** Dark-mode colours, derived from the app's dark theme. */
 function darkPalette(c: ColorPalette): RecurringPalette {
   return {
     card: c.surface,
@@ -55,6 +56,7 @@ function darkPalette(c: ColorPalette): RecurringPalette {
   };
 }
 
+/** The recurring-bill palette for the active light/dark theme. */
 export function useRecurringPalette(): RecurringPalette {
   const c = useThemedColors();
   return useMemo(() => (c === darkColors ? darkPalette(c) : light), [c]);

@@ -215,8 +215,9 @@ END $$;
 -- ── 4. Defaults + payer check on write ──────────────────────────────────────
 -- coverage_months defaults to the bill's frequency (a column DEFAULT can't
 -- read another table), and paid_by must be a member of the payment's house.
--- paid_by is only checked when it is set or changed, so editing an old payment
--- credited to someone who has since left the house still works.
+-- paid_by is only checked when it is set or changed, or the payment moves to
+-- another house, so editing an old payment credited to someone who has since
+-- left the house still works.
 CREATE OR REPLACE FUNCTION fn_household_payment_defaults() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
@@ -231,7 +232,11 @@ BEGIN
   END IF;
 
   IF NEW.paid_by IS NOT NULL
-     AND (TG_OP = 'INSERT' OR NEW.paid_by IS DISTINCT FROM OLD.paid_by)
+     AND (
+       TG_OP = 'INSERT'
+       OR NEW.paid_by IS DISTINCT FROM OLD.paid_by
+       OR NEW.house_id IS DISTINCT FROM OLD.house_id
+     )
      AND NOT EXISTS (
        SELECT 1 FROM house_members
        WHERE house_id = NEW.house_id AND user_id = NEW.paid_by
