@@ -50,6 +50,7 @@ export function RecurringBillForm({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const amount = parseFloat(typicalAmount.replace(',', '.'));
   const canSave = !saving && !!houseId && !!name.trim() && !!assignedTo && amount > 0;
@@ -66,12 +67,16 @@ export function RecurringBillForm({
       if (bill) {
         await updateBill(bill.id, fields);
       } else {
-        const created = await addBill(fields, houseId);
+        let billId = createdId;
+        if (!billId) {
+          billId = (await addBill(fields, houseId)).id;
+          setCreatedId(billId);
+        }
         if (lastPaidDate) {
           // The last payment covers the billing period starting the month it was paid.
           await logPayment(
             {
-              billId: created.id,
+              billId,
               amount,
               paidAt: lastPaidDate,
               note: '',
@@ -102,6 +107,7 @@ export function RecurringBillForm({
     addBill,
     lastPaidDate,
     logPayment,
+    createdId,
     onClose,
     t,
   ]);
