@@ -135,13 +135,13 @@ describe('recurring bill cards', () => {
     // ארנונה: paid Jul–Aug → Sep–Oct is due since 1 Sep, 36 days overdue.
     expect(screen.getByText('bills.recurring_covered_through {"month":"Aug 2026"}')).toBeTruthy();
     expect(screen.getByText('bills.recurring_not_paid_yet {"period":"Sep–Oct 2026"}')).toBeTruthy();
-    expect(screen.getByText('bills.recurring_overdue_days {"n":36}')).toBeTruthy();
+    expect(screen.getByText('bills.recurring_overdue_days {"count":36}')).toBeTruthy();
     expect(screen.getByText('bills.recurring_log_period {"period":"Sep–Oct"}')).toBeTruthy();
 
     // ועד בית: paid Oct–Dec → next due 1 Jan, in 86 days.
     expect(screen.getByText('bills.recurring_covered_through {"month":"Dec 2026"}')).toBeTruthy();
     expect(screen.getByText('bills.recurring_next_due {"date":"1 Jan"}')).toBeTruthy();
-    expect(screen.getByText('bills.recurring_in_days {"n":86}')).toBeTruthy();
+    expect(screen.getByText('bills.recurring_in_days {"count":86}')).toBeTruthy();
   });
 
   it('shows amount, frequency and payer on one line', () => {
