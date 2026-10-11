@@ -341,6 +341,20 @@ export default function NotificationSettingsScreen(): React.JSX.Element {
           </View>
 
           <View style={styles.sectionTitleRow}>
+            <Ionicons name="cart-outline" size={15} color={C.textSecondary} />
+            <Text style={styles.sectionTitle}>{t('nav.grocery')}</Text>
+          </View>
+          <View style={styles.card}>
+            <ToggleRow
+              label={t('settings.notify_grocery_stale')}
+              description={t('settings.notify_grocery_stale_sub')}
+              value={prefs.notifyGroceryStale}
+              onToggle={(v) => save({ notifyGroceryStale: v })}
+              isLast
+            />
+          </View>
+
+          <View style={styles.sectionTitleRow}>
             <Ionicons name="sparkles-outline" size={15} color={C.textSecondary} />
             <Text style={styles.sectionTitle}>{t('nav.chores')}</Text>
           </View>

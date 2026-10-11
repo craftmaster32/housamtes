@@ -70,6 +70,38 @@ export function groceryReminderTitle(lang: Lang): string {
   return "🛒 Don't forget the goods";
 }
 
+/** "Milk, Eggs +2 more" — the first two names, then a count of the rest. */
+function itemList(lang: Lang, names: string[]): string {
+  const shown = names.slice(0, 2).join(', ');
+  const rest = names.length - 2;
+  if (rest <= 0) return shown;
+  if (lang === 'es') return `${shown} y ${rest} más`;
+  if (lang === 'he') return `${shown} ועוד ${rest}`;
+  return `${shown} +${rest} more`;
+}
+
+/** Nudge for grocery items that have been waiting on the list for 3+ days. */
+export function groceryStaleCopy(lang: Lang, p: { names: string[] }): PushCopy {
+  const list = itemList(lang, p.names);
+  const one = p.names.length === 1;
+  if (lang === 'es') {
+    return {
+      title: '🛒 ¿Sigue en la lista?',
+      body: `${list} ${one ? 'lleva' : 'llevan'} 3+ días esperando. ¿Comprar o quitar?`,
+    };
+  }
+  if (lang === 'he') {
+    return {
+      title: '🛒 עדיין ברשימה?',
+      body: `${list} ${one ? 'מחכה' : 'מחכים'} ברשימה כבר 3+ ימים. לקנות או להסיר?`,
+    };
+  }
+  return {
+    title: '🛒 Still on the list?',
+    body: `${list} ${one ? 'has' : 'have'} been waiting 3+ days. Buy ${one ? 'it' : 'them'} or remove ${one ? 'it' : 'them'}?`,
+  };
+}
+
 /** "when" phrase for an event reminder: today / tomorrow / in N days. */
 function eventWhen(lang: Lang, daysUntil: number): string {
   if (daysUntil <= 0) {

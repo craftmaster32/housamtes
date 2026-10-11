@@ -2,10 +2,13 @@
 // Runs on a schedule (recommended: every 5 minutes) via Supabase Cron.
 // Finds personal grocery reminders whose time has arrived, pushes a
 // notification to the person who set them, then marks them sent.
+// Also sends "Still on the list?" nudges for items waiting 72+ hours
+// (see staleItems.ts).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { groceryReminderTitle, normalizeLang, type Lang } from '../_shared/notificationCopy.ts';
 import { assertCronAuthorized } from '../_shared/cronAuth.ts';
+import { runStaleItemCheck, type StaleCheckResult } from './staleItems.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const PUSH_TIMEOUT_MS = 5000;
@@ -49,6 +52,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+  // Independent of personal reminders — a failure here never blocks them.
+  let stale: StaleCheckResult = { sent: 0, items: 0 };
+  try {
+    stale = await runStaleItemCheck(supabase);
+  } catch (err) {
+    console.error('Stale grocery check failed', err instanceof Error ? err.message : err);
+  }
+
   try {
     const nowIso = new Date().toISOString();
 
@@ -67,7 +78,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     if (!reminders || reminders.length === 0) {
-      return new Response(JSON.stringify({ sent: 0, reminders: 0 }), {
+      return new Response(JSON.stringify({ sent: 0, reminders: 0, stale }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -158,9 +169,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    return new Response(JSON.stringify({ sent: totalSent, reminders: typedReminders.length }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ sent: totalSent, reminders: typedReminders.length, stale }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
   } catch (err) {
     console.error('grocery-reminder-check failed', err);
     return new Response(
