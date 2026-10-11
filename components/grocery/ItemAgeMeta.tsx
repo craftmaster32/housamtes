@@ -13,6 +13,8 @@ export interface ItemAgeMetaProps {
   addedBy: string;
   createdAt: string;
   myId: string;
+  /** Current time (ms) from the screen's shared clock. */
+  now: number;
   /** Private items are always yours, so the name is left out. */
   showName: boolean;
   /** Ticked items are already handled — no "waiting a while" warning. */
@@ -28,6 +30,7 @@ export function ItemAgeMeta({
   addedBy,
   createdAt,
   myId,
+  now,
   showName,
   isChecked,
 }: ItemAgeMetaProps): React.JSX.Element {
@@ -36,8 +39,8 @@ export function ItemAgeMeta({
   const s = useMemo(() => makeStyles(C), [C]);
   const memberName = useMemberName();
 
-  const age = formatItemAge(createdAt, t);
-  const stale = !isChecked && isItemStale(createdAt);
+  const age = formatItemAge(createdAt, t, now);
+  const stale = !isChecked && isItemStale(createdAt, now);
   const name = addedBy === myId ? t('common.you') : memberName(addedBy);
 
   return (

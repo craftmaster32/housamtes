@@ -38,6 +38,7 @@ import { useLanguageStore } from '@stores/languageStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { ItemAgeMeta } from '@components/grocery/ItemAgeMeta';
 import { useMemberName } from '@hooks/useMemberName';
+import { useNow } from '@hooks/useNow';
 import { formatItemAge } from '@utils/groceryAge';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { BackLink } from '@components/shared/BackLink';
@@ -162,6 +163,8 @@ function elapsedLabel(
 interface ItemRowProps {
   item: GroceryItem;
   myId: string;
+  /** Shared clock (ms) so every row's age label refreshes together. */
+  now: number;
   isDuplicate?: boolean;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
@@ -174,6 +177,7 @@ interface ItemRowProps {
 const ItemRow = memo(function ItemRow({
   item,
   myId,
+  now,
   isDuplicate = false,
   onToggle,
   onDelete,
@@ -348,10 +352,10 @@ const ItemRow = memo(function ItemRow({
         item.name,
         isDuplicate ? t('grocery.already_on_shared') : null,
         item.isPersonal
-          ? formatItemAge(item.createdAt, t)
+          ? formatItemAge(item.createdAt, t, now)
           : t('grocery.added_by_meta', {
               name: item.addedBy === myId ? t('common.you') : memberName(item.addedBy),
-              time: formatItemAge(item.createdAt, t),
+              time: formatItemAge(item.createdAt, t, now),
             }),
       ]
         .filter(Boolean)
@@ -411,6 +415,7 @@ const ItemRow = memo(function ItemRow({
             addedBy={item.addedBy}
             createdAt={item.createdAt}
             myId={myId}
+            now={now}
             showName={!item.isPersonal}
             isChecked={item.isChecked}
           />
@@ -570,6 +575,8 @@ function GroceryScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const myId = profile?.id ?? '';
+  // Ticks once a minute so "2h ago" / the 3-day amber pill stay current.
+  const now = useNow();
   const myName = profile?.name ?? '';
   const draftEnabled = useSettingsStore((s) => s.isEnabled('grocery_draft'));
 
@@ -1193,6 +1200,7 @@ function GroceryScreen(): React.JSX.Element {
       <ItemRow
         item={item}
         myId={myId}
+        now={now}
         isDuplicate={item.isDuplicate}
         onToggle={onToggle}
         onDelete={onDelete}
@@ -1202,7 +1210,7 @@ function GroceryScreen(): React.JSX.Element {
         onLongPress={handleLongPress}
       />
     ),
-    [myId, onToggle, onDelete, onInc, onDec, onUpdate, handleLongPress]
+    [myId, now, onToggle, onDelete, onInc, onDec, onUpdate, handleLongPress]
   );
 
   const renderSectionHeader = useCallback(
@@ -1430,6 +1438,7 @@ function GroceryScreen(): React.JSX.Element {
 
             <View style={styles.flex}>
               <SectionList
+                extraData={now}
                 sections={sections}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
