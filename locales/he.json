@@ -812,6 +812,13 @@
     "empty_hint": "הוסיפו משהו לפני שמגיע 'דגני בוקר לארוחת ערב'. 🥣",
     "added_by": "הוסף על ידי {{name}}",
     "added_by_meta": "{{name}} · {{time}}",
+    "age_now": "עכשיו",
+    "age_minutes_one": "לפני דקה",
+    "age_minutes_other": "לפני {{count}} דק׳",
+    "age_hours_one": "לפני שעה",
+    "age_hours_other": "לפני {{count}} שע׳",
+    "age_days_one": "לפני יום",
+    "age_days_other": "לפני {{count}} ימים",
     "failed_add": "הוספת הפריט נכשלה. נסה שוב.",
     "unit_label": "יחידה",
     "quick_add": "הוספה מהירה",
@@ -1699,7 +1706,9 @@
     "notify_daily_joke": "בדיחת אבא יומית",
     "notify_daily_joke_sub": "בדיחה אחת מביכה כל יום. אמרנו לכם.",
     "notify_appliance_done": "המכונה סיימה",
-    "notify_appliance_done_sub": "כשמחזור של כביסה, מייבש או מדיח מסתיים"
+    "notify_appliance_done_sub": "כשמחזור של כביסה, מייבש או מדיח מסתיים",
+    "notify_grocery_stale": "פריטים שמחכים יותר מדי",
+    "notify_grocery_stale_sub": "כשמשהו נמצא ברשימה 3 ימים ומעלה"
   },
   "members": {
     "title": "הרשאות חברים",

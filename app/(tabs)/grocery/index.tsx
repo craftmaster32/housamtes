@@ -36,6 +36,9 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, darkColors, type ColorTokens } from '@constants/colors';
 import { useLanguageStore } from '@stores/languageStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
+import { ItemAgeMeta } from '@components/grocery/ItemAgeMeta';
+import { useMemberName } from '@hooks/useMemberName';
+import { formatItemAge } from '@utils/groceryAge';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { BackLink } from '@components/shared/BackLink';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
@@ -187,6 +190,7 @@ const ItemRow = memo(function ItemRow({
   const hasCount = isPlainInt && qtyNum > 1;
   const bought = item.boughtCount ?? 0;
   const canEdit = item.addedBy === myId;
+  const memberName = useMemberName();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(item.name);
@@ -340,9 +344,18 @@ const ItemRow = memo(function ItemRow({
       delayLongPress={400}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.isChecked }}
-      accessibilityLabel={
-        isDuplicate ? `${item.name}, ${t('grocery.already_on_shared')}` : item.name
-      }
+      accessibilityLabel={[
+        item.name,
+        isDuplicate ? t('grocery.already_on_shared') : null,
+        item.isPersonal
+          ? formatItemAge(item.createdAt, t)
+          : t('grocery.added_by_meta', {
+              name: item.addedBy === myId ? t('common.you') : memberName(item.addedBy),
+              time: formatItemAge(item.createdAt, t),
+            }),
+      ]
+        .filter(Boolean)
+        .join(', ')}
       accessibilityHint={t('grocery.long_press_hint')}
     >
       {hasCount ? (
@@ -394,6 +407,13 @@ const ItemRow = memo(function ItemRow({
               </View>
             )}
           </View>
+          <ItemAgeMeta
+            addedBy={item.addedBy}
+            createdAt={item.createdAt}
+            myId={myId}
+            showName={!item.isPersonal}
+            isChecked={item.isChecked}
+          />
           {hasCount && (
             <View style={rowStyles.progressWrap}>
               <View style={rowStyles.progressTrack}>
@@ -429,10 +449,9 @@ const ItemRow = memo(function ItemRow({
               accessibilityLabel={t('grocery.has_note')}
             />
           )}
-          {item.isPersonal && !item.isDraft ? (
+          {/* Who added a shared item is spelled out in the age line under the name. */}
+          {item.isPersonal && !item.isDraft && (
             <Ionicons name="lock-closed" size={14} color="rgba(139,92,246,0.6)" />
-          ) : (
-            <UserAvatar userId={item.addedBy} size={22} />
           )}
           {canEdit && (
             <Pressable
