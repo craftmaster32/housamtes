@@ -5,13 +5,12 @@ type Row = Record<string, unknown>;
 type Db = Record<string, Row[]>;
 
 interface StaleItemsModule {
-  localHour: (tz: string, now: Date) => number | null;
   runStaleItemCheck: (
     supabase: FakeSupabase,
     now?: Date
   ) => Promise<{ sent: number; items: number }>;
 }
-const { localHour, runStaleItemCheck } = jest.requireActual<StaleItemsModule>(
+const { runStaleItemCheck } = jest.requireActual<StaleItemsModule>(
   '../../supabase/functions/grocery-reminder-check/staleItems'
 );
 
@@ -31,10 +30,33 @@ interface Query extends PromiseLike<{ data: Row[]; error: null }> {
 }
 interface FakeSupabase {
   from: (table: string) => Query;
+  rpc: (fn: string, args: Row) => Query;
 }
 
 function fakeSupabase(db: Db): FakeSupabase {
   return {
+    // Stands in for grocery_stale_candidates: same item filters and per-house
+    // cap. Its daytime/cooldown rules are SQL and were verified on Postgres.
+    rpc(_fn: string, args: Row): Query {
+      const perHouse = args.p_per_house as number;
+      const seen = new Map<unknown, number>();
+      const rows = (db.grocery_items ?? [])
+        .filter(
+          (r) =>
+            r.stale_notified_at == null &&
+            !r.is_checked &&
+            !r.is_draft &&
+            String(r.created_at) <= String(args.p_cutoff)
+        )
+        .sort((a, b) => String(a.house_id).localeCompare(String(b.house_id)))
+        .filter((r) => {
+          const n = (seen.get(r.house_id) ?? 0) + 1;
+          seen.set(r.house_id, n);
+          return n <= perHouse;
+        });
+      db.__candidates = rows;
+      return this.from('__candidates');
+    },
     from(table: string): Query {
       const filters: Array<(r: Row) => boolean> = [];
       let patch: Row | null = null;
@@ -168,37 +190,6 @@ describe('stale grocery nudge', () => {
     expect(pushes().map((p) => p.to)).toEqual(['tok-alice']);
   });
 
-  it('waits for daytime in the house’s timezone', async () => {
-    const db = baseDb([item('Milk')], { houses: [{ id: 'h1', timezone: 'America/Los_Angeles' }] });
-    expect(await run(db)).toEqual({ sent: 0, items: 0 });
-    expect(db.grocery_items[0].stale_notified_at).toBeNull(); // picked up later in the day
-  });
-
-  it('sends at most one nudge per house per day', async () => {
-    const earlier = new Date(NOW.getTime() - 3 * 3600000).toISOString();
-    const db = baseDb([item('Old', { stale_notified_at: earlier }), item('Milk')]);
-    expect(await run(db)).toEqual({ sent: 0, items: 0 });
-    expect(db.grocery_items[1].stale_notified_at).toBeNull();
-  });
-
-  it('never lets night-time houses crowd out a daytime house', async () => {
-    // 600 older stale items in a house where it's night must not fill the scan.
-    const nightItems = Array.from({ length: 600 }, (_, n) =>
-      item(`night-${n}`, { house_id: 'h2', created_at: daysAgo(30) })
-    );
-    const db = baseDb([...nightItems, item('Milk')], {
-      houses: [
-        { id: 'h1', timezone: 'Asia/Jerusalem' },
-        { id: 'h2', timezone: 'America/Los_Angeles' },
-      ],
-    });
-    const result = await run(db);
-    expect(result.items).toBe(1);
-    expect(db.grocery_items.find((r) => r.id === 'Milk')?.stale_notified_at).toBe(
-      NOW.toISOString()
-    );
-  });
-
   it('keeps the item eligible when nobody can be reached yet', async () => {
     const db = baseDb([item('Milk')], { push_tokens: [] });
     expect(await run(db)).toEqual({ sent: 0, items: 0 });
@@ -212,9 +203,21 @@ describe('stale grocery nudge', () => {
     expect(db.grocery_items[0].stale_notified_at).toBe(NOW.toISOString());
   });
 
-  it('treats a broken timezone as UTC instead of skipping the house', async () => {
-    const db = baseDb([item('Milk')], { houses: [{ id: 'h1', timezone: 'Not/AZone' }] });
-    expect((await run(db)).items).toBe(1); // 12:00 UTC is daytime
+  it('caps each house and still reaches every house across pages', async () => {
+    // 60 houses × 25 old items: 20 per house = 1,200 candidates, two pages.
+    const houses = Array.from({ length: 60 }, (_, n) => `house-${String(n).padStart(2, '0')}`);
+    const items = houses.flatMap((h) =>
+      Array.from({ length: 25 }, (_, n) => item(`${h}-${n}`, { house_id: h }))
+    );
+    const db = baseDb(items, {
+      house_members: houses.map((h) => ({ house_id: h, user_id: `u-${h}` })),
+      push_tokens: houses.map((h) => ({ house_id: h, user_id: `u-${h}`, token: `t-${h}` })),
+    });
+
+    const result = await run(db);
+
+    expect(result.items).toBe(1200);
+    expect(new Set(pushes().map((p) => p.to)).size).toBe(60);
   });
 
   it('releases the claim when the push fails so the next run retries', async () => {
@@ -225,11 +228,4 @@ describe('stale grocery nudge', () => {
     expect(result.sent).toBe(0);
     expect(db.grocery_items[0].stale_notified_at).toBeNull();
   }, 10000);
-});
-
-describe('localHour', () => {
-  it('reads the hour in the given timezone and rejects bad ones', () => {
-    expect(localHour('UTC', NOW)).toBe(12);
-    expect(localHour('Not/AZone', NOW)).toBeNull();
-  });
 });

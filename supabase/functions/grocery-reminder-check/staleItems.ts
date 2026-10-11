@@ -25,11 +25,11 @@ const HOUSE_COOLDOWN_HOURS = 20;
 // Local-time window (house timezone) in which nudges may go out: 10:00–19:59.
 const SEND_FROM_HOUR = 10;
 const SEND_UNTIL_HOUR = 20;
-// Items fetched per batch of houses.
-const SCAN_LIMIT = 500;
-// Houses read per page, and house ids per `.in(...)` filter (keeps URLs short).
-const HOUSE_PAGE = 1000;
-const HOUSE_CHUNK = 100;
+// At most this many items per house per run — so one house with a huge
+// backlog (or nobody reachable) can never crowd out the others.
+const PER_HOUSE_LIMIT = 20;
+// Candidate rows read per page (stays under PostgREST's max_rows cap).
+const CANDIDATE_PAGE = 1000;
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -66,40 +66,6 @@ async function sendPushWithRetry(messages: unknown[]): Promise<boolean> {
     if (attempt < PUSH_MAX_ATTEMPTS) await sleep(2 ** (attempt - 1) * 500);
   }
   return false;
-}
-
-/** Current hour (0–23) in the given timezone, or null if the timezone is invalid. */
-export function localHour(tz: string, now: Date): number | null {
-  try {
-    const hour = new Intl.DateTimeFormat('en-GB', {
-      timeZone: tz,
-      hour: '2-digit',
-      hourCycle: 'h23',
-    }).format(now);
-    const n = parseInt(hour, 10);
-    return Number.isFinite(n) ? n : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Ids of every house where it is currently daytime (bad timezones fall back to UTC). */
-async function loadDaytimeHouseIds(supabase: Supabase, now: Date): Promise<string[]> {
-  const ids: string[] = [];
-  for (let from = 0; ; from += HOUSE_PAGE) {
-    const { data, error } = await supabase
-      .from('houses')
-      .select('id, timezone')
-      .order('id', { ascending: true })
-      .range(from, from + HOUSE_PAGE - 1);
-    if (error) throw new Error(`House lookup failed: ${error.message}`);
-    const rows = (data ?? []) as Array<{ id: string; timezone: string | null }>;
-    for (const h of rows) {
-      const hour = localHour(h.timezone ?? 'UTC', now) ?? localHour('UTC', now);
-      if (hour !== null && hour >= SEND_FROM_HOUR && hour < SEND_UNTIL_HOUR) ids.push(h.id);
-    }
-    if (rows.length < HOUSE_PAGE) return ids;
-  }
 }
 
 /** Clears the "nudged" mark so a later run can try these items again. */
@@ -221,53 +187,38 @@ export async function runStaleItemCheck(
   const cutoffIso = new Date(now.getTime() - STALE_AFTER_HOURS * HOUR_MS).toISOString();
   const cooldownIso = new Date(now.getTime() - HOUSE_COOLDOWN_HOURS * HOUR_MS).toISOString();
 
-  // Pick eligible houses FIRST (daytime, not nudged recently) and only then
-  // look for their items — so items in night-time or cooling-down houses can
-  // never fill the scan and starve everyone else.
-  const daytime = await loadDaytimeHouseIds(supabase, now);
-  const result: StaleCheckResult = { sent: 0, items: 0 };
-
-  for (let i = 0; i < daytime.length; i += HOUSE_CHUNK) {
-    const chunk = daytime.slice(i, i + HOUSE_CHUNK);
-
-    // Skip houses already nudged recently — their newly-stale items wait for
-    // tomorrow's nudge, so a house never gets more than one a day.
-    const { data: recentRows, error: recentError } = await supabase
-      .from('grocery_items')
-      .select('house_id')
-      .in('house_id', chunk)
-      .gte('stale_notified_at', cooldownIso);
-    if (recentError) throw new Error(`Cooldown lookup failed: ${recentError.message}`);
-    const cooling = new Set(
-      ((recentRows ?? []) as Array<{ house_id: string }>).map((r) => r.house_id)
-    );
-    const eligible = chunk.filter((id) => !cooling.has(id));
-    if (eligible.length === 0) continue;
-
-    const { data: candidates, error } = await supabase
-      .from('grocery_items')
-      .select('id, house_id, name, added_by, is_personal')
-      .in('house_id', eligible)
-      .is('stale_notified_at', null)
-      .eq('is_checked', false)
-      .eq('is_draft', false)
-      .lte('created_at', cutoffIso)
-      .order('created_at', { ascending: true })
-      .limit(SCAN_LIMIT);
+  // One database query picks the candidates: daytime houses only, skipping
+  // houses already nudged today, and at most PER_HOUSE_LIMIT items per house
+  // (see grocery_stale_candidates in the migration). Read every page before
+  // claiming anything, so our own writes can't shift the pages under us.
+  const items: StaleItemRow[] = [];
+  for (let from = 0; ; from += CANDIDATE_PAGE) {
+    const { data, error } = await supabase
+      .rpc('grocery_stale_candidates', {
+        p_now: nowIso,
+        p_cutoff: cutoffIso,
+        p_cooldown_since: cooldownIso,
+        p_from_hour: SEND_FROM_HOUR,
+        p_until_hour: SEND_UNTIL_HOUR,
+        p_per_house: PER_HOUSE_LIMIT,
+      })
+      .range(from, from + CANDIDATE_PAGE - 1);
     if (error) throw new Error(`Stale scan failed: ${error.message}`);
-    const items = (candidates ?? []) as StaleItemRow[];
-
-    for (const houseId of new Set(items.map((it) => it.house_id))) {
-      const r = await nudgeHouse(
-        supabase,
-        houseId,
-        items.filter((it) => it.house_id === houseId),
-        nowIso
-      );
-      result.sent += r.sent;
-      result.items += r.items;
-    }
+    const rows = (data ?? []) as StaleItemRow[];
+    items.push(...rows);
+    if (rows.length < CANDIDATE_PAGE) break;
   }
 
+  const result: StaleCheckResult = { sent: 0, items: 0 };
+  for (const houseId of new Set(items.map((it) => it.house_id))) {
+    const r = await nudgeHouse(
+      supabase,
+      houseId,
+      items.filter((it) => it.house_id === houseId),
+      nowIso
+    );
+    result.sent += r.sent;
+    result.items += r.items;
+  }
   return result;
 }
