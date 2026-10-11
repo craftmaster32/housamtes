@@ -27,6 +27,7 @@ interface Query extends PromiseLike<{ data: Row[]; error: null }> {
   gte: (k: string, v: string) => Query;
   order: () => Query;
   limit: (n: number) => Query;
+  range: (from: number, to: number) => Query;
 }
 interface FakeSupabase {
   from: (table: string) => Query;
@@ -37,11 +38,13 @@ function fakeSupabase(db: Db): FakeSupabase {
     from(table: string): Query {
       const filters: Array<(r: Row) => boolean> = [];
       let patch: Row | null = null;
+      let offset = 0;
       let limit = Infinity;
       const run = (): { data: Row[]; error: null } => {
         const rows = (db[table] ?? []).filter((r) => filters.every((f) => f(r)));
         if (patch) rows.forEach((r) => Object.assign(r, patch));
-        return { data: rows.slice(0, limit).map((r) => ({ ...r })), error: null };
+        const page = rows.slice(offset, offset + limit);
+        return { data: page.map((r) => ({ ...r })), error: null };
       };
       const where = (f: (r: Row) => boolean): Query => {
         filters.push(f);
@@ -61,6 +64,11 @@ function fakeSupabase(db: Db): FakeSupabase {
         order: () => q,
         limit: (n) => {
           limit = n;
+          return q;
+        },
+        range: (from, to) => {
+          offset = from;
+          limit = to - from + 1;
           return q;
         },
         then: (res, rej) => Promise.resolve(run()).then(res, rej),
@@ -171,6 +179,42 @@ describe('stale grocery nudge', () => {
     const db = baseDb([item('Old', { stale_notified_at: earlier }), item('Milk')]);
     expect(await run(db)).toEqual({ sent: 0, items: 0 });
     expect(db.grocery_items[1].stale_notified_at).toBeNull();
+  });
+
+  it('never lets night-time houses crowd out a daytime house', async () => {
+    // 600 older stale items in a house where it's night must not fill the scan.
+    const nightItems = Array.from({ length: 600 }, (_, n) =>
+      item(`night-${n}`, { house_id: 'h2', created_at: daysAgo(30) })
+    );
+    const db = baseDb([...nightItems, item('Milk')], {
+      houses: [
+        { id: 'h1', timezone: 'Asia/Jerusalem' },
+        { id: 'h2', timezone: 'America/Los_Angeles' },
+      ],
+    });
+    const result = await run(db);
+    expect(result.items).toBe(1);
+    expect(db.grocery_items.find((r) => r.id === 'Milk')?.stale_notified_at).toBe(
+      NOW.toISOString()
+    );
+  });
+
+  it('keeps the item eligible when nobody can be reached yet', async () => {
+    const db = baseDb([item('Milk')], { push_tokens: [] });
+    expect(await run(db)).toEqual({ sent: 0, items: 0 });
+    expect(db.grocery_items[0].stale_notified_at).toBeNull();
+  });
+
+  it('retires items in a house nobody lives in any more', async () => {
+    const db = baseDb([item('Milk')], { house_members: [] });
+    await run(db);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(db.grocery_items[0].stale_notified_at).toBe(NOW.toISOString());
+  });
+
+  it('treats a broken timezone as UTC instead of skipping the house', async () => {
+    const db = baseDb([item('Milk')], { houses: [{ id: 'h1', timezone: 'Not/AZone' }] });
+    expect((await run(db)).items).toBe(1); // 12:00 UTC is daytime
   });
 
   it('releases the claim when the push fails so the next run retries', async () => {
