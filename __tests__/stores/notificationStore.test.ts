@@ -37,6 +37,7 @@ const DEFAULT_PREFS = {
   notifyChoreOverdue: true,
   notifyChatMessage: true,
   notifyGroceryShared: true,
+  notifyGroceryStale: true,
   notifyTaskAssigned: true,
   notifyEventAdded: true,
   notifyEventReminder: true,
@@ -168,6 +169,28 @@ describe('notificationStore — update', () => {
 
     expect(useNotificationStore.getState().prefs.notifyDailyJoke).toBe(false);
     expect(useNotificationStore.getState().prefs.notifyBillAdded).toBe(true); // unchanged
+  });
+
+  it('maps the stale-grocery preference from a DB row, defaulting to on', async () => {
+    mockFrom.mockReturnValue(ok({ notify_grocery_stale: false }));
+    await useNotificationStore.getState().load('user-1', 'house-1');
+    expect(useNotificationStore.getState().prefs.notifyGroceryStale).toBe(false);
+
+    mockFrom.mockReturnValue(ok({ notify_bill_added: true }));
+    await useNotificationStore.getState().load('user-1', 'house-1');
+    expect(useNotificationStore.getState().prefs.notifyGroceryStale).toBe(true);
+  });
+
+  it('saves the stale-grocery toggle under its DB column', async () => {
+    const upsert = jest.fn().mockReturnValue(ok());
+    mockFrom.mockReturnValue({ upsert });
+
+    await useNotificationStore
+      .getState()
+      .update('user-1', 'house-1', { notifyGroceryStale: false });
+
+    expect(useNotificationStore.getState().prefs.notifyGroceryStale).toBe(false);
+    expect(upsert.mock.calls[0][0]).toMatchObject({ notify_grocery_stale: false });
   });
 
   it('maps calendar event preferences from a DB row on load', async () => {

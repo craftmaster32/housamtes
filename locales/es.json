@@ -812,6 +812,13 @@
     "empty_hint": "Agrega algo antes de que toque cereal para cenar. 🥣",
     "added_by": "Agregado por {{name}}",
     "added_by_meta": "{{name}} · {{time}}",
+    "age_now": "Ahora",
+    "age_minutes_one": "hace 1 min",
+    "age_minutes_other": "hace {{count}} min",
+    "age_hours_one": "hace 1 h",
+    "age_hours_other": "hace {{count}} h",
+    "age_days_one": "hace 1 d",
+    "age_days_other": "hace {{count}} d",
     "failed_add": "No se pudo agregar el artículo. Intenta de nuevo.",
     "mark_as_done": "Marcar como hecho",
     "mark_as_needed": "Marcar como pendiente",
@@ -1734,7 +1741,9 @@
     "notify_daily_joke": "Chiste malo del día",
     "notify_daily_joke_sub": "Un chiste para poner los ojos en blanco, cada día. Avisado quedas.",
     "notify_appliance_done": "Máquina terminada",
-    "notify_appliance_done_sub": "Cuando termina un ciclo de lavadora, secadora o lavavajillas"
+    "notify_appliance_done_sub": "Cuando termina un ciclo de lavadora, secadora o lavavajillas",
+    "notify_grocery_stale": "Artículos que esperan demasiado",
+    "notify_grocery_stale_sub": "Cuando algo lleva 3+ días en la lista"
   },
   "members": {
     "title": "Permisos de miembros",

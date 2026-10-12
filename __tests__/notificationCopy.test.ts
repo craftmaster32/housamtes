@@ -2,6 +2,7 @@ import {
   instantPushCopy,
   normalizeLang,
   applianceDoneCopy,
+  groceryStaleCopy,
 } from '@/supabase/functions/_shared/notificationCopy';
 
 // These lock in the promise that every housemate reads instant push
@@ -164,5 +165,27 @@ describe('appliance copy — Spanish articles agree with the noun', () => {
     const free = instantPushCopy('appliance_free', 'es', { appliance: 'dishwasher' });
     expect(free!.body).toContain('El lavavajillas');
     expect(free!.body).toContain('¡a por él!');
+  });
+});
+
+describe('groceryStaleCopy — "still on the list?" nudge', () => {
+  it('names a single item and asks to buy or remove it', () => {
+    const copy = groceryStaleCopy('en', { names: ['Milk'] });
+    expect(copy.title).toBe('🛒 Still on the list?');
+    expect(copy.body).toBe('Milk has been waiting 3+ days. Buy it or remove it?');
+  });
+
+  it('shows two names then a count of the rest', () => {
+    const copy = groceryStaleCopy('en', { names: ['Milk', 'Eggs', 'Bread', 'Rice'] });
+    expect(copy.body).toBe(
+      'Milk, Eggs +2 more have been waiting 3+ days. Buy them or remove them?'
+    );
+  });
+
+  it('speaks the recipient’s language', () => {
+    expect(groceryStaleCopy('he', { names: ['חלב', 'ביצים', 'לחם'] }).body).toContain(
+      'חלב, ביצים ועוד 1'
+    );
+    expect(groceryStaleCopy('es', { names: ['Leche'] }).body).toContain('Leche lleva 3+ días');
   });
 });

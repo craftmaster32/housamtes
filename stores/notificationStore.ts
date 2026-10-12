@@ -16,6 +16,7 @@ export interface NotificationPrefs {
   notifyChoreOverdue: boolean;
   notifyChatMessage: boolean;
   notifyGroceryShared: boolean;
+  notifyGroceryStale: boolean;
   notifyTaskAssigned: boolean;
   notifyEventAdded: boolean;
   notifyEventReminder: boolean;
@@ -34,6 +35,7 @@ const DEFAULT_PREFS: NotificationPrefs = {
   notifyChoreOverdue: true,
   notifyChatMessage: true,
   notifyGroceryShared: true,
+  notifyGroceryStale: true,
   notifyTaskAssigned: true,
   notifyEventAdded: true,
   notifyEventReminder: true,
@@ -62,6 +64,7 @@ function rowToPrefs(row: Record<string, unknown>): NotificationPrefs {
     notifyChoreOverdue: (row.notify_chore_overdue ?? true) as boolean,
     notifyChatMessage: (row.notify_chat_message ?? true) as boolean,
     notifyGroceryShared: (row.notify_grocery_shared ?? true) as boolean,
+    notifyGroceryStale: (row.notify_grocery_stale ?? true) as boolean,
     notifyTaskAssigned: (row.notify_task_assigned ?? true) as boolean,
     notifyEventAdded: (row.notify_event_added ?? true) as boolean,
     notifyEventReminder: (row.notify_event_reminder ?? true) as boolean,
@@ -85,6 +88,7 @@ function prefsToRow(prefs: Partial<NotificationPrefs>): Record<string, unknown> 
   if (prefs.notifyChatMessage !== undefined) row.notify_chat_message = prefs.notifyChatMessage;
   if (prefs.notifyGroceryShared !== undefined)
     row.notify_grocery_shared = prefs.notifyGroceryShared;
+  if (prefs.notifyGroceryStale !== undefined) row.notify_grocery_stale = prefs.notifyGroceryStale;
   if (prefs.notifyTaskAssigned !== undefined) row.notify_task_assigned = prefs.notifyTaskAssigned;
   if (prefs.notifyEventAdded !== undefined) row.notify_event_added = prefs.notifyEventAdded;
   if (prefs.notifyEventReminder !== undefined)

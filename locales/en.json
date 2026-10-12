@@ -812,6 +812,13 @@
     "empty_hint": "Add something before it's cereal-for-dinner o'clock. 🥣",
     "added_by": "Added by {{name}}",
     "added_by_meta": "{{name}} · {{time}}",
+    "age_now": "Just now",
+    "age_minutes_one": "1m ago",
+    "age_minutes_other": "{{count}}m ago",
+    "age_hours_one": "1h ago",
+    "age_hours_other": "{{count}}h ago",
+    "age_days_one": "1d ago",
+    "age_days_other": "{{count}}d ago",
     "failed_add": "Failed to add item. Try again.",
     "mark_as_done": "Mark as done",
     "mark_as_needed": "Mark as needed",
@@ -1699,7 +1706,9 @@
     "notify_daily_joke": "Daily dad joke",
     "notify_daily_joke_sub": "One groan-worthy joke a day. You've been warned.",
     "notify_appliance_done": "Machine finished",
-    "notify_appliance_done_sub": "When a washer, dryer or dishwasher cycle ends"
+    "notify_appliance_done_sub": "When a washer, dryer or dishwasher cycle ends",
+    "notify_grocery_stale": "Items waiting too long",
+    "notify_grocery_stale_sub": "When something has been on the list for 3+ days"
   },
   "members": {
     "title": "Member Permissions",

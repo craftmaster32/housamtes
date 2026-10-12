@@ -36,6 +36,10 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, darkColors, type ColorTokens } from '@constants/colors';
 import { useLanguageStore } from '@stores/languageStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
+import { ItemAgeMeta } from '@components/grocery/ItemAgeMeta';
+import { useMemberName } from '@hooks/useMemberName';
+import { useNow } from '@hooks/useNow';
+import { formatItemAge } from '@utils/groceryAge';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { BackLink } from '@components/shared/BackLink';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
@@ -159,6 +163,8 @@ function elapsedLabel(
 interface ItemRowProps {
   item: GroceryItem;
   myId: string;
+  /** Shared clock (ms) so every row's age label refreshes together. */
+  now: number;
   isDuplicate?: boolean;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
@@ -171,6 +177,7 @@ interface ItemRowProps {
 const ItemRow = memo(function ItemRow({
   item,
   myId,
+  now,
   isDuplicate = false,
   onToggle,
   onDelete,
@@ -187,6 +194,7 @@ const ItemRow = memo(function ItemRow({
   const hasCount = isPlainInt && qtyNum > 1;
   const bought = item.boughtCount ?? 0;
   const canEdit = item.addedBy === myId;
+  const memberName = useMemberName();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(item.name);
@@ -340,9 +348,18 @@ const ItemRow = memo(function ItemRow({
       delayLongPress={400}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: item.isChecked }}
-      accessibilityLabel={
-        isDuplicate ? `${item.name}, ${t('grocery.already_on_shared')}` : item.name
-      }
+      accessibilityLabel={[
+        item.name,
+        isDuplicate ? t('grocery.already_on_shared') : null,
+        item.isPersonal
+          ? formatItemAge(item.createdAt, t, now)
+          : t('grocery.added_by_meta', {
+              name: item.addedBy === myId ? t('common.you') : memberName(item.addedBy),
+              time: formatItemAge(item.createdAt, t, now),
+            }),
+      ]
+        .filter(Boolean)
+        .join(', ')}
       accessibilityHint={t('grocery.long_press_hint')}
     >
       {hasCount ? (
@@ -394,6 +411,14 @@ const ItemRow = memo(function ItemRow({
               </View>
             )}
           </View>
+          <ItemAgeMeta
+            addedBy={item.addedBy}
+            createdAt={item.createdAt}
+            myId={myId}
+            now={now}
+            showName={!item.isPersonal}
+            isChecked={item.isChecked}
+          />
           {hasCount && (
             <View style={rowStyles.progressWrap}>
               <View style={rowStyles.progressTrack}>
@@ -429,10 +454,9 @@ const ItemRow = memo(function ItemRow({
               accessibilityLabel={t('grocery.has_note')}
             />
           )}
-          {item.isPersonal && !item.isDraft ? (
+          {/* Who added a shared item is spelled out in the age line under the name. */}
+          {item.isPersonal && !item.isDraft && (
             <Ionicons name="lock-closed" size={14} color="rgba(139,92,246,0.6)" />
-          ) : (
-            <UserAvatar userId={item.addedBy} size={22} />
           )}
           {canEdit && (
             <Pressable
@@ -551,6 +575,8 @@ function GroceryScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const myId = profile?.id ?? '';
+  // Ticks once a minute so "2h ago" / the 3-day amber pill stay current.
+  const now = useNow();
   const myName = profile?.name ?? '';
   const draftEnabled = useSettingsStore((s) => s.isEnabled('grocery_draft'));
 
@@ -1174,6 +1200,7 @@ function GroceryScreen(): React.JSX.Element {
       <ItemRow
         item={item}
         myId={myId}
+        now={now}
         isDuplicate={item.isDuplicate}
         onToggle={onToggle}
         onDelete={onDelete}
@@ -1183,7 +1210,7 @@ function GroceryScreen(): React.JSX.Element {
         onLongPress={handleLongPress}
       />
     ),
-    [myId, onToggle, onDelete, onInc, onDec, onUpdate, handleLongPress]
+    [myId, now, onToggle, onDelete, onInc, onDec, onUpdate, handleLongPress]
   );
 
   const renderSectionHeader = useCallback(
@@ -1411,6 +1438,7 @@ function GroceryScreen(): React.JSX.Element {
 
             <View style={styles.flex}>
               <SectionList
+                extraData={now}
                 sections={sections}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
