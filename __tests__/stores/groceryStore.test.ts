@@ -307,6 +307,15 @@ describe('deleteItem', () => {
 
     expect(useGroceryStore.getState().items).toHaveLength(1);
   });
+
+  it("removes a shared item a housemate added, not just the caller's own", async () => {
+    seedItems({ addedBy: 'housemate-2', createdAt: '2025-08-01T00:00:00Z' });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().deleteItem('item-1');
+
+    expect(useGroceryStore.getState().items).toHaveLength(0);
+  });
 });
 
 // ── incrementBought ───────────────────────────────────────────────────────────

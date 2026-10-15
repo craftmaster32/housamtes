@@ -22,12 +22,16 @@ import { type GroceryItem } from '@stores/groceryStore';
 import { UserAvatar } from '@components/shared/UserAvatar';
 
 import { mf, ms } from '@utils/responsive';
+
+const REMOVE_RED = '#D94F4F';
 export interface GroceryItemDetailModalProps {
   item: GroceryItem | null;
   visible: boolean;
   myId: string;
   onClose: () => void;
   onSaveComment: (id: string, comment: string) => Promise<void>;
+  /** Removes the item; the caller confirms first when it's a housemate's item. */
+  onDelete: (id: string) => void;
 }
 
 export function GroceryItemDetailModal({
@@ -36,6 +40,7 @@ export function GroceryItemDetailModal({
   myId,
   onClose,
   onSaveComment,
+  onDelete,
 }: GroceryItemDetailModalProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const C = useThemedColors();
@@ -71,6 +76,12 @@ export function GroceryItemDetailModal({
       setIsSaving(false);
     }
   }, [item, comment, onSaveComment, onClose, isSaving, t]);
+
+  const handleDelete = useCallback((): void => {
+    if (!item) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    onDelete(item.id);
+  }, [item, onDelete]);
 
   const addedByName = item
     ? item.addedBy === myId
@@ -188,6 +199,18 @@ export function GroceryItemDetailModal({
                   </Text>
                 </Pressable>
               </View>
+
+              <Pressable
+                onPress={handleDelete}
+                style={s.removeBtn}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('grocery.delete_item_name', { name: item.name })}
+                accessibilityHint={t('grocery.remove_item_hint')}
+              >
+                <Ionicons name="trash-outline" size={17} color={REMOVE_RED} />
+                <Text style={s.removeBtnText}>{t('grocery.remove_from_list')}</Text>
+              </Pressable>
             </>
           )}
         </View>
@@ -236,7 +259,7 @@ function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
     metaText: { fontSize: mf(13), ...font.regular },
     commentBox: { borderRadius: ms(12), borderWidth: 1, padding: ms(12) },
     commentInput: { fontSize: mf(15), ...font.regular, minHeight: ms(72) },
-    saveError: { fontSize: mf(12), color: '#D94F4F' },
+    saveError: { fontSize: mf(12), color: REMOVE_RED },
     actions: { flexDirection: 'row', gap: ms(10), marginTop: ms(2) },
     btn: {
       flex: 1,
@@ -257,5 +280,15 @@ function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
     btnOff: { opacity: 0.5 },
     btnText: { fontSize: mf(15), ...font.bold },
     btnPrimaryText: { color: '#FFFFFF' },
+    removeBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: ms(6),
+      minHeight: ms(44),
+      alignSelf: 'center',
+      paddingHorizontal: ms(16),
+    },
+    removeBtnText: { fontSize: mf(14), ...font.bold, color: REMOVE_RED },
   });
 }

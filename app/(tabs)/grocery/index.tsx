@@ -473,9 +473,9 @@ const ItemRow = memo(function ItemRow({
     </Pressable>
   );
 
-  // Swipe left-to-reveal a red Delete, like a native list. Only items you can
-  // edit are deletable; others just render the plain row.
-  if (!canEdit) return row;
+  // Swipe left-to-reveal a red Delete, like a native list. Any housemate can
+  // remove a shared item (the screen confirms first when it isn't yours), so
+  // stale items don't get stuck on the list.
   return (
     <Swipeable
       renderRightActions={(_progress, dragX) => {
@@ -575,6 +575,7 @@ function GroceryScreen(): React.JSX.Element {
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
   const myId = profile?.id ?? '';
+  const memberName = useMemberName();
   // Ticks once a minute so "2h ago" / the 3-day amber pill stay current.
   const now = useNow();
   const myName = profile?.name ?? '';
@@ -1088,9 +1089,29 @@ function GroceryScreen(): React.JSX.Element {
   );
   const onDelete = useCallback(
     (id: string): void => {
-      deleteItem(id);
+      const doDelete = (): void => {
+        setSelectedItem((cur) => (cur?.id === id ? null : cur));
+        deleteItem(id).catch(() => {
+          Alert.alert(t('grocery.could_not_remove_item'), t('grocery.something_went_wrong'));
+        });
+      };
+      const target = items.find((i) => i.id === id);
+      // Anyone in the house can clear a shared item, but removing a housemate's
+      // item gets a quick confirm so it can't vanish from a stray swipe.
+      if (!target || target.addedBy === myId) {
+        doDelete();
+        return;
+      }
+      Alert.alert(
+        t('grocery.remove_others_item_title', { name: target.name }),
+        t('grocery.remove_others_item_body', { name: memberName(target.addedBy) }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('grocery.remove_confirm'), style: 'destructive', onPress: doDelete },
+        ]
+      );
     },
-    [deleteItem]
+    [deleteItem, items, myId, memberName, t]
   );
   const onInc = useCallback(
     (id: string): void => {
@@ -1722,6 +1743,7 @@ function GroceryScreen(): React.JSX.Element {
         myId={myId}
         onClose={handleCloseModal}
         onSaveComment={onSaveComment}
+        onDelete={onDelete}
       />
 
       <SaveListModal
