@@ -835,7 +835,13 @@ export const useGroceryStore = create<GroceryStore>()(
               event: 'shopping_run',
               payload: { active: true, shopperId, shopperName, startedAt },
             })
-            .then(() => set({ runBroadcastVisible: true }))
+            .then((response) => {
+              // Only surface the pill when delivery is confirmed and this run is
+              // still the active one (a concurrent endRun may have cleared it).
+              if (response === 'ok' && get().activeRun?.startedAt === startedAt) {
+                set({ runBroadcastVisible: true });
+              }
+            })
             .catch(() => {});
         }
       },
