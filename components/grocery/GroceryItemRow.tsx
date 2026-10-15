@@ -61,8 +61,10 @@ export const GroceryItemRow = memo(function GroceryItemRow({
     onToggle(item.id);
   }, [item.id, onToggle]);
 
+  const swipeRef = useRef<Swipeable>(null);
   const handleDelete = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    swipeRef.current?.close();
     onDelete(item.id);
   }, [item.id, onDelete]);
 
@@ -217,6 +219,7 @@ export const GroceryItemRow = memo(function GroceryItemRow({
   // stale items don't get stuck on the list.
   return (
     <Swipeable
+      ref={swipeRef}
       renderRightActions={(_progress, dragX) => {
         // Slide the panel in 1:1 with the drag so it stays glued to the card's
         // right edge instead of sitting revealed underneath as a floating box.

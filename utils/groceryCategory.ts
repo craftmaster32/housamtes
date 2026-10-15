@@ -27,7 +27,7 @@ const RULES: Array<{ re: RegExp; cat: GroceryCategory }> = [
     cat: { labelKey: 'grocery.cat_meat_fish', icon: 'restaurant-outline', order: 3, tone: 'rose' },
   },
   {
-    re: /pasta|rice|bread|flour|sugar|salt|olive oil|oil|cereal|oats|coffee|tea|sauce|can|tin/i,
+    re: /pasta|rice|bread|flour|sugar|salt|olive oil|oil|cereal|oats|coffee|\btea\b|sauce|\bcans?\b|\btins?\b/i,
     cat: {
       labelKey: 'grocery.cat_pantry',
       icon: 'file-tray-stacked-outline',
