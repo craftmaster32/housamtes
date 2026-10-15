@@ -185,6 +185,7 @@ function ShopScreen(): React.JSX.Element {
   );
   const boughtCount = boughtIds.length;
   const totalCount = shoppingItems.length;
+  const progressPct = totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0;
 
   const sections = useMemo((): ShopSection[] => {
     const shared = shoppingItems.filter((i) => !i.isPersonal);
@@ -288,11 +289,11 @@ function ShopScreen(): React.JSX.Element {
   const renderSectionHeader = useCallback(
     ({ section }: { section: ShopSection }): React.JSX.Element => (
       <View style={styles.sectionHeader}>
-        <Ionicons name={section.icon} size={15} color={C.textSecondary} />
-        <Text style={styles.sectionHeaderText}>{section.title}</Text>
+        <Ionicons name={section.icon} size={16} color={C.textSecondary} />
+        <Text style={[styles.sectionHeaderText, headingFont]}>{section.title}</Text>
       </View>
     ),
-    [styles, C]
+    [styles, C, headingFont]
   );
 
   return (
@@ -301,34 +302,34 @@ function ShopScreen(): React.JSX.Element {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={handleLeave}
-            style={styles.iconBtn}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('common.back')}
-            accessibilityState={{ disabled: false }}
-          >
-            <Ionicons name="chevron-back" size={22} color={C.primary} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={[styles.headerTitle, headingFont]}>{t('grocery.shop.title')}</Text>
+        {/* Hero: where you are + how full the basket is */}
+        <View style={styles.hero}>
+          <View style={styles.header}>
+            <Pressable
+              onPress={handleLeave}
+              style={styles.iconBtn}
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+              accessibilityState={{ disabled: false }}
+            >
+              <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+            </Pressable>
+            <View style={styles.livePill}>
+              <View style={styles.liveDot} />
+              <Text style={styles.livePillText}>{t('grocery.housemates_can_see')}</Text>
+            </View>
+          </View>
+          <Text style={[styles.headerTitle, headingFont]}>{t('grocery.shop.title')}</Text>
+          <View style={styles.progressLabels}>
             <Text style={styles.headerSub}>
               {t('grocery.shop.progress', { bought: boughtCount, total: totalCount })}
             </Text>
+            <Text style={styles.progressPct}>{progressPct}%</Text>
           </View>
-        </View>
-
-        {/* Progress bar */}
-        <View style={styles.progressTrack}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${totalCount > 0 ? (boughtCount / totalCount) * 100 : 0}%` },
-            ]}
-          />
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
+          </View>
         </View>
 
         <SectionList
@@ -461,13 +462,21 @@ const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
+    hero: {
+      backgroundColor: C.primary,
+      marginHorizontal: sizes.md,
+      marginTop: sizes.xs,
+      borderRadius: ms(26),
+      paddingHorizontal: ms(18),
+      paddingTop: ms(8),
+      paddingBottom: ms(20),
+      gap: ms(10),
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: sizes.sm,
-      paddingHorizontal: sizes.md,
-      paddingTop: sizes.xs,
-      paddingBottom: sizes.xs,
+      justifyContent: 'space-between',
+      marginStart: ms(-10),
     },
     iconBtn: {
       minWidth: ms(44),
@@ -475,17 +484,29 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    headerCopy: { flex: 1 },
-    headerTitle: { fontSize: mf(22), color: C.textPrimary, letterSpacing: -0.4 },
-    headerSub: { fontSize: mf(13), ...font.medium, color: C.textSecondary, marginTop: ms(1) },
+    livePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(6),
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      paddingHorizontal: ms(12),
+      paddingVertical: ms(6),
+      borderRadius: ms(14),
+      flexShrink: 1,
+    },
+    liveDot: { width: ms(8), height: ms(8), borderRadius: ms(4), backgroundColor: '#A7F3C0' },
+    livePillText: { fontSize: mf(12), ...font.semibold, color: '#FFFFFF', flexShrink: 1 },
+    headerTitle: { fontSize: mf(28), color: '#FFFFFF', letterSpacing: -0.4 },
+    progressLabels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerSub: { fontSize: mf(14), ...font.medium, color: 'rgba(255,255,255,0.92)' },
+    progressPct: { fontSize: mf(14), ...font.bold, color: '#FFFFFF' },
     progressTrack: {
-      height: ms(6),
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: ms(3),
-      marginHorizontal: sizes.md,
+      height: ms(10),
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      borderRadius: ms(5),
       overflow: 'hidden',
     },
-    progressFill: { height: '100%', backgroundColor: C.positive, borderRadius: ms(3) },
+    progressFill: { height: '100%', backgroundColor: '#A7F3C0', borderRadius: ms(5) },
     listContent: { padding: sizes.md, gap: ms(6), paddingBottom: ms(20) },
     sectionHeader: {
       flexDirection: 'row',
@@ -494,30 +515,24 @@ const makeStyles = (C: ColorTokens) =>
       marginTop: sizes.sm,
       marginBottom: ms(4),
     },
-    sectionHeaderText: {
-      fontSize: mf(12),
-      ...font.bold,
-      letterSpacing: 0.5,
-      color: C.textSecondary,
-      textTransform: 'uppercase',
-    },
+    sectionHeaderText: { fontSize: mf(18), color: C.textPrimary, letterSpacing: -0.2 },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: sizes.sm,
       backgroundColor: C.surface,
       borderWidth: 1,
-      borderColor: C.border,
-      borderRadius: ms(12),
+      borderColor: C.borderLight,
+      borderRadius: ms(18),
       paddingVertical: ms(12),
       paddingHorizontal: sizes.md,
-      minHeight: ms(52),
+      minHeight: ms(56),
     },
     rowBought: { backgroundColor: C.surfaceSecondary, borderColor: 'transparent' },
     check: {
-      width: ms(26),
-      height: ms(26),
-      borderRadius: ms(13),
+      width: ms(30),
+      height: ms(30),
+      borderRadius: ms(15),
       borderWidth: 2,
       borderColor: C.border,
       alignItems: 'center',
@@ -556,7 +571,7 @@ const makeStyles = (C: ColorTokens) =>
       backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
-      borderRadius: ms(12),
+      borderRadius: ms(24),
       paddingHorizontal: sizes.md,
       paddingVertical: ms(12),
       minHeight: ms(48),
@@ -566,7 +581,7 @@ const makeStyles = (C: ColorTokens) =>
     addBtn: {
       width: ms(48),
       height: ms(48),
-      borderRadius: ms(12),
+      borderRadius: ms(24),
       backgroundColor: C.primary,
       alignItems: 'center',
       justifyContent: 'center',
@@ -587,7 +602,7 @@ const makeStyles = (C: ColorTokens) =>
       justifyContent: 'center',
       gap: ms(8),
       backgroundColor: C.primary,
-      borderRadius: ms(14),
+      borderRadius: ms(28),
       paddingVertical: ms(15),
       minHeight: ms(52),
     },

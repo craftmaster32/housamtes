@@ -7,24 +7,24 @@ Nothing in this file is being built yet. It's a parking lot for good ideas.
 
 ## Suggested for Phase 8+ (Post Public Launch)
 
-| Idea | Why It's Interesting |
-|---|---|
+| Idea                         | Why It's Interesting                             |
+| ---------------------------- | ------------------------------------------------ |
 | Shared subscriptions tracker | Netflix, Spotify split — nobody tracks this well |
-| Maintenance request log | "Tap is broken" → assign → track fix |
-| House rules / agreement page | Written rules all members acknowledge |
-| Quiet hours setting | House-wide quiet time visible to all |
-| Guest overnight log | Transparency about who's having guests |
-| Polls / house votes | "Should we get a new couch?" — democratic |
-| Utility usage charts | See electricity cost over time, month by month |
-| Move-in / move-out checklist | For when housemates change |
-| Landlord contact card | One place for emergency contacts |
-| WiFi QR code generator | Auto-generate shareable QR from saved password |
-| Temperature log | If you have a smart thermostat — record disputes |
-| Multi-language support | For international expansion |
-| Web dashboard | Browser access for managing house from laptop |
-| Android version | After iOS is stable |
-| Premium: PDF reports | Export expense history as professional PDF |
-| Premium: custom themes | House colors, dark mode customization |
+| Maintenance request log      | "Tap is broken" → assign → track fix             |
+| House rules / agreement page | Written rules all members acknowledge            |
+| Quiet hours setting          | House-wide quiet time visible to all             |
+| Guest overnight log          | Transparency about who's having guests           |
+| Polls / house votes          | "Should we get a new couch?" — democratic        |
+| Utility usage charts         | See electricity cost over time, month by month   |
+| Move-in / move-out checklist | For when housemates change                       |
+| Landlord contact card        | One place for emergency contacts                 |
+| WiFi QR code generator       | Auto-generate shareable QR from saved password   |
+| Temperature log              | If you have a smart thermostat — record disputes |
+| Multi-language support       | For international expansion                      |
+| Web dashboard                | Browser access for managing house from laptop    |
+| Android version              | After iOS is stable                              |
+| Premium: PDF reports         | Export expense history as professional PDF       |
+| Premium: custom themes       | House colors, dark mode customization            |
 
 ---
 
@@ -32,12 +32,14 @@ Nothing in this file is being built yet. It's a parking lot for good ideas.
 
 (Add ideas here as they come up during building)
 
+- **"Still need it?" nudge for old grocery items** — when an item has sat on the shared list for weeks, show a small card ("Coriander has been here 48 days. Still need it?") with _Keep it_ / _Take it off_. Came up in the grocery redesign mockup (Oct 2026).
+
 ---
 
 ## Rejected Ideas (and Why)
 
-| Idea | Why We're Not Building It |
-|---|---|
+| Idea                           | Why We're Not Building It                                 |
+| ------------------------------ | --------------------------------------------------------- |
 | In-app payments (Venmo/PayPal) | Too complex, legal liability, Splitwise already does this |
-| Roommate matching | Different product entirely |
-| Smart home device control | Out of scope — different market |
+| Roommate matching              | Different product entirely                                |
+| Smart home device control      | Out of scope — different market                           |

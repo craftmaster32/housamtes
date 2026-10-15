@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import {
   View,
@@ -10,12 +10,9 @@ import {
   SectionList,
   ActivityIndicator,
   BackHandler,
-  Animated,
-  type ViewStyle,
 } from 'react-native';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
@@ -34,14 +31,15 @@ import { useAuthStore } from '@stores/authStore';
 import { useBadgeStore } from '@stores/badgeStore';
 import { useSettingsStore } from '@stores/settingsStore';
 import { useThemedColors, darkColors, type ColorTokens } from '@constants/colors';
-import { useLanguageStore } from '@stores/languageStore';
-import { UserAvatar } from '@components/shared/UserAvatar';
-import { ItemAgeMeta } from '@components/grocery/ItemAgeMeta';
 import { useMemberName } from '@hooks/useMemberName';
 import { useNow } from '@hooks/useNow';
-import { formatItemAge } from '@utils/groceryAge';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
 import { BackLink } from '@components/shared/BackLink';
+import { GroceryItemRow } from '@components/grocery/GroceryItemRow';
+import { GroceryHeader } from '@components/grocery/GroceryHeader';
+import { CategoryTiles, type CategoryTileData } from '@components/grocery/CategoryTiles';
+import { ShoppingRunCard } from '@components/grocery/ShoppingRunCard';
+import { AddItemSheet } from '@components/grocery/AddItemSheet';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import {
@@ -57,468 +55,31 @@ import { useTween } from '@hooks/useTween';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
 import { getErrorMessage } from '@utils/errors';
+import { detectCategory, type CategoryTone } from '@utils/groceryCategory';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import type { IoniconName } from '@/types/icons';
 
 import { mf, ms } from '@utils/responsive';
-// ── Accent constants ───────────────────────────────────────────────────────────
-const SHOP_BORDER = 'rgba(191,219,254,0.7)';
-const SHOP_ACTIVE_BORDER = 'rgba(140,210,160,0.7)';
+
 const PERSONAL_BG = 'rgba(124,58,237,0.08)';
 const PERSONAL_BORDER = 'rgba(167,139,250,0.35)';
+const PERSONAL_ON = '#7C4DFF';
 
 const ADD_MODE_KEY = 'grocery_add_mode';
 const DRAFT_TOGGLE_KEY = 'grocery_draft_toggle';
 const REMINDER_PROMPT_DURATION_MS = 4000;
-
-const QUICK_ADD_KEYS = [
-  { name: 'Milk', tKey: 'grocery.quick_add_milk' },
-  { name: 'Bread', tKey: 'grocery.quick_add_bread' },
-  { name: 'Trash Bags', tKey: 'grocery.quick_add_trash_bags' },
-  { name: 'Coffee', tKey: 'grocery.quick_add_coffee' },
-  { name: 'Butter', tKey: 'grocery.quick_add_butter' },
-  { name: 'Olive Oil', tKey: 'grocery.quick_add_olive_oil' },
-] as const;
-const UNIT_OPTS = ['ml', 'L', 'g', 'kg'] as const;
-const UNIT_LABELS_HE: Record<(typeof UNIT_OPTS)[number], string> = {
-  ml: 'מ"ל',
-  L: 'ליטר',
-  g: 'גרם',
-  kg: 'ק"ג',
-};
-
-function formatUnitSuffix(unit: string, isHebrew: boolean): string {
-  if (!unit) return '';
-  if (!isHebrew) return unit;
-  const label = UNIT_LABELS_HE[unit as (typeof UNIT_OPTS)[number]] ?? unit;
-  return ` ${label}`;
-}
-
-// `quantity` is stored as a language-neutral "<number><unit>" string (e.g. "2kg")
-// so it stays consistent for every housemate regardless of who added it.
-// Only re-localize the unit suffix here, at render time, for the viewer's language.
-const SORTED_UNIT_OPTS = [...UNIT_OPTS].sort((a, b) => b.length - a.length);
-// Width of the swipe-to-delete panel. Kept in sync between the reveal animation
-// and its style so the red panel slides in flush with the row edge.
-const SWIPE_DELETE_WIDTH = ms(84);
-function localizeQuantityForDisplay(quantity: string, isHebrew: boolean): string {
-  if (!isHebrew) return quantity;
-  for (const u of SORTED_UNIT_OPTS) {
-    if (quantity.endsWith(u)) {
-      const prefix = quantity.slice(0, -u.length);
-      if (/^\d+(\.\d+)?$/.test(prefix)) {
-        return prefix + formatUnitSuffix(u, true);
-      }
-    }
-  }
-  return quantity;
-}
-
-// ── Category detection ─────────────────────────────────────────────────────────
-interface Category {
-  labelKey: string;
-  icon: IoniconName;
-  order: number;
-}
-
-const RULES: Array<{ re: RegExp; cat: Category }> = [
-  {
-    re: /banana|apple|avocado|tomato|carrot|onion|lettuce|orange|strawberry|grape|cucumber|pepper|lime|lemon|herb|spinach|broccoli|salad/i,
-    cat: { labelKey: 'grocery.cat_produce', icon: 'nutrition-outline', order: 0 },
-  },
-  {
-    re: /milk|oat milk|almond milk|egg|cheese|butter|yogurt|cream|dairy/i,
-    cat: { labelKey: 'grocery.cat_dairy_fridge', icon: 'snow-outline', order: 1 },
-  },
-  {
-    re: /toilet|soap|trash|bin bag|sponge|paper towel|dish|laundry|detergent|bleach|towel|cleaning/i,
-    cat: { labelKey: 'grocery.cat_household', icon: 'basket-outline', order: 2 },
-  },
-  {
-    re: /chicken|beef|fish|salmon|tuna|pork|lamb|shrimp|sausage|meat|mince/i,
-    cat: { labelKey: 'grocery.cat_meat_fish', icon: 'restaurant-outline', order: 3 },
-  },
-  {
-    re: /pasta|rice|bread|flour|sugar|salt|olive oil|oil|cereal|oats|coffee|tea|sauce|can|tin/i,
-    cat: { labelKey: 'grocery.cat_pantry', icon: 'file-tray-stacked-outline', order: 4 },
-  },
-];
-const OTHER_CAT: Category = { labelKey: 'grocery.cat_other', icon: 'cube-outline', order: 99 };
-
-function detectCategory(name: string): Category {
-  return RULES.find((r) => r.re.test(name))?.cat ?? OTHER_CAT;
-}
-
-function elapsedLabel(
-  startedAt: string,
-  t: (key: string, opts?: Record<string, unknown>) => string
-): string {
-  const mins = Math.floor((Date.now() - new Date(startedAt).getTime()) / 60000);
-  if (mins < 1) return t('grocery.just_started');
-  if (mins < 60) return t('grocery.mins_at_store', { mins });
-  return t('grocery.hours_at_store', { h: Math.floor(mins / 60), m: mins % 60 });
-}
-
-// ── Item row ───────────────────────────────────────────────────────────────────
-interface ItemRowProps {
-  item: GroceryItem;
-  myId: string;
-  /** Shared clock (ms) so every row's age label refreshes together. */
-  now: number;
-  isDuplicate?: boolean;
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
-  onIncrement: (id: string) => void;
-  onDecrement: (id: string) => void;
-  onUpdate: (id: string, name: string, quantity: string) => Promise<void>;
-  onLongPress: (item: GroceryItem) => void;
-}
-
-const ItemRow = memo(function ItemRow({
-  item,
-  myId,
-  now,
-  isDuplicate = false,
-  onToggle,
-  onDelete,
-  onIncrement,
-  onDecrement,
-  onUpdate,
-  onLongPress,
-}: ItemRowProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const C = useThemedColors();
-  const language = useLanguageStore((s) => s.language);
-  const isPlainInt = /^\d+$/.test(item.quantity.trim());
-  const qtyNum = isPlainInt ? parseInt(item.quantity, 10) : NaN;
-  const hasCount = isPlainInt && qtyNum > 1;
-  const bought = item.boughtCount ?? 0;
-  const canEdit = item.addedBy === myId;
-  const memberName = useMemberName();
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(item.name);
-  const [editQty, setEditQty] = useState(item.quantity);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  const rowStyles = useMemo(() => makeStyles(C), [C]);
-
-  const handleTap = useCallback((): void => {
-    if (!hasCount) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-    onToggle(item.id);
-  }, [hasCount, item.id, onToggle]);
-
-  const handleDelete = useCallback((): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    onDelete(item.id);
-  }, [item.id, onDelete]);
-
-  // Web fires a press as two events sometimes; this ref swallows the echo so
-  // one tap on +/- counts once. 80ms is well under any real double-tap.
-  const lastStepRef = useRef(0);
-
-  const handleDecrement = useCallback((): void => {
-    const now = Date.now();
-    if (now - lastStepRef.current < 50 || bought === 0) return;
-    lastStepRef.current = now;
-    Haptics.selectionAsync().catch(() => {});
-    onDecrement(item.id);
-  }, [bought, item.id, onDecrement]);
-
-  const handleIncrement = useCallback((): void => {
-    const now = Date.now();
-    if (now - lastStepRef.current < 50 || bought >= qtyNum) return;
-    lastStepRef.current = now;
-    Haptics.selectionAsync().catch(() => {});
-    onIncrement(item.id);
-  }, [bought, qtyNum, item.id, onIncrement]);
-
-  const handleEditNameChange = useCallback((v: string): void => {
-    setEditName(v);
-    setSaveError(null);
-  }, []);
-  const handleEditQtyChange = useCallback((v: string): void => {
-    setEditQty(v);
-    setSaveError(null);
-  }, []);
-
-  const startEdit = useCallback((): void => {
-    setEditName(item.name);
-    setEditQty(item.quantity);
-    setSaveError(null);
-    setIsEditing(true);
-  }, [item.name, item.quantity]);
-
-  const cancelEdit = useCallback((): void => {
-    setSaveError(null);
-    setIsEditing(false);
-  }, []);
-
-  const handleLongPress = useCallback((): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    onLongPress(item);
-  }, [item, onLongPress]);
-
-  const saveEdit = useCallback(async (): Promise<void> => {
-    const trimmed = editName.trim();
-    if (!trimmed || isSaving) return;
-    setIsSaving(true);
-    setSaveError(null);
-    try {
-      await onUpdate(item.id, trimmed, editQty.trim());
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setIsEditing(false);
-    } catch {
-      setSaveError(t('grocery.could_not_save'));
-    } finally {
-      setIsSaving(false);
-    }
-  }, [editName, editQty, item.id, onUpdate, isSaving, t]);
-
-  if (isEditing) {
-    return (
-      <View>
-        <View style={[rowStyles.groceryItem, rowStyles.groceryItemEditing]}>
-          <TextInput
-            value={editName}
-            onChangeText={handleEditNameChange}
-            style={rowStyles.editNameInput}
-            autoFocus
-            returnKeyType="done"
-            blurOnSubmit={false}
-            onSubmitEditing={saveEdit}
-            placeholder={t('grocery.item_name_placeholder')}
-            placeholderTextColor={C.textSecondary}
-            accessible
-            accessibilityRole="text"
-            accessibilityLabel={t('grocery.item_name_edit')}
-            accessibilityHint={t('grocery.item_name_edit_hint')}
-          />
-          <TextInput
-            value={editQty}
-            onChangeText={handleEditQtyChange}
-            style={rowStyles.editQtyInput}
-            keyboardType="default"
-            returnKeyType="done"
-            blurOnSubmit={false}
-            onSubmitEditing={saveEdit}
-            placeholder={t('grocery.qty_edit_placeholder')}
-            placeholderTextColor={C.textSecondary}
-            accessible
-            accessibilityRole="text"
-            accessibilityLabel={t('grocery.qty_edit')}
-            accessibilityHint={t('grocery.qty_edit_hint')}
-          />
-          <Pressable
-            onPress={saveEdit}
-            style={rowStyles.editActionBtn}
-            accessibilityRole="button"
-            accessibilityLabel={t('grocery.save_changes')}
-          >
-            <Ionicons name="checkmark" size={20} color={C.positive} />
-          </Pressable>
-          <Pressable
-            onPress={cancelEdit}
-            style={rowStyles.editActionBtn}
-            accessibilityRole="button"
-            accessibilityLabel={t('grocery.cancel_edit')}
-          >
-            <Ionicons name="close" size={20} color={C.textSecondary} />
-          </Pressable>
-        </View>
-        {!!saveError && <Text style={rowStyles.inlineError}>{saveError}</Text>}
-      </View>
-    );
-  }
-
-  const row = (
-    <Pressable
-      style={[
-        rowStyles.groceryItem,
-        item.isChecked && rowStyles.groceryItemDone,
-        item.isPersonal && !item.isDraft && rowStyles.groceryItemPersonal,
-      ]}
-      // Counted items are driven only by their +/- control, so the row itself
-      // isn't a toggle — that also stops a +/- tap from bubbling into a toggle.
-      onPress={hasCount ? undefined : handleTap}
-      onLongPress={handleLongPress}
-      delayLongPress={400}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: item.isChecked }}
-      accessibilityLabel={[
-        item.name,
-        isDuplicate ? t('grocery.already_on_shared') : null,
-        item.isPersonal
-          ? formatItemAge(item.createdAt, t, now)
-          : t('grocery.added_by_meta', {
-              name: item.addedBy === myId ? t('common.you') : memberName(item.addedBy),
-              time: formatItemAge(item.createdAt, t, now),
-            }),
-      ]
-        .filter(Boolean)
-        .join(', ')}
-      accessibilityHint={t('grocery.long_press_hint')}
-    >
-      {hasCount ? (
-        <View style={rowStyles.counter}>
-          <Pressable
-            accessible
-            onPress={handleDecrement}
-            style={[rowStyles.ctrBtn, bought === 0 && rowStyles.ctrBtnOff]}
-            accessibilityRole="button"
-            accessibilityLabel={t('grocery.decrease_item', { name: item.name })}
-            accessibilityState={{ disabled: bought === 0 }}
-          >
-            <Text style={rowStyles.ctrBtnText}>−</Text>
-          </Pressable>
-          <Text style={rowStyles.ctrText}>
-            {bought}/{qtyNum}
-          </Text>
-          <Pressable
-            accessible
-            onPress={handleIncrement}
-            style={[rowStyles.ctrBtn, bought >= qtyNum && rowStyles.ctrBtnOff]}
-            accessibilityRole="button"
-            accessibilityLabel={t('grocery.increase_item', { name: item.name })}
-            accessibilityState={{ disabled: bought >= qtyNum }}
-          >
-            <Text style={rowStyles.ctrBtnText}>+</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <Ionicons
-          name={item.isChecked ? 'checkmark-circle' : 'ellipse-outline'}
-          size={24}
-          color={item.isChecked ? C.positive : C.border}
-        />
-      )}
-      <View style={rowStyles.itemDetails}>
-        <View style={rowStyles.itemMain}>
-          <View style={rowStyles.itemNameWrap}>
-            <Text style={[rowStyles.itemName, item.isChecked && rowStyles.itemNameDone]}>
-              {item.name}
-            </Text>
-            {/* Counted items show their target via the 0/N counter, so no qty
-              badge here; non-counted items still show their quantity label. */}
-            {!hasCount && !!item.quantity && item.quantity !== '1' && (
-              <View style={rowStyles.itemQty}>
-                <Text style={rowStyles.itemQtyText}>
-                  {localizeQuantityForDisplay(item.quantity, language === 'he')}
-                </Text>
-              </View>
-            )}
-          </View>
-          <ItemAgeMeta
-            addedBy={item.addedBy}
-            createdAt={item.createdAt}
-            myId={myId}
-            now={now}
-            showName={!item.isPersonal}
-            isChecked={item.isChecked}
-          />
-          {hasCount && (
-            <View style={rowStyles.progressWrap}>
-              <View style={rowStyles.progressTrack}>
-                <View
-                  style={[
-                    rowStyles.progressFill,
-                    { width: `${Math.round((bought / qtyNum) * 100)}%` as `${number}%` },
-                  ]}
-                />
-              </View>
-              <Text style={rowStyles.progressLabel}>
-                {bought >= qtyNum
-                  ? t('grocery.all_bought')
-                  : t('grocery.n_left', { count: qtyNum - bought })}
-              </Text>
-            </View>
-          )}
-        </View>
-        <View style={rowStyles.itemActions}>
-          {isDuplicate && (
-            <View
-              style={rowStyles.duplicateBadge}
-              accessibilityLabel={t('grocery.already_on_shared')}
-            >
-              <Text style={rowStyles.duplicateBadgeText}>{t('grocery.on_list')}</Text>
-            </View>
-          )}
-          {!!item.comment && (
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={14}
-              color={C.textSecondary}
-              accessibilityLabel={t('grocery.has_note')}
-            />
-          )}
-          {/* Who added a shared item is spelled out in the age line under the name. */}
-          {item.isPersonal && !item.isDraft && (
-            <Ionicons name="lock-closed" size={14} color="rgba(139,92,246,0.6)" />
-          )}
-          {canEdit && (
-            <Pressable
-              onPress={startEdit}
-              style={rowStyles.editBtn}
-              accessibilityRole="button"
-              accessibilityLabel={t('grocery.edit_item', { name: item.name })}
-            >
-              <Ionicons name="pencil-outline" size={15} color={C.textSecondary} />
-            </Pressable>
-          )}
-        </View>
-      </View>
-    </Pressable>
-  );
-
-  // Swipe left-to-reveal a red Delete, like a native list. Any housemate can
-  // remove a shared item (the screen confirms first when it isn't yours), so
-  // stale items don't get stuck on the list.
-  return (
-    <Swipeable
-      renderRightActions={(_progress, dragX) => {
-        // Slide the panel in 1:1 with the drag so it stays glued to the row's
-        // right edge instead of sitting revealed underneath as a floating box.
-        const translateX = dragX.interpolate({
-          inputRange: [-SWIPE_DELETE_WIDTH, 0],
-          outputRange: [0, SWIPE_DELETE_WIDTH],
-          extrapolate: 'clamp',
-        });
-        return (
-          <Animated.View style={[rowStyles.swipeDeleteLane, { transform: [{ translateX }] }]}>
-            <Pressable
-              style={rowStyles.swipeDelete}
-              onPress={handleDelete}
-              accessibilityRole="button"
-              accessibilityLabel={t('grocery.delete_item_name', { name: item.name })}
-            >
-              <Ionicons name="trash" size={20} color="#fff" />
-              <Text style={rowStyles.swipeDeleteText}>{t('common.delete')}</Text>
-            </Pressable>
-          </Animated.View>
-        );
-      }}
-      overshootRight={false}
-      rightThreshold={40}
-      friction={2}
-    >
-      {row}
-    </Swipeable>
-  );
-});
+const MAX_CATEGORY_TILES = 4;
 
 function ItemSeparator(): React.JSX.Element {
-  const C = useThemedColors();
-  const s = useMemo(() => makeStyles(C), [C]);
-  return <View style={s.itemSep} />;
+  return <View style={separatorStyles.item} />;
 }
 function SectionSeparator(): React.JSX.Element {
-  const C = useThemedColors();
-  const s = useMemo(() => makeStyles(C), [C]);
-  return <View style={s.sectionSep} />;
+  return <View style={separatorStyles.section} />;
 }
+const separatorStyles = StyleSheet.create({
+  item: { height: ms(10) },
+  section: { height: ms(24) },
+});
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
 interface GroceryItemWithMeta extends GroceryItem {
@@ -527,6 +88,9 @@ interface GroceryItemWithMeta extends GroceryItem {
 interface SectionData {
   title: string;
   icon: IoniconName;
+  tone: CategoryTone;
+  /** Category translation key — shared sections only. */
+  labelKey?: string;
   data: GroceryItemWithMeta[];
   sectionType: 'draft' | 'private' | 'shared';
   /** True on the first ordered section that carries the "remind me" bell. */
@@ -544,7 +108,6 @@ function GroceryScreen(): React.JSX.Element {
     }, [markSeen])
   );
 
-  const language = useLanguageStore((s) => s.language);
   const isLoading = useGroceryStore((s) => s.isLoading);
   const error = useGroceryStore((s) => s.error);
   const items = useGroceryStore((s) => s.items);
@@ -582,14 +145,12 @@ function GroceryScreen(): React.JSX.Element {
   const draftEnabled = useSettingsStore((s) => s.isEnabled('grocery_draft'));
 
   const [itemName, setItemName] = useState('');
-  const [qty, setQty] = useState('1');
   const [isAdding, setIsAdding] = useState(false);
   const [addMode, setAddMode] = useState<AddMode>('shared');
   const [isDraftOn, setIsDraftOn] = useState(false);
-  const [note, setNote] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [unit, setUnit] = useState<string>('');
+  const [showAddSheet, setShowAddSheet] = useState(false);
   const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
 
   // ── Modal state ──────────────────────────────────────────────────────────────
@@ -699,10 +260,6 @@ function GroceryScreen(): React.JSX.Element {
     return (): void => sub.remove();
   }, [myDraftItems]);
 
-  // Always store the canonical (non-localized) unit so `quantity` stays
-  // language-neutral for every housemate; see localizeQuantityForDisplay.
-  const qtyNumVal = Math.max(1, parseInt(qty, 10) || 1);
-  const resolvedQty = qty + unit;
   const effectiveMode: AddMode =
     addMode === 'private' ? 'private' : draftEnabled && isDraftOn ? 'draft' : 'shared';
   // Which "Add to" destination is currently selected (drives the top chooser).
@@ -728,6 +285,7 @@ function GroceryScreen(): React.JSX.Element {
       result.push({
         title: t('grocery.my_draft'),
         icon: 'create-outline',
+        tone: 'amber',
         sectionType: 'draft',
         data: draftItems.map((i) => ({
           ...i,
@@ -739,6 +297,7 @@ function GroceryScreen(): React.JSX.Element {
       result.push({
         title: t('grocery.my_private_list'),
         icon: 'lock-closed-outline',
+        tone: 'violet',
         sectionType: 'private',
         data: privateItems,
       });
@@ -755,6 +314,8 @@ function GroceryScreen(): React.JSX.Element {
         map.set(stableKey, {
           title: t(stableKey),
           icon: cat.icon,
+          tone: cat.tone,
+          labelKey: stableKey,
           sectionType: 'shared',
           data: [],
         });
@@ -783,32 +344,45 @@ function GroceryScreen(): React.JSX.Element {
     return ordered;
   }, [items, myId, t, effectiveMode]);
 
-  const handleAdd = useCallback(
-    async (quick?: string): Promise<void> => {
-      const n = quick ?? itemName.trim();
+  // Unticked items in the bucket the user is adding to (shared, private or draft).
+  const inAddBucket = useCallback(
+    (i: GroceryItem): boolean =>
+      effectiveMode === 'private'
+        ? i.isPersonal && !i.isDraft && i.addedBy === myId
+        : effectiveMode === 'draft'
+          ? i.isDraft && i.addedBy === myId
+          : !i.isPersonal,
+    [effectiveMode, myId]
+  );
+
+  const isOnList = useCallback(
+    (name: string): boolean => {
+      const key = name.trim().toLowerCase();
+      return items.some(
+        (i) => !i.isChecked && inAddBucket(i) && i.name.trim().toLowerCase() === key
+      );
+    },
+    [items, inAddBucket]
+  );
+
+  /** Adds (or merges) one item. `addQty` is a language-neutral "<count><unit>". */
+  const addEntry = useCallback(
+    async (n: string, addQty: string, noteText: string): Promise<boolean> => {
       // addBusyRef is a synchronous lock: a double-fired press (common on web)
       // or a fast second tap is dropped instead of racing into a duplicate row.
-      if (!n || addBusyRef.current) return;
+      if (!n || addBusyRef.current) return false;
       addBusyRef.current = true;
       setIsAdding(true);
       setAddError(null);
       try {
-        // Quick-add carries the count (no unit); typed add carries count + unit.
-        const addQty = quick ? qty : resolvedQty;
         // Same-name unchecked item already on this list? Merge into it and bump
         // the quantity instead of creating a separate duplicate row — so "add
         // olive oil x3" becomes one item you can count down, not three rows.
         // Read the freshest list (not the render-time closure) so a just-added
         // item is seen and merged rather than duplicated.
         const currentItems = useGroceryStore.getState().items;
-        const inBucket = (i: GroceryItem): boolean =>
-          effectiveMode === 'private'
-            ? i.isPersonal && !i.isDraft && i.addedBy === myId
-            : effectiveMode === 'draft'
-              ? i.isDraft && i.addedBy === myId
-              : !i.isPersonal;
         const existing = currentItems.find(
-          (i) => !i.isChecked && inBucket(i) && i.name.trim().toLowerCase() === n.toLowerCase()
+          (i) => !i.isChecked && inAddBucket(i) && i.name.trim().toLowerCase() === n.toLowerCase()
         );
         // Only merge when both quantities are plain counts (empty == 1); a
         // measured amount like "2kg" can't be summed, so it adds a new row.
@@ -822,44 +396,20 @@ function GroceryScreen(): React.JSX.Element {
         if (existing && existingCount !== null && addedCount !== null) {
           await updateItem(existing.id, existing.name, String(existingCount + addedCount));
         } else {
-          await addItem(
-            n,
-            addQty,
-            myId,
-            houseId ?? '',
-            effectiveMode,
-            quick ? undefined : note.trim() || undefined
-          );
-        }
-        setItemName('');
-        if (!quick) {
-          setQty('1');
-          setUnit('');
-          setNote('');
+          await addItem(n, addQty, myId, houseId ?? '', effectiveMode, noteText || undefined);
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         showAddedItemPrompt(n);
-        setTimeout(() => inputRef.current?.focus(), 50);
+        return true;
       } catch {
         setAddError(t('grocery.could_not_add'));
+        return false;
       } finally {
         addBusyRef.current = false;
         setIsAdding(false);
       }
     },
-    [
-      itemName,
-      qty,
-      resolvedQty,
-      myId,
-      houseId,
-      addItem,
-      updateItem,
-      effectiveMode,
-      note,
-      t,
-      showAddedItemPrompt,
-    ]
+    [myId, houseId, addItem, updateItem, effectiveMode, inAddBucket, t, showAddedItemPrompt]
   );
 
   const handlePublishDraft = useCallback(async (): Promise<void> => {
@@ -1117,7 +667,9 @@ function GroceryScreen(): React.JSX.Element {
           {
             text: t('common.cancel'),
             style: 'cancel',
-            onPress: () => deletingIdsRef.current.delete(id),
+            onPress: (): void => {
+              deletingIdsRef.current.delete(id);
+            },
           },
           { text: t('grocery.remove_confirm'), style: 'destructive', onPress: doDelete },
         ]
@@ -1207,30 +759,37 @@ function GroceryScreen(): React.JSX.Element {
     setItemName(v);
     setAddError(null);
   }, []);
-  const handleAddPress = useCallback((): void => {
-    handleAdd();
-  }, [handleAdd]);
-  const changeQty = useCallback((delta: number): void => {
-    Haptics.selectionAsync().catch(() => {});
-    setQty((prev) => {
-      const next = (parseInt(prev, 10) || 1) + delta;
-      return String(Math.max(1, Math.min(99, next)));
-    });
+  // The add bar is the quick path: typed name + "+" adds one straight away.
+  // An empty bar (or the options button) opens the sheet with the extra details.
+  const handleAddPress = useCallback(async (): Promise<void> => {
+    const n = itemName.trim();
+    if (!n) {
+      setShowAddSheet(true);
+      return;
+    }
+    if (await addEntry(n, '1', '')) {
+      setItemName('');
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [itemName, addEntry]);
+  const handleOpenAddSheet = useCallback((): void => {
+    setShowAddSheet(true);
   }, []);
-  const handleUnitToggle = useCallback((u: string): void => {
-    setUnit((prev) => (prev === u ? '' : u));
+  const handleCloseAddSheet = useCallback((): void => {
+    setShowAddSheet(false);
   }, []);
-  const handleQuickAdd = useCallback(
-    (name: string): void => {
-      Haptics.selectionAsync().catch(() => {});
-      handleAdd(name);
+  const handleSheetAdd = useCallback(
+    async (n: string, quantity: string, noteText: string): Promise<boolean> => {
+      const ok = await addEntry(n, quantity, noteText);
+      if (ok) setItemName('');
+      return ok;
     },
-    [handleAdd]
+    [addEntry]
   );
 
   const renderItem = useCallback(
     ({ item }: { item: GroceryItemWithMeta }): React.JSX.Element => (
-      <ItemRow
+      <GroceryItemRow
         item={item}
         myId={myId}
         now={now}
@@ -1323,8 +882,12 @@ function GroceryScreen(): React.JSX.Element {
       }
       return (
         <View style={styles.catTitle}>
-          <Ionicons name={section.icon} size={15} color={C.textSecondary} />
-          <Text style={styles.catTitleText}>{section.title}</Text>
+          <Text style={[styles.sectionTitle, headingFont]} accessibilityRole="header">
+            {section.title}
+          </Text>
+          <Text style={styles.sectionCount}>
+            {t('grocery.section_count', { count: section.data.length })}
+          </Text>
           {reminderBell}
         </View>
       );
@@ -1340,92 +903,62 @@ function GroceryScreen(): React.JSX.Element {
       C,
       handleOpenGeneralReminder,
       reminders,
+      headingFont,
     ]
   );
 
-  const isMyRun = !!activeRun && activeRun.shopperId === myId;
+  const listRef = useRef<SectionList<GroceryItemWithMeta, SectionData>>(null);
 
-  const ShoppingRunCard = (): React.JSX.Element => {
-    if (activeRun && isMyRun) {
-      return (
-        <View style={[styles.shoppingRunCard, styles.shoppingRunCardActive]}>
-          <View style={[styles.shoppingIcon, styles.shoppingIconActive]}>
-            <Ionicons name="bag-handle" size={26} color="rgb(22,101,52)" />
-          </View>
-          <View style={styles.shoppingCopy}>
-            <Text style={styles.titleLg}>{t('grocery.you_at_store')}</Text>
-            <Text style={styles.textSm}>
-              {elapsedLabel(activeRun.startedAt, t)} · {t('grocery.housemates_can_see')}
-            </Text>
-          </View>
-          <Pressable
-            style={[styles.btnPrimary, styles.btnFull]}
-            onPress={handleStartRun}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('grocery.shop.continue')}
-          >
-            <Text style={styles.btnPrimaryText}>{t('grocery.shop.continue')}</Text>
-          </Pressable>
-          <Pressable
-            style={styles.btnGhost}
-            onPress={handleEndRun}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('grocery.done_shopping')}
-          >
-            <Text style={styles.btnGhostText}>{t('grocery.done_shopping')}</Text>
-          </Pressable>
-        </View>
-      );
-    }
-    if (activeRun && !isMyRun) {
-      return (
-        <View style={[styles.shoppingRunCard, styles.shoppingRunCardActive]}>
-          <View style={[styles.shoppingIcon, styles.shoppingIconActive]}>
-            <Ionicons name="bag-handle" size={26} color="rgb(22,101,52)" />
-          </View>
-          <View style={styles.shoppingCopy}>
-            <Text style={styles.titleLg}>
-              {t('grocery.at_store', { name: activeRun.shopperName })}
-            </Text>
-            <Text style={styles.textSm}>{t('grocery.at_store_hint')}</Text>
-          </View>
-          <View style={styles.shopperBadge}>
-            <UserAvatar userId={activeRun.shopperId} size={28} />
-            <Text style={styles.shopperBadgeText}>{elapsedLabel(activeRun.startedAt, t)}</Text>
-          </View>
-        </View>
-      );
-    }
-    return (
-      <View style={styles.shoppingRunCard}>
-        <View style={styles.shoppingIcon}>
-          <Ionicons name="bag-handle-outline" size={26} color={C.primary} />
-        </View>
-        <View style={styles.shoppingCopy}>
-          <Text style={styles.titleLg}>{t('grocery.start_shopping_run')}</Text>
-          <Text style={styles.textSm}>{t('grocery.start_shopping_hint')}</Text>
-        </View>
-        <Pressable
-          style={[styles.btnPrimary, styles.btnFull]}
-          onPress={handleStartRun}
-          accessibilityRole="button"
-        >
-          <Text style={styles.btnPrimaryText}>{t('grocery.im_going_shopping')}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.btnGhost}
-          onPress={handleQuickBuy}
-          accessibilityRole="button"
-          accessibilityLabel={t('grocery.shop.quick_buy')}
-        >
-          <Ionicons name="flash-outline" size={16} color={C.primary} />
-          <Text style={styles.btnGhostText}>{t('grocery.shop.quick_buy')}</Text>
-        </Pressable>
-      </View>
-    );
-  };
+  // Header summary: what's still to buy, and how much landed today.
+  const { toGrabCount, addedTodayCount } = useMemo(() => {
+    const visible = items.filter((i) => !i.isDraft || i.addedBy === myId);
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    return {
+      toGrabCount: visible.filter((i) => !i.isChecked).length,
+      addedTodayCount: visible.filter(
+        (i) => new Date(i.createdAt).getTime() >= startOfToday.getTime()
+      ).length,
+    };
+  }, [items, myId, now]);
+
+  // The busiest aisles, as tiles that jump to their section.
+  const categoryTiles = useMemo((): CategoryTileData[] => {
+    const tiles: CategoryTileData[] = [];
+    sections.forEach((section, sectionIndex) => {
+      if (section.sectionType !== 'shared' || !section.labelKey) return;
+      const count = section.data.filter((i) => !i.isChecked).length;
+      if (count === 0) return;
+      tiles.push({
+        labelKey: section.labelKey,
+        icon: section.icon,
+        tone: section.tone,
+        count,
+        sectionIndex,
+      });
+    });
+    return tiles.sort((a, b) => b.count - a.count).slice(0, MAX_CATEGORY_TILES);
+  }, [sections]);
+
+  const handleJumpToSection = useCallback((sectionIndex: number): void => {
+    Haptics.selectionAsync().catch(() => {});
+    listRef.current?.scrollToLocation({ sectionIndex, itemIndex: 0, viewOffset: ms(56) });
+  }, []);
+  // Sections far below may not be measured yet; nudge closer, then retry.
+  const handleScrollFailed = useCallback(
+    (info: { averageItemLength: number; index: number }): void => {
+      listRef.current
+        ?.getScrollResponder()
+        ?.scrollTo({ y: info.averageItemLength * info.index, animated: true });
+    },
+    []
+  );
+
+  const destinationHint = destPersonal
+    ? t('grocery.personal_hint')
+    : destDraft
+      ? t('grocery.draft_on_hint')
+      : t('grocery.shared_hint');
 
   // ── Saved list name for update modal ──────────────────────────────────────
   const sourceListName = useMemo(
@@ -1471,6 +1004,7 @@ function GroceryScreen(): React.JSX.Element {
 
             <View style={styles.flex}>
               <SectionList
+                ref={listRef}
                 extraData={now}
                 sections={sections}
                 keyExtractor={(item) => item.id}
@@ -1482,218 +1016,128 @@ function GroceryScreen(): React.JSX.Element {
                 contentContainerStyle={styles.listContent}
                 ItemSeparatorComponent={ItemSeparator}
                 SectionSeparatorComponent={SectionSeparator}
+                onScrollToIndexFailed={handleScrollFailed}
                 ListHeaderComponent={
                   <View>
                     <BackLink label={t('common.home')} />
-                    {/* ── Hero card ─────────────────────────────────────────── */}
-                    <View style={styles.headerCard}>
-                      <View style={styles.headerCopy}>
-                        <Text style={[styles.titleHero, headingFont]}>
-                          {t('grocery.shared_groceries')}
-                        </Text>
-                        <Text style={styles.textBase}>{t('grocery.add_things_hint')}</Text>
-                      </View>
+                    <GroceryHeader toGrabCount={toGrabCount} addedTodayCount={addedTodayCount} />
 
-                      {/* ── "Add to" chooser: Shared | Personal | Draft ──── */}
-                      <Text style={styles.addToLabel}>{t('grocery.add_to')}</Text>
-                      <View style={styles.segWrap} accessibilityRole="radiogroup">
-                        <Pressable
-                          style={[styles.segBtn, destShared && styles.segBtnShared]}
-                          onPress={handleSelectShared}
-                          accessibilityRole="radio"
-                          accessibilityState={{ selected: destShared }}
-                          accessibilityLabel={t('grocery.shared_tab')}
-                        >
-                          <Ionicons
-                            name="people-outline"
-                            size={15}
-                            color={destShared ? '#fff' : C.textSecondary}
-                          />
-                          <Text style={[styles.segText, destShared && styles.segTextOn]}>
-                            {t('grocery.shared_seg')}
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          style={[styles.segBtn, destPersonal && styles.segBtnPersonalOn]}
-                          onPress={handleSetPrivate}
-                          accessibilityRole="radio"
-                          accessibilityState={{ selected: destPersonal }}
-                          accessibilityLabel={t('grocery.private_tab')}
-                        >
-                          <Ionicons
-                            name="person-outline"
-                            size={15}
-                            color={destPersonal ? '#fff' : C.textSecondary}
-                          />
-                          <Text style={[styles.segText, destPersonal && styles.segTextOn]}>
-                            {t('grocery.personal_seg')}
-                          </Text>
-                        </Pressable>
-                        {draftEnabled && (
-                          <Pressable
-                            style={[styles.segBtn, destDraft && styles.segBtnDraftOn]}
-                            onPress={handleSelectDraft}
-                            accessibilityRole="radio"
-                            accessibilityState={{ selected: destDraft }}
-                            accessibilityLabel={t('grocery.draft_mode')}
-                          >
-                            <Ionicons
-                              name="create-outline"
-                              size={15}
-                              color={destDraft ? '#fff' : C.textSecondary}
-                            />
-                            <Text style={[styles.segText, destDraft && styles.segTextOn]}>
-                              {t('grocery.draft_seg')}
-                            </Text>
-                          </Pressable>
-                        )}
-                      </View>
-                      <Text style={styles.addToHint}>
-                        {destPersonal
-                          ? t('grocery.personal_hint')
-                          : destDraft
-                            ? t('grocery.draft_on_hint')
-                            : t('grocery.shared_hint')}
-                      </Text>
-
-                      {/* ── Error banner ──────────────────────────────────── */}
-                      {!!addError && (
-                        <View style={styles.errorBanner}>
-                          <Text style={styles.errorBannerText}>{addError}</Text>
-                        </View>
-                      )}
-
-                      {/* ── Inline add input ──────────────────────────────── */}
-                      <View
-                        style={[
-                          styles.addRow,
-                          effectiveMode === 'private' && styles.addRowPersonal,
-                        ]}
+                    {/* ── Add bar: type + "+" adds; options opens the sheet ── */}
+                    <View style={[styles.addBar, destPersonal && styles.addBarPersonal]}>
+                      <TextInput
+                        ref={inputRef}
+                        value={itemName}
+                        onChangeText={handleItemNameChange}
+                        placeholder={t('grocery.add_bar_placeholder')}
+                        placeholderTextColor={C.textTertiary}
+                        style={styles.addInput}
+                        returnKeyType="done"
+                        blurOnSubmit={false}
+                        onSubmitEditing={handleAddPress}
+                        accessibilityLabel={t('grocery.add_item_a11y')}
+                        accessibilityHint={t('grocery.add_item_hint')}
+                      />
+                      <Pressable
+                        style={styles.optionsBtn}
+                        onPress={handleOpenAddSheet}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('grocery.add_more_details')}
                       >
-                        <TextInput
-                          ref={inputRef}
-                          value={itemName}
-                          onChangeText={handleItemNameChange}
-                          placeholder={t('grocery.item_placeholder')}
-                          placeholderTextColor={C.textSecondary}
-                          style={styles.addInput}
-                          returnKeyType="done"
-                          blurOnSubmit={false}
-                          onSubmitEditing={handleAddPress}
-                          accessible
-                          accessibilityRole="search"
-                          accessibilityLabel={t('grocery.add_item_a11y')}
-                          accessibilityHint={t('grocery.add_item_hint')}
-                        />
-                        <Pressable
-                          style={[
-                            styles.addBtn,
-                            (!itemName.trim() || isAdding) && styles.addBtnOff,
-                            effectiveMode === 'private' && styles.addBtnPersonal,
-                          ]}
-                          onPress={handleAddPress}
-                          disabled={!itemName.trim() || isAdding}
-                          accessibilityRole="button"
-                          accessibilityLabel={t('grocery.add_item')}
-                        >
-                          <Text style={styles.addBtnText}>{isAdding ? '…' : '+'}</Text>
-                        </Pressable>
-                      </View>
-
-                      {/* ── Qty stepper: choose how many to buy ──────────── */}
-                      <View style={styles.qtyRow}>
-                        <Text style={styles.qtyLabel}>{t('grocery.qty_label')}</Text>
-                        <View style={styles.qtyStepper}>
-                          <Pressable
-                            style={[styles.qtyStepBtn, qtyNumVal <= 1 && styles.qtyStepBtnOff]}
-                            onPress={() => changeQty(-1)}
-                            disabled={qtyNumVal <= 1}
-                            hitSlop={6}
-                            accessible
-                            accessibilityRole="button"
-                            accessibilityLabel={t('grocery.qty_decrease')}
-                            accessibilityState={{ disabled: qtyNumVal <= 1 }}
-                          >
-                            <Text style={styles.qtyStepSign}>−</Text>
-                          </Pressable>
-                          <Text style={styles.qtyStepValue}>{qtyNumVal}</Text>
-                          <Pressable
-                            style={styles.qtyStepBtn}
-                            onPress={() => changeQty(1)}
-                            hitSlop={6}
-                            accessible
-                            accessibilityRole="button"
-                            accessibilityLabel={t('grocery.qty_increase')}
-                          >
-                            <Text style={styles.qtyStepSign}>+</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-
-                      {/* ── Unit selector ────────────────────────────────── */}
-                      <View style={styles.qtyRow}>
-                        <Text style={styles.qtyLabel}>{t('grocery.unit_label')}</Text>
-                        <View style={styles.qtyPresets}>
-                          {UNIT_OPTS.map((u) => {
-                            const active = unit === u;
-                            const unitLabel = language === 'he' ? UNIT_LABELS_HE[u] : u;
-                            return (
-                              <Pressable
-                                key={u}
-                                style={[styles.qtyBtn, active && styles.qtyBtnOn]}
-                                onPress={() => handleUnitToggle(u)}
-                                hitSlop={4}
-                                accessibilityRole="button"
-                                accessibilityState={{ selected: active }}
-                                accessibilityLabel={t('grocery.unit_preset', { u: unitLabel })}
-                              >
-                                <Text style={[styles.qtyBtnText, active && styles.qtyBtnTextOn]}>
-                                  {unitLabel}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </View>
-
-                      {/* ── Note (optional) ─────────────────────────────── */}
-                      <View style={styles.noteRow}>
-                        <Ionicons name="chatbubble-outline" size={15} color={C.textTertiary} />
-                        <TextInput
-                          value={note}
-                          onChangeText={setNote}
-                          placeholder={t('grocery.note_placeholder')}
-                          placeholderTextColor={C.textTertiary}
-                          style={styles.noteInput}
-                          returnKeyType="done"
-                          onSubmitEditing={handleAddPress}
-                          accessibilityLabel={t('grocery.note_label')}
-                          accessibilityHint={t('grocery.note_hint')}
-                        />
-                      </View>
-
-                      {/* ── Quick Add (to current mode) ───────────────────── */}
-                      <View>
-                        <Text style={[styles.eyebrow, styles.quickAddLabel]}>
-                          {t('grocery.quick_add')}
-                        </Text>
-                        <View style={styles.quickAdds}>
-                          {QUICK_ADD_KEYS.map((qa) => (
-                            <Pressable
-                              key={qa.tKey}
-                              style={styles.quickAddBtn}
-                              onPress={() => handleQuickAdd(t(qa.tKey))}
-                              accessibilityRole="button"
-                              accessibilityLabel={t('grocery.add_quick', { name: t(qa.tKey) })}
-                            >
-                              <Text style={styles.quickAddText}>+ {t(qa.tKey)}</Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      </View>
+                        <Ionicons name="options-outline" size={20} color={C.textSecondary} />
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          styles.addBtn,
+                          destPersonal && styles.addBtnPersonal,
+                          isAdding && styles.addBtnBusy,
+                        ]}
+                        onPress={handleAddPress}
+                        disabled={isAdding}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: isAdding }}
+                        accessibilityLabel={t('grocery.add_item')}
+                      >
+                        {isAdding ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <Ionicons name="add" size={26} color="#FFFFFF" />
+                        )}
+                      </Pressable>
                     </View>
 
-                    {/* ── Saved Lists section ──────────────────────────────────── */}
+                    {/* ── Where new items go: Shared | Personal | Draft ──── */}
+                    <View style={styles.modeRow} accessibilityRole="radiogroup">
+                      <Pressable
+                        style={[styles.modePill, destShared && styles.modePillShared]}
+                        onPress={handleSelectShared}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: destShared }}
+                        accessibilityLabel={t('grocery.shared_tab')}
+                      >
+                        <Ionicons
+                          name="people-outline"
+                          size={15}
+                          color={destShared ? '#FFFFFF' : C.textSecondary}
+                        />
+                        <Text style={[styles.modeText, destShared && styles.modeTextOn]}>
+                          {t('grocery.shared_seg')}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.modePill, destPersonal && styles.modePillPersonal]}
+                        onPress={handleSetPrivate}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: destPersonal }}
+                        accessibilityLabel={t('grocery.private_tab')}
+                      >
+                        <Ionicons
+                          name="lock-closed-outline"
+                          size={15}
+                          color={destPersonal ? '#FFFFFF' : C.textSecondary}
+                        />
+                        <Text style={[styles.modeText, destPersonal && styles.modeTextOn]}>
+                          {t('grocery.personal_seg')}
+                        </Text>
+                      </Pressable>
+                      {draftEnabled && (
+                        <Pressable
+                          style={[styles.modePill, destDraft && styles.modePillDraft]}
+                          onPress={handleSelectDraft}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: destDraft }}
+                          accessibilityLabel={t('grocery.draft_mode')}
+                        >
+                          <Ionicons
+                            name="create-outline"
+                            size={15}
+                            color={destDraft ? '#FFFFFF' : C.textSecondary}
+                          />
+                          <Text style={[styles.modeText, destDraft && styles.modeTextOn]}>
+                            {t('grocery.draft_seg')}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                    <Text style={styles.modeHint}>{destinationHint}</Text>
+
+                    {!!addError && (
+                      <View style={styles.errorBanner}>
+                        <Text style={styles.errorBannerText}>{addError}</Text>
+                      </View>
+                    )}
+
+                    {categoryTiles.length >= 2 && (
+                      <CategoryTiles tiles={categoryTiles} onPressTile={handleJumpToSection} />
+                    )}
+
+                    <ShoppingRunCard
+                      activeRun={activeRun}
+                      myId={myId}
+                      onOpenShop={handleStartRun}
+                      onEndRun={handleEndRun}
+                      onQuickBuy={handleQuickBuy}
+                    />
+
                     <SavedListsSection
                       lists={savedLists}
                       isLoading={isLoadingLists}
@@ -1705,7 +1149,6 @@ function GroceryScreen(): React.JSX.Element {
                       onEditList={handleOpenEditList}
                     />
 
-                    {/* ── Load / error states ─────────────────────────────────── */}
                     {isLoading && items.length === 0 && (
                       <LoadingSpinner size={64} style={styles.loadingIndicator} />
                     )}
@@ -1717,23 +1160,17 @@ function GroceryScreen(): React.JSX.Element {
                   </View>
                 }
                 ListEmptyComponent={
-                  <View style={styles.emptyWrap}>
-                    <Ionicons
-                      name="cart-outline"
-                      size={44}
-                      color={C.textTertiary}
-                      style={styles.emptyIcon}
-                    />
-                    <Text style={styles.emptyTitle}>{t('grocery.empty')}</Text>
-                    <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
-                  </View>
+                  isLoading ? null : (
+                    <View style={styles.emptyWrap}>
+                      <View style={styles.emptyIconChip}>
+                        <Ionicons name="basket-outline" size={34} color={C.primary} />
+                      </View>
+                      <Text style={styles.emptyTitle}>{t('grocery.empty')}</Text>
+                      <Text style={styles.emptyText}>{t('grocery.empty_hint')}</Text>
+                    </View>
+                  )
                 }
-                ListFooterComponent={
-                  <View style={styles.footer}>
-                    <ShoppingRunCard />
-                    <View style={styles.bottomPad} />
-                  </View>
-                }
+                ListFooterComponent={<View style={styles.bottomPad} />}
               />
             </View>
           </View>
@@ -1749,6 +1186,16 @@ function GroceryScreen(): React.JSX.Element {
       </KeyboardAvoidingView>
 
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
+      <AddItemSheet
+        visible={showAddSheet}
+        initialName={itemName}
+        destinationHint={destinationHint}
+        isOnList={isOnList}
+        isAdding={isAdding}
+        onAdd={handleSheetAdd}
+        onClose={handleCloseAddSheet}
+      />
+
       <GroceryItemDetailModal
         item={selectedItem}
         visible={!!selectedItem}
@@ -1799,14 +1246,11 @@ function GroceryScreen(): React.JSX.Element {
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 function makeStyles(C: ColorTokens) {
-  const successSubtle = C.success + '12';
   const isDark = C.background === darkColors.background;
   return StyleSheet.create({
     flex: { flex: 1 },
     root: { flex: 1, backgroundColor: C.background },
     listContent: { paddingHorizontal: ms(16), paddingTop: ms(4), paddingBottom: ms(8) },
-    // RNW's Switch thumb mispositions under an inherited RTL `direction`; isolate it to LTR.
-    switchLtr: { writingDirection: 'ltr' } as ViewStyle,
     reminderPromptOverlay: {
       position: 'absolute',
       top: ms(8),
@@ -1814,26 +1258,84 @@ function makeStyles(C: ColorTokens) {
       right: ms(16),
     },
 
-    headerCard: {
+    // ── Add bar
+    addBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(4),
       backgroundColor: C.surface,
+      borderRadius: ms(30),
+      paddingStart: ms(18),
+      paddingEnd: ms(6),
+      paddingVertical: ms(6),
+      borderWidth: isDark ? 1 : 0,
+      borderColor: C.border,
+      shadowColor: '#1F2A44',
+      shadowOffset: { width: 0, height: ms(6) },
+      shadowOpacity: isDark ? 0 : 0.08,
+      shadowRadius: 16,
+      elevation: isDark ? 0 : 3,
+    },
+    addBarPersonal: { backgroundColor: isDark ? 'rgba(124,58,237,0.14)' : '#F6F1FD' },
+    addInput: {
+      flex: 1,
+      minWidth: 0,
+      height: ms(46),
+      fontSize: mf(16),
+      ...font.regular,
+      color: C.textPrimary,
+    },
+    optionsBtn: {
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(22),
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addBtn: {
+      width: ms(48),
+      height: ms(48),
+      borderRadius: ms(24),
+      backgroundColor: C.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addBtnPersonal: { backgroundColor: PERSONAL_ON },
+    addBtnBusy: { opacity: 0.7 },
+
+    // ── Mode pills
+    modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(8), marginTop: ms(14) },
+    modePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(6),
+      minHeight: ms(40),
+      paddingHorizontal: ms(16),
       borderRadius: ms(20),
+      backgroundColor: C.surface,
       borderWidth: 1,
       borderColor: C.border,
-      padding: ms(20),
-      gap: ms(16),
-      marginBottom: ms(16),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
     },
-    headerCopy: { gap: ms(6) },
+    modePillShared: { backgroundColor: C.primary, borderColor: C.primary },
+    modePillPersonal: { backgroundColor: PERSONAL_ON, borderColor: PERSONAL_ON },
+    modePillDraft: { backgroundColor: C.warning, borderColor: C.warning },
+    modeText: { fontSize: mf(14), ...font.semibold, color: C.textSecondary },
+    modeTextOn: { color: '#FFFFFF' },
+    modeHint: {
+      fontSize: mf(12.5),
+      ...font.regular,
+      color: C.textSecondary,
+      marginTop: ms(8),
+      marginBottom: ms(18),
+      paddingHorizontal: ms(4),
+    },
+
+    // ── Section headers
     sectionBell: {
-      marginLeft: 'auto',
-      width: ms(32),
-      height: ms(32),
-      borderRadius: ms(16),
+      marginStart: ms(4),
+      width: ms(36),
+      height: ms(36),
+      borderRadius: ms(18),
       backgroundColor: C.primaryTint,
       alignItems: 'center',
       justifyContent: 'center',
@@ -1853,276 +1355,22 @@ function makeStyles(C: ColorTokens) {
       paddingHorizontal: ms(3),
     },
     sectionBellBadgeText: { fontSize: mf(8.5), ...font.bold, color: '#fff' },
-
-    titleHero: {
-      fontSize: mf(26),
-      ...font.extrabold,
-      color: C.textPrimary,
-      letterSpacing: -0.78,
-      lineHeight: mf(31),
-    },
-    titleLg: {
-      fontSize: mf(18),
-      ...font.bold,
-      color: C.textPrimary,
-      letterSpacing: -0.36,
-      textAlign: 'center',
-    },
-    textBase: { fontSize: mf(15), ...font.regular, color: C.textSecondary, lineHeight: mf(22) },
-    textSm: {
-      fontSize: mf(13),
-      ...font.regular,
-      color: C.textSecondary,
-      lineHeight: mf(18),
-      textAlign: 'center',
-    },
-    eyebrow: {
-      fontSize: mf(12),
-      ...font.bold,
-      color: C.textSecondary,
-      letterSpacing: 0.72,
-      textTransform: 'uppercase',
-    },
-
-    // ── "Add to" chooser (v2)
-    addToLabel: {
-      fontSize: mf(11),
-      ...font.bold,
-      letterSpacing: 0.4,
-      textTransform: 'uppercase',
-      color: C.textTertiary,
-      marginBottom: ms(7),
-    },
-    segWrap: {
-      flexDirection: 'row',
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: ms(13),
-      padding: ms(4),
-      gap: ms(4),
-    },
-    segBtn: {
-      flex: 1,
-      minHeight: ms(44),
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(6),
-      borderRadius: ms(10),
-      paddingHorizontal: ms(4),
-    },
-    segBtnShared: { backgroundColor: C.primary },
-    segBtnPersonalOn: { backgroundColor: '#7C4DFF' },
-    segBtnDraftOn: { backgroundColor: C.warning },
-    segText: { fontSize: mf(13), ...font.bold, color: C.textSecondary },
-    segTextOn: { color: '#fff' },
-    addToHint: { fontSize: mf(11.5), ...font.regular, color: C.textTertiary, marginTop: ms(7) },
-    noteRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: ms(11),
-      paddingHorizontal: ms(11),
-      minHeight: ms(44),
-      marginTop: ms(10),
-    },
-    noteInput: {
-      flex: 1,
-      fontSize: mf(14),
-      ...font.regular,
-      color: C.textPrimary,
-      paddingVertical: ms(8),
-    },
-
-    modeToggle: { flexDirection: 'row', gap: ms(6) },
-    modeBtn: {
-      flex: 1,
-      minHeight: ms(44),
-      borderRadius: ms(10),
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: C.surfaceSecondary,
-      borderWidth: 1,
-      borderColor: C.border,
-    },
-    modeBtnOn: { backgroundColor: C.primary, borderColor: C.primary },
-    modeBtnDraft: {
-      backgroundColor: 'rgba(224,178,77,0.15)',
-      borderColor: 'rgba(224,178,77,0.55)',
-    },
-    modeBtnPersonal: {
-      backgroundColor: 'rgba(139,92,246,0.12)',
-      borderColor: 'rgba(139,92,246,0.4)',
-    },
-    modeBtnText: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
-    modeBtnTextOn: { color: '#FFFFFF' },
-    // Light theme needs a much darker purple than dark theme to clear 4.5:1 contrast
-    // against the pale modeBtnPersonal background.
-    modeBtnTextPersonal: { color: isDark ? 'rgb(196,181,253)' : '#5B21B6' },
-
-    // ── Draft mode toggle row
-    draftToggleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(12),
-      minHeight: ms(52),
-      borderRadius: ms(12),
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-      gap: ms(12),
-    },
-    draftToggleRowOn: {
-      borderColor: 'rgba(224,178,77,0.55)',
-      backgroundColor: 'rgba(224,178,77,0.08)',
-    },
-    draftToggleInfo: { flexDirection: 'row', alignItems: 'flex-start', gap: ms(10), flex: 1 },
-    draftToggleText: { flex: 1 },
-    draftToggleLabel: { fontSize: mf(14), ...font.semibold, color: C.textPrimary },
-    draftToggleLabelOn: { color: 'rgb(133,77,14)' },
-    draftToggleSub: { fontSize: mf(12), ...font.regular, color: C.textSecondary, marginTop: ms(1) },
-
-    addRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      borderRadius: ms(12),
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surfaceSecondary,
-      paddingEnd: ms(6),
-      paddingStart: ms(4),
-      height: ms(50),
-    },
-    addRowPersonal: { borderColor: PERSONAL_BORDER, backgroundColor: PERSONAL_BG },
-    addInput: {
-      flex: 1,
-      minWidth: 0,
-      height: '100%',
-      paddingHorizontal: ms(10),
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textPrimary,
-    },
-    addBtn: {
-      width: ms(44),
-      height: ms(44),
-      borderRadius: ms(10),
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: C.primary,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    addBtnOff: { backgroundColor: C.textDisabled },
-    addBtnPersonal: { backgroundColor: 'rgb(124,58,237)' },
-    addBtnText: { fontSize: mf(22), ...font.bold, color: '#FFFFFF', lineHeight: mf(26) },
-
-    btnPrimary: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: ms(48),
-      paddingHorizontal: ms(18),
-      borderRadius: ms(10),
-      backgroundColor: C.primary,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    btnPrimaryText: { fontSize: mf(15), ...font.semibold, color: '#FFFFFF' },
-    btnFull: { alignSelf: 'stretch' },
-    btnGhost: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(6),
-      minHeight: ms(44),
-      paddingHorizontal: ms(12),
-    },
-    btnGhostText: { fontSize: mf(14), ...font.semibold, color: C.primary },
-
-    qtyRow: { flexDirection: 'row', alignItems: 'center', gap: ms(8), flexWrap: 'wrap' },
-    qtyLabel: { fontSize: mf(13), ...font.semibold, color: C.textSecondary },
-    qtyPresets: { flexDirection: 'row', gap: ms(6) },
-    qtyBtn: {
-      minWidth: ms(36),
-      height: ms(36),
-      borderRadius: 9999,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: ms(10),
-      backgroundColor: C.surfaceSecondary,
-      borderWidth: 1,
-      borderColor: C.border,
-    },
-    qtyBtnOn: { backgroundColor: C.primary, borderColor: C.primary },
-    qtyBtnText: { fontSize: mf(14), ...font.semibold, color: C.textPrimary },
-    qtyBtnTextOn: { color: '#FFFFFF' },
-    qtyStepper: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: 9999,
-      borderWidth: 1,
-      borderColor: C.border,
-      padding: ms(3),
-    },
-    qtyStepBtn: {
-      width: ms(34),
-      height: ms(34),
-      borderRadius: 9999,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: C.surface,
-    },
-    qtyStepBtnOff: { opacity: 0.4 },
-    qtyStepSign: { fontSize: mf(20), ...font.bold, color: C.primary, lineHeight: mf(24) },
-    qtyStepValue: {
-      minWidth: ms(28),
-      textAlign: 'center',
-      fontSize: mf(16),
-      ...font.extrabold,
-      color: C.textPrimary,
-    },
-
-    quickAddLabel: { marginBottom: ms(8) },
-    quickAdds: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(8) },
-    quickAddBtn: {
-      paddingVertical: ms(7),
-      paddingHorizontal: ms(12),
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: C.border,
-      borderRadius: 9999,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    quickAddText: { fontSize: mf(13), ...font.semibold, color: C.textPrimary },
-
     catTitle: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: ms(8),
       paddingHorizontal: ms(4),
-      paddingTop: ms(8),
-      paddingBottom: ms(4),
+      paddingTop: ms(4),
+      paddingBottom: ms(10),
     },
+    sectionTitle: { flex: 1, fontSize: mf(20), color: C.textPrimary, letterSpacing: -0.2 },
+    sectionCount: { fontSize: mf(13), ...font.medium, color: C.textSecondary },
     catTitlePersonal: {
       backgroundColor: PERSONAL_BG,
-      borderRadius: ms(8),
-      paddingHorizontal: ms(10),
+      borderRadius: ms(12),
+      paddingHorizontal: ms(12),
+      paddingVertical: ms(8),
+      marginBottom: ms(10),
       borderWidth: 1,
       borderColor: PERSONAL_BORDER,
     },
@@ -2130,15 +1378,13 @@ function makeStyles(C: ColorTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingTop: ms(8),
-      paddingBottom: ms(4),
+      paddingBottom: ms(8),
       gap: ms(8),
     },
     catTitleFlex: { flex: 1 },
-    catTitleText: { fontSize: mf(14), ...font.bold, color: C.textPrimary },
-    catTitleTextDraft: { color: 'rgb(133,77,14)' },
-    catTitleTextPersonal: { color: 'rgb(76,29,149)' },
-
+    catTitleText: { fontSize: mf(15), ...font.bold, color: C.textPrimary },
+    catTitleTextDraft: { color: isDark ? '#E8C77E' : 'rgb(133,77,14)' },
+    catTitleTextPersonal: { color: isDark ? 'rgb(196,181,253)' : 'rgb(76,29,149)' },
     draftPublishBtn: {
       width: ms(44),
       height: ms(44),
@@ -2153,223 +1399,51 @@ function makeStyles(C: ColorTokens) {
     },
     draftPublishBtnOff: { opacity: 0.35 },
 
-    groceryItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(12),
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(12),
-      borderRadius: ms(14),
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: C.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    groceryItemDone: { opacity: 0.5, borderColor: 'transparent' },
-    groceryItemPersonal: { backgroundColor: PERSONAL_BG, borderColor: PERSONAL_BORDER },
-    groceryItemEditing: { backgroundColor: C.surface, borderColor: C.primary, gap: ms(8) },
-
-    duplicateBadge: {
-      backgroundColor: 'rgba(234,179,8,0.15)',
-      borderRadius: ms(6),
-      paddingHorizontal: ms(6),
-      paddingVertical: ms(2),
-      borderWidth: 1,
-      borderColor: 'rgba(234,179,8,0.4)',
-    },
-    duplicateBadgeText: { fontSize: mf(11), ...font.semibold, color: 'rgb(133,77,14)' },
-    itemSep: { height: ms(8) },
-    sectionSep: { height: ms(30) },
-
-    itemDetails: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: ms(12),
-      minWidth: 0,
-    },
-    itemMain: { flex: 1, minWidth: 0, gap: ms(6) },
-    itemNameWrap: { flexDirection: 'row', alignItems: 'center', gap: ms(8), minWidth: 0 },
-    progressWrap: { gap: ms(4) },
-    progressTrack: {
-      height: ms(5),
-      borderRadius: ms(3),
-      backgroundColor: C.surfaceSecondary,
-      overflow: 'hidden',
-    },
-    progressFill: { height: '100%', borderRadius: ms(3), backgroundColor: C.success },
-    progressLabel: { fontSize: mf(11.5), ...font.semibold, color: C.textSecondary },
-    itemName: { fontSize: mf(15), ...font.semibold, color: C.textPrimary, flexShrink: 1 },
-    itemNameDone: { textDecorationLine: 'line-through', color: C.textSecondary },
-    itemQty: {
-      backgroundColor: C.secondary,
-      paddingHorizontal: ms(6),
-      paddingVertical: ms(2),
-      borderRadius: ms(6),
-      flexShrink: 0,
-    },
-    itemQtyText: { fontSize: mf(12), ...font.bold, color: C.textSecondary },
-    itemActions: { flexDirection: 'row', alignItems: 'center', gap: ms(6), flexShrink: 0 },
-    editBtn: { width: ms(44), height: ms(44), justifyContent: 'center', alignItems: 'center' },
-    // Full-height lane flush to the row's right edge; the panel inside fills it so
-    // there's no misaligned floating box peeking out during a slow swipe-back.
-    swipeDeleteLane: { width: SWIPE_DELETE_WIDTH },
-    swipeDelete: {
-      flex: 1,
-      backgroundColor: C.danger,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: ms(3),
-      borderTopRightRadius: ms(14),
-      borderBottomRightRadius: ms(14),
-    },
-    swipeDeleteText: { fontSize: mf(12), ...font.bold, color: '#fff' },
-
-    editNameInput: {
-      flex: 1,
-      minWidth: 0,
-      height: ms(44),
-      paddingHorizontal: ms(10),
-      borderRadius: ms(8),
-      backgroundColor: C.surfaceSecondary,
-      borderWidth: 1,
-      borderColor: C.primary,
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textPrimary,
-    },
-    editQtyInput: {
-      width: ms(60),
-      height: ms(44),
-      paddingHorizontal: ms(8),
-      borderRadius: ms(8),
-      backgroundColor: C.surfaceSecondary,
-      borderWidth: 1,
-      borderColor: C.border,
-      fontSize: mf(14),
-      ...font.regular,
-      color: C.textPrimary,
-      textAlign: 'center',
-    },
-    editActionBtn: {
-      width: ms(44),
-      height: ms(44),
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    inlineError: {
-      fontSize: mf(12),
-      color: '#D94F4F',
-      paddingTop: ms(4),
-      paddingHorizontal: ms(4),
-    },
-
-    counter: { flexDirection: 'row', alignItems: 'center', gap: ms(4), flexShrink: 0 },
-    ctrBtn: {
-      minWidth: ms(44),
-      minHeight: ms(44),
-      borderRadius: ms(22),
-      backgroundColor: C.surfaceSecondary,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: C.border,
-    },
-    ctrBtnOff: { opacity: 0.3 },
-    ctrBtnText: { fontSize: mf(16), ...font.bold, color: C.primary, lineHeight: mf(20) },
-    ctrText: {
-      fontSize: mf(14),
-      ...font.bold,
-      color: C.textPrimary,
-      minWidth: ms(32),
-      textAlign: 'center',
-    },
-
-    avatar: { justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-    avatarText: { color: '#FFFFFF', ...font.bold },
-
     loadingIndicator: { marginBottom: ms(8) },
     errorBanner: {
       backgroundColor: C.dangerTint,
-      borderRadius: ms(10),
+      borderRadius: ms(14),
       padding: ms(12),
-      marginBottom: ms(8),
+      marginBottom: ms(12),
     },
     errorBannerText: { fontSize: mf(13), color: C.danger },
 
-    emptyWrap: { alignItems: 'center', paddingVertical: ms(48), gap: ms(8) },
-    emptyIcon: { marginBottom: sizes.sm },
-    emptyTitle: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
-    emptyText: { fontSize: mf(14), ...font.regular, color: C.textSecondary, textAlign: 'center' },
+    emptyWrap: { alignItems: 'center', paddingVertical: ms(40), gap: ms(8) },
+    emptyIconChip: {
+      width: ms(72),
+      height: ms(72),
+      borderRadius: ms(24),
+      backgroundColor: C.primaryTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: ms(8),
+    },
+    emptyTitle: { fontSize: mf(17), ...font.bold, color: C.textPrimary, textAlign: 'center' },
+    emptyText: {
+      fontSize: mf(14),
+      ...font.regular,
+      color: C.textSecondary,
+      textAlign: 'center',
+      maxWidth: ms(280),
+    },
 
     clearBar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: ms(14),
+      paddingHorizontal: ms(16),
       paddingVertical: ms(12),
       minHeight: ms(44),
-      borderRadius: ms(12),
+      borderRadius: ms(22),
       marginHorizontal: ms(16),
       marginTop: ms(8),
       marginBottom: ms(4),
-      backgroundColor: 'rgba(34,197,94,0.08)',
-      borderWidth: 1,
-      borderColor: 'rgba(34,197,94,0.25)',
+      backgroundColor: C.successTint,
     },
     clearBarWrap: { overflow: 'hidden' },
     clearBarLeft: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
     clearBarCount: { fontSize: mf(14), ...font.semibold, color: C.positive },
-    clearBarAction: { fontSize: mf(13), ...font.semibold, color: C.positive },
-
-    footer: { gap: ms(20) },
-
-    shoppingRunCard: {
-      paddingVertical: ms(24),
-      paddingHorizontal: ms(20),
-      borderRadius: ms(20),
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: SHOP_BORDER,
-      alignItems: 'center',
-      gap: ms(14),
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    shoppingRunCardActive: { backgroundColor: successSubtle, borderColor: SHOP_ACTIVE_BORDER },
-    shoppingIcon: {
-      width: ms(56),
-      height: ms(56),
-      borderRadius: ms(28),
-      backgroundColor: 'rgba(255,255,255,0.9)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    shoppingIconActive: { backgroundColor: 'rgba(220,255,230,0.9)' },
-    shoppingCopy: { alignItems: 'center', gap: ms(4), paddingHorizontal: ms(8) },
-    shopperBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      backgroundColor: 'rgba(255,255,255,0.7)',
-      paddingHorizontal: ms(12),
-      paddingVertical: ms(6),
-      borderRadius: 9999,
-    },
-    shopperBadgeText: { fontSize: mf(13), ...font.semibold, color: C.textPrimary },
+    clearBarAction: { fontSize: mf(13), ...font.bold, color: C.positive },
 
     bottomPad: { height: sizes.bottomTabContentPadding },
   });
