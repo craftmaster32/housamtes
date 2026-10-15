@@ -166,6 +166,30 @@ describe('load', () => {
   });
 });
 
+// ── startRun broadcast visibility ─────────────────────────────────────────────
+
+describe('startRun broadcast visibility', () => {
+  beforeEach(async () => {
+    mockFrom.mockReturnValue(ok([]));
+    await useGroceryStore.getState().load('house-1');
+    mockChannel.send.mockReset();
+  });
+
+  it('shows the live pill only after the server acks the broadcast', async () => {
+    mockChannel.send.mockResolvedValue('ok');
+    await useGroceryStore.getState().startRun('user-1', 'Lior');
+    await Promise.resolve();
+    expect(useGroceryStore.getState().runBroadcastVisible).toBe(true);
+  });
+
+  it('keeps the live pill hidden when the broadcast times out', async () => {
+    mockChannel.send.mockResolvedValue('timed out');
+    await useGroceryStore.getState().startRun('user-1', 'Lior');
+    await Promise.resolve();
+    expect(useGroceryStore.getState().runBroadcastVisible).toBe(false);
+  });
+});
+
 // ── toggleItem ────────────────────────────────────────────────────────────────
 
 describe('toggleItem', () => {
@@ -306,6 +330,29 @@ describe('deleteItem', () => {
     );
 
     expect(useGroceryStore.getState().items).toHaveLength(1);
+  });
+
+  it('un-ticks a ticked item when its quantity becomes a count still to buy', async () => {
+    seedItems({ isChecked: true, quantity: '1', boughtCount: 0 });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().updateItem('item-1', 'Item1', '3');
+
+    const updated = useGroceryStore.getState().items[0];
+    expect(updated.quantity).toBe('3');
+    expect(updated.isChecked).toBe(false);
+    expect(updated.boughtCount).toBe(0);
+  });
+
+  it('caps the bought count when the quantity shrinks, ticking the item if complete', async () => {
+    seedItems({ quantity: '6', boughtCount: 4, isChecked: false });
+    mockFrom.mockReturnValue(ok(null));
+
+    await useGroceryStore.getState().updateItem('item-1', 'Item1', '3');
+
+    const updated = useGroceryStore.getState().items[0];
+    expect(updated.boughtCount).toBe(3);
+    expect(updated.isChecked).toBe(true);
   });
 
   it("removes a shared item a housemate added, not just the caller's own", async () => {

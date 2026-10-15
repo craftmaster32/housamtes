@@ -421,7 +421,7 @@ export const useGroceryStore = create<GroceryStore>()(
         }
         _channelHouseId = houseId;
         _channel = supabase
-          .channel(`grocery:${houseId}`)
+          .channel(`grocery:${houseId}`, { config: { broadcast: { ack: true } } })
           .on(
             'postgres_changes',
             {
@@ -513,7 +513,9 @@ export const useGroceryStore = create<GroceryStore>()(
             const newRun = p.active
               ? { shopperId: p.shopperId, shopperName: p.shopperName, startedAt: p.startedAt }
               : null;
-            set({ activeRun: newRun });
+            // Someone else's run (or the end of ours) — our "housemates can
+            // see you" confirmation no longer applies.
+            set({ activeRun: newRun, runBroadcastVisible: false });
             if (p.active && newRun) {
               AsyncStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(newRun)).catch(() => {});
             } else {
@@ -586,15 +588,32 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       updateItem: async (id, name, quantity): Promise<void> => {
+        const current = get().items.find((i) => i.id === id);
+        // A counted item is "bought" only once every unit is in the basket, so a
+        // new quantity re-derives the tick from the bought count — otherwise a
+        // ticked single item bumped to "3" would read as done in one place and
+        // still-to-buy in another.
+        const n = /^\d+$/.test(quantity.trim()) ? parseInt(quantity, 10) : NaN;
+        const counted = !isNaN(n) && n > 1;
+        const boughtCount = current
+          ? counted
+            ? Math.min(current.boughtCount ?? 0, n)
+            : (current.boughtCount ?? 0)
+          : 0;
+        const isChecked = current ? (counted ? boughtCount >= n : current.isChecked) : false;
         const { error } = await supabase
           .from('grocery_items')
-          .update({ name, quantity })
+          .update({ name, quantity, bought_count: boughtCount, is_checked: isChecked })
           .eq('id', id);
         if (error) {
           captureError(error, { context: 'update-grocery' });
           throw new Error('Could not update the item. Please try again.');
         }
-        set({ items: get().items.map((i) => (i.id === id ? { ...i, name, quantity } : i)) });
+        set({
+          items: get().items.map((i) =>
+            i.id === id ? { ...i, name, quantity, boughtCount, isChecked } : i
+          ),
+        });
       },
 
       toggleItem: async (id): Promise<void> => {
@@ -826,7 +845,13 @@ export const useGroceryStore = create<GroceryStore>()(
               event: 'shopping_run',
               payload: { active: true, shopperId, shopperName, startedAt },
             })
-            .then(() => set({ runBroadcastVisible: true }))
+            .then((res) => {
+              // Only claim housemates can see the run once the server acked it,
+              // and only if this is still the run we started.
+              if (res === 'ok' && get().activeRun?.startedAt === startedAt) {
+                set({ runBroadcastVisible: true });
+              }
+            })
             .catch(() => {});
         }
       },
