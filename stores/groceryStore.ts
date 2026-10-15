@@ -586,15 +586,24 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       updateItem: async (id, name, quantity): Promise<void> => {
+        const existing = get().items.find((i) => i.id === id);
+        const quantityChanged = !!existing && existing.quantity !== quantity;
+        const resetFields = quantityChanged ? { is_checked: false, bought_count: 0 } : {};
         const { error } = await supabase
           .from('grocery_items')
-          .update({ name, quantity })
+          .update({ name, quantity, ...resetFields })
           .eq('id', id);
         if (error) {
           captureError(error, { context: 'update-grocery' });
           throw new Error('Could not update the item. Please try again.');
         }
-        set({ items: get().items.map((i) => (i.id === id ? { ...i, name, quantity } : i)) });
+        set({
+          items: get().items.map((i) =>
+            i.id === id
+              ? { ...i, name, quantity, ...(quantityChanged ? { isChecked: false, boughtCount: 0 } : {}) }
+              : i
+          ),
+        });
       },
 
       toggleItem: async (id): Promise<void> => {
