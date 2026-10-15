@@ -81,6 +81,7 @@ interface GroceryStore {
   error: string | null;
   clearError: () => void;
   activeRun: ShoppingRun | null;
+  runBroadcastVisible: boolean;
   savedLists: GroceryList[];
   isLoadingLists: boolean;
   listsError: string | null;
@@ -344,6 +345,7 @@ export const useGroceryStore = create<GroceryStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       activeRun: null,
+      runBroadcastVisible: false,
       savedLists: [],
       isLoadingLists: false,
       listsError: null,
@@ -815,19 +817,22 @@ export const useGroceryStore = create<GroceryStore>()(
       startRun: async (shopperId: string, shopperName: string): Promise<void> => {
         const startedAt = new Date().toISOString();
         const run: ShoppingRun = { shopperId, shopperName, startedAt };
-        set({ activeRun: run });
+        set({ activeRun: run, runBroadcastVisible: false });
         AsyncStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(run)).catch(() => {});
-        _channel
-          ?.send({
-            type: 'broadcast',
-            event: 'shopping_run',
-            payload: { active: true, shopperId, shopperName, startedAt },
-          })
-          .catch(() => {});
+        if (_channel) {
+          _channel
+            .send({
+              type: 'broadcast',
+              event: 'shopping_run',
+              payload: { active: true, shopperId, shopperName, startedAt },
+            })
+            .then(() => set({ runBroadcastVisible: true }))
+            .catch(() => {});
+        }
       },
 
       endRun: async (): Promise<void> => {
-        set({ activeRun: null });
+        set({ activeRun: null, runBroadcastVisible: false });
         AsyncStorage.removeItem(ACTIVE_RUN_KEY).catch(() => {});
         _channel
           ?.send({

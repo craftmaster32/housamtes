@@ -151,6 +151,7 @@ function ShopScreen(): React.JSX.Element {
   const addItem = useGroceryStore((s) => s.addItem);
   const startRun = useGroceryStore((s) => s.startRun);
   const endRun = useGroceryStore((s) => s.endRun);
+  const runBroadcastVisible = useGroceryStore((s) => s.runBroadcastVisible);
 
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
@@ -315,10 +316,12 @@ function ShopScreen(): React.JSX.Element {
             >
               <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
             </Pressable>
-            <View style={styles.livePill}>
-              <View style={styles.liveDot} />
-              <Text style={styles.livePillText}>{t('grocery.housemates_can_see')}</Text>
-            </View>
+            {runBroadcastVisible && (
+              <View style={styles.livePill}>
+                <View style={styles.liveDot} />
+                <Text style={styles.livePillText}>{t('grocery.housemates_can_see')}</Text>
+              </View>
+            )}
           </View>
           <Text style={[styles.headerTitle, headingFont]}>{t('grocery.shop.title')}</Text>
           <View style={styles.progressLabels}>
