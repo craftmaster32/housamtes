@@ -513,10 +513,11 @@ export const useGroceryStore = create<GroceryStore>()(
             const newRun = p.active
               ? { shopperId: p.shopperId, shopperName: p.shopperName, startedAt: p.startedAt }
               : null;
-            set({ activeRun: newRun });
-            if (p.active && newRun) {
+            if (newRun) {
+              set({ activeRun: newRun });
               AsyncStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(newRun)).catch(() => {});
             } else {
+              set({ activeRun: null, runBroadcastVisible: false });
               AsyncStorage.removeItem(ACTIVE_RUN_KEY).catch(() => {});
             }
           })
