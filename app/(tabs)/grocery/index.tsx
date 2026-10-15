@@ -1087,13 +1087,21 @@ function GroceryScreen(): React.JSX.Element {
     },
     [toggleItem]
   );
+  const deletingIdsRef = useRef(new Set<string>());
   const onDelete = useCallback(
     (id: string): void => {
+      if (deletingIdsRef.current.has(id)) return;
+      deletingIdsRef.current.add(id);
+
       const doDelete = (): void => {
         setSelectedItem((cur) => (cur?.id === id ? null : cur));
-        deleteItem(id).catch(() => {
-          Alert.alert(t('grocery.could_not_remove_item'), t('grocery.something_went_wrong'));
-        });
+        deleteItem(id)
+          .catch(() => {
+            Alert.alert(t('grocery.could_not_remove_item'), t('grocery.something_went_wrong'));
+          })
+          .finally(() => {
+            deletingIdsRef.current.delete(id);
+          });
       };
       const target = items.find((i) => i.id === id);
       // Anyone in the house can clear a shared item, but removing a housemate's
@@ -1106,7 +1114,11 @@ function GroceryScreen(): React.JSX.Element {
         t('grocery.remove_others_item_title', { name: target.name }),
         t('grocery.remove_others_item_body', { name: memberName(target.addedBy) }),
         [
-          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('common.cancel'),
+            style: 'cancel',
+            onPress: () => deletingIdsRef.current.delete(id),
+          },
           { text: t('grocery.remove_confirm'), style: 'destructive', onPress: doDelete },
         ]
       );
