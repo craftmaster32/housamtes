@@ -355,6 +355,19 @@ describe('deleteItem', () => {
     expect(updated.isChecked).toBe(true);
   });
 
+  it('keeps a bought-count change that lands while the quantity edit is saving', async () => {
+    seedItems({ quantity: '6', boughtCount: 1, isChecked: false });
+    mockFrom.mockReturnValue(ok(null));
+
+    const pending = useGroceryStore.getState().updateItem('item-1', 'Item1', '5');
+    useGroceryStore.setState({
+      items: useGroceryStore.getState().items.map((i) => ({ ...i, boughtCount: 2 })),
+    });
+    await pending;
+
+    expect(useGroceryStore.getState().items[0].boughtCount).toBe(2);
+  });
+
   it("removes a shared item a housemate added, not just the caller's own", async () => {
     seedItems({ addedBy: 'housemate-2', createdAt: '2025-08-01T00:00:00Z' });
     mockFrom.mockReturnValue(ok(null));

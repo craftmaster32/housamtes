@@ -588,31 +588,36 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       updateItem: async (id, name, quantity): Promise<void> => {
-        const current = get().items.find((i) => i.id === id);
         // A counted item is "bought" only once every unit is in the basket, so a
         // new quantity re-derives the tick from the bought count — otherwise a
         // ticked single item bumped to "3" would read as done in one place and
         // still-to-buy in another.
         const n = /^\d+$/.test(quantity.trim()) ? parseInt(quantity, 10) : NaN;
         const counted = !isNaN(n) && n > 1;
-        const boughtCount = current
-          ? counted
-            ? Math.min(current.boughtCount ?? 0, n)
-            : (current.boughtCount ?? 0)
-          : 0;
-        const isChecked = current ? (counted ? boughtCount >= n : current.isChecked) : false;
+        const derive = (item: GroceryItem): { boughtCount: number; isChecked: boolean } => {
+          const bought = item.boughtCount ?? 0;
+          if (!counted) return { boughtCount: bought, isChecked: item.isChecked };
+          const capped = Math.min(bought, n);
+          return { boughtCount: capped, isChecked: capped >= n };
+        };
+        const before = get().items.find((i) => i.id === id);
+        const fields = before ? derive(before) : null;
         const { error } = await supabase
           .from('grocery_items')
-          .update({ name, quantity, bought_count: boughtCount, is_checked: isChecked })
+          .update(
+            fields
+              ? { name, quantity, bought_count: fields.boughtCount, is_checked: fields.isChecked }
+              : { name, quantity }
+          )
           .eq('id', id);
         if (error) {
           captureError(error, { context: 'update-grocery' });
           throw new Error('Could not update the item. Please try again.');
         }
+        // Re-derive from the latest state: a +/- tap or a housemate's realtime
+        // update that landed while we were waiting must not be rolled back.
         set({
-          items: get().items.map((i) =>
-            i.id === id ? { ...i, name, quantity, boughtCount, isChecked } : i
-          ),
+          items: get().items.map((i) => (i.id === id ? { ...i, name, quantity, ...derive(i) } : i)),
         });
       },
 
