@@ -122,7 +122,7 @@ const ShopItemRow = memo(function ShopItemRow({
         <Text style={[styles.rowName, done && styles.rowNameBought]} numberOfLines={2}>
           {item.name}
         </Text>
-        {!done && !!subLine && (
+        {!!subLine && (
           <Text style={styles.rowSub} numberOfLines={1}>
             {subLine}
           </Text>
