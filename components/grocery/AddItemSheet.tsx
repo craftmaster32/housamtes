@@ -28,12 +28,16 @@ const QUICK_ADD_KEYS = [
   'grocery.quick_add_olive_oil',
 ] as const;
 
+export type AddDestination = 'shared' | 'private' | 'draft';
+
 export interface AddItemSheetProps {
   visible: boolean;
   /** Whatever was already typed in the add bar. */
   initialName: string;
-  /** One line telling the user where the item will land (shared, private, draft). */
-  destinationHint: string;
+  destination: AddDestination;
+  /** Drafts are behind a house setting; hide that option when it's off. */
+  draftEnabled: boolean;
+  onSelectDestination: (dest: AddDestination) => void;
   /** True when an unticked item with this name is already on the list. */
   isOnList: (name: string) => boolean;
   isAdding: boolean;
@@ -45,7 +49,9 @@ export interface AddItemSheetProps {
 export function AddItemSheet({
   visible,
   initialName,
-  destinationHint,
+  destination,
+  draftEnabled,
+  onSelectDestination,
   isOnList,
   isAdding,
   onAdd,
@@ -75,6 +81,20 @@ export function AddItemSheet({
   const category = trimmed ? detectCategory(trimmed) : null;
   const tone = category ? toneColors(category.tone, isDark) : null;
   const willMerge = !!trimmed && isOnList(trimmed);
+
+  const destOptions: Array<{ key: AddDestination; title: string; sub: string }> = [
+    { key: 'shared', title: t('grocery.sheet_for_everyone'), sub: t('grocery.shared_hint') },
+    { key: 'private', title: t('grocery.personal_seg'), sub: t('grocery.personal_hint') },
+    ...(draftEnabled
+      ? [
+          {
+            key: 'draft' as const,
+            title: t('grocery.draft_seg'),
+            sub: t('grocery.sheet_draft_sub'),
+          },
+        ]
+      : []),
+  ];
 
   const changeQty = useCallback((delta: number): void => {
     Haptics.selectionAsync().catch(() => {});
@@ -221,24 +241,49 @@ export function AddItemSheet({
             </View>
 
             <View style={s.field}>
-              <Text style={s.label}>{t('grocery.quick_add')}</Text>
-              <View style={s.chips}>
-                {QUICK_ADD_KEYS.map((key) => (
-                  <Pressable
-                    key={key}
-                    style={s.chip}
-                    onPress={() => handleQuickAdd(t(key))}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('grocery.add_quick', { name: t(key) })}
-                  >
-                    <Text style={s.chipText}>+ {t(key)}</Text>
-                  </Pressable>
-                ))}
+              <Text style={s.label}>{t('grocery.sheet_who_for')}</Text>
+              <View style={s.destRow} accessibilityRole="radiogroup">
+                {destOptions.map((opt) => {
+                  const on = destination === opt.key;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      style={[s.destCard, on && s.destCardOn]}
+                      onPress={() => onSelectDestination(opt.key)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: on }}
+                      accessibilityLabel={`${opt.title}. ${opt.sub}`}
+                    >
+                      <Text style={[s.destTitle, on && s.destTitleOn]}>{opt.title}</Text>
+                      <Text style={[s.destSub, on && s.destSubOn]} numberOfLines={2}>
+                        {opt.sub}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
+
+            {!trimmed && (
+              <View style={s.field}>
+                <Text style={s.label}>{t('grocery.quick_add')}</Text>
+                <View style={s.chips}>
+                  {QUICK_ADD_KEYS.map((key) => (
+                    <Pressable
+                      key={key}
+                      style={s.chip}
+                      onPress={() => handleQuickAdd(t(key))}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('grocery.add_quick', { name: t(key) })}
+                    >
+                      <Text style={s.chipText}>+ {t(key)}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
           </ScrollView>
 
-          <Text style={s.destination}>{destinationHint}</Text>
           <Pressable
             style={[s.submit, (!trimmed || isAdding) && s.submitOff]}
             onPress={handleSubmit}

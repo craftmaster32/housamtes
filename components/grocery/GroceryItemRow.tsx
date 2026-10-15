@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { View, Pressable, TextInput, Animated } from 'react-native';
+import { memo, useCallback, useMemo, useRef } from 'react';
+import { View, Pressable, Animated } from 'react-native';
 import { Text } from 'react-native-paper';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +26,7 @@ export interface GroceryItemRowProps {
   onDelete: (id: string) => void;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
-  onUpdate: (id: string, name: string, quantity: string) => Promise<void>;
+  /** Long-press opens the details sheet (note, edit, remove). */
   onLongPress: (item: GroceryItem) => void;
 }
 
@@ -39,7 +39,6 @@ export const GroceryItemRow = memo(function GroceryItemRow({
   onDelete,
   onIncrement,
   onDecrement,
-  onUpdate,
   onLongPress,
 }: GroceryItemRowProps): React.JSX.Element {
   const { t } = useTranslation();
@@ -53,15 +52,9 @@ export const GroceryItemRow = memo(function GroceryItemRow({
   const qtyNum = isPlainInt ? parseInt(item.quantity, 10) : NaN;
   const hasCount = isPlainInt && qtyNum > 1;
   const bought = item.boughtCount ?? 0;
-  const canEdit = item.addedBy === myId;
   const category = detectCategory(item.name);
   const tone = toneColors(item.isPersonal ? 'violet' : category.tone, isDark);
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(item.name);
-  const [editQty, setEditQty] = useState(item.quantity);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const showQtyPill = !hasCount && !!item.quantity && item.quantity !== '1';
 
   const handleTap = useCallback((): void => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -72,6 +65,11 @@ export const GroceryItemRow = memo(function GroceryItemRow({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     onDelete(item.id);
   }, [item.id, onDelete]);
+
+  const handleLongPress = useCallback((): void => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    onLongPress(item);
+  }, [item, onLongPress]);
 
   // Web fires a press as two events sometimes; this ref swallows the echo so
   // one tap on +/- counts once. 50ms is well under any real double-tap.
@@ -92,101 +90,6 @@ export const GroceryItemRow = memo(function GroceryItemRow({
     Haptics.selectionAsync().catch(() => {});
     onIncrement(item.id);
   }, [bought, qtyNum, item.id, onIncrement]);
-
-  const handleEditNameChange = useCallback((v: string): void => {
-    setEditName(v);
-    setSaveError(null);
-  }, []);
-  const handleEditQtyChange = useCallback((v: string): void => {
-    setEditQty(v);
-    setSaveError(null);
-  }, []);
-
-  const startEdit = useCallback((): void => {
-    setEditName(item.name);
-    setEditQty(item.quantity);
-    setSaveError(null);
-    setIsEditing(true);
-  }, [item.name, item.quantity]);
-
-  const cancelEdit = useCallback((): void => {
-    setSaveError(null);
-    setIsEditing(false);
-  }, []);
-
-  const handleLongPress = useCallback((): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    onLongPress(item);
-  }, [item, onLongPress]);
-
-  const saveEdit = useCallback(async (): Promise<void> => {
-    const trimmed = editName.trim();
-    if (!trimmed || isSaving) return;
-    setIsSaving(true);
-    setSaveError(null);
-    try {
-      await onUpdate(item.id, trimmed, editQty.trim());
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setIsEditing(false);
-    } catch {
-      setSaveError(t('grocery.could_not_save'));
-    } finally {
-      setIsSaving(false);
-    }
-  }, [editName, editQty, item.id, onUpdate, isSaving, t]);
-
-  if (isEditing) {
-    return (
-      <View>
-        <View style={[s.card, s.cardEditing]}>
-          <TextInput
-            value={editName}
-            onChangeText={handleEditNameChange}
-            style={s.editNameInput}
-            autoFocus
-            returnKeyType="done"
-            blurOnSubmit={false}
-            onSubmitEditing={saveEdit}
-            placeholder={t('grocery.item_name_placeholder')}
-            placeholderTextColor={C.textSecondary}
-            accessibilityLabel={t('grocery.item_name_edit')}
-            accessibilityHint={t('grocery.item_name_edit_hint')}
-          />
-          <TextInput
-            value={editQty}
-            onChangeText={handleEditQtyChange}
-            style={s.editQtyInput}
-            returnKeyType="done"
-            blurOnSubmit={false}
-            onSubmitEditing={saveEdit}
-            placeholder={t('grocery.qty_edit_placeholder')}
-            placeholderTextColor={C.textSecondary}
-            accessibilityLabel={t('grocery.qty_edit')}
-            accessibilityHint={t('grocery.qty_edit_hint')}
-          />
-          <Pressable
-            onPress={saveEdit}
-            style={s.iconBtn}
-            accessibilityRole="button"
-            accessibilityLabel={t('grocery.save_changes')}
-          >
-            <Ionicons name="checkmark" size={20} color={C.positive} />
-          </Pressable>
-          <Pressable
-            onPress={cancelEdit}
-            style={s.iconBtn}
-            accessibilityRole="button"
-            accessibilityLabel={t('grocery.cancel_edit')}
-          >
-            <Ionicons name="close" size={20} color={C.textSecondary} />
-          </Pressable>
-        </View>
-        {!!saveError && <Text style={s.inlineError}>{saveError}</Text>}
-      </View>
-    );
-  }
-
-  const showQtyPill = !hasCount && !!item.quantity && item.quantity !== '1';
 
   const row = (
     <Pressable
@@ -211,6 +114,7 @@ export const GroceryItemRow = memo(function GroceryItemRow({
               name: item.addedBy === myId ? t('common.you') : memberName(item.addedBy),
               time: formatItemAge(item.createdAt, t, now),
             }),
+        hasCount ? t('grocery.n_left', { count: Math.max(0, qtyNum - bought) }) : null,
       ]
         .filter(Boolean)
         .join(', ')}
@@ -220,7 +124,7 @@ export const GroceryItemRow = memo(function GroceryItemRow({
         <View style={[s.tile, { backgroundColor: item.isChecked ? C.surfaceSecondary : tone.bg }]}>
           <Ionicons
             name={item.isPersonal ? 'lock-closed-outline' : category.icon}
-            size={20}
+            size={22}
             color={item.isChecked ? C.textTertiary : tone.fg}
           />
         </View>
@@ -237,6 +141,11 @@ export const GroceryItemRow = memo(function GroceryItemRow({
                 </Text>
               </View>
             )}
+            {isDuplicate && (
+              <View style={s.dupBadge}>
+                <Text style={s.dupBadgeText}>{t('grocery.on_list')}</Text>
+              </View>
+            )}
           </View>
           <View style={s.metaRow}>
             {!item.isPersonal && <UserAvatar userId={item.addedBy} size={18} />}
@@ -248,33 +157,15 @@ export const GroceryItemRow = memo(function GroceryItemRow({
               showName={!item.isPersonal}
               isChecked={item.isChecked}
             />
+            {!!item.comment && (
+              <Ionicons
+                name="chatbubble-outline"
+                size={14}
+                color={C.textSecondary}
+                accessibilityLabel={t('grocery.has_note')}
+              />
+            )}
           </View>
-        </View>
-
-        <View style={s.extras}>
-          {isDuplicate && (
-            <View style={s.dupBadge} accessibilityLabel={t('grocery.already_on_shared')}>
-              <Text style={s.dupBadgeText}>{t('grocery.on_list')}</Text>
-            </View>
-          )}
-          {!!item.comment && (
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={15}
-              color={C.textSecondary}
-              accessibilityLabel={t('grocery.has_note')}
-            />
-          )}
-          {canEdit && !item.isChecked && (
-            <Pressable
-              onPress={startEdit}
-              style={s.iconBtn}
-              accessibilityRole="button"
-              accessibilityLabel={t('grocery.edit_item', { name: item.name })}
-            >
-              <Ionicons name="pencil-outline" size={16} color={C.textSecondary} />
-            </Pressable>
-          )}
         </View>
 
         {hasCount ? (
@@ -302,27 +193,20 @@ export const GroceryItemRow = memo(function GroceryItemRow({
             </Pressable>
           </View>
         ) : (
-          <View style={[s.check, item.isChecked && s.checkOn]} accessibilityElementsHidden>
-            {item.isChecked && <Ionicons name="checkmark" size={20} color="#FFFFFF" />}
+          <View style={[s.check, item.isChecked && s.checkOn]}>
+            {item.isChecked && <Ionicons name="checkmark" size={22} color="#FFFFFF" />}
           </View>
         )}
       </View>
 
       {hasCount && (
-        <View style={s.progressWrap}>
-          <View style={s.progressTrack}>
-            <View
-              style={[
-                s.progressFill,
-                { width: `${Math.round((bought / qtyNum) * 100)}%` as `${number}%` },
-              ]}
-            />
-          </View>
-          <Text style={s.progressLabel}>
-            {bought >= qtyNum
-              ? t('grocery.all_bought')
-              : t('grocery.n_left', { count: qtyNum - bought })}
-          </Text>
+        <View style={s.progressTrack}>
+          <View
+            style={[
+              s.progressFill,
+              { width: `${Math.round((bought / qtyNum) * 100)}%` as `${number}%` },
+            ]}
+          />
         </View>
       )}
     </Pressable>

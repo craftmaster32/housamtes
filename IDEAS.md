@@ -32,8 +32,6 @@ Nothing in this file is being built yet. It's a parking lot for good ideas.
 
 (Add ideas here as they come up during building)
 
-- **"Still need it?" nudge for old grocery items** — when an item has sat on the shared list for weeks, show a small card ("Coriander has been here 48 days. Still need it?") with _Keep it_ / _Take it off_. Came up in the grocery redesign mockup (Oct 2026).
-
 ---
 
 ## Rejected Ideas (and Why)

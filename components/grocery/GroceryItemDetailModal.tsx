@@ -30,6 +30,8 @@ export interface GroceryItemDetailModalProps {
   myId: string;
   onClose: () => void;
   onSaveComment: (id: string, comment: string) => Promise<void>;
+  /** Saves a new name / quantity — only offered on items you added. */
+  onUpdate: (id: string, name: string, quantity: string) => Promise<void>;
   /** Removes the item; the caller confirms first when it's a housemate's item. */
   onDelete: (id: string) => void;
 }
@@ -40,6 +42,7 @@ export function GroceryItemDetailModal({
   myId,
   onClose,
   onSaveComment,
+  onUpdate,
   onDelete,
 }: GroceryItemDetailModalProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -49,11 +52,15 @@ export function GroceryItemDetailModal({
   const housemate = useHousematesStore((st) => st.housemates.find((h) => h.id === item?.addedBy));
 
   const [comment, setComment] = useState('');
+  const [name, setName] = useState('');
+  const [quantity, setQuantity] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     setComment(item?.comment ?? '');
+    setName(item?.name ?? '');
+    setQuantity(item?.quantity ?? '');
     setSaveError(null);
   }, [item]);
 
@@ -62,26 +69,40 @@ export function GroceryItemDetailModal({
     setSaveError(null);
   }, []);
 
+  const canEdit = !!item && item.addedBy === myId;
+
   const handleSave = useCallback(async (): Promise<void> => {
     if (!item || isSaving) return;
+    const newName = name.trim();
+    if (canEdit && !newName) {
+      setSaveError(t('grocery.item_name_required'));
+      return;
+    }
     setIsSaving(true);
     setSaveError(null);
     try {
-      await onSaveComment(item.id, comment.trim());
+      if (canEdit && (newName !== item.name || quantity.trim() !== item.quantity)) {
+        await onUpdate(item.id, newName, quantity.trim());
+      }
+      if (comment.trim() !== (item.comment ?? '')) {
+        await onSaveComment(item.id, comment.trim());
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onClose();
     } catch {
-      setSaveError(t('grocery.could_not_save_note'));
+      setSaveError(canEdit ? t('grocery.could_not_save') : t('grocery.could_not_save_note'));
     } finally {
       setIsSaving(false);
     }
-  }, [item, comment, onSaveComment, onClose, isSaving, t]);
+  }, [item, comment, name, quantity, canEdit, onSaveComment, onUpdate, onClose, isSaving, t]);
 
   const handleDelete = useCallback((): void => {
     if (!item) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     onDelete(item.id);
   }, [item, onDelete]);
+
+  const saveLabel = canEdit ? t('grocery.save_changes') : t('grocery.save_note');
 
   const addedByName = item
     ? item.addedBy === myId
@@ -128,11 +149,42 @@ export function GroceryItemDetailModal({
                 </Pressable>
               </View>
 
-              <Text
-                style={[s.itemName, { color: C.textPrimary }, item.isChecked && s.itemNameDone]}
-              >
-                {item.name}
-              </Text>
+              {canEdit ? (
+                <View style={s.editRow}>
+                  <TextInput
+                    value={name}
+                    onChangeText={setName}
+                    placeholder={t('grocery.item_name_placeholder')}
+                    placeholderTextColor={C.textSecondary}
+                    style={[
+                      s.editInput,
+                      s.editName,
+                      { color: C.textPrimary, backgroundColor: C.surfaceSecondary },
+                    ]}
+                    accessibilityLabel={t('grocery.item_name_edit')}
+                    accessibilityHint={t('grocery.item_name_edit_hint')}
+                  />
+                  <TextInput
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    placeholder={t('grocery.qty_edit_placeholder')}
+                    placeholderTextColor={C.textSecondary}
+                    style={[
+                      s.editInput,
+                      s.editQty,
+                      { color: C.textPrimary, backgroundColor: C.surfaceSecondary },
+                    ]}
+                    accessibilityLabel={t('grocery.qty_edit')}
+                    accessibilityHint={t('grocery.qty_edit_hint')}
+                  />
+                </View>
+              ) : (
+                <Text
+                  style={[s.itemName, { color: C.textPrimary }, item.isChecked && s.itemNameDone]}
+                >
+                  {item.name}
+                </Text>
+              )}
 
               <View style={s.meta}>
                 {!!item.quantity && item.quantity !== '1' && (
@@ -192,10 +244,10 @@ export function GroceryItemDetailModal({
                   accessible
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isSaving }}
-                  accessibilityLabel={isSaving ? t('grocery.saving') : t('grocery.save_note')}
+                  accessibilityLabel={isSaving ? t('grocery.saving') : saveLabel}
                 >
                   <Text style={[s.btnText, s.btnPrimaryText]}>
-                    {isSaving ? t('grocery.saving') : t('grocery.save_note')}
+                    {isSaving ? t('grocery.saving') : saveLabel}
                   </Text>
                 </Pressable>
               </View>
@@ -253,6 +305,16 @@ function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
     },
     itemName: { fontSize: mf(22), ...font.bold, lineHeight: mf(30) },
     itemNameDone: { textDecorationLine: 'line-through', opacity: 0.5 },
+    editRow: { flexDirection: 'row', gap: ms(8) },
+    editInput: {
+      height: ms(48),
+      borderRadius: ms(14),
+      paddingHorizontal: ms(12),
+      fontSize: mf(17),
+      ...font.semibold,
+    },
+    editName: { flex: 1, minWidth: 0 },
+    editQty: { width: ms(76), textAlign: 'center' },
     meta: { flexDirection: 'row', alignItems: 'center', gap: ms(8), flexWrap: 'wrap' },
     qtyBadge: { paddingHorizontal: ms(8), paddingVertical: ms(3), borderRadius: ms(6) },
     qtyText: { fontSize: mf(13), ...font.bold },

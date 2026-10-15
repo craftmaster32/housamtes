@@ -39,7 +39,9 @@ import { GroceryItemRow } from '@components/grocery/GroceryItemRow';
 import { GroceryHeader } from '@components/grocery/GroceryHeader';
 import { CategoryTiles, type CategoryTileData } from '@components/grocery/CategoryTiles';
 import { ShoppingRunCard } from '@components/grocery/ShoppingRunCard';
-import { AddItemSheet } from '@components/grocery/AddItemSheet';
+import { AddItemSheet, type AddDestination } from '@components/grocery/AddItemSheet';
+import { StaleItemNudge } from '@components/grocery/StaleItemNudge';
+import { getItemAge, isItemStale } from '@utils/groceryAge';
 import { GroceryItemDetailModal } from '@components/grocery/GroceryItemDetailModal';
 import { SaveListModal, type SaveListMode } from '@components/grocery/SaveListModal';
 import {
@@ -69,6 +71,7 @@ const ADD_MODE_KEY = 'grocery_add_mode';
 const DRAFT_TOGGLE_KEY = 'grocery_draft_toggle';
 const REMINDER_PROMPT_DURATION_MS = 4000;
 const MAX_CATEGORY_TILES = 4;
+const STALE_KEPT_KEY = 'grocery_stale_kept';
 
 function ItemSeparator(): React.JSX.Element {
   return <View style={separatorStyles.item} />;
@@ -798,11 +801,10 @@ function GroceryScreen(): React.JSX.Element {
         onDelete={onDelete}
         onIncrement={onInc}
         onDecrement={onDec}
-        onUpdate={onUpdate}
         onLongPress={handleLongPress}
       />
     ),
-    [myId, now, onToggle, onDelete, onInc, onDec, onUpdate, handleLongPress]
+    [myId, now, onToggle, onDelete, onInc, onDec, handleLongPress]
   );
 
   const renderSectionHeader = useCallback(
@@ -954,11 +956,54 @@ function GroceryScreen(): React.JSX.Element {
     []
   );
 
-  const destinationHint = destPersonal
-    ? t('grocery.personal_hint')
-    : destDraft
-      ? t('grocery.draft_on_hint')
-      : t('grocery.shared_hint');
+  // "Still need it?" — the oldest shared item that's been waiting 3+ days and
+  // nobody has said "keep it" to on this phone.
+  const [keptStaleIds, setKeptStaleIds] = useState<string[]>([]);
+  useEffect((): void => {
+    AsyncStorage.getItem(STALE_KEPT_KEY)
+      .then((raw) => {
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed)) setKeptStaleIds(parsed.filter((x) => typeof x === 'string'));
+      })
+      .catch(() => {});
+  }, []);
+  const staleItem = useMemo((): { id: string; name: string; days: number } | null => {
+    const candidates = items
+      .filter(
+        (i) =>
+          !i.isChecked &&
+          !i.isPersonal &&
+          !i.isDraft &&
+          !keptStaleIds.includes(i.id) &&
+          isItemStale(i.createdAt, now)
+      )
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const oldest = candidates[0];
+    if (!oldest) return null;
+    const age = getItemAge(oldest.createdAt, now);
+    return { id: oldest.id, name: oldest.name, days: age.unit === 'days' ? age.count : 3 };
+  }, [items, keptStaleIds, now]);
+  const handleKeepStale = useCallback((): void => {
+    if (!staleItem) return;
+    Haptics.selectionAsync().catch(() => {});
+    // Only remember ids still on the list so the stored set can't grow forever.
+    const liveIds = new Set(items.map((i) => i.id));
+    const next = [...keptStaleIds.filter((id) => liveIds.has(id)), staleItem.id];
+    setKeptStaleIds(next);
+    AsyncStorage.setItem(STALE_KEPT_KEY, JSON.stringify(next)).catch(() => {});
+  }, [staleItem, items, keptStaleIds]);
+  const handleRemoveStale = useCallback((): void => {
+    if (staleItem) onDelete(staleItem.id);
+  }, [staleItem, onDelete]);
+
+  const handleSelectDestination = useCallback(
+    (dest: AddDestination): void => {
+      if (dest === 'private') handleSetPrivate();
+      else if (dest === 'draft') handleSelectDraft();
+      else handleSelectShared();
+    },
+    [handleSetPrivate, handleSelectDraft, handleSelectShared]
+  );
 
   // ── Saved list name for update modal ──────────────────────────────────────
   const sourceListName = useMemo(
@@ -1022,7 +1067,7 @@ function GroceryScreen(): React.JSX.Element {
                     <BackLink label={t('common.home')} />
                     <GroceryHeader toGrabCount={toGrabCount} addedTodayCount={addedTodayCount} />
 
-                    {/* ── Add bar: type + "+" adds; options opens the sheet ── */}
+                    {/* ── Add bar: Enter adds straight away; "+" opens the details sheet ── */}
                     <View style={[styles.addBar, destPersonal && styles.addBarPersonal]}>
                       <TextInput
                         ref={inputRef}
@@ -1038,24 +1083,17 @@ function GroceryScreen(): React.JSX.Element {
                         accessibilityHint={t('grocery.add_item_hint')}
                       />
                       <Pressable
-                        style={styles.optionsBtn}
-                        onPress={handleOpenAddSheet}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('grocery.add_more_details')}
-                      >
-                        <Ionicons name="options-outline" size={20} color={C.textSecondary} />
-                      </Pressable>
-                      <Pressable
                         style={[
                           styles.addBtn,
                           destPersonal && styles.addBtnPersonal,
                           isAdding && styles.addBtnBusy,
                         ]}
-                        onPress={handleAddPress}
+                        onPress={handleOpenAddSheet}
                         disabled={isAdding}
                         accessibilityRole="button"
                         accessibilityState={{ disabled: isAdding }}
                         accessibilityLabel={t('grocery.add_item')}
+                        accessibilityHint={t('grocery.add_more_details')}
                       >
                         {isAdding ? (
                           <ActivityIndicator size="small" color="#FFFFFF" />
@@ -1074,11 +1112,6 @@ function GroceryScreen(): React.JSX.Element {
                         accessibilityState={{ selected: destShared }}
                         accessibilityLabel={t('grocery.shared_tab')}
                       >
-                        <Ionicons
-                          name="people-outline"
-                          size={15}
-                          color={destShared ? '#FFFFFF' : C.textSecondary}
-                        />
                         <Text style={[styles.modeText, destShared && styles.modeTextOn]}>
                           {t('grocery.shared_seg')}
                         </Text>
@@ -1093,7 +1126,7 @@ function GroceryScreen(): React.JSX.Element {
                         <Ionicons
                           name="lock-closed-outline"
                           size={15}
-                          color={destPersonal ? '#FFFFFF' : C.textSecondary}
+                          color={destPersonal ? C.surface : C.textSecondary}
                         />
                         <Text style={[styles.modeText, destPersonal && styles.modeTextOn]}>
                           {t('grocery.personal_seg')}
@@ -1107,18 +1140,12 @@ function GroceryScreen(): React.JSX.Element {
                           accessibilityState={{ selected: destDraft }}
                           accessibilityLabel={t('grocery.draft_mode')}
                         >
-                          <Ionicons
-                            name="create-outline"
-                            size={15}
-                            color={destDraft ? '#FFFFFF' : C.textSecondary}
-                          />
                           <Text style={[styles.modeText, destDraft && styles.modeTextOn]}>
                             {t('grocery.draft_seg')}
                           </Text>
                         </Pressable>
                       )}
                     </View>
-                    <Text style={styles.modeHint}>{destinationHint}</Text>
 
                     {!!addError && (
                       <View style={styles.errorBanner}>
@@ -1126,7 +1153,7 @@ function GroceryScreen(): React.JSX.Element {
                       </View>
                     )}
 
-                    {categoryTiles.length >= 2 && (
+                    {categoryTiles.length > 0 && (
                       <CategoryTiles tiles={categoryTiles} onPressTile={handleJumpToSection} />
                     )}
 
@@ -1137,6 +1164,15 @@ function GroceryScreen(): React.JSX.Element {
                       onEndRun={handleEndRun}
                       onQuickBuy={handleQuickBuy}
                     />
+
+                    {staleItem && (
+                      <StaleItemNudge
+                        itemName={staleItem.name}
+                        days={staleItem.days}
+                        onKeep={handleKeepStale}
+                        onRemove={handleRemoveStale}
+                      />
+                    )}
 
                     <SavedListsSection
                       lists={savedLists}
@@ -1189,7 +1225,9 @@ function GroceryScreen(): React.JSX.Element {
       <AddItemSheet
         visible={showAddSheet}
         initialName={itemName}
-        destinationHint={destinationHint}
+        destination={destPersonal ? 'private' : destDraft ? 'draft' : 'shared'}
+        draftEnabled={draftEnabled}
+        onSelectDestination={handleSelectDestination}
         isOnList={isOnList}
         isAdding={isAdding}
         onAdd={handleSheetAdd}
@@ -1202,6 +1240,7 @@ function GroceryScreen(): React.JSX.Element {
         myId={myId}
         onClose={handleCloseModal}
         onSaveComment={onSaveComment}
+        onUpdate={onUpdate}
         onDelete={onDelete}
       />
 
@@ -1285,13 +1324,6 @@ function makeStyles(C: ColorTokens) {
       ...font.regular,
       color: C.textPrimary,
     },
-    optionsBtn: {
-      width: ms(44),
-      height: ms(44),
-      borderRadius: ms(22),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     addBtn: {
       width: ms(48),
       height: ms(48),
@@ -1304,7 +1336,13 @@ function makeStyles(C: ColorTokens) {
     addBtnBusy: { opacity: 0.7 },
 
     // ── Mode pills
-    modeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: ms(8), marginTop: ms(14) },
+    modeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: ms(8),
+      marginTop: ms(14),
+      marginBottom: ms(18),
+    },
     modePill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1316,19 +1354,11 @@ function makeStyles(C: ColorTokens) {
       borderWidth: 1,
       borderColor: C.border,
     },
-    modePillShared: { backgroundColor: C.primary, borderColor: C.primary },
-    modePillPersonal: { backgroundColor: PERSONAL_ON, borderColor: PERSONAL_ON },
-    modePillDraft: { backgroundColor: C.warning, borderColor: C.warning },
+    modePillShared: { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
+    modePillPersonal: { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
+    modePillDraft: { backgroundColor: C.textPrimary, borderColor: C.textPrimary },
     modeText: { fontSize: mf(14), ...font.semibold, color: C.textSecondary },
-    modeTextOn: { color: '#FFFFFF' },
-    modeHint: {
-      fontSize: mf(12.5),
-      ...font.regular,
-      color: C.textSecondary,
-      marginTop: ms(8),
-      marginBottom: ms(18),
-      paddingHorizontal: ms(4),
-    },
+    modeTextOn: { color: C.surface },
 
     // ── Section headers
     sectionBell: {

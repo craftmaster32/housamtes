@@ -32,18 +32,11 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
       borderWidth: 1,
       borderColor: 'rgba(167,139,250,0.35)',
     },
-    cardEditing: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-      borderWidth: 1.5,
-      borderColor: C.primary,
-    },
 
     topRow: { flexDirection: 'row', alignItems: 'center', gap: ms(12) },
     tile: {
-      width: ms(44),
-      height: ms(44),
+      width: ms(46),
+      height: ms(46),
       borderRadius: ms(14),
       alignItems: 'center',
       justifyContent: 'center',
@@ -68,7 +61,6 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
     qtyPillText: { fontSize: mf(12), ...font.bold },
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6), minWidth: 0 },
 
-    extras: { flexDirection: 'row', alignItems: 'center', gap: ms(2), flexShrink: 0 },
     dupBadge: {
       backgroundColor: C.warningTint,
       borderRadius: ms(8),
@@ -76,18 +68,16 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
       paddingVertical: ms(2),
     },
     dupBadgeText: { fontSize: mf(11), ...font.semibold, color: C.textPrimary },
-    iconBtn: { width: ms(40), height: ms(44), alignItems: 'center', justifyContent: 'center' },
 
     check: {
-      width: ms(32),
-      height: ms(32),
-      borderRadius: ms(16),
+      width: ms(42),
+      height: ms(42),
+      borderRadius: ms(21),
       borderWidth: 2,
       borderColor: isDark ? 'rgba(255,255,255,0.22)' : '#C9D2DF',
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
-      marginEnd: ms(4),
     },
     checkOn: { backgroundColor: C.positive, borderColor: C.positive },
 
@@ -113,16 +103,13 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
       fontVariant: ['tabular-nums'],
     },
 
-    progressWrap: { flexDirection: 'row', alignItems: 'center', gap: ms(10) },
     progressTrack: {
-      flex: 1,
       height: ms(6),
       borderRadius: ms(3),
       backgroundColor: C.surfaceSecondary,
       overflow: 'hidden',
     },
     progressFill: { height: '100%', borderRadius: ms(3), backgroundColor: C.positive },
-    progressLabel: { fontSize: mf(12), ...font.semibold, color: C.textSecondary },
 
     swipeLane: { width: SWIPE_DELETE_WIDTH },
     swipeDelete: {
@@ -135,34 +122,5 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
       borderBottomRightRadius: RADIUS,
     },
     swipeDeleteText: { fontSize: mf(12), ...font.bold, color: '#FFFFFF' },
-
-    editNameInput: {
-      flex: 1,
-      minWidth: 0,
-      height: ms(44),
-      paddingHorizontal: ms(12),
-      borderRadius: ms(12),
-      backgroundColor: C.surfaceSecondary,
-      fontSize: mf(15),
-      ...font.regular,
-      color: C.textPrimary,
-    },
-    editQtyInput: {
-      width: ms(64),
-      height: ms(44),
-      paddingHorizontal: ms(8),
-      borderRadius: ms(12),
-      backgroundColor: C.surfaceSecondary,
-      fontSize: mf(14),
-      ...font.regular,
-      color: C.textPrimary,
-      textAlign: 'center',
-    },
-    inlineError: {
-      fontSize: mf(12),
-      color: C.danger,
-      paddingTop: ms(4),
-      paddingHorizontal: ms(4),
-    },
   });
 }

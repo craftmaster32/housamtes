@@ -64,7 +64,7 @@ export function ShoppingRunCard({
     <View style={s.card}>
       <View style={s.topRow}>
         <View style={s.iconChip}>
-          <Ionicons name={isMine ? 'bag-handle' : 'cart-outline'} size={24} color="#FFFFFF" />
+          <Ionicons name={isMine ? 'bag-handle' : 'cart-outline'} size={26} color="#FFFFFF" />
         </View>
         <View style={s.copy}>
           <Text style={s.title}>
@@ -76,8 +76,6 @@ export function ShoppingRunCard({
               : t('grocery.shop_card_body')}
           </Text>
         </View>
-      </View>
-      <View style={s.actions}>
         <Pressable
           style={({ pressed }) => [s.btnLight, pressed && s.pressed]}
           onPress={onOpenShop}
@@ -88,18 +86,18 @@ export function ShoppingRunCard({
             {isMine ? t('grocery.shop.continue') : t('grocery.shop_card_cta')}
           </Text>
         </Pressable>
-        <Pressable
-          style={({ pressed }) => [s.btnGhost, pressed && s.pressed]}
-          onPress={isMine ? onEndRun : onQuickBuy}
-          accessibilityRole="button"
-          accessibilityLabel={isMine ? t('grocery.done_shopping') : t('grocery.shop.quick_buy')}
-        >
-          {!isMine && <Ionicons name="flash-outline" size={16} color="#FFFFFF" />}
-          <Text style={s.btnGhostText}>
-            {isMine ? t('grocery.done_shopping') : t('grocery.shop.quick_buy')}
-          </Text>
-        </Pressable>
       </View>
+      <Pressable
+        style={({ pressed }) => [s.link, pressed && s.pressed]}
+        onPress={isMine ? onEndRun : onQuickBuy}
+        accessibilityRole="button"
+        accessibilityLabel={isMine ? t('grocery.done_shopping') : t('grocery.shop.quick_buy')}
+      >
+        {!isMine && <Ionicons name="flash-outline" size={14} color="#FFFFFF" />}
+        <Text style={s.linkText}>
+          {isMine ? t('grocery.done_shopping') : t('grocery.shop.quick_buy')}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -108,20 +106,24 @@ function makeStyles(C: ColorTokens, isDark: boolean): ReturnType<typeof StyleShe
   return StyleSheet.create({
     card: {
       backgroundColor: isDark ? C.primaryDark : C.primary,
-      borderRadius: ms(24),
-      padding: ms(18),
-      gap: ms(14),
+      borderRadius: ms(22),
+      paddingTop: ms(18),
+      paddingHorizontal: ms(18),
+      paddingBottom: ms(8),
+      gap: ms(4),
       marginBottom: ms(18),
     },
     cardSoft: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: ms(14),
+      paddingBottom: ms(18),
       backgroundColor: C.successTint,
     },
     topRow: { flexDirection: 'row', alignItems: 'center', gap: ms(14) },
     iconChip: {
-      width: ms(48),
-      height: ms(48),
+      width: ms(52),
+      height: ms(52),
       borderRadius: ms(16),
       backgroundColor: 'rgba(255,255,255,0.18)',
       alignItems: 'center',
@@ -137,29 +139,30 @@ function makeStyles(C: ColorTokens, isDark: boolean): ReturnType<typeof StyleShe
       lineHeight: mf(18),
     },
     bodyDark: { color: C.textSecondary },
-    actions: { flexDirection: 'row', alignItems: 'center', gap: ms(8) },
     btnLight: {
-      flex: 1,
-      minHeight: ms(46),
-      borderRadius: ms(23),
+      minHeight: ms(44),
+      borderRadius: ms(22),
       backgroundColor: '#FFFFFF',
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: ms(16),
+      flexShrink: 0,
     },
     btnLightText: { fontSize: mf(15), ...font.bold, color: C.primaryDark },
-    btnGhost: {
-      minHeight: ms(46),
-      borderRadius: ms(23),
+    link: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: ms(6),
-      paddingHorizontal: ms(16),
-      borderWidth: 1.5,
-      borderColor: 'rgba(255,255,255,0.45)',
+      alignSelf: 'flex-start',
+      gap: ms(5),
+      minHeight: ms(44),
+      paddingStart: ms(66),
     },
-    btnGhostText: { fontSize: mf(14), ...font.semibold, color: '#FFFFFF' },
+    linkText: {
+      fontSize: mf(13),
+      ...font.semibold,
+      color: '#FFFFFF',
+      textDecorationLine: 'underline',
+    },
     pressed: { opacity: 0.8 },
   });
 }

@@ -28,6 +28,13 @@ import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { getErrorMessage } from '@utils/errors';
+import { detectCategory } from '@utils/groceryCategory';
+import { localizeQuantityForDisplay } from '@utils/groceryUnits';
+import { formatItemAge } from '@utils/groceryAge';
+import { useLanguageStore } from '@stores/languageStore';
+import { useMemberName } from '@hooks/useMemberName';
+import { useNow } from '@hooks/useNow';
+import { elapsedLabel } from '@components/grocery/ShoppingRunCard';
 import type { IoniconName } from '@/types/icons';
 import { mf, ms } from '@utils/responsive';
 
@@ -35,6 +42,8 @@ interface ShopSection {
   title: string;
   icon: IoniconName;
   data: GroceryItem[];
+  /** Already-bought group renders quieter. */
+  muted?: boolean;
 }
 
 interface ShopItemRowProps {
@@ -64,10 +73,21 @@ const ShopItemRow = memo(function ShopItemRow({
   const hasCount = isPlainInt && qtyNum > 1;
   const bought = item.boughtCount ?? 0;
   const done = hasCount ? bought >= qtyNum : item.isChecked;
+  const isHebrew = useLanguageStore((st) => st.language) === 'he';
+  // "Dairy · 2L · the barista one" — aisle first so you can shop in order.
+  const subLine = [
+    item.isPersonal ? t('grocery.my_items') : t(detectCategory(item.name).labelKey),
+    !hasCount && item.quantity && item.quantity !== '1'
+      ? localizeQuantityForDisplay(item.quantity, isHebrew)
+      : null,
+    item.comment ? `“${item.comment}”` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const checkCircle = (
     <View style={[styles.check, done && styles.checkOn]}>
-      {done && <Ionicons name="checkmark" size={16} color="#fff" />}
+      {done && <Ionicons name="checkmark" size={20} color="#fff" />}
     </View>
   );
 
@@ -80,7 +100,7 @@ const ShopItemRow = memo(function ShopItemRow({
       accessible={!hasCount}
       accessibilityRole={hasCount ? undefined : 'checkbox'}
       accessibilityState={hasCount ? undefined : { checked: done }}
-      accessibilityLabel={hasCount ? undefined : item.name}
+      accessibilityLabel={hasCount ? undefined : [item.name, subLine].filter(Boolean).join(', ')}
     >
       {hasCount ? (
         // Tapping the circle jumps the whole quantity to bought (or clears it),
@@ -98,9 +118,16 @@ const ShopItemRow = memo(function ShopItemRow({
       ) : (
         checkCircle
       )}
-      <Text style={[styles.rowName, done && styles.rowNameBought]} numberOfLines={2}>
-        {item.name}
-      </Text>
+      <View style={styles.rowCopy}>
+        <Text style={[styles.rowName, done && styles.rowNameBought]} numberOfLines={2}>
+          {item.name}
+        </Text>
+        {!done && !!subLine && (
+          <Text style={styles.rowSub} numberOfLines={1}>
+            {subLine}
+          </Text>
+        )}
+      </View>
       {hasCount ? (
         <View style={styles.counter}>
           <Pressable
@@ -127,10 +154,7 @@ const ShopItemRow = memo(function ShopItemRow({
             <Text style={styles.ctrBtnText}>+</Text>
           </Pressable>
         </View>
-      ) : (
-        !!item.quantity &&
-        item.quantity !== '1' && <Text style={styles.rowQty}>{item.quantity}</Text>
-      )}
+      ) : null}
     </Pressable>
   );
 });
@@ -151,6 +175,9 @@ function ShopScreen(): React.JSX.Element {
   const addItem = useGroceryStore((s) => s.addItem);
   const startRun = useGroceryStore((s) => s.startRun);
   const endRun = useGroceryStore((s) => s.endRun);
+  const activeRun = useGroceryStore((s) => s.activeRun);
+  const memberName = useMemberName();
+  const now = useNow();
 
   const profile = useAuthStore((s) => s.profile);
   const houseId = useAuthStore((s) => s.houseId);
@@ -187,16 +214,43 @@ function ShopScreen(): React.JSX.Element {
   const totalCount = shoppingItems.length;
   const progressPct = totalCount > 0 ? Math.round((boughtCount / totalCount) * 100) : 0;
 
+  const isDone = useCallback((i: GroceryItem): boolean => {
+    const q = i.quantity.trim();
+    const n = /^\d+$/.test(q) ? parseInt(q, 10) : NaN;
+    return n > 1 ? (i.boughtCount ?? 0) >= n : i.isChecked;
+  }, []);
+
   const sections = useMemo((): ShopSection[] => {
-    const shared = shoppingItems.filter((i) => !i.isPersonal);
-    const mine = shoppingItems.filter((i) => i.isPersonal && i.addedBy === myId);
+    const toGrab = shoppingItems.filter((i) => !isDone(i));
+    const inBasket = shoppingItems.filter((i) => isDone(i));
     const result: ShopSection[] = [];
-    if (shared.length > 0)
-      result.push({ title: t('grocery.shared_groceries'), icon: 'cart-outline', data: shared });
-    if (mine.length > 0)
-      result.push({ title: t('grocery.my_items'), icon: 'lock-closed-outline', data: mine });
+    if (toGrab.length > 0)
+      result.push({ title: t('grocery.shop.still_to_grab'), icon: 'cart-outline', data: toGrab });
+    if (inBasket.length > 0)
+      result.push({
+        title: t('grocery.shop.in_basket'),
+        icon: 'bag-check-outline',
+        data: inBasket,
+        muted: true,
+      });
     return result;
-  }, [shoppingItems, myId, t]);
+  }, [shoppingItems, isDone, t]);
+
+  // The newest thing a housemate added since you got to the shop.
+  const justAdded = useMemo((): GroceryItem | null => {
+    if (!activeRun) return null;
+    const since = new Date(activeRun.startedAt).getTime();
+    const fresh = items
+      .filter(
+        (i) =>
+          !i.isPersonal &&
+          !i.isChecked &&
+          i.addedBy !== myId &&
+          new Date(i.createdAt).getTime() > since
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return fresh[0] ?? null;
+  }, [items, activeRun, myId]);
 
   const onToggle = useCallback(
     (id: string): void => {
@@ -289,17 +343,21 @@ function ShopScreen(): React.JSX.Element {
   const renderSectionHeader = useCallback(
     ({ section }: { section: ShopSection }): React.JSX.Element => (
       <View style={styles.sectionHeader}>
-        <Ionicons name={section.icon} size={16} color={C.textSecondary} />
-        <Text style={[styles.sectionHeaderText, headingFont]}>{section.title}</Text>
+        <Text
+          style={[styles.sectionHeaderText, headingFont, section.muted && styles.sectionMuted]}
+          accessibilityRole="header"
+        >
+          {section.title}
+        </Text>
       </View>
     ),
-    [styles, C, headingFont]
+    [styles, headingFont]
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={styles.body}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Hero: where you are + how full the basket is */}
@@ -319,6 +377,9 @@ function ShopScreen(): React.JSX.Element {
               <View style={styles.liveDot} />
               <Text style={styles.livePillText}>{t('grocery.housemates_can_see')}</Text>
             </View>
+            {!!activeRun && (
+              <Text style={styles.elapsed}>{elapsedLabel(activeRun.startedAt, t)}</Text>
+            )}
           </View>
           <Text style={[styles.headerTitle, headingFont]}>{t('grocery.shop.title')}</Text>
           <View style={styles.progressLabels}>
@@ -340,6 +401,22 @@ function ShopScreen(): React.JSX.Element {
           stickySectionHeadersEnabled={false}
           contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            justAdded ? (
+              <View style={styles.justAdded} accessibilityLiveRegion="polite">
+                <Ionicons name="add-circle-outline" size={20} color={C.primary} />
+                <Text style={styles.justAddedText}>
+                  {t('grocery.shop.just_added', {
+                    name: memberName(justAdded.addedBy),
+                    item: justAdded.name,
+                  })}
+                </Text>
+                <Text style={styles.justAddedTime}>
+                  {formatItemAge(justAdded.createdAt, t, now)}
+                </Text>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <EmptyState
@@ -388,7 +465,7 @@ function ShopScreen(): React.JSX.Element {
             accessibilityLabel={t('grocery.shop.finish')}
             accessibilityState={{ disabled: false }}
           >
-            <Ionicons name="receipt-outline" size={18} color="#fff" />
+            <Ionicons name="receipt-outline" size={18} color={C.surface} />
             <Text style={styles.primaryBtnText}>{t('grocery.shop.finish')}</Text>
           </Pressable>
           <Pressable
@@ -460,23 +537,29 @@ function ShopScreen(): React.JSX.Element {
 
 const makeStyles = (C: ColorTokens) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.background },
+    container: { flex: 1, backgroundColor: C.primary },
+    body: { flex: 1, backgroundColor: C.background },
     flex: { flex: 1 },
     hero: {
       backgroundColor: C.primary,
-      marginHorizontal: sizes.md,
-      marginTop: sizes.xs,
-      borderRadius: ms(26),
-      paddingHorizontal: ms(18),
-      paddingTop: ms(8),
-      paddingBottom: ms(20),
-      gap: ms(10),
+      borderBottomLeftRadius: ms(32),
+      borderBottomRightRadius: ms(32),
+      paddingHorizontal: ms(20),
+      paddingTop: ms(4),
+      paddingBottom: ms(24),
+      gap: ms(12),
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      gap: ms(8),
       marginStart: ms(-10),
+    },
+    elapsed: {
+      marginStart: 'auto',
+      fontSize: mf(13),
+      ...font.medium,
+      color: 'rgba(255,255,255,0.9)',
     },
     iconBtn: {
       minWidth: ms(44),
@@ -496,7 +579,7 @@ const makeStyles = (C: ColorTokens) =>
     },
     liveDot: { width: ms(8), height: ms(8), borderRadius: ms(4), backgroundColor: '#A7F3C0' },
     livePillText: { fontSize: mf(12), ...font.semibold, color: '#FFFFFF', flexShrink: 1 },
-    headerTitle: { fontSize: mf(28), color: '#FFFFFF', letterSpacing: -0.4 },
+    headerTitle: { fontSize: mf(30), color: '#FFFFFF', letterSpacing: -0.4 },
     progressLabels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerSub: { fontSize: mf(14), ...font.medium, color: 'rgba(255,255,255,0.92)' },
     progressPct: { fontSize: mf(14), ...font.bold, color: '#FFFFFF' },
@@ -516,6 +599,23 @@ const makeStyles = (C: ColorTokens) =>
       marginBottom: ms(4),
     },
     sectionHeaderText: { fontSize: mf(18), color: C.textPrimary, letterSpacing: -0.2 },
+    sectionMuted: { color: C.textSecondary },
+    justAdded: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(10),
+      backgroundColor: C.surface,
+      borderRadius: ms(18),
+      borderWidth: 2,
+      borderColor: C.primaryTint,
+      paddingHorizontal: ms(14),
+      paddingVertical: ms(12),
+      marginBottom: ms(4),
+    },
+    justAddedText: { flex: 1, fontSize: mf(14), ...font.medium, color: C.textPrimary },
+    justAddedTime: { fontSize: mf(12), ...font.regular, color: C.textSecondary },
+    rowCopy: { flex: 1, gap: ms(2) },
+    rowSub: { fontSize: mf(13), ...font.regular, color: C.textSecondary },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -530,18 +630,17 @@ const makeStyles = (C: ColorTokens) =>
     },
     rowBought: { backgroundColor: C.surfaceSecondary, borderColor: 'transparent' },
     check: {
-      width: ms(30),
-      height: ms(30),
-      borderRadius: ms(15),
+      width: ms(40),
+      height: ms(40),
+      borderRadius: ms(20),
       borderWidth: 2,
       borderColor: C.border,
       alignItems: 'center',
       justifyContent: 'center',
     },
     checkOn: { backgroundColor: C.positive, borderColor: C.positive },
-    rowName: { flex: 1, fontSize: mf(15), ...font.semibold, color: C.textPrimary },
+    rowName: { fontSize: mf(17), ...font.semibold, color: C.textPrimary },
     rowNameBought: { textDecorationLine: 'line-through', color: C.textTertiary },
-    rowQty: { fontSize: mf(13), ...font.medium, color: C.textSecondary },
     counter: { flexDirection: 'row', alignItems: 'center', gap: ms(6), flexShrink: 0 },
     ctrBtn: {
       width: ms(30),
@@ -591,9 +690,7 @@ const makeStyles = (C: ColorTokens) =>
       paddingHorizontal: sizes.md,
       paddingTop: sizes.sm,
       paddingBottom: sizes.sm,
-      borderTopWidth: 1,
-      borderTopColor: C.border,
-      backgroundColor: C.surface,
+      backgroundColor: C.background,
       gap: ms(6),
     },
     primaryBtn: {
@@ -601,12 +698,12 @@ const makeStyles = (C: ColorTokens) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: ms(8),
-      backgroundColor: C.primary,
+      backgroundColor: C.textPrimary,
       borderRadius: ms(28),
       paddingVertical: ms(15),
       minHeight: ms(52),
     },
-    primaryBtnText: { color: '#fff', fontSize: mf(16), ...font.bold },
+    primaryBtnText: { color: C.surface, fontSize: mf(16), ...font.bold },
     ghostBtn: {
       alignItems: 'center',
       justifyContent: 'center',
