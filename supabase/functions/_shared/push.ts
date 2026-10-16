@@ -130,7 +130,11 @@ async function postExpoBatch(batch: PushMessage[]): Promise<boolean> {
 
 interface WebPushLib {
   setVapidDetails: (subject: string, publicKey: string, privateKey: string) => void;
-  sendNotification: (sub: { endpoint: string; keys: WebKeys }, payload: string) => Promise<unknown>;
+  sendNotification: (
+    sub: { endpoint: string; keys: WebKeys },
+    payload: string,
+    options?: { timeout?: number }
+  ) => Promise<unknown>;
 }
 
 // web-push is loaded only when there is a web message to send, so the
@@ -166,7 +170,8 @@ async function sendWeb(supabase: Supabase, messages: PushMessage[]): Promise<num
     messages.map((m) =>
       webpush.sendNotification(
         { endpoint: m.to, keys: m.web as WebKeys },
-        JSON.stringify({ title: m.title, body: m.body, data: m.data ?? {} })
+        JSON.stringify({ title: m.title, body: m.body, data: m.data ?? {} }),
+        { timeout: PUSH_TIMEOUT_MS }
       )
     )
   );
