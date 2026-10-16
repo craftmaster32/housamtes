@@ -146,10 +146,16 @@ async function loadWebPush(): Promise<WebPushLib | null> {
     webpushLib = null;
     return null;
   }
-  const lib = ((await import('npm:web-push@3.6.7')) as { default: WebPushLib }).default;
-  lib.setVapidDetails(`mailto:${contact}`, pub, priv);
-  webpushLib = lib;
-  return lib;
+  try {
+    const lib = ((await import('npm:web-push@3.6.7')) as { default: WebPushLib }).default;
+    lib.setVapidDetails(`mailto:${contact}`, pub, priv);
+    webpushLib = lib;
+    return lib;
+  } catch (err) {
+    console.error('[push] web-push init failed — skipping web push', err);
+    webpushLib = null;
+    return null;
+  }
 }
 
 async function sendWeb(supabase: Supabase, messages: PushMessage[]): Promise<number> {
