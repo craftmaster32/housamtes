@@ -122,8 +122,23 @@ async function postExpoBatch(batch: PushMessage[]): Promise<boolean> {
         body,
         signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
       });
-      if (res.ok) return true;
-      console.warn(`[push] Expo attempt ${attempt + 1} returned ${res.status}`);
+      if (res.ok) {
+        // Expo answers 200 even when it rejects every message (e.g. a token
+        // that is no longer registered), so check the per-message tickets. Any
+        // accepted ticket counts as delivered — retrying the batch would resend
+        // to the devices that already got it.
+        const result = (await res.json()) as {
+          data?: Array<{ status?: string; message?: string }>;
+        };
+        const tickets = result.data ?? [];
+        for (const t of tickets) {
+          if (t.status !== 'ok') console.warn(`[push] Expo ticket error: ${t.message ?? t.status}`);
+        }
+        if (tickets.some((t) => t.status === 'ok')) return true;
+        console.warn(`[push] Expo attempt ${attempt + 1} accepted no messages`);
+      } else {
+        console.warn(`[push] Expo attempt ${attempt + 1} returned ${res.status}`);
+      }
     } catch (err) {
       console.warn(`[push] Expo attempt ${attempt + 1} threw:`, err);
     }

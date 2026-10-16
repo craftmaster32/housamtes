@@ -140,8 +140,18 @@ const fetchMock = jest.fn();
 type Push = { to: string; body: string };
 const pushes = (): Push[] => fetchMock.mock.calls.flatMap((c) => JSON.parse(c[1].body) as Push[]);
 
+// Expo answers 200 with one ticket per message.
+const expoReply =
+  (status: 'ok' | 'error') =>
+  async (_url: string, init: { body: string }): Promise<unknown> => ({
+    ok: true,
+    json: async () => ({
+      data: (JSON.parse(init.body) as unknown[]).map(() => ({ status })),
+    }),
+  });
+
 beforeEach(() => {
-  fetchMock.mockReset().mockResolvedValue({ ok: true });
+  fetchMock.mockReset().mockImplementation(expoReply('ok'));
   global.fetch = fetchMock as unknown as typeof fetch;
 });
 
@@ -219,6 +229,16 @@ describe('stale grocery nudge', () => {
     expect(result.items).toBe(1200);
     expect(new Set(pushes().map((p) => p.to)).size).toBe(60);
   });
+
+  it('releases the claim when Expo answers 200 but rejects every message', async () => {
+    fetchMock.mockImplementation(expoReply('error'));
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const db = baseDb([item('Milk')]);
+    const result = await run(db);
+    expect(result.sent).toBe(0);
+    expect(db.grocery_items[0].stale_notified_at).toBeNull();
+  }, 10000);
 
   it('releases the claim when the push fails so the next run retries', async () => {
     fetchMock.mockResolvedValue({ ok: false });
