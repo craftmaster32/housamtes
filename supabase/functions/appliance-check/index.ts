@@ -7,34 +7,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { applianceDoneCopy, normalizeLang, type Lang } from '../_shared/notificationCopy.ts';
 import { assertCronAuthorized } from '../_shared/cronAuth.ts';
-
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-const PUSH_TIMEOUT_MS = 5000;
-const PUSH_MAX_ATTEMPTS = 3;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// Up to 3 attempts with exponential backoff (500ms, 1000ms), per this project's
-// Edge Function notification rules (see AGENTS.md).
-async function sendPushWithRetry(messages: unknown[]): Promise<boolean> {
-  for (let attempt = 1; attempt <= PUSH_MAX_ATTEMPTS; attempt++) {
-    try {
-      const resp = await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messages),
-        signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
-      });
-      if (resp.ok) return true;
-    } catch {
-      // fall through to retry
-    }
-    if (attempt < PUSH_MAX_ATTEMPTS) await sleep(2 ** (attempt - 1) * 500);
-  }
-  return false;
-}
+import { fetchPushDevices, sendPush, type PushMessage, type WebKeys } from '../_shared/push.ts';
 
 interface ClaimedSession {
   id: string;
@@ -113,10 +86,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Tokens for those members, and their per-user mute preference.
     const [tokenRes, prefRes] = await Promise.all([
-      supabase
-        .from('push_tokens')
-        .select('token, user_id, house_id, language')
-        .in('house_id', houseIds),
+      fetchPushDevices(supabase, { houseIds }).then(
+        (data) => ({ data, error: null }),
+        (err: unknown) => ({
+          data: [],
+          error: { message: err instanceof Error ? err.message : 'Device lookup failed' },
+        })
+      ),
       allUserIds.length > 0
         ? supabase
             .from('notification_preferences')
@@ -145,17 +121,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // Group tokens by user:house so each recipient's device language is honored.
-    const tokensByUserHouse = new Map<string, Array<{ token: string; language: Lang }>>();
-    for (const row of (tokenRes.data ?? []) as Array<{
-      token: string;
-      user_id: string;
-      house_id: string;
-      language?: string;
-    }>) {
-      if (!row.token) continue;
+    const tokensByUserHouse = new Map<
+      string,
+      Array<{ token: string; web?: WebKeys; language: Lang }>
+    >();
+    for (const row of tokenRes.data) {
       const key = `${row.user_id}:${row.house_id}`;
       const list = tokensByUserHouse.get(key) ?? [];
-      list.push({ token: row.token, language: normalizeLang(row.language) });
+      list.push({ token: row.token, web: row.web, language: normalizeLang(row.language) });
       tokensByUserHouse.set(key, list);
     }
 
@@ -164,11 +137,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     for (const session of sessions) {
       const members = membersByHouse.get(session.house_id) ?? [];
-      const messages: unknown[] = [];
+      const messages: PushMessage[] = [];
       for (const userId of members) {
         const key = `${userId}:${session.house_id}`;
         if (muted.has(key)) continue;
-        for (const { token, language } of tokensByUserHouse.get(key) ?? []) {
+        for (const { token, web, language } of tokensByUserHouse.get(key) ?? []) {
           const copy = applianceDoneCopy(language, { appliance: session.appliance });
           messages.push({
             to: token,
@@ -177,16 +150,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
             sound: 'default',
             priority: 'high',
             data: { screen: 'machines' },
+            web,
           });
         }
       }
       if (messages.length === 0) continue;
 
-      const delivered = await sendPushWithRetry(messages);
+      const delivered = await sendPush(supabase, messages);
       if (delivered) {
         totalSent += messages.length;
       } else {
-        console.error('Expo push failed after retries for appliance session', session.id);
+        console.error('Push failed after retries for appliance session', session.id);
         failedSessionIds.push(session.id);
       }
     }

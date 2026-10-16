@@ -11,8 +11,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { choreDueCopy, normalizeLang } from '../_shared/notificationCopy.ts';
 import { assertCronAuthorized } from '../_shared/cronAuth.ts';
-
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+import { fetchPushDevices, sendPush, type PushDevice, type PushMessage } from '../_shared/push.ts';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -53,27 +52,6 @@ function getLocalToday(
   } catch (_err) {
     return null; // invalid timezone — caller skips this house
   }
-}
-
-// Deliver a push batch to Expo. Retries up to 3 attempts with exponential
-// backoff and reports success only when Expo accepted the request.
-async function sendExpoPush(messages: Array<Record<string, unknown>>): Promise<boolean> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const res = await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messages),
-      });
-      if (res.ok) return true;
-    } catch (_err) {
-      // Network failure — fall through to the backoff below.
-    }
-    if (attempt < 3) {
-      await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** (attempt - 1)));
-    }
-  }
-  return false;
 }
 
 interface ChoreRow {
@@ -162,12 +140,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
       const assigneeIds = [...new Set(houseChores.map((c) => c.assigned_to as string))];
 
-      const { data: tokenRows, error: tokensError } = await supabase
-        .from('push_tokens')
-        .select('token, user_id, language')
-        .eq('house_id', houseId)
-        .in('user_id', assigneeIds);
-      if (tokensError || !tokenRows || tokenRows.length === 0) continue;
+      let tokenRows: PushDevice[];
+      try {
+        tokenRows = await fetchPushDevices(supabase, {
+          houseIds: [houseId],
+          userIds: assigneeIds,
+        });
+      } catch {
+        continue;
+      }
+      if (tokenRows.length === 0) continue;
 
       // Fail closed: if preferences cannot be loaded we must not notify anyone
       // in this house — a user who muted chores must never get pinged anyway.
@@ -183,7 +165,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           .map((p) => p.user_id)
       );
 
-      const messages: Array<Record<string, unknown>> = [];
+      const messages: PushMessage[] = [];
       for (const chore of houseChores) {
         const assignee = chore.assigned_to as string;
         if (optedOut.has(assignee)) continue;
@@ -191,14 +173,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (count >= MAX_REMINDERS_PER_USER) continue;
         const tokens = tokenRows
           .filter((r: { user_id: string }) => r.user_id === assignee)
-          .map((r: { token: string; language?: string }) => ({
+          .map((r: PushDevice) => ({
             token: r.token,
+            web: r.web,
             language: normalizeLang(r.language),
-          }))
-          .filter((r: { token: string }) => Boolean(r.token));
+          }));
         if (tokens.length === 0) continue;
         remindersPerUser.set(assignee, count + 1);
-        for (const { token, language } of tokens) {
+        for (const { token, web, language } of tokens) {
           const copy = choreDueCopy(language, { title: chore.title as string });
           messages.push({
             to: token,
@@ -206,13 +188,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
             body: copy.body,
             sound: 'default',
             data: { screen: 'chores' },
+            web,
           });
         }
       }
 
       if (messages.length === 0) continue;
 
-      const delivered = await sendExpoPush(messages);
+      const delivered = await sendPush(supabase, messages);
       if (delivered) {
         totalSent += messages.length;
       }

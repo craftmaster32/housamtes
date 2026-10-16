@@ -7,8 +7,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { billDueCopy, normalizeLang } from '../_shared/notificationCopy.ts';
 import { assertCronAuthorized } from '../_shared/cronAuth.ts';
-
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+import { fetchPushDevices, sendPush, type PushDevice } from '../_shared/push.ts';
 
 Deno.serve(async (req: Request) => {
   const denied = assertCronAuthorized(req);
@@ -66,13 +65,16 @@ Deno.serve(async (req: Request) => {
     const daysUntilDue = checkDays.find((d) => dateInDays(d) === bill.date);
     if (daysUntilDue === undefined) continue;
 
-    // Fetch push tokens and preferences for this house in one query
-    const { data: tokenRows } = await supabase
-      .from('push_tokens')
-      .select('token, user_id, language')
-      .eq('house_id', bill.house_id);
+    // Native + web devices for this house
+    let tokenRows: PushDevice[];
+    try {
+      tokenRows = await fetchPushDevices(supabase, { houseIds: [bill.house_id] });
+    } catch (err) {
+      console.error('[bill-due-reminder] device lookup failed', err);
+      continue;
+    }
 
-    if (!tokenRows || tokenRows.length === 0) continue;
+    if (tokenRows.length === 0) continue;
 
     const userIds = tokenRows.map((r: { user_id: string }) => r.user_id);
 
@@ -97,16 +99,16 @@ Deno.serve(async (req: Request) => {
         }
         return prefs.notify_bill_due !== false && prefs.bill_due_days_before === daysUntilDue;
       })
-      .map((r: { token: string; language?: string }) => ({
+      .map((r: PushDevice) => ({
         token: r.token,
+        web: r.web,
         language: normalizeLang(r.language),
-      }))
-      .filter((r: { token: string }) => Boolean(r.token));
+      }));
 
     if (eligible.length === 0) continue;
 
     const currency = houseCurrency.get(bill.house_id) ?? '₪';
-    const messages = eligible.map(({ token, language }) => {
+    const messages = eligible.map(({ token, web, language }) => {
       const copy = billDueCopy(language, {
         title: bill.title,
         amount: Number(bill.amount).toFixed(2),
@@ -119,14 +121,11 @@ Deno.serve(async (req: Request) => {
         body: copy.body,
         sound: 'default',
         data: { screen: 'bills' },
+        web,
       };
     });
 
-    await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(messages),
-    });
+    await sendPush(supabase, messages);
 
     totalSent += eligible.length;
   }

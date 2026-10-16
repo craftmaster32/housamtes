@@ -8,19 +8,7 @@
 //   #7  Two approved reservations on same day within 2h of each other → notify both holders
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import webpush from 'npm:web-push';
-
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-
-// Web push (the browser / home-screen web app) is only possible when the VAPID
-// keys are configured — same secrets send-push uses.
-const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY');
-const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY');
-const VAPID_CONTACT = Deno.env.get('VAPID_CONTACT_EMAIL');
-const webPushEnabled = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_CONTACT);
-if (webPushEnabled) {
-  webpush.setVapidDetails(`mailto:${VAPID_CONTACT}`, VAPID_PUBLIC_KEY!, VAPID_PRIVATE_KEY!);
-}
+import { fetchPushDevices, sendPush } from '../_shared/push.ts';
 
 // Returns the current moment expressed in the given IANA timezone so we can
 // compare against local-time start_time strings stored in the DB.
@@ -93,17 +81,6 @@ interface Session {
   is_active: boolean;
 }
 
-interface PushToken {
-  user_id: string;
-  token: string;
-}
-
-interface WebPushSubscription {
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-}
-
 interface UserProfile {
   id: string;
   name: string;
@@ -161,107 +138,25 @@ async function sendToUser(
     if (prefs && (prefs as Record<string, unknown>)[prefColumn] === false) return false;
   }
 
-  // 2. Web push — the browser / home-screen web app has no Expo token, so
-  //    without this, web users never get any of these reminders.
-  const sentWeb = await sendWebPush(supabase, userId, houseId, title, body, data);
-
-  // 3. Fetch Expo push tokens (native app)
-  const { data: rows, error: tokErr } = await supabase
-    .from('push_tokens')
-    .select('token')
-    .eq('house_id', houseId)
-    .eq('user_id', userId);
-  if (tokErr) {
-    console.error('[parking-check] push_tokens fetch error:', tokErr.message);
-    return sentWeb;
-  }
-
-  const tokens = ((rows ?? []) as PushToken[]).map((r) => r.token).filter(Boolean);
-  if (tokens.length === 0) return sentWeb;
-
-  // 4. Send with exponential-backoff retry (3 attempts: 500 ms, 1 s, 2 s)
-  const messages = tokens.map((to) => ({
-    to,
-    title,
-    body,
-    data,
-    sound: 'default',
-    priority: 'high',
-  }));
-  const delays = [500, 1000, 2000];
-  for (let attempt = 0; attempt < delays.length; attempt++) {
-    try {
-      const res = await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(messages),
-      });
-      if (res.ok) {
-        const json = (await res.json()) as { data?: Array<{ status: string; message?: string }> };
-        const tickets = json.data ?? [];
-        const failed = tickets.filter((t) => t.status !== 'ok');
-        if (failed.length === 0) return true;
-        for (const t of failed) {
-          console.warn(`[parking-check] Expo ticket error: ${t.message ?? t.status}`);
-        }
-      } else {
-        console.warn(`[parking-check] Expo push attempt ${attempt + 1} returned ${res.status}`);
-      }
-    } catch (err) {
-      console.warn(`[parking-check] Expo push attempt ${attempt + 1} threw:`, err);
-    }
-    if (attempt < delays.length - 1) {
-      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
-    }
-  }
-  console.error('[parking-check] All push attempts failed');
-
-  return sentWeb;
-}
-
-async function sendWebPush(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-  houseId: string,
-  title: string,
-  body: string,
-  data: Record<string, string>
-): Promise<boolean> {
-  if (!webPushEnabled) return false;
-  const { data: subs, error } = await supabase
-    .from('web_push_subscriptions')
-    .select('endpoint, p256dh, auth')
-    .eq('house_id', houseId)
-    .eq('user_id', userId);
-  if (error) {
-    console.error('[parking-check] web_push_subscriptions fetch error:', error.message);
+  // 2. Deliver to every native and web device this person has in the house
+  try {
+    const devices = await fetchPushDevices(supabase, { houseIds: [houseId], userIds: [userId] });
+    return await sendPush(
+      supabase,
+      devices.map((d) => ({
+        to: d.token,
+        title,
+        body,
+        data,
+        sound: 'default',
+        priority: 'high',
+        web: d.web,
+      }))
+    );
+  } catch (err) {
+    console.error('[parking-check] push delivery failed:', err);
     return false;
   }
-  const rows = (subs ?? []) as WebPushSubscription[];
-  if (rows.length === 0) return false;
-
-  const payload = JSON.stringify({ title, body, data });
-  const results = await Promise.allSettled(
-    rows.map((sub) =>
-      webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload
-      )
-    )
-  );
-
-  // HTTP 410 = the browser dropped the subscription — clean it up.
-  const expired = rows
-    .filter((_, i) => {
-      const r = results[i];
-      return r.status === 'rejected' && (r.reason as { statusCode?: number })?.statusCode === 410;
-    })
-    .map((sub) => sub.endpoint);
-  if (expired.length > 0) {
-    await supabase.from('web_push_subscriptions').delete().in('endpoint', expired);
-  }
-
-  return results.some((r) => r.status === 'fulfilled');
 }
 
 async function getNames(
