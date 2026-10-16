@@ -32,7 +32,7 @@ import { sizes } from '@constants/sizes';
 import { useGroceryStore } from '@stores/groceryStore';
 import { useTasksStore } from '@stores/tasksStore';
 import { useVotingStore } from '@stores/votingStore';
-import { useParkingStore } from '@stores/parkingStore';
+import { useParkingStore, findBlockedReservation } from '@stores/parkingStore';
 import { useAppliancesStore, type ApplianceKind } from '@stores/appliancesStore';
 import { MACHINE_META, formatRemaining } from '@components/machines/meta';
 import { useHousematesStore } from '@stores/housematesStore';
@@ -207,6 +207,7 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       color: 'rgba(255,255,255,0.7)',
       marginTop: ms(2),
     },
+    parkSubAlert: { color: '#FF8478', ...font.semibold },
     dots: {
       flexDirection: 'row',
       justifyContent: 'center',
@@ -527,6 +528,7 @@ export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
   const current = useParkingStore((s) => s.current);
+  const reservations = useParkingStore((s) => s.reservations);
   const claimParking = useParkingStore((s) => s.claim);
   const releaseParking = useParkingStore((s) => s.release);
   const housemates = useHousematesStore((s) => s.housemates);
@@ -540,6 +542,22 @@ export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
     setCardW(e.nativeEvent.layout.width);
   }, []);
   const isFree = !current;
+  // Re-check every minute while the spot is taken, so a reserved slot that
+  // starts while the car is still parked shows up without a reload.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!current) return;
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return (): void => clearInterval(id);
+  }, [current]);
+  const blocked = useMemo(
+    () => findBlockedReservation(current, reservations ?? [], new Date(nowMs)),
+    [current, reservations, nowMs]
+  );
+  const blockedHolder = blocked
+    ? resolveName(blocked.requestedBy, housemates, t('common.unknown')).split(' ')[0]
+    : '';
   const accent = isFree ? '#8FE0AC' : '#FF8478';
   const pillBg = isFree ? 'rgba(79,176,113,0.16)' : 'rgba(255,97,85,0.16)';
   const occupant = resolveName(current?.occupant ?? '', housemates, '').split(' ')[0];
@@ -687,9 +705,17 @@ export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
         </Text>
         {/* When free, the car is the hero — no sub-line to crowd it. When taken,
             show who has the spot. */}
-        {!isFree && (
+        {!isFree && !blocked && (
           <Text style={styles.parkSub} numberOfLines={1}>
             {occupant || t('common.unknown')}
+          </Text>
+        )}
+        {/* Someone's reserved slot has started while this car is still parked. */}
+        {!isFree && blocked && (
+          <Text style={[styles.parkSub, styles.parkSubAlert]} numberOfLines={2}>
+            {current?.occupant === myId
+              ? t('dashboard.parking_blocked_move', { name: blockedHolder })
+              : t('dashboard.parking_blocked_other', { name: blockedHolder })}
           </Text>
         )}
       </View>

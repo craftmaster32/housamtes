@@ -11,12 +11,9 @@
 
 import type { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { groceryStaleCopy, normalizeLang, type Lang } from '../_shared/notificationCopy.ts';
+import { fetchPushDevices, sendPush, type PushDevice, type PushMessage } from '../_shared/push.ts';
 
 type Supabase = ReturnType<typeof createClient>;
-
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-const PUSH_TIMEOUT_MS = 5000;
-const PUSH_MAX_ATTEMPTS = 3;
 
 // Keep in sync with STALE_AFTER_HOURS in utils/groceryAge.ts (the app's amber label).
 const STALE_AFTER_HOURS = 72;
@@ -46,28 +43,6 @@ export interface StaleCheckResult {
   items: number;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function sendPushWithRetry(messages: unknown[]): Promise<boolean> {
-  for (let attempt = 1; attempt <= PUSH_MAX_ATTEMPTS; attempt++) {
-    try {
-      const resp = await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messages),
-        signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
-      });
-      if (resp.ok) return true;
-    } catch {
-      // fall through to retry
-    }
-    if (attempt < PUSH_MAX_ATTEMPTS) await sleep(2 ** (attempt - 1) * 500);
-  }
-  return false;
-}
-
 /** Clears the "nudged" mark so a later run can try these items again. */
 async function releaseClaims(supabase: Supabase, ids: string[]): Promise<void> {
   const { error } = await supabase
@@ -95,12 +70,12 @@ async function nudgeHouse(
   if (membersError) return none;
   const memberIds = ((memberRows ?? []) as Array<{ user_id: string }>).map((m) => m.user_id);
 
-  const { data: tokenRows, error: tokensError } = await supabase
-    .from('push_tokens')
-    .select('token, user_id, language')
-    .eq('house_id', houseId)
-    .in('user_id', memberIds);
-  if (tokensError) return none;
+  let tokenRows: PushDevice[];
+  try {
+    tokenRows = await fetchPushDevices(supabase, { houseIds: [houseId], userIds: memberIds });
+  } catch {
+    return none;
+  }
 
   // Fail closed: if preferences can't be loaded, nobody in this house is
   // pinged — someone who muted this must never get it anyway.
@@ -144,14 +119,10 @@ async function nudgeHouse(
     }
   }
 
-  const messages: Array<Record<string, unknown>> = [];
-  for (const row of (tokenRows ?? []) as Array<{
-    token: string;
-    user_id: string;
-    language?: string;
-  }>) {
+  const messages: PushMessage[] = [];
+  for (const row of tokenRows) {
     const names = namesByUser.get(row.user_id);
-    if (!row.token || !names || names.length === 0) continue;
+    if (!names || names.length === 0) continue;
     const lang: Lang = normalizeLang(row.language);
     const copy = groceryStaleCopy(lang, { names });
     messages.push({
@@ -160,6 +131,7 @@ async function nudgeHouse(
       body: copy.body,
       sound: 'default',
       data: { screen: 'grocery' },
+      web: row.web,
     });
   }
 
@@ -171,7 +143,7 @@ async function nudgeHouse(
     return none;
   }
 
-  if (await sendPushWithRetry(messages)) return { sent: messages.length, items: claimed.length };
+  if (await sendPush(supabase, messages)) return { sent: messages.length, items: claimed.length };
 
   // Release the claim so the next run retries instead of the nudge going missing.
   console.error('Stale grocery push failed after retries', houseId);

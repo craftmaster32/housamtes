@@ -38,6 +38,8 @@ export interface ParkingReservation {
   status: ParkingReservationStatus;
   createdAt: string;
   votes: ParkingVote[];
+  /** The spot was already handed to the holder during this slot (once only). */
+  autoClaimed?: boolean;
 }
 
 interface ParkingStore {
@@ -94,11 +96,20 @@ export function tallyParkingReservationVotes(
   const hasEveryoneVoted =
     eligibleVoterIds.length > 0 && eligibleVoterIds.every((id) => voteByUser.has(id));
 
+  // House rule: half of the eligible voters is enough to decide. Whichever side
+  // reaches half first (while ahead of the other side) wins — e.g. with two
+  // voters, the first vote decides.
+  const half = eligibleVoterIds.length / 2;
+
   let status: ParkingReservationStatus = 'pending';
   // Resolve early when the leader can no longer be overtaken by remaining votes
   if (approveCount > rejectCount + remaining) {
     status = 'approved';
   } else if (rejectCount > approveCount + remaining) {
+    status = 'rejected';
+  } else if (approveCount > 0 && approveCount >= half && approveCount > rejectCount) {
+    status = 'approved';
+  } else if (rejectCount > 0 && rejectCount >= half && rejectCount > approveCount) {
     status = 'rejected';
   } else if (hasEveryoneVoted && approveCount > rejectCount) {
     status = 'approved';
@@ -150,6 +161,28 @@ export function isVoteChangeLocked(
   now: Date = new Date()
 ): boolean {
   return isReservationPastDue(date, startTime, now, VOTE_CHANGE_LOCK_MINUTES);
+}
+
+// An approved reservation for someone else whose slot is running right now
+// while a different person's car is still in the spot — the occupant needs to
+// move. Returns null when there is no such clash.
+export function findBlockedReservation(
+  current: ParkingSession | null,
+  reservations: ParkingReservation[],
+  now: Date = new Date()
+): ParkingReservation | null {
+  if (!current) return null;
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return (
+    reservations.find((r) => {
+      if (r.status !== 'approved' || r.date !== today) return false;
+      if (r.requestedBy === current.occupant) return false;
+      const start = r.startTime ? toMinutes(r.startTime) : 0;
+      const end = r.endTime ? toMinutes(r.endTime) : 24 * 60;
+      return nowMinutes >= start && nowMinutes < end;
+    }) ?? null
+  );
 }
 
 export interface ConflictResult {
@@ -269,6 +302,7 @@ export const useParkingStore = create<ParkingStore>()(
             votes: ((r.parking_reservation_votes ?? []) as { user_id: string; vote: string }[]).map(
               (v) => ({ userId: v.user_id, vote: v.vote as ParkingVoteChoice })
             ),
+            autoClaimed: r.auto_claimed === true,
           }));
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
@@ -734,24 +768,32 @@ export const useParkingStore = create<ParkingStore>()(
           const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
           const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-          // Resolve past-due pending reservations using the same logic as the cron
-          const pendingDue = get().reservations.filter(
-            (r) => r.status === 'pending' && isReservationPastDue(r.date, r.startTime, now)
-          );
-          if (pendingDue.length > 0) {
+          // Resolve pending reservations: past-due ones by the same logic as the
+          // cron, and upcoming ones whose votes already decide the outcome (e.g. a
+          // vote cast before the "half is enough" rule, or a member who left).
+          const pending = get().reservations.filter((r) => r.status === 'pending');
+          if (pending.length > 0) {
             const { data: memberRows, error: membersError } = await supabase
               .from('house_members')
               .select('user_id')
               .eq('house_id', houseId);
             const memberIds = ((memberRows ?? []) as { user_id: string }[]).map((m) => m.user_id);
 
-            for (const r of pendingDue) {
+            for (const r of pending) {
+              const isDue = isReservationPastDue(r.date, r.startTime, now);
+              // Without the member list we can't tell who still has to vote, so only
+              // past-due reservations (which resolve on the cast votes) are safe.
+              if (!isDue && membersError) continue;
               const voterIds = membersError
                 ? r.votes.map((v) => v.userId).filter((id) => id !== r.requestedBy)
                 : memberIds.filter((id) => id !== r.requestedBy);
               const tally = tallyParkingReservationVotes(r.votes, voterIds);
-              const resolvedStatus: ParkingReservationStatus =
-                tally.approveCount > tally.rejectCount ? 'approved' : 'rejected';
+              if (!isDue && tally.status === 'pending') continue;
+              const resolvedStatus: ParkingReservationStatus = isDue
+                ? tally.approveCount > tally.rejectCount
+                  ? 'approved'
+                  : 'rejected'
+                : tally.status;
               const { data: updated, error: updateErr } = await supabase
                 .from('parking_reservations')
                 .update({ status: resolvedStatus })
@@ -784,35 +826,66 @@ export const useParkingStore = create<ParkingStore>()(
             const endMinutes = r.endTime ? toMinutes(r.endTime) : 24 * 60;
             return nowMinutes >= startMinutes && nowMinutes < endMinutes;
           });
+          // The spot is handed to the holder only once per reservation — if they
+          // leave early and free it, it is not grabbed back for them.
+          if (!dueReservation || dueReservation.autoClaimed) return;
 
-          if (dueReservation && !current) {
-            const { data: activeCheck, error: activeCheckError } = await supabase
-              .from('parking_sessions')
-              .select('id')
-              .eq('house_id', houseId)
-              .eq('is_active', true)
-              .maybeSingle();
-            if (activeCheckError) {
-              captureError(activeCheckError, {
-                context: 'checkReservationAutoApply:activeSessionCheck',
+          const markAutoClaimed = async (): Promise<void> => {
+            const { error: flagError } = await supabase
+              .from('parking_reservations')
+              .update({ auto_claimed: true })
+              .eq('id', dueReservation.id);
+            if (flagError) {
+              captureError(flagError, {
+                context: 'checkReservationAutoApply:markAutoClaimed',
                 houseId,
               });
               return;
             }
-            if (activeCheck) return;
+            set({
+              reservations: get().reservations.map((res) =>
+                res.id === dueReservation.id ? { ...res, autoClaimed: true } : res
+              ),
+            });
+          };
 
-            const { data, error } = await supabase
-              .from('parking_sessions')
-              .insert({ house_id: houseId, occupant: dueReservation.requestedBy, is_active: true })
-              .select()
-              .single();
-            if (error) {
-              captureError(error, { context: 'checkReservationAutoApply:insertSession', houseId });
-            } else if (data) {
-              set({
-                current: { id: data.id, occupant: data.occupant, startTime: data.start_time },
-              });
-            }
+          // The holder already has the spot — just record it.
+          if (current?.occupant === dueReservation.requestedBy) {
+            await markAutoClaimed();
+            return;
+          }
+
+          // Someone else is still parked: they get warned, and the spot becomes
+          // the holder's as soon as it is freed (the next check after release).
+          if (current) return;
+
+          const { data: activeCheck, error: activeCheckError } = await supabase
+            .from('parking_sessions')
+            .select('id')
+            .eq('house_id', houseId)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (activeCheckError) {
+            captureError(activeCheckError, {
+              context: 'checkReservationAutoApply:activeSessionCheck',
+              houseId,
+            });
+            return;
+          }
+          if (activeCheck) return;
+
+          const { data, error } = await supabase
+            .from('parking_sessions')
+            .insert({ house_id: houseId, occupant: dueReservation.requestedBy, is_active: true })
+            .select()
+            .single();
+          if (error) {
+            captureError(error, { context: 'checkReservationAutoApply:insertSession', houseId });
+          } else if (data) {
+            set({
+              current: { id: data.id, occupant: data.occupant, startTime: data.start_time },
+            });
+            await markAutoClaimed();
           }
         } catch (err) {
           captureError(err, { context: 'checkReservationAutoApply', houseId });

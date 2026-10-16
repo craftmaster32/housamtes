@@ -10,8 +10,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { eventReminderCopy, normalizeLang } from '../_shared/notificationCopy.ts';
 import { assertCronAuthorized } from '../_shared/cronAuth.ts';
+import { fetchPushDevices, sendPush, type PushDevice, type WebKeys } from '../_shared/push.ts';
 
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const LEAD_DAYS = [0, 1, 2, 3, 7] as const;
 
 interface EventRow {
@@ -130,6 +130,7 @@ Deno.serve(async (req: Request) => {
   // Cache per-house recipients so we fetch tokens + prefs once per house.
   interface Recipient {
     token: string;
+    web?: WebKeys;
     language: string;
     notify: boolean;
     daysBefore: number;
@@ -140,12 +141,14 @@ Deno.serve(async (req: Request) => {
     const cached = houseRecipients.get(houseId);
     if (cached) return cached;
 
-    const { data: tokenRows } = await supabase
-      .from('push_tokens')
-      .select('token, user_id, language')
-      .eq('house_id', houseId);
+    let tokenRows: PushDevice[] = [];
+    try {
+      tokenRows = await fetchPushDevices(supabase, { houseIds: [houseId] });
+    } catch (err) {
+      console.error('[event-reminder] device lookup failed', err);
+    }
 
-    if (!tokenRows || tokenRows.length === 0) {
+    if (tokenRows.length === 0) {
       houseRecipients.set(houseId, []);
       return [];
     }
@@ -163,18 +166,17 @@ Deno.serve(async (req: Request) => {
     >();
     for (const row of prefRows ?? []) prefMap.set(row.user_id, row);
 
-    const recipients: Recipient[] = tokenRows
-      .filter((r: { token: string }) => Boolean(r.token))
-      .map((r: { token: string; user_id: string; language?: string }) => {
-        const prefs = prefMap.get(r.user_id);
-        return {
-          token: r.token,
-          language: normalizeLang(r.language),
-          // No pref row → app defaults (reminder on, 1 day before).
-          notify: prefs ? prefs.notify_event_reminder !== false : true,
-          daysBefore: prefs ? prefs.event_reminder_days_before : 1,
-        };
-      });
+    const recipients: Recipient[] = tokenRows.map((r: PushDevice) => {
+      const prefs = prefMap.get(r.user_id);
+      return {
+        token: r.token,
+        web: r.web,
+        language: normalizeLang(r.language),
+        // No pref row → app defaults (reminder on, 1 day before).
+        notify: prefs ? prefs.notify_event_reminder !== false : true,
+        daysBefore: prefs ? prefs.event_reminder_days_before : 1,
+      };
+    });
 
     houseRecipients.set(houseId, recipients);
     return recipients;
@@ -202,14 +204,11 @@ Deno.serve(async (req: Request) => {
           body: copy.body,
           sound: 'default',
           data: { screen: 'calendar' },
+          web: r.web,
         };
       });
 
-      await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messages),
-      });
+      await sendPush(supabase, messages);
 
       totalSent += eligible.length;
     }

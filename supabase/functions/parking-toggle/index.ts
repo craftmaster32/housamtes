@@ -5,12 +5,7 @@
 //         returns 409 if someone else has it.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-
-interface PushTokenRow {
-  token: string;
-}
+import { fetchPushDevices, sendPush, type PushDevice } from '../_shared/push.ts';
 
 interface NotificationPrefRow {
   user_id: string;
@@ -96,42 +91,28 @@ async function notifyHousemates(
   const targetIds = memberIds.filter((id) => !optedOut.has(id));
   if (targetIds.length === 0) return;
 
-  const { data: tokenRows } = await supabase
-    .from('push_tokens')
-    .select('token')
-    .eq('house_id', houseId)
-    .in('user_id', targetIds);
+  let devices: PushDevice[];
+  try {
+    devices = await fetchPushDevices(supabase, { houseIds: [houseId], userIds: targetIds });
+  } catch (err) {
+    console.error('[parking-toggle] device lookup failed:', err);
+    return;
+  }
+  if (devices.length === 0) return;
 
-  const tokens = ((tokenRows ?? []) as PushTokenRow[]).map((r) => r.token).filter(Boolean);
-  if (tokens.length === 0) return;
-
-  const messages = tokens.map((to) => ({
-    to,
+  const messages = devices.map((d) => ({
+    to: d.token,
     title,
     body,
     data: { screen: 'parking' },
     sound: 'default',
     priority: 'high',
+    web: d.web,
   }));
 
-  const delays = [500, 1000, 2000];
-  for (let attempt = 0; attempt < delays.length; attempt++) {
-    try {
-      const res = await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(messages),
-      });
-      if (res.ok) return;
-      console.warn(`[parking-toggle] push attempt ${attempt + 1} returned ${res.status}`);
-    } catch (err) {
-      console.warn(`[parking-toggle] push attempt ${attempt + 1} threw:`, err);
-    }
-    if (attempt < delays.length - 1) {
-      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
-    }
+  if (!(await sendPush(supabase, messages))) {
+    console.error('[parking-toggle] All push attempts failed');
   }
-  console.error('[parking-toggle] All push attempts failed');
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {

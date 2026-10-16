@@ -3,13 +3,13 @@
 //
 // Handles four time-sensitive parking scenarios:
 //   #3  Spot still taken when a reservation's start time arrives → notify both parties
-//   #4  30-min advance warning to current occupant before a reservation starts
+//   #4  ~2-hour advance warning to current occupant before a reservation starts
+//   #5  Slot started and the spot is free → mark it as the holder's (once per reservation)
 //   #6  Pending reservation approaching date → notice; date passed or time reached → auto-reject
 //   #7  Two approved reservations on same day within 2h of each other → notify both holders
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+import { fetchPushDevices, sendPush } from '../_shared/push.ts';
 
 // Returns the current moment expressed in the given IANA timezone so we can
 // compare against local-time start_time strings stored in the DB.
@@ -73,6 +73,7 @@ interface Reservation {
   advance_warning_sent: boolean;
   spot_taken_notified: boolean;
   back_to_back_notified: boolean;
+  auto_claimed: boolean;
 }
 
 interface Session {
@@ -80,11 +81,6 @@ interface Session {
   house_id: string;
   occupant: string;
   is_active: boolean;
-}
-
-interface PushToken {
-  user_id: string;
-  token: string;
 }
 
 interface UserProfile {
@@ -96,6 +92,26 @@ interface HouseRow {
   id: string;
   timezone: string;
 }
+
+// Mirrors tallyParkingReservationVotes in the app: a side wins early once it
+// can't be overtaken, or once it holds at least half of the eligible voters
+// while ahead of the other side (house rule: half is enough).
+function earlyDecision(
+  approveCount: number,
+  rejectCount: number,
+  eligibleCount: number
+): 'approved' | 'rejected' | null {
+  const remaining = eligibleCount - approveCount - rejectCount;
+  const half = eligibleCount / 2;
+  if (approveCount > rejectCount + remaining) return 'approved';
+  if (rejectCount > approveCount + remaining) return 'rejected';
+  if (approveCount > 0 && approveCount >= half && approveCount > rejectCount) return 'approved';
+  if (rejectCount > 0 && rejectCount >= half && rejectCount > approveCount) return 'rejected';
+  return null;
+}
+
+// How long before a reservation starts the parked housemate is asked to move.
+const ADVANCE_WARNING_MINUTES = 120;
 
 function toMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -127,58 +143,25 @@ async function sendToUser(
     if (prefs && (prefs as Record<string, unknown>)[prefColumn] === false) return false;
   }
 
-  // 2. Fetch push tokens
-  const { data: rows, error: tokErr } = await supabase
-    .from('push_tokens')
-    .select('token')
-    .eq('house_id', houseId)
-    .eq('user_id', userId);
-  if (tokErr) {
-    console.error('[parking-check] push_tokens fetch error:', tokErr.message);
+  // 2. Deliver to every native and web device this person has in the house
+  try {
+    const devices = await fetchPushDevices(supabase, { houseIds: [houseId], userIds: [userId] });
+    return await sendPush(
+      supabase,
+      devices.map((d) => ({
+        to: d.token,
+        title,
+        body,
+        data,
+        sound: 'default',
+        priority: 'high',
+        web: d.web,
+      }))
+    );
+  } catch (err) {
+    console.error('[parking-check] push delivery failed:', err);
     return false;
   }
-
-  const tokens = ((rows ?? []) as PushToken[]).map((r) => r.token).filter(Boolean);
-  if (tokens.length === 0) return false;
-
-  // 3. Send with exponential-backoff retry (3 attempts: 500 ms, 1 s, 2 s)
-  const messages = tokens.map((to) => ({
-    to,
-    title,
-    body,
-    data,
-    sound: 'default',
-    priority: 'high',
-  }));
-  const delays = [500, 1000, 2000];
-  for (let attempt = 0; attempt < delays.length; attempt++) {
-    try {
-      const res = await fetch(EXPO_PUSH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(messages),
-      });
-      if (res.ok) {
-        const json = (await res.json()) as { data?: Array<{ status: string; message?: string }> };
-        const tickets = json.data ?? [];
-        const failed = tickets.filter((t) => t.status !== 'ok');
-        if (failed.length === 0) return true;
-        for (const t of failed) {
-          console.warn(`[parking-check] Expo ticket error: ${t.message ?? t.status}`);
-        }
-      } else {
-        console.warn(`[parking-check] Expo push attempt ${attempt + 1} returned ${res.status}`);
-      }
-    } catch (err) {
-      console.warn(`[parking-check] Expo push attempt ${attempt + 1} threw:`, err);
-    }
-    if (attempt < delays.length - 1) {
-      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
-    }
-  }
-  console.error('[parking-check] All push attempts failed');
-
-  return false;
 }
 
 async function getNames(
@@ -370,7 +353,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         localCtx = getLocalContext('UTC');
       }
       const { nowMins, today, tomorrow } = localCtx;
-      const session = sessionByHouse.get(houseId);
+      let session = sessionByHouse.get(houseId);
 
       for (const r of houseReservations) {
         const rName = names.get(r.requested_by) ?? 'A housemate';
@@ -491,22 +474,74 @@ Deno.serve(async (_req: Request): Promise<Response> => {
           }
         }
 
-        // ── #6c: 24h-before notice for tomorrow's pending reservations ────────────
+        // ── #6d: Upcoming pending reservation whose votes already decide it ──────
+        // Catches requests that are decided by the "half is enough" rule but were
+        // never finalized (e.g. the voter's app closed before saving the status).
+        if (r.status === 'pending' && r.date >= today && !membersError) {
+          const houseMembers = membersByHouse.get(r.house_id) ?? [];
+          const eligibleIds = houseMembers.filter((id) => id !== r.requested_by);
+          const eligibleVotes = (votesByReservation.get(r.id) ?? []).filter((v) =>
+            eligibleIds.includes(v.user_id)
+          );
+          const decided = earlyDecision(
+            eligibleVotes.filter((v) => v.vote === 'approve').length,
+            eligibleVotes.filter((v) => v.vote === 'reject').length,
+            eligibleIds.length
+          );
+          if (decided) {
+            const { data: resolved6d, error: resolveErr } = await supabase
+              .from('parking_reservations')
+              .update({ status: decided })
+              .eq('id', r.id)
+              .eq('status', 'pending')
+              .select('id');
+            if (resolveErr) {
+              console.error(
+                '[parking-check] early-resolve (#6d) failed for',
+                r.id,
+                resolveErr.message
+              );
+              continue;
+            }
+            if (!resolved6d?.length) continue; // already finalized elsewhere
+            r.status = decided;
+            await sendToUser(
+              supabase,
+              r.requested_by,
+              r.house_id,
+              decided === 'approved' ? '✅ Parking approved!' : '❌ Request denied',
+              decided === 'approved'
+                ? `Your request for ${r.date}${timeStr} was approved by the vote.`
+                : `Your request for ${r.date}${timeStr} was voted down.`,
+              { screen: 'parking' }
+            );
+            // An approved request for today continues into #4/#3 below so the
+            // current occupant gets the "move your car" reminder this run.
+            if (decided === 'rejected') continue;
+          }
+        }
+
+        // ── #6c: Vote reminder for today's and tomorrow's pending reservations ──
+        // Same-day requests are included so a request made for later today still
+        // nudges the people who haven't voted (the instant push can be missed).
         // Skip entirely when membersError is set — without the member list we can't
         // notify non-voters, so we must not set pending_notice_sent either. The next
         // cron run will retry once the member fetch recovers.
         if (
           r.status === 'pending' &&
-          r.date === tomorrow &&
+          (r.date === tomorrow || r.date === today) &&
           !r.pending_notice_sent &&
           !membersError
         ) {
+          const isToday = r.date === today;
           const sentRequester = await sendToUser(
             supabase,
             r.requested_by,
             r.house_id,
             '⏳ Parking vote still open',
-            `Your parking request for ${r.date}${timeStr} hasn't been decided yet — vote closes tomorrow.`,
+            isToday
+              ? `Your parking request for today${timeStr} hasn't been decided yet — voting closes when it starts.`
+              : `Your parking request for ${r.date}${timeStr} hasn't been decided yet — vote closes tomorrow.`,
             { screen: 'parking' }
           );
 
@@ -524,7 +559,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
               voterId,
               r.house_id,
               '🗳️ Vote before the deadline!',
-              `${rName} wants the spot on ${r.date}${timeStr} — vote by tomorrow or the majority decides.`,
+              isToday
+                ? `${rName} wants the spot today${timeStr} — vote before it starts or the majority decides.`
+                : `${rName} wants the spot on ${r.date}${timeStr} — vote by tomorrow or the majority decides.`,
               { screen: 'parking' }
             );
             if (sent) sentNonVoter = true;
@@ -538,41 +575,85 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
         if (r.status !== 'approved') continue;
 
-        // ── Approved reservations only from here — and only on today's local date ──
-        if (r.date !== today) continue;
+        // ── Approved reservations only from here — today, or tomorrow for the
+        //    advance warning of an early-morning slot ──────────────────────────
+        if (r.date !== today && r.date !== tomorrow) continue;
 
         const startMins = r.start_time ? toMinutes(r.start_time) : 0;
         const endMins = r.end_time ? toMinutes(r.end_time) : 24 * 60;
+        const minsUntilStart =
+          r.date === today ? startMins - nowMins : 24 * 60 - nowMins + startMins;
 
-        // ── #4: 30-min advance warning to current occupant ───────────────────────
+        // ── #4: ~2-hour advance warning to the current occupant ──────────────────
+        // Checked on every run inside the window, so someone who parks after the
+        // first check still gets warned. Marked done once the occupant got it.
         if (
           !r.advance_warning_sent &&
           session &&
           session.occupant !== r.requested_by &&
-          startMins > nowMins &&
-          startMins - nowMins <= 35
+          minsUntilStart > 0 &&
+          minsUntilStart <= ADVANCE_WARNING_MINUTES
         ) {
           const occupantName = names.get(session.occupant) ?? 'Someone';
+          const startLabel = r.start_time ?? 'midnight';
           const sentOccupant4 = await sendToUser(
             supabase,
             session.occupant,
             r.house_id,
             '🚗 Spot needed soon',
-            `${rName} has the spot from ${r.start_time ?? 'soon'} — please free it up in time.`,
+            `${rName} has the spot from ${startLabel} — please free it up in time.`,
             { screen: 'parking' },
             'parking_claimed'
           );
-          const sentRequester4 = await sendToUser(
+          await sendToUser(
             supabase,
             r.requested_by,
             r.house_id,
             '⏰ Spot still in use',
-            `${occupantName} is still parked — we've reminded them your slot starts at ${r.start_time}.`,
+            `${occupantName} is parked there now — we've asked them to free it before ${startLabel}.`,
             { screen: 'parking' },
             'parking_claimed'
           );
-          if (sentOccupant4 && sentRequester4)
-            updates.push({ id: r.id, patch: { advance_warning_sent: true } });
+          if (sentOccupant4) updates.push({ id: r.id, patch: { advance_warning_sent: true } });
+        }
+
+        if (r.date !== today) continue;
+        const slotRunning = nowMins >= startMins && nowMins < endMins;
+
+        // ── #5: Slot running → the spot becomes the holder's ─────────────────────
+        // Once per reservation: if the holder leaves early and frees the spot,
+        // it is not grabbed back for them. A housemate still parked keeps the
+        // spot (and gets #3) until they free it; the next run then claims it.
+        if (slotRunning && !r.auto_claimed) {
+          if (session?.occupant === r.requested_by) {
+            r.auto_claimed = true;
+            updates.push({ id: r.id, patch: { auto_claimed: true } });
+          } else if (!session) {
+            const { data: claimed, error: claimErr } = await supabase
+              .from('parking_sessions')
+              .insert({ house_id: r.house_id, occupant: r.requested_by, is_active: true })
+              .select('id, house_id, occupant, is_active')
+              .single();
+            if (claimErr || !claimed) {
+              // A unique-index clash means someone claimed it a moment ago — fine.
+              console.warn('[parking-check] auto-claim (#5) skipped for', r.id, claimErr?.message);
+            } else {
+              session = claimed as Session;
+              sessionByHouse.set(houseId, session);
+              r.auto_claimed = true;
+              updates.push({ id: r.id, patch: { auto_claimed: true } });
+              const untilLabel = r.end_time ? ` until ${r.end_time}` : ' for the day';
+              await sendToUser(
+                supabase,
+                r.requested_by,
+                r.house_id,
+                '🅿️ The spot is yours',
+                `Your reserved slot has started — the parking spot is marked as yours${untilLabel}.`,
+                { screen: 'parking' },
+                'parking_claimed'
+              );
+            }
+          }
         }
 
         // ── #3: Spot still taken when reservation start time arrives ─────────────

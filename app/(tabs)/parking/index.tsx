@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   useParkingStore,
   isDateConflict,
+  findBlockedReservation,
   isReservationPastDue,
   isVoteChangeLocked,
   type ConflictResult,
@@ -39,6 +40,7 @@ import { Alert } from '@lib/alert';
 import { CalendarPicker } from '@components/shared/CalendarPicker';
 import { TimePicker } from '@components/shared/TimePicker';
 import { BackLink } from '@components/shared/BackLink';
+import { ParkingBlockedBanner } from '@components/parking/ParkingBlockedBanner';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { EmptyState } from '@components/ui';
 import { font } from '@constants/typography';
@@ -788,6 +790,14 @@ function ParkingScreen(): React.JSX.Element {
   const [now, setNow] = useState(() => new Date());
 
   const handleDatePress = useCallback((date: string) => setDaySheetDate(date), []);
+  const blockedReservation = useMemo(
+    () => findBlockedReservation(current, reservations, now),
+    [current, reservations, now]
+  );
+  const nameOf = useCallback(
+    (id: string): string => resolveName(id, housemates, t('common.unknown')),
+    [housemates, t]
+  );
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   useEffect(() => {
@@ -1069,6 +1079,15 @@ function ParkingScreen(): React.JSX.Element {
                           })}
                 </Text>
               </View>
+
+              {blockedReservation && current && (
+                <ParkingBlockedBanner
+                  reservation={blockedReservation}
+                  occupantId={current.occupant}
+                  myId={myId}
+                  resolveName={nameOf}
+                />
+              )}
 
               <LinearGradient
                 colors={isFree ? C.successGradient : C.dangerGradient}
