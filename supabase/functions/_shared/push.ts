@@ -74,7 +74,9 @@ export async function fetchPushDevices(
   const [tokenRes, webRes] = await Promise.all([tokenQuery, webQuery]);
   if (tokenRes.error) throw new Error(`push_tokens lookup failed: ${tokenRes.error.message}`);
   if (webRes.error) {
-    console.warn(`[push] web_push_subscriptions lookup failed, skipping web devices: ${webRes.error.message}`);
+    console.warn(
+      `[push] web_push_subscriptions lookup failed, skipping web devices: ${webRes.error.message}`
+    );
   }
 
   const devices: PushDevice[] = [];
