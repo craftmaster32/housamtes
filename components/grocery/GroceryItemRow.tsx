@@ -12,7 +12,7 @@ import { ItemAgeMeta } from '@components/grocery/ItemAgeMeta';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { useMemberName } from '@hooks/useMemberName';
 import { formatItemAge } from '@utils/groceryAge';
-import { detectCategory, toneColors } from '@utils/groceryCategory';
+import { detectCategory, detectItemIcon, toneColors } from '@utils/groceryCategory';
 import { localizeQuantityForDisplay } from '@utils/groceryUnits';
 import { makeStyles, SWIPE_DELETE_WIDTH } from './GroceryItemRow.styles';
 
@@ -125,7 +125,7 @@ export const GroceryItemRow = memo(function GroceryItemRow({
       <View style={s.topRow}>
         <View style={[s.tile, { backgroundColor: item.isChecked ? C.surfaceSecondary : tone.bg }]}>
           <Ionicons
-            name={item.isPersonal ? 'lock-closed-outline' : category.icon}
+            name={item.isPersonal ? 'lock-closed-outline' : detectItemIcon(item.name)}
             size={22}
             color={item.isChecked ? C.textTertiary : tone.fg}
           />
