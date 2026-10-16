@@ -56,6 +56,7 @@ jest.mock('@stores/authStore', () => ({
 jest.mock('@stores/parkingStore', () => {
   const state: Record<string, unknown> = {
     current: null,
+    reservations: [],
     claim: jest.fn(() => Promise.resolve()),
     release: jest.fn(() => Promise.resolve()),
   };
@@ -64,7 +65,9 @@ jest.mock('@stores/parkingStore', () => {
   hook.__set = (patch: Record<string, unknown>): void => {
     Object.assign(state, patch);
   };
-  return { useParkingStore: hook };
+  // The real rule for "a reserved slot has started while another car is parked".
+  const { findBlockedReservation } = jest.requireActual('@stores/parkingStore');
+  return { useParkingStore: hook, findBlockedReservation };
 });
 
 type ParkingMock = typeof useParkingStore & {
@@ -78,7 +81,7 @@ const styles = {} as never;
 describe('ParkingCard — tap to toggle', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    parking.__set({ current: null });
+    parking.__set({ current: null, reservations: [] });
   });
 
   it('claims the free spot on tap instead of navigating', () => {
@@ -110,5 +113,32 @@ describe('ParkingCard — tap to toggle', () => {
     const confirmBtn = buttons.find((b) => b.style === 'destructive');
     confirmBtn?.onPress?.();
     expect(parking.getState().release).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells me to move when a housemate's reserved slot has started", () => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    parking.__set({
+      current: { id: 's3', occupant: 'me', startTime: '' },
+      reservations: [
+        {
+          id: 'r1',
+          requestedBy: 'other',
+          date: today,
+          note: '',
+          status: 'approved',
+          createdAt: '',
+          votes: [],
+        },
+      ],
+    });
+    render(<ParkingCard styles={styles} />);
+    expect(screen.getByText('dashboard.parking_blocked_move')).toBeTruthy();
+  });
+
+  it('shows who is parked when no reserved slot is running', () => {
+    parking.__set({ current: { id: 's4', occupant: 'me', startTime: '' }, reservations: [] });
+    render(<ParkingCard styles={styles} />);
+    expect(screen.queryByText('dashboard.parking_blocked_move')).toBeNull();
   });
 });

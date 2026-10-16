@@ -22,6 +22,7 @@ import {
   isReservationPastDue,
   isVoteChangeLocked,
   tallyParkingReservationVotes,
+  findBlockedReservation,
   useParkingStore,
   type ParkingReservation,
 } from '../../stores/parkingStore';
@@ -1195,6 +1196,49 @@ describe('parkingStore — clearAllHistory', () => {
 
     await expect(useParkingStore.getState().clearAllHistory('house-1')).rejects.toThrow(
       'Could not clear history. Please try again.'
+    );
+  });
+});
+
+describe('findBlockedReservation', () => {
+  // Fri 16 Oct 2026, 14:45 local
+  const now = new Date(2026, 9, 16, 14, 45);
+  const session = { id: 's1', occupant: 'lior', startTime: '2026-10-15T16:34:00Z' };
+  const idoSlot = reservation({
+    id: 'r-ido',
+    requestedBy: 'ido',
+    date: '2026-10-16',
+    startTime: '11:00',
+    endTime: '15:55',
+    status: 'approved',
+  });
+
+  it("flags someone else's running slot while another car is parked", () => {
+    expect(findBlockedReservation(session, [idoSlot], now)?.id).toBe('r-ido');
+  });
+
+  it('ignores the slot once the holder is the one parked', () => {
+    expect(findBlockedReservation({ ...session, occupant: 'ido' }, [idoSlot], now)).toBeNull();
+  });
+
+  it('ignores a free spot', () => {
+    expect(findBlockedReservation(null, [idoSlot], now)).toBeNull();
+  });
+
+  it('ignores slots that have not started or already ended', () => {
+    expect(findBlockedReservation(session, [idoSlot], new Date(2026, 9, 16, 10, 59))).toBeNull();
+    expect(findBlockedReservation(session, [idoSlot], new Date(2026, 9, 16, 15, 55))).toBeNull();
+  });
+
+  it('ignores pending and rejected requests', () => {
+    expect(findBlockedReservation(session, [{ ...idoSlot, status: 'pending' }], now)).toBeNull();
+    expect(findBlockedReservation(session, [{ ...idoSlot, status: 'rejected' }], now)).toBeNull();
+  });
+
+  it('treats an all-day reservation as running all day', () => {
+    const allDay = { ...idoSlot, startTime: undefined, endTime: undefined };
+    expect(findBlockedReservation(session, [allDay], new Date(2026, 9, 16, 0, 5))?.id).toBe(
+      'r-ido'
     );
   });
 });

@@ -161,6 +161,28 @@ export function isVoteChangeLocked(
   return isReservationPastDue(date, startTime, now, VOTE_CHANGE_LOCK_MINUTES);
 }
 
+// An approved reservation for someone else whose slot is running right now
+// while a different person's car is still in the spot — the occupant needs to
+// move. Returns null when there is no such clash.
+export function findBlockedReservation(
+  current: ParkingSession | null,
+  reservations: ParkingReservation[],
+  now: Date = new Date()
+): ParkingReservation | null {
+  if (!current) return null;
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return (
+    reservations.find((r) => {
+      if (r.status !== 'approved' || r.date !== today) return false;
+      if (r.requestedBy === current.occupant) return false;
+      const start = r.startTime ? toMinutes(r.startTime) : 0;
+      const end = r.endTime ? toMinutes(r.endTime) : 24 * 60;
+      return nowMinutes >= start && nowMinutes < end;
+    }) ?? null
+  );
+}
+
 export interface ConflictResult {
   conflict: string | null;
   warning: string | null;
