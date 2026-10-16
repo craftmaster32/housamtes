@@ -678,6 +678,69 @@ describe('parkingStore — checkReservationAutoApply', () => {
   });
 });
 
+describe('parkingStore — checkReservationAutoApply hands the spot over once', () => {
+  const runningSlot = (overrides: Partial<ParkingReservation> = {}): ParkingReservation =>
+    reservation({
+      id: 'r-slot',
+      requestedBy: 'ido',
+      status: 'approved',
+      date: localDateStr(),
+      startTime: '00:00',
+      endTime: '23:59',
+      ...overrides,
+    });
+
+  it('claims the free spot for the holder and records it', async () => {
+    useParkingStore.setState({ current: null, reservations: [runningSlot()] });
+    mockFrom
+      .mockReturnValueOnce(ok(null)) // no active session on the server
+      .mockReturnValueOnce(ok({ id: 'ps-new', occupant: 'ido', start_time: '00:00' })) // insert
+      .mockReturnValueOnce(ok()); // auto_claimed = true
+
+    await useParkingStore.getState().checkReservationAutoApply('house-1');
+
+    const s = useParkingStore.getState();
+    expect(s.current).toMatchObject({ occupant: 'ido' });
+    expect(s.reservations[0].autoClaimed).toBe(true);
+    expect(mockFrom).toHaveBeenNthCalledWith(3, 'parking_reservations');
+  });
+
+  it('does not grab the spot back after the holder already had it', async () => {
+    useParkingStore.setState({ current: null, reservations: [runningSlot({ autoClaimed: true })] });
+
+    await useParkingStore.getState().checkReservationAutoApply('house-1');
+
+    expect(useParkingStore.getState().current).toBeNull();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('records it when the holder is already parked', async () => {
+    useParkingStore.setState({
+      current: { id: 'ps1', occupant: 'ido', startTime: '00:00' },
+      reservations: [runningSlot()],
+    });
+    mockFrom.mockReturnValueOnce(ok());
+
+    await useParkingStore.getState().checkReservationAutoApply('house-1');
+
+    expect(useParkingStore.getState().reservations[0].autoClaimed).toBe(true);
+    expect(mockFrom).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves a housemate parked there alone until they free the spot', async () => {
+    useParkingStore.setState({
+      current: { id: 'ps1', occupant: 'lior', startTime: '00:00' },
+      reservations: [runningSlot()],
+    });
+
+    await useParkingStore.getState().checkReservationAutoApply('house-1');
+
+    expect(useParkingStore.getState().current).toMatchObject({ occupant: 'lior' });
+    expect(useParkingStore.getState().reservations[0].autoClaimed).toBeFalsy();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 6. voteOnReservation
 // ─────────────────────────────────────────────────────────────────────────────

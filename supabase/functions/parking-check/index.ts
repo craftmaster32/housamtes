@@ -3,7 +3,8 @@
 //
 // Handles four time-sensitive parking scenarios:
 //   #3  Spot still taken when a reservation's start time arrives → notify both parties
-//   #4  30-min advance warning to current occupant before a reservation starts
+//   #4  ~2-hour advance warning to current occupant before a reservation starts
+//   #5  Slot started and the spot is free → mark it as the holder's (once per reservation)
 //   #6  Pending reservation approaching date → notice; date passed or time reached → auto-reject
 //   #7  Two approved reservations on same day within 2h of each other → notify both holders
 
@@ -72,6 +73,7 @@ interface Reservation {
   advance_warning_sent: boolean;
   spot_taken_notified: boolean;
   back_to_back_notified: boolean;
+  auto_claimed: boolean;
 }
 
 interface Session {
@@ -107,6 +109,9 @@ function earlyDecision(
   if (rejectCount > 0 && rejectCount >= half && rejectCount > approveCount) return 'rejected';
   return null;
 }
+
+// How long before a reservation starts the parked housemate is asked to move.
+const ADVANCE_WARNING_MINUTES = 120;
 
 function toMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -348,7 +353,7 @@ Deno.serve(async (_req: Request): Promise<Response> => {
         localCtx = getLocalContext('UTC');
       }
       const { nowMins, today, tomorrow } = localCtx;
-      const session = sessionByHouse.get(houseId);
+      let session = sessionByHouse.get(houseId);
 
       for (const r of houseReservations) {
         const rName = names.get(r.requested_by) ?? 'A housemate';
@@ -570,41 +575,85 @@ Deno.serve(async (_req: Request): Promise<Response> => {
 
         if (r.status !== 'approved') continue;
 
-        // ── Approved reservations only from here — and only on today's local date ──
-        if (r.date !== today) continue;
+        // ── Approved reservations only from here — today, or tomorrow for the
+        //    advance warning of an early-morning slot ──────────────────────────
+        if (r.date !== today && r.date !== tomorrow) continue;
 
         const startMins = r.start_time ? toMinutes(r.start_time) : 0;
         const endMins = r.end_time ? toMinutes(r.end_time) : 24 * 60;
+        const minsUntilStart =
+          r.date === today ? startMins - nowMins : 24 * 60 - nowMins + startMins;
 
-        // ── #4: 30-min advance warning to current occupant ───────────────────────
+        // ── #4: ~2-hour advance warning to the current occupant ──────────────────
+        // Checked on every run inside the window, so someone who parks after the
+        // first check still gets warned. Marked done once the occupant got it.
         if (
           !r.advance_warning_sent &&
           session &&
           session.occupant !== r.requested_by &&
-          startMins > nowMins &&
-          startMins - nowMins <= 35
+          minsUntilStart > 0 &&
+          minsUntilStart <= ADVANCE_WARNING_MINUTES
         ) {
           const occupantName = names.get(session.occupant) ?? 'Someone';
+          const startLabel = r.start_time ?? 'midnight';
           const sentOccupant4 = await sendToUser(
             supabase,
             session.occupant,
             r.house_id,
             '🚗 Spot needed soon',
-            `${rName} has the spot from ${r.start_time ?? 'soon'} — please free it up in time.`,
+            `${rName} has the spot from ${startLabel} — please free it up in time.`,
             { screen: 'parking' },
             'parking_claimed'
           );
-          const sentRequester4 = await sendToUser(
+          await sendToUser(
             supabase,
             r.requested_by,
             r.house_id,
             '⏰ Spot still in use',
-            `${occupantName} is still parked — we've reminded them your slot starts at ${r.start_time}.`,
+            `${occupantName} is parked there now — we've asked them to free it before ${startLabel}.`,
             { screen: 'parking' },
             'parking_claimed'
           );
-          if (sentOccupant4 && sentRequester4)
-            updates.push({ id: r.id, patch: { advance_warning_sent: true } });
+          if (sentOccupant4) updates.push({ id: r.id, patch: { advance_warning_sent: true } });
+        }
+
+        if (r.date !== today) continue;
+        const slotRunning = nowMins >= startMins && nowMins < endMins;
+
+        // ── #5: Slot running → the spot becomes the holder's ─────────────────────
+        // Once per reservation: if the holder leaves early and frees the spot,
+        // it is not grabbed back for them. A housemate still parked keeps the
+        // spot (and gets #3) until they free it; the next run then claims it.
+        if (slotRunning && !r.auto_claimed) {
+          if (session?.occupant === r.requested_by) {
+            r.auto_claimed = true;
+            updates.push({ id: r.id, patch: { auto_claimed: true } });
+          } else if (!session) {
+            const { data: claimed, error: claimErr } = await supabase
+              .from('parking_sessions')
+              .insert({ house_id: r.house_id, occupant: r.requested_by, is_active: true })
+              .select('id, house_id, occupant, is_active')
+              .single();
+            if (claimErr || !claimed) {
+              // A unique-index clash means someone claimed it a moment ago — fine.
+              console.warn('[parking-check] auto-claim (#5) skipped for', r.id, claimErr?.message);
+            } else {
+              session = claimed as Session;
+              sessionByHouse.set(houseId, session);
+              r.auto_claimed = true;
+              updates.push({ id: r.id, patch: { auto_claimed: true } });
+              const untilLabel = r.end_time ? ` until ${r.end_time}` : ' for the day';
+              await sendToUser(
+                supabase,
+                r.requested_by,
+                r.house_id,
+                '🅿️ The spot is yours',
+                `Your reserved slot has started — the parking spot is marked as yours${untilLabel}.`,
+                { screen: 'parking' },
+                'parking_claimed'
+              );
+            }
+          }
         }
 
         // ── #3: Spot still taken when reservation start time arrives ─────────────

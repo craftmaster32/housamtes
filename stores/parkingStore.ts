@@ -38,6 +38,8 @@ export interface ParkingReservation {
   status: ParkingReservationStatus;
   createdAt: string;
   votes: ParkingVote[];
+  /** The spot was already handed to the holder during this slot (once only). */
+  autoClaimed?: boolean;
 }
 
 interface ParkingStore {
@@ -300,6 +302,7 @@ export const useParkingStore = create<ParkingStore>()(
             votes: ((r.parking_reservation_votes ?? []) as { user_id: string; vote: string }[]).map(
               (v) => ({ userId: v.user_id, vote: v.vote as ParkingVoteChoice })
             ),
+            autoClaimed: r.auto_claimed === true,
           }));
           // A newer load (or unsubscribe) superseded this one — drop its result.
           if (seq !== _loadSeq) return;
@@ -823,35 +826,66 @@ export const useParkingStore = create<ParkingStore>()(
             const endMinutes = r.endTime ? toMinutes(r.endTime) : 24 * 60;
             return nowMinutes >= startMinutes && nowMinutes < endMinutes;
           });
+          // The spot is handed to the holder only once per reservation — if they
+          // leave early and free it, it is not grabbed back for them.
+          if (!dueReservation || dueReservation.autoClaimed) return;
 
-          if (dueReservation && !current) {
-            const { data: activeCheck, error: activeCheckError } = await supabase
-              .from('parking_sessions')
-              .select('id')
-              .eq('house_id', houseId)
-              .eq('is_active', true)
-              .maybeSingle();
-            if (activeCheckError) {
-              captureError(activeCheckError, {
-                context: 'checkReservationAutoApply:activeSessionCheck',
+          const markAutoClaimed = async (): Promise<void> => {
+            const { error: flagError } = await supabase
+              .from('parking_reservations')
+              .update({ auto_claimed: true })
+              .eq('id', dueReservation.id);
+            if (flagError) {
+              captureError(flagError, {
+                context: 'checkReservationAutoApply:markAutoClaimed',
                 houseId,
               });
               return;
             }
-            if (activeCheck) return;
+            set({
+              reservations: get().reservations.map((res) =>
+                res.id === dueReservation.id ? { ...res, autoClaimed: true } : res
+              ),
+            });
+          };
 
-            const { data, error } = await supabase
-              .from('parking_sessions')
-              .insert({ house_id: houseId, occupant: dueReservation.requestedBy, is_active: true })
-              .select()
-              .single();
-            if (error) {
-              captureError(error, { context: 'checkReservationAutoApply:insertSession', houseId });
-            } else if (data) {
-              set({
-                current: { id: data.id, occupant: data.occupant, startTime: data.start_time },
-              });
-            }
+          // The holder already has the spot — just record it.
+          if (current?.occupant === dueReservation.requestedBy) {
+            await markAutoClaimed();
+            return;
+          }
+
+          // Someone else is still parked: they get warned, and the spot becomes
+          // the holder's as soon as it is freed (the next check after release).
+          if (current) return;
+
+          const { data: activeCheck, error: activeCheckError } = await supabase
+            .from('parking_sessions')
+            .select('id')
+            .eq('house_id', houseId)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (activeCheckError) {
+            captureError(activeCheckError, {
+              context: 'checkReservationAutoApply:activeSessionCheck',
+              houseId,
+            });
+            return;
+          }
+          if (activeCheck) return;
+
+          const { data, error } = await supabase
+            .from('parking_sessions')
+            .insert({ house_id: houseId, occupant: dueReservation.requestedBy, is_active: true })
+            .select()
+            .single();
+          if (error) {
+            captureError(error, { context: 'checkReservationAutoApply:insertSession', houseId });
+          } else if (data) {
+            set({
+              current: { id: data.id, occupant: data.occupant, startTime: data.start_time },
+            });
+            await markAutoClaimed();
           }
         } catch (err) {
           captureError(err, { context: 'checkReservationAutoApply', houseId });
