@@ -1174,17 +1174,6 @@ function GroceryScreen(): React.JSX.Element {
                       />
                     )}
 
-                    <SavedListsSection
-                      lists={savedLists}
-                      isLoading={isLoadingLists}
-                      myId={myId}
-                      hasDraftItems={myDraftItems.length > 0}
-                      onLoadList={handleLoadList}
-                      onDeleteList={handleDeleteList}
-                      onCreateList={handleOpenCreateList}
-                      onEditList={handleOpenEditList}
-                    />
-
                     {isLoading && items.length === 0 && (
                       <LoadingSpinner size={64} style={styles.loadingIndicator} />
                     )}
@@ -1206,7 +1195,21 @@ function GroceryScreen(): React.JSX.Element {
                     </View>
                   )
                 }
-                ListFooterComponent={<View style={styles.bottomPad} />}
+                ListFooterComponent={
+                  <View style={styles.footer}>
+                    <SavedListsSection
+                      lists={savedLists}
+                      isLoading={isLoadingLists}
+                      myId={myId}
+                      hasDraftItems={myDraftItems.length > 0}
+                      onLoadList={handleLoadList}
+                      onDeleteList={handleDeleteList}
+                      onCreateList={handleOpenCreateList}
+                      onEditList={handleOpenEditList}
+                    />
+                    <View style={styles.bottomPad} />
+                  </View>
+                }
               />
             </View>
           </View>
@@ -1323,6 +1326,8 @@ function makeStyles(C: ColorTokens) {
       fontSize: mf(16),
       ...font.regular,
       color: C.textPrimary,
+      // The box around this field already shows focus; drop the browser's own ring.
+      ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
     },
     addBtn: {
       width: ms(48),
@@ -1475,6 +1480,7 @@ function makeStyles(C: ColorTokens) {
     clearBarCount: { fontSize: mf(14), ...font.semibold, color: C.positive },
     clearBarAction: { fontSize: mf(13), ...font.bold, color: C.positive },
 
+    footer: { marginTop: ms(24) },
     bottomPad: { height: sizes.bottomTabContentPadding },
   });
 }

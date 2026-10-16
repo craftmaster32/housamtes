@@ -158,6 +158,7 @@ export const GroceryItemRow = memo(function GroceryItemRow({
               now={now}
               showName={!item.isPersonal}
               isChecked={item.isChecked}
+              highlightStale={false}
             />
             {!!item.comment && (
               <Ionicons

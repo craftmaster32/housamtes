@@ -320,7 +320,13 @@ function makeModalStyles(): ReturnType<typeof StyleSheet.create> {
     qtyText: { fontSize: mf(13), ...font.bold },
     metaText: { fontSize: mf(13), ...font.regular },
     commentBox: { borderRadius: ms(12), borderWidth: 1, padding: ms(12) },
-    commentInput: { fontSize: mf(15), ...font.regular, minHeight: ms(72) },
+    commentInput: {
+      fontSize: mf(15),
+      ...font.regular,
+      minHeight: ms(72),
+      // The box around this field already shows focus; drop the browser's own ring.
+      ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
+    },
     saveError: { fontSize: mf(12), color: REMOVE_RED },
     actions: { flexDirection: 'row', gap: ms(10), marginTop: ms(2) },
     btn: {

@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
@@ -63,6 +63,8 @@ export function makeStyles(C: ColorTokens, isDark: boolean) {
       fontSize: mf(17),
       ...font.medium,
       color: C.textPrimary,
+      // The box around this field already shows focus; drop the browser's own ring.
+      ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null),
     },
     catPill: { paddingHorizontal: ms(10), paddingVertical: ms(4), borderRadius: ms(10) },
     catPillText: { fontSize: mf(12), ...font.semibold },
