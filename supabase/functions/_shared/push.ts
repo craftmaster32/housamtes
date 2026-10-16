@@ -8,6 +8,8 @@
 // service. Without this, web-app users never got any scheduled reminder.
 
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Static import, the same way send-push loads it in production.
+import webpush from 'npm:web-push@3.6.7';
 
 // Any client works here — these helpers only touch two tables by name.
 // deno-lint-ignore no-explicit-any
@@ -156,8 +158,7 @@ interface WebPushLib {
   ) => Promise<unknown>;
 }
 
-// web-push is loaded only when there is a web message to send, so the
-// Expo-only paths (and the Jest tests that load these modules) never need it.
+// VAPID is configured the first time a web message is sent.
 let webpushLib: WebPushLib | null | undefined;
 async function loadWebPush(): Promise<WebPushLib | null> {
   if (webpushLib !== undefined) return webpushLib;
@@ -170,7 +171,7 @@ async function loadWebPush(): Promise<WebPushLib | null> {
     return null;
   }
   try {
-    const lib = ((await import('npm:web-push@3.6.7')) as { default: WebPushLib }).default;
+    const lib = webpush as unknown as WebPushLib;
     lib.setVapidDetails(`mailto:${contact}`, pub, priv);
     webpushLib = lib;
     return lib;

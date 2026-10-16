@@ -10,6 +10,16 @@ interface StaleItemsModule {
     now?: Date
   ) => Promise<{ sent: number; items: number }>;
 }
+// The shared push sender imports web-push the Deno way ('npm:…'); Jest can't
+// resolve that, and these tests only exercise native (Expo) delivery.
+jest.mock(
+  'npm:web-push@3.6.7',
+  () => ({ setVapidDetails: jest.fn(), sendNotification: jest.fn() }),
+  {
+    virtual: true,
+  }
+);
+
 const { runStaleItemCheck } = jest.requireActual<StaleItemsModule>(
   '../../supabase/functions/grocery-reminder-check/staleItems'
 );
