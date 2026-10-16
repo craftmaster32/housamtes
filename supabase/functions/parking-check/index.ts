@@ -8,7 +8,7 @@
 //   #7  Two approved reservations on same day within 2h of each other → notify both holders
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import webpush from 'npm:web-push';
+import webpush from 'npm:web-push@3.6.7';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
