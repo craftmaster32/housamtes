@@ -8,8 +8,19 @@
 //   #7  Two approved reservations on same day within 2h of each other → notify both holders
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import webpush from 'npm:web-push';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+
+// Web push (the browser / home-screen web app) is only possible when the VAPID
+// keys are configured — same secrets send-push uses.
+const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY');
+const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY');
+const VAPID_CONTACT = Deno.env.get('VAPID_CONTACT_EMAIL');
+const webPushEnabled = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_CONTACT);
+if (webPushEnabled) {
+  webpush.setVapidDetails(`mailto:${VAPID_CONTACT}`, VAPID_PUBLIC_KEY!, VAPID_PRIVATE_KEY!);
+}
 
 // Returns the current moment expressed in the given IANA timezone so we can
 // compare against local-time start_time strings stored in the DB.
@@ -87,6 +98,12 @@ interface PushToken {
   token: string;
 }
 
+interface WebPushSubscription {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
 interface UserProfile {
   id: string;
   name: string;
@@ -95,6 +112,23 @@ interface UserProfile {
 interface HouseRow {
   id: string;
   timezone: string;
+}
+
+// Mirrors tallyParkingReservationVotes in the app: a side wins early once it
+// can't be overtaken, or once it holds at least half of the eligible voters
+// while ahead of the other side (house rule: half is enough).
+function earlyDecision(
+  approveCount: number,
+  rejectCount: number,
+  eligibleCount: number
+): 'approved' | 'rejected' | null {
+  const remaining = eligibleCount - approveCount - rejectCount;
+  const half = eligibleCount / 2;
+  if (approveCount > rejectCount + remaining) return 'approved';
+  if (rejectCount > approveCount + remaining) return 'rejected';
+  if (approveCount > 0 && approveCount >= half && approveCount > rejectCount) return 'approved';
+  if (rejectCount > 0 && rejectCount >= half && rejectCount > approveCount) return 'rejected';
+  return null;
 }
 
 function toMinutes(time: string): number {
@@ -127,7 +161,11 @@ async function sendToUser(
     if (prefs && (prefs as Record<string, unknown>)[prefColumn] === false) return false;
   }
 
-  // 2. Fetch push tokens
+  // 2. Web push — the browser / home-screen web app has no Expo token, so
+  //    without this, web users never get any of these reminders.
+  const sentWeb = await sendWebPush(supabase, userId, houseId, title, body, data);
+
+  // 3. Fetch Expo push tokens (native app)
   const { data: rows, error: tokErr } = await supabase
     .from('push_tokens')
     .select('token')
@@ -135,13 +173,13 @@ async function sendToUser(
     .eq('user_id', userId);
   if (tokErr) {
     console.error('[parking-check] push_tokens fetch error:', tokErr.message);
-    return false;
+    return sentWeb;
   }
 
   const tokens = ((rows ?? []) as PushToken[]).map((r) => r.token).filter(Boolean);
-  if (tokens.length === 0) return false;
+  if (tokens.length === 0) return sentWeb;
 
-  // 3. Send with exponential-backoff retry (3 attempts: 500 ms, 1 s, 2 s)
+  // 4. Send with exponential-backoff retry (3 attempts: 500 ms, 1 s, 2 s)
   const messages = tokens.map((to) => ({
     to,
     title,
@@ -178,7 +216,52 @@ async function sendToUser(
   }
   console.error('[parking-check] All push attempts failed');
 
-  return false;
+  return sentWeb;
+}
+
+async function sendWebPush(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  houseId: string,
+  title: string,
+  body: string,
+  data: Record<string, string>
+): Promise<boolean> {
+  if (!webPushEnabled) return false;
+  const { data: subs, error } = await supabase
+    .from('web_push_subscriptions')
+    .select('endpoint, p256dh, auth')
+    .eq('house_id', houseId)
+    .eq('user_id', userId);
+  if (error) {
+    console.error('[parking-check] web_push_subscriptions fetch error:', error.message);
+    return false;
+  }
+  const rows = (subs ?? []) as WebPushSubscription[];
+  if (rows.length === 0) return false;
+
+  const payload = JSON.stringify({ title, body, data });
+  const results = await Promise.allSettled(
+    rows.map((sub) =>
+      webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload
+      )
+    )
+  );
+
+  // HTTP 410 = the browser dropped the subscription — clean it up.
+  const expired = rows
+    .filter((_, i) => {
+      const r = results[i];
+      return r.status === 'rejected' && (r.reason as { statusCode?: number })?.statusCode === 410;
+    })
+    .map((sub) => sub.endpoint);
+  if (expired.length > 0) {
+    await supabase.from('web_push_subscriptions').delete().in('endpoint', expired);
+  }
+
+  return results.some((r) => r.status === 'fulfilled');
 }
 
 async function getNames(
@@ -491,22 +574,74 @@ Deno.serve(async (_req: Request): Promise<Response> => {
           }
         }
 
-        // ── #6c: 24h-before notice for tomorrow's pending reservations ────────────
+        // ── #6d: Upcoming pending reservation whose votes already decide it ──────
+        // Catches requests that are decided by the "half is enough" rule but were
+        // never finalized (e.g. the voter's app closed before saving the status).
+        if (r.status === 'pending' && r.date >= today && !membersError) {
+          const houseMembers = membersByHouse.get(r.house_id) ?? [];
+          const eligibleIds = houseMembers.filter((id) => id !== r.requested_by);
+          const eligibleVotes = (votesByReservation.get(r.id) ?? []).filter((v) =>
+            eligibleIds.includes(v.user_id)
+          );
+          const decided = earlyDecision(
+            eligibleVotes.filter((v) => v.vote === 'approve').length,
+            eligibleVotes.filter((v) => v.vote === 'reject').length,
+            eligibleIds.length
+          );
+          if (decided) {
+            const { data: resolved6d, error: resolveErr } = await supabase
+              .from('parking_reservations')
+              .update({ status: decided })
+              .eq('id', r.id)
+              .eq('status', 'pending')
+              .select('id');
+            if (resolveErr) {
+              console.error(
+                '[parking-check] early-resolve (#6d) failed for',
+                r.id,
+                resolveErr.message
+              );
+              continue;
+            }
+            if (!resolved6d?.length) continue; // already finalized elsewhere
+            r.status = decided;
+            await sendToUser(
+              supabase,
+              r.requested_by,
+              r.house_id,
+              decided === 'approved' ? '✅ Parking approved!' : '❌ Request denied',
+              decided === 'approved'
+                ? `Your request for ${r.date}${timeStr} was approved by the vote.`
+                : `Your request for ${r.date}${timeStr} was voted down.`,
+              { screen: 'parking' }
+            );
+            // An approved request for today continues into #4/#3 below so the
+            // current occupant gets the "move your car" reminder this run.
+            if (decided === 'rejected') continue;
+          }
+        }
+
+        // ── #6c: Vote reminder for today's and tomorrow's pending reservations ──
+        // Same-day requests are included so a request made for later today still
+        // nudges the people who haven't voted (the instant push can be missed).
         // Skip entirely when membersError is set — without the member list we can't
         // notify non-voters, so we must not set pending_notice_sent either. The next
         // cron run will retry once the member fetch recovers.
         if (
           r.status === 'pending' &&
-          r.date === tomorrow &&
+          (r.date === tomorrow || r.date === today) &&
           !r.pending_notice_sent &&
           !membersError
         ) {
+          const isToday = r.date === today;
           const sentRequester = await sendToUser(
             supabase,
             r.requested_by,
             r.house_id,
             '⏳ Parking vote still open',
-            `Your parking request for ${r.date}${timeStr} hasn't been decided yet — vote closes tomorrow.`,
+            isToday
+              ? `Your parking request for today${timeStr} hasn't been decided yet — voting closes when it starts.`
+              : `Your parking request for ${r.date}${timeStr} hasn't been decided yet — vote closes tomorrow.`,
             { screen: 'parking' }
           );
 
@@ -524,7 +659,9 @@ Deno.serve(async (_req: Request): Promise<Response> => {
               voterId,
               r.house_id,
               '🗳️ Vote before the deadline!',
-              `${rName} wants the spot on ${r.date}${timeStr} — vote by tomorrow or the majority decides.`,
+              isToday
+                ? `${rName} wants the spot today${timeStr} — vote before it starts or the majority decides.`
+                : `${rName} wants the spot on ${r.date}${timeStr} — vote by tomorrow or the majority decides.`,
               { screen: 'parking' }
             );
             if (sent) sentNonVoter = true;

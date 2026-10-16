@@ -587,6 +587,53 @@ describe('parkingStore — checkReservationAutoApply', () => {
     expect(useParkingStore.getState().current).toBeNull();
   });
 
+  it('finalizes an upcoming pending reservation that already has enough votes', async () => {
+    useParkingStore.setState({
+      current: null,
+      reservations: [
+        reservation({
+          id: 'r-upcoming',
+          requestedBy: 'requester',
+          status: 'pending',
+          date: futureDateStr(3),
+          votes: [{ userId: 'u1', vote: 'approve' }],
+        }),
+      ],
+    });
+
+    mockFrom
+      .mockReturnValueOnce(ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }])) // house_members
+      .mockReturnValueOnce(ok([{ id: 'r-upcoming' }])); // update to approved
+
+    await useParkingStore.getState().checkReservationAutoApply('house-1');
+
+    expect(useParkingStore.getState().reservations[0].status).toBe('approved');
+  });
+
+  it('leaves an upcoming pending reservation alone while the vote is still open', async () => {
+    useParkingStore.setState({
+      current: null,
+      reservations: [
+        reservation({
+          id: 'r-upcoming',
+          requestedBy: 'requester',
+          status: 'pending',
+          date: futureDateStr(3),
+          votes: [],
+        }),
+      ],
+    });
+
+    mockFrom.mockReturnValueOnce(
+      ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }])
+    ); // house_members
+
+    await useParkingStore.getState().checkReservationAutoApply('house-1');
+
+    expect(useParkingStore.getState().reservations[0].status).toBe('pending');
+    expect(mockFrom).toHaveBeenCalledTimes(1); // no status update
+  });
+
   it('aborts auto-claim when server confirms an active session already exists', async () => {
     const todayStr = localDateStr();
     useParkingStore.setState({
@@ -635,7 +682,7 @@ describe('parkingStore — checkReservationAutoApply', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('parkingStore — voteOnReservation', () => {
-  it('keeps a request pending after one reject while another voter has not voted', async () => {
+  it('keeps a request pending after one reject while two other voters have not voted', async () => {
     useParkingStore.setState({
       reservations: [
         reservation({
@@ -649,7 +696,9 @@ describe('parkingStore — voteOnReservation', () => {
     mockFrom
       .mockReturnValueOnce(ok())
       .mockReturnValueOnce(ok([{ user_id: 'u1', vote: 'reject' }]))
-      .mockReturnValueOnce(ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }]));
+      .mockReturnValueOnce(
+        ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }, { user_id: 'u3' }])
+      );
 
     const status = await useParkingStore.getState().voteOnReservation('r1', 'reject', 'house-1');
 
@@ -665,7 +714,7 @@ describe('parkingStore — voteOnReservation', () => {
     };
     expect(notifyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        includeUserIds: ['u2'],
+        includeUserIds: ['u2', 'u3'],
         copyKey: 'parking_voted',
         notificationType: 'parking_reservation',
       })
@@ -721,6 +770,29 @@ describe('parkingStore — voteOnReservation', () => {
     expect(notifyMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ copyKey: 'parking_voted' })
     );
+  });
+
+  it('approves as soon as one of two voters approves (half is enough)', async () => {
+    useParkingStore.setState({
+      reservations: [
+        reservation({
+          id: 'r1',
+          requestedBy: 'requester',
+          status: 'pending',
+          date: futureDateStr(7),
+        }),
+      ],
+    });
+    mockFrom
+      .mockReturnValueOnce(ok())
+      .mockReturnValueOnce(ok([{ user_id: 'u1', vote: 'approve' }]))
+      .mockReturnValueOnce(ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }]))
+      .mockReturnValueOnce(ok([{ id: 'r1' }]));
+
+    const status = await useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1');
+
+    expect(status).toBe('approved');
+    expect(useParkingStore.getState().reservations[0].status).toBe('approved');
   });
 
   it('sends rejected notification only to the requester', async () => {
@@ -838,7 +910,9 @@ describe('parkingStore — voteOnReservation', () => {
       mockFrom
         .mockReturnValueOnce(ok())
         .mockReturnValueOnce(ok([{ user_id: 'u1', vote: 'approve' }]))
-        .mockReturnValueOnce(ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }]));
+        .mockReturnValueOnce(
+          ok([{ user_id: 'requester' }, { user_id: 'u1' }, { user_id: 'u2' }, { user_id: 'u3' }])
+        );
 
       const status = await useParkingStore.getState().voteOnReservation('r1', 'approve', 'house-1');
 
@@ -866,11 +940,37 @@ describe('tallyParkingReservationVotes', () => {
   });
 
   it('stays pending when remaining votes could still flip the result', () => {
-    // 1 reject, 1 remaining: reject (1) > approve (0) + remaining (1) → 1 > 1 → false → pending
-    const tally = tallyParkingReservationVotes([{ userId: 'u1', vote: 'reject' }], ['u1', 'u2']);
+    // 1 reject of 3 voters: below half, and the other two could still approve
+    const tally = tallyParkingReservationVotes(
+      [{ userId: 'u1', vote: 'reject' }],
+      ['u1', 'u2', 'u3']
+    );
 
     expect(tally.hasEveryoneVoted).toBe(false);
     expect(tally.status).toBe('pending');
+  });
+
+  it('rejects when half of the voters reject (1 of 2)', () => {
+    const tally = tallyParkingReservationVotes([{ userId: 'u1', vote: 'reject' }], ['u1', 'u2']);
+
+    expect(tally.status).toBe('rejected');
+  });
+
+  it('approves when half of 4 voters approve and fewer reject', () => {
+    const tally = tallyParkingReservationVotes(
+      [
+        { userId: 'u1', vote: 'approve' },
+        { userId: 'u2', vote: 'approve' },
+        { userId: 'u3', vote: 'reject' },
+      ],
+      ['u1', 'u2', 'u3', 'u4']
+    );
+
+    expect(tally.status).toBe('approved');
+  });
+
+  it('stays pending with no eligible voters', () => {
+    expect(tallyParkingReservationVotes([], []).status).toBe('pending');
   });
 
   it('uses the higher count after every eligible voter has voted', () => {
@@ -915,11 +1015,10 @@ describe('tallyParkingReservationVotes', () => {
     expect(tally.hasEveryoneVoted).toBe(false);
   });
 
-  it('stays pending when 1 of 2 eligible voters has approved (can still be tied)', () => {
-    // 1 approve, 0 reject, 1 remaining: 1 > 0+1 → false → pending (deadline resolves it)
+  it('approves when 1 of 2 eligible voters approves — half is enough', () => {
     const tally = tallyParkingReservationVotes([{ userId: 'u1', vote: 'approve' }], ['u1', 'u2']);
 
-    expect(tally.status).toBe('pending');
+    expect(tally.status).toBe('approved');
   });
 });
 

@@ -463,7 +463,8 @@
     "now": "עכשיו",
     "shopping_now": "{{name}} עושה קניות עכשיו",
     "parking_now": "{{name}} משתמש בחניה",
-    "parking_reserved": "{{name}} הזמין את החניה"
+    "parking_reserved": "{{name}} הזמין את החניה",
+    "parking_requested": "{{name}} ביקש/ה את החניה — צריך להצביע"
   },
   "bills": {
     "title": "חשבונות",

@@ -111,7 +111,7 @@ function Banner({
   );
 }
 
-// A single upcoming entry, from an event or an approved parking reservation.
+// A single upcoming entry, from an event or a pending/approved parking reservation.
 interface ComingEntry {
   key: string;
   icon: IoniconName;
@@ -144,7 +144,7 @@ export function HappeningNow(): React.JSX.Element {
     navigateToBase('/(tabs)/parking');
   }, []);
 
-  // Upcoming events + approved parking reservations sorted soonest-first,
+  // Upcoming events + pending/approved parking reservations sorted soonest-first,
   // capped at DISPLAY_LIMIT. Elapsed same-day items are excluded when
   // startTime is known; date-only entries for today are kept.
   const soon = useMemo<ComingEntry[]>(() => {
@@ -162,16 +162,22 @@ export function HappeningNow(): React.JSX.Element {
       })
     );
     const reservationEntries: ComingEntry[] = reservations
-      .filter((r) => r.status === 'approved' && r.date >= today)
-      .map((r) => ({
-        key: `parking:${r.id}`,
-        icon: 'car-sport',
-        accent: c.secondaryForeground,
-        date: r.date,
-        startTime: r.startTime,
-        title: t('happening.parking_reserved', { name: memberName(r.requestedBy).split(' ')[0] }),
-        onPress: handleParkingPress,
-      }));
+      .filter((r) => (r.status === 'approved' || r.status === 'pending') && r.date >= today)
+      .map((r) => {
+        const name = memberName(r.requestedBy).split(' ')[0];
+        return {
+          key: `parking:${r.id}`,
+          icon: 'car-sport',
+          accent: r.status === 'pending' ? c.warning : c.secondaryForeground,
+          date: r.date,
+          startTime: r.startTime,
+          title:
+            r.status === 'pending'
+              ? t('happening.parking_requested', { name })
+              : t('happening.parking_reserved', { name }),
+          onPress: handleParkingPress,
+        };
+      });
     return (
       [...eventEntries, ...reservationEntries]
         .filter((item) => {
@@ -205,6 +211,7 @@ export function HappeningNow(): React.JSX.Element {
     today,
     c.primary,
     c.secondaryForeground,
+    c.warning,
     t,
     memberName,
     handleCalendarPress,

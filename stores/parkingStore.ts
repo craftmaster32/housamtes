@@ -94,11 +94,20 @@ export function tallyParkingReservationVotes(
   const hasEveryoneVoted =
     eligibleVoterIds.length > 0 && eligibleVoterIds.every((id) => voteByUser.has(id));
 
+  // House rule: half of the eligible voters is enough to decide. Whichever side
+  // reaches half first (while ahead of the other side) wins — e.g. with two
+  // voters, the first vote decides.
+  const half = eligibleVoterIds.length / 2;
+
   let status: ParkingReservationStatus = 'pending';
   // Resolve early when the leader can no longer be overtaken by remaining votes
   if (approveCount > rejectCount + remaining) {
     status = 'approved';
   } else if (rejectCount > approveCount + remaining) {
+    status = 'rejected';
+  } else if (approveCount > 0 && approveCount >= half && approveCount > rejectCount) {
+    status = 'approved';
+  } else if (rejectCount > 0 && rejectCount >= half && rejectCount > approveCount) {
     status = 'rejected';
   } else if (hasEveryoneVoted && approveCount > rejectCount) {
     status = 'approved';
@@ -734,24 +743,32 @@ export const useParkingStore = create<ParkingStore>()(
           const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
           const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-          // Resolve past-due pending reservations using the same logic as the cron
-          const pendingDue = get().reservations.filter(
-            (r) => r.status === 'pending' && isReservationPastDue(r.date, r.startTime, now)
-          );
-          if (pendingDue.length > 0) {
+          // Resolve pending reservations: past-due ones by the same logic as the
+          // cron, and upcoming ones whose votes already decide the outcome (e.g. a
+          // vote cast before the "half is enough" rule, or a member who left).
+          const pending = get().reservations.filter((r) => r.status === 'pending');
+          if (pending.length > 0) {
             const { data: memberRows, error: membersError } = await supabase
               .from('house_members')
               .select('user_id')
               .eq('house_id', houseId);
             const memberIds = ((memberRows ?? []) as { user_id: string }[]).map((m) => m.user_id);
 
-            for (const r of pendingDue) {
+            for (const r of pending) {
+              const isDue = isReservationPastDue(r.date, r.startTime, now);
+              // Without the member list we can't tell who still has to vote, so only
+              // past-due reservations (which resolve on the cast votes) are safe.
+              if (!isDue && membersError) continue;
               const voterIds = membersError
                 ? r.votes.map((v) => v.userId).filter((id) => id !== r.requestedBy)
                 : memberIds.filter((id) => id !== r.requestedBy);
               const tally = tallyParkingReservationVotes(r.votes, voterIds);
-              const resolvedStatus: ParkingReservationStatus =
-                tally.approveCount > tally.rejectCount ? 'approved' : 'rejected';
+              if (!isDue && tally.status === 'pending') continue;
+              const resolvedStatus: ParkingReservationStatus = isDue
+                ? tally.approveCount > tally.rejectCount
+                  ? 'approved'
+                  : 'rejected'
+                : tally.status;
               const { data: updated, error: updateErr } = await supabase
                 .from('parking_reservations')
                 .update({ status: resolvedStatus })

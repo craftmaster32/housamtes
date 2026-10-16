@@ -463,7 +463,8 @@
     "now": "Ahora",
     "shopping_now": "{{name}} está comprando ahora",
     "parking_now": "{{name}} está usando el aparcamiento",
-    "parking_reserved": "{{name}} reservó el aparcamiento"
+    "parking_reserved": "{{name}} reservó el aparcamiento",
+    "parking_requested": "{{name}} pidió el aparcamiento — falta votar"
   },
   "bills": {
     "title": "Gastos",
