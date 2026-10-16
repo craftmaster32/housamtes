@@ -146,7 +146,7 @@ async function loadWebPush(): Promise<WebPushLib | null> {
     webpushLib = null;
     return null;
   }
-  const lib = ((await import('npm:web-push')) as { default: WebPushLib }).default;
+  const lib = ((await import('npm:web-push@3.6.7')) as { default: WebPushLib }).default;
   lib.setVapidDetails(`mailto:${contact}`, pub, priv);
   webpushLib = lib;
   return lib;
