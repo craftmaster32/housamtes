@@ -42,6 +42,7 @@ interface RowProps {
   accessibilityHint?: string;
 }
 
+/** One list row: coloured icon, title, optional subtitle and a chevron or custom trailing bit. */
 function Row({
   styles,
   icon,
@@ -97,6 +98,7 @@ function useRowTones(): Record<'green' | 'amber' | 'blue' | 'violet', string> {
 }
 
 // ── Individual rows ───────────────────────────────────────────────────────────
+/** "9 things to grab", with the first few shared items tickable right here. */
 function GroceriesRow({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX.Element {
   const { t } = useTranslation();
   const tones = useRowTones();
@@ -165,6 +167,7 @@ function GroceriesRow({ styles, c }: { styles: Styles; c: ColorTokens }): React.
   );
 }
 
+/** The next chore to do and how many are done. Opens the chores page. */
 function ChoresRow({ styles }: { styles: Styles }): React.JSX.Element {
   const { t } = useTranslation();
   const tones = useRowTones();
@@ -185,6 +188,7 @@ function ChoresRow({ styles }: { styles: Styles }): React.JSX.Element {
   );
 }
 
+/** The next open house vote. Opens the voting page. */
 function VotesRow({ styles }: { styles: Styles }): React.JSX.Element {
   const { t } = useTranslation();
   const tones = useRowTones();
@@ -208,6 +212,7 @@ interface ParkingCardProps {
   styles: Styles;
 }
 
+/** The parking spot: who has it, and a tap to take it or free it (with a check first if it's a housemate's). */
 export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const tones = useRowTones();
@@ -363,6 +368,7 @@ interface ApplianceRowProps {
   kind: ApplianceKind;
 }
 
+/** A washer, dryer or dishwasher with its live countdown. Opens the machines page. */
 function ApplianceRow({ styles, kind }: ApplianceRowProps): React.JSX.Element {
   const { t } = useTranslation();
   const session = useAppliancesStore((s) => s.sessions[kind]);
@@ -405,6 +411,7 @@ function ApplianceRow({ styles, kind }: ApplianceRowProps): React.JSX.Element {
   );
 }
 
+/** Picks the right row component for a dashboard card key. */
 function renderRow(key: DashboardCardKey, styles: Styles, c: ColorTokens): React.JSX.Element {
   switch (key) {
     case 'groceries':
@@ -432,6 +439,7 @@ export function orderDashboardRows(
 }
 
 // ── "Around the house" ────────────────────────────────────────────────────────
+/** "Around the house": the chosen rows in one calm list, with Edit to choose and pin them. */
 export function DashboardCarousel(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();

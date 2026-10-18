@@ -12,10 +12,12 @@ import { font } from '@constants/typography';
 import { UserAvatar } from '@components/shared/UserAvatar';
 import { mf, ms } from '@utils/responsive';
 
+/** Date locale for the app language, used when a note is older than a day. */
 function localeFor(lang: string): string {
   return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
 }
 
+/** "Just now", "5m ago", "3h ago", or a short date for older notes. */
 function timeAgo(
   iso: string,
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -72,6 +74,7 @@ function noteInk(isDark: boolean): string {
   return isDark ? '#F1D49A' : '#5E3F08';
 }
 
+/** Styles for the pinned note, in the active light or dark theme. */
 function makeStyles(c: ColorTokens, isDark: boolean): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     // A warm paper tone so it reads as a note left by a person, not a system banner.

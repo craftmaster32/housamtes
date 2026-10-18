@@ -58,8 +58,10 @@ export function DashboardCardsSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={s.backdrop} onPress={onClose}>
-        <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
+      {/* Neither wrapper is an accessibility element, so screen readers can reach
+          every switch, pin and button inside the sheet one by one. */}
+      <Pressable style={s.backdrop} onPress={onClose} accessible={false}>
+        <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()} accessible={false}>
           <View style={s.handle} />
           <Text style={[s.title, headingFont]} accessibilityRole="header">
             {t('dashboard.manage_cards')}
@@ -70,27 +72,30 @@ export function DashboardCardsSheet({
               const on = enabled.includes(key);
               const isPinned = pinned === key;
               return (
-                <Pressable
-                  key={key}
-                  style={[s.tile, on ? s.tileOn : s.tileOff]}
-                  onPress={() => setEnabled(key, !on)}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: on }}
-                  accessibilityLabel={t(CARD_LABEL_KEY[key])}
-                >
-                  <View style={s.tileHead}>
-                    <Ionicons
-                      name={CARD_ICON[key]}
-                      size={20}
-                      color={on ? c.primary : c.textTertiary}
-                    />
-                    <Ionicons
-                      name={on ? 'checkmark-circle' : 'add-circle-outline'}
-                      size={22}
-                      color={on ? c.primary : c.textTertiary}
-                    />
-                  </View>
-                  <Text style={s.tileLabel}>{t(CARD_LABEL_KEY[key])}</Text>
+                // The on/off switch and the pin are siblings, not nested, so a
+                // screen reader can focus each one.
+                <View key={key} style={[s.tile, on ? s.tileOn : s.tileOff]}>
+                  <Pressable
+                    style={s.tileSwitch}
+                    onPress={() => setEnabled(key, !on)}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: on }}
+                    accessibilityLabel={t(CARD_LABEL_KEY[key])}
+                  >
+                    <View style={s.tileHead}>
+                      <Ionicons
+                        name={CARD_ICON[key]}
+                        size={20}
+                        color={on ? c.primary : c.textTertiary}
+                      />
+                      <Ionicons
+                        name={on ? 'checkmark-circle' : 'add-circle-outline'}
+                        size={22}
+                        color={on ? c.primary : c.textTertiary}
+                      />
+                    </View>
+                    <Text style={s.tileLabel}>{t(CARD_LABEL_KEY[key])}</Text>
+                  </Pressable>
                   {on && (
                     <Pressable
                       style={[s.pinBtn, isPinned && s.pinBtnOn]}
@@ -109,7 +114,7 @@ export function DashboardCardsSheet({
                       </Text>
                     </Pressable>
                   )}
-                </Pressable>
+                </View>
               );
             })}
           </View>
@@ -127,6 +132,7 @@ export function DashboardCardsSheet({
   );
 }
 
+/** Styles for the card-picker sheet, in the active light or dark theme. */
 function makeStyles(c: ColorTokens, isDark: boolean): ReturnType<typeof StyleSheet.create> {
   return StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -174,6 +180,7 @@ function makeStyles(c: ColorTokens, isDark: boolean): ReturnType<typeof StyleShe
       borderWidth: 2,
       borderColor: 'transparent',
     },
+    tileSwitch: { gap: ms(8) },
     tileHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     tileLabel: { fontSize: mf(15), ...font.semibold, color: c.textPrimary },
     pinBtn: {

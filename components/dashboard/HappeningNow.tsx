@@ -70,6 +70,7 @@ interface RowProps {
 }
 
 // ── One row ───────────────────────────────────────────────────────────────────
+/** One "Right now" row: a face or icon, what's happening, and when. */
 function Row({
   leading,
   title,
@@ -113,6 +114,7 @@ interface ComingEntry {
 }
 
 // ── The strip ─────────────────────────────────────────────────────────────────
+/** "Right now": who's out shopping, plus events and parking bookings for today or tomorrow. */
 export function HappeningNow(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();

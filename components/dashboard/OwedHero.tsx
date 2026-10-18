@@ -81,20 +81,23 @@ export function OwedHero(): React.JSX.Element {
 
   const goToBills = (): void => navigateToBase('/(tabs)/bills');
 
+  const amountLabel = settled
+    ? t('dashboard.balance_all_settled')
+    : t(isOwed ? 'dashboard.balance_owed_amount' : 'dashboard.balance_you_owe_amount', {
+        amount: formatFull(Math.abs(netAmount), currencyCode),
+      });
+
+  // The card is a plain View so each control inside it stays separately
+  // reachable by VoiceOver/TalkBack: the balance (opens Bills), the spending
+  // chart, and Settle up. An accessible parent would swallow its children.
   return (
-    <Pressable
-      style={({ pressed }) => [s.card, pressed && s.pressed]}
-      onPress={goToBills}
-      accessibilityRole="button"
-      accessibilityLabel={
-        settled
-          ? t('dashboard.balance_all_settled')
-          : t(isOwed ? 'dashboard.balance_owed_amount' : 'dashboard.balance_you_owe_amount', {
-              amount: formatFull(Math.abs(netAmount), currencyCode),
-            })
-      }
-    >
-      <View style={s.topRow}>
+    <View style={s.card}>
+      <Pressable
+        style={({ pressed }) => pressed && s.pressed}
+        onPress={goToBills}
+        accessibilityRole="button"
+        accessibilityLabel={settled || !summary ? amountLabel : `${amountLabel}. ${summary}`}
+      >
         <Text style={s.label}>
           {settled
             ? t('dashboard.balance_all_settled')
@@ -102,57 +105,62 @@ export function OwedHero(): React.JSX.Element {
               ? t('dashboard.balance_owed')
               : t('dashboard.balance_you_owe')}
         </Text>
-        <Pressable
-          style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
-          onPress={() => router.push('/(tabs)/profile/spending')}
-          accessibilityRole="button"
-          accessibilityLabel={t('spending.view_spending')}
-        >
-          <Ionicons name="stats-chart-outline" size={18} color="#FFFFFF" />
-        </Pressable>
-      </View>
 
-      {settled ? (
-        <View style={s.settledRow}>
-          <Ionicons name="checkmark-circle" size={30} color="#FFFFFF" />
-          <Text style={s.settledText}>{t('dashboard.no_debts')}</Text>
-        </View>
-      ) : (
-        <>
-          <Money
-            amount={Math.abs(netAmount)}
-            currencyCode={currencyCode}
-            size={ms(52)}
-            color="#FFFFFF"
-            style={s.amount}
-            animate
-          />
-          <View style={s.peopleRow}>
-            <View style={s.faces}>
-              {people.slice(0, MAX_FACES).map((b, i) => (
-                <View key={b.person} style={[s.face, i > 0 && s.faceOverlap]}>
-                  <UserAvatar userId={b.person} size={ms(26)} />
-                </View>
-              ))}
-            </View>
-            <Text style={s.summary} numberOfLines={2}>
-              {summary}
-            </Text>
+        {settled ? (
+          <View style={s.settledRow}>
+            <Ionicons name="checkmark-circle" size={30} color="#FFFFFF" />
+            <Text style={s.settledText}>{t('dashboard.no_debts')}</Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [s.settleBtn, pressed && s.pressed]}
-            onPress={goToBills}
-            accessibilityRole="button"
-            accessibilityLabel={t('dashboard.settle_up')}
-          >
-            <Text style={s.settleText}>{t('dashboard.settle_up')}</Text>
-          </Pressable>
-        </>
+        ) : (
+          <>
+            <Money
+              amount={Math.abs(netAmount)}
+              currencyCode={currencyCode}
+              size={ms(52)}
+              color="#FFFFFF"
+              style={s.amount}
+              animate
+            />
+            <View style={s.peopleRow}>
+              <View style={s.faces}>
+                {people.slice(0, MAX_FACES).map((b, i) => (
+                  <View key={b.person} style={[s.face, i > 0 && s.faceOverlap]}>
+                    <UserAvatar userId={b.person} size={ms(26)} />
+                  </View>
+                ))}
+              </View>
+              <Text style={s.summary} numberOfLines={2}>
+                {summary}
+              </Text>
+            </View>
+          </>
+        )}
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [s.iconBtn, pressed && s.pressed]}
+        onPress={() => router.push('/(tabs)/profile/spending')}
+        accessibilityRole="button"
+        accessibilityLabel={t('spending.view_spending')}
+      >
+        <Ionicons name="stats-chart-outline" size={18} color="#FFFFFF" />
+      </Pressable>
+
+      {!settled && (
+        <Pressable
+          style={({ pressed }) => [s.settleBtn, pressed && s.pressed]}
+          onPress={goToBills}
+          accessibilityRole="button"
+          accessibilityLabel={t('dashboard.settle_up')}
+        >
+          <Text style={s.settleText}>{t('dashboard.settle_up')}</Text>
+        </Pressable>
       )}
-    </Pressable>
+    </View>
   );
 }
 
+/** Styles for the money card, in the active light or dark theme. */
 function makeStyles(c: ColorTokens, isDark: boolean): ReturnType<typeof StyleSheet.create> {
   // Flat brand blue (no gradient). Dark mode uses the deeper navy-blue so white
   // text keeps its contrast without glowing.
@@ -160,8 +168,8 @@ function makeStyles(c: ColorTokens, isDark: boolean): ReturnType<typeof StyleShe
   return StyleSheet.create({
     card: { backgroundColor: bg, borderRadius: ms(28), padding: ms(20), paddingBottom: ms(18) },
     pressed: { opacity: 0.92 },
-    topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    label: { fontSize: mf(16), ...font.medium, color: '#FFFFFF' },
+    // Leaves room on the trailing side for the spending-chart button.
+    label: { fontSize: mf(16), ...font.medium, color: '#FFFFFF', paddingEnd: ms(48) },
     iconBtn: {
       width: 44,
       height: 44,
@@ -169,8 +177,9 @@ function makeStyles(c: ColorTokens, isDark: boolean): ReturnType<typeof StyleShe
       backgroundColor: 'rgba(255,255,255,0.16)',
       alignItems: 'center',
       justifyContent: 'center',
-      marginEnd: ms(-6),
-      marginTop: ms(-6),
+      position: 'absolute',
+      top: ms(12),
+      end: ms(12),
     },
     amount: { marginTop: ms(2) },
     peopleRow: { flexDirection: 'row', alignItems: 'center', gap: ms(10), marginTop: ms(8) },

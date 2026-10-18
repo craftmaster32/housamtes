@@ -36,6 +36,7 @@ import { mf, ms } from '@utils/responsive';
 let dashboardEntrancePlayed = false;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+/** "Morning/Afternoon/Evening, <name>" based on the time of day. */
 function greetingText(name: string, t: (key: string) => string): string {
   const h = new Date().getHours();
   const timeKey = h < 12 ? 'greeting_morning' : h < 18 ? 'greeting_afternoon' : 'greeting_evening';
@@ -43,6 +44,7 @@ function greetingText(name: string, t: (key: string) => string): string {
 }
 
 // ── Header ──────────────────────────────────────────────────────────────────
+/** Your avatar (opens your profile), the house name, a friendly greeting, and the notifications bell. */
 function Header(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
@@ -150,6 +152,7 @@ function Header(): React.JSX.Element {
 }
 
 // ── Dashboard screen ────────────────────────────────────────────────────────────
+/** The home screen. */
 export default function DashboardScreen(): React.JSX.Element {
   const c = useThemedColors();
   const { width } = useWindowDimensions();
