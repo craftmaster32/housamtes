@@ -82,18 +82,7 @@ export function OwedHero(): React.JSX.Element {
   const goToBills = (): void => navigateToBase('/(tabs)/bills');
 
   return (
-    <Pressable
-      style={({ pressed }) => [s.card, pressed && s.pressed]}
-      onPress={goToBills}
-      accessibilityRole="button"
-      accessibilityLabel={
-        settled
-          ? t('dashboard.balance_all_settled')
-          : t(isOwed ? 'dashboard.balance_owed_amount' : 'dashboard.balance_you_owe_amount', {
-              amount: formatFull(Math.abs(netAmount), currencyCode),
-            })
-      }
-    >
+    <View style={s.card}>
       <View style={s.topRow}>
         <Text style={s.label}>
           {settled
@@ -111,45 +100,59 @@ export function OwedHero(): React.JSX.Element {
           <Ionicons name="stats-chart-outline" size={18} color="#FFFFFF" />
         </Pressable>
       </View>
-
-      {settled ? (
-        <View style={s.settledRow}>
-          <Ionicons name="checkmark-circle" size={30} color="#FFFFFF" />
-          <Text style={s.settledText}>{t('dashboard.no_debts')}</Text>
-        </View>
-      ) : (
-        <>
-          <Money
-            amount={Math.abs(netAmount)}
-            currencyCode={currencyCode}
-            size={ms(52)}
-            color="#FFFFFF"
-            style={s.amount}
-            animate
-          />
-          <View style={s.peopleRow}>
-            <View style={s.faces}>
-              {people.slice(0, MAX_FACES).map((b, i) => (
-                <View key={b.person} style={[s.face, i > 0 && s.faceOverlap]}>
-                  <UserAvatar userId={b.person} size={ms(26)} />
-                </View>
-              ))}
-            </View>
-            <Text style={s.summary} numberOfLines={2}>
-              {summary}
-            </Text>
+      <Pressable
+        style={({ pressed }) => pressed && s.pressed}
+        onPress={goToBills}
+        accessibilityRole="button"
+        accessibilityLabel={
+          settled
+            ? t('dashboard.balance_all_settled')
+            : t(isOwed ? 'dashboard.balance_owed_amount' : 'dashboard.balance_you_owe_amount', {
+                amount: formatFull(Math.abs(netAmount), currencyCode),
+              })
+        }
+      >
+        {settled ? (
+          <View style={s.settledRow}>
+            <Ionicons name="checkmark-circle" size={30} color="#FFFFFF" />
+            <Text style={s.settledText}>{t('dashboard.no_debts')}</Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [s.settleBtn, pressed && s.pressed]}
-            onPress={goToBills}
-            accessibilityRole="button"
-            accessibilityLabel={t('dashboard.settle_up')}
-          >
-            <Text style={s.settleText}>{t('dashboard.settle_up')}</Text>
-          </Pressable>
-        </>
+        ) : (
+          <>
+            <Money
+              amount={Math.abs(netAmount)}
+              currencyCode={currencyCode}
+              size={ms(52)}
+              color="#FFFFFF"
+              style={s.amount}
+              animate
+            />
+            <View style={s.peopleRow}>
+              <View style={s.faces}>
+                {people.slice(0, MAX_FACES).map((b, i) => (
+                  <View key={b.person} style={[s.face, i > 0 && s.faceOverlap]}>
+                    <UserAvatar userId={b.person} size={ms(26)} />
+                  </View>
+                ))}
+              </View>
+              <Text style={s.summary} numberOfLines={2}>
+                {summary}
+              </Text>
+            </View>
+          </>
+        )}
+      </Pressable>
+      {!settled && (
+        <Pressable
+          style={({ pressed }) => [s.settleBtn, pressed && s.pressed]}
+          onPress={goToBills}
+          accessibilityRole="button"
+          accessibilityLabel={t('dashboard.settle_up')}
+        >
+          <Text style={s.settleText}>{t('dashboard.settle_up')}</Text>
+        </Pressable>
       )}
-    </Pressable>
+    </View>
   );
 }
 
