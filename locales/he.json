@@ -459,7 +459,20 @@
     "pin_left": "הצמד",
     "pinned": "מוצמד",
     "card_on": "בלוח",
-    "card_off": "מוסתר"
+    "card_off": "מוסתר",
+    "right_now": "עכשיו",
+    "around_the_house": "מסביב לבית",
+    "pinned_by_ago": "הוצמד ע״י {{name}} · {{time}}",
+    "owes_you": "מגיע לך {{amount}} מ{{name}}",
+    "you_owe_person": "עליך להחזיר {{amount}} ל{{name}}",
+    "and_more": "+{{count}} נוספים",
+    "nesti_joke_title": "הבדיחה היומית של נסטי",
+    "parking_free_now": "החניה פנויה",
+    "parking_free_sub": "אף אחד לא חונה שם",
+    "parking_yours": "החניה אצלך",
+    "parking_has_spot": "החניה אצל {{name}}",
+    "parking_take": "לתפוס",
+    "parking_free_it": "יצאתי"
   },
   "happening": {
     "now": "עכשיו",

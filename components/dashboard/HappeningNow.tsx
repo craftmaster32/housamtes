@@ -12,7 +12,7 @@ import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
-import { useThemedColors } from '@constants/colors';
+import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { useEventsStore } from '@stores/eventsStore';
 import { useGroceryStore } from '@stores/groceryStore';
@@ -20,6 +20,9 @@ import { useParkingStore } from '@stores/parkingStore';
 import { useMemberName } from '@hooks/useMemberName';
 import { isEventImminent } from '@utils/events';
 import { upcomingEventOccurrences } from '@utils/happeningNow';
+import { UserAvatar } from '@components/shared/UserAvatar';
+import { elapsedLabel } from '@components/grocery/ShoppingRunCard';
+import { DashboardSectionTitle } from '@components/dashboard/DashboardSectionTitle';
 import { mf, ms } from '@utils/responsive';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -57,56 +60,43 @@ function LiveDot({ color }: LiveDotProps): React.JSX.Element {
   return <Animated.View style={[styles.liveDot, { backgroundColor: color }, style]} />;
 }
 
-interface LiveBannerProps {
-  icon: IoniconName;
-  accent: string;
-  eyebrow: string;
+interface RowProps {
+  /** Leading picture: a housemate's face, or an icon in the entry's colour. */
+  leading: React.ReactNode;
   title: string;
-  live: boolean;
+  subtitle: string;
   onPress: () => void;
   accessibilityLabel: string;
 }
 
-// ── One banner ────────────────────────────────────────────────────────────────
-// `live` shows the pulsing dot (something happening right now); scheduled items
-// due within 24h use the same prominent style without the dot.
-function Banner({
-  icon,
-  accent,
-  eyebrow,
+// ── One row ───────────────────────────────────────────────────────────────────
+function Row({
+  leading,
   title,
-  live,
+  subtitle,
   onPress,
   accessibilityLabel,
-}: LiveBannerProps): React.JSX.Element {
+}: RowProps): React.JSX.Element {
   const c = useThemedColors();
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.banner,
-        { backgroundColor: c.surface, borderColor: c.border, borderLeftColor: accent },
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: c.surfaceSecondary }]}
       onPress={onPress}
       accessible={true}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: false }}
     >
-      <View style={[styles.bannerIcon, { backgroundColor: accent + '1F' }]}>
-        <Ionicons name={icon} size={17} color={accent} />
-      </View>
+      <View style={styles.leading}>{leading}</View>
       <View style={styles.flex1}>
-        <View style={styles.eyebrowRow}>
-          {live && <LiveDot color={accent} />}
-          <Text style={[styles.eyebrow, { color: accent }]} numberOfLines={1}>
-            {eyebrow}
-          </Text>
-        </View>
-        <Text style={[styles.bannerTitle, { color: c.textPrimary }]} numberOfLines={2}>
+        <Text style={[styles.rowTitle, { color: c.textPrimary }]} numberOfLines={2}>
           {title}
         </Text>
+        <Text style={[styles.rowSub, { color: c.textSecondary }]} numberOfLines={1}>
+          {subtitle}
+        </Text>
       </View>
+      <Ionicons name="chevron-forward" size={16} color={c.textTertiary} />
     </Pressable>
   );
 }
@@ -126,6 +116,7 @@ interface ComingEntry {
 export function HappeningNow(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
+  const isDark = c.background === darkColors.background;
   const memberName = useMemberName();
   const events = useEventsStore((s) => s.events);
   const activeRun = useGroceryStore((s) => s.activeRun);
@@ -220,20 +211,17 @@ export function HappeningNow(): React.JSX.Element {
 
   const renderSoonItem = useCallback(
     ({ item }: { item: ComingEntry }): React.JSX.Element => {
-      // Everything here is within 24h (today or tomorrow), so it always shows as
-      // a prominent banner — no far-out compact rows.
+      // Everything here is within 24h (today or tomorrow).
       const isToday = item.date === today;
       const dayLabel = isToday ? t('common.today') : t('common.tomorrow');
-      const eyebrow = (item.startTime ? `${dayLabel} · ${item.startTime}` : dayLabel).toUpperCase();
+      const when = item.startTime ? `${dayLabel} · ${item.startTime}` : dayLabel;
       return (
-        <Banner
-          icon={item.icon}
-          accent={item.accent}
-          eyebrow={eyebrow}
+        <Row
+          leading={<Ionicons name={item.icon} size={22} color={item.accent} />}
           title={item.title}
-          live={false}
+          subtitle={when}
           onPress={item.onPress}
-          accessibilityLabel={`${eyebrow} — ${item.title}`}
+          accessibilityLabel={`${when} — ${item.title}`}
         />
       );
     },
@@ -243,62 +231,80 @@ export function HappeningNow(): React.JSX.Element {
   const hasLive = !!activeRun;
   if (!hasLive && soon.length === 0) return <></>;
 
-  const nowLabel = t('happening.now').toUpperCase();
+  const shopperFirstName = activeRun ? activeRun.shopperName.split(' ')[0] : '';
+  const separator = (): React.JSX.Element => (
+    <View style={[styles.separator, { backgroundColor: c.border }]} />
+  );
 
   return (
     <View>
-      {/* ── Happening now (live) ── */}
-      {activeRun && (
-        <Banner
-          icon="bag-handle"
-          accent={c.success}
-          eyebrow={nowLabel}
-          title={t('happening.shopping_now', { name: activeRun.shopperName.split(' ')[0] })}
-          live
-          onPress={handleGroceryPress}
-          accessibilityLabel={t('happening.shopping_now', {
-            name: activeRun.shopperName.split(' ')[0],
-          })}
-        />
-      )}
-      {/* Parking "now" is intentionally not surfaced here — the dashboard parking
-          card already shows live parking status. Only the grocery run stays live. */}
+      <DashboardSectionTitle title={t('dashboard.right_now')} />
+      <View
+        style={[
+          styles.group,
+          { backgroundColor: c.surface, borderColor: isDark ? c.border : 'transparent' },
+        ]}
+      >
+        {/* ── Live: someone is out shopping ── */}
+        {activeRun && (
+          <Row
+            leading={
+              <View>
+                <UserAvatar userId={activeRun.shopperId} size={ms(32)} />
+                <View style={[styles.liveDotRing, { backgroundColor: c.surface }]}>
+                  <LiveDot color={c.success} />
+                </View>
+              </View>
+            }
+            title={t('happening.shopping_now', { name: shopperFirstName })}
+            subtitle={elapsedLabel(activeRun.startedAt, t)}
+            onPress={handleGroceryPress}
+            accessibilityLabel={t('happening.shopping_now', { name: shopperFirstName })}
+          />
+        )}
+        {/* Parking "now" is intentionally not surfaced here — the parking row under
+            "Around the house" already shows live parking status. */}
+        {activeRun && soon.length > 0 && separator()}
 
-      {/* ── Upcoming: imminent entries as banners, later entries as compact rows ── */}
-      <FlatList
-        data={soon}
-        keyExtractor={(item) => item.key}
-        scrollEnabled={false}
-        renderItem={renderSoonItem}
-      />
+        {/* ── Coming up today or tomorrow ── */}
+        <FlatList
+          data={soon}
+          keyExtractor={(item) => item.key}
+          scrollEnabled={false}
+          renderItem={renderSoonItem}
+          ItemSeparatorComponent={separator}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex1: { flex: 1, minWidth: 0 },
-  pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
-
-  banner: {
-    marginTop: ms(12),
+  // One soft card holds every row, separated by hairlines — like a native list.
+  group: { borderRadius: ms(22), borderWidth: 1, overflow: 'hidden' },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ms(11),
-    borderWidth: 1,
-    borderLeftWidth: 3,
-    borderRadius: ms(16),
-    padding: ms(13),
+    gap: ms(12),
+    minHeight: ms(62),
+    paddingVertical: ms(12),
+    paddingStart: ms(16),
+    paddingEnd: ms(14),
   },
-  bannerIcon: {
-    width: ms(34),
-    height: ms(34),
-    borderRadius: ms(11),
+  leading: { width: ms(32), alignItems: 'center' },
+  rowTitle: { fontSize: mf(16), ...font.semibold, lineHeight: mf(21) },
+  rowSub: { fontSize: mf(14), ...font.regular, marginTop: ms(2) },
+  separator: { height: StyleSheet.hairlineWidth, marginStart: ms(60) },
+  liveDotRing: {
+    position: 'absolute',
+    bottom: ms(-2),
+    end: ms(-2),
+    width: ms(13),
+    height: ms(13),
+    borderRadius: ms(7),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bannerTitle: { fontSize: mf(14.5), ...font.semibold, marginTop: ms(2) },
-
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
-  eyebrow: { fontSize: mf(10), ...font.bold, letterSpacing: 0.5, textTransform: 'uppercase' },
-  liveDot: { width: ms(7), height: ms(7), borderRadius: ms(4) },
+  liveDot: { width: ms(9), height: ms(9), borderRadius: ms(5) },
 });

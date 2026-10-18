@@ -459,7 +459,20 @@
     "pin_left": "Fijar",
     "pinned": "Fijada",
     "card_on": "En el panel",
-    "card_off": "Oculta"
+    "card_off": "Oculta",
+    "right_now": "Ahora mismo",
+    "around_the_house": "Por la casa",
+    "pinned_by_ago": "{{name}} lo fijó · {{time}}",
+    "owes_you": "{{name}} te debe {{amount}}",
+    "you_owe_person": "Le debes {{amount}} a {{name}}",
+    "and_more": "+{{count}} más",
+    "nesti_joke_title": "El chiste del día de Nesti",
+    "parking_free_now": "La plaza está libre",
+    "parking_free_sub": "No hay nadie aparcado",
+    "parking_yours": "La plaza es tuya",
+    "parking_has_spot": "{{name}} tiene la plaza",
+    "parking_take": "Ocúpala",
+    "parking_free_it": "Ya me fui"
   },
   "happening": {
     "now": "Ahora",

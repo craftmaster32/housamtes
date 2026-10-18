@@ -2,21 +2,23 @@ import { useState, useCallback } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
-import { useThemedColors } from '@constants/colors';
+import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
-import { sizes } from '@constants/sizes';
 import { getDailyJoke, getRandomJoke, type DadJoke } from '@constants/dadJokes';
+import { Nesti } from '@components/shared/Nesti';
+import { DashboardSectionTitle } from '@components/dashboard/DashboardSectionTitle';
 
 import { mf, ms } from '@utils/responsive';
 interface Props {
   animateEntrance?: boolean;
 }
 
+/** The daily joke, told by Nesti in a speech bubble. Tap to reveal the punchline. */
 export function DadJokeCard({ animateEntrance = true }: Props): React.JSX.Element {
   const c = useThemedColors();
+  const isDark = c.background === darkColors.background;
   const { t } = useTranslation();
   const [joke, setJoke] = useState<DadJoke>(getDailyJoke);
   const [revealed, setRevealed] = useState(false);
@@ -35,114 +37,101 @@ export function DadJokeCard({ animateEntrance = true }: Props): React.JSX.Elemen
   }, []);
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <View style={styles.header}>
-        <View style={[styles.iconWrap, { backgroundColor: c.primaryTint }]}>
-          <Ionicons name="happy-outline" size={18} color={c.primary} />
-        </View>
-        <Text style={[styles.title, { color: c.textPrimary }]}>
-          {t('games.dad_joke_of_the_day')}
-        </Text>
-        <View style={[styles.categoryPill, { backgroundColor: c.primaryTint }]}>
-          <Text style={[styles.categoryText, { color: c.primary }]}>
+    <View>
+      <DashboardSectionTitle
+        title={t('dashboard.nesti_joke_title')}
+        right={
+          <Text style={[styles.category, { color: c.textSecondary }]} numberOfLines={1}>
             {t(`games.joke_cat_${joke.category}`, { defaultValue: joke.category })}
           </Text>
+        }
+      />
+      <View style={styles.row}>
+        <Nesti mood="wink" size={ms(76)} />
+        <View
+          style={[
+            styles.bubble,
+            { backgroundColor: c.surface, borderColor: isDark ? c.border : 'transparent' },
+          ]}
+        >
+          <Animated.View
+            key={key}
+            entering={animateEntrance || key > 0 ? FadeIn.duration(300) : undefined}
+          >
+            <Text style={[styles.setup, { color: c.textPrimary }]}>{joke.setup}</Text>
+
+            {revealed ? (
+              <Animated.View entering={FadeIn.duration(400)}>
+                <Text style={[styles.punchline, { color: c.textPrimary }]}>{joke.punchline}</Text>
+              </Animated.View>
+            ) : (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.revealBtn,
+                  { backgroundColor: c.primaryTint },
+                  pressed && styles.pressed,
+                ]}
+                onPress={handleReveal}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('games.tap_to_reveal')}
+              >
+                <Text
+                  style={[styles.revealText, { color: isDark ? c.primaryLight : c.primaryDark }]}
+                >
+                  {t('games.tap_to_reveal')}
+                </Text>
+              </Pressable>
+            )}
+          </Animated.View>
+
+          {revealed && (
+            <Animated.View entering={FadeIn.duration(300)}>
+              <Pressable
+                style={({ pressed }) => [styles.nextBtn, pressed && styles.pressed]}
+                onPress={handleNext}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t('games.another_one')}
+              >
+                <Text style={[styles.nextText, { color: isDark ? c.primaryLight : c.primary }]}>
+                  {t('games.another_one')}
+                </Text>
+              </Pressable>
+            </Animated.View>
+          )}
         </View>
       </View>
-
-      <Animated.View key={key} entering={animateEntrance || key > 0 ? FadeIn.duration(300) : undefined}>
-        <Text style={[styles.setup, { color: c.textPrimary }]}>{joke.setup}</Text>
-
-        {revealed ? (
-          <Animated.View entering={FadeIn.duration(400)}>
-            <Text style={[styles.punchline, { color: c.primary }]}>{joke.punchline}</Text>
-          </Animated.View>
-        ) : (
-          <Pressable
-            style={[styles.revealBtn, { backgroundColor: c.primary }]}
-            onPress={handleReveal}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('games.tap_to_reveal')}
-          >
-            <Text style={styles.revealText}>{t('games.tap_to_reveal')}</Text>
-            <Ionicons name="chevron-forward" size={15} color="#fff" />
-          </Pressable>
-        )}
-      </Animated.View>
-
-      {revealed && (
-        <Animated.View entering={FadeIn.duration(300)}>
-          <Pressable
-            style={[styles.nextBtn, { backgroundColor: c.surfaceSecondary }]}
-            onPress={handleNext}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={t('games.another_one')}
-          >
-            <Text style={[styles.nextText, { color: c.textSecondary }]}>
-              {t('games.another_one')}
-            </Text>
-          </Pressable>
-        </Animated.View>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: sizes.borderRadiusLg,
-    padding: sizes.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: sizes.sm,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: sizes.sm,
-  },
-  iconWrap: {
-    width: ms(32),
-    height: ms(32),
-    borderRadius: ms(10),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { fontSize: mf(15), ...font.bold, flex: 1 },
-  categoryPill: {
-    paddingHorizontal: ms(10),
-    paddingVertical: ms(3),
-    borderRadius: sizes.borderRadiusFull,
-  },
-  categoryText: {
-    fontSize: mf(10.5),
-    ...font.bold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  setup: { fontSize: mf(15), ...font.medium, lineHeight: mf(22), marginTop: sizes.xs },
-  punchline: { fontSize: mf(16), ...font.bold, lineHeight: mf(24), marginTop: sizes.sm },
-  revealBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  row: { flexDirection: 'row', alignItems: 'flex-end', gap: ms(6) },
+  category: { fontSize: mf(13), ...font.medium, maxWidth: '40%' },
+  // A speech bubble: soft everywhere except the corner pointing at Nesti.
+  bubble: {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: ms(22),
+    borderBottomLeftRadius: ms(6),
+    borderWidth: 1,
+    paddingHorizontal: ms(16),
+    paddingVertical: ms(14),
     gap: ms(4),
-    alignSelf: 'flex-start',
-    paddingStart: sizes.md,
-    paddingEnd: sizes.sm,
-    paddingVertical: sizes.sm,
-    minHeight: ms(44),
-    borderRadius: sizes.borderRadius,
-    marginTop: sizes.sm,
   },
-  revealText: { fontSize: mf(13), ...font.bold, color: '#fff' },
-  nextBtn: {
+  setup: { fontSize: mf(16), ...font.regular, lineHeight: mf(23) },
+  punchline: { fontSize: mf(16), ...font.semibold, lineHeight: mf(23), marginTop: ms(8) },
+  revealBtn: {
     alignSelf: 'flex-start',
-    paddingHorizontal: sizes.md,
-    paddingVertical: ms(6),
-    borderRadius: sizes.borderRadius,
-    marginTop: sizes.xs,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: ms(16),
+    borderRadius: ms(22),
+    marginTop: ms(10),
   },
-  nextText: { fontSize: mf(13), ...font.medium },
+  revealText: { fontSize: mf(14), ...font.semibold },
+  nextBtn: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: 44 },
+  nextText: { fontSize: mf(14), ...font.semibold },
+  pressed: { opacity: 0.8 },
 });
