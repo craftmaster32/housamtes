@@ -58,8 +58,8 @@ export function DashboardCardsSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={s.backdrop} onPress={onClose}>
-        <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
+      <Pressable style={s.backdrop} onPress={onClose} accessible={false}>
+        <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()} accessible={false}>
           <View style={s.handle} />
           <Text style={[s.title, headingFont]} accessibilityRole="header">
             {t('dashboard.manage_cards')}
@@ -70,27 +70,27 @@ export function DashboardCardsSheet({
               const on = enabled.includes(key);
               const isPinned = pinned === key;
               return (
-                <Pressable
-                  key={key}
-                  style={[s.tile, on ? s.tileOn : s.tileOff]}
-                  onPress={() => setEnabled(key, !on)}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: on }}
-                  accessibilityLabel={t(CARD_LABEL_KEY[key])}
-                >
-                  <View style={s.tileHead}>
-                    <Ionicons
-                      name={CARD_ICON[key]}
-                      size={20}
-                      color={on ? c.primary : c.textTertiary}
-                    />
-                    <Ionicons
-                      name={on ? 'checkmark-circle' : 'add-circle-outline'}
-                      size={22}
-                      color={on ? c.primary : c.textTertiary}
-                    />
-                  </View>
-                  <Text style={s.tileLabel}>{t(CARD_LABEL_KEY[key])}</Text>
+                <View key={key} style={[s.tile, on ? s.tileOn : s.tileOff]}>
+                  <Pressable
+                    onPress={() => setEnabled(key, !on)}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: on }}
+                    accessibilityLabel={t(CARD_LABEL_KEY[key])}
+                  >
+                    <View style={s.tileHead}>
+                      <Ionicons
+                        name={CARD_ICON[key]}
+                        size={20}
+                        color={on ? c.primary : c.textTertiary}
+                      />
+                      <Ionicons
+                        name={on ? 'checkmark-circle' : 'add-circle-outline'}
+                        size={22}
+                        color={on ? c.primary : c.textTertiary}
+                      />
+                    </View>
+                    <Text style={s.tileLabel}>{t(CARD_LABEL_KEY[key])}</Text>
+                  </Pressable>
                   {on && (
                     <Pressable
                       style={[s.pinBtn, isPinned && s.pinBtnOn]}
@@ -109,7 +109,7 @@ export function DashboardCardsSheet({
                       </Text>
                     </Pressable>
                   )}
-                </Pressable>
+                </View>
               );
             })}
           </View>
