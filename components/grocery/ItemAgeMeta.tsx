@@ -19,6 +19,8 @@ export interface ItemAgeMetaProps {
   showName: boolean;
   /** Ticked items are already handled — no "waiting a while" warning. */
   isChecked: boolean;
+  /** Amber pill for 3+ day old items. Off where a separate nudge already says so. */
+  highlightStale?: boolean;
 }
 
 /**
@@ -33,6 +35,7 @@ export function ItemAgeMeta({
   now,
   showName,
   isChecked,
+  highlightStale = true,
 }: ItemAgeMetaProps): React.JSX.Element {
   const { t } = useTranslation();
   const C = useThemedColors();
@@ -40,7 +43,7 @@ export function ItemAgeMeta({
   const memberName = useMemberName();
 
   const age = formatItemAge(createdAt, t, now);
-  const stale = !isChecked && isItemStale(createdAt, now);
+  const stale = highlightStale && !isChecked && isItemStale(createdAt, now);
   const name = addedBy === myId ? t('common.you') : memberName(addedBy);
 
   return (

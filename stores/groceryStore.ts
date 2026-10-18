@@ -81,6 +81,7 @@ interface GroceryStore {
   error: string | null;
   clearError: () => void;
   activeRun: ShoppingRun | null;
+  runBroadcastVisible: boolean;
   savedLists: GroceryList[];
   isLoadingLists: boolean;
   listsError: string | null;
@@ -344,6 +345,7 @@ export const useGroceryStore = create<GroceryStore>()(
       error: null,
       clearError: (): void => set({ error: null }),
       activeRun: null,
+      runBroadcastVisible: false,
       savedLists: [],
       isLoadingLists: false,
       listsError: null,
@@ -419,7 +421,7 @@ export const useGroceryStore = create<GroceryStore>()(
         }
         _channelHouseId = houseId;
         _channel = supabase
-          .channel(`grocery:${houseId}`)
+          .channel(`grocery:${houseId}`, { config: { broadcast: { ack: true } } })
           .on(
             'postgres_changes',
             {
@@ -511,7 +513,9 @@ export const useGroceryStore = create<GroceryStore>()(
             const newRun = p.active
               ? { shopperId: p.shopperId, shopperName: p.shopperName, startedAt: p.startedAt }
               : null;
-            set({ activeRun: newRun });
+            // Someone else's run (or the end of ours) — our "housemates can
+            // see you" confirmation no longer applies.
+            set({ activeRun: newRun, runBroadcastVisible: false });
             if (p.active && newRun) {
               AsyncStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(newRun)).catch(() => {});
             } else {
@@ -584,15 +588,37 @@ export const useGroceryStore = create<GroceryStore>()(
       },
 
       updateItem: async (id, name, quantity): Promise<void> => {
+        // A counted item is "bought" only once every unit is in the basket, so a
+        // new quantity re-derives the tick from the bought count — otherwise a
+        // ticked single item bumped to "3" would read as done in one place and
+        // still-to-buy in another.
+        const n = /^\d+$/.test(quantity.trim()) ? parseInt(quantity, 10) : NaN;
+        const counted = !isNaN(n) && n > 1;
+        const derive = (item: GroceryItem): { boughtCount: number; isChecked: boolean } => {
+          const bought = item.boughtCount ?? 0;
+          if (!counted) return { boughtCount: bought, isChecked: item.isChecked };
+          const capped = Math.min(bought, n);
+          return { boughtCount: capped, isChecked: capped >= n };
+        };
+        const before = get().items.find((i) => i.id === id);
+        const fields = before ? derive(before) : null;
         const { error } = await supabase
           .from('grocery_items')
-          .update({ name, quantity })
+          .update(
+            fields
+              ? { name, quantity, bought_count: fields.boughtCount, is_checked: fields.isChecked }
+              : { name, quantity }
+          )
           .eq('id', id);
         if (error) {
           captureError(error, { context: 'update-grocery' });
           throw new Error('Could not update the item. Please try again.');
         }
-        set({ items: get().items.map((i) => (i.id === id ? { ...i, name, quantity } : i)) });
+        // Re-derive from the latest state: a +/- tap or a housemate's realtime
+        // update that landed while we were waiting must not be rolled back.
+        set({
+          items: get().items.map((i) => (i.id === id ? { ...i, name, quantity, ...derive(i) } : i)),
+        });
       },
 
       toggleItem: async (id): Promise<void> => {
@@ -815,19 +841,28 @@ export const useGroceryStore = create<GroceryStore>()(
       startRun: async (shopperId: string, shopperName: string): Promise<void> => {
         const startedAt = new Date().toISOString();
         const run: ShoppingRun = { shopperId, shopperName, startedAt };
-        set({ activeRun: run });
+        set({ activeRun: run, runBroadcastVisible: false });
         AsyncStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(run)).catch(() => {});
-        _channel
-          ?.send({
-            type: 'broadcast',
-            event: 'shopping_run',
-            payload: { active: true, shopperId, shopperName, startedAt },
-          })
-          .catch(() => {});
+        if (_channel) {
+          _channel
+            .send({
+              type: 'broadcast',
+              event: 'shopping_run',
+              payload: { active: true, shopperId, shopperName, startedAt },
+            })
+            .then((res) => {
+              // Only claim housemates can see the run once the server acked it,
+              // and only if this is still the run we started.
+              if (res === 'ok' && get().activeRun?.startedAt === startedAt) {
+                set({ runBroadcastVisible: true });
+              }
+            })
+            .catch(() => {});
+        }
       },
 
       endRun: async (): Promise<void> => {
-        set({ activeRun: null });
+        set({ activeRun: null, runBroadcastVisible: false });
         AsyncStorage.removeItem(ACTIVE_RUN_KEY).catch(() => {});
         _channel
           ?.send({
