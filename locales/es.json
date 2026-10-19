@@ -280,7 +280,19 @@
     "enter_invite_code": "Ingresa el código de invitación",
     "code_not_found": "Código no encontrado. Verifica e intenta de nuevo.",
     "failed_create": "No se pudo crear la casa",
-    "failed_join": "No se pudo unir a la casa"
+    "failed_join": "No se pudo unir a la casa",
+    "house_name_label": "Nombre de la casa",
+    "house_name_hint": "Ponle a tu casa un nombre que reconozcan tus compañeros",
+    "code_hint": "8 letras y números, p. ej. ABCD2345",
+    "find_house": "Buscar casa",
+    "color_updated": "Tu color ya estaba en uso en esta casa, así que te elegimos uno nuevo.",
+    "confirm_join_title": "¿Es tu casa?",
+    "confirm_join_subtitle": "Encontramos esta casa con el código {{code}}",
+    "member_count_one": "{{count}} miembro",
+    "member_count_other": "{{count}} miembros",
+    "confirm_join": "Unirme a esta casa",
+    "wrong_house": "No es mi casa",
+    "too_many_attempts": "Demasiados intentos. Espera {{seconds}} segundos."
   },
   "dashboard": {
     "greeting_morning": "Buenos días",

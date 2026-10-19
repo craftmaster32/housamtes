@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation, Trans } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@stores/authStore';
+import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { signUpSchema, mapZodError } from '@utils/validation';
 import { suggestEmailCorrection } from '@utils/emailSuggest';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
@@ -45,6 +47,7 @@ function getPasswordStrength(pw: string): { level: PasswordStrength; color: stri
 
 export default function SignupScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const rtl = isRTL(useLanguageStore((s) => s.language));
   const signUp = useAuthStore((s) => s.signUp);
   const isLoading = useAuthStore((s) => s.isLoading);
   // Restores an in-progress signup (e.g. the user went back from the verify-email
@@ -120,6 +123,13 @@ export default function SignupScreen(): React.JSX.Element {
     ref.current?.focus();
   }, []);
 
+  // Opened straight from a link there's no screen to go back to, so fall back
+  // to the welcome screen instead of leaving the user stuck.
+  const handleBack = useCallback((): void => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/(auth)/welcome');
+  }, []);
+
   const handleSignup = useCallback(async (): Promise<void> => {
     if (isLoading) return;
     if (!agreed) {
@@ -176,6 +186,16 @@ export default function SignupScreen(): React.JSX.Element {
     <View style={styles.root}>
       <View style={styles.header}>
         <SafeAreaView edges={['top']} style={styles.headerInner}>
+          <Pressable
+            style={({ pressed }) => [styles.backBtn, pressed && styles.backPressed]}
+            onPress={handleBack}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={20} color={C.primary} />
+            <Text style={styles.backText}>{t('common.back')}</Text>
+          </Pressable>
           <StepProgress steps={steps} currentStep={0} />
         </SafeAreaView>
       </View>
@@ -413,6 +433,21 @@ function makeStyles(C: ColorTokens) {
     },
     headerInner: {
       paddingTop: sizes.xs,
+    },
+    backBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(2),
+      alignSelf: 'flex-start',
+      minHeight: sizes.touchTarget,
+      paddingHorizontal: sizes.xs,
+      marginStart: -sizes.xs,
+    },
+    backPressed: { opacity: 0.6 },
+    backText: {
+      fontSize: mf(15.5),
+      ...font.semibold,
+      color: C.primary,
     },
     cardWrapper: {
       flex: 1,
