@@ -31,6 +31,7 @@ import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
+import { defaultExpenseCategory, guessExpenseCategory } from '@utils/expenseCategory';
 import { parseAndValidateAddBill, parseAmount, type AddBillPayload } from '@utils/validation';
 
 import { mf, ms } from '@utils/responsive';
@@ -112,6 +113,8 @@ function AddBillScreen(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allIds]);
   const [category, setCategory] = useState('');
+  // Once someone picks a category by hand, stop guessing it from the title.
+  const categoryPicked = useRef(false);
   const [date, setDate] = useState(todayString);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
@@ -126,7 +129,8 @@ function AddBillScreen(): React.JSX.Element {
     setAmount('');
     setPaidBy(userId || ids[0] || '');
     setSelectedPeople(ids.length > 0 ? ids : []);
-    setCategory(categoriesRef.current[0]?.name ?? '');
+    setCategory(defaultExpenseCategory(categoriesRef.current.map((c) => c.name)));
+    categoryPicked.current = false;
     setDate(todayString());
     setSplitType('equal');
     setCustomAmounts({});
@@ -141,6 +145,7 @@ function AddBillScreen(): React.JSX.Element {
   const openAddCategory = useCallback((): void => setShowAddCategory(true), []);
   const closeAddCategory = useCallback((): void => setShowAddCategory(false), []);
   const handleCategoryCreated = useCallback((newName: string): void => {
+    categoryPicked.current = true;
     setCategory(newName);
     setShowAddCategory(false);
   }, []);
@@ -152,12 +157,27 @@ function AddBillScreen(): React.JSX.Element {
   );
 
   // If categories finish loading after this screen is already focused (so the
-  // reset ran with an empty list), seed the first one as the default selection.
+  // reset ran with an empty list), seed the default ("Other") as the selection.
   useEffect((): void => {
     if (categories.length > 0 && !category) {
-      setCategory(categories[0].name);
+      setCategory(defaultExpenseCategory(categories.map((c) => c.name)));
     }
   }, [categories, category]);
+
+  const handleCategorySelect = useCallback((name: string): void => {
+    categoryPicked.current = true;
+    setCategory(name);
+  }, []);
+
+  // Like the grocery list: "Shufersal" → Groceries, "Taxi" → Transport. Until
+  // a category is picked by hand, it follows what the expense was for.
+  const handleTitleChange = useCallback((v: string): void => {
+    setTitle(v);
+    setError('');
+    if (categoryPicked.current) return;
+    const names = categoriesRef.current.map((c) => c.name);
+    setCategory(guessExpenseCategory(v, names) ?? defaultExpenseCategory(names));
+  }, []);
 
   const totalAmount = parseAmount(amount);
 
@@ -320,10 +340,7 @@ function AddBillScreen(): React.JSX.Element {
         <UnderlineInput
           label={t('bills.what_for')}
           value={title}
-          onChangeText={(v) => {
-            setTitle(v);
-            setError('');
-          }}
+          onChangeText={handleTitleChange}
           placeholder={t('bills.what_for_placeholder')}
           accessibilityLabel={t('bills.what_for')}
           accessibilityHint={t('bills.what_for_placeholder')}
@@ -368,7 +385,7 @@ function AddBillScreen(): React.JSX.Element {
             <BillCategoryPicker
               categories={categories}
               selected={category}
-              onSelect={setCategory}
+              onSelect={handleCategorySelect}
               onAddCategory={openAddCategory}
             />
           )}

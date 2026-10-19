@@ -1,5 +1,13 @@
-import { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ViewStyle, TextStyle } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  ViewStyle,
+  TextStyle,
+  type LayoutChangeEvent,
+} from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -48,8 +56,19 @@ export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
     return list;
   }, [categories, selected, C.primary]);
 
+  // The chosen category can change on its own (it follows the title), so keep
+  // it in view even when it sits at the far end of the row.
+  const scrollRef = useRef<ScrollView>(null);
+  const itemX = useRef(new Map<string, number>());
+  useEffect((): void => {
+    const x = itemX.current.get(selected);
+    if (x !== undefined)
+      scrollRef.current?.scrollTo({ x: Math.max(0, x - ms(16)), animated: true });
+  }, [selected]);
+
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.categoryScroll}
@@ -60,6 +79,15 @@ export const BillCategoryPicker: React.FC<BillCategoryPickerProps> = ({
         return (
           <Pressable
             key={cat.id}
+            onLayout={(e: LayoutChangeEvent): void => {
+              itemX.current.set(cat.name, e.nativeEvent.layout.x);
+              if (isSelected) {
+                scrollRef.current?.scrollTo({
+                  x: Math.max(0, e.nativeEvent.layout.x - ms(16)),
+                  animated: false,
+                });
+              }
+            }}
             style={({ pressed }) => [styles.word, pressed && !isSelected && styles.pressed]}
             onPress={(): void => {
               onSelect(cat.name);

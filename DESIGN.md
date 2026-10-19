@@ -168,7 +168,9 @@ in) · daily joke told by Mate. Drawings plain (no stickers).
 - Detail: receipt slip, scissor cut line, split breakdown, big green settled
   stamp, red text "Delete Bill".
 - New expense / Edit: amount on notebook paper, underlined fields, circled
-  categories, big blue Save. **Split follows Splitwise:** one sentence
+  categories (default **Other**; the category follows the title like the grocery
+  list — `utils/expenseCategory.ts` — until picked by hand), big blue Save.
+  **Split follows Splitwise:** one sentence
   "Paid by [you] and split [equally]" — equal split is the default and needs no
   extra taps; tapping a chip opens a sheet with Who paid / Split between /
   Equal·Custom·By % and the sticky-note result.
