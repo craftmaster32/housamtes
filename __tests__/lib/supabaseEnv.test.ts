@@ -61,4 +61,14 @@ describe('Supabase project selection', () => {
     });
     expect(url).toBe('https://live.supabase.co');
   });
+
+  it('never mixes projects when only one test value is set', () => {
+    const [url, key] = loadClientWith({
+      ...LIVE,
+      EXPO_PUBLIC_APP_ENV: 'preview',
+      EXPO_PUBLIC_STAGING_SUPABASE_ANON_KEY: undefined,
+    });
+    expect(url).toBe('https://live.supabase.co');
+    expect(key).toBe('live-key');
+  });
 });
