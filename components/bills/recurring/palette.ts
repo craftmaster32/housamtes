@@ -19,45 +19,31 @@ export interface RecurringPalette {
   shadow: string;
 }
 
-const light: RecurringPalette = {
-  card: '#FFFFFF',
-  text: '#17213A',
-  muted: '#5E6676',
-  border: 'rgba(23,33,58,0.10)',
-  primary: '#2F62B8',
-  onPrimary: '#FFFFFF',
-  secondaryBg: '#E6EEFA',
-  secondaryText: '#234E99',
-  neutralPillBg: '#EEEDE8',
-  neutralPillText: '#4A5161',
-  overdueBg: '#FCE9DB',
-  overdueText: '#9A3F0C',
-  overlay: 'rgba(15,20,35,0.45)',
-  shadow: 'rgba(23,33,58,0.06)',
-};
-
-/** Dark-mode colours, derived from the app's dark theme. */
-function darkPalette(c: ColorPalette): RecurringPalette {
+/**
+ * Built from the app's own tokens so recurring bills, the payment sheet and the
+ * menus share the stone/graphite surfaces and the single blue accent.
+ */
+function fromTheme(c: ColorPalette, dark: boolean): RecurringPalette {
   return {
     card: c.surface,
     text: c.textPrimary,
-    muted: '#A3ADBF',
+    muted: c.textSecondary,
     border: c.border,
     primary: c.primary,
     onPrimary: '#FFFFFF',
-    secondaryBg: c.secondary,
-    secondaryText: c.secondaryForeground,
+    secondaryBg: c.primaryTint,
+    secondaryText: c.primary,
     neutralPillBg: c.surfaceSecondary,
-    neutralPillText: '#C3CAD6',
-    overdueBg: 'rgba(240,138,75,0.18)',
-    overdueText: '#F5A774',
-    overlay: 'rgba(0,0,0,0.6)',
-    shadow: 'rgba(0,0,0,0.3)',
+    neutralPillText: c.textSecondary,
+    overdueBg: c.dangerTint,
+    overdueText: c.danger,
+    overlay: dark ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)',
+    shadow: dark ? 'rgba(0,0,0,0.3)' : 'rgba(34,32,29,0.06)',
   };
 }
 
 /** The recurring-bill palette for the active light/dark theme. */
 export function useRecurringPalette(): RecurringPalette {
   const c = useThemedColors();
-  return useMemo(() => (c === darkColors ? darkPalette(c) : light), [c]);
+  return useMemo(() => fromTheme(c, c === darkColors), [c]);
 }

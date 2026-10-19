@@ -15,6 +15,11 @@ import { useSettingsStore } from '@stores/settingsStore';
 import { Alert } from '@lib/alert';
 import { BillChangeLog } from '@components/bills/BillChangeLog';
 import { font } from '@constants/typography';
+import { useThemedColors } from '@constants/colors';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useHandFont } from '@hooks/useHandFont';
+import { ArtSticker } from '@components/shared/ArtSticker';
+import { BillArt } from '@components/bills/art/BillArt';
 import type { HistoryItem } from '@utils/recurringHistory';
 import {
   FREQUENCY_MONTHS,
@@ -22,15 +27,18 @@ import {
   findOverlappingPayments,
   formatPeriod,
   getDueStatus,
+  monthTrack,
 } from '@utils/recurringCoverage';
 import { mf, ms } from '@utils/responsive';
 import { BillCardMenu, type BillMenuAction } from './BillCardMenu';
-import { BillStatusRow } from './BillStatusRow';
 import type { ChoiceOption } from './ChoiceChips';
 import { PaymentHistory } from './PaymentHistory';
 import { PaymentSheet } from './PaymentSheet';
 import { RecurringBillForm } from './RecurringBillForm';
 import { formatMoney } from './money';
+import { MonthTrack } from './MonthTrack';
+import { PaperTag } from './PaperTag';
+import { useBillStatusText } from './useBillStatusText';
 import { useRecurringPalette } from './palette';
 
 interface RecurringBillCardProps {
@@ -41,7 +49,11 @@ interface RecurringBillCardProps {
   today: string; // YYYY-MM-DD
 }
 
-/** One recurring bill: what it costs, how far it's paid, and its payment history. */
+/**
+ * One recurring bill as a glanceable tile, like the home cards: its name, one
+ * big answer ("4d overdue", "in 13d"), a row of month boxes ticked off as they're
+ * paid, a handwritten status line, and a paper tag to log the next payment.
+ */
 export function RecurringBillCard({
   bill,
   payments,
@@ -51,6 +63,9 @@ export function RecurringBillCard({
 }: RecurringBillCardProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const p = useRecurringPalette();
+  const c = useThemedColors();
+  const headingFont = useHeadingFont('semibold');
+  const handFont = useHandFont();
   const memberName = useMemberName();
   const currency = useSettingsStore((s) => s.currency);
   const deleteBill = useRecurringBillsStore((s) => s.deleteBill);
@@ -74,6 +89,11 @@ export function RecurringBillCard({
   const through = coveredThrough(bill.id, billPayments);
   const status = getDueStatus(bill, billPayments, today);
   const months = FREQUENCY_MONTHS[bill.frequency];
+  const track = useMemo(
+    () => monthTrack(billPayments, status, today),
+    [billPayments, status, today]
+  );
+  const words = useBillStatusText(through, status, billPayments.length > 0);
 
   const meta = [
     formatMoney(currency, bill.typicalAmount),
@@ -134,19 +154,12 @@ export function RecurringBillCard({
 
   return (
     <View style={[styles.card, { backgroundColor: p.card, shadowColor: p.shadow }]}>
-      {/* Top row */}
+      {/* Label row: icon + name, and the ⋯ menu */}
       <View style={styles.topRow}>
-        <View style={[styles.iconTile, { backgroundColor: p.secondaryBg }]}>
-          <Ionicons name={resolveBillIcon(bill.icon)} size={22} color={p.secondaryText} />
-        </View>
-        <View style={styles.titleWrap}>
-          <Text style={[styles.name, { color: p.text }]} numberOfLines={1}>
-            {bill.name}
-          </Text>
-          <Text style={[styles.meta, { color: p.muted }]} numberOfLines={1}>
-            {meta}
-          </Text>
-        </View>
+        <Ionicons name={resolveBillIcon(bill.icon)} size={16} color={p.muted} />
+        <Text style={[styles.name, { color: p.muted }]} numberOfLines={1}>
+          {bill.name}
+        </Text>
         <Pressable
           onPress={openMenu}
           style={({ pressed }) => [styles.menuBtn, pressed && { backgroundColor: p.secondaryBg }]}
@@ -158,32 +171,49 @@ export function RecurringBillCard({
         </Pressable>
       </View>
 
-      <BillStatusRow
-        coveredThrough={through}
-        status={status}
-        hasPayments={billPayments.length > 0}
-      />
+      <View style={styles.answerRow}>
+        <View style={styles.answerText}>
+          {/* The one big answer, then what it costs and who pays. */}
+          <Text
+            style={[styles.answer, headingFont, { color: words.overdue ? c.danger : p.text }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {words.answer ?? words.coverage}
+          </Text>
+          <Text style={[styles.meta, { color: p.muted }]} numberOfLines={2}>
+            {meta}
+          </Text>
+        </View>
+        <ArtSticker style={styles.art}>
+          <BillArt icon={bill.icon} size={ms(54)} />
+        </ArtSticker>
+      </View>
 
-      {/* Actions row */}
+      <MonthTrack track={track} />
+
+      {!!words.line && (
+        <Text style={[styles.note, handFont, { color: words.overdue ? c.danger : p.muted }]}>
+          {words.line}
+        </Text>
+      )}
+      {!!words.answer && (
+        <Text style={[styles.coverage, { color: p.muted }]}>{words.coverage}</Text>
+      )}
+
+      {/* Actions: log the next payment, show past payments */}
       <View style={styles.actionsRow}>
-        <Pressable
+        <PaperTag
+          urgent={words.overdue}
           onPress={openLog}
-          style={({ pressed }) => [
-            styles.logBtn,
-            { backgroundColor: p.primary },
-            pressed && styles.pressed,
-          ]}
-          accessible
-          accessibilityRole="button"
-        >
-          <Text style={[styles.logText, { color: p.onPrimary }]} numberOfLines={1}>
-            {status
+          label={
+            status
               ? t('bills.recurring_log_period', {
                   period: formatPeriod(status.period, i18n.language, { withYear: false }),
                 })
-              : t('bills.household_log_payment')}
-          </Text>
-        </Pressable>
+              : t('bills.household_log_payment')
+          }
+        />
         {billPayments.length > 0 && (
           <Pressable
             onPress={toggleHistory}
@@ -192,13 +222,13 @@ export function RecurringBillCard({
             accessibilityRole="button"
             accessibilityState={{ expanded: showHistory }}
           >
-            <Text style={[styles.textBtnText, { color: p.secondaryText }]}>
+            <Text style={[styles.textBtnText, { color: p.muted }]}>
               {showHistory ? t('bills.recurring_hide') : t('bills.recurring_history')}
             </Text>
             <Ionicons
               name={showHistory ? 'chevron-up' : 'chevron-down'}
               size={16}
-              color={p.secondaryText}
+              color={p.muted}
             />
           </Pressable>
         )}
@@ -242,58 +272,47 @@ export function RecurringBillCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: ms(18),
-    padding: ms(16),
+    borderRadius: ms(24),
+    paddingHorizontal: ms(16),
+    paddingTop: ms(10),
+    paddingBottom: ms(14),
     shadowOffset: { width: 0, height: ms(2) },
     shadowOpacity: 1,
     shadowRadius: ms(10),
     elevation: 1,
   },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: ms(12) },
-  iconTile: {
-    width: ms(40),
-    height: ms(40),
-    borderRadius: ms(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleWrap: { flex: 1, minWidth: 0 },
-  name: { fontSize: mf(17), ...font.semibold },
-  meta: { fontSize: mf(13), ...font.regular, marginTop: ms(2) },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
+  name: { flex: 1, minWidth: 0, fontSize: mf(14.5), ...font.bold },
   menuBtn: {
-    width: ms(44),
-    height: ms(44),
-    borderRadius: ms(22),
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginEnd: ms(-8),
+    marginEnd: ms(-10),
   },
+  answerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: ms(10) },
+  answerText: { flex: 1, minWidth: 0 },
+  answer: { fontSize: mf(30), lineHeight: mf(34), letterSpacing: -1 },
+  meta: { fontSize: mf(13.5), ...font.medium, marginTop: ms(4) },
+  art: { marginTop: ms(-4) },
+  note: { fontSize: mf(22), lineHeight: mf(25), marginTop: ms(8) },
+  coverage: { fontSize: mf(13), ...font.medium, marginTop: ms(2) },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: ms(8),
-    marginTop: ms(16),
+    gap: ms(14),
+    marginTop: ms(14),
   },
-  logBtn: {
-    minHeight: ms(44),
-    paddingHorizontal: ms(18),
-    borderRadius: ms(12),
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 1,
-  },
-  pressed: { opacity: 0.85 },
-  logText: { fontSize: mf(15), ...font.semibold },
   textBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: ms(4),
-    minHeight: ms(44),
-    paddingHorizontal: ms(8),
+    minHeight: 44,
+    paddingHorizontal: ms(4),
   },
-  textBtnText: { fontSize: mf(15), ...font.medium },
+  textBtnText: { fontSize: mf(15), ...font.bold },
   error: { fontSize: mf(14), ...font.medium, marginTop: ms(8) },
   empty: { fontSize: mf(13), ...font.regular, marginTop: ms(12) },
 });
