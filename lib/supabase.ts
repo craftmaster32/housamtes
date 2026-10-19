@@ -3,8 +3,17 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import 'react-native-url-polyfill/auto';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+// Vercel preview builds (pull-request links) talk to the separate test
+// database, so trying things out never touches real houses or notifies real
+// users. EXPO_PUBLIC_APP_ENV is stamped at build time by vercel.json; the live
+// site and native builds never set it to 'preview' and keep the main project.
+const isPreviewBuild = process.env.EXPO_PUBLIC_APP_ENV === 'preview';
+const supabaseUrl =
+  (isPreviewBuild && process.env.EXPO_PUBLIC_STAGING_SUPABASE_URL) ||
+  process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey =
+  (isPreviewBuild && process.env.EXPO_PUBLIC_STAGING_SUPABASE_ANON_KEY) ||
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Check your .env file.');
