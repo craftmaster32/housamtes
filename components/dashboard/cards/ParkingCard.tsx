@@ -25,6 +25,7 @@ import { type CardStyles } from '@components/dashboard/cards/cardStyles';
 import { CardLabel } from '@components/dashboard/cards/CardLabel';
 import { CarArt } from '@components/dashboard/art/CarArt';
 import { ParkingSignArt } from '@components/dashboard/art/ParkingSignArt';
+import { ArtSticker } from '@components/shared/ArtSticker';
 import { ms } from '@utils/responsive';
 
 // A housemate's car is drawn in a soft red so "taken" reads at a glance.
@@ -229,18 +230,22 @@ export function ParkingCard({ styles, pinned = false }: ParkingCardProps): React
             : t('dashboard.parking_blocked_other', { name: blockedHolder })}
         </Text>
       ) : !isFree && since ? (
-        <Text style={styles.sub} numberOfLines={1}>
+        <Text style={[styles.sub, styles.subBesideArt]} numberOfLines={2}>
           {t('parking.since', { time: since })}
         </Text>
       ) : null}
       <View style={rtl ? styles.artRTL : styles.art} pointerEvents="none">
-        {isFree ? (
-          <ParkingSignArt color={c.success} lineColor={c.textTertiary} width={ms(44)} />
-        ) : (
-          <Animated.View style={{ transform: [{ translateX: driveX }, { scaleX: rtl ? -1 : 1 }] }}>
-            <CarArt color={isMine ? c.primary : HOUSEMATE_CAR} width={artW} />
-          </Animated.View>
-        )}
+        <ArtSticker>
+          {isFree ? (
+            <ParkingSignArt color={c.success} lineColor={c.textTertiary} width={ms(44)} />
+          ) : (
+            <Animated.View
+              style={{ transform: [{ translateX: driveX }, { scaleX: rtl ? -1 : 1 }] }}
+            >
+              <CarArt color={isMine ? c.primary : HOUSEMATE_CAR} width={artW} />
+            </Animated.View>
+          )}
+        </ArtSticker>
       </View>
     </Pressable>
   );

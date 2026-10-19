@@ -11,6 +11,7 @@ import { type CardStyles } from '@components/dashboard/cards/cardStyles';
 import { CardShell } from '@components/dashboard/cards/CardShell';
 import { CardLabel } from '@components/dashboard/cards/CardLabel';
 import { BallotArt } from '@components/dashboard/art/BallotArt';
+import { ArtSticker } from '@components/shared/ArtSticker';
 import { ms } from '@utils/responsive';
 
 interface VotesCardProps {
@@ -51,7 +52,9 @@ export function VotesCard({
         {next ? next.title : t('dashboard.votes_none')}
       </Text>
       <View style={rtl ? styles.artRTL : styles.art} pointerEvents="none">
-        <BallotArt color={c.primary} width={ms(40)} />
+        <ArtSticker>
+          <BallotArt color={c.primary} width={ms(40)} />
+        </ArtSticker>
       </View>
     </CardShell>
   );

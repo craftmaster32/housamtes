@@ -50,6 +50,8 @@ export const makeCardStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.cre
     bigDenom: { fontSize: mf(22), color: c.textTertiary, letterSpacing: -0.4 },
     sub: { fontSize: mf(13.5), ...font.medium, color: c.textSecondary, marginTop: ms(4) },
     subAlert: { color: c.danger, ...font.bold },
+    // Keeps a line clear of the drawing in the card's corner.
+    subBesideArt: { marginEnd: ms(56) },
     art: { position: 'absolute', bottom: ART_INSET, right: ART_INSET },
     artRTL: { position: 'absolute', bottom: ART_INSET, left: ART_INSET },
 
