@@ -15,6 +15,8 @@ interface MoneyProps {
   style?: TextStyle;
   /** When true, the figure counts up from 0 the first time it appears. */
   animate?: boolean;
+  /** Font for the number and its decimals (e.g. the display serif). Defaults to Inter. */
+  wholeFamily?: string;
 }
 
 /**
@@ -31,6 +33,7 @@ export const Money: React.FC<MoneyProps> = ({
   weight = 'extrabold',
   style,
   animate = false,
+  wholeFamily,
 }) => {
   const displayAmount = useCountUp(amount, animate);
   const { symbol, whole, fraction } = useMemo(
@@ -38,7 +41,7 @@ export const Money: React.FC<MoneyProps> = ({
     [displayAmount, currencyCode]
   );
   const muted = mutedColor ?? color;
-  const family = weight === 'extrabold' ? 'Inter_800ExtraBold' : 'Inter_700Bold';
+  const family = wholeFamily ?? (weight === 'extrabold' ? 'Inter_800ExtraBold' : 'Inter_700Bold');
 
   const symbolStyle: TextStyle = {
     fontFamily: 'Inter_600SemiBold',
@@ -53,7 +56,7 @@ export const Money: React.FC<MoneyProps> = ({
     letterSpacing: -size * 0.038,
   };
   const fractionStyle: TextStyle = {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: wholeFamily ?? 'Inter_700Bold',
     fontSize: size * 0.58,
     color: muted,
     opacity: mutedColor ? 1 : 0.72,

@@ -12,54 +12,37 @@ import {
   type NativeScrollEvent,
 } from 'react-native';
 import { Text } from 'react-native-paper';
-import { LinearGradient } from 'expo-linear-gradient';
-import Svg, {
-  Circle,
-  Path,
-  Defs,
-  LinearGradient as SvgLinearGradient,
-  Stop,
-  Mask,
-  Rect,
-} from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
 import { sizes } from '@constants/sizes';
-import { useGroceryStore } from '@stores/groceryStore';
-import { useTasksStore } from '@stores/tasksStore';
-import { useVotingStore } from '@stores/votingStore';
-import { useParkingStore, findBlockedReservation } from '@stores/parkingStore';
-import { useAppliancesStore, type ApplianceKind } from '@stores/appliancesStore';
-import { MACHINE_META, formatRemaining } from '@components/machines/meta';
-import { useHousematesStore } from '@stores/housematesStore';
-import { useAuthStore } from '@stores/authStore';
+import { MACHINE_META } from '@components/machines/meta';
 import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
-import { resolveName } from '@utils/housemates';
-import { getErrorMessage } from '@utils/errors';
-import { Alert } from '@lib/alert';
 import { mf, ms } from '@utils/responsive';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import {
   useDashboardCardsStore,
   ALL_DASHBOARD_CARDS,
   type DashboardCardKey,
 } from '@stores/dashboardCardsStore';
+import {
+  makeCardStyles,
+  CARD_H,
+  CARD_GAP as GAP,
+  type CardStyles,
+} from '@components/dashboard/cards/cardStyles';
+import { GroceriesCard } from '@components/dashboard/cards/GroceriesCard';
+import { ChoresCard } from '@components/dashboard/cards/ChoresCard';
+import { VotesCard } from '@components/dashboard/cards/VotesCard';
+import { ParkingCard } from '@components/dashboard/cards/ParkingCard';
+import { ApplianceCard } from '@components/dashboard/cards/ApplianceCard';
+
+// The parking card's quick-toggle tests import it from here.
+export { ParkingCard };
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
-
-const CARD_H = ms(158);
-const GAP = ms(12);
-const PARK_GRADIENT = ['#2C3E4C', '#1A2732'] as const;
-// Sleek car silhouette, drawn once and reused as the parking card's faint
-// backdrop. Fills the otherwise-empty right half of the card.
-const CAR_PATH =
-  'M10 70 Q10 62 22 60 L40 58 C48 46 60 40 74 39 L96 39 C112 39 122 46 130 58 ' +
-  'L146 62 Q152 64 152 72 L152 74 Q152 78 147 78 L133 78 A13 13 0 0 0 107 78 ' +
-  'L66 78 A13 13 0 0 0 40 78 L15 78 Q10 78 10 72 Z';
 
 const CARD_ICON: Record<DashboardCardKey, IoniconName> = {
   groceries: 'cart-outline',
@@ -86,153 +69,36 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: ms(10),
+      marginBottom: ms(8),
+      marginHorizontal: ms(2),
     },
-    sectionLabel: {
-      fontSize: mf(11),
-      ...font.bold,
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
-      color: c.textSecondary,
-    },
-    editBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-      paddingVertical: ms(4),
-      paddingHorizontal: ms(8),
-      borderRadius: sizes.borderRadiusFull,
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    editText: { fontSize: mf(12.5), ...font.semibold, color: c.textSecondary },
-
-    shell: {
-      height: CARD_H,
-      borderRadius: ms(18),
-      padding: ms(15),
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.border,
-      overflow: 'hidden',
-      justifyContent: 'space-between',
-    },
-    cardTop: { flexDirection: 'row', alignItems: 'center', gap: ms(10) },
-    iconChip: {
-      width: ms(34),
-      height: ms(34),
-      borderRadius: ms(11),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    cardTitle: { flexShrink: 1, fontSize: mf(15), ...font.bold, color: c.textPrimary },
-    cardMeta: {
-      marginLeft: 'auto',
-      flexShrink: 0,
-      fontSize: mf(12),
-      ...font.semibold,
-      color: c.textSecondary,
-    },
-
-    bigStat: { fontSize: mf(30), ...font.extrabold, color: c.textPrimary },
-    bigDenom: { fontSize: mf(18), ...font.bold, color: c.textTertiary },
-    cardSub: { fontSize: mf(12.5), ...font.medium, color: c.textSecondary, marginTop: ms(2) },
-    groceryRow: { flexDirection: 'row', alignItems: 'center', gap: ms(9), paddingVertical: ms(5) },
-    groceryBox: {
-      width: ms(18),
-      height: ms(18),
-      borderRadius: ms(6),
-      borderWidth: 1.5,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    groceryName: { flex: 1, fontSize: mf(13.5), ...font.medium },
-    groceryDone: { textDecorationLine: 'line-through' },
-
-    ringWrap: {
-      marginLeft: 'auto',
-      width: ms(46),
-      height: ms(46),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    ringPct: { position: 'absolute', fontSize: mf(12), ...font.bold, color: c.success },
-
-    // parking (dark) card
-    parkShell: {
-      height: CARD_H,
-      borderRadius: ms(18),
-      overflow: 'hidden',
-      justifyContent: 'space-between',
-      padding: ms(15),
-    },
-    // LTR: car sits in the bottom-right corner. RTL: mirror it to the
-    // bottom-left (scaleX flips both the silhouette's facing and its fade so
-    // the solid body lands away from the right-aligned Hebrew text).
-    parkArt: {
-      position: 'absolute',
-      right: ms(-14),
-      bottom: ms(-4),
-    },
-    parkArtNarrow: {
-      position: 'absolute',
-      right: ms(-14),
-      bottom: ms(-2),
-    },
-    parkArtRTL: {
-      position: 'absolute',
-      left: ms(-14),
-      bottom: ms(-4),
-      transform: [{ scaleX: -1 }],
-    },
-    parkArtNarrowRTL: {
-      position: 'absolute',
-      left: ms(-14),
-      bottom: ms(-2),
-      transform: [{ scaleX: -1 }],
-    },
-    parkPill: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: ms(9),
-      paddingVertical: ms(3),
-      borderRadius: sizes.borderRadiusFull,
-    },
-    parkPillText: { fontSize: mf(10.5), ...font.bold, letterSpacing: 0.4 },
-    parkLabel: { fontSize: mf(11), ...font.semibold, color: 'rgba(255,255,255,0.6)' },
-    parkStatus: { fontSize: mf(20), ...font.extrabold, color: '#fff', marginTop: ms(1) },
-    parkSub: {
-      fontSize: mf(12.5),
-      ...font.medium,
-      color: 'rgba(255,255,255,0.7)',
-      marginTop: ms(2),
-    },
-    parkSubAlert: { color: '#FF8478', ...font.semibold },
+    sectionTitle: { fontSize: mf(22), letterSpacing: -0.4, color: c.textPrimary },
+    editBtn: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
+    editText: { fontSize: mf(15), ...font.bold, color: c.primary },
     dots: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
       gap: ms(6),
-      marginTop: ms(12),
+      marginTop: ms(10),
     },
     dotHit: { paddingVertical: ms(6), paddingHorizontal: ms(3) },
     dot: { height: ms(7), borderRadius: ms(4) },
-    splitRow: { flexDirection: 'row', gap: ms(12) },
+    splitRow: { flexDirection: 'row', gap: GAP },
     flex1: { flex: 1 },
 
     // empty state
     emptyCard: {
       height: CARD_H,
-      borderRadius: ms(18),
-      borderWidth: 1,
+      borderRadius: ms(24),
+      borderWidth: 1.5,
       borderColor: c.border,
       borderStyle: 'dashed',
       alignItems: 'center',
       justifyContent: 'center',
       gap: ms(8),
-      backgroundColor: c.surface,
     },
-    emptyText: { fontSize: mf(13.5), ...font.semibold, color: c.textSecondary },
+    emptyText: { fontSize: mf(14), ...font.semibold, color: c.textSecondary },
 
     // manage sheet
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -301,498 +167,26 @@ const makeStyles = (c: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     doneText: { fontSize: mf(15), ...font.bold, color: '#fff' },
   });
 
-type Styles = ReturnType<typeof makeStyles>;
-
-// ── Shared card shell ─────────────────────────────────────────────────────────
-function CardShell({
-  styles,
-  onPress,
-  accessibilityLabel,
-  children,
-}: {
-  styles: Styles;
-  onPress: () => void;
-  accessibilityLabel: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.shell, pressed && { opacity: 0.9 }]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
-      {children}
-    </Pressable>
-  );
-}
-
-function IconChip({
-  styles,
-  icon,
-  tint,
-  color,
-}: {
-  styles: Styles;
-  icon: IoniconName;
-  tint: string;
-  color: string;
-}): React.JSX.Element {
-  return (
-    <View style={[styles.iconChip, { backgroundColor: tint }]}>
-      <Ionicons name={icon} size={17} color={color} />
-    </View>
-  );
-}
-
-// ── Individual cards ──────────────────────────────────────────────────────────
-function GroceriesCard({
-  styles,
-  c,
-  compact,
-}: {
-  styles: Styles;
-  c: ColorTokens;
-  compact: boolean;
-}): React.JSX.Element {
-  const { t } = useTranslation();
-  const items = useGroceryStore((s) => s.items);
-  const toggleItem = useGroceryStore((s) => s.toggleItem);
-  const shared = items.filter((i) => !i.isPersonal && !i.isDraft);
-  const toBuy = shared.filter((i) => !i.isChecked).length;
-  const preview = shared.slice(0, compact ? 2 : 3);
-  const onToggle = useCallback(
-    (id: string): void => {
-      toggleItem(id).catch(() => {});
-    },
-    [toggleItem]
-  );
-  // Header navigates; the item rows are tappable to tick off in place, so this
-  // card is a working mini-list rather than a static Pressable.
-  return (
-    <View style={styles.shell}>
-      <Pressable
-        style={styles.cardTop}
-        onPress={() => navigateToBase('/(tabs)/grocery')}
-        accessibilityRole="button"
-        accessibilityLabel={t('dashboard.grocery_list')}
-      >
-        <IconChip styles={styles} icon="cart-outline" tint={c.warningTint} color={c.warning} />
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {t('dashboard.grocery_list')}
-        </Text>
-        {!compact && (
-          <Text style={styles.cardMeta}>{t('dashboard.n_to_buy', { count: toBuy })}</Text>
-        )}
-      </Pressable>
-      <View>
-        {preview.length === 0 ? (
-          <Text style={styles.cardSub}>{t('dashboard.grocery_empty')}</Text>
-        ) : (
-          preview.map((item) => (
-            <Pressable
-              key={item.id}
-              style={styles.groceryRow}
-              onPress={() => onToggle(item.id)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: item.isChecked }}
-              accessibilityLabel={item.name}
-            >
-              <View
-                style={[
-                  styles.groceryBox,
-                  item.isChecked
-                    ? { backgroundColor: c.success, borderColor: c.success }
-                    : { borderColor: c.border },
-                ]}
-              >
-                {item.isChecked && <Ionicons name="checkmark" size={11} color="#fff" />}
-              </View>
-              <Text
-                style={[
-                  styles.groceryName,
-                  { color: item.isChecked ? c.textTertiary : c.textPrimary },
-                  item.isChecked && styles.groceryDone,
-                ]}
-                numberOfLines={1}
-              >
-                {item.name}
-              </Text>
-            </Pressable>
-          ))
-        )}
-      </View>
-    </View>
-  );
-}
-
-function ChoresCard({ styles, c }: { styles: Styles; c: ColorTokens }): React.JSX.Element {
-  const { t } = useTranslation();
-  const tasks = useTasksStore((s) => s.tasks);
-  const total = tasks.length;
-  const done = tasks.filter((tk) => tk.isComplete).length;
-  const next = tasks.find((tk) => !tk.isComplete);
-  const R = 18;
-  const CIRC = 2 * Math.PI * R;
-  const pct = total > 0 ? done / total : 0;
-  return (
-    <CardShell
-      styles={styles}
-      onPress={() => navigateToBase('/(tabs)/tasks')}
-      accessibilityLabel={t('dashboard.x_of_y_done', { done, total })}
-    >
-      <View style={styles.cardTop}>
-        <IconChip
-          styles={styles}
-          icon="checkmark-done-outline"
-          tint={c.success + '22'}
-          color={c.success}
-        />
-        <Text style={styles.cardTitle}>{t('dashboard.tasks_label')}</Text>
-        <View style={styles.ringWrap}>
-          <Svg width={46} height={46} viewBox="0 0 46 46">
-            <Circle cx={23} cy={23} r={R} fill="none" stroke={c.surfaceSecondary} strokeWidth={5} />
-            <Circle
-              cx={23}
-              cy={23}
-              r={R}
-              fill="none"
-              stroke={c.success}
-              strokeWidth={5}
-              strokeLinecap="round"
-              strokeDasharray={CIRC}
-              strokeDashoffset={CIRC * (1 - pct)}
-              transform="rotate(-90 23 23)"
-            />
-          </Svg>
-          {total > 0 && <Text style={styles.ringPct}>{Math.round(pct * 100)}%</Text>}
-        </View>
-      </View>
-      <View>
-        <Text style={styles.bigStat}>
-          {done}
-          <Text style={styles.bigDenom}>/{total}</Text>
-        </Text>
-        <Text style={styles.cardSub} numberOfLines={1}>
-          {next ? t('dashboard.chore_next', { name: next.title }) : t('dashboard.chores_smashed')}
-        </Text>
-      </View>
-    </CardShell>
-  );
-}
-
-function VotesCard({
-  styles,
-  c,
-  compact,
-}: {
-  styles: Styles;
-  c: ColorTokens;
-  compact: boolean;
-}): React.JSX.Element {
-  const { t } = useTranslation();
-  const proposals = useVotingStore((s) => s.proposals);
-  const open = proposals.filter((p) => p.isOpen);
-  const next = open[0];
-  return (
-    <CardShell
-      styles={styles}
-      onPress={() => navigateToBase('/(tabs)/voting')}
-      accessibilityLabel={t('dashboard.votes_label')}
-    >
-      <View style={styles.cardTop}>
-        <IconChip styles={styles} icon="people-outline" tint={c.primaryTint} color={c.primary} />
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {t('dashboard.votes_label')}
-        </Text>
-        {!compact && (
-          <Text style={styles.cardMeta}>{t('dashboard.votes_open', { count: open.length })}</Text>
-        )}
-      </View>
-      <View>
-        <Text style={styles.bigStat}>{open.length}</Text>
-        <Text style={styles.cardSub} numberOfLines={1}>
-          {next ? next.title : t('dashboard.votes_none')}
-        </Text>
-      </View>
-    </CardShell>
-  );
-}
-
-interface ParkingCardProps {
-  styles: Styles;
-}
-
-export function ParkingCard({ styles }: ParkingCardProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const language = useLanguageStore((s) => s.language);
-  const rtl = isRTL(language);
-  const current = useParkingStore((s) => s.current);
-  const reservations = useParkingStore((s) => s.reservations);
-  const claimParking = useParkingStore((s) => s.claim);
-  const releaseParking = useParkingStore((s) => s.release);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const myId = useAuthStore((s) => s.profile?.id);
-  const myName = useAuthStore((s) => s.profile?.name);
-  const houseId = useAuthStore((s) => s.houseId);
-  const busyRef = useRef(false);
-  const [isBusy, setIsBusy] = useState(false);
-  const [cardW, setCardW] = useState(0);
-  const onLayout = useCallback((e: LayoutChangeEvent): void => {
-    setCardW(e.nativeEvent.layout.width);
-  }, []);
-  const isFree = !current;
-  // Re-check every minute while the spot is taken, so a reserved slot that
-  // starts while the car is still parked shows up without a reload.
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    if (!current) return;
-    setNowMs(Date.now());
-    const id = setInterval(() => setNowMs(Date.now()), 60_000);
-    return (): void => clearInterval(id);
-  }, [current]);
-  const blocked = useMemo(
-    () => findBlockedReservation(current, reservations ?? [], new Date(nowMs)),
-    [current, reservations, nowMs]
-  );
-  const blockedHolder = blocked
-    ? resolveName(blocked.requestedBy, housemates, t('common.unknown')).split(' ')[0]
-    : '';
-  const accent = isFree ? '#8FE0AC' : '#FF8478';
-  const pillBg = isFree ? 'rgba(79,176,113,0.16)' : 'rgba(255,97,85,0.16)';
-  const occupant = resolveName(current?.occupant ?? '', housemates, '').split(' ')[0];
-  // When another card is pinned this one renders at ~half width, so the car is
-  // sized and faded a little differently there than at full width.
-  const narrow = cardW === 0 || cardW < 210;
-  // The car fills the empty side of the card and reaches toward the middle so
-  // there's no dead band next to the (now short) status text — capped by the
-  // card height. It's bolder when free and pulls back a touch when taken.
-  const carW = narrow ? (isFree ? ms(140) : ms(120)) : Math.min(cardW * 0.66, ms(240));
-  const carH = carW / 1.6;
-  // Left edge of the car fades in; held back further when there is text to
-  // protect (taken, or the tight pinned width) and let bolder when free.
-  const fadeHold = isFree ? (narrow ? 0.12 : 0) : narrow ? 0.5 : 0;
-  const fadeSolid = isFree ? (narrow ? 0.42 : 0.15) : narrow ? 0.78 : 0.32;
-  const artStyle = rtl
-    ? narrow
-      ? styles.parkArtNarrowRTL
-      : styles.parkArtRTL
-    : narrow
-      ? styles.parkArtNarrow
-      : styles.parkArt;
-  // Tapping the card is a quick catch/release toggle — claim the free spot,
-  // release your own, or (when a housemate holds it) confirm before freeing it,
-  // mirroring the parking page's gate. The full page is reached from the bottom
-  // bar's car icon.
-  const handleParkingPress = useCallback((): void => {
-    // Immediate tactile ack so the toggle feels instant, not delayed.
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    const uid = myId ?? '';
-    const uname = myName ?? '';
-    const hId = houseId ?? '';
-    const cur = useParkingStore.getState().current;
-
-    if (cur && cur.occupant !== uid) {
-      const occupantName = resolveName(cur.occupant, housemates, t('common.unknown'));
-      const pinnedId = cur.id;
-      const doRelease = (): void => {
-        if (useParkingStore.getState().current?.id !== pinnedId) {
-          Alert.alert(t('parking.could_not_free'), t('parking.spot_changed'));
-          return;
-        }
-        if (busyRef.current) return;
-        busyRef.current = true;
-        setIsBusy(true);
-        releaseParking(hId, uname)
-          .catch(() => Alert.alert(t('parking.could_not_free'), t('parking.failed_release')))
-          .finally(() => {
-            busyRef.current = false;
-            setIsBusy(false);
-          });
-      };
-      if (Platform.OS === 'web') {
-        if (window.confirm(t('parking.evict_confirm', { name: occupantName }))) doRelease();
-      } else {
-        Alert.alert(
-          t('parking.kick_out_title', { name: occupantName }),
-          t('parking.kick_out_body'),
-          [
-            { text: t('parking.leave_it'), style: 'cancel' },
-            { text: t('parking.free_it_anyway'), style: 'destructive', onPress: doRelease },
-          ]
-        );
-      }
-      return;
-    }
-
-    if (busyRef.current) return;
-    busyRef.current = true;
-    setIsBusy(true);
-    const done = (): void => {
-      busyRef.current = false;
-      setIsBusy(false);
-    };
-    if (cur && cur.occupant === uid) {
-      releaseParking(hId, uname)
-        .catch((err) =>
-          Alert.alert(t('parking.title'), getErrorMessage(err, t('parking.failed_release')))
-        )
-        .finally(done);
-    } else {
-      claimParking(uid, uname, hId)
-        .catch((err) =>
-          Alert.alert(t('parking.title'), getErrorMessage(err, t('parking.failed_claim')))
-        )
-        .finally(done);
-    }
-  }, [myId, myName, houseId, housemates, claimParking, releaseParking, t]);
-  const isHousemate = !!current && current.occupant !== myId;
-  const parkingA11yLabel =
-    current?.occupant === myId
-      ? t('parking.a11y_release', 'Release parking spot')
-      : isHousemate
-        ? t('parking.a11y_release_housemate', "Free housemate's parking spot")
-        : t('parking.a11y_claim', 'Claim parking spot');
-  const parkingA11yHint = isHousemate
-    ? t('parking.a11y_hint_housemate', "Frees the housemate's reservation")
-    : t('parking.a11y_hint', 'Toggles your parking reservation');
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.parkShell,
-        pressed && { opacity: 0.92, transform: [{ scale: 0.97 }] },
-      ]}
-      onPress={handleParkingPress}
-      onLayout={onLayout}
-      disabled={isBusy}
-      accessibilityRole="button"
-      accessibilityLabel={parkingA11yLabel}
-      accessibilityHint={parkingA11yHint}
-      accessibilityState={{ disabled: isBusy }}
-    >
-      <LinearGradient
-        colors={PARK_GRADIENT}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={artStyle} pointerEvents="none">
-        <Svg width={carW} height={carH} viewBox="0 0 160 100">
-          <Defs>
-            {/* A transparent lead-in on the text side dissolves the car before
-                it reaches the words, then it turns solid toward its own edge. */}
-            <SvgLinearGradient id="parkFade" x1="0" y1="0" x2="1" y2="0">
-              <Stop offset="0" stopColor="#fff" stopOpacity={0} />
-              <Stop offset={fadeHold} stopColor="#fff" stopOpacity={0} />
-              <Stop offset={fadeSolid} stopColor="#fff" stopOpacity={1} />
-            </SvgLinearGradient>
-            <Mask id="parkFadeMask">
-              <Rect x="0" y="0" width="160" height="100" fill="url(#parkFade)" />
-            </Mask>
-          </Defs>
-          <Path d={CAR_PATH} fill={accent} opacity={isFree ? 0.5 : 0.4} mask="url(#parkFadeMask)" />
-        </Svg>
-      </View>
-      <View style={[styles.parkPill, { backgroundColor: pillBg }]}>
-        <Text style={[styles.parkPillText, { color: accent }]}>
-          {isFree ? t('dashboard.parking_free').toUpperCase() : t('parking.taken').toUpperCase()}
-        </Text>
-      </View>
-      <View>
-        <Text style={styles.parkLabel}>{t('dashboard.parking_label')}</Text>
-        <Text style={styles.parkStatus}>
-          {isFree ? t('dashboard.parking_free') : t('dashboard.parking_in_use')}
-        </Text>
-        {/* When free, the car is the hero — no sub-line to crowd it. When taken,
-            show who has the spot. */}
-        {!isFree && !blocked && (
-          <Text style={styles.parkSub} numberOfLines={1}>
-            {occupant || t('common.unknown')}
-          </Text>
-        )}
-        {/* Someone's reserved slot has started while this car is still parked. */}
-        {!isFree && blocked && (
-          <Text style={[styles.parkSub, styles.parkSubAlert]} numberOfLines={2}>
-            {current?.occupant === myId
-              ? t('dashboard.parking_blocked_move', { name: blockedHolder })
-              : t('dashboard.parking_blocked_other', { name: blockedHolder })}
-          </Text>
-        )}
-      </View>
-    </Pressable>
-  );
-}
-
-interface ApplianceCardProps {
-  styles: Styles;
-  kind: ApplianceKind;
-}
-
-function ApplianceCard({ styles, kind }: ApplianceCardProps): React.JSX.Element {
-  const { t } = useTranslation();
-  const session = useAppliancesStore((s) => s.sessions[kind]);
-  const housemates = useHousematesStore((s) => s.housemates);
-  const meta = MACHINE_META[kind];
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  // Tick the countdown only while this machine is actually running.
-  useEffect(() => {
-    if (!session) return;
-    setNowMs(Date.now());
-    const id = setInterval(() => setNowMs(Date.now()), 1000);
-    return (): void => clearInterval(id);
-  }, [session]);
-
-  const left = session ? Math.max(0, new Date(session.endsAt).getTime() - nowMs) : 0;
-  const running = session !== null && left > 0;
-  const who = session ? resolveName(session.startedBy, housemates, t('common.unknown')) : '';
-
-  return (
-    <CardShell
-      styles={styles}
-      onPress={() => navigateToBase('/(tabs)/machines')}
-      accessibilityLabel={t(meta.labelKey)}
-    >
-      <View style={styles.cardTop}>
-        <IconChip styles={styles} icon={meta.icon} tint={meta.color + '22'} color={meta.color} />
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {t(meta.labelKey)}
-        </Text>
-      </View>
-      <View>
-        <Text style={[styles.bigStat, session ? { color: meta.color } : undefined]}>
-          {!session ? t('machines.free') : running ? formatRemaining(left) : t('machines.finished')}
-        </Text>
-        <Text style={styles.cardSub} numberOfLines={1}>
-          {!session
-            ? t('machines.tap_to_start')
-            : running
-              ? t('machines.in_use_by', { name: who })
-              : t('machines.ready_to_unload')}
-        </Text>
-      </View>
-    </CardShell>
-  );
-}
-
 function renderCard(
   key: DashboardCardKey,
-  styles: Styles,
+  styles: CardStyles,
   c: ColorTokens,
-  compact: boolean
+  compact: boolean,
+  pinned = false
 ): React.JSX.Element {
   switch (key) {
     case 'groceries':
-      return <GroceriesCard styles={styles} c={c} compact={compact} />;
+      return <GroceriesCard styles={styles} c={c} compact={compact} pinned={pinned} />;
     case 'chores':
-      return <ChoresCard styles={styles} c={c} />;
+      return <ChoresCard styles={styles} pinned={pinned} />;
     case 'votes':
-      return <VotesCard styles={styles} c={c} compact={compact} />;
+      return <VotesCard styles={styles} c={c} compact={compact} pinned={pinned} />;
     case 'parking':
-      return <ParkingCard styles={styles} />;
+      return <ParkingCard styles={styles} pinned={pinned} />;
     case 'washer':
     case 'dryer':
     case 'dishwasher':
-      return <ApplianceCard styles={styles} kind={key} />;
+      return <ApplianceCard styles={styles} kind={key} pinned={pinned} />;
   }
 }
 
@@ -801,7 +195,9 @@ export function DashboardCarousel(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const rtl = isRTL(useLanguageStore((s) => s.language));
+  const headingFont = useHeadingFont('semibold');
   const styles = useMemo(() => makeStyles(c), [c]);
+  const cardStyles = useMemo(() => makeCardStyles(c), [c]);
   const enabled = useDashboardCardsStore((s) => s.enabled);
   const pinned = useDashboardCardsStore((s) => s.pinned);
   const setEnabled = useDashboardCardsStore((s) => s.setEnabled);
@@ -825,10 +221,18 @@ export function DashboardCarousel(): React.JSX.Element {
   // peeks the next card when there's more than one.
   const pinnedW = pinnedKey && width > 0 ? Math.round((width - GAP) / 2) : 0;
   const railOuter = pinnedKey ? width - pinnedW - GAP : width;
-  // Full-width rail peeks the next card; the narrow pinned rail fills its column
-  // (a thin sliver there just reads as a glitch), relying on the dots instead.
-  const peek = pinnedKey ? 0 : 40;
-  const cardW = railOuter > 0 ? (railKeys.length > 1 && peek ? railOuter - peek : railOuter) : 0;
+  // Unpinned, two glanceable cards sit side by side with the third peeking in;
+  // the narrow pinned rail fills its column (a thin sliver there just reads as
+  // a glitch), relying on the dots instead.
+  const peek = pinnedKey ? 0 : ms(28);
+  const cardW =
+    railOuter <= 0
+      ? 0
+      : pinnedKey || railKeys.length === 1
+        ? railOuter
+        : railKeys.length === 2
+          ? Math.round((railOuter - GAP) / 2)
+          : Math.round((railOuter - GAP - peek) / 2);
   const stride = cardW + GAP;
 
   const onLayout = useCallback((e: LayoutChangeEvent): void => {
@@ -903,7 +307,7 @@ export function DashboardCarousel(): React.JSX.Element {
               [rtl ? 'marginLeft' : 'marginRight']: i === railKeys.length - 1 ? 0 : GAP,
             }}
           >
-            {renderCard(key, styles, c, pinnedKey !== null)}
+            {renderCard(key, cardStyles, c, cardW < ms(220))}
           </View>
         ))}
       </ScrollView>
@@ -912,14 +316,15 @@ export function DashboardCarousel(): React.JSX.Element {
   return (
     <View onLayout={onLayout}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionLabel}>{t('dashboard.manage_cards')}</Text>
+        <Text style={[styles.sectionTitle, headingFont]} accessibilityRole="header">
+          {t('dashboard.manage_cards')}
+        </Text>
         <Pressable
-          style={styles.editBtn}
+          style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.6 }]}
           onPress={() => setManageOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={t('dashboard.manage_cards')}
         >
-          <Ionicons name="options-outline" size={14} color={c.textSecondary} />
           <Text style={styles.editText}>{t('dashboard.edit_cards')}</Text>
         </Pressable>
       </View>
@@ -934,7 +339,9 @@ export function DashboardCarousel(): React.JSX.Element {
           <>
             {pinnedKey ? (
               <View style={styles.splitRow}>
-                <View style={{ width: pinnedW }}>{renderCard(pinnedKey, styles, c, false)}</View>
+                <View style={{ width: pinnedW }}>
+                  {renderCard(pinnedKey, cardStyles, c, true, true)}
+                </View>
                 <View style={styles.flex1}>{rail}</View>
               </View>
             ) : (

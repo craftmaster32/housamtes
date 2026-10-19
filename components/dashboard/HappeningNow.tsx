@@ -84,7 +84,7 @@ function Banner({
     <Pressable
       style={({ pressed }) => [
         styles.banner,
-        { backgroundColor: c.surface, borderColor: c.border, borderLeftColor: accent },
+        { backgroundColor: c.surface },
         pressed && styles.pressed,
       ]}
       onPress={onPress}
@@ -94,7 +94,7 @@ function Banner({
       accessibilityState={{ disabled: false }}
     >
       <View style={[styles.bannerIcon, { backgroundColor: accent + '1F' }]}>
-        <Ionicons name={icon} size={17} color={accent} />
+        <Ionicons name={icon} size={18} color={accent} />
       </View>
       <View style={styles.flex1}>
         <View style={styles.eyebrowRow}>
@@ -224,7 +224,7 @@ export function HappeningNow(): React.JSX.Element {
       // a prominent banner — no far-out compact rows.
       const isToday = item.date === today;
       const dayLabel = isToday ? t('common.today') : t('common.tomorrow');
-      const eyebrow = (item.startTime ? `${dayLabel} · ${item.startTime}` : dayLabel).toUpperCase();
+      const eyebrow = item.startTime ? `${dayLabel} · ${item.startTime}` : dayLabel;
       return (
         <Banner
           icon={item.icon}
@@ -243,7 +243,7 @@ export function HappeningNow(): React.JSX.Element {
   const hasLive = !!activeRun;
   if (!hasLive && soon.length === 0) return <></>;
 
-  const nowLabel = t('happening.now').toUpperCase();
+  const nowLabel = t('happening.now');
 
   return (
     <View>
@@ -280,25 +280,24 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
 
   banner: {
-    marginTop: ms(12),
+    marginTop: ms(10),
     flexDirection: 'row',
     alignItems: 'center',
-    gap: ms(11),
-    borderWidth: 1,
-    borderLeftWidth: 3,
-    borderRadius: ms(16),
-    padding: ms(13),
+    gap: ms(12),
+    borderRadius: ms(20),
+    paddingVertical: ms(13),
+    paddingHorizontal: ms(14),
   },
   bannerIcon: {
-    width: ms(34),
-    height: ms(34),
-    borderRadius: ms(11),
+    width: ms(38),
+    height: ms(38),
+    borderRadius: ms(19),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bannerTitle: { fontSize: mf(14.5), ...font.semibold, marginTop: ms(2) },
+  bannerTitle: { fontSize: mf(15.5), ...font.semibold, marginTop: ms(1) },
 
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
-  eyebrow: { fontSize: mf(10), ...font.bold, letterSpacing: 0.5, textTransform: 'uppercase' },
+  eyebrow: { fontSize: mf(13), ...font.bold },
   liveDot: { width: ms(7), height: ms(7), borderRadius: ms(4) },
 });
