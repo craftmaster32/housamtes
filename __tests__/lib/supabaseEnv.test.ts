@@ -62,13 +62,23 @@ describe('Supabase project selection', () => {
     expect(url).toBe('https://live.supabase.co');
   });
 
-  it('never mixes projects when only one test value is set', () => {
-    const [url, key] = loadClientWith({
-      ...LIVE,
-      EXPO_PUBLIC_APP_ENV: 'preview',
-      EXPO_PUBLIC_STAGING_SUPABASE_ANON_KEY: undefined,
-    });
-    expect(url).toBe('https://live.supabase.co');
-    expect(key).toBe('live-key');
+  it('throws when only the staging URL is set on a preview build', () => {
+    expect(() =>
+      loadClientWith({
+        ...LIVE,
+        EXPO_PUBLIC_APP_ENV: 'preview',
+        EXPO_PUBLIC_STAGING_SUPABASE_ANON_KEY: undefined,
+      })
+    ).toThrow('Both staging Supabase environment variables must be set together.');
+  });
+
+  it('throws when only the staging anon key is set on a preview build', () => {
+    expect(() =>
+      loadClientWith({
+        ...LIVE,
+        EXPO_PUBLIC_APP_ENV: 'preview',
+        EXPO_PUBLIC_STAGING_SUPABASE_URL: undefined,
+      })
+    ).toThrow('Both staging Supabase environment variables must be set together.');
   });
 });
