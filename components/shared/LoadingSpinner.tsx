@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, AccessibilityInfo, type StyleProp, type ViewStyle } from 'react-native';
+import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, darkColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { MateDrawing } from '@components/shared/MateDrawing';
+import { useReduceMotion } from '@hooks/useReduceMotion';
 
 interface LoadingSpinnerProps {
   /** Overall width in px, as before; Mate is drawn at about half of it. Default 96. */
@@ -57,18 +58,7 @@ export function LoadingSpinner({
   const C = useThemedColors();
   const talks = showQuip ?? size >= QUIP_MIN_SIZE;
 
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((on) => {
-        if (alive) setReduceMotion(on);
-      })
-      .catch(() => {});
-    return (): void => {
-      alive = false;
-    };
-  }, []);
+  const reduceMotion = useReduceMotion();
 
   const [progress, setProgress] = useState(0);
   const raf = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);

@@ -557,7 +557,7 @@ export default function RootLayout(): React.JSX.Element | null {
             <WebAlertHost />
             {(isLoading || !fontsLoaded) && (
               <View style={styles.splash}>
-                <LoadingSpinner size={140} onDark />
+                <LoadingSpinner size={140} onDark showQuip={fontsLoaded} />
               </View>
             )}
           </View>
