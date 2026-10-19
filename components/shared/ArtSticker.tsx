@@ -23,11 +23,8 @@ export function ArtSticker({ children, style }: ArtStickerProps): React.JSX.Elem
 }
 
 const styles = StyleSheet.create({
-  // The backing grows outward (negative margin), so the drawing itself stays
-  // exactly where it sits in light mode.
   sticker: {
     padding: ms(6),
-    margin: -ms(6),
     borderRadius: ms(16),
     transform: [{ rotate: '-4deg' }],
     shadowColor: '#000',

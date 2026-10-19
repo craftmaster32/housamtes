@@ -10,7 +10,6 @@ import { type CardStyles } from '@components/dashboard/cards/cardStyles';
 import { CardShell } from '@components/dashboard/cards/CardShell';
 import { CardLabel } from '@components/dashboard/cards/CardLabel';
 import { BucketArt } from '@components/dashboard/art/BucketArt';
-import { ArtSticker } from '@components/shared/ArtSticker';
 import { ms } from '@utils/responsive';
 
 interface ChoresCardProps {
@@ -47,9 +46,7 @@ export function ChoresCard({ styles, pinned = false }: ChoresCardProps): React.J
         {next ? t('dashboard.chore_next', { name: next.title }) : t('dashboard.chores_smashed')}
       </Text>
       <View style={rtl ? styles.artRTL : styles.art} pointerEvents="none">
-        <ArtSticker>
-          <BucketArt width={ms(40)} />
-        </ArtSticker>
+        <BucketArt width={ms(40)} />
       </View>
     </CardShell>
   );
