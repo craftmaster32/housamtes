@@ -234,6 +234,11 @@ export function DashboardCarousel(): React.JSX.Element {
           ? Math.round((railOuter - GAP) / 2)
           : Math.round((railOuter - GAP - peek) / 2);
   const stride = cardW + GAP;
+  // Cards fully visible at once; the trailing pad only lets the last card
+  // snap into the last visible slot instead of leaving a blank slot.
+  const perView = pinnedKey || railKeys.length === 1 ? 1 : 2;
+  const trailingPad = Math.max(0, railOuter - (perView * cardW + (perView - 1) * GAP));
+  const positions = Math.max(1, railKeys.length - perView + 1);
 
   const onLayout = useCallback((e: LayoutChangeEvent): void => {
     setWidth(e.nativeEvent.layout.width);
@@ -249,7 +254,7 @@ export function DashboardCarousel(): React.JSX.Element {
     (e: NativeSyntheticEvent<NativeScrollEvent>): void => {
       if (stride <= 0) return;
       const offset = e.nativeEvent.contentOffset.x * rtlScrollSign;
-      const i = Math.max(0, Math.min(Math.round(offset / stride), railKeys.length - 1));
+      const i = Math.max(0, Math.min(Math.round(offset / stride), positions - 1));
       setIndex((prev) => (prev === i ? prev : i));
     },
     [stride, railKeys.length, rtlScrollSign]
@@ -296,7 +301,7 @@ export function DashboardCarousel(): React.JSX.Element {
         // flips to the left; keeping them on the right would shove the first
         // card off the right border and leave a gap there.
         contentContainerStyle={
-          rtl ? { paddingLeft: railOuter - cardW } : { paddingRight: railOuter - cardW }
+          rtl ? { paddingLeft: trailingPad } : { paddingRight: trailingPad }
         }
       >
         {railKeys.map((key, i) => (
@@ -348,9 +353,10 @@ export function DashboardCarousel(): React.JSX.Element {
               rail
             )}
 
-            {railKeys.length > 1 && (
+            {positions > 1 && (
               <View style={styles.dots}>
-                {railKeys.map((key, i) => {
+                {Array.from({ length: positions }, (_, i) => {
+                  const key = railKeys[i];
                   const inputRange = [(i - 1) * stride, i * stride, (i + 1) * stride];
                   const dotWidth = scrollProgress.interpolate({
                     inputRange,
