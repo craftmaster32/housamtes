@@ -7,7 +7,7 @@
  * the notes page.
  */
 
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, within } from '@testing-library/react-native';
 import { PinnedNote } from '@components/dashboard/PinnedNote';
 import { navigateToBase } from '@stores/navigationStore';
 
@@ -81,6 +81,14 @@ describe('PinnedNote', () => {
     fireEvent.press(top());
     expect(screen.getByText('Newest')).toBeTruthy();
     expect(navigateToBase).not.toHaveBeenCalled();
+  });
+
+  it('keeps "See all" beside the note button, not inside it, so VoiceOver can reach both', () => {
+    mockNotes.items = [note('n1', 'Newest'), note('n2', 'Older')];
+    render(<PinnedNote />);
+    const noteButton = screen.getByLabelText(/^dashboard\.note_position/);
+    expect(within(noteButton).queryByText('dashboard.see_all')).toBeNull();
+    expect(screen.getByText('dashboard.see_all')).toBeTruthy();
   });
 
   it('"See all" opens the notes page', () => {

@@ -133,26 +133,24 @@ export function PinnedNote(): React.JSX.Element | null {
           ],
         }}
       >
-        <Pressable
-          style={({ pressed }) => [
-            styles.note,
-            { backgroundColor: c.note },
-            pressed && styles.pressed,
-          ]}
-          onPress={several ? showNext : OPEN_NOTES}
-          accessibilityRole="button"
-          accessibilityLabel={`${several ? `${position}. ` : ''}${by}, ${ago}. ${current.text}`}
-          accessibilityHint={several ? t('dashboard.next_note_hint') : undefined}
-        >
+        {/* The note itself is plain paper; the tap-to-flip area and "See all" sit
+            on it side by side, so VoiceOver can reach both. */}
+        <View style={[styles.note, { backgroundColor: c.note }]}>
           <View style={styles.tape} />
-          <Text style={[styles.by, { color: c.noteInk }]} numberOfLines={1}>
-            {by} · {ago}
-          </Text>
-          <Text style={[styles.text, handFont, { color: c.noteInk }]} numberOfLines={2}>
-            {current.text}
-          </Text>
-          {several && (
-            <View style={styles.footer}>
+          <Pressable
+            style={({ pressed }) => [styles.noteTap, pressed && styles.pressed]}
+            onPress={several ? showNext : OPEN_NOTES}
+            accessibilityRole="button"
+            accessibilityLabel={`${several ? `${position}. ` : ''}${by}, ${ago}. ${current.text}`}
+            accessibilityHint={several ? t('dashboard.next_note_hint') : undefined}
+          >
+            <Text style={[styles.by, { color: c.noteInk }]} numberOfLines={1}>
+              {by} · {ago}
+            </Text>
+            <Text style={[styles.text, handFont, { color: c.noteInk }]} numberOfLines={2}>
+              {current.text}
+            </Text>
+            {several && (
               <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
                 {notes.map((n, i) => (
                   <View
@@ -165,20 +163,22 @@ export function PinnedNote(): React.JSX.Element | null {
                   />
                 ))}
               </View>
-              <Pressable
-                onPress={OPEN_NOTES}
-                hitSlop={ms(12)}
-                accessibilityRole="link"
-                accessibilityLabel={t('dashboard.see_all')}
-                style={({ pressed }) => [styles.seeAll, pressed && styles.pressed]}
-              >
-                <Text style={[styles.seeAllText, { color: c.noteInk }]}>
-                  {t('dashboard.see_all')}
-                </Text>
-              </Pressable>
-            </View>
+            )}
+          </Pressable>
+          {several && (
+            <Pressable
+              onPress={OPEN_NOTES}
+              hitSlop={ms(12)}
+              accessibilityRole="link"
+              accessibilityLabel={t('dashboard.see_all')}
+              style={({ pressed }) => [styles.seeAll, pressed && styles.pressed]}
+            >
+              <Text style={[styles.seeAllText, { color: c.noteInk }]}>
+                {t('dashboard.see_all')}
+              </Text>
+            </Pressable>
           )}
-        </Pressable>
+        </View>
       </Animated.View>
     </View>
   );
@@ -201,9 +201,6 @@ const styles = StyleSheet.create({
   // Notes underneath sit a shade darker so the top one reads as on top.
   layerShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.07)' },
   note: {
-    paddingHorizontal: ms(18),
-    paddingTop: ms(20),
-    paddingBottom: ms(14),
     borderRadius: ms(2),
     transform: [{ rotate: '0.8deg' }],
     shadowColor: '#000',
@@ -223,17 +220,20 @@ const styles = StyleSheet.create({
   },
   by: { fontSize: mf(13), ...font.bold, opacity: 0.75 },
   text: { fontSize: mf(25), lineHeight: mf(30), marginTop: ms(4) },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: ms(6),
-  },
-  dots: { flexDirection: 'row', alignItems: 'center', gap: ms(5) },
+  noteTap: { paddingHorizontal: ms(18), paddingTop: ms(20), paddingBottom: ms(14) },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: ms(5), marginTop: ms(10) },
   dot: { height: ms(6), borderRadius: ms(3) },
   dotOn: { width: ms(16), opacity: 0.7 },
   dotOff: { width: ms(6), opacity: 0.25 },
-  seeAll: { minHeight: 44, justifyContent: 'center', paddingHorizontal: ms(4) },
+  // Sits over the bottom corner of the note, next to the dots.
+  seeAll: {
+    position: 'absolute',
+    bottom: ms(2),
+    end: ms(14),
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: ms(4),
+  },
   seeAllText: { fontSize: mf(14), ...font.bold, textDecorationLine: 'underline', opacity: 0.8 },
   pressed: { opacity: 0.9 },
 });

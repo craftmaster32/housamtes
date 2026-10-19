@@ -37,7 +37,11 @@ function LiveDot({ color }: LiveDotProps): React.JSX.Element {
   const reduceMotion = useReduceMotion();
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion) {
+      // Stopped mid-pulse? Settle back to a fully visible dot.
+      pulse.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
