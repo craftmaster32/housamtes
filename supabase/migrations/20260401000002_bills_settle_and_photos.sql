@@ -42,3 +42,15 @@ CREATE POLICY "house members can upload photos"
 CREATE POLICY "users can delete own photos"
   ON photos FOR DELETE
   USING (user_id = auth.uid());
+
+-- Broadcast photo changes (moved here from enable_realtime, which ran before
+-- this table existed and so failed on a fresh database).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'photos'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE photos;
+  END IF;
+END $$;
