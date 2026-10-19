@@ -1,5 +1,4 @@
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, Pressable, type LayoutChangeEvent } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,27 +13,19 @@ import {
 import { useRecurringBillsStore, calculateFairness } from '@stores/recurringBillsStore';
 import { useHousematesStore } from '@stores/housematesStore';
 import { useSettingsStore } from '@stores/settingsStore';
-import { useLanguageStore } from '@stores/languageStore';
-import { isRTL } from '@lib/i18n';
 import { useThemedColors } from '@constants/colors';
 import { font, heading } from '@constants/typography';
 import { formatFull } from '@constants/currencies';
 import { Money } from '@components/shared/Money';
+import { NotebookPaper } from '@components/shared/NotebookPaper';
 import { useHeadingFont } from '@hooks/useHeadingFont';
 import { mf, ms } from '@utils/responsive';
-
-// Notebook ruling: a faint blue line every RULE_GAP, starting below the top edge.
-const RULE_GAP = ms(32);
-const RULE_TOP = ms(44);
-// The scalloped tear along the bottom, like a page pulled from a pad.
-const SCALLOP = ms(12);
 
 // "You're owed" — the money summary, drawn as a notebook page.
 export function OwedCard(): React.JSX.Element {
   const { t } = useTranslation();
   const c = useThemedColors();
   const headingFont = useHeadingFont('semibold');
-  const rtl = isRTL(useLanguageStore((s) => s.language));
   const currencyCode = useSettingsStore((s) => s.currencyCode);
   const bills = useBillsStore((s) => s.bills);
   const profile = useAuthStore((s) => s.profile);
@@ -42,11 +33,6 @@ export function OwedCard(): React.JSX.Element {
   const payments = useRecurringBillsStore((s) => s.payments);
   const householdMembers = useHousematesStore((s) => s.housemates);
   const myId = profile?.id ?? '';
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const onLayout = useCallback((e: LayoutChangeEvent): void => {
-    const { width, height } = e.nativeEvent.layout;
-    setSize({ w: width, h: height });
-  }, []);
 
   const activeBills = bills.filter((b) => !b.settled);
   const combinedNet = new Map<string, number>(calculateAllNetBalances(activeBills));
@@ -65,13 +51,9 @@ export function OwedCard(): React.JSX.Element {
   const peopleCount = balances.length;
   const settled = balances.length === 0;
 
-  const ruleCount =
-    size.h > RULE_TOP ? Math.floor((size.h - RULE_TOP - SCALLOP) / RULE_GAP) + 1 : 0;
-  const scallopCount = size.w > 0 ? Math.ceil(size.w / SCALLOP) + 1 : 0;
-
   return (
     <Pressable
-      style={({ pressed }) => [styles.wrap, pressed && styles.pressed]}
+      style={({ pressed }) => [pressed && styles.pressed]}
       onPress={() => navigateToBase('/(tabs)/bills')}
       accessibilityRole="button"
       accessibilityLabel={
@@ -82,24 +64,7 @@ export function OwedCard(): React.JSX.Element {
             })
       }
     >
-      <View style={[styles.page, { backgroundColor: c.paper }]} onLayout={onLayout}>
-        {/* Ruled lines + the red margin line, drawn behind the content. */}
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          {Array.from({ length: ruleCount }, (_, i) => (
-            <View
-              key={i}
-              style={[styles.rule, { top: RULE_TOP + i * RULE_GAP, backgroundColor: c.paperRule }]}
-            />
-          ))}
-          <View
-            style={[
-              styles.margin,
-              rtl ? styles.marginRTL : styles.marginLTR,
-              { backgroundColor: c.paperMargin },
-            ]}
-          />
-        </View>
-
+      <NotebookPaper>
         {settled ? (
           <View style={styles.settledRow}>
             <View style={styles.flex1}>
@@ -144,44 +109,12 @@ export function OwedCard(): React.JSX.Element {
             </Text>
           </>
         )}
-      </View>
-      {/* Scalloped tear: dots of the page colour hanging off the bottom edge. */}
-      <View style={styles.scallops} pointerEvents="none">
-        {Array.from({ length: scallopCount }, (_, i) => (
-          <View key={i} style={[styles.scallop, { backgroundColor: c.paper }]} />
-        ))}
-      </View>
+      </NotebookPaper>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: ms(14) },
-    shadowOpacity: 0.16,
-    shadowRadius: ms(18),
-    elevation: 6,
-  },
-  page: {
-    borderTopLeftRadius: ms(22),
-    borderTopRightRadius: ms(22),
-    paddingHorizontal: ms(24),
-    paddingTop: ms(20),
-    paddingBottom: ms(18),
-    overflow: 'hidden',
-  },
-  rule: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth * 2 },
-  margin: { position: 'absolute', top: 0, bottom: 0, width: 1.5 },
-  marginLTR: { left: ms(14) },
-  marginRTL: { right: ms(14) },
-  scallops: { flexDirection: 'row', height: SCALLOP / 2, overflow: 'hidden' },
-  scallop: {
-    width: SCALLOP,
-    height: SCALLOP,
-    borderRadius: SCALLOP / 2,
-    marginTop: -SCALLOP / 2,
-  },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   label: { fontSize: mf(16), ...font.bold },
   chartBtn: {

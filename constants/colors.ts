@@ -6,6 +6,7 @@
 //          that lifts toward you as surfaces stack, never brown or pure black.
 // Both share the blue brand accent. The home screen adds two "paper" surfaces:
 // a notebook page for the money card and a blue sticky note for house notes.
+// Bills adds a receipt slip; drawings sit on a light sticker in dark mode.
 
 export type Gradient = readonly [string, string];
 
@@ -55,6 +56,13 @@ export interface ColorPalette {
   paperMargin: string;
   note: string;
   noteInk: string;
+  // Receipt paper (bills): stays light in dark mode, like a real slip
+  receipt: string;
+  receiptInk: string;
+  receiptMuted: string;
+  receiptRule: string;
+  // Light backing behind hand-drawn pictures in dark mode (a sticker)
+  sticker: string;
 }
 
 export const lightColors: ColorPalette = {
@@ -116,6 +124,11 @@ export const lightColors: ColorPalette = {
   paperMargin: 'rgba(214,88,74,0.32)',
   note: '#D6E4F7',
   noteInk: '#14243D',
+  receipt: '#FFFDF8',
+  receiptInk: '#22201D',
+  receiptMuted: '#7A746B',
+  receiptRule: 'rgba(34,32,29,0.2)',
+  sticker: 'transparent',
 };
 
 export const darkColors: ColorPalette = {
@@ -177,6 +190,11 @@ export const darkColors: ColorPalette = {
   paperMargin: 'rgba(214,88,74,0.35)',
   note: '#CADBF2',
   noteInk: '#14243D',
+  receipt: '#F4F1EA',
+  receiptInk: '#22201D',
+  receiptMuted: '#7A746B',
+  receiptRule: 'rgba(34,32,29,0.2)',
+  sticker: '#F3EEE3',
 };
 
 // Backward-compat alias — existing screens that import `colors` get light theme.
