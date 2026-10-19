@@ -23,6 +23,7 @@ import { isRTL } from '@lib/i18n';
 import { monthNameFromKey, localizedMonthLabel } from '@utils/dates';
 import { CountUpText } from '@components/shared/CountUpText';
 import { LoadingSpinner } from '@components/shared/LoadingSpinner';
+import { ContributionCards } from '@components/bills/recurring/ContributionCards';
 import { localizeCategoryName } from '@utils/categoryName';
 
 import { mf, ms } from '@utils/responsive';
@@ -746,6 +747,9 @@ export default function SpendingScreen(): React.JSX.Element {
             viewMode={viewMode}
           />
         )}
+
+      {/* Who has been paying the recurring household bills. */}
+      <ContributionCards />
 
       {sections.length > 0 && (
         <Text style={styles.breakdownTitle}>

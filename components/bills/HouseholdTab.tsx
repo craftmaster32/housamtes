@@ -9,7 +9,6 @@ import { useHeadingFont } from '@hooks/useHeadingFont';
 import { useHandFont } from '@hooks/useHandFont';
 import { useSettingsStore } from '@stores/settingsStore';
 import { DeletedBillsList } from '@components/bills/DeletedBillsList';
-import { ContributionCards } from '@components/bills/recurring/ContributionCards';
 import { RecurringBillCard } from '@components/bills/recurring/RecurringBillCard';
 import { RecurringBillForm } from '@components/bills/recurring/RecurringBillForm';
 import { EmptyState } from '@components/ui';
@@ -99,12 +98,6 @@ export function HouseholdTab(): React.JSX.Element {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ContributionCards />
-
-      <Text style={[styles.sectionTitle, headingFont, { color: c.textPrimary }]}>
-        {t('bills.recurring_bills')}
-      </Text>
-
       {bills.length === 0 && !showAddForm && (
         <View style={styles.emptySection}>
           <Text style={[styles.emptyTitle, headingFont, { color: c.textPrimary }]}>
@@ -156,12 +149,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   // The Bills screen already pads the page, so only space the sections here.
   content: { paddingTop: ms(8), paddingBottom: ms(60), gap: ms(12) },
-  sectionTitle: {
-    fontSize: mf(22),
-    letterSpacing: -0.4,
-    marginTop: ms(10),
-    paddingHorizontal: ms(4),
-  },
 
   // "+ Add recurring bill" — a dashed, handwritten slot at the end of the list.
   addBillBtn: {
