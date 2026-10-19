@@ -1,11 +1,14 @@
-import { View, StyleSheet, Pressable } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, Pressable, Animated, Easing } from 'react-native';
 import { Text } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { navigateToBase } from '@stores/navigationStore';
 import { useAnnouncementsStore } from '@stores/announcementsStore';
 import { useLanguageStore } from '@stores/languageStore';
+import { isRTL } from '@lib/i18n';
 import { useMemberName } from '@hooks/useMemberName';
 import { useHandFont } from '@hooks/useHandFont';
+import { useReduceMotion } from '@hooks/useReduceMotion';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
 import { mf, ms } from '@utils/responsive';
@@ -28,68 +31,155 @@ function timeAgo(
   return new Date(iso).toLocaleDateString(localeFor(lang), { month: 'short', day: 'numeric' });
 }
 
-// Older notes peeking out behind the newest one: offset + tilt per layer.
+// Notes waiting underneath the top one: offset + tilt per layer.
 const PILE = [
   { rotate: '-2.4deg', translateY: ms(7) },
   { rotate: '2.6deg', translateY: ms(12) },
 ];
+// How far the top note travels when it's tossed aside.
+const TOSS_X = ms(420);
+const TOSS_MS = 260;
 
-// The latest house note, shown as a sticky note taped to the fridge. When
-// there are more, the older ones peek out underneath like a little pile.
+const OPEN_NOTES = (): void => navigateToBase('/(tabs)/notes');
+
+// The house notes, shown as sticky notes taped to the fridge. With several,
+// tapping the top one tosses it aside to reveal the next; after the last one
+// the first comes back round, so no note is ever lost. A lone note opens the
+// notes page instead.
 export function PinnedNote(): React.JSX.Element | null {
   const { t } = useTranslation();
   const c = useThemedColors();
   const handFont = useHandFont();
   const language = useLanguageStore((s) => s.language);
+  const rtl = isRTL(language);
+  const reduceMotion = useReduceMotion();
   const notes = useAnnouncementsStore((s) => s.items);
   const memberName = useMemberName();
-  const latest = notes[0];
+  const [index, setIndex] = useState(0);
+  const toss = useRef(new Animated.Value(0)).current;
+  const settle = useRef(new Animated.Value(1)).current;
+  const busy = useRef(false);
 
-  if (!latest) return null;
+  const count = notes.length;
+  // Notes can be added or removed while we're part-way through the pile.
+  useEffect(() => {
+    if (index >= count) setIndex(0);
+  }, [index, count]);
 
-  const author = memberName(latest.author).split(' ')[0];
+  const showNext = useCallback((): void => {
+    if (busy.current || count < 2) return;
+    const advance = (): void => setIndex((i) => (i + 1) % count);
+    if (reduceMotion) {
+      advance();
+      return;
+    }
+    busy.current = true;
+    Animated.timing(toss, {
+      toValue: 1,
+      duration: TOSS_MS,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => {
+      advance();
+      toss.setValue(0);
+      settle.setValue(0.96);
+      Animated.spring(settle, { toValue: 1, friction: 6, useNativeDriver: true }).start();
+      busy.current = false;
+    });
+  }, [count, reduceMotion, toss, settle]);
+
+  const current = notes[Math.min(index, count - 1)];
+  if (!current) return null;
+
+  const several = count > 1;
+  const author = memberName(current.author).split(' ')[0];
   const by = t('dashboard.pinned_by', { name: author });
-  const ago = timeAgo(latest.createdAt, t, language);
-  const more = notes.length - 1;
-  const moreLabel = more > 0 ? t('dashboard.more_notes', { count: more }) : '';
+  const ago = timeAgo(current.createdAt, t, language);
+  const position = t('dashboard.note_position', { n: index + 1, count });
+  const dir = rtl ? -1 : 1;
 
   return (
-    <View style={[styles.wrap, more > 0 && styles.wrapPile]}>
-      {PILE.slice(0, Math.min(more, PILE.length))
-        .reverse()
-        .map((layer) => (
-          <View
-            key={layer.rotate}
-            style={[
-              styles.layer,
-              {
-                backgroundColor: c.note,
-                transform: [{ translateY: layer.translateY }, { rotate: layer.rotate }],
-              },
-            ]}
-          >
-            <View style={styles.layerShade} />
-          </View>
-        ))}
-      <Pressable
-        style={({ pressed }) => [
-          styles.note,
-          { backgroundColor: c.note },
-          pressed && styles.pressed,
-        ]}
-        onPress={() => navigateToBase('/(tabs)/notes')}
-        accessibilityRole="button"
-        accessibilityLabel={`${by}, ${ago}. ${latest.text}${moreLabel ? `. ${moreLabel}` : ''}`}
+    <View style={[styles.wrap, several && styles.wrapPile]}>
+      {several &&
+        PILE.slice(0, Math.min(count - 1, PILE.length))
+          .reverse()
+          .map((layer) => (
+            <View
+              key={layer.rotate}
+              style={[
+                styles.layer,
+                {
+                  backgroundColor: c.note,
+                  transform: [{ translateY: layer.translateY }, { rotate: layer.rotate }],
+                },
+              ]}
+            >
+              <View style={styles.layerShade} />
+            </View>
+          ))}
+      <Animated.View
+        style={{
+          transform: [
+            {
+              translateX: toss.interpolate({ inputRange: [0, 1], outputRange: [0, dir * TOSS_X] }),
+            },
+            {
+              rotate: toss.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0deg', `${dir * 14}deg`],
+              }),
+            },
+            { scale: settle },
+          ],
+        }}
       >
-        <View style={styles.tape} />
-        <Text style={[styles.by, { color: c.noteInk }]} numberOfLines={1}>
-          {by} · {ago}
-        </Text>
-        <Text style={[styles.text, handFont, { color: c.noteInk }]} numberOfLines={3}>
-          {latest.text}
-        </Text>
-        {more > 0 && <Text style={[styles.more, { color: c.noteInk }]}>{moreLabel}</Text>}
-      </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.note,
+            { backgroundColor: c.note },
+            pressed && styles.pressed,
+          ]}
+          onPress={several ? showNext : OPEN_NOTES}
+          accessibilityRole="button"
+          accessibilityLabel={`${several ? `${position}. ` : ''}${by}, ${ago}. ${current.text}`}
+          accessibilityHint={several ? t('dashboard.next_note_hint') : undefined}
+        >
+          <View style={styles.tape} />
+          <Text style={[styles.by, { color: c.noteInk }]} numberOfLines={1}>
+            {by} · {ago}
+          </Text>
+          <Text style={[styles.text, handFont, { color: c.noteInk }]} numberOfLines={3}>
+            {current.text}
+          </Text>
+          {several && (
+            <View style={styles.footer}>
+              <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
+                {notes.map((n, i) => (
+                  <View
+                    key={n.id}
+                    style={[
+                      styles.dot,
+                      { backgroundColor: c.noteInk },
+                      i === index ? styles.dotOn : styles.dotOff,
+                    ]}
+                  />
+                ))}
+              </View>
+              <Pressable
+                onPress={OPEN_NOTES}
+                hitSlop={ms(12)}
+                accessibilityRole="link"
+                accessibilityLabel={t('dashboard.see_all')}
+                style={({ pressed }) => [styles.seeAll, pressed && styles.pressed]}
+              >
+                <Text style={[styles.seeAllText, { color: c.noteInk }]}>
+                  {t('dashboard.see_all')}
+                </Text>
+              </Pressable>
+            </View>
+          )}
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -108,7 +198,7 @@ const styles = StyleSheet.create({
     shadowRadius: ms(6),
     elevation: 2,
   },
-  // Older notes sit a shade darker so the newest one reads as on top.
+  // Notes underneath sit a shade darker so the top one reads as on top.
   layerShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.07)' },
   note: {
     paddingHorizontal: ms(18),
@@ -133,6 +223,17 @@ const styles = StyleSheet.create({
   },
   by: { fontSize: mf(13), ...font.bold, opacity: 0.75 },
   text: { fontSize: mf(25), lineHeight: mf(30), marginTop: ms(4) },
-  more: { alignSelf: 'flex-end', fontSize: mf(13), ...font.bold, opacity: 0.75, marginTop: ms(2) },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: ms(6),
+  },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: ms(5) },
+  dot: { height: ms(6), borderRadius: ms(3) },
+  dotOn: { width: ms(16), opacity: 0.7 },
+  dotOff: { width: ms(6), opacity: 0.25 },
+  seeAll: { minHeight: 44, justifyContent: 'center', paddingHorizontal: ms(4) },
+  seeAllText: { fontSize: mf(14), ...font.bold, textDecorationLine: 'underline', opacity: 0.8 },
   pressed: { opacity: 0.9 },
 });

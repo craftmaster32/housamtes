@@ -460,7 +460,8 @@
     "pinned": "מוצמד",
     "card_on": "בלוח",
     "card_off": "מוסתר",
-    "more_notes": "+{{count}} נוספות"
+    "note_position": "פתק {{n}} מתוך {{count}}",
+    "next_note_hint": "מציג את הפתק הבא"
   },
   "happening": {
     "now": "עכשיו",

@@ -460,7 +460,8 @@
     "pinned": "Pinned",
     "card_on": "On dashboard",
     "card_off": "Hidden",
-    "more_notes": "+{{count}} more"
+    "note_position": "Note {{n}} of {{count}}",
+    "next_note_hint": "Shows the next note"
   },
   "happening": {
     "now": "Now",
