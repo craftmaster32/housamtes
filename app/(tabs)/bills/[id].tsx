@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { withFeatureGuard } from '@components/shared/withFeatureGuard';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { goBack } from '@stores/navigationStore';
@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { BillReceipt } from '@components/bills/BillReceipt';
 import { BillSlip } from '@components/bills/BillSlip';
+import { UnderlineInput } from '@components/bills/form/UnderlineInput';
 import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
 import { useBillsStore } from '@stores/billsStore';
 import {
@@ -57,7 +58,7 @@ function BillDetailScreen(): React.JSX.Element {
   const currentLanguage = useLanguageStore((s) => s.language);
   const C = useThemedColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const headingFont = useHeadingFont('bold');
+  const headingFont = useHeadingFont('semibold');
   const { id } = useLocalSearchParams<{ id: string }>();
   const bill = useBillsStore((s) => s.bills.find((b) => b.id === id));
   const isLoading = useBillsStore((s) => s.isLoading);
@@ -369,21 +370,17 @@ function BillDetailScreen(): React.JSX.Element {
         {isEditing ? (
           <View style={styles.card}>
             <Text style={[styles.sectionTitle, headingFont]}>{t('bills.edit_bill')}</Text>
-            <TextInput
+            <UnderlineInput
               label={t('bills.title_label')}
               value={title}
               onChangeText={handleTitleChange}
-              mode="outlined"
-              style={styles.input}
               accessibilityLabel={t('bills.title_label')}
               accessibilityHint={t('bills.title_hint')}
             />
-            <TextInput
+            <UnderlineInput
               label={t('bills.amount_label')}
               value={amount}
               onChangeText={handleAmountChange}
-              mode="outlined"
-              style={styles.input}
               keyboardType="decimal-pad"
               accessibilityLabel={t('bills.amount_label')}
               accessibilityHint={t('bills.amount_hint')}
@@ -414,20 +411,17 @@ function BillDetailScreen(): React.JSX.Element {
                 accessibilityLabel={t('bills.pick_date')}
                 accessibilityState={{ expanded: showDatePicker }}
               >
-                <Ionicons name="calendar-outline" size={18} color={C.primary} />
+                <Ionicons name="calendar-outline" size={18} color={C.textSecondary} />
                 <Text style={styles.dateTriggerText}>{formatDisplayDate(date, i18n.language)}</Text>
                 <Ionicons name="chevron-down" size={16} color={C.textSecondary} />
               </Pressable>
             </View>
-            <TextInput
+            <UnderlineInput
               label={t('bills.notes_label')}
               value={notes}
               onChangeText={setNotes}
-              mode="outlined"
-              style={styles.input}
               placeholder={t('bills.notes_placeholder')}
               multiline
-              numberOfLines={2}
               accessibilityLabel={t('bills.notes_label')}
               accessibilityHint={t('bills.notes_hint')}
             />
@@ -556,39 +550,20 @@ const makeStyles = (C: ColorTokens) =>
     },
     backText: { color: C.primary, fontSize: mf(15), ...font.medium },
     editText: { color: C.primary, fontSize: mf(15), ...font.medium },
-    card: {
-      backgroundColor: C.surface,
-      borderRadius: ms(16),
-      padding: sizes.lg,
-      gap: sizes.sm,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: ms(2) },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    sectionTitle: { color: C.textPrimary, fontSize: mf(18), marginBottom: sizes.xs },
-    input: { backgroundColor: C.surface },
-    dateField: { gap: ms(4) },
-    dateFieldLabel: {
-      fontSize: mf(12),
-      ...font.semibold,
-      color: C.textSecondary,
-      marginStart: ms(4),
-    },
+    card: { gap: ms(22) },
+    sectionTitle: { color: C.textPrimary, fontSize: mf(30), letterSpacing: -0.6 },
+    dateField: { gap: ms(2) },
+    dateFieldLabel: { fontSize: mf(13.5), ...font.bold, color: C.textSecondary },
     dateTrigger: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: sizes.sm,
-      backgroundColor: C.surface,
-      borderRadius: ms(4),
-      borderWidth: 1,
-      borderColor: C.border,
-      paddingHorizontal: ms(14),
-      paddingVertical: ms(14),
-      minHeight: ms(56),
+      borderBottomWidth: 1.5,
+      borderBottomColor: C.border,
+      paddingVertical: ms(10),
+      minHeight: 44,
     },
-    dateTriggerText: { flex: 1, fontSize: mf(15), ...font.regular, color: C.textPrimary },
+    dateTriggerText: { flex: 1, fontSize: mf(17), ...font.semibold, color: C.textPrimary },
     editButtons: { flexDirection: 'row', gap: sizes.sm, alignItems: 'center', marginTop: sizes.xs },
     saveBtn: { borderRadius: ms(14) },
     deleteLink: {
@@ -604,13 +579,8 @@ const makeStyles = (C: ColorTokens) =>
     pressed: { opacity: 0.7 },
     error: { color: C.danger, fontSize: sizes.fontSm, ...font.regular },
 
-    categoryField: { gap: ms(4) },
-    categoryFieldLabel: {
-      fontSize: mf(12),
-      ...font.semibold,
-      color: C.textSecondary,
-      marginStart: ms(4),
-    },
+    categoryField: { gap: ms(6) },
+    categoryFieldLabel: { fontSize: mf(13.5), ...font.bold, color: C.textSecondary },
   });
 
 export default withFeatureGuard('bills', BillDetailScreen);

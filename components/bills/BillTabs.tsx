@@ -11,12 +11,16 @@ export interface BillTab<K extends string> {
   key: K;
   label: string;
   icon?: IoniconName;
+  /** Spoken label when it differs from the short visible one. */
+  a11yLabel?: string;
 }
 
 interface BillTabsProps<K extends string> {
   tabs: BillTab<K>[];
   selected: K;
   onSelect: (key: K) => void;
+  /** "radio" when the words pick an option inside a form instead of a page. */
+  role?: 'tab' | 'radio';
 }
 
 // Plain words with a blue marker stroke under the chosen one — like underlining
@@ -25,10 +29,11 @@ export function BillTabs<K extends string>({
   tabs,
   selected,
   onSelect,
+  role = 'tab',
 }: BillTabsProps<K>): React.JSX.Element {
   const c = useThemedColors();
   return (
-    <View style={styles.row} accessibilityRole="tablist">
+    <View style={styles.row} accessibilityRole={role === 'tab' ? 'tablist' : 'radiogroup'}>
       {tabs.map((tab) => {
         const on = tab.key === selected;
         return (
@@ -37,7 +42,8 @@ export function BillTabs<K extends string>({
             style={({ pressed }) => [styles.tab, pressed && !on && styles.pressed]}
             onPress={() => onSelect(tab.key)}
             accessible
-            accessibilityRole="tab"
+            accessibilityRole={role}
+            accessibilityLabel={tab.a11yLabel}
             accessibilityState={{ selected: on }}
           >
             <View style={styles.inner}>
