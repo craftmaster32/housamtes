@@ -2020,5 +2020,13 @@
     "hours_hint": "Hours the cycle runs",
     "minutes_hint": "Minutes the cycle runs",
     "name_hint": "Optional label for this load"
+  },
+  "loading": {
+    "quip_cushions": "Fluffing the cushions…",
+    "quip_remote": "Looking for the remote…",
+    "quip_turn": "Checking whose turn it is…",
+    "quip_pizza": "Hiding the last slice of pizza…",
+    "quip_dishes": "Doing the dishes (finally)…",
+    "quip_lights": "Turning off the lights someone left on…"
   }
 }

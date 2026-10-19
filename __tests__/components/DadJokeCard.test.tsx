@@ -10,9 +10,9 @@ import { render, screen, fireEvent } from '@testing-library/react-native';
 import { DadJokeCard } from '@components/shared/DadJokeCard';
 
 jest.mock('@lib/supabase', () => ({ supabase: {} }));
-jest.mock('@lib/i18n', () => ({ isRTL: () => false }));
+jest.mock('@lib/i18n', () => ({ isRTL: (): boolean => false }));
 jest.mock('@stores/languageStore', () => ({
-  useLanguageStore: (sel: (s: unknown) => unknown) => sel({ language: 'en' }),
+  useLanguageStore: (sel: (s: unknown) => unknown): unknown => sel({ language: 'en' }),
 }));
 // Reanimated's native half isn't available under Jest; the fades and Mate's
 // wave are cosmetic, so render Animated.View as a plain View.

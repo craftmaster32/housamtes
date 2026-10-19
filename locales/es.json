@@ -2020,5 +2020,13 @@
     "hours_hint": "Horas que dura el ciclo",
     "minutes_hint": "Minutos que dura el ciclo",
     "name_hint": "Etiqueta opcional para esta carga"
+  },
+  "loading": {
+    "quip_cushions": "Ahuecando los cojines…",
+    "quip_remote": "Buscando el mando…",
+    "quip_turn": "Mirando a quién le toca…",
+    "quip_pizza": "Escondiendo la última porción de pizza…",
+    "quip_dishes": "Fregando los platos (por fin)…",
+    "quip_lights": "Apagando las luces que alguien dejó encendidas…"
   }
 }
