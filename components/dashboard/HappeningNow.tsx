@@ -1,15 +1,6 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { View, StyleSheet, Pressable, FlatList } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withSequence,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { View, StyleSheet, Pressable, FlatList, Animated, Easing } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
 import { navigateToBase } from '@stores/navigationStore';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors } from '@constants/colors';
@@ -18,11 +9,11 @@ import { useEventsStore } from '@stores/eventsStore';
 import { useGroceryStore } from '@stores/groceryStore';
 import { useParkingStore } from '@stores/parkingStore';
 import { useMemberName } from '@hooks/useMemberName';
+import { useHeadingFont } from '@hooks/useHeadingFont';
+import { useReduceMotion } from '@hooks/useReduceMotion';
 import { isEventImminent } from '@utils/events';
 import { upcomingEventOccurrences } from '@utils/happeningNow';
 import { mf, ms } from '@utils/responsive';
-
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 // How many upcoming events/reservations to expand before the display cap.
 const LOOKAHEAD = 5;
@@ -40,50 +31,69 @@ interface LiveDotProps {
   color: string;
 }
 
-// A soft pulsing dot — the "this is live right now" cue on happening-now banners.
+// A soft pulsing dot — the "this is live right now" cue. RN Animated, not
+// reanimated, so it also pulses on the web build.
 function LiveDot({ color }: LiveDotProps): React.JSX.Element {
-  const pulse = useSharedValue(1);
+  const reduceMotion = useReduceMotion();
+  const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    pulse.value = withRepeat(
-      withSequence(
-        withTiming(0.35, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      false
+    if (reduceMotion) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 0.35,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
     );
-  }, [pulse]);
-  const style = useAnimatedStyle(() => ({ opacity: pulse.value }));
-  return <Animated.View style={[styles.liveDot, { backgroundColor: color }, style]} />;
+    loop.start();
+    return (): void => loop.stop();
+  }, [pulse, reduceMotion]);
+  return <Animated.View style={[styles.liveDot, { backgroundColor: color, opacity: pulse }]} />;
 }
 
-interface LiveBannerProps {
-  icon: IoniconName;
+interface TicketProps {
   accent: string;
-  eyebrow: string;
+  /** Small line on the stub: "Today", "Tomorrow" or "Now". */
+  day: string;
+  /** Big line on the stub, e.g. "20:00". Omitted for all-day items. */
+  time?: string;
   title: string;
-  live: boolean;
+  detail?: string;
+  live?: boolean;
   onPress: () => void;
   accessibilityLabel: string;
 }
 
-// ── One banner ────────────────────────────────────────────────────────────────
-// `live` shows the pulsing dot (something happening right now); scheduled items
-// due within 24h use the same prominent style without the dot.
-function Banner({
-  icon,
+const PERFORATION = Array.from({ length: 7 });
+
+// ── One ticket ────────────────────────────────────────────────────────────────
+// Each plan is a ticket: when it happens sits on a torn-off stub, what it is
+// on the main part. Two notches cut from the page colour mark the tear line.
+function Ticket({
   accent,
-  eyebrow,
+  day,
+  time,
   title,
-  live,
+  detail,
+  live = false,
   onPress,
   accessibilityLabel,
-}: LiveBannerProps): React.JSX.Element {
+}: TicketProps): React.JSX.Element {
   const c = useThemedColors();
+  const headingFont = useHeadingFont('semibold');
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.banner,
+        styles.ticket,
         { backgroundColor: c.surface },
         pressed && styles.pressed,
       ]}
@@ -93,19 +103,39 @@ function Banner({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: false }}
     >
-      <View style={[styles.bannerIcon, { backgroundColor: accent + '1F' }]}>
-        <Ionicons name={icon} size={18} color={accent} />
-      </View>
-      <View style={styles.flex1}>
-        <View style={styles.eyebrowRow}>
+      <View style={styles.stub}>
+        <View style={styles.dayRow}>
           {live && <LiveDot color={accent} />}
-          <Text style={[styles.eyebrow, { color: accent }]} numberOfLines={1}>
-            {eyebrow}
+          <Text style={[styles.day, { color: accent }]} numberOfLines={1}>
+            {day}
           </Text>
         </View>
-        <Text style={[styles.bannerTitle, { color: c.textPrimary }]} numberOfLines={2}>
+        {!!time && (
+          <Text
+            style={[styles.time, headingFont, { color: c.textPrimary }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {time}
+          </Text>
+        )}
+      </View>
+      <View style={styles.tear} pointerEvents="none">
+        <View style={[styles.notch, styles.notchTop, { backgroundColor: c.background }]} />
+        {PERFORATION.map((_, i) => (
+          <View key={i} style={[styles.dash, { backgroundColor: c.border }]} />
+        ))}
+        <View style={[styles.notch, styles.notchBottom, { backgroundColor: c.background }]} />
+      </View>
+      <View style={styles.body}>
+        <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>
           {title}
         </Text>
+        {!!detail && (
+          <Text style={[styles.detail, { color: c.textSecondary }]} numberOfLines={1}>
+            {detail}
+          </Text>
+        )}
       </View>
     </Pressable>
   );
@@ -114,11 +144,11 @@ function Banner({
 // A single upcoming entry, from an event or a pending/approved parking reservation.
 interface ComingEntry {
   key: string;
-  icon: IoniconName;
   accent: string;
   date: string; // YYYY-MM-DD — resolved occurrence
   startTime?: string;
   title: string;
+  detail?: string;
   onPress: () => void;
 }
 
@@ -153,11 +183,11 @@ export function HappeningNow(): React.JSX.Element {
     const eventEntries: ComingEntry[] = upcomingEventOccurrences(events, today, LOOKAHEAD).map(
       (e) => ({
         key: `event:${e.id}`,
-        icon: 'calendar',
         accent: c.primary,
         date: e.date,
         startTime: e.startTime,
         title: e.title,
+        detail: e.notes,
         onPress: handleCalendarPress,
       })
     );
@@ -167,7 +197,6 @@ export function HappeningNow(): React.JSX.Element {
         const name = memberName(r.requestedBy).split(' ')[0];
         return {
           key: `parking:${r.id}`,
-          icon: 'car-sport',
           accent: r.status === 'pending' ? c.warning : c.secondaryForeground,
           date: r.date,
           startTime: r.startTime,
@@ -220,20 +249,19 @@ export function HappeningNow(): React.JSX.Element {
 
   const renderSoonItem = useCallback(
     ({ item }: { item: ComingEntry }): React.JSX.Element => {
-      // Everything here is within 24h (today or tomorrow), so it always shows as
-      // a prominent banner — no far-out compact rows.
+      // Everything here is within 24h, so the stub only ever says today or tomorrow.
       const isToday = item.date === today;
       const dayLabel = isToday ? t('common.today') : t('common.tomorrow');
-      const eyebrow = item.startTime ? `${dayLabel} · ${item.startTime}` : dayLabel;
+      const when = item.startTime ? `${dayLabel} · ${item.startTime}` : dayLabel;
       return (
-        <Banner
-          icon={item.icon}
+        <Ticket
           accent={item.accent}
-          eyebrow={eyebrow}
+          day={dayLabel}
+          time={item.startTime}
           title={item.title}
-          live={false}
+          detail={item.detail}
           onPress={item.onPress}
-          accessibilityLabel={`${eyebrow} — ${item.title}`}
+          accessibilityLabel={`${when} — ${item.title}`}
         />
       );
     },
@@ -249,10 +277,9 @@ export function HappeningNow(): React.JSX.Element {
     <View>
       {/* ── Happening now (live) ── */}
       {activeRun && (
-        <Banner
-          icon="bag-handle"
+        <Ticket
           accent={c.success}
-          eyebrow={nowLabel}
+          day={nowLabel}
           title={t('happening.shopping_now', { name: activeRun.shopperName.split(' ')[0] })}
           live
           onPress={handleGroceryPress}
@@ -264,7 +291,7 @@ export function HappeningNow(): React.JSX.Element {
       {/* Parking "now" is intentionally not surfaced here — the dashboard parking
           card already shows live parking status. Only the grocery run stays live. */}
 
-      {/* ── Upcoming: imminent entries as banners, later entries as compact rows ── */}
+      {/* ── Upcoming: today's and tomorrow's plans, one ticket each ── */}
       <FlatList
         data={soon}
         keyExtractor={(item) => item.key}
@@ -279,25 +306,48 @@ const styles = StyleSheet.create({
   flex1: { flex: 1, minWidth: 0 },
   pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
 
-  banner: {
+  ticket: {
     marginTop: ms(10),
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: ms(12),
-    borderRadius: ms(20),
-    paddingVertical: ms(13),
-    paddingHorizontal: ms(14),
+    alignItems: 'stretch',
+    borderRadius: ms(18),
+    minHeight: ms(72),
   },
-  bannerIcon: {
-    width: ms(38),
-    height: ms(38),
-    borderRadius: ms(19),
+  stub: {
+    width: ms(84),
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: ms(12),
+    paddingHorizontal: ms(6),
   },
-  bannerTitle: { fontSize: mf(15.5), ...font.semibold, marginTop: ms(1) },
-
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: ms(6) },
-  eyebrow: { fontSize: mf(13), ...font.bold },
+  dayRow: { flexDirection: 'row', alignItems: 'center', gap: ms(5) },
+  day: { fontSize: mf(12.5), ...font.extrabold },
+  time: { fontSize: mf(24), lineHeight: mf(28), letterSpacing: -0.6, marginTop: ms(1) },
+  // The tear line: dashes between two half-circle notches.
+  tear: {
+    width: ms(2),
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: ms(12),
+  },
+  dash: { width: ms(2), height: ms(4), borderRadius: ms(1) },
+  notch: {
+    position: 'absolute',
+    left: -ms(7),
+    width: ms(16),
+    height: ms(16),
+    borderRadius: ms(8),
+  },
+  notchTop: { top: -ms(8) },
+  notchBottom: { bottom: -ms(8) },
+  body: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    paddingVertical: ms(13),
+    paddingHorizontal: ms(16),
+  },
+  title: { fontSize: mf(16), ...font.bold, lineHeight: mf(21) },
+  detail: { fontSize: mf(13.5), ...font.medium, marginTop: ms(2) },
   liveDot: { width: ms(7), height: ms(7), borderRadius: ms(4) },
 });
