@@ -12,6 +12,9 @@ import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { BillReceipt } from '@components/bills/BillReceipt';
 import { BillSlip } from '@components/bills/BillSlip';
 import { UnderlineInput } from '@components/bills/form/UnderlineInput';
+import { SplitSummary } from '@components/bills/form/SplitSummary';
+import { SplitSheet } from '@components/bills/form/SplitSheet';
+import { formatFull } from '@constants/currencies';
 import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
 import { useBillsStore } from '@stores/billsStore';
 import {
@@ -196,6 +199,13 @@ function BillDetailScreen(): React.JSX.Element {
     setSplitType(type);
     setError('');
   }, []);
+
+  // The full who-paid / split options live in a sheet; the form shows one sentence.
+  const [showSplit, setShowSplit] = useState(false);
+  const openSplit = useCallback((): void => setShowSplit(true), []);
+  const closeSplit = useCallback((): void => setShowSplit(false), []);
+  const payer = housemates.find((h) => h.id === paidBy);
+  const payerName = payer ? payer.name.split(' ')[0] : '';
 
   const handleSaveEdit = useCallback(async (): Promise<void> => {
     if (isSaving || isDeleting) return;
@@ -385,21 +395,14 @@ function BillDetailScreen(): React.JSX.Element {
               accessibilityLabel={t('bills.amount_label')}
               accessibilityHint={t('bills.amount_hint')}
             />
-            <BillSplitFields
-              housemates={housemates}
-              myId={myId}
-              currencyCode={currencyCode}
-              totalAmount={parseAmount(amount)}
-              paidBy={paidBy}
-              onPaidByChange={handlePaidByChange}
-              selectedPeople={selectedPeople}
-              onSelectedPeopleChange={handleSelectedPeopleChange}
+            <SplitSummary
+              payerId={paidBy}
+              payerName={payerName}
               splitType={splitType}
-              onSplitTypeChange={handleSplitTypeChange}
-              customAmounts={customAmounts}
-              onCustomAmountChange={setPersonAmount}
-              percentAmounts={percentAmounts}
-              onPercentAmountChange={setPersonPercent}
+              peopleCount={selectedPeople.length}
+              totalAmount={parseAmount(amount)}
+              currencyCode={currencyCode}
+              onOpen={openSplit}
             />
             <View style={styles.dateField}>
               <Text style={styles.dateFieldLabel}>{t('bills.date_label')}</Text>
@@ -506,6 +509,29 @@ function BillDetailScreen(): React.JSX.Element {
 
         {!!error && !isEditing && <Text style={styles.error}>{error}</Text>}
       </ScrollView>
+
+      <SplitSheet
+        visible={showSplit}
+        eyebrow={formatFull(parseAmount(amount), currencyCode)}
+        onClose={closeSplit}
+      >
+        <BillSplitFields
+          housemates={housemates}
+          myId={myId}
+          currencyCode={currencyCode}
+          totalAmount={parseAmount(amount)}
+          paidBy={paidBy}
+          onPaidByChange={handlePaidByChange}
+          selectedPeople={selectedPeople}
+          onSelectedPeopleChange={handleSelectedPeopleChange}
+          splitType={splitType}
+          onSplitTypeChange={handleSplitTypeChange}
+          customAmounts={customAmounts}
+          onCustomAmountChange={setPersonAmount}
+          percentAmounts={percentAmounts}
+          onPercentAmountChange={setPersonPercent}
+        />
+      </SplitSheet>
 
       <DatePickerModal
         visible={showDatePicker}

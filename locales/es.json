@@ -732,7 +732,15 @@
     "recurring_paid_on": "Pagado el",
     "recurring_paid_by": "Pagado por",
     "recurring_save_payment": "Guardar pago",
-    "recurring_usual_amount": "Importe habitual"
+    "recurring_usual_amount": "Importe habitual",
+    "split_and_split": "y dividido",
+    "split_equally": "a partes iguales",
+    "split_by_amounts": "por importes",
+    "split_by_percent": "por %",
+    "split_each_people": "{{amount}} cada uno · {{count}} personas",
+    "split_between_people": "Entre {{count}} personas",
+    "split_sheet_title": "¿Cómo se pagó?",
+    "split_change_hint": "Cambiar quién pagó y cómo se divide"
   },
   "parking": {
     "title": "Estacionamiento",

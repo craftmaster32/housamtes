@@ -732,7 +732,15 @@
     "recurring_paid_on": "תאריך תשלום",
     "recurring_paid_by": "מי שילם",
     "recurring_save_payment": "שמירת תשלום",
-    "recurring_usual_amount": "סכום רגיל"
+    "recurring_usual_amount": "סכום רגיל",
+    "split_and_split": "ומחולק",
+    "split_equally": "שווה בשווה",
+    "split_by_amounts": "לפי סכומים",
+    "split_by_percent": "לפי אחוזים",
+    "split_each_people": "{{amount}} לכל אחד · {{count}} אנשים",
+    "split_between_people": "בין {{count}} אנשים",
+    "split_sheet_title": "איך שולם?",
+    "split_change_hint": "שינוי מי שילם ואיך מחלקים"
   },
   "parking": {
     "title": "חניה",

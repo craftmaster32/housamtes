@@ -21,21 +21,19 @@ import { useLanguageStore } from '@stores/languageStore';
 import { isRTL } from '@lib/i18n';
 import { DatePickerModal } from '@components/bills/DatePickerModal';
 import { NotebookPaper } from '@components/shared/NotebookPaper';
-import { BillTabs } from '@components/bills/BillTabs';
+import { BillSplitFields, type SplitType } from '@components/bills/BillSplitFields';
 import { UnderlineInput } from '@components/bills/form/UnderlineInput';
-import { PersonPicker } from '@components/bills/form/PersonPicker';
-import { SplitNote } from '@components/bills/form/SplitNote';
+import { SplitSummary } from '@components/bills/form/SplitSummary';
+import { SplitSheet } from '@components/bills/form/SplitSheet';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { formatFull, splitMoney } from '@constants/currencies';
 import { Button, EmptyState } from '@components/ui';
 import { sizes } from '@constants/sizes';
 import { font } from '@constants/typography';
 import { useHeadingFont } from '@hooks/useHeadingFont';
-import { useHandFont } from '@hooks/useHandFont';
 import { parseAndValidateAddBill, parseAmount, type AddBillPayload } from '@utils/validation';
 
 import { mf, ms } from '@utils/responsive';
-type SplitType = 'equal' | 'custom' | 'percentage';
 
 function todayString(): string {
   const d = new Date();
@@ -72,7 +70,6 @@ function AddBillScreen(): React.JSX.Element {
   const loadCategories = useExpenseCategoriesStore((s) => s.load);
   const categoriesIsLoading = useExpenseCategoriesStore((s) => s.isLoading);
   const categoriesError = useExpenseCategoriesStore((s) => s.error);
-  const handFont = useHandFont();
   const curSymbol = useMemo(() => splitMoney(0, currencyCode).symbol, [currencyCode]);
 
   const myId = profile?.id ?? '';
@@ -162,11 +159,6 @@ function AddBillScreen(): React.JSX.Element {
     }
   }, [categories, category]);
 
-  const togglePerson = useCallback((id: string) => {
-    setSelectedPeople((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
-    setError('');
-  }, []);
-
   const totalAmount = parseAmount(amount);
 
   const setPersonAmount = useCallback((id: string, value: string): void => {
@@ -179,87 +171,25 @@ function AddBillScreen(): React.JSX.Element {
     setError('');
   }, []);
 
-  const getCustomTotal = useCallback((): number => {
-    return selectedPeople.reduce((sum, id) => sum + parseAmount(customAmounts[id] ?? '0'), 0);
-  }, [selectedPeople, customAmounts]);
-
-  const getPercentTotal = useCallback((): number => {
-    return selectedPeople.reduce((sum, id) => sum + parseAmount(percentAmounts[id] ?? '0'), 0);
-  }, [selectedPeople, percentAmounts]);
-
-  const customRemaining = totalAmount - getCustomTotal();
-  const percentRemaining = 100 - getPercentTotal();
-
-  const percentPreviewText = useMemo((): string => {
-    if (totalAmount <= 0 || Math.abs(getPercentTotal() - 100) >= 0.1) return '';
-    let running = 0;
-    return selectedPeople
-      .map((id, i) => {
-        const pct = parseFloat((percentAmounts[id] ?? '0').replace(',', '.')) || 0;
-        const isLast = i === selectedPeople.length - 1;
-        const share = isLast
-          ? Math.round((totalAmount - running) * 100) / 100
-          : Math.round((pct / 100) * totalAmount * 100) / 100;
-        if (!isLast) running += share;
-        return `${housemates.find((h) => h.id === id)?.name ?? id}: ${formatFull(share, currencyCode)}`;
-      })
-      .join('  ·  ');
-  }, [totalAmount, selectedPeople, percentAmounts, housemates, currencyCode, getPercentTotal]);
-
-  const equalSplitPreview = useMemo((): number => {
-    if (selectedPeople.length === 0 || totalAmount <= 0) return 0;
-    const totalCents = Math.round(totalAmount * 100);
-    const n = selectedPeople.length;
-    const baseCents = Math.floor(totalCents / n);
-    const remainderCents = totalCents - baseCents * n;
-    return (baseCents + (remainderCents > 0 ? 1 : 0)) / 100;
-  }, [totalAmount, selectedPeople]);
-
-  const fillEquallyCustom = useCallback((): void => {
-    const blanks = selectedPeople.filter(
-      (id) => customAmounts[id] === undefined || customAmounts[id] === ''
-    );
-    if (blanks.length === 0) return;
-    if (customRemaining < 0.01) return;
-    const per = customRemaining / blanks.length;
-    let allocated = 0;
+  const handlePaidByChange = useCallback((id: string): void => {
+    setPaidBy(id);
     setError('');
-    setCustomAmounts((prev) => {
-      const updated = { ...prev };
-      blanks.forEach((id, i) => {
-        const isLast = i === blanks.length - 1;
-        const share = isLast
-          ? Math.round((customRemaining - allocated) * 100) / 100
-          : Math.round(per * 100) / 100;
-        updated[id] = share.toFixed(2);
-        if (!isLast) allocated += share;
-      });
-      return updated;
-    });
-  }, [selectedPeople, customAmounts, customRemaining, setError]);
-
-  const fillEquallyPercent = useCallback((): void => {
-    const blanks = selectedPeople.filter(
-      (id) => percentAmounts[id] === undefined || percentAmounts[id] === ''
-    );
-    if (blanks.length === 0) return;
-    if (percentRemaining < 0.1) return;
-    const per = percentRemaining / blanks.length;
-    let allocated = 0;
+  }, []);
+  const handleSelectedPeopleChange = useCallback((ids: string[]): void => {
+    setSelectedPeople(ids);
     setError('');
-    setPercentAmounts((prev) => {
-      const updated = { ...prev };
-      blanks.forEach((id, i) => {
-        const isLast = i === blanks.length - 1;
-        const share = isLast
-          ? Math.round((percentRemaining - allocated) * 10) / 10
-          : Math.round(per * 10) / 10;
-        updated[id] = share.toString();
-        if (!isLast) allocated += share;
-      });
-      return updated;
-    });
-  }, [selectedPeople, percentAmounts, percentRemaining, setError]);
+  }, []);
+  const handleSplitTypeChange = useCallback((type: SplitType): void => {
+    setSplitType(type);
+    setError('');
+  }, []);
+
+  // The full who-paid / split options live in a sheet; the form shows one sentence.
+  const [showSplit, setShowSplit] = useState(false);
+  const openSplit = useCallback((): void => setShowSplit(true), []);
+  const closeSplit = useCallback((): void => setShowSplit(false), []);
+  const payer = housemates.find((h) => h.id === paidBy);
+  const payerName = payer ? payer.name.split(' ')[0] : '';
 
   const handleSave = useCallback(async (): Promise<void> => {
     if (isLoading) return; // guard against a fast double-tap creating a duplicate bill
@@ -399,217 +329,16 @@ function AddBillScreen(): React.JSX.Element {
           accessibilityHint={t('bills.what_for_placeholder')}
         />
 
-        {/* Who paid */}
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('bills.who_paid')}</Text>
-          <PersonPicker
-            people={housemates}
-            mode="single"
-            selected={[paidBy]}
-            onPress={setPaidBy}
-            meId={myId}
-            meSuffix={` (${t('common.me')})`}
-          />
-        </View>
-
-        {/* Split between */}
-        <View style={styles.field}>
-          <View style={styles.labelRow}>
-            <Text style={styles.label}>{t('bills.split_between')}</Text>
-            <Pressable
-              onPress={() => setSelectedPeople(allIds)}
-              style={styles.selectAllBtn}
-              accessibilityRole="button"
-            >
-              <Text style={styles.selectAll}>{t('bills.select_all')}</Text>
-            </Pressable>
-          </View>
-          <PersonPicker
-            people={housemates}
-            mode="multi"
-            selected={selectedPeople}
-            onPress={togglePerson}
-            meId={myId}
-            meSuffix={` (${t('common.me')})`}
-          />
-          {selectedPeople.length > 0 && (
-            <Text style={styles.splitCount}>
-              {t('bills.selected', { count: selectedPeople.length })}
-            </Text>
-          )}
-        </View>
-
-        {/* How to split */}
-        {selectedPeople.length > 0 && (
-          <View style={styles.field}>
-            <Text style={styles.label}>{t('bills.how_to_split')}</Text>
-            <BillTabs<SplitType>
-              role="radio"
-              tabs={[
-                { key: 'equal', label: t('bills.equal') },
-                {
-                  key: 'custom',
-                  label: t('bills.custom_short'),
-                  a11yLabel: t('bills.custom_amounts'),
-                },
-                { key: 'percentage', label: t('bills.by_percent') },
-              ]}
-              selected={splitType}
-              onSelect={(type) => {
-                setSplitType(type);
-                setError('');
-              }}
-            />
-
-            {splitType === 'equal' && totalAmount > 0 && (
-              <SplitNote>
-                {`${formatFull(equalSplitPreview, currencyCode)} ${t('bills.per_person')}`}
-              </SplitNote>
-            )}
-
-            {splitType === 'custom' && (
-              <View style={styles.customBox}>
-                {selectedPeople.map((id) => {
-                  const name = housemates.find((h) => h.id === id)?.name ?? id;
-                  return (
-                    <View key={id} style={styles.customRow}>
-                      <Text style={styles.customName}>{name}</Text>
-                      <UnderlineInput
-                        value={customAmounts[id] ?? ''}
-                        onChangeText={(v) => setPersonAmount(id, v)}
-                        style={styles.customInput}
-                        keyboardType="decimal-pad"
-                        placeholder="0.00"
-                        accessibilityLabel={t('bills.amount_for', { name })}
-                        accessibilityHint={t('bills.amount_for_hint')}
-                      />
-                    </View>
-                  );
-                })}
-                {customRemaining > 0.01 && (
-                  <Pressable
-                    onPress={fillEquallyCustom}
-                    style={styles.fillBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('bills.fill_remaining_equally')}
-                  >
-                    <Ionicons name="git-branch-outline" size={15} color={C.primary} />
-                    <Text style={[styles.fillBtnText, handFont]}>
-                      {t('bills.fill_remaining_equally')}
-                    </Text>
-                  </Pressable>
-                )}
-                <View style={styles.customTotal}>
-                  <Text style={styles.customTotalLabel}>{t('bills.total_entered')}</Text>
-                  <Text
-                    style={[
-                      styles.customTotalValue,
-                      {
-                        color:
-                          Math.abs(getCustomTotal() - totalAmount) < 0.01 ? C.positive : C.danger,
-                      },
-                    ]}
-                  >
-                    {formatFull(getCustomTotal(), currencyCode)} /{' '}
-                    {formatFull(totalAmount, currencyCode)}
-                  </Text>
-                </View>
-                {totalAmount > 0 && (
-                  <View style={styles.customRemainingRow}>
-                    <Text style={styles.customTotalLabel}>{t('bills.remaining')}</Text>
-                    <Text
-                      style={[
-                        styles.customTotalValue,
-                        {
-                          color:
-                            customRemaining < -0.01
-                              ? C.danger
-                              : customRemaining < 0.01
-                                ? C.positive
-                                : C.textPrimary,
-                        },
-                      ]}
-                    >
-                      {customRemaining < -0.01
-                        ? t('bills.over_by_amount', {
-                            amount: formatFull(-customRemaining, currencyCode),
-                          })
-                        : formatFull(customRemaining, currencyCode)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {splitType === 'percentage' && (
-              <View style={styles.customBox}>
-                {selectedPeople.map((id) => {
-                  const name = housemates.find((h) => h.id === id)?.name ?? id;
-                  return (
-                    <View key={id} style={styles.customRow}>
-                      <Text style={styles.customName}>{name}</Text>
-                      <UnderlineInput
-                        value={percentAmounts[id] ?? ''}
-                        onChangeText={(v) => setPersonPercent(id, v)}
-                        style={styles.customInput}
-                        keyboardType="decimal-pad"
-                        placeholder="0"
-                        suffix="%"
-                        accessibilityLabel={t('bills.pct_for', { name })}
-                        accessibilityHint={t('bills.pct_for_hint')}
-                      />
-                    </View>
-                  );
-                })}
-                {percentRemaining > 0.1 && (
-                  <Pressable
-                    onPress={fillEquallyPercent}
-                    style={styles.fillBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('bills.fill_remaining_equally')}
-                  >
-                    <Ionicons name="git-branch-outline" size={15} color={C.primary} />
-                    <Text style={[styles.fillBtnText, handFont]}>
-                      {t('bills.fill_remaining_equally')}
-                    </Text>
-                  </Pressable>
-                )}
-                <View style={styles.customTotal}>
-                  <Text style={styles.customTotalLabel}>{t('bills.total_percent')}</Text>
-                  <Text
-                    style={[
-                      styles.customTotalValue,
-                      { color: Math.abs(getPercentTotal() - 100) < 0.1 ? C.positive : C.danger },
-                    ]}
-                  >
-                    {getPercentTotal().toFixed(1)}% / 100%
-                  </Text>
-                </View>
-                <View style={styles.customRemainingRow}>
-                  <Text style={styles.customTotalLabel}>{t('bills.remaining')}</Text>
-                  <Text
-                    style={[
-                      styles.customTotalValue,
-                      {
-                        color:
-                          percentRemaining < -0.1
-                            ? C.danger
-                            : percentRemaining < 0.1
-                              ? C.positive
-                              : C.textPrimary,
-                      },
-                    ]}
-                  >
-                    {percentRemaining < -0.1
-                      ? t('bills.over_by_pct', { pct: (-percentRemaining).toFixed(1) })
-                      : `${percentRemaining.toFixed(1)}%`}
-                  </Text>
-                </View>
-                {!!percentPreviewText && <SplitNote>{percentPreviewText}</SplitNote>}
-              </View>
-            )}
-          </View>
-        )}
+        {/* Who paid + how it's split, as one Splitwise-style sentence */}
+        <SplitSummary
+          payerId={paidBy}
+          payerName={payerName}
+          splitType={splitType}
+          peopleCount={selectedPeople.length}
+          totalAmount={totalAmount}
+          currencyCode={currencyCode}
+          onOpen={openSplit}
+        />
 
         {/* Category */}
         <View style={styles.field}>
@@ -681,6 +410,29 @@ function AddBillScreen(): React.JSX.Element {
         </Button>
       </ScrollView>
 
+      <SplitSheet
+        visible={showSplit}
+        eyebrow={totalAmount > 0 ? formatFull(totalAmount, currencyCode) : t('bills.add_title')}
+        onClose={closeSplit}
+      >
+        <BillSplitFields
+          housemates={housemates}
+          myId={myId}
+          currencyCode={currencyCode}
+          totalAmount={totalAmount}
+          paidBy={paidBy}
+          onPaidByChange={handlePaidByChange}
+          selectedPeople={selectedPeople}
+          onSelectedPeopleChange={handleSelectedPeopleChange}
+          splitType={splitType}
+          onSplitTypeChange={handleSplitTypeChange}
+          customAmounts={customAmounts}
+          onCustomAmountChange={setPersonAmount}
+          percentAmounts={percentAmounts}
+          onPercentAmountChange={setPersonPercent}
+        />
+      </SplitSheet>
+
       <DatePickerModal
         visible={showDatePicker}
         value={date}
@@ -733,37 +485,6 @@ const makeStyles = (C: ColorTokens) =>
 
     field: { gap: ms(10) },
     label: { color: C.textSecondary, ...font.bold, fontSize: mf(13.5) },
-    labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    selectAllBtn: { minHeight: 44, justifyContent: 'center' },
-    selectAll: { color: C.primary, fontSize: mf(14), ...font.bold },
-    splitCount: { color: C.textSecondary, fontSize: mf(12.5), ...font.medium },
-
-    customBox: { gap: ms(6), marginTop: ms(8) },
-    customRow: { flexDirection: 'row', alignItems: 'center', gap: sizes.sm },
-    customName: { flex: 1, color: C.textPrimary, fontSize: mf(15), ...font.medium },
-    customInput: { width: ms(110) },
-    customTotal: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingTop: sizes.xs,
-      borderTopWidth: 1,
-      borderTopColor: C.border,
-    },
-    customTotalLabel: { color: C.textSecondary, fontSize: mf(14), ...font.medium },
-    customTotalValue: { fontSize: mf(14), ...font.semibold },
-    customRemainingRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingTop: ms(4),
-    },
-    fillBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(6),
-      alignSelf: 'flex-start',
-      minHeight: 44,
-    },
-    fillBtnText: { color: C.primary, fontSize: mf(20) },
 
     dateTrigger: {
       flexDirection: 'row',

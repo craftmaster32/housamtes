@@ -732,7 +732,15 @@
     "recurring_paid_on": "Paid on",
     "recurring_paid_by": "Paid by",
     "recurring_save_payment": "Save payment",
-    "recurring_usual_amount": "Usual amount"
+    "recurring_usual_amount": "Usual amount",
+    "split_and_split": "and split",
+    "split_equally": "equally",
+    "split_by_amounts": "by amounts",
+    "split_by_percent": "by %",
+    "split_each_people": "{{amount}} each · {{count}} people",
+    "split_between_people": "Between {{count}} people",
+    "split_sheet_title": "How was it paid?",
+    "split_change_hint": "Change who paid and how it's split"
   },
   "parking": {
     "title": "Parking",
