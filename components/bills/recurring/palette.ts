@@ -16,6 +16,11 @@ export interface RecurringPalette {
   overdueBg: string;
   overdueText: string;
   overlay: string;
+  sheet: string; // bottom sheets sit on the page colour, cards on top
+  paper: string;
+  paperInk: string;
+  paperMuted: string;
+  hand: string; // handwriting ink on the paper strip
   shadow: string;
 }
 
@@ -37,6 +42,11 @@ function fromTheme(c: ColorPalette, dark: boolean): RecurringPalette {
     neutralPillText: c.textSecondary,
     overdueBg: c.dangerTint,
     overdueText: c.danger,
+    sheet: c.background,
+    paper: c.paper,
+    paperInk: c.paperInk,
+    paperMuted: c.paperMuted,
+    hand: c.paperMuted,
     overlay: dark ? 'rgba(0,0,0,0.6)' : 'rgba(34,32,29,0.42)',
     shadow: dark ? 'rgba(0,0,0,0.3)' : 'rgba(34,32,29,0.06)',
   };

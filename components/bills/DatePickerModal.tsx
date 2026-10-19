@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useThemedColors, type ColorTokens } from '@constants/colors';
 import { font } from '@constants/typography';
+import { useHeadingFont } from '@hooks/useHeadingFont';
 import { sizes } from '@constants/sizes';
 import { isRTL, getFirstDayOfWeek } from '@lib/i18n';
 import { useLanguageStore } from '@stores/languageStore';
@@ -44,6 +45,7 @@ export function DatePickerModal({
   const { t, i18n } = useTranslation();
   const c = useThemedColors();
   const styles = useMemo(() => makeStyles(c), [c]);
+  const headingFont = useHeadingFont('semibold');
   const language = useLanguageStore((s) => s.language);
   const rtl = isRTL(language);
 
@@ -146,7 +148,7 @@ export function DatePickerModal({
                 color={c.textPrimary}
               />
             </Pressable>
-            <Text style={styles.monthLabel}>
+            <Text style={[styles.monthLabel, headingFont]}>
               {monthLabel} {viewYear}
             </Text>
             <Pressable
@@ -180,11 +182,7 @@ export function DatePickerModal({
               <View key={idx} style={styles.cell}>
                 {day !== null && (
                   <Pressable
-                    style={[
-                      styles.dayBtn,
-                      isSelected(day) && styles.dayBtnSelected,
-                      isToday(day) && !isSelected(day) && styles.dayBtnToday,
-                    ]}
+                    style={styles.dayBtn}
                     onPress={() => pickDay(day)}
                     // hitSlop extends the effective tap area to 44×44 without affecting layout
                     hitSlop={{ top: ms(5), bottom: ms(5), left: ms(5), right: ms(5) }}
@@ -192,6 +190,8 @@ export function DatePickerModal({
                     accessibilityLabel={`${day} ${monthLabel} ${viewYear}`}
                     accessibilityState={{ selected: isSelected(day) }}
                   >
+                    {/* The chosen day is circled in pen. */}
+                    {isSelected(day) && <View style={styles.dayCircle} />}
                     <Text
                       style={[
                         styles.dayText,
@@ -250,8 +250,8 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
     card: {
       width: '100%',
       maxWidth: ms(340),
-      backgroundColor: C.surface,
-      borderRadius: ms(24),
+      backgroundColor: C.background,
+      borderRadius: ms(26),
       padding: sizes.lg,
       gap: sizes.sm,
       shadowColor: '#000',
@@ -267,14 +267,14 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       marginBottom: ms(4),
     },
     navBtn: {
-      width: ms(44),
-      height: ms(44),
-      borderRadius: ms(10),
-      backgroundColor: C.surfaceSecondary,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: C.surface,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    monthLabel: { fontSize: mf(16), ...font.bold, color: C.textPrimary },
+    monthLabel: { fontSize: mf(22), letterSpacing: -0.4, color: C.textPrimary },
     dowRow: { flexDirection: 'row' },
     dowLabel: {
       width: CELL,
@@ -293,35 +293,41 @@ const makeStyles = (C: ColorTokens): ReturnType<typeof StyleSheet.create> =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    dayBtnSelected: { backgroundColor: C.primary },
-    dayBtnToday: { borderWidth: 1.5, borderColor: C.primary },
-    dayText: { fontSize: mf(14), ...font.medium, color: C.textPrimary },
-    dayTextSelected: { color: C.white, ...font.bold },
-    dayTextToday: { color: C.primary, ...font.bold },
-    actions: { flexDirection: 'row', gap: sizes.sm, marginTop: ms(4) },
+    dayCircle: {
+      position: 'absolute',
+      top: -ms(1),
+      bottom: -ms(1),
+      left: -ms(3),
+      right: -ms(3),
+      borderWidth: 2.5,
+      borderRadius: 999,
+      borderColor: C.primary,
+      transform: [{ rotate: '-8deg' }],
+    },
+    dayText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
+    dayTextSelected: { color: C.primary, ...font.extrabold },
+    dayTextToday: { color: C.primary, ...font.extrabold, textDecorationLine: 'underline' },
+    actions: {
+      flexDirection: 'row',
+      gap: sizes.sm,
+      marginTop: ms(6),
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+    },
     cancelBtn: {
-      flex: 1,
-      paddingVertical: ms(12),
-      minHeight: ms(44),
-      borderRadius: ms(12),
-      backgroundColor: C.surfaceSecondary,
+      minHeight: 44,
+      paddingHorizontal: ms(16),
       alignItems: 'center',
       justifyContent: 'center',
     },
-    cancelText: { fontSize: mf(15), ...font.semibold, color: C.textPrimary },
+    cancelText: { fontSize: mf(16), ...font.bold, color: C.primary },
     confirmBtn: {
-      flex: 1,
-      paddingVertical: ms(12),
-      minHeight: ms(44),
-      borderRadius: ms(12),
+      minHeight: ms(50),
+      paddingHorizontal: ms(26),
+      borderRadius: ms(16),
       backgroundColor: C.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: ms(6) },
-      shadowOpacity: 0.28,
-      shadowRadius: 12,
-      elevation: 4,
     },
-    confirmText: { fontSize: mf(15), ...font.semibold, color: C.white },
+    confirmText: { fontSize: mf(16), ...font.bold, color: C.white },
   });
