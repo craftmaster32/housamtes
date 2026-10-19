@@ -130,6 +130,9 @@ primary = big blue rounded button. System Alerts stay native.
   _together_ (the next item rises while the current one leaves), no blank gap,
   no pop-in. ~250–400 ms. Small spring for "settling" paper.
 - Mate hops/waves once; loaders rotate funny lines.
+- Pinned notes: the next note (with its real text) waits under the top one and
+  rises into place while the top one is flicked away (`NextNote`), so the swap
+  is one continuous move — never "slide off, then a new note pops in".
 
 ## 6. Platform gotchas
 

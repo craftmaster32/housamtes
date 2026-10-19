@@ -11,6 +11,7 @@ import { useHandFont } from '@hooks/useHandFont';
 import { useReduceMotion } from '@hooks/useReduceMotion';
 import { useThemedColors } from '@constants/colors';
 import { font } from '@constants/typography';
+import { NextNote } from '@components/dashboard/NextNote';
 import { mf, ms } from '@utils/responsive';
 
 function localeFor(lang: string): string {
@@ -38,7 +39,9 @@ const PILE = [
 ];
 // How far the top note travels when it's tossed aside.
 const TOSS_X = ms(420);
-const TOSS_MS = 260;
+const TOSS_MS = 420;
+// The top note's own tilt (styles.note); the next note rises into it.
+const TOP_TILT = 0.8;
 
 const OPEN_NOTES = (): void => navigateToBase('/(tabs)/notes');
 
@@ -56,8 +59,8 @@ export function PinnedNote(): React.JSX.Element | null {
   const notes = useAnnouncementsStore((s) => s.items);
   const memberName = useMemberName();
   const [index, setIndex] = useState(0);
+  // 0 → 1 while the top note is tossed aside and the next one rises into place.
   const toss = useRef(new Animated.Value(0)).current;
-  const settle = useRef(new Animated.Value(1)).current;
   const busy = useRef(false);
 
   const count = notes.length;
@@ -74,22 +77,25 @@ export function PinnedNote(): React.JSX.Element | null {
       return;
     }
     busy.current = true;
+    // One continuous move: the top note is flicked away while the next note,
+    // already underneath with its own text, lifts into the top spot. At the end
+    // the next note sits exactly where the top one was, so swapping them is
+    // invisible — nothing pops in.
     Animated.timing(toss, {
       toValue: 1,
       duration: TOSS_MS,
-      easing: Easing.in(Easing.quad),
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(() => {
       advance();
       toss.setValue(0);
-      settle.setValue(0.96);
-      Animated.spring(settle, { toValue: 1, friction: 6, useNativeDriver: true }).start();
       busy.current = false;
     });
-  }, [count, reduceMotion, toss, settle]);
+  }, [count, reduceMotion, toss]);
 
   const current = notes[Math.min(index, count - 1)];
   if (!current) return null;
+  const next = count > 1 ? notes[(index + 1) % count] : undefined;
 
   const several = count > 1;
   const author = memberName(current.author).split(' ')[0];
@@ -97,26 +103,77 @@ export function PinnedNote(): React.JSX.Element | null {
   const ago = timeAgo(current.createdAt, t, language);
   const position = t('dashboard.note_position', { n: index + 1, count });
   const dir = rtl ? -1 : 1;
+  // Which note we're on, as a row of dots; the rising note shows its own.
+  const dots = (active: number): React.JSX.Element => (
+    <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
+      {notes.map((n, i) => (
+        <View
+          key={n.id}
+          style={[
+            styles.dot,
+            { backgroundColor: c.noteInk },
+            i === active ? styles.dotOn : styles.dotOff,
+          ]}
+        />
+      ))}
+    </View>
+  );
 
   return (
     <View style={[styles.wrap, several && styles.wrapPile]}>
-      {several &&
-        PILE.slice(0, Math.min(count - 1, PILE.length))
-          .reverse()
-          .map((layer) => (
-            <View
-              key={layer.rotate}
-              style={[
-                styles.layer,
+      {/* A third note peeks from the bottom of the pile and slides up a layer. */}
+      {count > 2 && (
+        <Animated.View
+          style={[
+            styles.layer,
+            {
+              backgroundColor: c.note,
+              transform: [
                 {
-                  backgroundColor: c.note,
-                  transform: [{ translateY: layer.translateY }, { rotate: layer.rotate }],
+                  translateY: toss.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [PILE[1].translateY, PILE[0].translateY],
+                  }),
                 },
-              ]}
-            >
-              <View style={styles.layerShade} />
+                {
+                  rotate: toss.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [PILE[1].rotate, PILE[0].rotate],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.layerShade} />
+        </Animated.View>
+      )}
+      {/* The next note, with its real text, waiting underneath; it rises to the top. */}
+      {next && (
+        <NextNote
+          note={next}
+          toss={toss}
+          restY={PILE[0].translateY}
+          restRotate={parseFloat(PILE[0].rotate) - TOP_TILT}
+          noteStyle={styles.note}
+          tapeStyle={styles.tape}
+          bodyStyle={styles.noteTap}
+          byStyle={styles.by}
+          textStyle={styles.text}
+          shadeStyle={styles.layerShade}
+          footer={
+            <View style={styles.footer}>
+              {dots((index + 1) % count)}
+              <View style={styles.seeAll}>
+                <Text style={[styles.seeAllText, { color: c.noteInk }]}>
+                  {t('dashboard.see_all')}
+                </Text>
+              </View>
             </View>
-          ))}
+          }
+          byLine={`${t('dashboard.pinned_by', { name: memberName(next.author).split(' ')[0] })} · ${timeAgo(next.createdAt, t, language)}`}
+        />
+      )}
       <Animated.View
         style={{
           transform: [
@@ -124,12 +181,14 @@ export function PinnedNote(): React.JSX.Element | null {
               translateX: toss.interpolate({ inputRange: [0, 1], outputRange: [0, dir * TOSS_X] }),
             },
             {
+              translateY: toss.interpolate({ inputRange: [0, 1], outputRange: [0, -ms(18)] }),
+            },
+            {
               rotate: toss.interpolate({
                 inputRange: [0, 1],
-                outputRange: ['0deg', `${dir * 14}deg`],
+                outputRange: ['0deg', `${dir * 16}deg`],
               }),
             },
-            { scale: settle },
           ],
         }}
       >
@@ -153,18 +212,7 @@ export function PinnedNote(): React.JSX.Element | null {
           </Pressable>
           {several && (
             <View style={styles.footer}>
-              <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no">
-                {notes.map((n, i) => (
-                  <View
-                    key={n.id}
-                    style={[
-                      styles.dot,
-                      { backgroundColor: c.noteInk },
-                      i === index ? styles.dotOn : styles.dotOff,
-                    ]}
-                  />
-                ))}
-              </View>
+              {dots(index)}
               <Pressable
                 onPress={OPEN_NOTES}
                 hitSlop={ms(12)}
